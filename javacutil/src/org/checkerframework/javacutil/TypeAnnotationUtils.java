@@ -1,5 +1,17 @@
 package org.checkerframework.javacutil;
 
+import com.sun.tools.javac.code.Attribute;
+import com.sun.tools.javac.code.Attribute.TypeCompound;
+import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.code.TargetType;
+import com.sun.tools.javac.code.Type;
+import com.sun.tools.javac.code.TypeAnnotationPosition;
+import com.sun.tools.javac.processing.JavacProcessingEnvironment;
+import com.sun.tools.javac.tree.JCTree.JCLambda;
+import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.List;
+import com.sun.tools.javac.util.Name;
+import com.sun.tools.javac.util.Pair;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -92,7 +104,7 @@ public class TypeAnnotationUtils {
         if (eiequal
                 && p1.isValidOffset == p2.isValidOffset
                 && p1.bound_index == p2.bound_index
-                && p1.exception_index == p2.exception_index
+                //&& p1.exception_index == p2.exception_index
                 && p1.location.equals(p2.location)
                 && Arrays.equals(p1.lvarIndex, p2.lvarIndex)
                 && Arrays.equals(p1.lvarLength, p2.lvarLength)

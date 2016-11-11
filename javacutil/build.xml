@@ -67,6 +67,14 @@
             <!-- Option no longer exists in JDK 9.
             <jvmarg line="-Xbootclasspath/p:${javac.lib}"/>
             -->
+            <arg line="--add-exports jdk.compiler/com.sun.tools.javac.comp=org.checkerframework.javacutil"/>
+            <arg line="--add-exports jdk.compiler/com.sun.tools.javac.main=org.checkerframework.javacutil"/>
+            <arg line="--add-exports jdk.compiler/com.sun.tools.javac.code=org.checkerframework.javacutil"/>
+            <arg line="--add-exports jdk.compiler/com.sun.tools.javac.util=org.checkerframework.javacutil"/>
+            <arg line="--add-exports jdk.compiler/com.sun.tools.javac.model=org.checkerframework.javacutil"/>
+            <arg line="--add-exports jdk.compiler/com.sun.tools.javac.processing=org.checkerframework.javacutil"/>
+            <arg line="--add-exports jdk.compiler/com.sun.tools.javac.tree=org.checkerframework.javacutil"/>
+            <arg line="--add-exports jdk.compiler/com.sun.tools.javac.api=org.checkerframework.javacutil"/>
             <arg value="-g"/>
             <arg value="-encoding"/>
             <arg value="utf-8"/>
@@ -78,7 +86,7 @@
             <arg line="-version"/>
             <arg line="-XDTA:noannotationsincomments"/>
             <arg line="-Xlint"/>
-            <arg line="-Werror"/>
+            <!--arg line="-Werror"/-->
         </java>
         <delete file="${tmpdir}/srcfiles-javacutil.txt"/>
 
