@@ -99,6 +99,13 @@
             <!-- Option no longer exists in JDK 9.
             <jvmarg line="-Xbootclasspath/p:${javac.lib}"/>
             -->
+            <arg line="--module-path ${basedir}/../javacutil/build/"/>
+            <arg line="--add-exports jdk.compiler/com.sun.tools.javac.code=org.checkerframework.dataflow"/>
+            <arg line="--add-exports jdk.compiler/com.sun.tools.javac.util=org.checkerframework.dataflow"/>
+            <arg line="--add-exports jdk.compiler/com.sun.tools.javac.file=org.checkerframework.dataflow"/>
+            <arg line="--add-exports jdk.compiler/com.sun.tools.javac.main=org.checkerframework.dataflow"/>
+            <arg line="--add-exports jdk.compiler/com.sun.tools.javac.processing=org.checkerframework.dataflow"/>
+            <arg line="--add-exports jdk.compiler/com.sun.tools.javac.tree=org.checkerframework.dataflow"/>
             <arg value="-g"/>
             <arg value="-encoding"/>
             <arg value="utf-8"/>

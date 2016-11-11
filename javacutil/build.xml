@@ -58,7 +58,6 @@
                 </fileset>
             </path>
         </pathconvert>
-
         <echo message="${src.files.spaceseparated_jc}" file="${tmpdir}/srcfiles-javacutil.txt"/>
         <java fork="true"
               failonerror="true"
