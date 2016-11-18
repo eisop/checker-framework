@@ -497,7 +497,7 @@ public class PluginUtil {
         final Matcher oldVersionMatcher = oldVersionPattern.matcher(jreVersionStr);
         // For Early Access version of the JDK
         final Pattern eaVersionPattern = Pattern.compile("^(\\d+)-ea$");
-        final Matcher eaVersionMatcher = eaVersionPattern.matcher(jreVersionStr)
+        final Matcher eaVersionMatcher = eaVersionPattern.matcher(jreVersionStr);
 
         final int version;
         if (oldVersionMatcher.matches()) {
