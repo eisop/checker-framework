@@ -4,6 +4,7 @@ import com.sun.source.util.TreePath;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.api.JavacScope;
 import com.sun.tools.javac.code.Kinds;
+import com.sun.tools.javac.code.Kinds.Kind;
 import com.sun.tools.javac.code.Kinds.KindSelector;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
@@ -144,7 +145,7 @@ public class Resolver {
             JavacScope scope = (JavacScope) trees.getScope(path);
             Env<AttrContext> env = scope.getEnv();
             Element res =
-                    wrapInvocationOnResolveInstance(FIND_IDENT, env, names.fromString(name), PCK);
+                    wrapInvocationOnResolveInstance(FIND_IDENT, env, names.fromString(name), Kind.PCK);
             // findIdent will return a PackageSymbol even for a symbol that is not a package,
             // such as a.b.c.MyClass.myStaticField. "exists()" must be called on it to ensure
             // that it exists.
@@ -273,7 +274,7 @@ public class Resolver {
             Env<AttrContext> env = scope.getEnv();
             Element res =
                     wrapInvocationOnResolveInstance(
-                            FIND_IDENT_IN_PACKAGE, env, pck, names.fromString(name), TYP);
+                            FIND_IDENT_IN_PACKAGE, env, pck, names.fromString(name), Kind.TYP);
             if (res.getKind() == ElementKind.CLASS) {
                 return (ClassSymbol) res;
             } else {
@@ -319,6 +320,7 @@ public class Resolver {
             List<Type> typeargtypes = List.nil();
             boolean allowBoxing = true;
             boolean useVarargs = false;
+            boolean operator = true;
 
             try {
                 // For some reason we have to set our own method context, which is rather ugly.

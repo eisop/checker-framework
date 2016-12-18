@@ -474,9 +474,9 @@ public class FlowExpressions {
             // calls to getType().toString() in FlowExpressions.
             return vsother.name.contentEquals(vs.name)
                     && vsother.type
-                            .unannotatedType()
+                            .stripMetadataIfNeeded()
                             .toString()
-                            .equals(vs.type.unannotatedType().toString())
+                            .equals(vs.type.stripMetadataIfNeeded().toString())
                     && vsother.owner.toString().equals(vs.owner.toString());
         }
 
@@ -488,7 +488,7 @@ public class FlowExpressions {
         public int hashCode() {
             VarSymbol vs = (VarSymbol) element;
             return HashCodeUtils.hash(
-                    vs.name.toString(), vs.type.unannotatedType().toString(), vs.owner.toString());
+                    vs.name.toString(), vs.type.stripMetadataIfNeeded().toString(), vs.owner.toString());
         }
 
         @Override
