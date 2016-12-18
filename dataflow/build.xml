@@ -99,7 +99,7 @@
             <!-- Option no longer exists in JDK 9.
             <jvmarg line="-Xbootclasspath/p:${javac.lib}"/>
             -->
-            <arg line="--module-path ${basedir}/../javacutil/build/"/>
+            <arg line="--module-path ${module-path}"/>
             <arg line="--add-exports jdk.compiler/com.sun.tools.javac.code=org.checkerframework.dataflow"/>
             <arg line="--add-exports jdk.compiler/com.sun.tools.javac.util=org.checkerframework.dataflow"/>
             <arg line="--add-exports jdk.compiler/com.sun.tools.javac.file=org.checkerframework.dataflow"/>
@@ -117,7 +117,7 @@
             <arg line="-version"/>
             <arg line="-XDTA:noannotationsincomments"/>
             <arg line="-Xlint"/>
-            <arg line="-Werror"/>
+            <!--arg line="-Werror"/-->
         </java>
         <delete file="${tmpdir}/srcfiles-dataflow.txt"/>
 
