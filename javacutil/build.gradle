@@ -21,7 +21,7 @@ sourceSets {
 }
 
 dependencies {
-    compile files(configurations.jsr308Javac.asPath)
+    compile configurations.jsr308Javac
     compileOnly project(':checker-qual')
 
     tagletCompile files("${toolsJar}")
