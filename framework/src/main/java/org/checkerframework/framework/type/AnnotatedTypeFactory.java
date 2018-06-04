@@ -270,6 +270,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     private final @Nullable WholeProgramInference wholeProgramInference;
     */
 
+    /** Viewpoint adapter used to perform viewpoint adaptation */
+    protected ViewpointAdapter viewpointAdapter;
+
     /**
      * This formatter is used for converting AnnotatedTypeMirrors to Strings. This formatter will be
      * used by all AnnotatedTypeMirrors created by this factory in their toString methods.
@@ -755,6 +758,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.typeHierarchy = createTypeHierarchy();
         this.typeVarSubstitutor = createTypeVariableSubstitutor();
         this.typeArgumentInference = createTypeArgumentInference();
+        this.viewpointAdapter = createViewpointAdapter();
         this.qualifierUpperBounds = createQualifierUpperBounds();
 
         // TODO: is this the best location for declaring this alias?
@@ -1035,6 +1039,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     public final TypeHierarchy getTypeHierarchy() {
         return typeHierarchy;
+    }
+
+    /**
+     * Factory method to create a ViewpointAdaptor. Subclasses should implement and instantiate a
+     * ViewpointAdapter subclass here if viewpoint adaptation is needed for analysis.
+     */
+    protected ViewpointAdapter createViewpointAdapter() {
+        return null;
     }
 
     /**
@@ -1800,6 +1812,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             addAnnotationFromFieldInvariant(type, owner, (VariableElement) element);
         }
         addComputedTypeAnnotations(element, type);
+
+        if (viewpointAdapter != null) {
+            viewpointAdapter.viewpointAdaptMember(owner, element, type);
+        }
     }
 
     /**
@@ -1993,6 +2009,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             AnnotatedTypeMirror lower =
                     typeVarSubstitutor.substitute(typeParamToTypeArg, atv.getLowerBound());
             res.add(new AnnotatedTypeParameterBounds(upper, lower));
+        }
+
+        if (viewpointAdapter != null) {
+            viewpointAdapter.viewpointAdaptTypeParameterBounds(type, res);
         }
         return res;
     }
@@ -2326,6 +2346,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 AnnotatedTypes.asMemberOf(
                         types, this, receiverType, methodElt, memberTypeWithOverrides);
         List<AnnotatedTypeMirror> typeargs = new ArrayList<>(methodType.getTypeVariables().size());
+        if (viewpointAdapter != null) {
+            viewpointAdapter.viewpointAdaptMethod(receiverType, methodElt, methodType);
+        }
 
         Map<TypeVariable, AnnotatedTypeMirror> typeParamToTypeArg =
                 AnnotatedTypes.findTypeArguments(processingEnv, this, tree, methodElt, methodType);
@@ -2658,6 +2681,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         Set<AnnotationMirror> explicitAnnos = getExplicitNewClassAnnos(tree);
         type.addAnnotations(explicitAnnos);
+
+        if (viewpointAdapter != null) {
+            viewpointAdapter.viewpointAdaptConstructor(type, ctor, con);
+        }
 
         // Get the enclosing type of the constructor, if one exists.
         // this.new InnerClass()
