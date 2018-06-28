@@ -57,7 +57,7 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
             // with the correct bounds set by javac, but the underlying type of the node
             // does not have a correct bound. Here we recreate the ATM to wrap the attached
             // WildcardType.
-            type = AnnotatedTypeMirror.createType(TreeUtils.typeOf(node), f, false);
+            type = AnnotatedTypeMirror.createType(TreeUtils.typeOf(node), f, TreeUtils.isTypeDeclaration(node));
 
             final ExpressionTree underlyingTree = node.getUnderlyingType();
 
