@@ -15,6 +15,7 @@ import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.UnionTypeTree;
 import com.sun.source.tree.WildcardTree;
+import com.sun.tools.javac.code.Type.WildcardType;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -53,6 +54,15 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
         List<? extends AnnotationMirror> annos = TreeUtils.annotationsFromTree(node);
 
         if (type.getKind() == TypeKind.WILDCARD) {
+            // In java 9, the type attached to the AnnotatedTypeTree node is a WildcardType
+            // with the correct bounds set by javac, but the underlying type of the node
+            // does not have a correct bound. Here we update the bound of the underlying
+            // WildcardType.
+
+            WildcardType wildcardAttachedToNode = (WildcardType) TreeUtils.typeOf(node);
+            WildcardType underlyingWildcard = (WildcardType) type.getUnderlyingType();
+            underlyingWildcard.withTypeVar(wildcardAttachedToNode.bound);
+
             final ExpressionTree underlyingTree = node.getUnderlyingType();
 
             if (underlyingTree.getKind() == Kind.UNBOUNDED_WILDCARD) {
