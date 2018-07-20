@@ -1,9 +1,18 @@
 package org.checkerframework.common.basetype;
 
+import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
+import com.sun.source.tree.ParameterizedTypeTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.WildcardTree;
 import com.sun.source.util.TreePath;
+import com.sun.source.util.TreeScanner;
+import com.sun.tools.javac.code.Symbol.ClassSymbol;
+import com.sun.tools.javac.code.Symbol.TypeVariableSymbol;
+import com.sun.tools.javac.code.Type.TypeVar;
+import com.sun.tools.javac.code.Type.WildcardType;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
+import com.sun.tools.javac.tree.JCTree.JCWildcard;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Log;
 import java.lang.reflect.Constructor;
@@ -15,6 +24,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -37,6 +47,7 @@ import org.checkerframework.javacutil.AbstractTypeProcessor;
 import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.ErrorReporter;
 import org.checkerframework.javacutil.InternalUtils;
+import org.checkerframework.javacutil.TreeUtils;
 
 /**
  * An abstract {@link SourceChecker} that provides a simple {@link
@@ -467,6 +478,9 @@ public abstract class BaseTypeChecker extends SourceChecker implements BaseTypeC
     // AbstractTypeProcessor delegation
     @Override
     public void typeProcess(TypeElement element, TreePath tree) {
+        ASTRepairer repairer = new ASTRepairer();
+        repairer.visitClass((ClassTree) tree.getLeaf(), null);
+
         if (getSubcheckers().size() > 0) {
             messageStore = new TreeSet<>(checkerMessageComparator);
         }
@@ -503,6 +517,79 @@ public abstract class BaseTypeChecker extends SourceChecker implements BaseTypeC
             printCollectedMessages(tree.getCompilationUnit());
             // Update errsOnLastExit to reflect the errors issued.
             this.errsOnLastExit = log.nerrors;
+        }
+    }
+
+    /** Repairs the AST given by javac 9 */
+    private class ASTRepairer extends TreeScanner<Void, Void> {
+
+        /**
+         * A bug in javac 9 sometimes sets the WildcardType.bound field of a wildcard to the
+         * transitive supertype's type parameter instead of the type parameter for which the
+         * wildcard directly instantiates. We fix the bound here by setting it to the corresponding
+         * type parameter from the base type.
+         *
+         * <p>See Ternary.java test case.
+         */
+        @Override
+        public Void visitParameterizedType(ParameterizedTypeTree node, Void p) {
+            ClassSymbol baseType = (ClassSymbol) TreeUtils.elementFromTree(node.getType());
+            updateWildcardBounds(node.getTypeArguments(), baseType.getTypeParameters());
+
+            return super.visitParameterizedType(node, p);
+        }
+
+        /**
+         * Sets each the wildcard type argument's bound from typeArgs to the corresponding type
+         * parameter from typeParams.
+         *
+         * <p>This method is called with two possible scenarios:
+         *
+         * <p>1) typeArgs.size() == typeParams.size(), which are parameterized types with type
+         * arguments given.
+         *
+         * <p>2) typeArgs.size() == 0, which are parameterized types with type arguments to be
+         * inferred. (eg "ArrayList<>" in "new ArrayList<>()");
+         */
+        private void updateWildcardBounds(
+                List<? extends Tree> typeArgs, List<TypeVariableSymbol> typeParams) {
+            assert typeArgs.size() == 0 || typeArgs.size() == typeParams.size();
+
+            Iterator<? extends Tree> typeArgsItr = typeArgs.iterator();
+            Iterator<TypeVariableSymbol> typeParamsItr = typeParams.iterator();
+
+            while (typeArgsItr.hasNext()) {
+                Tree typeArg = typeArgsItr.next();
+                TypeVariableSymbol typeParam = typeParamsItr.next();
+
+                if (typeArg instanceof WildcardTree) {
+                    updateWildcardBound((WildcardTree) typeArg, (TypeVar) typeParam.asType());
+                }
+            }
+        }
+
+        /**
+         * Sets the WildcardType.bound field of the given wildcardTypeArg to the given typeParam, if
+         * and only if the owner of the existing bound and the typeParam are different.
+         *
+         * <p>This is used to work around a bug in javac 9 where sometimes the bound field is set to
+         * the transitive supertype's type parameter instead of the type parameter for which the
+         * wildcard directly instantiates.
+         *
+         * <p>In scenarios where the bound's owner is the same, we don't want to replace a
+         * capture-converted bound in the wildcard type with a non-capture-converted bound given by
+         * the type parameter declaration.
+         *
+         * @param wildcardTypeArg
+         * @param typeParam
+         */
+        private void updateWildcardBound(WildcardTree wildcardTypeArg, TypeVar typeParam) {
+            JCWildcard wildcard = (JCWildcard) wildcardTypeArg;
+            WildcardType wcType = (WildcardType) wildcard.type;
+
+            if (wcType.bound.tsym.owner != typeParam.tsym.owner) {
+                wcType.withTypeVar(typeParam);
+            }
         }
     }
 
