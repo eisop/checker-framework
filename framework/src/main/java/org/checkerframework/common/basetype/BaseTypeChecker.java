@@ -570,7 +570,7 @@ public abstract class BaseTypeChecker extends SourceChecker implements BaseTypeC
 
         /**
          * Sets the WildcardType.bound field of the given wildcardTypeArg to the given typeParam, if
-         * and only if the owner of the existing bound and the typeParam are different.
+         * and only if the owners of the existing bound and the typeParam are different.
          *
          * <p>This is used to work around a bug in javac 9 where sometimes the bound field is set to
          * the transitive supertype's type parameter instead of the type parameter for which the
