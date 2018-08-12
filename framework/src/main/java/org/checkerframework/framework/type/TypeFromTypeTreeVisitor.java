@@ -54,6 +54,14 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
         List<? extends AnnotationMirror> annos = TreeUtils.annotationsFromTree(node);
 
         if (type.getKind() == TypeKind.WILDCARD) {
+            // In java 9, the type attached to the AnnotatedTypeTree node is a WildcardType
+            // with the correct bounds set by javac, but the underlying type of the node
+            // does not have a correct bound. Here we recreate the ATM to wrap the attached
+            // WildcardType.
+            type =
+                    AnnotatedTypeMirror.createType(
+                            TreeUtils.typeOf(node), f, TreeUtils.isTypeDeclaration(node));
+
             final ExpressionTree underlyingTree = node.getUnderlyingType();
 
             if (underlyingTree.getKind() == Kind.UNBOUNDED_WILDCARD) {
