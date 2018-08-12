@@ -36,6 +36,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcard
 import org.checkerframework.framework.type.visitor.AnnotatedTypeVisitor;
 import org.checkerframework.javacutil.ErrorReporter;
 import org.checkerframework.javacutil.PluginUtil;
+import org.checkerframework.javacutil.TypeAnnotationUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
 /**
@@ -92,11 +93,16 @@ public class BoundsInitializer {
             typeArgs.add(typeArg);
 
             // Add mapping from type parameter to the annotated type argument.
-            typeArgMap.put((TypeVariable) typeElement.getTypeParameters().get(i).asType(), typeArg);
+            typeArgMap.put(
+                    (TypeVariable)
+                            (TypeAnnotationUtils.unannotatedType(
+                                    typeElement.getTypeParameters().get(i).asType())),
+                    typeArg);
 
             if (javaTypeArg.getKind() == TypeKind.TYPEVAR) {
                 // Add mapping from Java type argument to the annotated type argument.
-                typeArgMap.put((TypeVariable) javaTypeArg, typeArg);
+                typeArgMap.put(
+                        (TypeVariable) (TypeAnnotationUtils.unannotatedType(javaTypeArg)), typeArg);
             }
         }
 
@@ -454,8 +460,10 @@ public class BoundsInitializer {
                     }
                     break;
                 case TYPEVAR:
-                    if (typevars.containsKey(type.getUnderlyingType())) {
-                        return typevars.get(type.getUnderlyingType());
+                    if (typevars.containsKey(
+                            TypeAnnotationUtils.unannotatedType(type.getUnderlyingType()))) {
+                        return typevars.get(
+                                TypeAnnotationUtils.unannotatedType(type.getUnderlyingType()));
                     }
                     break;
                 default:
