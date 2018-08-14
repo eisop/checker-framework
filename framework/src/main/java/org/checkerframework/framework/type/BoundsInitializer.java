@@ -93,16 +93,19 @@ public class BoundsInitializer {
             typeArgs.add(typeArg);
 
             // Add mapping from type parameter to the annotated type argument.
-            typeArgMap.put(
+            // In Java 9, the symbol now contains the type annotation that is present in the source
+            // code. However, `typevars` map isn't prepared for this. So we take un-annotated type
+            // variables as the key for this map.
+            TypeVariable key =
                     (TypeVariable)
-                            (TypeAnnotationUtils.unannotatedType(
-                                    typeElement.getTypeParameters().get(i).asType())),
-                    typeArg);
+                            TypeAnnotationUtils.unannotatedType(
+                                    typeElement.getTypeParameters().get(i).asType());
+            typeArgMap.put(key, typeArg);
 
             if (javaTypeArg.getKind() == TypeKind.TYPEVAR) {
                 // Add mapping from Java type argument to the annotated type argument.
-                typeArgMap.put(
-                        (TypeVariable) (TypeAnnotationUtils.unannotatedType(javaTypeArg)), typeArg);
+                key = (TypeVariable) TypeAnnotationUtils.unannotatedType(javaTypeArg);
+                typeArgMap.put(key, typeArg);
             }
         }
 
@@ -460,10 +463,11 @@ public class BoundsInitializer {
                     }
                     break;
                 case TYPEVAR:
-                    if (typevars.containsKey(
-                            TypeAnnotationUtils.unannotatedType(type.getUnderlyingType()))) {
-                        return typevars.get(
-                                TypeAnnotationUtils.unannotatedType(type.getUnderlyingType()));
+                    TypeVariable key =
+                            (TypeVariable)
+                                    TypeAnnotationUtils.unannotatedType(type.getUnderlyingType());
+                    if (typevars.containsKey(key)) {
+                        return typevars.get(key);
                     }
                     break;
                 default:
