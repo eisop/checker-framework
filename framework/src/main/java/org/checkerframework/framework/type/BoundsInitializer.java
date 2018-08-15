@@ -93,8 +93,8 @@ public class BoundsInitializer {
             typeArgs.add(typeArg);
 
             // Add mapping from type parameter to the annotated type argument.
-            // In Java 9, the symbol now contains the type annotation that is present in the source
-            // code. However, `typevars` map isn't prepared for this. So we take un-annotated type
+            // The symbol now contains the type annotation that is present in the source
+            // code. However, `typeArgMap` isn't prepared for this. So we take un-annotated type
             // variables as the key for this map.
             TypeVariable key =
                     (TypeVariable)
