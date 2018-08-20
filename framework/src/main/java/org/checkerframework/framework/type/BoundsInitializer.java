@@ -69,7 +69,8 @@ public class BoundsInitializer {
                 (TypeElement) declaredType.atypeFactory.types.asElement(actualType);
         final List<AnnotatedTypeMirror> typeArgs = new ArrayList<>();
 
-        // Create AnnotatedTypeMirror for each type argument and store them in the typeArgsMap.
+        // Create AnnotatedTypeMirror for each type argument and store them in the typeArgsMap.Take
+        // un-annotated type variables as the key for this map.
         Map<TypeVariable, AnnotatedTypeMirror> typeArgMap = new HashMap<>();
         for (int i = 0; i < typeElement.getTypeParameters().size(); i++) {
             TypeMirror javaTypeArg;
@@ -93,9 +94,6 @@ public class BoundsInitializer {
             typeArgs.add(typeArg);
 
             // Add mapping from type parameter to the annotated type argument.
-            // The symbol now contains the type annotation that is present in the source
-            // code. However, `typeArgMap` isn't prepared for this. So we take un-annotated type
-            // variables as the key for this map.
             TypeVariable key =
                     (TypeVariable)
                             TypeAnnotationUtils.unannotatedType(
