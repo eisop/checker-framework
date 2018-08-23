@@ -170,7 +170,8 @@ public class TypeVarUseApplier {
 
     private boolean isBaseComponent(
             final AnnotatedArrayType arrayType, final Attribute.TypeCompound anno) {
-        return ElementAnnotationUtil.getTypeAtLocation(arrayType, anno, anno.getPosition().location)
+        return ElementAnnotationUtil.getTypeAtLocation(
+                        arrayType, anno.getPosition().location, anno, false)
                 .getClass()
                 .equals(AnnotatedTypeVariable.class);
     }
