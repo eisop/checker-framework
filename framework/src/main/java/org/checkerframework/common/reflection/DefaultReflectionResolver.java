@@ -55,7 +55,7 @@ import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
 
 /**
- * Default implementation of {@link ReflectionResolver}, which resolves calls to:
+ * Default implementation of {@link ReflectionResolver}. It resolves calls to:
  *
  * <ul>
  *   <li>{@link Method#invoke(Object, Object...)}
@@ -125,7 +125,7 @@ public class DefaultReflectionResolver implements ReflectionResolver {
         List<MethodInvocationTree> possibleMethods = resolveReflectiveMethod(tree, factory);
 
         // Reflective method could not be resolved
-        if (possibleMethods.size() == 0) {
+        if (possibleMethods.isEmpty()) {
             return origResult;
         }
 
@@ -257,7 +257,7 @@ public class DefaultReflectionResolver implements ReflectionResolver {
         List<JCNewClass> possibleConstructors = resolveReflectiveConstructor(tree, factory);
 
         // Reflective constructor could not be resolved
-        if (possibleConstructors.size() == 0) {
+        if (possibleConstructors.isEmpty()) {
             return origResult;
         }
 
@@ -509,7 +509,7 @@ public class DefaultReflectionResolver implements ReflectionResolver {
                         }
                     }
                 }
-                if (result.size() != 0) {
+                if (!result.isEmpty()) {
                     break;
                 }
                 Type t = classSym.getSuperclass();
@@ -518,7 +518,7 @@ public class DefaultReflectionResolver implements ReflectionResolver {
                 }
                 classSym = (ClassSymbol) t.tsym;
             }
-            if (result.size() == 0) {
+            if (result.isEmpty()) {
                 debugReflection("Unable to resolve method: " + className + "@" + methodName);
             }
         } catch (SecurityException
@@ -564,7 +564,7 @@ public class DefaultReflectionResolver implements ReflectionResolver {
                     }
                 }
             }
-            if (result.size() == 0) {
+            if (result.isEmpty()) {
                 debugReflection("Unable to resolve constructor!");
             }
         } catch (SecurityException
@@ -589,7 +589,7 @@ public class DefaultReflectionResolver implements ReflectionResolver {
             Set<? extends AnnotationMirror> set1,
             Set<? extends AnnotationMirror> set2,
             AnnotatedTypeFactory factory) {
-        if (set1 == null || set1.size() == 0) {
+        if (set1 == null || set1.isEmpty()) {
             return set2;
         } else {
             return factory.getQualifierHierarchy().leastUpperBounds(set1, set2);
@@ -606,7 +606,7 @@ public class DefaultReflectionResolver implements ReflectionResolver {
             Set<? extends AnnotationMirror> set1,
             Set<? extends AnnotationMirror> set2,
             AnnotatedTypeFactory factory) {
-        if (set1 == null || set1.size() == 0) {
+        if (set1 == null || set1.isEmpty()) {
             return set2;
         } else {
             return factory.getQualifierHierarchy().greatestLowerBounds(set1, set2);
@@ -615,7 +615,7 @@ public class DefaultReflectionResolver implements ReflectionResolver {
 
     /**
      * Reports debug information about the reflection resolution iff the corresponding debug flag is
-     * set
+     * set.
      *
      * @param msg the debug message
      */
