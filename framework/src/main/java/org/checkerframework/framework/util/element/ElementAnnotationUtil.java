@@ -456,10 +456,9 @@ public class ElementAnnotationUtil {
 
         int numOfEnclosingTypes = outerToInner.size() - 1;
 
-        // If the AnnotatedDeclaredType was a component of an array type, then
-        // apply anno to all inner types of the given declared type if the
-        // declared type has enclosing classes
-        if (isComponentTypeOfArray && location.size() == 0 && numOfEnclosingTypes > 0) {
+        // If the AnnotatedDeclaredType is a component of an array type, then apply anno to all
+        // inner types of the given declared type if the declared type has enclosing classes
+        if (isComponentTypeOfArray && location.isEmpty() && numOfEnclosingTypes > 0) {
             ArrayDeque<AnnotatedDeclaredType> innerTypes = new ArrayDeque<>(outerToInner);
             innerTypes.removeFirst();
 
