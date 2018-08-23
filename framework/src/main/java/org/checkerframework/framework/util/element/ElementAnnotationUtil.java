@@ -288,49 +288,8 @@ public class ElementAnnotationUtil {
             final AnnotatedTypeMirror type, final Collection<TypeCompound> annos) {
         final Map<AnnotatedWildcardType, WildcardBoundAnnos> wildcardToAnnos =
                 new IdentityHashMap<>();
-
-        //        if (!annos.isEmpty()) {
-        //            System.err.println("=====");
-        //            System.err.println("type: " + type + " kind: " + type.getKind());
-        //
-        //            if(type instanceof AnnotatedArrayType) {
-        //                AnnotatedArrayType att = (AnnotatedArrayType) type;
-        //                System.err.println("component atm: " + att.getComponentType());
-        //            }
-
-        //
-        //
-        //            TypeMirror underlying = type.getUnderlyingType();
-        //            System.err.println(underlying + " " + underlying.getKind() + " " +
-        // underlying.getClass());
-        //
-        //            ArrayType at = (ArrayType) underlying;
-        //            Type componentType = at.getComponentType();
-        //            System.err.println(componentType + " " + componentType.getClass());
-        //            System.err.println(componentType);
-        //
-        //            if( componentType instanceof ClassType) {
-        //                ClassType ctClass = (ClassType) componentType;
-        //
-        //                System.err.println(ctClass.getEnclosingType());
-        //            }
-
-        //            Thread.dumpStack();
-        //        }
-
         for (final TypeCompound anno : annos) {
-            //            System.err.println("== beginning descent ===: " + anno);
-            //            System.err.println("Anno: " + anno + " loc: " + anno.position.location);
-
-            // mark whether we began getTypeAtLocation recursive descent from an array position
-            if (anno.position.location.iterator().next().tag == TypePathEntryKind.ARRAY) {
-                isInnerOfArray = true;
-            }
-
             AnnotatedTypeMirror target = getTypeAtLocation(type, anno.position.location);
-
-            isInnerOfArray = false;
-
             if (target.getKind() == TypeKind.WILDCARD) {
                 addWildcardToBoundMap((AnnotatedWildcardType) target, anno, wildcardToAnnos);
             } else {
@@ -342,9 +301,6 @@ public class ElementAnnotationUtil {
             wildcardAnnos.apply();
         }
     }
-
-    // mark whether we began getTypeAtLocation recursive descent from an array position
-    static boolean isInnerOfArray = false;
 
     /**
      * Creates an entry in wildcardToAnnos for wildcard if one does not already exists. Adds anno to
@@ -418,9 +374,6 @@ public class ElementAnnotationUtil {
     static AnnotatedTypeMirror getTypeAtLocation(
             AnnotatedTypeMirror type, List<TypeAnnotationPosition.TypePathEntry> location) {
 
-        //        System.err.println("   getTypeAtLocation =====  " + type + " kind: " +
-        // type.getKind() + " loc: " + location);
-
         if (location.isEmpty() && type.getKind() != TypeKind.DECLARED) {
             // An annotation with an empty type path on a declared type applies to the outermost
             // enclosing type. This logic is handled together with non-empty type paths in
@@ -474,28 +427,12 @@ public class ElementAnnotationUtil {
     private static AnnotatedTypeMirror getLocationTypeADT(
             AnnotatedDeclaredType type, List<TypeAnnotationPosition.TypePathEntry> location) {
 
-        List<TypeAnnotationPosition.TypePathEntry> locationsCopy = new ArrayList<>(location);
-
         // List order by outer most type to inner most type.
         ArrayDeque<AnnotatedDeclaredType> outerToInner = new ArrayDeque<>();
         AnnotatedDeclaredType enclosing = type;
         while (enclosing != null) {
             outerToInner.addFirst(enclosing);
             enclosing = enclosing.getEnclosingType();
-
-            // In javac 9, we have the peculiar case that in the byte code we no
-            // longer get "INNER_TYPE" for annotations applied to Y[] where Y is
-            // an inner class
-            if (isInnerOfArray && enclosing != null) {
-                locationsCopy.add(TypePathEntry.INNER_TYPE);
-            }
-
-            //            System.err.println("== type: " + type + " enclosing: " + enclosing + "
-            // loc: " + locationsCopy);
-        }
-
-        if (isInnerOfArray) {
-            location = locationsCopy;
         }
 
         // Create a linked list of the location, so removing the first element is easier.
