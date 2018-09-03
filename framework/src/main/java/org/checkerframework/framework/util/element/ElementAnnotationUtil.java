@@ -396,8 +396,7 @@ public class ElementAnnotationUtil {
                 return getLocationTypeADT(
                         (AnnotatedDeclaredType) type, location, anno, isComponentTypeOfArray);
             case WILDCARD:
-                return getLocationTypeAWT(
-                        (AnnotatedWildcardType) type, location, anno, isComponentTypeOfArray);
+                return getLocationTypeAWT((AnnotatedWildcardType) type, location);
             case TYPEVAR:
                 if (TypesUtils.isCaptured((TypeVariable) type.getUnderlyingType())) {
                     // Work-around for Issue 1696: ignore captured wildcards.
@@ -410,11 +409,9 @@ public class ElementAnnotationUtil {
             case ARRAY:
                 return getLocationTypeAAT((AnnotatedArrayType) type, location, anno);
             case UNION:
-                return getLocationTypeAUT(
-                        (AnnotatedUnionType) type, location, anno, isComponentTypeOfArray);
+                return getLocationTypeAUT((AnnotatedUnionType) type, location);
             case INTERSECTION:
-                return getLocationTypeAIT(
-                        (AnnotatedIntersectionType) type, location, anno, isComponentTypeOfArray);
+                return getLocationTypeAIT((AnnotatedIntersectionType) type, location);
             default:
                 // Raise an error for all other types below.
         }
@@ -457,12 +454,14 @@ public class ElementAnnotationUtil {
         int numOfEnclosingTypes = outerToInner.size() - 1;
 
         // If the AnnotatedDeclaredType is a component of an array type, then apply anno to all
-        // inner types of the given declared type if the declared type has enclosing classes
+        // possible inner types.
+        // NOTE: This workaround can be removed once
+        // https://bugs.openjdk.java.net/browse/JDK-8208470 is fixed
         if (isComponentTypeOfArray && location.isEmpty() && numOfEnclosingTypes > 0) {
             ArrayDeque<AnnotatedDeclaredType> innerTypes = new ArrayDeque<>(outerToInner);
             innerTypes.removeFirst();
 
-            while (!innerTypes.isEmpty()) {
+            while (!innerTypes.isEmpty() && anno != null) {
                 innerTypes.removeFirst().addAnnotation(anno);
             }
         }
@@ -522,9 +521,7 @@ public class ElementAnnotationUtil {
 
     private static AnnotatedTypeMirror getLocationTypeAWT(
             final AnnotatedWildcardType type,
-            final List<TypeAnnotationPosition.TypePathEntry> location,
-            TypeCompound anno,
-            boolean isComponentTypeOfArray) {
+            final List<TypeAnnotationPosition.TypePathEntry> location) {
 
         // the last step into the Wildcard type is handled in WildcardToBoundAnnos.addAnnotation
         if (location.size() == 1) {
@@ -534,14 +531,11 @@ public class ElementAnnotationUtil {
         if (!location.isEmpty()
                 && location.get(0).tag.equals(TypeAnnotationPosition.TypePathEntryKind.WILDCARD)) {
             if (AnnotatedTypes.hasExplicitExtendsBound(type)) {
-                return getTypeAtLocation(
-                        type.getExtendsBound(), tail(location), anno, isComponentTypeOfArray);
+                return getTypeAtLocation(type.getExtendsBound(), tail(location), null, false);
             } else if (AnnotatedTypes.hasExplicitSuperBound(type)) {
-                return getTypeAtLocation(
-                        type.getSuperBound(), tail(location), anno, isComponentTypeOfArray);
+                return getTypeAtLocation(type.getSuperBound(), tail(location), null, false);
             } else {
-                return getTypeAtLocation(
-                        type.getExtendsBound(), tail(location), anno, isComponentTypeOfArray);
+                return getTypeAtLocation(type.getExtendsBound(), tail(location), null, false);
             }
 
         } else {
@@ -590,26 +584,20 @@ public class ElementAnnotationUtil {
      * As a hack, always annotate the first alternative.
      */
     private static AnnotatedTypeMirror getLocationTypeAUT(
-            AnnotatedUnionType type,
-            List<TypeAnnotationPosition.TypePathEntry> location,
-            TypeCompound anno,
-            boolean isComponentTypeOfArray) {
+            AnnotatedUnionType type, List<TypeAnnotationPosition.TypePathEntry> location) {
         AnnotatedTypeMirror comptype = type.getAlternatives().get(0);
-        return getTypeAtLocation(comptype, location, anno, isComponentTypeOfArray);
+        return getTypeAtLocation(comptype, location, null, false);
     }
 
     /** Intersection types use the TYPE_ARGUMENT index to separate the individual types. */
     private static AnnotatedTypeMirror getLocationTypeAIT(
-            AnnotatedIntersectionType type,
-            List<TypeAnnotationPosition.TypePathEntry> location,
-            TypeCompound anno,
-            boolean isComponentTypeOfArray) {
+            AnnotatedIntersectionType type, List<TypeAnnotationPosition.TypePathEntry> location) {
         if (location.size() >= 1
                 && location.get(0)
                         .tag
                         .equals(TypeAnnotationPosition.TypePathEntryKind.TYPE_ARGUMENT)) {
             AnnotatedTypeMirror supertype = type.directSuperTypes().get(location.get(0).arg);
-            return getTypeAtLocation(supertype, tail(location), anno, isComponentTypeOfArray);
+            return getTypeAtLocation(supertype, tail(location), null, false);
         } else {
             ErrorReporter.errorAbort(
                     "ElementAnnotationUtil.getLocatonTypeAIT: "
