@@ -18,6 +18,7 @@ import testlib.util.AnnoWithStringArg;
 import testlib.util.Encrypted;
 import testlib.util.TestChecker;
 
+@Ignore("Ignored as AnnotationBuilder is implicitly tested as part of other CF tests.")
 public class AnnotationBuilderTest {
 
     private final ProcessingEnvironment env;
