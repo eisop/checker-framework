@@ -54,7 +54,8 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
         List<? extends AnnotationMirror> annos = TreeUtils.annotationsFromTree(node);
 
         if (type.getKind() == TypeKind.WILDCARD) {
-            // For an annotated wild card tree node, the type attached to the
+            // Work-around for https://github.com/eisop/checker-framework/issues/17
+            // For an annotated wildcard tree node, the type attached to the
             // node is a WildcardType with a correct bound (set to the type
             // variable which the wildcard instantiates). The underlying type is
             // also a WildcardType but with a bound of null. Here we update the
@@ -62,6 +63,7 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
             WildcardType wildcardAttachedToNode = (WildcardType) TreeUtils.typeOf(node);
             WildcardType underlyingWildcard = (WildcardType) type.getUnderlyingType();
             underlyingWildcard.withTypeVar(wildcardAttachedToNode.bound);
+            // End of work-around
 
             final ExpressionTree underlyingTree = node.getUnderlyingType();
 
