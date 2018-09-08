@@ -28,20 +28,16 @@ public class AnnotationBuilderTest {
 
     public AnnotationBuilderTest() {
         Context context = new Context();
-
         // forcefully set source and target to 8
         Options options = Options.instance(context);
         options.put(Option.SOURCE, "8");
         options.put(Option.TARGET, "8");
-
         // ensure that modules is disabled
         Source source = Source.instance(context);
         assert !source.allowModules();
 
         env = JavacProcessingEnvironment.instance(context);
-
         JavaCompiler javac = JavaCompiler.instance(context);
-
         // disable modules in JavaCompiler by setting the list of modules to nil
         javac.initModules(List.nil());
         javac.enterDone();
