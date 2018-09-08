@@ -3,7 +3,6 @@ package tests;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.main.JavaCompiler;
 import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
@@ -28,17 +27,15 @@ public class AnnotationBuilderTest {
 
     public AnnotationBuilderTest() {
         Context context = new Context();
-        // forcefully set source and target to 8
+        // Set source and target to 8
         Options options = Options.instance(context);
         options.put(Option.SOURCE, "8");
         options.put(Option.TARGET, "8");
-        // ensure that modules is disabled
-        Source source = Source.instance(context);
-        assert !source.allowModules();
 
         env = JavacProcessingEnvironment.instance(context);
         JavaCompiler javac = JavaCompiler.instance(context);
-        // disable modules in JavaCompiler by setting the list of modules to nil
+        // Even though source/target are set to 8, the modules in the JavaCompiler
+        // need to be initialized by setting the list of modules to nil.
         javac.initModules(List.nil());
         javac.enterDone();
         ErrorReporter.setHandler(new TestChecker());
