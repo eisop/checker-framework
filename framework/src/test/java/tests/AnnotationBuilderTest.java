@@ -6,6 +6,7 @@ import static org.junit.Assert.assertTrue;
 import com.sun.tools.javac.main.JavaCompiler;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.List;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.type.TypeMirror;
@@ -26,6 +27,8 @@ public class AnnotationBuilderTest {
         Context context = new Context();
         env = JavacProcessingEnvironment.instance(context);
         JavaCompiler javac = JavaCompiler.instance(context);
+        // disable modules by setting the list of modules to nil
+        javac.initModules(List.nil());
         javac.enterDone();
         ErrorReporter.setHandler(new TestChecker());
     }
