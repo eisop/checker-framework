@@ -365,6 +365,15 @@ public class ElementAnnotationUtil {
     }
 
     /**
+     * Overload of getTypeAtLocation with default values null/false for the annotation and array
+     * component flag, to make usage easier. Default visibility to allow usage within package.
+     */
+    static AnnotatedTypeMirror getTypeAtLocation(
+            AnnotatedTypeMirror type, List<TypeAnnotationPosition.TypePathEntry> location) {
+        return getTypeAtLocation(type, location, null, false);
+    }
+
+    /**
      * Given a TypePath into a type, return the component type that is located at the end of the
      * TypePath.
      *
@@ -376,7 +385,7 @@ public class ElementAnnotationUtil {
      *     of some array type
      * @return the type specified by location
      */
-    static AnnotatedTypeMirror getTypeAtLocation(
+    private static AnnotatedTypeMirror getTypeAtLocation(
             AnnotatedTypeMirror type,
             List<TypeAnnotationPosition.TypePathEntry> location,
             TypeCompound anno,
@@ -531,11 +540,11 @@ public class ElementAnnotationUtil {
         if (!location.isEmpty()
                 && location.get(0).tag.equals(TypeAnnotationPosition.TypePathEntryKind.WILDCARD)) {
             if (AnnotatedTypes.hasExplicitExtendsBound(type)) {
-                return getTypeAtLocation(type.getExtendsBound(), tail(location), null, false);
+                return getTypeAtLocation(type.getExtendsBound(), tail(location));
             } else if (AnnotatedTypes.hasExplicitSuperBound(type)) {
-                return getTypeAtLocation(type.getSuperBound(), tail(location), null, false);
+                return getTypeAtLocation(type.getSuperBound(), tail(location));
             } else {
-                return getTypeAtLocation(type.getExtendsBound(), tail(location), null, false);
+                return getTypeAtLocation(type.getExtendsBound(), tail(location));
             }
 
         } else {
@@ -586,7 +595,7 @@ public class ElementAnnotationUtil {
     private static AnnotatedTypeMirror getLocationTypeAUT(
             AnnotatedUnionType type, List<TypeAnnotationPosition.TypePathEntry> location) {
         AnnotatedTypeMirror comptype = type.getAlternatives().get(0);
-        return getTypeAtLocation(comptype, location, null, false);
+        return getTypeAtLocation(comptype, location);
     }
 
     /** Intersection types use the TYPE_ARGUMENT index to separate the individual types. */
@@ -597,7 +606,7 @@ public class ElementAnnotationUtil {
                         .tag
                         .equals(TypeAnnotationPosition.TypePathEntryKind.TYPE_ARGUMENT)) {
             AnnotatedTypeMirror supertype = type.directSuperTypes().get(location.get(0).arg);
-            return getTypeAtLocation(supertype, tail(location), null, false);
+            return getTypeAtLocation(supertype, tail(location));
         } else {
             ErrorReporter.errorAbort(
                     "ElementAnnotationUtil.getLocatonTypeAIT: "
