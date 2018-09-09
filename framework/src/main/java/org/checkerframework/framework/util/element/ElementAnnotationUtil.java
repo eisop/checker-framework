@@ -491,8 +491,7 @@ public class ElementAnnotationUtil {
                     if (currentLocation.arg < innerType.getTypeArguments().size()) {
                         AnnotatedTypeMirror typeArg =
                                 innerType.getTypeArguments().get(currentLocation.arg);
-                        return getTypeAtLocation(
-                                typeArg, tailOfLocations, anno, isComponentTypeOfArray);
+                        return getTypeAtLocation(typeArg, tailOfLocations);
                     } else {
                         error = true;
                         break;
