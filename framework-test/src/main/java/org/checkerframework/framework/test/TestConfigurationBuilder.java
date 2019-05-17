@@ -67,6 +67,8 @@ public class TestConfigurationBuilder {
             configBuilder.addOption("-Xbootclasspath/p:" + jdkJarPath);
         }
 
+        configBuilder.addOption("-source", "8").addOption("-target", "8");
+
         configBuilder
                 .addOptionIfValueNonEmpty("-sourcepath", testSourcePath)
                 .addOption("-implicit:class")
