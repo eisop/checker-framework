@@ -61,13 +61,15 @@ public class TestConfigurationBuilder {
             configBuilder.addOption("-d", outputClassDirectory.getAbsolutePath());
         }
 
-        // Use the annotated jdk for the compile bootclasspath
-        String jdkJarPath = getJdkJarPathFromProperty();
-        if (notNullOrEmpty(jdkJarPath)) {
-            configBuilder.addOption("-Xbootclasspath/p:" + jdkJarPath);
-        }
+        if (PluginUtil.getJreVersion() == 8) {
+            // Use the annotated jdk for the compile bootclasspath
+            String jdkJarPath = getJdkJarPathFromProperty();
+            if (notNullOrEmpty(jdkJarPath)) {
+                configBuilder.addOption("-Xbootclasspath/p:" + jdkJarPath);
+            }
 
-        configBuilder.addOption("-source", "8").addOption("-target", "8");
+            configBuilder.addOption("-source", "8").addOption("-target", "8");
+        }
 
         configBuilder
                 .addOptionIfValueNonEmpty("-sourcepath", testSourcePath)
