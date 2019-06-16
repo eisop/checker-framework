@@ -11,7 +11,6 @@
   <url>http://maven.apache.org</url>
 
   <properties>
-    <javac.version>9+181-r4173-1</javac.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <!-- These properties will be set by the Maven Dependency plugin -->
     <checkerFrameworkVersion><!-- checker-framework-version -->3.0.0-b2<!-- /checker-framework-version --></checkerFrameworkVersion>
@@ -117,6 +116,16 @@
   <profiles>
     <profile>
       <id>jdk8</id>
+      <properties>
+        <javac.version>9-dev-r4023-3</javac.version>
+      </properties>
+      <dependencies>
+        <dependency>
+          <groupId>com.google.errorprone</groupId>
+          <artifactId>javac</artifactId>
+          <version>9-dev-r4023-3</version>
+        </dependency>
+      </dependencies>
       <activation>
         <jdk>1.8</jdk>
       </activation>
