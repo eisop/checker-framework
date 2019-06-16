@@ -47,6 +47,8 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiveType;
 import org.checkerframework.framework.type.poly.QualifierPolymorphism;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.PluginUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
@@ -89,7 +91,12 @@ public class NullnessVisitor
         this.collectionSize =
                 TreeUtils.getMethod(java.util.Collection.class.getName(), "size", 0, env);
         this.collectionToArray =
-                TreeUtils.getMethod(java.util.Collection.class.getName(), "toArray", 1, env);
+                // TODO: see why special-casing is necessary
+                PluginUtil.getJreVersion() == 8
+                        ? TreeUtils.getMethod(
+                                java.util.Collection.class.getName(), "toArray", 1, env)
+                        : TreeUtils.getMethod(
+                                java.util.Collection.class.getName(), "toArray", env, "T[]");
     }
 
     @Override
@@ -114,12 +121,12 @@ public class NullnessVisitor
         for (AnnotationMirror anno : useType.getAnnotations()) {
             if (QualifierPolymorphism.isPolyAll(anno)) {
                 // ok.
-            } else if (containsSameIgnoringValues(initQuals, anno)) {
+            } else if (containsSameByName(initQuals, anno)) {
                 if (foundInit) {
                     return false;
                 }
                 foundInit = true;
-            } else if (containsSameIgnoringValues(nonNullQuals, anno)) {
+            } else if (containsSameByName(nonNullQuals, anno)) {
                 if (foundNonNull) {
                     return false;
                 }
@@ -160,7 +167,7 @@ public class NullnessVisitor
         return super.isValidUse(type, tree);
     }
 
-    private boolean containsSameIgnoringValues(
+    private boolean containsSameByName(
             Set<Class<? extends Annotation>> quals, AnnotationMirror anno) {
         for (Class<? extends Annotation> q : quals) {
             if (AnnotationUtils.areSameByClass(anno, q)) {
@@ -220,8 +227,11 @@ public class NullnessVisitor
     /** Case 1: Check for null dereferencing. */
     @Override
     public Void visitMemberSelect(MemberSelectTree node, Void p) {
-        boolean isType = node.getExpression().getKind() == Kind.PARAMETERIZED_TYPE;
-        if (!TreeUtils.isSelfAccess(node) && !isType) {
+        Element e = TreeUtils.elementFromTree(node);
+        if (!(TreeUtils.isSelfAccess(node)
+                || node.getExpression().getKind() == Kind.PARAMETERIZED_TYPE
+                // case 8. static member access
+                || ElementUtils.isStatic(e))) {
             checkForNullability(node.getExpression(), DEREFERENCE_OF_NULLABLE);
         }
         return super.visitMemberSelect(node, p);
@@ -543,7 +553,7 @@ public class NullnessVisitor
             for (AnnotationMirror a : atypeFactory.getAnnotatedType(t).getAnnotations()) {
                 // is this an annotation of the nullness checker?
                 boolean nullnessCheckerAnno =
-                        containsSameIgnoringValues(atypeFactory.getNullnessAnnotations(), a);
+                        containsSameByName(atypeFactory.getNullnessAnnotations(), a);
                 if (nullnessCheckerAnno && !AnnotationUtils.areSame(NONNULL, a)) {
                     // The type is not non-null => warning
                     checker.report(

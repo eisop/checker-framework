@@ -13,6 +13,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayTyp
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.util.AnnotatedTypes;
+import org.checkerframework.javacutil.PluginUtil;
 import org.checkerframework.javacutil.TreeUtils;
 
 /**
@@ -28,7 +29,7 @@ import org.checkerframework.javacutil.TreeUtils;
  *   <li value="2">The passed array size is less than the collection size. Here are heuristics to
  *       handle the most common cases:
  *       <ol>
- *         <li value="1">an empty array initializer, e.g. {@code c.toArray(new String[] { })},
+ *         <li value="1">an empty array initializer, e.g. {@code c.toArray(new String[] {})},
  *         <li value="2">array creation tree of size 0, e.g. {@code c.toArray(new String[0])}, or
  *         <li value="3">array creation tree of the collection size method invocation {@code
  *             c.toArray(new String[c.size()])}
@@ -51,7 +52,12 @@ public class CollectionToArrayHeuristics {
         this.atypeFactory = factory;
 
         this.collectionToArrayE =
-                TreeUtils.getMethod(java.util.Collection.class.getName(), "toArray", 1, env);
+                // TODO: see why special-casing is necessary
+                PluginUtil.getJreVersion() == 8
+                        ? TreeUtils.getMethod(
+                                java.util.Collection.class.getName(), "toArray", 1, env)
+                        : TreeUtils.getMethod(
+                                java.util.Collection.class.getName(), "toArray", env, "T[]");
         this.size = TreeUtils.getMethod(java.util.Collection.class.getName(), "size", 0, env);
         this.collectionType =
                 factory.fromElement(env.getElementUtils().getTypeElement("java.util.Collection"));

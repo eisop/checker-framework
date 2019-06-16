@@ -62,19 +62,6 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
         // It would be nicer if this didn't decode the information from the Element and
         // instead also used the Tree.
         ElementAnnotationApplier.apply(result, elt, f);
-
-        // Add primary annotations to return type
-        /* This doesn't do the right thing for annotations on type variables.
-        List<? extends AnnotationTree> annos = node.getModifiers().getAnnotations();
-        if (annos != null
-                && !annos.isEmpty()
-                && result.getReturnType().getKind() != TypeKind.VOID) {
-            List<AnnotationMirror> ams = TreeUtils.annotationsFromTypeAnnotationTrees(annos);
-            AnnotatedTypeMirror innerType = AnnotatedTypes.innerMostType(result.getReturnType());
-            innerType.addAnnotations(ams);
-        }
-        */
-
         return result;
     }
 

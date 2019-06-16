@@ -61,11 +61,14 @@ public class TestConfigurationBuilder {
             configBuilder.addOption("-d", outputClassDirectory.getAbsolutePath());
         }
 
-        // Use the annotated jdk for the compile bootclasspath
-        // This is set by build.xml
-        String jdkJarPath = getJdkJarPathFromProperty();
-        if (notNullOrEmpty(jdkJarPath)) {
-            configBuilder.addOption("-Xbootclasspath/p:" + jdkJarPath);
+        if (PluginUtil.getJreVersion() == 8) {
+            // Use the annotated jdk for the compile bootclasspath
+            String jdkJarPath = getJdkJarPathFromProperty();
+            if (notNullOrEmpty(jdkJarPath)) {
+                configBuilder.addOption("-Xbootclasspath/p:" + jdkJarPath);
+            }
+
+            configBuilder.addOption("-source", "8").addOption("-target", "8");
         }
 
         configBuilder
@@ -356,7 +359,7 @@ public class TestConfigurationBuilder {
                         + "Errors:\n"
                         + String.join("\n", errors)
                         + "\n"
-                        + this.toString()
+                        + this
                         + "\n");
     }
 
@@ -416,7 +419,7 @@ public class TestConfigurationBuilder {
     /**
      * The path to the annotated JDK, looked up from the system property "JDK_JAR".
      *
-     * @return the value of the system property "JDK_JAR".
+     * @return the value of the system property "JDK_JAR"
      */
     public static String getJdkJarPathFromProperty() {
         return System.getProperty("JDK_JAR");

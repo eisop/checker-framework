@@ -49,9 +49,8 @@ import org.checkerframework.javacutil.UserError;
  *
  * <p>Checker writers may wish to subclass this class if they wish to implement some custom rules to
  * filter or process loaded annotation classes, by providing an override implementation of {@link
- * #isSupportedAnnotationClass(Class)}. See {@link
- * org.checkerframework.checker.units.UnitsAnnotationClassLoader UnitsAnnotationClassLoader} for an
- * example.
+ * #isSupportedAnnotationClass(Class)}. See {@code
+ * org.checkerframework.checker.units.UnitsAnnotationClassLoader} for an example.
  */
 public class AnnotationClassLoader {
     // For issuing errors to the user
@@ -168,20 +167,20 @@ public class AnnotationClassLoader {
 
         // In checkers, there will be a resource URL for the qual directory. But
         // when called in the framework (eg GeneralAnnotatedTypeFactory), there
-        // won't be a resourceURL since there isn't a qual directory
+        // won't be a resourceURL since there isn't a qual directory.
 
-        // each path from the set of classpaths will be checked to see if it
+        // Each path from the set of classpaths will be checked to see if it
         // contains the qual directory of a checker, if so, the first
         // directory or jar that contains the package will be used as the source
-        // for loading classes from the qual package
+        // for loading classes from the qual package.
 
-        // if either a directory or a jar contains the package, resourceURL will
+        // If either a directory or a jar contains the package, resourceURL will
         // be updated to refer to that source, otherwise resourceURL remains as
-        // null
+        // null.
 
-        // if both a jar and a directory contain the qual package, then the
+        // If both a jar and a directory contain the qual package, then the
         // order of the jar and the directory in the command line option(s)
-        // or environment variables will decide which one gets examined first
+        // or environment variables will decide which one gets examined first.
         for (String path : paths) {
             // see if the current classpath segment is a jar or a directory
             if (path.endsWith(JAR_SUFFIX)) {
@@ -389,7 +388,10 @@ public class AnnotationClassLoader {
         Set<String> paths = new LinkedHashSet<>();
 
         // add all extension paths
-        paths.addAll(Arrays.asList(System.getProperty("java.ext.dirs").split(File.pathSeparator)));
+        String extdirs = System.getProperty("java.ext.dirs");
+        if (extdirs != null && !extdirs.isEmpty()) {
+            paths.addAll(Arrays.asList(extdirs.split(File.pathSeparator)));
+        }
 
         // add all paths in CLASSPATH, -cp, and -classpath
         paths.addAll(
@@ -414,7 +416,13 @@ public class AnnotationClassLoader {
      *     both are unavailable
      */
     private final @Nullable URLClassLoader getClassLoader() {
-        return (URLClassLoader) InternalUtils.getClassLoaderForClass(checker.getClass());
+        ClassLoader result = InternalUtils.getClassLoaderForClass(checker.getClass());
+        if (result instanceof URLClassLoader) {
+            return (@Nullable URLClassLoader) result;
+        } else {
+            // Java 9+ use an internal classloader that doesn't support getting URLs. Ignore.
+            return null;
+        }
     }
 
     /** Debug Use: Displays all classpaths examined by the class loader. */
@@ -577,7 +585,7 @@ public class AnnotationClassLoader {
      * @param annoName canonical name of an external annotation class, e.g.
      *     "myproject.qual.myannotation"
      * @return the loaded annotation class, or null if it was not a supported annotation as decided
-     *     by {@link #isSupportedAnnotationClass(Class)}.
+     *     by {@link #isSupportedAnnotationClass(Class)}
      */
     public final @Nullable Class<? extends Annotation> loadExternalAnnotationClass(
             final String annoName) {
@@ -688,17 +696,13 @@ public class AnnotationClassLoader {
             final String fullyQualifiedClassName, boolean issueError) {
 
         // load the class
-        if (classLoader == null) {
-            throw new UserError(
-                    checker.getClass().getSimpleName()
-                            + ": no classloaders are available for use to load annotation class "
-                            + fullyQualifiedClassName
-                            + ".");
-        }
-
         Class<?> cls = null;
         try {
-            cls = Class.forName(fullyQualifiedClassName, true, classLoader);
+            if (classLoader != null) {
+                cls = Class.forName(fullyQualifiedClassName, true, classLoader);
+            } else {
+                cls = Class.forName(fullyQualifiedClassName);
+            }
         } catch (ClassNotFoundException e) {
             throw new UserError(
                     checker.getClass().getSimpleName()
@@ -774,8 +778,7 @@ public class AnnotationClassLoader {
 
     /**
      * Checks to see whether a particular annotation class has the {@link Target} meta-annotation,
-     * and has the required {@link ElementType} values as checked by {@link
-     * AnnotatedTypes#hasTypeQualifierElementTypes(ElementType[], Class)}.
+     * and has the required {@link ElementType} values.
      *
      * <p>A subclass may override this method to load annotations that are not intended to be
      * annotated in source code. E.g.: {@code SubtypingChecker} overrides this method to load {@code

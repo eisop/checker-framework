@@ -126,6 +126,9 @@ public abstract class InitializationAnnotatedTypeFactory<
         }
 
         initAnnos = Collections.unmodifiableSet(tempInitAnnos);
+
+        // No call to postInit() because this class is abstract.
+        // Its subclasses must call postInit().
     }
 
     public Set<Class<? extends Annotation>> getInitializationAnnotations() {
@@ -140,10 +143,10 @@ public abstract class InitializationAnnotatedTypeFactory<
      */
     protected boolean isInitializationAnnotation(AnnotationMirror anno) {
         assert anno != null;
-        return AnnotationUtils.areSameIgnoringValues(anno, UNCLASSIFIED)
-                || AnnotationUtils.areSameIgnoringValues(anno, FREE)
-                || AnnotationUtils.areSameIgnoringValues(anno, COMMITTED)
-                || AnnotationUtils.areSameIgnoringValues(anno, FBCBOTTOM);
+        return AnnotationUtils.areSameByName(anno, UNCLASSIFIED)
+                || AnnotationUtils.areSameByName(anno, FREE)
+                || AnnotationUtils.areSameByName(anno, COMMITTED)
+                || AnnotationUtils.areSameByName(anno, FBCBOTTOM);
     }
 
     /*
@@ -638,8 +641,7 @@ public abstract class InitializationAnnotatedTypeFactory<
         }
         // not necessary if there is an explicit UnknownInitialization
         // annotation on the field
-        if (AnnotationUtils.containsSameIgnoringValues(
-                fieldAnnotations.getAnnotations(), UNCLASSIFIED)) {
+        if (AnnotationUtils.containsSameByName(fieldAnnotations.getAnnotations(), UNCLASSIFIED)) {
             return;
         }
         if (isUnclassified(receiverType) || isFree(receiverType)) {
@@ -739,8 +741,10 @@ public abstract class InitializationAnnotatedTypeFactory<
                 }
                 if (!allCommitted) {
                     p.replaceAnnotation(createFreeAnnotation(type));
+                    return null;
                 }
             }
+            p.replaceAnnotation(COMMITTED);
             return null;
         }
 

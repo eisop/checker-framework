@@ -9,6 +9,7 @@ import com.sun.source.tree.VariableTree;
 import com.sun.source.util.SourcePositions;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.Trees;
+import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.DiagnosticSource;
@@ -18,6 +19,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryPoolMXBean;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -78,9 +81,8 @@ import org.checkerframework.javacutil.UserError;
  *
  * Most type-checker plug-ins will want to extend {@link BaseTypeChecker}, instead of this class.
  * Only checkers that require annotated types but not subtype checking (e.g. for testing purposes)
- * should extend this. Non-type checkers (e.g. for enforcing coding styles) should extend {@link
- * AbstractProcessor} (or even this class) as the Checker Framework is not designed for such
- * checkers.
+ * should extend this. Non-type checkers (e.g. for enforcing coding styles) may extend {@link
+ * AbstractProcessor} (or even this class).
  */
 @SupportedOptions({
     // When adding a new standard option:
@@ -199,6 +201,12 @@ import org.checkerframework.javacutil.UserError;
     // org.checkerframework.framework.source.SourceChecker.shouldSuppressWarnings(javax.lang.model.element.Element, java.lang.String)
     // org.checkerframework.framework.source.SourceeVisitor.checkForSuppressWarningsAnno
     "warnUnneededSuppressions",
+
+    // Require that warning suppression annotations contain a checker key as a prefix in order for
+    // the warning to be suppressed.
+    // org.checkerframework.framework.source.SourceChecker.checkSuppressWarnings(java.lang.String[],
+    // java.lang.String)
+    "requirePrefixInWarningSuppressions",
 
     ///
     /// Partially-annotated libraries
@@ -426,7 +434,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor
     private static final String OPTION_SEPARATOR = "_";
 
     /** The line separator. */
-    private static final String LINE_SEPARATOR = System.getProperty("line.separator").intern();
+    private static final String LINE_SEPARATOR = System.lineSeparator().intern();
 
     /**
      * The checker that called this one, whether that be a BaseTypeChecker (used as a compound
@@ -434,10 +442,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor
      * in the case of a compound checker, the compound checker is the parent, not the checker that
      * was run prior to this one by the compound checker.
      */
-    protected SourceChecker parentChecker = null;
+    protected SourceChecker parentChecker;
 
     /** List of upstream checker names. Includes the current checker. */
-    protected List<String> upstreamCheckerNames = null;
+    protected List<String> upstreamCheckerNames;
 
     @Override
     public final synchronized void init(ProcessingEnvironment env) {
@@ -447,10 +455,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor
         setProcessingEnvironment(env);
 
         int jreVersion = PluginUtil.getJreVersion();
-        if (jreVersion != 8) {
+        if (jreVersion < 8) {
             throw new UserError(
                     String.format(
-                            "The Checker Framework must be run under JDK 8.  You are using version %d.",
+                            "The Checker Framework must be run under at least JDK 8.  You are using version %d.",
                             jreVersion));
         }
     }
@@ -461,13 +469,21 @@ public abstract class SourceChecker extends AbstractTypeProcessor
         return this.processingEnv;
     }
 
+    /** Set the processing environment of the current checker. */
     /* This method is protected only to allow the AggregateChecker and BaseTypeChecker to call it. */
     protected void setProcessingEnvironment(ProcessingEnvironment env) {
         this.processingEnv = env;
     }
 
+    /** Set the parent checker of the current checker. */
     protected void setParentChecker(SourceChecker parentChecker) {
         this.parentChecker = parentChecker;
+    }
+
+    /** Invoked when the current compilation unit root changes. */
+    protected void setRoot(CompilationUnitTree newRoot) {
+        this.currentRoot = newRoot;
+        visitor.setRoot(currentRoot);
     }
 
     /**
@@ -710,12 +726,14 @@ public abstract class SourceChecker extends AbstractTypeProcessor
                                     + " At most one separator "
                                     + OPTION_SEPARATOR
                                     + " expected, but found "
-                                    + split.length);
+                                    + split.length
+                                    + ".");
             }
         }
         return Collections.unmodifiableMap(activeOpts);
     }
 
+    /** Only ever called once; the value is cached in field {@link #suppressWarnings}. */
     private String @Nullable [] createSuppressWarnings(Map<String, String> options) {
         if (!options.containsKey("suppressWarnings")) {
             return null;
@@ -726,13 +744,21 @@ public abstract class SourceChecker extends AbstractTypeProcessor
             return null;
         }
 
-        return swString.split(",");
+        return arrayToLowerCase(swString.split(","));
+    }
+
+    /** Side-effects the array to make each string lowercase, then returns the array. */
+    private static String[] arrayToLowerCase(String[] a) {
+        for (int i = 0; i < a.length; i++) {
+            a[i] = a[i].toLowerCase();
+        }
+        return a;
     }
 
     /** Log a user error. */
     private void logUserError(UserError ce) {
-        StringBuilder msg = new StringBuilder(ce.getMessage());
-        printMessage(msg + ".");
+        String msg = ce.getMessage();
+        printMessage(msg);
     }
 
     /** Log an internal error in the framework or a checker. */
@@ -754,29 +780,47 @@ public abstract class SourceChecker extends AbstractTypeProcessor
 
             if (this.visitor != null) {
                 DiagnosticPosition pos = (DiagnosticPosition) this.visitor.lastVisited;
-                DiagnosticSource source =
-                        new DiagnosticSource(this.currentRoot.getSourceFile(), null);
-                int linenr = source.getLineNumber(pos.getStartPosition());
-                int col = source.getColumnNumber(pos.getStartPosition(), true);
-                String line = source.getLine(pos.getStartPosition());
+                if (pos != null) {
+                    DiagnosticSource source =
+                            new DiagnosticSource(this.currentRoot.getSourceFile(), null);
+                    int linenr = source.getLineNumber(pos.getStartPosition());
+                    int col = source.getColumnNumber(pos.getStartPosition(), true);
+                    String line = source.getLine(pos.getStartPosition());
 
-                msg.append(
-                        "\nLast visited tree at line " + linenr + " column " + col + ":\n" + line);
+                    msg.append(
+                            "\nLast visited tree at line "
+                                    + linenr
+                                    + " column "
+                                    + col
+                                    + ":\n"
+                                    + line);
+                }
             }
 
             msg.append(
                     "\nException: "
-                            + ce.getCause().toString()
+                            + ce.getCause()
                             + "; "
                             + formatStackTrace(ce.getCause().getStackTrace()));
+            boolean printClasspath = ce.getCause() instanceof NoClassDefFoundError;
             Throwable cause = ce.getCause().getCause();
             while (cause != null) {
                 msg.append(
                         "\nUnderlying Exception: "
-                                + (cause.toString()
-                                        + "; "
-                                        + formatStackTrace(cause.getStackTrace())));
+                                + cause
+                                + "; "
+                                + formatStackTrace(cause.getStackTrace()));
+                printClasspath |= cause instanceof NoClassDefFoundError;
                 cause = cause.getCause();
+            }
+
+            if (printClasspath) {
+                msg.append("\nClasspath:");
+                ClassLoader cl = ClassLoader.getSystemClassLoader();
+                URL[] urls = ((URLClassLoader) cl).getURLs();
+                for (URL url : urls) {
+                    msg.append("\n" + url.getFile());
+                }
             }
         }
 
@@ -918,8 +962,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor
         }
 
         Context context = ((JavacProcessingEnvironment) processingEnv).getContext();
-        com.sun.tools.javac.code.Source source = com.sun.tools.javac.code.Source.instance(context);
-        if (!warnedAboutSourceLevel && !source.allowTypeAnnotations()) {
+        Source source = Source.instance(context);
+        // Don't use source.allowTypeAnnotations() because that API changed after 9.
+        // Also the enum constant Source.JDK1_8 was renamed at some point...
+        if (!warnedAboutSourceLevel && source.compareTo(Source.lookup("8")) < 0) {
             messager.printMessage(
                     javax.tools.Diagnostic.Kind.WARNING,
                     "-source " + source.name + " does not support type annotations");
@@ -944,22 +990,21 @@ public abstract class SourceChecker extends AbstractTypeProcessor
         if (visitor == null) {
             // typeProcessingStart invokes initChecker, which should
             // have set the visitor. If the field is still null, an
-            // exception occured during initialization, which was already
+            // exception occurred during initialization, which was already
             // logged there. Don't also cause a NPE here.
             return;
         }
         if (p.getCompilationUnit() != currentRoot) {
-            currentRoot = p.getCompilationUnit();
+            setRoot(p.getCompilationUnit());
             if (hasOption("filenames")) {
                 // Add timestamp to indicate how long operations are taking
                 message(Kind.NOTE, new java.util.Date().toString());
                 message(
                         Kind.NOTE,
-                        "Checker: %s is type-checking: %s",
+                        "%s is type-checking %s",
                         (Object) this.getClass().getSimpleName(),
                         currentRoot.getSourceFile().getName());
             }
-            visitor.setRoot(currentRoot);
         }
 
         // Visit the attributed tree.
@@ -1036,7 +1081,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor
                 for (String errorKey : errorKeys) {
                     // The keyFromAnno may only be a part of an error key.
                     // For example, @SuppressWarnings("purity") suppresses errors with keys:
-                    // purity.deterministic.void.method, purity.deterministic.constructor, etc..
+                    // purity.deterministic.void.method, purity.deterministic.constructor, etc.
                     if (errorKey.contains(keyFromAnno)) {
                         reportUnneededSuppression(tree, keyFromAnno);
                     }
@@ -1258,9 +1303,30 @@ public abstract class SourceChecker extends AbstractTypeProcessor
             fmtString = sb.toString();
 
         } else {
+            // The key for the warning/error being printed, in brackets; prefixes the error message.
             final String suppressing;
             if (this.processingEnv.getOptions().containsKey("showSuppressWarningKeys")) {
                 suppressing = String.format("[%s:%s] ", this.getSuppressWarningsKeys(), msgKey);
+            } else if (this.processingEnv
+                    .getOptions()
+                    .containsKey("requirePrefixInWarningSuppressions")) {
+                // If the warning key must be prefixed with a checker key, then add that to the
+                // warning key that is printed.
+                String defaultKey = getDefaultWarningSuppressionKey();
+                Collection<String> keys = getSuppressWarningsKeys();
+                if (keys.contains(defaultKey)) {
+                    suppressing = String.format("[%s:%s] ", defaultKey, msgKey);
+                } else if (keys.isEmpty()) {
+                    keys.remove(SUPPRESS_ALL_KEY);
+                    if (keys.isEmpty()) {
+                        suppressing = String.format("[%s:%s] ", SUPPRESS_ALL_KEY, msgKey);
+                    } else {
+                        String firstKey = keys.iterator().next();
+                        suppressing = String.format("[%s:%s] ", firstKey, msgKey);
+                    }
+                } else {
+                    suppressing = String.format("[%s] ", msgKey);
+                }
             } else {
                 suppressing = String.format("[%s] ", msgKey);
             }
@@ -1384,22 +1450,31 @@ public abstract class SourceChecker extends AbstractTypeProcessor
             return false;
         }
 
-        String[] userSwKeys = (anno == null ? null : anno.value());
         if (this.suppressWarnings == null) {
             this.suppressWarnings = createSuppressWarnings(getOptions());
         }
         String[] cmdLineSwKeys = this.suppressWarnings;
+        if (checkSuppressWarnings(cmdLineSwKeys, errKey)) {
+            return true;
+        }
 
-        return checkSuppressWarnings(userSwKeys, errKey)
-                || checkSuppressWarnings(cmdLineSwKeys, errKey);
+        if (anno != null) {
+            String[] userSwKeys = arrayToLowerCase(anno.value());
+            if (checkSuppressWarnings(userSwKeys, errKey)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
      * Return true if the given error should be suppressed, based on the given @SuppressWarnings
      * keys.
      *
-     * @param userSwKeys the @SuppressWarnings keys supplied by the user
-     * @param errKey the error key the checker is emitting
+     * @param userSwKeys the @SuppressWarnings keys supplied by the user; may be null (in which case
+     *     this method returns false), otherwise contains lowercase strings
+     * @param errKey the error key the checker is emitting; a lowercase string
      * @return true if one of the {@code userSwKeys} is returned by {@link
      *     SourceChecker#getSuppressWarningsKeys}; also accounts for errKey
      */
@@ -1407,19 +1482,27 @@ public abstract class SourceChecker extends AbstractTypeProcessor
         if (userSwKeys == null) {
             return false;
         }
+        // Is the name of the checker required to suppress a warning?
+        boolean requirePrefix = hasOption("requirePrefixInWarningSuppressions");
 
         Collection<String> checkerSwKeys = this.getSuppressWarningsKeys();
 
         // Check each value of the user-written @SuppressWarnings annotation.
         for (String suppressWarningValue : userSwKeys) {
             for (String checkerKey : checkerSwKeys) {
-                if (suppressWarningValue.equalsIgnoreCase(checkerKey)) {
+                if (suppressWarningValue.equals(checkerKey)) {
+                    // Emitted error is exactly a @SuppressWarnings key: "nullness", for example.
                     return true;
                 }
 
                 String expected = checkerKey + ":" + errKey;
-                if (expected.toLowerCase().contains(suppressWarningValue.toLowerCase())) {
-                    return true;
+                if (expected.contains(suppressWarningValue)) {
+                    if (!requirePrefix
+                            || suppressWarningValue
+                                    .toLowerCase()
+                                    .startsWith(checkerKey.toLowerCase())) {
+                        return true;
+                    }
                 }
             }
         }
@@ -2013,8 +2096,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor
     }
 
     /**
-     * @return string keys that a checker honors for suppressing warnings and errors that it issues.
-     *     Each such key suppresses all warnings issued by the checker.
+     * @return collection of lower-case string keys that a checker honors for suppressing warnings
+     *     and errors that it issues. Each such key suppresses all warnings issued by the checker.
      * @see SuppressWarningsKeys
      */
     public Collection<String> getSuppressWarningsKeys() {
@@ -2028,31 +2111,35 @@ public abstract class SourceChecker extends AbstractTypeProcessor
      * @return collection of warning keys
      */
     protected final Collection<String> getStandardSuppressWarningsKeys() {
-        SuppressWarningsKeys annotation = this.getClass().getAnnotation(SuppressWarningsKeys.class);
-
         // TreeSet ensures keys are returned in a consistent order.
         Set<String> result = new TreeSet<>();
         result.add(SUPPRESS_ALL_KEY);
 
+        SuppressWarningsKeys annotation = this.getClass().getAnnotation(SuppressWarningsKeys.class);
         if (annotation != null) {
             // Add from annotation
             for (String key : annotation.value()) {
-                result.add(key);
+                result.add(key.toLowerCase());
             }
 
         } else {
-            // No annotation, by default infer key from class name
-            String className = this.getClass().getSimpleName();
-            int indexOfChecker = className.lastIndexOf("Checker");
-            if (indexOfChecker == -1) {
-                indexOfChecker = className.lastIndexOf("Subchecker");
-            }
-            String key =
-                    (indexOfChecker == -1) ? className : className.substring(0, indexOfChecker);
-            result.add(key.trim().toLowerCase());
+            // No @SuppressWarningsKeys annotation, by default infer key from class name
+            String key = getDefaultWarningSuppressionKey();
+            result.add(key);
         }
 
         return result;
+    }
+
+    /** @return the default warning suppression key for this checker based on the checker name */
+    private String getDefaultWarningSuppressionKey() {
+        String className = this.getClass().getSimpleName();
+        int indexOfChecker = className.lastIndexOf("Checker");
+        if (indexOfChecker == -1) {
+            indexOfChecker = className.lastIndexOf("Subchecker");
+        }
+        String result = (indexOfChecker == -1) ? className : className.substring(0, indexOfChecker);
+        return result.toLowerCase();
     }
 
     /**

@@ -22,6 +22,7 @@ import javax.lang.model.type.TypeVariable;
 import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
+import org.plumelib.util.ImmutableTypes;
 
 /** A utility class that helps with {@link TypeMirror}s. */
 // TODO: This class needs significant restructuring
@@ -114,6 +115,19 @@ public final class TypesUtils {
                 || qualifiedName.equals("java.lang.Long")
                 || qualifiedName.equals("java.lang.Double")
                 || qualifiedName.equals("java.lang.Float"));
+    }
+
+    /**
+     * Return true if this is an immutable type in the JDK.
+     *
+     * <p>This does not use immutability annotations and always returns false for user-defined
+     * classes.
+     */
+    public static boolean isImmutableTypeInJdk(TypeMirror type) {
+        return isPrimitive(type)
+                || (type.getKind() == TypeKind.DECLARED
+                        && ImmutableTypes.isImmutable(
+                                getQualifiedName((DeclaredType) type).toString()));
     }
 
     /** @return type represents a Throwable type (e.g. Exception, Error) */
@@ -506,10 +520,6 @@ public final class TypesUtils {
         JavacProcessingEnvironment javacEnv = (JavacProcessingEnvironment) processingEnv;
         com.sun.tools.javac.code.Types types =
                 com.sun.tools.javac.code.Types.instance(javacEnv.getContext());
-        if (types.isSameType(t1, t2)) {
-            // Special case if the two types are equal.
-            return t1;
-        }
         // Handle the 'null' type manually (not done by types.lub).
         if (t1.getKind() == TypeKind.NULL) {
             return t2;
@@ -536,6 +546,10 @@ public final class TypesUtils {
                 return elements.getTypeElement("java.lang.Object").asType();
             }
             t2 = bound;
+        }
+        if (types.isSameType(t1, t2)) {
+            // Special case if the two types are equal.
+            return t1;
         }
         // Special case for primitives.
         if (isPrimitive(t1) || isPrimitive(t2)) {
