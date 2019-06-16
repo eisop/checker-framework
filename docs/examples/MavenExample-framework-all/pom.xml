@@ -116,6 +116,9 @@
   <profiles>
     <profile>
       <id>jdk8</id>
+      <activation>
+        <jdk>1.8</jdk>
+      </activation>
       <properties>
         <javac.version>9-dev-r4023-3</javac.version>
       </properties>
@@ -126,9 +129,6 @@
           <version>9-dev-r4023-3</version>
         </dependency>
       </dependencies>
-      <activation>
-        <jdk>1.8</jdk>
-      </activation>
       <build>
         <plugins>
           <plugin>
