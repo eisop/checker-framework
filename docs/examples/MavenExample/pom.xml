@@ -73,11 +73,6 @@
               <showWarnings>true</showWarnings>
               <annotationProcessorPaths>
                 <path>
-                  <groupId>com.google.errorprone</groupId>
-                  <artifactId>error_prone_core</artifactId>
-                  <version>2.3.3</version>
-                </path>
-                <path>
                   <groupId>io.github.eisop</groupId>
                   <artifactId>checker</artifactId>
                   <version>${checkerFrameworkVersion}</version>
