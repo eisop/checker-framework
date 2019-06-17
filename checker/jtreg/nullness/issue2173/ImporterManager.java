@@ -31,12 +31,10 @@ public class ImporterManager {
         filters.add(
                 new ExtensionFilter(
                         TranslationUtility.getString("importer.all.known"),
-                        registeredImporters
-                                .stream()
+                        registeredImporters.stream()
                                 .flatMap(
                                         imp ->
-                                                imp.getSupportedFileTypes()
-                                                        .stream()
+                                                imp.getSupportedFileTypes().stream()
                                                         .flatMap(
                                                                 (Pair<
                                                                                         @Localized String,
