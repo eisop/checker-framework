@@ -1,47 +1,27 @@
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
-import javafx.stage.FileChooser.ExtensionFilter;
-import javafx.stage.Window;
-import org.checkerframework.checker.i18n.qual.LocalizableKey;
+import java.util.function.Function;
 import org.checkerframework.checker.i18n.qual.Localized;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.common.subtyping.qual.Bottom;
 
 interface Importer {
-    public List<Pair<@Localized String, List<String>>> getSupportedFileTypes();
-}
-
-class TranslationUtility {
-    @SuppressWarnings("i18n")
-    public static @Localized String getString(@LocalizableKey String key) {
-        return key;
-    }
+    List<Pair<@Localized String, List<String>>> getSupportedFileTypes();
 }
 
 interface Pair<A, B> {
-    A getFirst();
-
     B getSecond();
 }
 
 public class ImporterManager {
     private static final List<Importer> registeredImporters = new ArrayList<>();
 
-    public static void chooseAndImportFile(Window parent) {
-        ArrayList<ExtensionFilter> filters = new ArrayList<>();
-        filters.add(
-                new ExtensionFilter(
-                        TranslationUtility.getString("importer.all.known"),
-                        registeredImporters.stream()
+    public static void chooseAndImportFile(Object parent) {
+        Function<@NonNull ?, @NonNull ?> x =
+                (@NonNull Importer imp) ->
+                        imp.getSupportedFileTypes().stream()
                                 .flatMap(
-                                        imp ->
-                                                imp.getSupportedFileTypes().stream()
-                                                        .flatMap(
-                                                                (Pair<
-                                                                                        @Localized String,
-                                                                                        List<
-                                                                                                String>>
-                                                                                p) ->
-                                                                        p.getSecond().stream()))
-                                .collect(Collectors.toList())));
+                                        (@Bottom Pair<@Localized String, List<String>> p) ->
+                                                p.getSecond().stream());
     }
 }

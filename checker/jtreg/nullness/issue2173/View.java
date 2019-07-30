@@ -5,12 +5,8 @@
  * @compile -processor org.checkerframework.checker.nullness.NullnessChecker View.java
  */
 
-import javafx.stage.Stage;
-import javafx.stage.Window;
-
 public class View {
     private static void createTable() {
-        Window window = new Stage();
-        ImporterManager.chooseAndImportFile(window);
+        ImporterManager.chooseAndImportFile("");
     }
 }
