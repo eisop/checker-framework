@@ -2,7 +2,6 @@
  * @test
  * @summary Test case for issue #2173: https://github.com/typetools/checker-framework/issues/2173
  *
- * @compile -processor org.checkerframework.checker.nullness.NullnessChecker ImporterManager.java
  * @compile -processor org.checkerframework.checker.nullness.NullnessChecker View.java
  */
 
