@@ -31,7 +31,7 @@ import javax.lang.model.type.TypeKind;
  * Abstract utility class for performing viewpoint adaptation.
  *
  * <p>This class contains the common logic for extracting and inserting viewpoint adapted
- * annotations into the coresponding types for member/field access, constructor and method
+ * annotations into the corresponding types for member/field access, constructor and method
  * invocations, and type parameter bound instantiations.
  *
  * <p>Subclasses implement the computation of the precise viewpoint adapted type given a receiver
@@ -43,8 +43,10 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
     // of another type variable. We only viewpoint adapt type variable that is not upper-bound.
     private boolean isTypeVarExtends = false;
 
+    /** The annotated type factory. */
     protected final AnnotatedTypeFactory atypeFactory;
 
+    /** The class constructor. */
     public AbstractViewpointAdapter(final AnnotatedTypeFactory atypeFactory) {
         this.atypeFactory = atypeFactory;
     }
@@ -181,6 +183,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         methodType.setTypeVariables(unsubstitutedMethodType.getTypeVariables());
     }
 
+    /** Check if the method invocation should be adapted. */
     protected boolean shouldAdaptMethod(ExecutableElement element) {
         return !ElementUtils.isStatic(element);
     }
