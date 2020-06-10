@@ -37,6 +37,7 @@ import javax.lang.model.type.TypeKind;
  * <p>Subclasses implement the computation of the precise viewpoint adapted type given a receiver
  * type and a declared type, and implement how to extract the qualifier given an ATM.
  */
+@SuppressWarnings("PublicConstructorForAbstractClass")
 public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
 
     // This prevents calling combineTypeWithType on type variable if it is an upper bound
