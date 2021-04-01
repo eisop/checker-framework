@@ -1492,8 +1492,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     if (annotatedTypeCombiner == null) {
       annotatedTypeCombiner = new AnnotatedTypeCombiner(qualHierarchy);
     }
-    // Must merge (rather than only take the annotation file type if it is a subtype)
-    // to support WPI.
+    // Must merge (rather than only take the annotation file type if it is a subtype) to support
+    // WPI.
     annotatedTypeCombiner.visit(typeFromFile, type);
     return type;
   }
@@ -2140,8 +2140,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     AnnotatedExecutableType method = result.executableType;
     if (method.getReturnType().getKind() == TypeKind.WILDCARD
         && ((AnnotatedWildcardType) method.getReturnType()).isUninferredTypeArgument()) {
-      // Get the correct Java type from the tree and use it as the upper bound of the
-      // wildcard.
+      // Get the correct Java type from the tree and use it as the upper bound of the wildcard.
       TypeMirror tm = TreeUtils.typeOf(tree);
       AnnotatedTypeMirror t = toAnnotatedType(tm, false);
 
@@ -3306,8 +3305,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     // TODO: handle type parameter declarations?
     Tree fromElt;
-    // Prevent calling declarationFor on elements we know we don't have
-    // the tree for.
+    // Prevent calling declarationFor on elements we know we don't have the tree for.
 
     switch (elt.getKind()) {
       case CLASS:
@@ -3380,8 +3378,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (found && enclosingMethod != null) {
           AnnotatedExecutableType method = getAnnotatedType(enclosingMethod);
           res = method.getReceiverType();
-          // TODO: three tests fail if one adds the following, which would make
-          // sense, or not?
+          // TODO: three tests fail if one adds the following, which would make sense, or not?
           // visitorState.setMethodReceiver(res);
         } else {
           // We are within an anonymous class or field initializer
@@ -4595,8 +4592,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         TypeMirror wildcardUbType = wildcardType.getExtendsBound().getUnderlyingType();
 
         if (wildcardType.isUninferredTypeArgument()) {
-          // Keep the uninferred type so that it is ignored by later subtyping and
-          // containment checks.
+          // Keep the uninferred type so that it is ignored by later subtyping and containment
+          // checks.
           newTypeArguments.set(i, wildcardType);
         } else if (isExtendsWildcard(wildcardType)) {
           TypeMirror correctArgType;
