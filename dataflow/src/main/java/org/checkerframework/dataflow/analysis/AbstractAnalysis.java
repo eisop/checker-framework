@@ -515,7 +515,8 @@ public abstract class AbstractAnalysis<
     }
 
     /**
-     * Add the given block to {@link #queue}.
+     * Add the given block to {@link #queue}. Adds unconditionally: does not check containment
+     * first.
      *
      * @param block the block to add to {@link #queue}
      */
