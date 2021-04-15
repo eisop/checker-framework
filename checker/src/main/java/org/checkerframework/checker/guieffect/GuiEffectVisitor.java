@@ -131,10 +131,10 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
             "override.receiver.invalid",
             overrider.getReceiverType(),
             overridden.getReceiverType(),
-            overrider,
             overriderType,
-            overridden,
-            overriddenType);
+            overrider,
+            overriddenType,
+            overridden);
         return false;
       }
       return true;

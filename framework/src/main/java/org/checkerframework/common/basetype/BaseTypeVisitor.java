@@ -3724,10 +3724,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         checker.reportError(
             overriderTree,
             msgKey,
-            overrider,
             overriderType,
-            overridden,
+            overrider,
             overriddenType,
+            overridden,
             subPurity,
             superPurity);
       }
@@ -3820,10 +3820,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
               "methodref.receiver.invalid",
               overriderReceiver,
               overriddenReceiver,
-              overrider,
               overriderType,
-              overridden,
-              overriddenType);
+              overrider,
+              overriddenType,
+              overridden);
         }
         return success;
       }
@@ -3880,8 +3880,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             receiverArg,
             receiverDecl,
             receiverArg,
-            overrider,
-            overriderType);
+            overriderType,
+            overrider);
       }
 
       return success;
@@ -3919,10 +3919,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             "override.receiver.invalid",
             pair.found,
             pair.required,
-            overrider,
             overriderType,
-            overridden,
-            overriddenType);
+            overrider,
+            overriddenType,
+            overridden);
         return false;
       }
       return true;
@@ -4012,10 +4012,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             overrider.getElement().getParameters().get(index).toString(),
             pair.found,
             pair.required,
-            overrider,
             overriderType,
-            overridden,
-            overriddenType);
+            overrider,
+            overriddenType,
+            overridden);
       }
     }
 
@@ -4105,10 +4105,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             msgKey,
             pair.found,
             pair.required,
-            overrider,
             overriderType,
-            overridden,
-            overriddenType);
+            overrider,
+            overriddenType,
+            overridden);
       }
     }
   }
