@@ -98,12 +98,13 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             ExecutableElement constructorElt,
             AnnotatedExecutableType constructorType) {
 
-        AnnotatedExecutableType declConstructorType = atypeFactory.getAnnotatedType(constructorElt);
+        // constructorType's typevar are not substituted when calling viewpointAdaptConstructor
+        AnnotatedExecutableType unsubstitutedConstructorType = constructorType.deepCopy();
 
         // For constructors, we adapt parameter types, return type and type parameters
-        List<AnnotatedTypeMirror> parameterTypes = declConstructorType.getParameterTypes();
-        List<AnnotatedTypeVariable> typeVariables = declConstructorType.getTypeVariables();
-        AnnotatedTypeMirror constructorReturn = declConstructorType.getReturnType();
+        List<AnnotatedTypeMirror> parameterTypes = unsubstitutedConstructorType.getParameterTypes();
+        List<AnnotatedTypeVariable> typeVariables = unsubstitutedConstructorType.getTypeVariables();
+        AnnotatedTypeMirror constructorReturn = unsubstitutedConstructorType.getReturnType();
 
         Map<AnnotatedTypeMirror, AnnotatedTypeMirror> mappings = new IdentityHashMap<>();
         for (AnnotatedTypeMirror parameterType : parameterTypes) {
@@ -117,13 +118,14 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         AnnotatedTypeMirror cr = combineTypeWithType(receiverType, constructorReturn);
         mappings.put(constructorReturn, cr);
 
-        declConstructorType =
+        unsubstitutedConstructorType =
                 (AnnotatedExecutableType)
-                        AnnotatedTypeReplacer.replace(declConstructorType, mappings);
+                        AnnotatedTypeCopierWithReplacement.replace(
+                                unsubstitutedConstructorType, mappings);
 
-        constructorType.setParameterTypes(declConstructorType.getParameterTypes());
-        constructorType.setTypeVariables(declConstructorType.getTypeVariables());
-        constructorType.setReturnType(declConstructorType.getReturnType());
+        constructorType.setParameterTypes(unsubstitutedConstructorType.getParameterTypes());
+        constructorType.setTypeVariables(unsubstitutedConstructorType.getTypeVariables());
+        constructorType.setReturnType(unsubstitutedConstructorType.getReturnType());
     }
 
     @Override
@@ -135,13 +137,14 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             return;
         }
 
-        AnnotatedExecutableType declMethodType = atypeFactory.getAnnotatedType(methodElt);
+        // methodType's typevar are not substituted when calling viewpointAdaptMethod
+        AnnotatedExecutableType unsubstitutedMethodType = methodType.deepCopy();
 
         // For methods, we additionally adapt method receiver compared to constructors
-        List<AnnotatedTypeMirror> parameterTypes = declMethodType.getParameterTypes();
-        List<AnnotatedTypeVariable> typeVariables = declMethodType.getTypeVariables();
-        AnnotatedTypeMirror returnType = declMethodType.getReturnType();
-        AnnotatedTypeMirror methodReceiver = declMethodType.getReceiverType();
+        List<AnnotatedTypeMirror> parameterTypes = unsubstitutedMethodType.getParameterTypes();
+        List<AnnotatedTypeVariable> typeVariables = unsubstitutedMethodType.getTypeVariables();
+        AnnotatedTypeMirror returnType = unsubstitutedMethodType.getReturnType();
+        AnnotatedTypeMirror methodReceiver = unsubstitutedMethodType.getReceiverType();
 
         Map<AnnotatedTypeMirror, AnnotatedTypeMirror> mappings = new IdentityHashMap<>();
 
@@ -165,16 +168,17 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             mappings.put(methodReceiver, mr);
         }
 
-        declMethodType =
-                (AnnotatedExecutableType) AnnotatedTypeReplacer.replace(declMethodType, mappings);
+        unsubstitutedMethodType =
+                (AnnotatedExecutableType)
+                        AnnotatedTypeCopierWithReplacement.replace(
+                                unsubstitutedMethodType, mappings);
 
         // Because we can't viewpoint adapt asMemberOf result, we adapt the declared method first,
-        // and sets the
-        // corresponding parts to asMemberOf result
-        methodType.setReturnType(declMethodType.getReturnType());
-        methodType.setReceiverType(declMethodType.getReceiverType());
-        methodType.setParameterTypes(declMethodType.getParameterTypes());
-        methodType.setTypeVariables(declMethodType.getTypeVariables());
+        // and sets the corresponding parts to asMemberOf result
+        methodType.setReturnType(unsubstitutedMethodType.getReturnType());
+        methodType.setReceiverType(unsubstitutedMethodType.getReceiverType());
+        methodType.setParameterTypes(unsubstitutedMethodType.getParameterTypes());
+        methodType.setTypeVariables(unsubstitutedMethodType.getTypeVariables());
     }
 
     protected boolean shouldAdaptMethod(ExecutableElement element) {

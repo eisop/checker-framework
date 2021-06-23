@@ -33,12 +33,13 @@ public interface ViewpointAdapter {
             AnnotatedTypeMirror memberType);
 
     /**
-     * Viewpoint adapts a constructor invocation.
+     * Viewpoint adapts a constructor invocation. Takes an unsubstituted method invocation type and
+     * performs the viewpoint adaption in place, modifying the parameter.
      *
      * @param receiverType receiver type through which a constructor is invoked.
      * @param constructorElt element of the invoked constructor.
-     * @param constructorType invoked type of the constructor. After the method returns, it will be
-     *     mutated to the viewpoint adapted constructor signature.
+     * @param constructorType invoked type of the constructor with type variables not substituted.
+     *     After the method returns, it will be mutated to the viewpoint adapted constructor type.
      */
     void viewpointAdaptConstructor(
             AnnotatedTypeMirror receiverType,
@@ -46,12 +47,14 @@ public interface ViewpointAdapter {
             AnnotatedExecutableType constructorType);
 
     /**
-     * Viewpoint adapts a method invocation.
+     * Viewpoint adapts a method invocation. Takes an unsubstituted method invocation type and
+     * performs the viewpoint adaption in place, modifying the parameter.
      *
      * @param receiverType receiver type through which a method is invoked.
-     * @param methodElt element of the invoked method.
-     * @param methodType invoked type of the method. After the method returns, it will be mutated to
-     *     the viewpoint adapted method signature.
+     * @param methodElt element of the invoked method. Only used to determine whether this type
+     *     should be viewpoint adapted
+     * @param methodType invoked type of the method with type variables not substituted. After the
+     *     method returns, it will be mutated to the viewpoint adapted method type.
      */
     void viewpointAdaptMethod(
             AnnotatedTypeMirror receiverType,
