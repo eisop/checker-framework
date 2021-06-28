@@ -19,7 +19,6 @@ import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.Tree;
-import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
@@ -814,7 +813,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
   public void setRoot(@Nullable CompilationUnitTree root) {
     if (root != null && wholeProgramInference != null) {
       for (Tree typeDecl : root.getTypeDecls()) {
-        if (typeDecl.getKind() == Kind.CLASS) {
+        if (typeDecl.getKind() == Tree.Kind.CLASS) {
           ClassTree classTree = (ClassTree) typeDecl;
           wholeProgramInference.preprocessClassTree(classTree);
         }
@@ -1563,8 +1562,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     if (shouldCache
         && tree.getKind() != Tree.Kind.NEW_CLASS
-        && tree.getKind() != Kind.NEW_ARRAY
-        && tree.getKind() != Kind.CONDITIONAL_EXPRESSION) {
+        && tree.getKind() != Tree.Kind.NEW_ARRAY
+        && tree.getKind() != Tree.Kind.CONDITIONAL_EXPRESSION) {
       // Don't cache the type of some expressions, because incorrect annotations would be
       // cached during dataflow analysis. See Issue #602.
       fromExpressionTreeCache.put(tree, result.deepCopy());
@@ -1946,7 +1945,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     TypeElement elementOfImplicitReceiver = ElementUtils.enclosingTypeElement(element);
-    if (tree.getKind() == Kind.NEW_CLASS) {
+    if (tree.getKind() == Tree.Kind.NEW_CLASS) {
       if (elementOfImplicitReceiver.getEnclosingElement() != null) {
         elementOfImplicitReceiver =
             ElementUtils.enclosingTypeElement(elementOfImplicitReceiver.getEnclosingElement());
@@ -1993,7 +1992,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     if (enclosingTree == null) {
       // tree is inside an annotation, where "this" is not allowed. So, no self type exists.
       return null;
-    } else if (enclosingTree.getKind() == Kind.METHOD) {
+    } else if (enclosingTree.getKind() == Tree.Kind.METHOD) {
       MethodTree enclosingMethod = (MethodTree) enclosingTree;
       if (TreeUtils.isConstructor(enclosingMethod)) {
         return (AnnotatedDeclaredType) getAnnotatedType(enclosingMethod).getReturnType();
@@ -2011,9 +2010,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
       EnumSet.copyOf(TreeUtils.classTreeKinds());
 
   static {
-    classMethodAnnotationKinds.add(Kind.METHOD);
-    classMethodAnnotationKinds.add(Kind.TYPE_ANNOTATION);
-    classMethodAnnotationKinds.add(Kind.ANNOTATION);
+    classMethodAnnotationKinds.add(Tree.Kind.METHOD);
+    classMethodAnnotationKinds.add(Tree.Kind.TYPE_ANNOTATION);
+    classMethodAnnotationKinds.add(Tree.Kind.ANNOTATION);
   }
 
   /**
@@ -2031,7 +2030,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     TreePath path = getPath(tree);
     Tree enclosing = TreePathUtil.enclosingOfKind(path, classMethodAnnotationKinds);
     if (enclosing != null) {
-      if (enclosing.getKind() == Kind.ANNOTATION || enclosing.getKind() == Kind.TYPE_ANNOTATION) {
+      if (enclosing.getKind() == Tree.Kind.ANNOTATION
+          || enclosing.getKind() == Tree.Kind.TYPE_ANNOTATION) {
         return null;
       }
       return enclosing;
