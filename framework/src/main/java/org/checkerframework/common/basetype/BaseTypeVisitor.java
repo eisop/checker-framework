@@ -2164,20 +2164,17 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
           // Expected is not an array -> direct comparison.
           commonAssignmentCheck(
               expected, actual, at.getExpression(), "annotation.type.incompatible");
+        } else if (actual.getKind() == TypeKind.ARRAY) {
+          // Both actual and expected are arrays.
+          commonAssignmentCheck(
+              expected, actual, at.getExpression(), "annotation.type.incompatible");
         } else {
-          if (actual.getKind() == TypeKind.ARRAY) {
-            // Both actual and expected are arrays.
-            commonAssignmentCheck(
-                expected, actual, at.getExpression(), "annotation.type.incompatible");
-          } else {
-            // The declaration is an array type, but just a single
-            // element is given.
-            commonAssignmentCheck(
-                ((AnnotatedArrayType) expected).getComponentType(),
-                actual,
-                at.getExpression(),
-                "annotation.type.incompatible");
-          }
+          // The declaration is an array type, but just a single element is given.
+          commonAssignmentCheck(
+              ((AnnotatedArrayType) expected).getComponentType(),
+              actual,
+              at.getExpression(),
+              "annotation.type.incompatible");
         }
       } finally {
         visitorState.setAssignmentContext(preAssignmentContext);
