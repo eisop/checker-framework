@@ -1667,7 +1667,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
           methodName,
           invokedMethod.getTypeVariables());
       List<AnnotatedTypeMirror> params =
-          AnnotatedTypes.expandVarArgs(atypeFactory, invokedMethod, node.getArguments());
+          AnnotatedTypes.expandVarArgsParameters(atypeFactory, invokedMethod, node.getArguments());
       checkArguments(params, node.getArguments(), methodName, method.getParameters());
       checkVarargs(invokedMethod, node);
 
@@ -1946,7 +1946,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     List<? extends ExpressionTree> passedArguments = node.getArguments();
     List<AnnotatedTypeMirror> params =
-        AnnotatedTypes.expandVarArgs(atypeFactory, constructorType, passedArguments);
+        AnnotatedTypes.expandVarArgsParameters(atypeFactory, constructorType, passedArguments);
 
     ExecutableElement constructor = constructorType.getElement();
     CharSequence constructorName = ElementUtils.getSimpleNameOrDescription(constructor);
@@ -3963,7 +3963,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
         // Deal with varargs
         if (overrider.isVarArgs() && !overridden.isVarArgs()) {
-          overriderParams = AnnotatedTypes.expandVarArgsFromTypes(overrider, overriddenParams);
+          overriderParams =
+              AnnotatedTypes.expandVarArgsParametersFromTypes(overrider, overriddenParams);
         }
       }
 
