@@ -1,7 +1,6 @@
 package org.checkerframework.common.util.debug;
 
 import java.util.Set;
-
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
@@ -16,14 +15,14 @@ import javax.lang.model.element.TypeElement;
 @SupportedAnnotationTypes("*")
 public class EmptyProcessor extends AbstractProcessor {
 
-    @Override
-    public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        System.out.println("Empty Processor run!");
-        return false;
-    }
+  @Override
+  public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+    System.out.println("Empty Processor run!");
+    return false;
+  }
 
-    @Override
-    public SourceVersion getSupportedSourceVersion() {
-        return SourceVersion.latest();
-    }
+  @Override
+  public SourceVersion getSupportedSourceVersion() {
+    return SourceVersion.latest();
+  }
 }

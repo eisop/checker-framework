@@ -1,5 +1,7 @@
 package org.checkerframework.checker.index;
 
+import java.util.Set;
+import javax.lang.model.element.AnnotationMirror;
 import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
 import org.checkerframework.dataflow.analysis.TransferResult;
 import org.checkerframework.dataflow.cfg.node.BinaryOperationNode;
@@ -10,10 +12,6 @@ import org.checkerframework.framework.flow.CFValue;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.javacutil.BugInCF;
 
-import java.util.Set;
-
-import javax.lang.model.element.AnnotationMirror;
-
 /**
  * This struct contains all of the information that the refinement functions need. It's called by
  * each node function (i.e. greater than node, less than node, etc.) and then the results are passed
@@ -22,58 +20,55 @@ import javax.lang.model.element.AnnotationMirror;
  */
 public class IndexRefinementInfo {
 
-    public Node left, right;
+  public Node left, right;
 
-    /**
-     * Annotation for left and right expressions. Might be null if dataflow doesn't have a value for
-     * the expression.
-     */
-    public AnnotationMirror leftAnno, rightAnno;
+  /**
+   * Annotation for left and right expressions. Might be null if dataflow doesn't have a value for
+   * the expression.
+   */
+  public AnnotationMirror leftAnno, rightAnno;
 
-    public CFStore thenStore, elseStore;
-    public ConditionalTransferResult<CFValue, CFStore> newResult;
+  public CFStore thenStore, elseStore;
+  public ConditionalTransferResult<CFValue, CFStore> newResult;
 
-    public IndexRefinementInfo(
-            TransferResult<CFValue, CFStore> result,
-            CFAbstractAnalysis<?, ?, ?> analysis,
-            Node r,
-            Node l) {
-        right = r;
-        left = l;
+  public IndexRefinementInfo(
+      TransferResult<CFValue, CFStore> result,
+      CFAbstractAnalysis<?, ?, ?> analysis,
+      Node r,
+      Node l) {
+    right = r;
+    left = l;
 
-        if (analysis.getValue(right) == null || analysis.getValue(left) == null) {
-            leftAnno = null;
-            rightAnno = null;
-            newResult =
-                    new ConditionalTransferResult<>(result.getResultValue(), thenStore, elseStore);
-        } else {
-            QualifierHierarchy hierarchy = analysis.getTypeFactory().getQualifierHierarchy();
-            rightAnno = getAnno(analysis.getValue(right).getAnnotations(), hierarchy);
-            leftAnno = getAnno(analysis.getValue(left).getAnnotations(), hierarchy);
+    if (analysis.getValue(right) == null || analysis.getValue(left) == null) {
+      leftAnno = null;
+      rightAnno = null;
+      newResult = new ConditionalTransferResult<>(result.getResultValue(), thenStore, elseStore);
+    } else {
+      QualifierHierarchy hierarchy = analysis.getTypeFactory().getQualifierHierarchy();
+      rightAnno = getAnno(analysis.getValue(right).getAnnotations(), hierarchy);
+      leftAnno = getAnno(analysis.getValue(left).getAnnotations(), hierarchy);
 
-            thenStore = result.getThenStore();
-            elseStore = result.getElseStore();
+      thenStore = result.getThenStore();
+      elseStore = result.getElseStore();
 
-            newResult =
-                    new ConditionalTransferResult<>(result.getResultValue(), thenStore, elseStore);
-        }
+      newResult = new ConditionalTransferResult<>(result.getResultValue(), thenStore, elseStore);
     }
+  }
 
-    public IndexRefinementInfo(
-            TransferResult<CFValue, CFStore> result,
-            CFAbstractAnalysis<?, ?, ?> analysis,
-            BinaryOperationNode node) {
-        this(result, analysis, node.getRightOperand(), node.getLeftOperand());
-    }
+  public IndexRefinementInfo(
+      TransferResult<CFValue, CFStore> result,
+      CFAbstractAnalysis<?, ?, ?> analysis,
+      BinaryOperationNode node) {
+    this(result, analysis, node.getRightOperand(), node.getLeftOperand());
+  }
 
-    private static AnnotationMirror getAnno(
-            Set<AnnotationMirror> set, QualifierHierarchy hierarchy) {
-        Set<? extends AnnotationMirror> tops = hierarchy.getTopAnnotations();
-        if (tops.size() != 1) {
-            throw new BugInCF(
-                    "%s: Found %d tops, but expected one.%nFound: %s",
-                    IndexRefinementInfo.class, tops.size(), tops);
-        }
-        return hierarchy.findAnnotationInHierarchy(set, tops.iterator().next());
+  private static AnnotationMirror getAnno(Set<AnnotationMirror> set, QualifierHierarchy hierarchy) {
+    Set<? extends AnnotationMirror> tops = hierarchy.getTopAnnotations();
+    if (tops.size() != 1) {
+      throw new BugInCF(
+          "%s: Found %d tops, but expected one.%nFound: %s",
+          IndexRefinementInfo.class, tops.size(), tops);
     }
+    return hierarchy.findAnnotationInHierarchy(set, tops.iterator().next());
+  }
 }
