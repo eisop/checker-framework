@@ -69,11 +69,11 @@ import org.checkerframework.framework.flow.CFValue;
 import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
 import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.javacutil.AnnotationUtils;
-import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.StringsPlume;
 
@@ -333,8 +333,8 @@ class MustCallConsistencyAnalyzer {
               // This satisfies case 2 above. Remove all its aliases, then return
               // below.
               if (toRemove != null) {
-                throw new BugInCF(
-                    "tried to remove multiple sets containing a reset" + " expression at once");
+                throw new TypeSystemError(
+                    "tried to remove multiple sets containing a reset expression at once");
               }
               toRemove = obligation;
               toAdd = new Obligation(ImmutableSet.of(alias));
@@ -823,7 +823,7 @@ class MustCallConsistencyAnalyzer {
     Node lhsNode = node.getTarget();
 
     if (!(lhsNode instanceof FieldAccessNode)) {
-      throw new BugInCF(
+      throw new TypeSystemError(
           "checkReassignmentToField: non-field node " + node + " of type " + node.getClass());
     }
 
@@ -986,7 +986,7 @@ class MustCallConsistencyAnalyzer {
 
       return ((LocalVariableNode) receiver).getName();
     }
-    throw new BugInCF(
+    throw new TypeSystemError(
         "unexpected receiver of field assignment: " + receiver + " of type " + receiver.getClass());
   }
 
@@ -1054,7 +1054,7 @@ class MustCallConsistencyAnalyzer {
     } else if (node instanceof ObjectCreationNode) {
       return ((ObjectCreationNode) node).getArguments();
     } else {
-      throw new BugInCF("unexpected node type " + node.getClass());
+      throw new TypeSystemError("unexpected node type " + node.getClass());
     }
   }
 
@@ -1074,7 +1074,7 @@ class MustCallConsistencyAnalyzer {
     } else if (node instanceof ObjectCreationNode) {
       executableElement = TreeUtils.elementFromUse(((ObjectCreationNode) node).getTree());
     } else {
-      throw new BugInCF("unexpected node type " + node.getClass());
+      throw new TypeSystemError("unexpected node type " + node.getClass());
     }
 
     return executableElement.getParameters();
@@ -1673,7 +1673,7 @@ class MustCallConsistencyAnalyzer {
   static String formatMissingMustCallMethods(List<String> mustCallVal) {
     int size = mustCallVal.size();
     if (size == 0) {
-      throw new BugInCF("empty mustCallVal " + mustCallVal);
+      throw new TypeSystemError("empty mustCallVal " + mustCallVal);
     } else if (size == 1) {
       return "method " + mustCallVal.get(0);
     } else {
