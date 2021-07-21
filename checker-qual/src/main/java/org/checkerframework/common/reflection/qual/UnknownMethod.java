@@ -1,16 +1,15 @@
 package org.checkerframework.common.reflection.qual;
 
-import org.checkerframework.framework.qual.DefaultQualifierInHierarchy;
-import org.checkerframework.framework.qual.InvisibleQualifier;
-import org.checkerframework.framework.qual.SubtypeOf;
-import org.checkerframework.framework.qual.TargetLocations;
-import org.checkerframework.framework.qual.TypeUseLocation;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import org.checkerframework.framework.qual.DefaultQualifierInHierarchy;
+import org.checkerframework.framework.qual.InvisibleQualifier;
+import org.checkerframework.framework.qual.SubtypeOf;
+import org.checkerframework.framework.qual.TargetLocations;
+import org.checkerframework.framework.qual.TypeUseLocation;
 
 /**
  * Represents a {@link java.lang.reflect.Method Method} or {@link java.lang.reflect.Constructor

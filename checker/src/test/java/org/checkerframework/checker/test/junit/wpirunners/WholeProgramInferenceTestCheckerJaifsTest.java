@@ -1,12 +1,11 @@
 package org.checkerframework.checker.test.junit.wpirunners;
 
+import java.io.File;
+import java.util.List;
 import org.checkerframework.checker.testchecker.wholeprograminference.WholeProgramInferenceTestChecker;
 import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
 import org.junit.experimental.categories.Category;
 import org.junit.runners.Parameterized.Parameters;
-
-import java.io.File;
-import java.util.List;
 
 /**
  * Runs whole-program inference and inserts annotations into source code.
@@ -17,19 +16,19 @@ import java.util.List;
  */
 @Category(WholeProgramInferenceTestCheckerJaifsTest.class)
 public class WholeProgramInferenceTestCheckerJaifsTest extends CheckerFrameworkPerDirectoryTest {
-    /** @param testFiles the files containing test code, which will be type-checked */
-    public WholeProgramInferenceTestCheckerJaifsTest(List<File> testFiles) {
-        super(
-                testFiles,
-                WholeProgramInferenceTestChecker.class,
-                "wpi-testchecker/non-annotated",
-                "-Anomsgtext",
-                "-Ainfer=jaifs",
-                "-Awarns");
-    }
+  /** @param testFiles the files containing test code, which will be type-checked */
+  public WholeProgramInferenceTestCheckerJaifsTest(List<File> testFiles) {
+    super(
+        testFiles,
+        WholeProgramInferenceTestChecker.class,
+        "wpi-testchecker/non-annotated",
+        "-Anomsgtext",
+        "-Ainfer=jaifs",
+        "-Awarns");
+  }
 
-    @Parameters
-    public static String[] getTestDirs() {
-        return new String[] {"wpi-testchecker/non-annotated"};
-    }
+  @Parameters
+  public static String[] getTestDirs() {
+    return new String[] {"wpi-testchecker/non-annotated"};
+  }
 }
