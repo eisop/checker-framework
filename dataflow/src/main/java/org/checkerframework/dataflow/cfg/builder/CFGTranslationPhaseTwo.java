@@ -84,8 +84,7 @@ public class CFGTranslationPhaseTwo {
                     {
                         ConditionalJump cj = (ConditionalJump) node;
                         // Exception nodes may fall through to conditional jumps, so we set the
-                        // block which is
-                        // required for the insertion of missing edges.
+                        // block which is required for the insertion of missing edges.
                         node.setBlock(block);
                         assert block != null;
                         final ConditionalBlockImpl cb = new ConditionalBlockImpl();
@@ -158,8 +157,7 @@ public class CFGTranslationPhaseTwo {
 
                     // Ensure linking between e and next block (normal edge).
                     // Note: do not link to the next block for throw statements (these throw
-                    // exceptions for
-                    // sure).
+                    // exceptions for sure).
                     if (!node.getTerminatesExecution()) {
                         missingEdges.add(new MissingEdge(e, i + 1));
                     }

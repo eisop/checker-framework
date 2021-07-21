@@ -134,8 +134,8 @@ public class AnnotationClassLoader {
         packageNameWithSlashes = packageName.replace(DOT, SLASH);
 
         // Each component of the fully qualified package name will be used later to recursively
-        // descend
-        // from a root directory to see if the package exists in some particular root directory.
+        // descend from a root directory to see if the package exists in some particular root
+        // directory.
         fullyQualifiedPackageNameSegments = new ArrayList<>();
 
         // from the fully qualified package name, split it at every dot then add to the list
@@ -147,8 +147,7 @@ public class AnnotationClassLoader {
         URL localResourceURL;
         if (classLoader != null) {
             // if the application classloader is accessible, then directly retrieve the resource URL
-            // of
-            // the qual package resource URLs must use slashes
+            // of the qual package resource URLs must use slashes
             localResourceURL = classLoader.getResource(packageNameWithSlashes);
 
             // thread based application classloader, if needed in the future:
@@ -161,12 +160,9 @@ public class AnnotationClassLoader {
 
         if (localResourceURL == null) {
             // if the application classloader is not accessible (which means the checker class was
-            // loaded
-            // using the bootstrap classloader)
-            // or if the classloader didn't find the package,
-            // then scan the classpaths to find a jar or directory which contains the qual package
-            // and set
-            // the resource URL to that jar or qual directory
+            // loaded using the bootstrap classloader) or if the classloader didn't find the
+            // package, then scan the classpaths to find a jar or directory which contains the qual
+            // package and set the resource URL to that jar or qual directory
             localResourceURL = getURLFromClasspaths();
         }
         resourceURL = localResourceURL;
@@ -199,23 +195,18 @@ public class AnnotationClassLoader {
 
         // In checkers, there will be a resource URL for the qual directory. But when called in the
         // framework (eg GeneralAnnotatedTypeFactory), there won't be a resourceURL since there
-        // isn't a
-        // qual directory.
+        // isn't a qual directory.
 
         // Each path from the set of classpaths will be checked to see if it contains the qual
-        // directory
-        // of a checker, if so, the first directory or jar that contains the package will be used as
-        // the
-        // source for loading classes from the qual package.
+        // directory of a checker, if so, the first directory or jar that contains the package will
+        // be used as the source for loading classes from the qual package.
 
         // If either a directory or a jar contains the package, resourceURL will be updated to refer
-        // to
-        // that source, otherwise resourceURL remains as null.
+        // to that source, otherwise resourceURL remains as null.
 
         // If both a jar and a directory contain the qual package, then the order of the jar and the
         // directory in the command line option(s) or environment variables will decide which one
-        // gets
-        // examined first.
+        // gets examined first.
         for (String path : paths) {
             // see if the current classpath segment is a jar or a directory
             if (path.endsWith(JAR_SUFFIX)) {
@@ -295,11 +286,9 @@ public class AnnotationClassLoader {
             JarEntry je = jarEntries.nextElement();
 
             // Each entry is the fully qualified path and file name to a particular artifact in the
-            // jar
-            // file (eg a class file).
+            // jar file (eg a class file).
             // If the jar has the package, one of the entry's name will begin with the package name
-            // in
-            // slash notation.
+            // in slash notation.
             String entryName = je.getName();
             if (entryName.startsWith(packageNameWithSlashes + SLASH)) {
                 return true;
@@ -508,10 +497,8 @@ public class AnnotationClassLoader {
         // see whether the resource URL has a protocol of jar or file
         if (resourceURL != null && resourceURL.getProtocol().contentEquals("jar")) {
             // if the checker class file is contained within a jar, then the resource URL for the
-            // qual
-            // directory will have the protocol "jar". This means the whole checker is loaded as a
-            // jar
-            // file.
+            // qual directory will have the protocol "jar". This means the whole checker is loaded
+            // as a jar file.
 
             JarURLConnection connection;
             // create a connection to the jar file
@@ -542,10 +529,9 @@ public class AnnotationClassLoader {
 
         } else if (resourceURL != null && resourceURL.getProtocol().contentEquals("file")) {
             // If the checker class file is found within the file system itself within some
-            // directory
-            // (usually development build directories), then process the package as a file directory
-            // in
-            // the file system and load the annotations contained in the qual directory.
+            // directory (usually development build directories), then process the package as a file
+            // directory in the file system and load the annotations contained in the qual
+            // directory.
 
             // open up the directory
             File packageDir = new File(resourceURL.getFile());

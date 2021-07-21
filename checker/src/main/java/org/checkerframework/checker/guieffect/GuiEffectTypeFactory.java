@@ -256,8 +256,7 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
 
         // Anonymous inner types should just get the effect of the parent by default, rather than
         // annotating every instance. Unless it's implementing a polymorphic supertype, in which
-        // case we
-        // still want the developer to be explicit.
+        // case we still want the developer to be explicit.
         if (isAnonymousType(targetClassElt)) {
             boolean canInheritParentEffects = true; // Refine this for polymorphic parents
             DeclaredType directSuper = (DeclaredType) targetClassElt.getSuperclass();
@@ -499,8 +498,7 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
                 polyOverriden = overriddenMethodElt;
                 if (isUI) {
                     // Need to special case an anonymous class with @UI on the decl, because "new
-                    // @UI Runnable
-                    // {...}" parses as @UI on an anon class decl extending Runnable
+                    // @UI Runnable {...}" parses as @UI on an anon class decl extending Runnable
                     boolean isAnonInstantiation =
                             isAnonymousType(declaringType)
                                     && (fromElement(declaringType).hasAnnotation(UI.class)

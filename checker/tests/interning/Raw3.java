@@ -77,8 +77,8 @@ public class Raw3 {
 
         List<String> bar4(List<String> sl) {
             // This line was previously failing because we couldn't adequately infer the type of
-            // DuoList
-            // as a List; it works now, though the future checking of rawtypes may be more strict.
+            // DuoList as a List; it works now, though the future checking of rawtypes may be more
+            // strict.
             // :: warning: [unchecked] unchecked conversion
             return (DuoList) sl;
         }

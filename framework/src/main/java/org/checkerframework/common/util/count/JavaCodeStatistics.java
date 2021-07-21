@@ -140,8 +140,7 @@ public class JavaCodeStatistics extends SourceChecker {
         public Void visitClass(ClassTree tree, Void p) {
             if (shouldSkipDefs(tree)) {
                 // Not "return super.visitClass(classTree, p);" because that would recursively call
-                // visitors
-                // on subtrees; we want to skip the class entirely.
+                // visitors on subtrees; we want to skip the class entirely.
                 return null;
             }
             generics += tree.getTypeParameters().size();

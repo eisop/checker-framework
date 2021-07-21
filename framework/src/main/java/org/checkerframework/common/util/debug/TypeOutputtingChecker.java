@@ -170,9 +170,8 @@ public class TypeOutputtingChecker extends BaseTypeChecker {
         @Override
         public void postProcessClassTree(ClassTree tree) {
             // Do not store the qualifiers determined by this factory.  This factory adds
-            // declaration
-            // annotations as type annotations, because TypeFromElement needs to read declaration
-            // annotations and this factory blindly supports all annotations.
+            // declaration annotations as type annotations, because TypeFromElement needs to read
+            // declaration annotations and this factory blindly supports all annotations.
             // When storing those annotation to bytecode, the compiler chokes.  See testcase
             // tests/nullness/GeneralATFStore.java
         }

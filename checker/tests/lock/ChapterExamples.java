@@ -176,11 +176,9 @@ public class ChapterExamples {
         m.field.toString();
         // The following error is due to the fact that you cannot access "this.lock" without first
         // having acquired "lock".  The right fix in a user scenario would be to not guard "this"
-        // with
-        // "this.lock". The current object could instead be guarded by "<self>" or by some other
-        // lock
-        // expression that is not one of its fields. We are keeping this test case here to make sure
-        // this scenario issues a warning.
+        // with "this.lock". The current object could instead be guarded by "<self>" or by some
+        // other lock expression that is not one of its fields. We are keeping this test case here
+        // to make sure this scenario issues a warning.
         // :: error: (lock.not.held)
         synchronized (lock) {
             myField = new MyClass();
@@ -371,11 +369,9 @@ public class ChapterExamples {
         // :: error: (lock.not.held)
         p2.field = new Object();
         // An error is issued indicating that p2 might be dereferenced without "lock" being held.
-        // The
-        // method call need not be modified, since @GuardedBy({}) <: @GuardedByUnknown and
+        // The method call need not be modified, since @GuardedBy({}) <: @GuardedByUnknown and
         // @GuardedBy("lock") <: @GuardedByUnknown, but the lock must be acquired prior to the
-        // method
-        // call.
+        // method call.
         // :: error: (lock.not.held)
         boolean b2 = compare(p1, p2);
     }

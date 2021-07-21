@@ -171,8 +171,7 @@ public class Resolver {
                     wrapInvocationOnResolveInstance(
                             FIND_IDENT, env, names.fromString(name), Kinds.KindSelector.PCK);
             // findIdent will return a PackageSymbol even for a symbol that is not a package, such
-            // as
-            // a.b.c.MyClass.myStaticField. "exists()" must be called on it to ensure that it
+            // as a.b.c.MyClass.myStaticField. "exists()" must be called on it to ensure that it
             // exists.
             if (res.getKind() == ElementKind.PACKAGE) {
                 PackageSymbol ps = (PackageSymbol) res;

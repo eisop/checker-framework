@@ -620,8 +620,7 @@ public class Range {
         // The only overflow in integer division is Long.MIN_VALUE / -1 == Long.MIN_VALUE.
         if (from == Long.MIN_VALUE && right.contains(-1)) {
             // The values in the right range are all negative because right does not contain 0 but
-            // does
-            // contain 1.
+            // does contain 1.
             if (from != to) {
                 // Special case 1:
                 // This range contains Long.MIN_VALUE and Long.MIN_VALUE + 1, which makes the
@@ -895,9 +894,8 @@ public class Range {
                     return create(0, Math.min(mask, noSignBit(variable.to)));
                 } else {
                     // Case 1.3:  Since this range contains -1, the upper bound of this range after
-                    // ignoring
-                    // the sign bit is Long.MAX_VALUE and thus doesn't contribute to further
-                    // refinement.
+                    // ignoring the sign bit is Long.MAX_VALUE and thus doesn't contribute to
+                    // further refinement.
                     return create(0, mask);
                 }
             } else {
@@ -908,14 +906,11 @@ public class Range {
                     return create(0, Math.min(noSignBit(mask), variable.to));
                 } else if (variable.to < 0) {
                     // Case 2.2: The sign bit of the elements in the result range must be 1.
-                    // Therefore the
-                    // lower bound of the result range is Long.MIN_VALUE (when all 1-bits are
-                    // mismatched
-                    // between the mask and the element in this range). The result range is also
-                    // upper-bounded
-                    // by this mask itself and the upper bound of this range.  (Because more set
-                    // bits means a
-                    // larger number -- still negative, but closer to 0.)
+                    // Therefore the lower bound of the result range is Long.MIN_VALUE (when all
+                    // 1-bits are mismatched between the mask and the element in this range). The
+                    // result range is also upper-bounded by this mask itself and the upper bound of
+                    // this range.  (Because more set bits means a larger number -- still negative,
+                    // but closer to 0.)
                     return create(Long.MIN_VALUE, Math.min(mask, variable.to));
                 } else {
                     // Case 2.3: Similar to case 2.2 except that the elements in this range could

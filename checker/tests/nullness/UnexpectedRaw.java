@@ -29,8 +29,7 @@ class Utils {
         // identical, so it comes down to the annotations on the type arguments.
 
         // Let X stand in for the type argument of nullConsumer.  For it to be a valid parameter, X
-        // must
-        // be contained by the type argument of the formal parameter, ? super C.
+        // must be contained by the type argument of the formal parameter, ? super C.
         //
         // In other words, the following constraints must hold:
         //

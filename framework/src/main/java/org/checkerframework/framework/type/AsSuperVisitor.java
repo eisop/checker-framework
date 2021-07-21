@@ -415,15 +415,14 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
             AnnotatedIntersectionType type, AnnotatedDeclaredType superType, Void p) {
         for (AnnotatedTypeMirror bound : type.getBounds()) {
             // Find the directSuperType that is a subtype of superType, then recur on that type so
-            // that
-            // type arguments in superType are annotated correctly.
+            // that type arguments in superType are annotated correctly.
             if (bound.getKind() == TypeKind.DECLARED
                     && isErasedJavaSubtype((AnnotatedDeclaredType) bound, superType)) {
                 AnnotatedTypeMirror asSuper = visit(bound, superType, p);
 
                 // The directSuperType might have a primary annotation that is a supertype of
-                // primary
-                // annotation on type. Copy the primary annotation, because it is more precise.
+                // primary annotation on type. Copy the primary annotation, because it is more
+                // precise.
                 return copyPrimaryAnnos(type, asSuper);
             }
         }
@@ -465,8 +464,8 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
                 AnnotatedTypeMirror asSuper = visit(bound, superType, p);
 
                 // The directSuperType might have a primary annotation that is a supertype of
-                // primary
-                // annotation on type. Copy the primary annotation, because it is more precise.
+                // primary annotation on type. Copy the primary annotation, because it is more
+                // precise.
                 return copyPrimaryAnnos(type, asSuper);
             }
         }

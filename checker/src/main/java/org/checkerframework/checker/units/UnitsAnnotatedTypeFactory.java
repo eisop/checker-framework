@@ -154,10 +154,8 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                                 processingEnv, baseUnitAnnoClass, prefix);
 
                 // TODO: assert that this annotation is a prefix multiple of a Unit that's in the
-                // supported
-                // type qualifiers list currently this breaks for externally loaded annotations if
-                // the order
-                // was an alias before a base annotation.
+                // supported type qualifiers list currently this breaks for externally loaded
+                // annotations if the order was an alias before a base annotation.
                 // assert isSupportedQualifier(result);
 
                 built = true;

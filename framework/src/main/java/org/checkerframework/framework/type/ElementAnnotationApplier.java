@@ -232,8 +232,8 @@ public class ElementAnnotationApplier {
                     ElementAnnotationApplier.applyInternal(type, tpelt, factory);
                 } catch (UnexpectedAnnotationLocationException e) {
                     // The above is the second call to applyInternal on this type and element, so
-                    // any errors
-                    // were already reported by the first call. (See the only use of this class.)
+                    // any errors were already reported by the first call. (See the only use of this
+                    // class.)
                 }
             }
             return super.visitTypeVariable(type, factory);

@@ -200,8 +200,7 @@ public abstract class CFAbstractTransfer<
         // is there an assignment context node available?
         if (node != null && node.getAssignmentContext() != null) {
             // Get the declared type of the assignment context by looking up the assignment context
-            // tree's
-            // type in the factory while flow is disabled.
+            // tree's type in the factory while flow is disabled.
             Tree contextTree = node.getAssignmentContext().getContextTree();
             AnnotatedTypeMirror assignmentContext = null;
             if (contextTree != null) {
@@ -376,8 +375,7 @@ public abstract class CFAbstractTransfer<
                 // Would love to know if there was a better way.
                 // Find any enclosing element of the lambda (using trees).
                 // Then go up the elements to find an initializer element (which can't be found with
-                // the
-                // tree).
+                // the tree).
                 TreePath loopTree = factory.getPath(lambda.getLambdaTree()).getParentPath();
                 Element anEnclosingElement = null;
                 while (loopTree.getLeaf() != enclosingTree) {
@@ -469,8 +467,7 @@ public abstract class CFAbstractTransfer<
                 }
                 if (TreeUtils.isConstructor(methodTree)) {
                     // If we are in a constructor, then we can still use the static type, but only
-                    // if there is
-                    // also an initializer that already does some initialization.
+                    // if there is also an initializer that already does some initialization.
                     boolean found = false;
                     for (Pair<VariableElement, V> fieldValue : fieldValues) {
                         if (fieldValue.first.equals(element)) {
@@ -503,19 +500,14 @@ public abstract class CFAbstractTransfer<
             // even though they should only be visible in b() and in classes
             // defined inside the method body of b().
             // This is partly because GenericAnnotatedTypeFactory.performFlowAnalysis does not call
-            // itself
-            // recursively to analyze inner classes, but instead pops classes off of a queue, and
-            // the
-            // information about known final local values is stored by
-            // GenericAnnotatedTypeFactory.analyze
-            // in GenericAnnotatedTypeFactory.flowResult, which is visible to all classes in the
-            // queue
-            // regardless of their level of recursion.
+            // itself recursively to analyze inner classes, but instead pops classes off of a queue,
+            // and the information about known final local values is stored by
+            // GenericAnnotatedTypeFactory.analyze in GenericAnnotatedTypeFactory.flowResult, which
+            // is visible to all classes in the queue regardless of their level of recursion.
 
             // We work around this here by ensuring that we only add a final local value to a
-            // method's
-            // store if that method is enclosed by the method where the local variables were
-            // declared.
+            // method's store if that method is enclosed by the method where the local variables
+            // were declared.
 
             // Find the enclosing method of the element
             Element enclosingMethodOfVariableDeclaration = elem.getEnclosingElement();
@@ -581,8 +573,7 @@ public abstract class CFAbstractTransfer<
             JavaExpression exprJe;
             try {
                 // TODO: currently, these expressions are parsed at the declaration (i.e. here) and
-                // for
-                // every use. this could be optimized to store the result the first time.
+                // for every use. this could be optimized to store the result the first time.
                 // (same for other annotations)
                 exprJe =
                         StringToJavaExpression.atMethodBody(

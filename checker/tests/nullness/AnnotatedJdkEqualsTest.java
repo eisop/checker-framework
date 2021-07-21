@@ -11,9 +11,8 @@ public class AnnotatedJdkEqualsTest {
         // Nonetheless, the following code should type-check.
         // This could be handled via inheritance of annotations from superclasses either during JDK
         // creation or during type-checking.  It would be impractical to manually annotate every
-        // method
-        // in the entire JDK:  it would be too labor-intensive and there would be certain to be some
-        // oversights.
+        // method in the entire JDK:  it would be too labor-intensive and there would be certain to
+        // be some oversights.
         u.equals(null);
     }
 }

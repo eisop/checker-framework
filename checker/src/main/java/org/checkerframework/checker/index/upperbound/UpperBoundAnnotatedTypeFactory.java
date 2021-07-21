@@ -271,8 +271,7 @@ public class UpperBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
         @Override
         protected Void scan(AnnotatedTypeMirror type, Void aVoid) {
             // If there is an LTLengthOf annotation whose argument lengths don't match, replace it
-            // with
-            // bottom.
+            // with bottom.
             AnnotationMirror anm = type.getAnnotation(LTLengthOf.class);
             if (anm != null) {
                 List<String> sequences =

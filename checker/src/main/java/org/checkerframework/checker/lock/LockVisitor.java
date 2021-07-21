@@ -280,8 +280,8 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
                 methodCallReceiver.getEffectiveAnnotationInHierarchy(atypeFactory.GUARDEDBYUNKNOWN);
 
         // If the receiver actual parameter has type @GuardSatisfied, skip the subtype check.
-        // Consider
-        // only a @GuardSatisfied primary annotation - hence use primaryGb instead of effectiveGb.
+        // Consider only a @GuardSatisfied primary annotation - hence use primaryGb instead of
+        // effectiveGb.
         if (primaryGb != null
                 && atypeFactory.areSameByClass(primaryGb, checkerGuardSatisfiedClass)) {
             AnnotationMirror primaryGbOnMethodDefinition =
@@ -378,12 +378,10 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
 
         // In cases where assigning a value with a @GuardedBy annotation to a variable with a
         // @GuardSatisfied annotation is legal, this is our last chance to check that the
-        // appropriate
-        // locks are held before the information in the @GuardedBy annotation is lost in the
-        // assignment
-        // to the variable annotated with @GuardSatisfied. See the discussion of @GuardSatisfied in
-        // the
-        // "Type-checking rules" section of the Lock Checker manual chapter for more details.
+        // appropriate locks are held before the information in the @GuardedBy annotation is lost in
+        // the assignment to the variable annotated with @GuardSatisfied. See the discussion of
+        // @GuardSatisfied in the "Type-checking rules" section of the Lock Checker manual chapter
+        // for more details.
 
         if (varType.hasAnnotation(GuardSatisfied.class)) {
             if (valueType.hasAnnotation(GuardedBy.class)) {
@@ -608,11 +606,10 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
             // final.
 
             // If the method causes expression "this" or "#1" to be locked, verify that those
-            // expressions
-            // are effectively final.  TODO: generalize to any expression. This is currently
-            // designed only
-            // to support methods in ReentrantLock and ReentrantReadWriteLock (which use the "this"
-            // expression), as well as Thread.holdsLock (which uses the "#1" expression).
+            // expressions are effectively final.  TODO: generalize to any expression. This is
+            // currently designed only to support methods in ReentrantLock and
+            // ReentrantReadWriteLock (which use the "this" expression), as well as Thread.holdsLock
+            // (which uses the "#1" expression).
 
             AnnotationMirror ensuresLockHeldAnno =
                     atypeFactory.getDeclAnnotation(methodElement, EnsuresLockHeld.class);
@@ -640,8 +637,7 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
             for (String expr : expressions) {
                 if (expr.equals("this")) {
                     // receiverTree will be null for implicit this, or class name receivers. But
-                    // they are also
-                    // final. So nothing to be checked for them.
+                    // they are also final. So nothing to be checked for them.
                     if (receiverTree != null) {
                         ensureExpressionIsEffectivelyFinal(receiverTree);
                     }
@@ -892,9 +888,8 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
      */
     private void ensureExpressionIsEffectivelyFinal(final ExpressionTree lockExpressionTree) {
         // This functionality could be implemented using a visitor instead, however with this
-        // design, it
-        // is easier to be certain that an error will always be issued if a tree kind is not
-        // recognized.
+        // design, it is easier to be certain that an error will always be issued if a tree kind is
+        // not recognized.
         // Only the most common tree kinds for synchronized expressions are supported.
 
         // Traverse the expression using 'tree', as 'lockExpressionTree' is used for error

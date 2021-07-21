@@ -103,15 +103,13 @@ class ValueTypeAnnotator extends TypeAnnotator {
 
             if (from > to) {
                 // `from > to` either indicates a user error when writing an annotation or an error
-                // in the
-                // checker's implementation. `-from` should always be <= to.
-                // ValueVisitor#validateType will
-                // issue an error.
+                // in the checker's implementation. `-from` should always be <= to.
+                // ValueVisitor#validateType will issue an error.
                 atm.replaceAnnotation(typeFactory.BOTTOMVAL);
             } else {
                 // Always do a replacement of the annotation here so that the defaults calculated
-                // above are
-                // correctly added to the annotation (assuming the annotation is well-formed).
+                // above are correctly added to the annotation (assuming the annotation is
+                // well-formed).
                 atm.replaceAnnotation(typeFactory.createIntRangeAnnotation(from, to));
             }
         } else if (AnnotationUtils.areSameByName(
@@ -120,10 +118,8 @@ class ValueTypeAnnotator extends TypeAnnotator {
             int to = typeFactory.getArrayLenRangeToValue(anno);
             if (from > to) {
                 // `from > to` either indicates a user error when writing an annotation or an error
-                // in the
-                // checker's implementation `-from` should always be <= to.
-                // ValueVisitor#validateType will
-                // issue an error.
+                // in the checker's implementation `-from` should always be <= to.
+                // ValueVisitor#validateType will issue an error.
                 atm.replaceAnnotation(typeFactory.BOTTOMVAL);
             } else if (from < 0) {
                 // No array can have a length less than 0. Any time the type includes a from

@@ -249,8 +249,8 @@ public class SupertypesSolver {
                     targetRecord.supertypes.types;
 
             // If this target is a supertype of other targets and those targets have already been
-            // lubbed
-            // add that LUB to the list of lubs for this target (as it must be above this target).
+            // lubbed add that LUB to the list of lubs for this target (as it must be above this
+            // target).
             propagatePreviousLubs(targetRecord, solution, subtypesOfTarget);
 
             // lub all the primary annotations and put them in lubOfPrimaries

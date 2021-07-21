@@ -828,10 +828,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // Search for an ajava file with annotations for the current source file and the current
             // checker. It will be in a directory specified by the "ajava" option in a subdirectory
             // corresponding to this file's package. For example, a file in package a.b would be in
-            // a
-            // subdirectory a/b. The filename is ClassName-checker.qualified.name.ajava. If such a
-            // file
-            // exists, read its detailed annotation data, including annotations on private elements.
+            // a subdirectory a/b. The filename is ClassName-checker.qualified.name.ajava. If such a
+            // file exists, read its detailed annotation data, including annotations on private
+            // elements.
 
             String packagePrefix =
                     root.getPackageName() != null
@@ -1274,12 +1273,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         DeclarationsIntoElements.store(processingEnv, this, tree);
         if (wholeProgramInference != null) {
             // Write out the results of whole-program inference, just once for each class.  As soon
-            // as any
-            // class is finished processing, all modified scenes are written to files, in case this
-            // was
-            // the last class to be processed.  Post-processing of subsequent classes might result
-            // in
-            // re-writing some of the scenes if new information has been written to them.
+            // as any class is finished processing, all modified scenes are written to files, in
+            // case this was the last class to be processed.  Post-processing of subsequent classes
+            // might result in re-writing some of the scenes if new information has been written to
+            // them.
             wholeProgramInference.writeResultsToFile(wpiOutputFormat, this.checker);
         }
     }
@@ -1369,11 +1366,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotatedTypeMirror type;
 
         // Because of a bug in Java 8, annotations on type parameters are not stored in elements, so
-        // get
-        // explicit annotations from the tree. (This bug has been fixed in Java 9.)  Also, since
+        // get explicit annotations from the tree. (This bug has been fixed in Java 9.)  Also, since
         // annotations computed by the AnnotatedTypeFactory are stored in the element, the
-        // annotations
-        // have to be retrieved from the tree so that only explicit annotations are returned.
+        // annotations have to be retrieved from the tree so that only explicit annotations are
+        // returned.
         Tree decl = declarationFromElement(elt);
 
         if (decl == null) {
@@ -1745,9 +1741,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 CollectionsPlume.mapList(
                         (Name name) ->
                                 // Calling AnnotationBuilder.fromName (which ignores
-                                // elements/fields) is acceptable
-                                // because @FieldInvariant does not handle classes with
-                                // elements/fields.
+                                // elements/fields) is acceptable because @FieldInvariant does not
+                                // handle classes with elements/fields.
                                 AnnotationBuilder.fromName(elements, name),
                         classes);
         if (qualifiers.size() == 1) {
@@ -2105,8 +2100,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         Element element = TreeUtils.elementFromUse(expression);
         if (element != null && ElementUtils.hasReceiver(element)) {
             // The tree references an element that has a receiver, but the tree does not have an
-            // explicit
-            // receiver. So, the tree must have an implicit receiver of "this" or "Outer.this".
+            // explicit receiver. So, the tree must have an implicit receiver of "this" or
+            // "Outer.this".
             return getImplicitReceiverType(expression);
         } else {
             return null;
@@ -2331,12 +2326,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         final List<AnnotatedTypeMirror> typeArgs = returnAdt.getTypeArguments();
 
         // Usually, the only locations that will add annotations to the return type are getClass in
-        // stub
-        // files defaults and propagation tree annotator.  Since getClass is final they cannot come
-        // from
-        // source code.  Also, since the newBound is an erased type we have no type arguments.  So,
-        // we
-        // just copy the annotations from the bound of the declared type to the new bound.
+        // stub files defaults and propagation tree annotator.  Since getClass is final they cannot
+        // come from source code.  Also, since the newBound is an erased type we have no type
+        // arguments.  So, we just copy the annotations from the bound of the declared type to the
+        // new bound.
         final AnnotatedWildcardType classWildcardArg = (AnnotatedWildcardType) typeArgs.get(0);
         Set<AnnotationMirror> newAnnos = AnnotationUtils.createAnnotationSet();
         Set<AnnotationMirror> typeBoundAnnos =
@@ -4696,8 +4689,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
                 if (wildcardType.isUninferredTypeArgument()) {
                     // Keep the uninferred type so that it is ignored by later subtyping and
-                    // containment
-                    // checks.
+                    // containment checks.
                     newTypeArguments.set(i, wildcardType);
                 } else if (isExtendsWildcard(wildcardType)) {
                     TypeMirror correctArgType;
@@ -4740,8 +4732,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         functionalType.setTypeArguments(newTypeArguments);
 
         // When the groundTargetJavaType is different from the underlying type of functionalType,
-        // only
-        // the main annotations are copied.  Add default annotations in places without annotations.
+        // only the main annotations are copied.  Add default annotations in places without
+        // annotations.
         addDefaultAnnotations(functionalType);
     }
 

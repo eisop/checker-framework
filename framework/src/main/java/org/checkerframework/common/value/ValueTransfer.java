@@ -177,10 +177,9 @@ public class ValueTransfer extends CFTransfer {
             // characters always have length 1
             return Collections.singletonList(1);
         } else if (isIntRange(subNode, p)) {
-            // Try to get a list of lengths from a range of integer values converted to string
-            // @IntVal is
-            // not checked for, because if it is present, we would already have the actual string
-            // values
+            // Try to get a list of lengths from a range of integer values converted to string.
+            // @IntVal is not checked for, because if it is present, we would already have the
+            // actual string values.
             Range lengthRange = getIntRangeStringLengthRange(subNode, p);
             return ValueCheckerUtils.getValuesFromRange(lengthRange, Integer.class);
         } else if (subNodeTypeKind == TypeKind.BYTE) {
@@ -1219,11 +1218,9 @@ public class ValueTransfer extends CFTransfer {
                 || isIntegralUnknownVal(rightNode, rightAnno)
                 || isIntegralUnknownVal(leftNode, leftAnno)) {
             // If either is @UnknownVal, then refineIntRanges will treat it as the max range and
-            // thus
-            // refine it if possible.  Also, if either is an @IntVal, then it will be converted to a
-            // range.  This is less precise in some cases, but avoids the complexity of comparing a
-            // list
-            // of values to a range. (This could be implemented in the future.)
+            // thus refine it if possible.  Also, if either is an @IntVal, then it will be converted
+            // to a range.  This is less precise in some cases, but avoids the complexity of
+            // comparing a list of values to a range. (This could be implemented in the future.)
             return refineIntRanges(
                     leftNode, leftAnno, rightNode, rightAnno, op, thenStore, elseStore);
         }

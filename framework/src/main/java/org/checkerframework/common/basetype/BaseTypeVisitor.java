@@ -398,10 +398,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         String withAnnotations;
         try (InputStream annotationInputStream = root.getSourceFile().openInputStream()) {
             // This check only runs on files from the Checker Framework test suite, which should all
-            // use
-            // UNIX line separators. Using System.lineSeparator instead of "\n" could cause the test
-            // to
-            // fail on Mac or Windows.
+            // use UNIX line separators. Using System.lineSeparator instead of "\n" could cause the
+            // test to fail on Mac or Windows.
             withAnnotations =
                     new InsertAjavaAnnotations(elements)
                             .insertAnnotations(annotationInputStream, withoutAnnotations, "\n");
@@ -453,8 +451,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     public final Void visitClass(ClassTree classTree, Void p) {
         if (checker.shouldSkipDefs(classTree)) {
             // Not "return super.visitClass(classTree, p);" because that would recursively call
-            // visitors
-            // on subtrees; we want to skip the class entirely.
+            // visitors on subtrees; we want to skip the class entirely.
             return null;
         }
         atypeFactory.preProcessClassTree(classTree);
@@ -867,8 +864,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     public Void visitMethod(MethodTree node, Void p) {
         // We copy the result from getAnnotatedType to ensure that circular types (e.g. K extends
         // Comparable<K>) are represented by circular AnnotatedTypeMirrors, which avoids problems
-        // with
-        // later checks.
+        // with later checks.
         // TODO: Find a cleaner way to ensure circular AnnotatedTypeMirrors.
         AnnotatedExecutableType methodType = atypeFactory.getAnnotatedType(node).deepCopy();
         AnnotatedDeclaredType preMRT = visitorState.getMethodReceiver();
@@ -1509,8 +1505,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         // Warn about type annotations written before modifiers such as "public".  javac retains no
         // information about modifier locations.  So, this is a very partial check:  Issue a warning
-        // if
-        // a type annotation is at the very beginning of the VariableTree, and a modifier follows
+        // if a type annotation is at the very beginning of the VariableTree, and a modifier follows
         // it.
 
         // Check if a type annotation precedes a declaration annotation.
@@ -1542,12 +1537,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         // If the type annotation appears before that text could appear, then warn that a
         // modifier appears after the type annotation.
         // TODO: in the future, account for the lengths of declaration annotations.  Length of
-        // toString
-        // of the annotation isn't useful, as it might be different length than original input.  Can
-        // use
-        // JCTree.getEndPosition(EndPosTable) and com.sun.tools.javac.tree.EndPosTable, but it
-        // requires
-        // -Xjcov.
+        // toString of the annotation isn't useful, as it might be different length than original
+        // input.  Can use JCTree.getEndPosition(EndPosTable) and
+        // com.sun.tools.javac.tree.EndPosTable, but it requires -Xjcov.
         AnnotationTree firstAnno = annotations.get(0);
         if (!modifierSet.isEmpty() && isTypeAnnotation(firstAnno)) {
             int precedingTextLength = 0;
@@ -1811,9 +1803,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotatedArrayType lastParamAnnotatedType = (AnnotatedArrayType) formals.get(lastArgIndex);
 
         // We will skip type checking so that we avoid duplicating error message if the last
-        // argument is
-        // same depth with the depth of formal varargs because type checking is already done in
-        // checkArguments.
+        // argument is same depth with the depth of formal varargs because type checking is already
+        // done in checkArguments.
         List<? extends ExpressionTree> args;
         switch (tree.getKind()) {
             case METHOD_INVOCATION:
@@ -2361,8 +2352,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         final TypeKind castTypeKind = castType.getKind();
         if (castTypeKind == TypeKind.DECLARED) {
             // Don't issue an error if the annotations are equivalent to the qualifier upper bound
-            // of the
-            // type.
+            // of the type.
             AnnotatedDeclaredType castDeclared = (AnnotatedDeclaredType) castType;
             Set<AnnotationMirror> bounds =
                     atypeFactory.getTypeDeclarationBounds(castDeclared.getUnderlyingType());
@@ -2407,15 +2397,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
                 if (castSize != exprSize) {
                     // Always warn if the cast and expression contain a different number of type
-                    // arguments,
-                    // e.g. to catch a cast from "Object" to "List<@NonNull Object>".
+                    // arguments, e.g. to catch a cast from "Object" to "List<@NonNull Object>".
                     // TODO: the same number of arguments actually doesn't guarantee anything.
                     return false;
                 }
             } else if (castTypeKind == TypeKind.TYPEVAR && exprType.getKind() == TypeKind.TYPEVAR) {
                 // If both the cast type and the casted expression are type variables, then check
-                // the
-                // bounds.
+                // the bounds.
                 Set<AnnotationMirror> lowerBoundAnnotationsCast =
                         AnnotatedTypes.findEffectiveLowerBoundAnnotations(
                                 qualifierHierarchy, castType);
@@ -3605,8 +3593,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         Pair<AnnotatedTypeMirror, AnnotatedExecutableType> result =
                 atypeFactory.getFnInterfaceFromTree(memberReferenceTree);
         // The type to which the member reference is assigned -- also known as the target type of
-        // the
-        // reference.
+        // the reference.
         AnnotatedTypeMirror functionalInterface = result.first;
         // The type of the single method that is declared by the functional interface.
         AnnotatedExecutableType functionType = result.second;
@@ -3640,8 +3627,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             if (memRefKind == ReferenceKind.UNBOUND) {
                 // The method reference is of the form: Type # instMethod and Type is a raw type.
                 // If the first parameter of the function type, p1, is a subtype of type, then type
-                // should
-                // be p1.  This has the effect of "inferring" the class type parameter.
+                // should be p1.  This has the effect of "inferring" the class type parameter.
                 AnnotatedTypeMirror p1 = functionType.getParameterTypes().get(0);
                 TypeMirror asSuper =
                         TypesUtils.asSuper(
@@ -4046,9 +4032,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             QualifierHierarchy qualifierHierarchy = atypeFactory.getQualifierHierarchy();
             // Check the receiver type.
             // isSubtype() requires its arguments to be actual subtypes with respect to JLS, but
-            // overrider
-            // receiver is not a subtype of the overridden receiver.  So, just check primary
-            // annotations.
+            // overrider receiver is not a subtype of the overridden receiver.  So, just check
+            // primary annotations.
             // TODO: this will need to be improved for generic receivers.
             Set<AnnotationMirror> overriderAnnos = overriderReceiver.getAnnotations();
             Set<AnnotationMirror> overriddenAnnos = overriddenReceiver.getAnnotations();
@@ -4058,8 +4043,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 if (qualifierHierarchy.isSubtype(overriderAnnos, declaredAnnos)
                         && qualifierHierarchy.isSubtype(declaredAnnos, overriderAnnos)) {
                     // All the type of an object must be no higher than its upper bound. So if the
-                    // receiver is
-                    // annotated with the upper bound qualifiers, then the override is safe.
+                    // receiver is annotated with the upper bound qualifiers, then the override is
+                    // safe.
                     return true;
                 }
                 FoundRequired pair = FoundRequired.of(overriderReceiver, overriddenReceiver);

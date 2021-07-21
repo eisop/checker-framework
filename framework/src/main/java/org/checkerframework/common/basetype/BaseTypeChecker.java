@@ -106,8 +106,7 @@ public abstract class BaseTypeChecker extends SourceChecker {
             checker.setSupportedLintOptions(this.getSupportedLintOptions());
 
             // initChecker validates the passed options, so call it after setting supported options
-            // and
-            // lints.
+            // and lints.
             checker.initChecker();
         }
 
@@ -530,8 +529,7 @@ public abstract class BaseTypeChecker extends SourceChecker {
         // checker threw an exception.
 
         // In order to run the next checker on this compilation unit even if the previous issued
-        // errors,
-        // the next checker's errsOnLastExit needs to include all errors issued by previous
+        // errors, the next checker's errsOnLastExit needs to include all errors issued by previous
         // checkers.
 
         Context context = ((JavacProcessingEnvironment) processingEnv).getContext();

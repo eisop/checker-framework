@@ -389,10 +389,8 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
     protected boolean ignoreFieldInWPI(Element element, String fieldName) {
         // Do not attempt to infer types for fields that do not have valid names. For example,
         // compiler-generated temporary variables will have invalid names. Recording facts about
-        // fields
-        // with invalid names causes jaif-based WPI to crash when reading the .jaif file, and
-        // stub-based
-        // WPI to generate unparsable stub files.  See
+        // fields with invalid names causes jaif-based WPI to crash when reading the .jaif file, and
+        // stub-based WPI to generate unparsable stub files.  See
         // https://github.com/typetools/checker-framework/issues/3442
         if (!SourceVersion.isIdentifier(fieldName)) {
             return true;
@@ -627,10 +625,9 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
                 break;
                 // case DECLARED:
                 // Inferring annotations on type arguments is not supported, so no need to recur on
-                // generic
-                // types. If this was ever implemented, this method would need a VisitHistory object
-                // to
-                // prevent infinite recursion on types such as T extends List<T>.
+                // generic types. If this was ever implemented, this method would need a
+                // VisitHistory object to prevent infinite recursion on types such as T extends
+                // List<T>.
             default:
                 // ATM only has primary annotations
                 break;

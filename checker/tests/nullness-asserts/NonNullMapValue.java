@@ -205,10 +205,8 @@ public class NonNullMapValue {
         @org.checkerframework.dataflow.qual.Pure
         // This annotation is not legal on containsKey in general.  If the Map is declared as (say)
         // Map<Object, @Nullable Object>, then get returns a nullable value.  We really want to say
-        // that
-        // if containsKey returns non-null, then get returns V rather than @Nullable V, but I don't
-        // know
-        // how to say that.
+        // that if containsKey returns non-null, then get returns V rather than @Nullable V, but I
+        // don't know how to say that.
         @EnsuresNonNullIf(result = true, expression = "get(#1)")
         public abstract boolean containsKey(@Nullable Object a1);
 

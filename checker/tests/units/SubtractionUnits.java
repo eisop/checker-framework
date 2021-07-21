@@ -129,8 +129,8 @@ public class SubtractionUnits {
     }
 
     // Subtraction is illegal when the operands have different units or one is unqualified.  In
-    // these
-    // tests, we cycle between the result and the first or second operand having an incorrect type.
+    // these tests, we cycle between the result and the first or second operand having an incorrect
+    // type.
     void bad() {
         // Dimensions
         // Acceleration

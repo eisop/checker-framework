@@ -140,8 +140,7 @@ import javax.tools.Diagnostic.Kind;
     ///
 
     // The next ones *increase* rather than *decrease* soundness.  They will eventually be replaced
-    // by
-    // their complements (except -AconcurrentSemantics) and moved into the above section.
+    // by their complements (except -AconcurrentSemantics) and moved into the above section.
 
     // TODO: Checking of bodies of @SideEffectFree, @Deterministic, and
     // @Pure methods is temporarily disabled unless -AcheckPurityAnnotations is
@@ -983,9 +982,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
         if (visitor == null) {
             // typeProcessingStart invokes initChecker, which should have set the visitor. If the
-            // field is
-            // still null, an exception occurred during initialization, which was already logged
-            // there. Don't also cause a NPE here.
+            // field is still null, an exception occurred during initialization, which was already
+            // logged there. Don't also cause a NPE here.
             return;
         }
         if (p.getCompilationUnit() != currentRoot) {
@@ -2090,8 +2088,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
             if (isAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
                 // Return false immediately. Do NOT check for AnnotatedFor in the enclosing
-                // elements,
-                // because they may not have an @AnnotatedFor.
+                // elements, because they may not have an @AnnotatedFor.
                 return false;
             }
         }
@@ -2106,8 +2103,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
             if (isAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
                 // Return false immediately. Do NOT check for AnnotatedFor in the enclosing
-                // elements,
-                // because they may not have an @AnnotatedFor.
+                // elements, because they may not have an @AnnotatedFor.
                 return false;
             }
         }

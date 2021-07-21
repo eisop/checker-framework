@@ -41,8 +41,7 @@ public class TransitiveInheritance {
         public void bar() {}
 
         // Should catch when the override is for a method originating in an interface two levels up,
-        // but
-        // which is implemented via class inheritance (here IIndirect, which is implemented by
+        // but which is implemented via class inheritance (here IIndirect, which is implemented by
         // MidLevel).
         @Override
         @UIEffect

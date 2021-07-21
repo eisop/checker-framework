@@ -10,8 +10,7 @@ public class Varargs {
 
         moreVarargs(new @Odd String[1]);
         // The assignment context infers @Odd for the component type.  With invariant array
-        // subtyping,
-        // this will fail, as the main type is a subtype.
+        // subtyping, this will fail, as the main type is a subtype.
         moreVarargs(new String @Odd [1]);
         // :: warning: (cast.unsafe.constructor.invocation)
         moreVarargs(new @Odd String(), new @Odd String());

@@ -37,8 +37,7 @@ public class UnitsAnnotationClassLoader extends AnnotationClassLoader {
                 initialResult.getAnnotationType().asElement().getAnnotationMirrors()) {
             // TODO : special treatment of invisible qualifiers?
 
-            // If the annotation is a SI prefix multiple of some base unit, then return false
-            // classic
+            // If the annotation is a SI prefix multiple of some base unit, then return false.
             // Units checker does not need to load the annotations of SI prefix multiples of base
             // units.
             if (AnnotationUtils.areSameByName(

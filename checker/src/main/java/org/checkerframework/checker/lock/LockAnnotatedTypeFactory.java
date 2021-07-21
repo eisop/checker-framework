@@ -199,8 +199,7 @@ public class LockAnnotatedTypeFactory
                 }
 
                 // If the expression isn't effectively final, then return the NOT_EFFECTIVELY_FINAL
-                // error
-                // string.
+                // error string.
                 return createError(javaExpr.toString(), NOT_EFFECTIVELY_FINAL);
             }
         };
@@ -243,8 +242,7 @@ public class LockAnnotatedTypeFactory
                     && isExpressionEffectivelyFinal(methodCall.getReceiver());
         } else if (expr instanceof ThisReference || expr instanceof ClassName) {
             // this is always final. "ClassName" is actually a class literal (String.class), it's
-            // final
-            // too.
+            // final too.
             return true;
         } else { // type of 'expr' is not supported in @GuardedBy(...) lock expressions
             return false;

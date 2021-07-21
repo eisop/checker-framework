@@ -185,8 +185,7 @@ public class ExpectedErrors {
         // suppressing warnings.
         // Since we must use @SuppressWarnings() for the method, we won't be able to catch any error
         // inside the method body.  Verified manually that in the "annotated" folder param's type
-        // wasn't
-        // updated.
+        // wasn't updated.
         @SuppressWarnings("all")
         public void suppressWarningsMethodParams(int param) {}
     }
@@ -203,8 +202,7 @@ public class ExpectedErrors {
         public String publicField;
 
         // The types of both fields are not refined to @WholeProgramInferenceBottom, as
-        // whole-program
-        // inference never performs refinement in the presence of the null literal.
+        // whole-program inference never performs refinement in the presence of the null literal.
         @SuppressWarnings("value")
         void assignFieldsToBottom() {
             privateField = null;

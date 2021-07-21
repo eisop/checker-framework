@@ -167,8 +167,7 @@ public class PropertyKeyAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
                 if (in == null) {
                     // if the classloader didn't manage to load the file, try whether a
-                    // FileInputStream
-                    // works. For absolute paths this might help.
+                    // FileInputStream works. For absolute paths this might help.
                     try {
                         in = new FileInputStream(name);
                     } catch (FileNotFoundException e) {

@@ -512,17 +512,14 @@ public class DependentTypesHelper {
                 if (declarationTree == null) {
                     if (elt.getKind() == ElementKind.PARAMETER) {
                         // The tree might be null when
-                        // org.checkerframework.framework.flow.CFAbstractTransfer.getValueFromFactory() gets the
-                        // assignment context for a pseudo assignment of an argument to a method
-                        // parameter.
+                        // org.checkerframework.framework.flow.CFAbstractTransfer.getValueFromFactory() gets the assignment context for a pseudo assignment of an argument to a method parameter.
                         return;
                     }
                     throw new BugInCF(this.getClass() + ": tree not found");
                 } else if (TreeUtils.typeOf(declarationTree) == null) {
                     // org.checkerframework.framework.flow.CFAbstractTransfer.getValueFromFactory()
-                    // gets the
-                    // assignment context for a pseudo assignment of an argument to a method
-                    // parameter.
+                    // gets the assignment context for a pseudo assignment of an argument to a
+                    // method parameter.
                     return;
                 }
 
@@ -800,12 +797,10 @@ public class DependentTypesHelper {
             visitedNodes.put(type, null);
 
             // If the type variable has a primary annotation, then it is viewpoint-adapted before
-            // this
-            // method is called.  The viewpoint-adapted primary annotation was already copied to the
-            // upper
-            // and lower bounds.  These annotations cannot be viewpoint-adapted again, so remove
-            // them,
-            // viewpoint-adapt any other annotations in the bound, and then add them back.
+            // this method is called.  The viewpoint-adapted primary annotation was already copied
+            // to the upper and lower bounds.  These annotations cannot be viewpoint-adapted again,
+            // so remove them, viewpoint-adapt any other annotations in the bound, and then add them
+            // back.
             Set<AnnotationMirror> primarys = type.getAnnotations();
             type.getLowerBound().removeAnnotations(primarys);
             Void r = scan(type.getLowerBound(), func);
@@ -868,8 +863,7 @@ public class DependentTypesHelper {
                 String annoString = annoTree.toString();
                 for (String annoName : annoToElements.keySet()) {
                     // TODO: Simple string containment seems too simplistic.  At least check for a
-                    // word
-                    // boundary.
+                    // word boundary.
                     if (annoString.contains(annoName)) {
                         errorTree = annoTree;
                         break;
