@@ -1501,7 +1501,7 @@ class MustCallConsistencyAnalyzer {
         cmAnno =
             typeFactory
                 .getAnnotatedType(alias.reference.getElement())
-                .getAnnotationInHierarchy(typeFactory.top);
+                .getEffectiveAnnotationInHierarchy(typeFactory.top);
       }
 
       if (calledMethodsSatisfyMustCall(mustCallValue, cmAnno)) {
