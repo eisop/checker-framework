@@ -1,11 +1,12 @@
 package org.checkerframework.checker.regex.qual;
 
+import org.checkerframework.framework.qual.InvisibleQualifier;
+import org.checkerframework.framework.qual.SubtypeOf;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.checkerframework.framework.qual.InvisibleQualifier;
-import org.checkerframework.framework.qual.SubtypeOf;
 
 /**
  * Indicates a String that is not a syntactically valid regular expression. The String itself can be
@@ -24,9 +25,9 @@ import org.checkerframework.framework.qual.SubtypeOf;
 @SubtypeOf(org.checkerframework.checker.regex.qual.UnknownRegex.class)
 public @interface PartialRegex {
 
-  /**
-   * The String qualified by this annotation. Used to verify concatenation of partial regular
-   * expressions. Defaults to the empty String.
-   */
-  String value() default "";
+    /**
+     * The String qualified by this annotation. Used to verify concatenation of partial regular
+     * expressions. Defaults to the empty String.
+     */
+    String value() default "";
 }
