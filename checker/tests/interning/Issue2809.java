@@ -19,7 +19,7 @@ public class Issue2809 {
   }
 
   void newFail(MyType<int @Interned []> t, int @UnknownInterned [] non) {
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     t.self(new MyType<>(non));
   }
 

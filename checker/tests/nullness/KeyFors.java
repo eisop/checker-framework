@@ -14,13 +14,13 @@ public class KeyFors {
     Map<String, String> map = new HashMap<>();
     String key = "key";
 
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     @NonNull String value = map.get(key);
   }
 
   public void withKeyFor() {
     Map<String, String> map = new HashMap<>();
-    @SuppressWarnings("assignment")
+    @SuppressWarnings("assignment.type.incompatible")
     @KeyFor("map") String key = "key";
 
     @NonNull String value = map.get(key);
@@ -41,7 +41,7 @@ public class KeyFors {
     }
 
     Container container = new Container();
-    @SuppressWarnings("assignment")
+    @SuppressWarnings("assignment.type.incompatible")
     @KeyFor("container.map") String key = "m";
 
     @NonNull String value = container.map.get(key);

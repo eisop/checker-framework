@@ -22,7 +22,7 @@ interface MyMap<K, V> {
 class MyRec<E extends MyList<E>> {}
 
 class RecMyList extends MyRec<RecMyList> implements MyList<RecMyList> {
-  @SuppressWarnings("return")
+  @SuppressWarnings("return.type.incompatible")
   public RecMyList getZZ() {
     return null;
   }

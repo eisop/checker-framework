@@ -8,12 +8,12 @@ public class ManualConstructor {
 
   int z;
 
-  // :: error: (contracts.postcondition)
+  // :: error: (contracts.postcondition.not.satisfied)
   ManualConstructor() {
     x = 1;
   }
 
-  // :: error: (contracts.postcondition)
+  // :: error: (contracts.postcondition.not.satisfied)
   ManualConstructor(boolean ignore) {
     x = 1;
     z = 3;

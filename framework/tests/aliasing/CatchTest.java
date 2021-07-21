@@ -8,7 +8,7 @@ public class CatchTest {
       // :: error: (unique.leaked)
       throw exVar;
 
-      // :: error: (exception.parameter)
+      // :: error: (exception.parameter.invalid)
     } catch (@Unique Exception e) {
       // exVar and e points to the same object, therefore catch clauses
       // are not allowed to have a @Unique parameter.

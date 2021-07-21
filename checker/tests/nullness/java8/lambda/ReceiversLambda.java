@@ -13,9 +13,9 @@ interface FunctionRT<T extends @Nullable Object, R> {
 
 class ReceiverTest {
 
-  // :: error: (method.invocation)
+  // :: error: (method.invocation.invalid)
   FunctionRT<String, String> f1 = s -> this.toString();
-  // :: error: (method.invocation)
+  // :: error: (method.invocation.invalid)
   FunctionRT<String, String> f2 = s -> super.toString();
 
   // :: error: (nullness.on.receiver)
@@ -27,7 +27,7 @@ class ReceiverTest {
   void context2(@Nullable ReceiverTest this) {
     // TODO: This is bug that is not specific to lambdas
     // https://github.com/typetools/checker-framework/issues/352
-    // :: error: (return)
+    // :: error: (return.type.incompatible)
     SupplierR s = () -> this;
   }
 }

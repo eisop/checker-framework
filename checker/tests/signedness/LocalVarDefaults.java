@@ -8,9 +8,9 @@ public class LocalVarDefaults {
     int local2 = signedInt;
   }
 
-  // :: error: (annotations.on.use) :: error:  (anno.on.irrelevant)
+  // :: error: (type.invalid.annotations.on.use) :: error:  (anno.on.irrelevant)
   void methodDouble(@Unsigned double unsigned, @Signed double signed) {
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     double local = unsigned;
     double local2 = signed;
   }
@@ -20,9 +20,9 @@ public class LocalVarDefaults {
     Integer local2 = signedInt;
   }
 
-  // :: error: (annotations.on.use) :: error:  (anno.on.irrelevant)
+  // :: error: (type.invalid.annotations.on.use) :: error:  (anno.on.irrelevant)
   void methodDoubleWrapper(@Unsigned Double unsigned, @Signed Double signed) {
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     Double local = unsigned;
     Double local2 = signed;
   }

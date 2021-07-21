@@ -15,7 +15,7 @@ public class UsesAnonymous {
           }
 
           void innerFieldTest() {
-            // :: warning: (argument)
+            // :: warning: (argument.type.incompatible)
             expectsSibling2(innerField);
           }
 

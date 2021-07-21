@@ -11,7 +11,7 @@ public class LombokToBuilderExample {
   }
 
   static void ensureThatErrorIssued() {
-    // :: error: finalizer.invocation
+    // :: error: finalizer.invocation.invalid
     LombokToBuilderExample.builder().build();
   }
 }

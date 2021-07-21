@@ -17,7 +17,7 @@ public class Issue2407 {
 
   void main() {
     Issue2407 object = new Issue2407();
-    // :: error: (contracts.precondition)
+    // :: error: (contracts.precondition.not.satisfied)
     object.setMessage(new Object() + "bar");
   }
 }

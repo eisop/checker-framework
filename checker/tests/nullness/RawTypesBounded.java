@@ -10,16 +10,16 @@ public class RawTypesBounded {
     @NonNull String field;
 
     public Bad() {
-      // :: error: (method.invocation)
+      // :: error: (method.invocation.invalid)
       this.init(); // error
-      // :: error: (method.invocation)
+      // :: error: (method.invocation.invalid)
       init(); // error
 
       this.field = "field"; // valid
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       this.field = null; // error
       field = "field"; // valid
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       field = null; // error
     }
 
@@ -44,7 +44,7 @@ public class RawTypesBounded {
     }
 
     public void initExpl2(@UnknownInitialization A this) {
-      // :: error: (argument)
+      // :: error: (argument.type.incompatible)
       output(this.field);
     }
 
@@ -54,7 +54,7 @@ public class RawTypesBounded {
     }
 
     public void initImpl2(@UnknownInitialization A this) {
-      // :: error: (argument)
+      // :: error: (argument.type.incompatible)
       output(field);
     }
   }
@@ -64,7 +64,7 @@ public class RawTypesBounded {
 
     public B() {
       super();
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       this.otherField = null; // error
       this.otherField = "otherField"; // valid
     }
@@ -144,7 +144,7 @@ public class RawTypesBounded {
     // If all fields have an initializer, then the type of "this"
     // should still not be non-raw (there might be uninitilized subclasses)
     public AllFieldsInitialized() {
-      // :: error: (method.invocation)
+      // :: error: (method.invocation.invalid)
       nonRawMethod();
     }
 
@@ -161,15 +161,15 @@ public class RawTypesBounded {
 
     public AllFieldsSetInInitializer() {
       elapsedMillis = 0;
-      // :: error: (method.invocation)
+      // :: error: (method.invocation.invalid)
       nonRawMethod();
       startTime = 0;
-      // :: error: (method.invocation)
+      // :: error: (method.invocation.invalid)
       nonRawMethod(); // still error (subclasses...)
     }
 
     public AllFieldsSetInInitializer(boolean b) {
-      // :: error: (method.invocation)
+      // :: error: (method.invocation.invalid)
       nonRawMethod();
     }
 
@@ -185,7 +185,7 @@ public class RawTypesBounded {
 
     public ConstructorInvocations() {
       this(0);
-      // :: error: (method.invocation)
+      // :: error: (method.invocation.invalid)
       nonRawMethod();
     }
 
@@ -205,7 +205,7 @@ public class RawTypesBounded {
   void cast(@UnknownInitialization Object... args) {
 
     @SuppressWarnings("rawtypes")
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     Object[] argsNonRaw1 = args;
 
     @SuppressWarnings("cast")

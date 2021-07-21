@@ -2,16 +2,16 @@ import org.checkerframework.checker.fenum.qual.Fenum;
 
 public class TestSwitch {
   void m() {
-    @SuppressWarnings("fenum:assignment")
+    @SuppressWarnings("fenum:assignment.type.incompatible")
     @Fenum("TEST") final int annotated = 3;
 
-    @SuppressWarnings("fenum:assignment")
+    @SuppressWarnings("fenum:assignment.type.incompatible")
     @Fenum("TEST") final int annotated2 = 6;
 
     int plain = 9; // FenumUnqualified
 
     switch (plain) {
-        // :: error: (type.incompatible)
+        // :: error: (switch.type.incompatible)
       case annotated:
       default:
     }
@@ -24,7 +24,7 @@ public class TestSwitch {
     }
 
     switch (annotated) {
-        // :: error: (type.incompatible)
+        // :: error: (switch.type.incompatible)
       case 45:
       default:
     }

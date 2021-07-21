@@ -39,7 +39,7 @@ class Issue319NN {
   }
 
   void fail() {
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     Foo<Boolean> f = newFoo(null);
   }
 

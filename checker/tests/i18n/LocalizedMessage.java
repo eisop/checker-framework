@@ -10,13 +10,13 @@ public class LocalizedMessage {
   void any(String s) {}
 
   void stringLiteral() {
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     localized("ldskjfldj"); // error
     any("lksjdflkjdf");
   }
 
   void stringRef(String ref) {
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     localized(ref); // error
     any(ref);
   }
@@ -32,20 +32,20 @@ public class LocalizedMessage {
   }
 
   void concatenation(@Localized String s1, String s2) {
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     localized(s1 + s1); // error
-    // :: error: (argument) :: error: (compound.assignment)
+    // :: error: (argument.type.incompatible) :: error: (compound.assignment.type.incompatible)
     localized(s1 += s1); // error
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     localized(s1 + "m"); // error
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     localized(s1 + s2); // error
 
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     localized(s2 + s1); // error
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     localized(s2 + "m"); // error
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     localized(s2 + s2); // error
 
     any(s1 + s1);

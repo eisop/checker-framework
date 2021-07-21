@@ -37,9 +37,9 @@ public class Lazy {
   }
 
   void test4() {
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     g = null;
-    // :: error: (monotonic)
+    // :: error: (monotonic.type.incompatible)
     g = g2;
   }
 
@@ -49,9 +49,9 @@ public class Lazy {
   }
 
   void _test4() {
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     _g = null;
-    // :: error: (monotonic)
+    // :: error: (monotonic.type.incompatible)
     _g = _g2;
   }
 }

@@ -94,7 +94,7 @@ public class FluentAPIGenerator {
        */
       private @CanonicalName String getAutoValueBuilderCanonicalName() {
         String com = "com";
-        @SuppressWarnings("signature:assignment") // string concatenation
+        @SuppressWarnings("signature:assignment.type.incompatible") // string concatenation
         @CanonicalName String result = com + "." + "google.auto.value.AutoValue.Builder";
         return result;
       }

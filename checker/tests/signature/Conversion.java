@@ -12,42 +12,42 @@ public class Conversion {
     }
 
     @InternalForm String binaryNameToInternalFormWRONG1(@BinaryName String bn) {
-      // :: error: (return)
+      // :: error: (return.type.incompatible)
       return bn.replace('/', '.');
     }
 
     @InternalForm String binaryNameToInternalFormWRONG2(@BinaryName String bn) {
-      // :: error: (return)
+      // :: error: (return.type.incompatible)
       return bn.replace(':', '/');
     }
 
     @InternalForm String binaryNameToInternalFormWRONG3(String bn) {
-      // :: error: (return)
+      // :: error: (return.type.incompatible)
       return bn.replace('.', '/');
     }
 
     @BinaryName String internalFormToBinaryNameWRONG1(@InternalForm String iform) {
-      // :: error: (return)
+      // :: error: (return.type.incompatible)
       return iform.replace('.', '/');
     }
 
     @BinaryName String internalFormToBinaryNameWRONG2(@InternalForm String iform) {
-      // :: error: (return)
+      // :: error: (return.type.incompatible)
       return iform.replace('/', ':');
     }
 
     @BinaryName String internalFormToBinaryNameWRONG3(String iform) {
-      // :: error: (return)
+      // :: error: (return.type.incompatible)
       return iform.replace('/', '.');
     }
 
     @DotSeparatedIdentifiers String binaryNameToDotSeparatedIdentifiers(@BinaryName String bn) {
-      // :: error: (return)
+      // :: error: (return.type.incompatible)
       return bn.replace('$', '.');
     }
 
     @FullyQualifiedName String binaryNameToFullyQualifiedName(@BinaryName String bn) {
-      // :: error: (return)
+      // :: error: (return.type.incompatible)
       return bn.replace('$', '.');
     }
   }
@@ -62,42 +62,42 @@ public class Conversion {
     }
 
     @InternalForm String binaryNameToInternalFormWRONG1(@BinaryName String bn) {
-      // :: error: (return)
+      // :: error: (return.type.incompatible)
       return bn.replace("/", ".");
     }
 
     @InternalForm String binaryNameToInternalFormWRONG2(@BinaryName String bn) {
-      // :: error: (return)
+      // :: error: (return.type.incompatible)
       return bn.replace(":", "/");
     }
 
     @InternalForm String binaryNameToInternalFormWRONG3(String bn) {
-      // :: error: (return)
+      // :: error: (return.type.incompatible)
       return bn.replace(".", "/");
     }
 
     @BinaryName String internalFormToBinaryNameWRONG1(@InternalForm String iform) {
-      // :: error: (return)
+      // :: error: (return.type.incompatible)
       return iform.replace(".", "/");
     }
 
     @BinaryName String internalFormToBinaryNameWRONG2(@InternalForm String iform) {
-      // :: error: (return)
+      // :: error: (return.type.incompatible)
       return iform.replace("/", ":");
     }
 
     @BinaryName String internalFormToBinaryNameWRONG3(String iform) {
-      // :: error: (return)
+      // :: error: (return.type.incompatible)
       return iform.replace("/", ".");
     }
 
     @DotSeparatedIdentifiers String binaryNameToDotSeparatedIdentifiers(@BinaryName String bn) {
-      // :: error: (return)
+      // :: error: (return.type.incompatible)
       return bn.replace("$", ".");
     }
 
     @FullyQualifiedName String binaryNameToFullyQualifiedName(@BinaryName String bn) {
-      // :: error: (return)
+      // :: error: (return.type.incompatible)
       return bn.replace("$", ".");
     }
   }

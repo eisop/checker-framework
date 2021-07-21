@@ -11,9 +11,9 @@ public abstract class WeakHasherMapNullable<K, V> extends AbstractMap<K, V> impl
   public boolean containsKey(@Nullable Object key) {
     // :: warning: [unchecked] unchecked cast
     K kkey = (K) key;
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     hash.containsKey(null);
-    // :: error: (contracts.conditional.postcondition)
+    // :: error: (contracts.conditional.postcondition.not.satisfied)
     return true;
   }
 }

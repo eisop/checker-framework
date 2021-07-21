@@ -14,7 +14,7 @@ class DefaultForEach {
 
   void bar() {
     for (Integer p : foo()) {
-      // :: error: assignment
+      // :: error: assignment.type.incompatible
       @Positive int x = p;
       @NonNegative int y = p;
     }

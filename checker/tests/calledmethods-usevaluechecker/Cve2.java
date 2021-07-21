@@ -13,7 +13,7 @@ public class Cve2 {
     DescribeImagesRequest request = new DescribeImagesRequest();
     request.withFilters(new Filter("name").withValues(IMG_NAME));
 
-    // :: error: argument
+    // :: error: argument.type.incompatible
     DescribeImagesResult result = client.describeImages(request);
   }
 

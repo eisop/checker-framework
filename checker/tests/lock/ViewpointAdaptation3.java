@@ -38,12 +38,12 @@ public class ViewpointAdaptation3 {
       final LockExampleSubclass les3 = les2;
       LockExample le1 = new LockExample();
 
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       les1.locked = le1.locked;
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       les1.locked = le1.locked2;
 
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       les1.locked = les2.locked;
     }
   }
@@ -63,7 +63,7 @@ public class ViewpointAdaptation3 {
       final Object lock = new Object();
       @GuardedBy("lock") MyClass local = new MyClass();
 
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       local = m;
 
       // :: error: (lock.not.held)

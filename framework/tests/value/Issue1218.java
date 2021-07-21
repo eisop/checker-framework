@@ -41,9 +41,9 @@ public class Issue1218 {
   final <T> void anys(T @MinLen(3) ... anys) {}
 
   void testMethodCall() {
-    // :: error: (varargs)
+    // :: error: (varargs.type.incompatible)
     strs();
-    // :: error: (varargs)
+    // :: error: (varargs.type.incompatible)
     strs("");
     strs("", "");
     // type of arg should be @UnknownVal String @BottomVal []
@@ -53,16 +53,16 @@ public class Issue1218 {
     String[] args1 = {""};
     String[] args2 = {"", ""};
 
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     strs(args0);
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     strs(args1);
     strs(args2);
 
     ints(1, 2);
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     ints(0, 0, 0);
-    // :: error: (varargs)
+    // :: error: (varargs.type.incompatible)
     ints(3);
     // type of arg should be @IntVal(1) int @BottomVal []
     ints((@IntVal(1) int[]) null);
@@ -70,11 +70,11 @@ public class Issue1218 {
 
   // Inferred enumval types are incompatible with <E extends Enum<E>>. Similar code
   // works if the type is a specific enum; see the test file Enums.java for an example.
-  @SuppressWarnings("type.argument")
+  @SuppressWarnings("type.argument.type.incompatible")
   void testMethodCallTypeInferred() {
-    // :: error: (varargs)
+    // :: error: (varargs.type.incompatible)
     enums();
-    // :: error: (varargs)
+    // :: error: (varargs.type.incompatible)
     enums(MyEnum.A);
     enums(MyEnum.A, MyEnum.B);
     enums(MyEnum.A, MyEnum.B, MyEnum.C);
@@ -83,20 +83,20 @@ public class Issue1218 {
   <T extends Comparable<T> & Serializable> void testMethodCallTypeInferredIntersection() {
     T t = null;
 
-    // :: error: (varargs)
+    // :: error: (varargs.type.incompatible)
     anys(1, 1.0);
-    // :: error: (varargs)
+    // :: error: (varargs.type.incompatible)
     anys(1, "");
     anys(1, 1.0, "");
-    // :: error: (varargs)
+    // :: error: (varargs.type.incompatible)
     anys(1, t);
     anys(1, t, "");
   }
 
   void testConstructorCall() {
-    // :: error: (varargs)
+    // :: error: (varargs.type.incompatible)
     new ForString();
-    // :: error: (varargs)
+    // :: error: (varargs.type.incompatible)
     new ForString("");
     new ForString("", "");
     // type of arg should be @UnknownVal String @BottomVal []
@@ -106,23 +106,23 @@ public class Issue1218 {
     String[] args1 = {""};
     String[] args2 = {"", ""};
 
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     new ForString(args0);
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     new ForString(args1);
     new ForString(args2);
 
     new ForInt(1, 2);
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     new ForInt(0, 0, 0);
-    // :: error: (varargs)
+    // :: error: (varargs.type.incompatible)
     new ForInt(3);
     // type of arg should be @IntVal(1) int @BottomVal []
     ints((@IntVal(1) int[]) null);
   }
 
   void testConstructorCallTypeInferred() {
-    // :: error: (varargs)
+    // :: error: (varargs.type.incompatible)
     new ForEnum<>(MyEnum.A);
     new ForEnum<>(MyEnum.A, MyEnum.B);
     new ForEnum<>(MyEnum.A, MyEnum.B, MyEnum.C);
@@ -132,12 +132,12 @@ public class Issue1218 {
   <T extends Comparable<T> & Serializable> void testConstructorCallTypeInferredIntersection() {
     T t = null;
 
-    // :: error: (varargs)
+    // :: error: (varargs.type.incompatible)
     new ForAny<>(1, 1.0);
-    // :: error: (varargs)
+    // :: error: (varargs.type.incompatible)
     new ForAny<>(1, "");
     new ForAny<>(1, 1.0, "");
-    // :: error: (varargs)
+    // :: error: (varargs.type.incompatible)
     new ForAny<>(1, t);
     new ForAny<>(1, t, "");
   }

@@ -8,7 +8,7 @@ public class StringConcats {
 
     @StringVal("true") String bool = "" + true;
     @StringVal("null") String nullV = "" + null;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     @BottomVal String bottom = "" + null;
     @StringVal("1") String intL = "" + 1;
     @StringVal("$") String charL = "" + '$';
@@ -34,7 +34,7 @@ public class StringConcats {
     s += 0b11010;
     // TODO: this should pass
     // compound assignments have not been implemented.
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     @StringVal("helloa11.01.020truenull2626") String all = s;
   }
 

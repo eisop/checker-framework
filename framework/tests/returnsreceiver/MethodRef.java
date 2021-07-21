@@ -10,7 +10,7 @@ public class MethodRef {
     @This Object consume(Object p);
   }
 
-  // :: error: methodref.receiver.bound
+  // :: error: methodref.receiver.bound.invalid
   Setter co = this::set;
 
   void doNothing(@This MethodRef this) {}
@@ -21,6 +21,6 @@ public class MethodRef {
 
   // The error here is a false positive, due to
   // https://github.com/typetools/checker-framework/issues/2931
-  // :: error: methodref.receiver.bound
+  // :: error: methodref.receiver.bound.invalid
   Fun f = this::doNothing;
 }

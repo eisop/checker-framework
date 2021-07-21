@@ -3,11 +3,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class ClassTypeArgInference {
   public static void main(String[] args) {
     Gen<String> o = new Gen<>("");
-    // :: error: (methodref.param)
+    // :: error: (methodref.param.invalid)
     Factory f = Gen::make;
-    // :: error: (methodref.param)
+    // :: error: (methodref.param.invalid)
     Factory f2 = Gen<String>::make;
-    // :: error: (methodref.receiver) :: error: (methodref.return)
+    // :: error: (methodref.receiver.invalid) :: error: (methodref.return.invalid)
     Factory f3 = Gen<@Nullable String>::make;
     f2.make(o, null).toString();
   }

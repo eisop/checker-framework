@@ -29,15 +29,15 @@ public class JCIPAnnotations {
   // Tests that Javax and JCIP @GuardedBy(...) typecheck against the Lock Checker @GuardedBy on a
   // receiver.
   void testReceivers() {
-    // :: error: (method.invocation)
+    // :: error: (method.invocation.invalid)
     jcipGuardedField.methodWithUnguardedReceiver();
-    // :: error: (method.invocation)
+    // :: error: (method.invocation.invalid)
     jcipGuardedField.methodWithGuardedReceiver();
     // :: error: (lock.not.held)
     jcipGuardedField.methodWithGuardSatisfiedReceiver();
-    // :: error: (method.invocation)
+    // :: error: (method.invocation.invalid)
     javaxGuardedField.methodWithUnguardedReceiver();
-    // :: error: (method.invocation)
+    // :: error: (method.invocation.invalid)
     javaxGuardedField.methodWithGuardedReceiver();
     // :: error: (lock.not.held)
     javaxGuardedField.methodWithGuardSatisfiedReceiver();
@@ -73,7 +73,7 @@ public class JCIPAnnotations {
     synchronized (lock) {
       testGuardedByAsHolding();
     }
-    // :: error: (contracts.precondition)
+    // :: error: (contracts.precondition.not.satisfied)
     testGuardedByAsHolding();
   }
 

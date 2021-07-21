@@ -28,9 +28,9 @@ public class TestPolyNull {
         retval[i] = "dummy";
       } else {
         retval[i] = seq[i].getClass().toString();
-        // :: error: (assignment)
+        // :: error: (assignment.type.incompatible)
         retval[i] = null;
-        // :: error: (assignment)
+        // :: error: (assignment.type.incompatible)
         retval[i] = nullable;
       }
     }

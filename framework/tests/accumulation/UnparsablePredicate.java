@@ -2,16 +2,16 @@ import org.checkerframework.framework.testchecker.testaccumulation.qual.*;
 
 public class UnparsablePredicate {
 
-  // :: error: predicate
+  // :: error: predicate.invalid
   void unclosedOpen(@TestAccumulationPredicate("(foo && bar") Object x) {}
 
-  // :: error: predicate
+  // :: error: predicate.invalid
   void unopenedClose(@TestAccumulationPredicate("foo || bar)") Object x) {}
 
-  // :: error: predicate
+  // :: error: predicate.invalid
   void badKeywords1(@TestAccumulationPredicate("foo OR bar") Object x) {}
 
-  // :: error: predicate
+  // :: error: predicate.invalid
   void badKeywords2(@TestAccumulationPredicate("foo AND bar") Object x) {}
 
   // These tests check that valid java identifiers don't cause problems

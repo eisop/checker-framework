@@ -30,14 +30,14 @@ public class TransitiveInheritance {
     // TopLevel)
     @Override
     @UIEffect
-    // :: error: (override.effect)
+    // :: error: (override.effect.invalid)
     public void foo() {}
 
     // Should catch when the override is for a method originating in an interface two levels up
     // (here ITop)
     @Override
     @UIEffect
-    // :: error: (override.effect)
+    // :: error: (override.effect.invalid)
     public void bar() {}
 
     // Should catch when the override is for a method originating in an interface two levels up,
@@ -45,14 +45,14 @@ public class TransitiveInheritance {
     // MidLevel).
     @Override
     @UIEffect
-    // :: error: (override.effect)
+    // :: error: (override.effect.invalid)
     public void baz() {}
   }
 
   public static interface IBase extends IMid {
     @Override
     @UIEffect
-    // :: error: (override.effect)
+    // :: error: (override.effect.invalid)
     public void bar();
   }
 }

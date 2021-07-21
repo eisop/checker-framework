@@ -14,7 +14,7 @@ public class LBCSubtyping {
     int k = -4;
 
     // not this one though
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     @GTENegativeOne int l = k;
 
     @NonNegative int n = 0;
@@ -29,17 +29,17 @@ public class LBCSubtyping {
 
     // error cases
 
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     @NonNegative int p = i;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     @Positive int b = i;
 
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     @NonNegative int r = k;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     @Positive int c = k;
 
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     @Positive int d = r;
   }
 }

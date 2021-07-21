@@ -43,31 +43,31 @@ public class ThisSuper {
       synchronized (super.myLock) {
         super.locked.toString();
         super.locked2.toString();
-        // :: error: (contracts.precondition)
+        // :: error: (contracts.precondition.not.satisfied)
         locked.toString();
       }
       synchronized (myLock) {
-        // :: error: (contracts.precondition)
+        // :: error: (contracts.precondition.not.satisfied)
         super.locked.toString();
-        // :: error: (contracts.precondition)
+        // :: error: (contracts.precondition.not.satisfied)
         super.locked2.toString();
         locked.toString();
       }
 
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       les1.locked = le1.locked;
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       les1.locked = le1.locked2;
 
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       les1.locked = les2.locked;
 
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       this.locked = super.locked;
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       this.locked = super.locked2;
 
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       m1 = m2;
     }
 

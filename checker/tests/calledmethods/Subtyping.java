@@ -19,7 +19,7 @@ public class Subtyping {
   }
 
   @CalledMethods({"a"}) Object a_top(@CalledMethods({}) Object o) {
-    // :: error: return
+    // :: error: return.type.incompatible
     return o;
   }
 
@@ -36,12 +36,12 @@ public class Subtyping {
   }
 
   @CalledMethods({"a", "b"}) Object ab_top(@CalledMethods({}) Object o) {
-    // :: error: return
+    // :: error: return.type.incompatible
     return o;
   }
 
   @CalledMethods({"a", "b"}) Object ab_a(@CalledMethods({"a"}) Object o) {
-    // :: error: return
+    // :: error: return.type.incompatible
     return o;
   }
 
@@ -54,17 +54,17 @@ public class Subtyping {
   }
 
   @CalledMethodsBottom Object bot_top(@CalledMethods({}) Object o) {
-    // :: error: return
+    // :: error: return.type.incompatible
     return o;
   }
 
   @CalledMethodsBottom Object bot_a(@CalledMethods({"a"}) Object o) {
-    // :: error: return
+    // :: error: return.type.incompatible
     return o;
   }
 
   @CalledMethodsBottom Object bot_ab(@CalledMethods({"a", "b"}) Object o) {
-    // :: error: return
+    // :: error: return.type.incompatible
     return o;
   }
 

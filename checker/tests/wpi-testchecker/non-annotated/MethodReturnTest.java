@@ -9,7 +9,7 @@ public class MethodReturnTest {
   }
 
   static @Sibling1 int getSibling1() {
-    // :: warning: (return)
+    // :: warning: (return.type.incompatible)
     return getSibling1NotAnnotated();
   }
 
@@ -25,7 +25,7 @@ public class MethodReturnTest {
 
   public static @Parent int getParent() {
     int x = lubTest();
-    // :: warning: (return)
+    // :: warning: (return.type.incompatible)
     return x;
   }
 
@@ -38,7 +38,7 @@ public class MethodReturnTest {
     }
 
     void receivesSibling1(int i) {
-      // :: warning: (argument)
+      // :: warning: (argument.type.incompatible)
       expectsSibling1(i);
     }
 

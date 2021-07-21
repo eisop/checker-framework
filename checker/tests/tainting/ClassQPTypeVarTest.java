@@ -14,9 +14,9 @@ public class ClassQPTypeVarTest {
   }
 
   void bug(@Untainted Buffer b, @Tainted String s) {
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     b.append(s);
-    // :: error: (type.argument.hasqualparam)
+    // :: error: (type.argument.invalid.hasqualparam)
     cast(b).append(s);
   }
 
@@ -30,7 +30,7 @@ public class ClassQPTypeVarTest {
   }
 
   void use(@Untainted Buffer ub, @Tainted Buffer tb) {
-    // :: error: (type.argument)
+    // :: error: (type.argument.type.incompatible)
     identity(ub);
     identity(tb); // ok
   }

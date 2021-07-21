@@ -20,7 +20,7 @@ public class FindDistinctTest {
   }
 
   public void bad1(Object o) {
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     @InternedDistinct Object o2 = o;
   }
 

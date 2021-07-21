@@ -11,7 +11,7 @@ public class Issue314 {
   }
 
   <T extends @Nullable Object> List<T> m2(List<@NonNull T> l1) {
-    // :: error: (return)
+    // :: error: (return.type.incompatible)
     return l1;
   }
 
@@ -20,9 +20,9 @@ public class Issue314 {
     @NonNull S f2;
 
     {
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       f1 = f2;
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       f2 = f1;
     }
   }

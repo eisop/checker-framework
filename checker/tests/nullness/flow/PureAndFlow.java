@@ -26,7 +26,7 @@ public abstract class PureAndFlow {
   void withNonRow() {
     if (s2 != null) {
       nonpure("m");
-      // :: error: (argument)
+      // :: error: (argument.type.incompatible)
       pure(s2);
     }
   }

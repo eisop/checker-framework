@@ -27,7 +27,7 @@ public class VarargsNullness {
 
   public void format1(java.lang.String a1, java.lang.@Nullable Object... a2) {
     int x = a2.length; // no warning
-    // :: error: (enhancedfor)
+    // :: error: (enhancedfor.type.incompatible)
     for (@NonNull Object p : a2) // warning
     System.out.println(p);
   }

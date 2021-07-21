@@ -53,7 +53,7 @@ public class CustomContractWithArgs {
     }
 
     @EnsuresMinLen(value = "#1", targetValue = 10)
-    // :: error: (contracts.postcondition)
+    // :: error: (contracts.postcondition.not.satisfied)
     void minLenWrong(int[] a) {
       if (a.length < 9) throw new RuntimeException();
     }
@@ -98,7 +98,7 @@ public class CustomContractWithArgs {
 
         ltlPre(a, c);
       }
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       @LTLengthOf(value = "a", offset = "c+1") int j = b;
     }
   }
@@ -125,7 +125,7 @@ public class CustomContractWithArgs {
       @LTLengthOf(
           value = {"a", "a"},
           offset = {"d+1", "-10"})
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       int i = b;
     }
   }
@@ -139,9 +139,9 @@ public class CustomContractWithArgs {
         targetValue = {"#1", "#1"},
         targetOffset = {"#2 + 1", "9"},
         result = true)
-    // :: error: (contracts.conditional.postcondition.true.override)
+    // :: error: (contracts.conditional.postcondition.true.override.invalid)
     boolean ltlPost(int[] a, int c) {
-      // :: error: (contracts.conditional.postcondition)
+      // :: error: (contracts.conditional.postcondition.not.satisfied)
       return true;
     }
 
@@ -150,7 +150,7 @@ public class CustomContractWithArgs {
         value = "b ",
         targetValue = {"#1", "#1"},
         targetOffset = {"#2 + 1", "-9"})
-    // :: error: (contracts.precondition.override)
+    // :: error: (contracts.precondition.override.invalid)
     void ltlPre(int[] a, int d) {
       @LTLengthOf(
           value = {"a", "a"},

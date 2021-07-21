@@ -6,7 +6,7 @@ public class Listener {
 
   public Listener() {
     Talker w = new Talker();
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     w.register(this);
 
     f = "abc";

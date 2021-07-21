@@ -62,7 +62,7 @@ class Unbound {
     FunctionMR<String, String> f1 = String::toString;
     // TODO: Issue 802: type argument inference
     BiFunctionMR<Unbound, String, String> f2 = Unbound::func1;
-    @SuppressWarnings("nullness:type.argument")
+    @SuppressWarnings("nullness:type.argument.type.incompatible")
     BiFunctionMR<? extends Unbound, ? super Integer, ? extends Integer> f3 =
         Unbound::<Integer>func1;
   }

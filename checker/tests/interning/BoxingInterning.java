@@ -29,9 +29,9 @@ public class BoxingInterning {
     @Interned Character c2 = c;
 
     char cprimitive2 = (char) 0x2202;
-    // :: (argument)
+    // :: (argument.type.incompatible)
     needsInterned(cprimitive2);
-    // :: (assignment)
+    // :: (assignment.type.incompatible)
     @Interned Character cboxed2 = cprimitive2;
 
     short dprimitive = 5;
@@ -39,9 +39,9 @@ public class BoxingInterning {
     @Interned Short dboxed = dprimitive;
 
     short dprimitive2 = 500;
-    // :: (argument)
+    // :: (argument.type.incompatible)
     needsInterned(dprimitive2);
-    // :: (assignment)
+    // :: (assignment.type.incompatible)
     @Interned Short dboxed2 = dprimitive2;
 
     int eprimitive = 5;
@@ -49,9 +49,9 @@ public class BoxingInterning {
     @Interned Integer eboxed = eprimitive;
 
     int eprimitive2 = 500;
-    // :: (argument)
+    // :: (argument.type.incompatible)
     needsInterned(eprimitive2);
-    // :: (assignment)
+    // :: (assignment.type.incompatible)
     @Interned Integer eboxed2 = eprimitive2;
 
     long fprimitive = 5;
@@ -59,21 +59,21 @@ public class BoxingInterning {
     @Interned Long fboxed = fboxed;
 
     long fprimitive2 = 500;
-    // :: (argument)
+    // :: (argument.type.incompatible)
     needsInterned(fprimitive2);
-    // :: (assignment)
+    // :: (assignment.type.incompatible)
     @Interned Long fboxed2 = fboxed2;
 
     float g = (float) 3.14;
-    // :: (argument)
+    // :: (argument.type.incompatible)
     needsInterned(g);
-    // :: (assignment)
+    // :: (assignment.type.incompatible)
     @Interned Float gboxed = g;
 
     double h = 3.14;
-    // :: (argument)
+    // :: (argument.type.incompatible)
     needsInterned(h);
-    // :: (assignment)
+    // :: (assignment.type.incompatible)
     @Interned Double hboxed = h;
   }
 }

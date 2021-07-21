@@ -5,7 +5,7 @@ import java.util.Set;
 
 public class Issue919B {
 
-  @SuppressWarnings("nullness:return")
+  @SuppressWarnings("nullness:return.type.incompatible")
   public static Map<String, InnerClass> otherMethod(Set<InnerClass> innerClassSet) {
     return null;
   }

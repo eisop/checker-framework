@@ -58,13 +58,13 @@ public class RepeatEnsuresNonNullWithError {
     value1 = "value1";
     value2 = "value2";
     value3 = null; // condition not satisfied here
-    // :: error:  (contracts.conditional.postcondition)
+    // :: error:  (contracts.conditional.postcondition.not.satisfied)
     return true;
   }
 
   @EnsuresNonNull("value1")
   @EnsuresNonNull(value = {"value2", "value3"})
-  // :: error:  (contracts.postcondition)
+  // :: error:  (contracts.postcondition.not.satisfied)
   public void withpostconditionsfunc2() {
     value1 = "value1";
     value2 = "value2";
@@ -80,13 +80,13 @@ public class RepeatEnsuresNonNullWithError {
     value1 = "value1";
     value2 = "value2";
     value3 = null; // condition not satisfied here
-    // :: error:  (contracts.conditional.postcondition)
+    // :: error:  (contracts.conditional.postcondition.not.satisfied)
     return true;
   }
 
   @EnsuresNonNull.List({@EnsuresNonNull("value1"), @EnsuresNonNull("value2")})
   @EnsuresNonNull("value3")
-  // :: error:  (contracts.postcondition)
+  // :: error:  (contracts.postcondition.not.satisfied)
   public void withpostconditionfunc2() {
     value1 = "value1";
     value2 = "value2";

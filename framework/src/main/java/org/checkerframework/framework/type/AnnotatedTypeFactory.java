@@ -3370,7 +3370,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     if (res == null) {
       TreePath path = getPath(tree);
       if (path != null) {
-        @SuppressWarnings("interning:assignment") // used for == test
+        @SuppressWarnings("interning:assignment.type.incompatible") // used for == test
         @InternedDistinct MethodTree enclosingMethod = TreePathUtil.enclosingMethod(path);
         ClassTree enclosingClass = TreePathUtil.enclosingClass(path);
 

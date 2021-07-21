@@ -11,9 +11,9 @@ public class StringConcatenationTest {
   }
 
   void test() {
-    // :: warning: (argument)
+    // :: warning: (argument.type.incompatible)
     expectsSibling1(options_str);
-    // :: warning: (argument)
+    // :: warning: (argument.type.incompatible)
     expectsSibling1(options_str2);
   }
 

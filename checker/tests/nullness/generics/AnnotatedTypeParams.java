@@ -12,7 +12,7 @@ class MyClass<@Nullable T> {
   }
 
   void testInvalidParam() {
-    // :: error: (type.argument)
+    // :: error: (type.argument.type.incompatible)
     MyClass<@NonNull String> l;
   }
 }

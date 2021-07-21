@@ -6,7 +6,7 @@ import org.checkerframework.framework.testchecker.h1h2checker.quals.*;
 
 /**
  * This test is solely to ensure that if bounds in type parameters and wildcards are invalid then
- * they are reported as such using a "bound" error.
+ * they are reported as such using a "bound.type.incompatible" error.
  *
  * <p>A valid bound is one with LOWER_BOUND annotations that subtypes of UPPER_BOUND annotations.
  */
@@ -37,23 +37,23 @@ public class IncompatibleBounds {
   }
 
   // invalid combinations
-  // :: error: (bound)
+  // :: error: (bound.type.incompatible)
   class BottomToTop<@H1Top U extends @H1Bot Object> {}
-  // :: error: (bound)
+  // :: error: (bound.type.incompatible)
   class H1S1ToTop<@H1Top UU extends @H1S1 Object> {}
-  // :: error: (bound)
+  // :: error: (bound.type.incompatible)
   class BottomToH1S1<@H1S1 UUU extends @H1Bot Object> {}
-  // :: error: (bound)
+  // :: error: (bound.type.incompatible)
   class H1S2ToH1S1<@H1S1 UUUU extends @H1S2 Object> {}
 
   class InvalidContext {
-    // :: error: (bound)
+    // :: error: (bound.type.incompatible)
     BottomToTop<@H1Top ? extends @H1Bot Object> bottomToTop;
-    // :: error: (bound)
+    // :: error: (bound.type.incompatible)
     H1S1ToTop<@H1Top ? extends @H1S1 Object> h1S1ToTop;
-    // :: error: (bound)
+    // :: error: (bound.type.incompatible)
     BottomToH1S1<@H1S1 ? extends @H1Bot Object> bottomToH1S1;
-    // :: error: (bound)
+    // :: error: (bound.type.incompatible)
     H1S2ToH1S1<@H1S1 ? extends @H1S2 Object> h1S2ToH1S1;
   }
 }

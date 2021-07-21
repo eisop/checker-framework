@@ -1,6 +1,6 @@
 import org.checkerframework.checker.fenum.qual.Fenum;
 
-@SuppressWarnings("fenum:assignment")
+@SuppressWarnings("fenum:assignment.type.incompatible")
 public class TestPrimitive {
   public final @Fenum("A") int ACONST1 = 1;
   public final @Fenum("A") int ACONST2 = 2;
@@ -16,31 +16,31 @@ class FenumUserTestPrimitive {
 
   @Fenum("A") int state3 = this.state1;
 
-  // :: error: (assignment)
+  // :: error: (assignment.type.incompatible)
   @Fenum("B") int state2 = new TestPrimitive().ACONST1;
 
   void foo(TestPrimitive t) {
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     state1 = 4;
 
     state1 = t.ACONST2;
     state1 = t.ACONST3;
 
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     state1 = t.BCONST1;
 
     if (t.ACONST1 < t.ACONST2) {
       // ok
     }
 
-    // :: error: (binary)
+    // :: error: (binary.type.incompatible)
     if (t.ACONST1 < t.BCONST2) {}
-    // :: error: (binary)
+    // :: error: (binary.type.incompatible)
     if (t.ACONST1 == t.BCONST2) {}
 
-    // :: error: (binary)
+    // :: error: (binary.type.incompatible)
     if (t.ACONST1 < 5) {}
-    // :: error: (binary)
+    // :: error: (binary.type.incompatible)
     if (t.ACONST1 == 5) {}
   }
 }

@@ -8,11 +8,11 @@ public class BoundsAndDefaults {
 
   @TypeDeclDefaultBottom MiddleClass method(@TypeDeclDefaultMiddle MiddleClass middle, MiddleClass noAnno) {
     noAnno = middle;
-    // :: error: (return)
+    // :: error: (return.type.incompatible)
     return noAnno;
   }
 
-  // :: error: (annotations.on.use)
+  // :: error: (type.invalid.annotations.on.use)
   void tops(@TypeDeclDefaultTop MiddleClass invalid) {
     @TypeDeclDefaultTop MiddleClass local = null;
   }
@@ -23,7 +23,7 @@ public class BoundsAndDefaults {
   }
 
   @TypeDeclDefaultBottom MiddleBoundClass method(@TypeDeclDefaultMiddle MiddleBoundClass middle, MiddleBoundClass noAnno) {
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     noAnno = middle;
     return noAnno;
   }

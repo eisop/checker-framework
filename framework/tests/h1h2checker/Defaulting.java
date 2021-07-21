@@ -13,7 +13,7 @@ public class Defaulting {
   class TestLocal {
     void m(@H1S1 Object p1, @H1S2 Object p2) {
       Object l1 = p1;
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       Object l2 = p2;
     }
   }
@@ -29,11 +29,12 @@ public class Defaulting {
       locations = {TypeUseLocation.OTHERWISE})
   // Type of x is <@H1S2 X extends @H1S1 Object>, these annotations are siblings
   // and should not be in the same bound
-  // :: warning: (inconsistent.constructor.type) :: error: (bound) :: error: (super.invocation)
+  // :: warning: (inconsistent.constructor.type) :: error: (bound.type.incompatible) :: error:
+  // (super.invocation.invalid)
   class TestUpperBound<X extends Object> {
     void m(X p) {
       @H1S1 Object l1 = p;
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       @H1S2 Object l2 = p;
       Object l3 = p;
     }
@@ -48,11 +49,11 @@ public class Defaulting {
   @DefaultQualifier(
       value = H1S2.class,
       locations = {TypeUseLocation.OTHERWISE})
-  // :: warning: (inconsistent.constructor.type) :: error: (super.invocation)
+  // :: warning: (inconsistent.constructor.type) :: error: (super.invocation.invalid)
   class TestParameter {
     void m(Object p) {
       @H1S1 Object l1 = p;
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       @H1S2 Object l2 = p;
       Object l3 = p;
     }
@@ -60,9 +61,10 @@ public class Defaulting {
     void call() {
       // :: warning: (cast.unsafe.constructor.invocation)
       m(new @H1S1 Object());
-      // :: error: (argument) :: warning: (cast.unsafe.constructor.invocation)
+      // :: error: (argument.type.incompatible) :: warning:
+      // (cast.unsafe.constructor.invocation)
       m(new @H1S2 Object());
-      // :: error: (argument)
+      // :: error: (argument.type.incompatible)
       m(new Object());
     }
   }
@@ -78,10 +80,10 @@ public class Defaulting {
       locations = {TypeUseLocation.OTHERWISE})
   class TestConstructorParameter {
 
-    // :: warning: (inconsistent.constructor.type) :: error: (super.invocation)
+    // :: warning: (inconsistent.constructor.type) :: error: (super.invocation.invalid)
     TestConstructorParameter(Object p) {
       @H1S1 Object l1 = p;
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       @H1S2 Object l2 = p;
       Object l3 = p;
     }
@@ -89,9 +91,10 @@ public class Defaulting {
     void call() {
       // :: warning: (cast.unsafe.constructor.invocation)
       new TestConstructorParameter(new @H1S1 Object());
-      // :: error: (argument) :: warning: (cast.unsafe.constructor.invocation)
+      // :: error: (argument.type.incompatible) :: warning:
+      // (cast.unsafe.constructor.invocation)
       new TestConstructorParameter(new @H1S2 Object());
-      // :: error: (argument)
+      // :: error: (argument.type.incompatible)
       new TestConstructorParameter(new Object());
     }
   }
@@ -105,7 +108,7 @@ public class Defaulting {
   @DefaultQualifier(
       value = H1S2.class,
       locations = {TypeUseLocation.OTHERWISE})
-  // :: warning: (inconsistent.constructor.type) :: error: (super.invocation)
+  // :: warning: (inconsistent.constructor.type) :: error: (super.invocation.invalid)
   class TestReturns {
     Object res() {
       // :: warning: (cast.unsafe.constructor.invocation)
@@ -114,18 +117,18 @@ public class Defaulting {
 
     void m() {
       @H1S1 Object l1 = res();
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       @H1S2 Object l2 = res();
       Object l3 = res();
     }
 
     Object res2() {
-      // :: error: (return) :: warning: (cast.unsafe.constructor.invocation)
+      // :: error: (return.type.incompatible) :: warning: (cast.unsafe.constructor.invocation)
       return new @H1S2 Object();
     }
 
     Object res3() {
-      // :: error: (return)
+      // :: error: (return.type.incompatible)
       return new Object();
     }
   }
@@ -155,9 +158,9 @@ public class Defaulting {
       ReceiverDefaulting r = new ReceiverDefaulting();
 
       r2.m();
-      // :: error: (method.invocation)
+      // :: error: (method.invocation.invalid)
       r3.m();
-      // :: error: (method.invocation)
+      // :: error: (method.invocation.invalid)
       r.m();
     }
   }

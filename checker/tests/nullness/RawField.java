@@ -8,7 +8,7 @@ class RawField {
   public @UnknownInitialization RawField a;
 
   public RawField() {
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     a = null;
     this.a = this;
     a = this;
@@ -18,7 +18,7 @@ class RawField {
   public RawField(boolean foo) {}
 
   void t1() {
-    // :: error: (method.invocation)
+    // :: error: (method.invocation.invalid)
     a.t1();
   }
 
@@ -61,7 +61,7 @@ class MultiVersionControl {
 //     Object f;
 //
 //     public UseUnknownInitializationField() {
-//         // :: (initialization.field.write.in.constructor)
+//         // :: (initialization.invalid.field.write.in.constructor)
 //         f = HasStaticUnknownInitializationField.f;
 //     }
 //

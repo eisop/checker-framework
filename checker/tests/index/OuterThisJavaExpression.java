@@ -25,7 +25,7 @@ public abstract class OuterThisJavaExpression {
     }
 
     @SameLen("s") String f3() {
-      // :: error: (return)
+      // :: error: (return.type.incompatible)
       return OuterThisJavaExpression.this.s;
     }
 
@@ -38,17 +38,17 @@ public abstract class OuterThisJavaExpression {
     }
 
     @SameLen("this.s") String f6() {
-      // :: error: (return)
+      // :: error: (return.type.incompatible)
       return OuterThisJavaExpression.this.s;
     }
 
     @SameLen("OuterThisJavaExpression.this.s") String f7() {
-      // :: error: (return)
+      // :: error: (return.type.incompatible)
       return s;
     }
 
     @SameLen("OuterThisJavaExpression.this.s") String f8() {
-      // :: error: (return)
+      // :: error: (return.type.incompatible)
       return this.s;
     }
 

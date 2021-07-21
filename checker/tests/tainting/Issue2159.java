@@ -8,7 +8,7 @@ public class Issue2159 {
   static class MyClass extends Issue2159 {
     MyClass() {}
 
-    // :: error: (super.invocation)
+    // :: error: (super.invocation.invalid)
     @PolyTainted MyClass(@PolyTainted Object x) {}
 
     void testPolyTaintedLocal(

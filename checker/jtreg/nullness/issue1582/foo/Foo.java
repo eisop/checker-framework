@@ -8,7 +8,7 @@ public class Foo {
 
   Foo(@Nullable Object theObject) {}
 
-  @SuppressWarnings("contracts.conditional.postcondition")
+  @SuppressWarnings("contracts.conditional.postcondition.not.satisfied")
   @EnsuresNonNullIf(
       expression = {"theObject", "getTheObject()"},
       result = true)

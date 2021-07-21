@@ -23,33 +23,33 @@ public class ValueIntegration {
     ptest = c;
 
     stest = upure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = upure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = upure;
 
     stest = umixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = umixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = umixed;
 
     stest = spure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = spure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = spure;
 
     stest = smixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = smixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = smixed;
 
     stest = bmixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = bmixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = bmixed;
   }
 
@@ -71,33 +71,33 @@ public class ValueIntegration {
       ptest = c;
 
       stest = upure;
-      // XX error: (assignment)
+      // XX error: (assignment.type.incompatible)
       gtest = upure;
-      // XX error: (assignment)
+      // XX error: (assignment.type.incompatible)
       ptest = upure;
 
       stest = umixed;
-      // XX error: (assignment)
+      // XX error: (assignment.type.incompatible)
       gtest = umixed;
-      // XX error: (assignment)
+      // XX error: (assignment.type.incompatible)
       ptest = umixed;
 
       stest = spure;
-      // XX error: (assignment)
+      // XX error: (assignment.type.incompatible)
       gtest = spure;
-      // XX error: (assignment)
+      // XX error: (assignment.type.incompatible)
       ptest = spure;
 
       stest = smixed;
-      // XX error: (assignment)
+      // XX error: (assignment.type.incompatible)
       gtest = smixed;
-      // XX error: (assignment)
+      // XX error: (assignment.type.incompatible)
       ptest = smixed;
 
       stest = bmixed;
-      // XX error: (assignment)
+      // XX error: (assignment.type.incompatible)
       gtest = bmixed;
-      // XX error: (assignment)
+      // XX error: (assignment.type.incompatible)
       ptest = bmixed;
   }
   */
@@ -118,33 +118,33 @@ public class ValueIntegration {
     ptest = c;
 
     stest = upure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = upure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = upure;
 
     stest = umixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = umixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = umixed;
 
     stest = spure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = spure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = spure;
 
     stest = smixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = smixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = smixed;
 
     stest = bmixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = bmixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = bmixed;
   }
 
@@ -164,33 +164,33 @@ public class ValueIntegration {
     ptest = c;
 
     stest = upure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = upure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = upure;
 
     stest = umixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = umixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = umixed;
 
     stest = spure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = spure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = spure;
 
     stest = smixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = smixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = smixed;
 
     stest = bmixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = bmixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = bmixed;
   }
 
@@ -208,21 +208,21 @@ public class ValueIntegration {
     ptest = c;
 
     stest = spure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = spure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = spure;
 
     stest = smixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = smixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = smixed;
 
     stest = bmixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = bmixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = bmixed;
   }
 
@@ -252,33 +252,33 @@ public class ValueIntegration {
     ptest = pc;
 
     stest = upure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = upure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = upure;
 
     stest = umixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = umixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = umixed;
 
     stest = spure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = spure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = spure;
 
     stest = smixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = smixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = smixed;
 
     stest = bmixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = bmixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = bmixed;
   }
 
@@ -310,33 +310,33 @@ public class ValueIntegration {
       ptest = pc;
 
       stest = upure;
-      // XX error: (assignment)
+      // XX error: (assignment.type.incompatible)
       gtest = upure;
-      // XX error: (assignment)
+      // XX error: (assignment.type.incompatible)
       ptest = upure;
 
       stest = umixed;
-      // XX error: (assignment)
+      // XX error: (assignment.type.incompatible)
       gtest = umixed;
-      // XX error: (assignment)
+      // XX error: (assignment.type.incompatible)
       ptest = umixed;
 
       stest = spure;
-      // XX error: (assignment)
+      // XX error: (assignment.type.incompatible)
       gtest = spure;
-      // XX error: (assignment)
+      // XX error: (assignment.type.incompatible)
       ptest = spure;
 
       stest = smixed;
-      // XX error: (assignment)
+      // XX error: (assignment.type.incompatible)
       gtest = smixed;
-      // XX error: (assignment)
+      // XX error: (assignment.type.incompatible)
       ptest = smixed;
 
       stest = bmixed;
-      // XX error: (assignment)
+      // XX error: (assignment.type.incompatible)
       gtest = bmixed;
-      // XX error: (assignment)
+      // XX error: (assignment.type.incompatible)
       ptest = bmixed;
   }
   */
@@ -367,33 +367,33 @@ public class ValueIntegration {
     ptest = pc;
 
     stest = upure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = upure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = upure;
 
     stest = umixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = umixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = umixed;
 
     stest = spure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = spure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = spure;
 
     stest = smixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = smixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = smixed;
 
     stest = bmixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = bmixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = bmixed;
   }
 
@@ -423,33 +423,33 @@ public class ValueIntegration {
     ptest = pc;
 
     stest = upure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = upure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = upure;
 
     stest = umixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = umixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = umixed;
 
     stest = spure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = spure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = spure;
 
     stest = smixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = smixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = smixed;
 
     stest = bmixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = bmixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = bmixed;
   }
 
@@ -477,21 +477,21 @@ public class ValueIntegration {
     ptest = pc;
 
     stest = spure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = spure;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = spure;
 
     stest = smixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = smixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = smixed;
 
     stest = bmixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     gtest = bmixed;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ptest = bmixed;
   }
 }

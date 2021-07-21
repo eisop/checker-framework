@@ -25,7 +25,7 @@ abstract class GetAndIs {
   public static void buildSomethingWrong() {
     Builder b = builder();
     b.setGet("Frank");
-    // :: error: finalizer.invocation
+    // :: error: finalizer.invocation.invalid
     b.build();
   }
 
@@ -37,7 +37,7 @@ abstract class GetAndIs {
   }
 
   public static void buildSomethingWrongFluent() {
-    // :: error: finalizer.invocation
+    // :: error: finalizer.invocation.invalid
     builder().setGet("Frank").build();
   }
 

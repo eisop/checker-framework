@@ -12,7 +12,7 @@ public class ObjectsRequireNonNullElse {
     System.err.println(requireNonNullElse(null, "Something"));
 
     // This should fail typechecks, because it fails at run time.
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     System.err.println((Object) requireNonNullElse(null, null));
   }
 }

@@ -9,9 +9,9 @@ public class Issue2420 {
     if (argStr == "abc") {
       return;
     }
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     char c = "abc".charAt(argStr.length() - 1);
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     char c2 = "abc".charAt(argStr.length());
   }
 }

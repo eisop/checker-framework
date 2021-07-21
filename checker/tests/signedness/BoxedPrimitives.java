@@ -13,16 +13,16 @@ public class BoxedPrimitives {
   void argSigned(@Signed int x) {
     si = x;
     sbi = x;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ui = x;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ubi = x;
   }
 
   void argUnsigned(@Unsigned int x) {
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     si = x;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     sbi = x;
     ui = x;
     ubi = x;
@@ -31,16 +31,16 @@ public class BoxedPrimitives {
   void argSignedBoxed(@Signed Integer x) {
     si = x;
     sbi = x;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ui = x;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     ubi = x;
   }
 
   void argUnsignedBoxed(@Unsigned Integer x) {
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     si = x;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     sbi = x;
     ui = x;
     ubi = x;
@@ -51,21 +51,21 @@ public class BoxedPrimitives {
     argSignedBoxed(si);
     argSigned(sbi);
     argSignedBoxed(sbi);
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     argUnsigned(si);
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     argUnsignedBoxed(si);
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     argUnsigned(sbi);
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     argUnsignedBoxed(sbi);
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     argSigned(ui);
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     argSignedBoxed(ui);
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     argSigned(ubi);
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     argSignedBoxed(ubi);
     argUnsigned(ui);
     argUnsignedBoxed(ui);

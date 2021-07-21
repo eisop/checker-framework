@@ -83,14 +83,14 @@ public class ItselfExpressionCases {
       gsMyClass = getm();
     }
 
-    // :: error: (lock.not.held) :: error: (contracts.precondition)
+    // :: error: (lock.not.held) :: error: (contracts.precondition.not.satisfied)
     o.foo();
     synchronized (o) {
-      // :: error: (contracts.precondition)
+      // :: error: (contracts.precondition.not.satisfied)
       o.foo();
       synchronized (somelock) {
         // o.foo() requires o.somelock is held, not this.somelock.
-        // :: error: (contracts.precondition)
+        // :: error: (contracts.precondition.not.satisfied)
         o.foo();
       }
     }
@@ -111,9 +111,9 @@ public class ItselfExpressionCases {
     void foo2(@GuardSatisfied MyClass this) {}
 
     void method(@GuardedBy("<self>") MyClass this) {
-      // :: error: (lock.not.held) :: error: (contracts.precondition)
+      // :: error: (lock.not.held) :: error: (contracts.precondition.not.satisfied)
       this.foo();
-      // :: error: (lock.not.held):: error: (contracts.precondition)
+      // :: error: (lock.not.held):: error: (contracts.precondition.not.satisfied)
       foo();
       // :: error: (lock.not.held)
       synchronized (somelock) {

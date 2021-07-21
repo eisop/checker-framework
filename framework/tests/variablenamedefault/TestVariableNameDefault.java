@@ -40,51 +40,51 @@ public class TestVariableNameDefault {
 
     @VariableNameDefaultMiddle int m;
 
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     m = top;
 
     m = middle;
     m = middlevar;
     m = mymiddle;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     m = notmiddle;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     m = notmiddlevar;
     m = namedbottombutnot;
 
     m = bottom;
     m = bottomvar;
     m = mybottom;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     m = notbottom;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     m = notbottomvar;
     m = namedmiddlebutnot;
 
     @VariableNameDefaultBottom int b;
 
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     b = top;
 
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     b = middle;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     b = middlevar;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     b = mymiddle;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     b = notmiddle;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     b = notmiddlevar;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     b = namedbottombutnot;
 
     b = bottom;
     b = bottomvar;
     b = mybottom;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     b = notbottom;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     b = notbottomvar;
     b = namedmiddlebutnot;
   }
@@ -101,30 +101,30 @@ public class TestVariableNameDefault {
     @VariableNameDefaultMiddle int m;
 
     m = middle;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     m = notmiddle;
     m = bottom;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     m = notbottom;
 
     @VariableNameDefaultBottom int b;
 
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     b = middle;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     b = notmiddle;
     b = bottom;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     b = notbottom;
   }
 
   int middlemethod() {
-    // :: error: (return)
+    // :: error: (return.type.incompatible)
     return 0;
   }
 
   int mymiddlemethod() {
-    // :: error: (return)
+    // :: error: (return.type.incompatible)
     return 0;
   }
 
@@ -137,12 +137,12 @@ public class TestVariableNameDefault {
   }
 
   int bottommethod() {
-    // :: error: (return)
+    // :: error: (return.type.incompatible)
     return 0;
   }
 
   int mybottommethod() {
-    // :: error: (return)
+    // :: error: (return.type.incompatible)
     return 0;
   }
 
@@ -172,34 +172,34 @@ public class TestVariableNameDefault {
 
     m = middlemethod();
     m = mymiddlemethod();
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     m = notmiddlemethod();
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     m = mynotmiddlemethod();
 
     m = bottommethod();
     m = mybottommethod();
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     m = notbottommethod();
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     m = mynotbottommethod();
 
     @VariableNameDefaultBottom int b;
 
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     b = middlemethod();
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     b = mymiddlemethod();
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     b = notmiddlemethod();
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     b = mynotmiddlemethod();
 
     b = bottommethod();
     b = mybottommethod();
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     b = notbottommethod();
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     b = mynotbottommethod();
   }
 }

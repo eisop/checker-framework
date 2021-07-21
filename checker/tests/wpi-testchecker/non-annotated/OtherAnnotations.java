@@ -14,12 +14,12 @@ public class OtherAnnotations {
   }
 
   void useX() {
-    // :: warning: argument
+    // :: warning: argument.type.incompatible
     requireSibling1(x);
   }
 
   void methodWithAnnotatedParam(@Unique int z) {
-    // :: warning: argument
+    // :: warning: argument.type.incompatible
     requireSibling1(z);
   }
 
@@ -36,7 +36,7 @@ public class OtherAnnotations {
   }
 
   void useGetIntVal5() {
-    // :: warning: argument
+    // :: warning: argument.type.incompatible
     requireSibling1(getIntVal5());
   }
 }

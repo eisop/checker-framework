@@ -22,9 +22,9 @@ public class ReceiverParameterTest {
     rec.leakedToResult();
     isUnique(rec);
     ReceiverParameterTest other = rec.leakedToResult();
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     isUnique(rec);
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     isUnique(other);
   }
 
@@ -35,9 +35,9 @@ public class ReceiverParameterTest {
     sb.append("something");
     isUnique(sb);
     StringBuffer sb2 = sb.append("something");
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     isUnique(sb);
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     isUnique(sb2);
   }
 

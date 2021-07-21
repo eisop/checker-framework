@@ -353,10 +353,10 @@ public interface QualifierHierarchy {
   default <T> boolean updateMappingToMutableSet(
       Map<T, Set<AnnotationMirror>> map, T key, AnnotationMirror qualifier) {
     // https://github.com/typetools/checker-framework/issues/2000
-    @SuppressWarnings("nullness:argument")
+    @SuppressWarnings("nullness:argument.type.incompatible")
     boolean mapContainsKey = map.containsKey(key);
     if (mapContainsKey) {
-      @SuppressWarnings("nullness:assignment") // key is a key for map.
+      @SuppressWarnings("nullness:assignment.type.incompatible") // key is a key for map.
       @NonNull Set<AnnotationMirror> prevs = map.get(key);
       AnnotationMirror old = findAnnotationInSameHierarchy(prevs, qualifier);
       if (old != null) {

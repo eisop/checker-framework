@@ -6,19 +6,20 @@ public class LambdaParameter {
   void method(String methodParam) {
     Function<String, String> func1 =
         (
-            // :: error: (lambda.param)
+            // :: error: (lambda.param.type.incompatible)
             @FlowExp("methodParam") String lambdaParam) -> {
           return "";
         };
     Function<String, String> func2 =
         (
-            // :: error: (lambda.param) :: error: (expression.unparsable)
+            // :: error: (lambda.param.type.incompatible) :: error:
+            // (expression.unparsable.type.invalid)
             @FlowExp("lambdaParam") String lambdaParam) -> {
           return "";
         };
     Function<String, String> func3 =
         (
-            // :: error: (lambda.param)
+            // :: error: (lambda.param.type.incompatible)
             @FlowExp("#1") String lambdaParam) -> {
           @FlowExp("lambdaParam") String s = lambdaParam;
           return "";
@@ -44,7 +45,7 @@ public class LambdaParameter {
     String local = "";
     Function<String, String> func1 =
         (
-            // :: error: (lambda.param)
+            // :: error: (lambda.param.type.incompatible)
             @FlowExp("local") String lambdaParam) -> {
           return "";
         };

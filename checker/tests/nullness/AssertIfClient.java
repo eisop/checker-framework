@@ -14,9 +14,9 @@ public class AssertIfClient {
 
   void rpcResponseTypestate() {
     Proxy proxy = new Proxy();
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     @NonNull Object response1 = proxy.rpcResponse();
-    // :: error: (contracts.precondition)
+    // :: error: (contracts.precondition.not.satisfied)
     rpcResponseNonNull(proxy);
     rpcResponseNullable(proxy);
 
@@ -33,7 +33,7 @@ class Proxy {
   // the RPC response, or null if not yet received
   @MonotonicNonNull Object response = null;
 
-  @SuppressWarnings("contracts.postcondition")
+  @SuppressWarnings("contracts.postcondition.not.satisfied")
   @EnsuresNonNull({"response", "rpcResponse()"})
   void issueRpc() {
     response = new Object();
@@ -41,7 +41,7 @@ class Proxy {
 
   // If this method returns true,
   // then response is non-null and rpcResponse() returns non-null
-  @SuppressWarnings("contracts.conditional.postcondition")
+  @SuppressWarnings("contracts.conditional.postcondition.not.satisfied")
   @EnsuresNonNullIf(
       expression = {"response", "rpcResponse()"},
       result = true)

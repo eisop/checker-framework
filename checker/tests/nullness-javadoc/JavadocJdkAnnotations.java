@@ -12,7 +12,7 @@ public class JavadocJdkAnnotations {
     d.isIncluded();
     @NonNull Object x = f;
     d.tags();
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     @NonNull Object y = f;
   }
 }

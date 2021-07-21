@@ -21,9 +21,9 @@ public class MethodValSubtypingTest {
 
   void methodValSubtyping() {
     classMethod0 = classMethod0Dup;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     classMethod0 = classClass2Method0;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     classClass2Method0 = class2classMethod0;
     classClass2Method0 = classMethod0;
   }
@@ -38,7 +38,7 @@ public class MethodValSubtypingTest {
   }
 
   void unknownMethodVal2() {
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     class2classMethod0 = unknown;
   }
 
@@ -62,7 +62,7 @@ public class MethodValSubtypingTest {
 
   void test() {
     tripleAgain = triple;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     one = triple;
     triple = one;
   }

@@ -5,7 +5,7 @@ public class Simple2 {
   @NonNull String f;
 
   public Simple2() {
-    // :: error: (method.invocation)
+    // :: error: (method.invocation.invalid)
     test();
 
     f = "abc";

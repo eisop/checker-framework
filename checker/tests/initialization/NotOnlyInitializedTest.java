@@ -14,7 +14,7 @@ public class NotOnlyInitializedTest {
   public NotOnlyInitializedTest(char i) {
     // we can store something that is under initialization (like this) in f, but not in g
     f = this;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     g = this;
   }
 

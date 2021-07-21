@@ -15,7 +15,7 @@ public class Suppression {
   }
 
   void test() {
-    @SuppressWarnings("nullness:assignment")
+    @SuppressWarnings("nullness:assignment.type.incompatible")
     @NonNull String s = null;
   }
 }

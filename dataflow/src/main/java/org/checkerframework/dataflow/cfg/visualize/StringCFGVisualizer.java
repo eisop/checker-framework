@@ -40,7 +40,7 @@ public class StringCFGVisualizer<
     return Collections.singletonMap("stringGraph", stringGraph);
   }
 
-  @SuppressWarnings("keyfor:enhancedfor")
+  @SuppressWarnings("keyfor:enhancedfor.type.incompatible")
   @Override
   public String visualizeNodes(
       Set<Block> blocks, ControlFlowGraph cfg, @Nullable Analysis<V, S, T> analysis) {

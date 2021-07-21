@@ -8,7 +8,7 @@ public class Issue849 {
   class Gen<G> {}
 
   void polyAll(Gen<Gen<@H1S2 Object>> genGenNonNull) {
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     Gen<@H1Top ? extends @H1Top Gen<@H1Top Object>> a = genGenNonNull;
   }
 }

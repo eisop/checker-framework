@@ -1,6 +1,6 @@
 import org.checkerframework.framework.testchecker.util.*;
 
-// ::warning: (inconsistent.constructor.type) :: error: (super.invocation)
+// ::warning: (inconsistent.constructor.type) :: error: (super.invocation.invalid)
 public @Odd class ClassAnnotations {
 
   ClassAnnotations c;

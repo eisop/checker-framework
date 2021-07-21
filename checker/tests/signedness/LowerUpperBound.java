@@ -16,22 +16,22 @@ public class LowerUpperBound {
 
     unkTest = unknown + unknown;
 
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     sinTest = unknown + unknown;
 
     unkTest = unknown + signed;
 
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     sinTest = unknown + signed;
 
     sinTest = signed + signed;
 
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     conTest = signed + signed;
 
     sinTest = signed + constant;
 
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     conTest = signed + constant;
   }
 }

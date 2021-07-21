@@ -14,12 +14,12 @@ class GroundTargetType {
     return null;
   }
 
-  // :: error: (type.argument)
+  // :: error: (type.argument.type.incompatible)
   Supplier<? extends @Nullable Object> fn = GroundTargetType::myMethod;
-  // :: error: (methodref.return)
+  // :: error: (methodref.return.invalid)
   Supplier<? extends @NonNull Object> fn2 = GroundTargetType::myMethod;
 
   // Supplier2
-  // :: error: (methodref.return)
+  // :: error: (methodref.return.invalid)
   Supplier2<? extends @NonNull Object> fn3 = GroundTargetType::myMethod;
 }

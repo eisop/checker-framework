@@ -38,12 +38,12 @@ public class UnusedNullness {
 
   protected void meth() {
     // Otherwise it's not legal.
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     this.ppt = null;
   }
 
   protected void useUnusedField1(@Prototype UnusedNullness this) {
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     @NonNull Object x = this.ppt;
   }
 

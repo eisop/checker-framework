@@ -43,7 +43,7 @@ public class AnnotatedGenerics {
       MyClass<String> c = new MyClass<>();
       String c1 = c.next();
       @Nullable String c2 = c.next();
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       @NonNull String c3 = c.next();
     }
   }
@@ -58,7 +58,7 @@ public class AnnotatedGenerics {
     }
 
     public void compare3(T a1, @Nullable T a2) {
-      // :: error: (argument)
+      // :: error: (argument.type.incompatible)
       a1.compareTo(a2);
     }
   }

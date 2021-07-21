@@ -38,7 +38,7 @@ public class Issue2543 {
   }
 
   public static @Unsigned int rotateRightUnknownSignedness(@UnknownSignedness int i, int distance) {
-    // :: error: (return)
+    // :: error: (return.type.incompatible)
     return (i >>> distance) | (i << -distance);
   }
 }

@@ -7,7 +7,7 @@ public class InnerClasses {
   public static String outerStaticField = "";
 
   static class InnerClass {
-    // :: error: (expression.unparsable)
+    // :: error: (expression.unparsable.type.invalid)
     @FlowExp("outerInstanceField") Object o = null;
 
     @FlowExp("outerStaticField") Object o2 = null;
@@ -27,7 +27,8 @@ public class InnerClasses {
 
   class TestUses {
     void method(InnerClass innerClass, InnerClass2 innerClass2) {
-      // :: error: (expression.unparsable) :: error: (assignment)
+      // :: error: (expression.unparsable.type.invalid) :: error:
+      // (assignment.type.incompatible)
       @FlowExp("innerClass.outerInstanceField") Object o = innerClass.o;
       @FlowExp("InnerClasses.outerStaticField") Object o2 = innerClass.o2;
 

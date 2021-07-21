@@ -11,16 +11,16 @@ public class RawTypesInit {
     @NonNull String field;
 
     public Bad() {
-      // :: error: (method.invocation)
+      // :: error: (method.invocation.invalid)
       this.init(); // error
-      // :: error: (method.invocation)
+      // :: error: (method.invocation.invalid)
       init(); // error
 
       this.field = "field"; // valid
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       this.field = null; // error
       field = "field"; // valid
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       field = null; // error
     }
 
@@ -45,7 +45,7 @@ public class RawTypesInit {
     }
 
     public void initExpl2(@UnknownInitialization A this) {
-      // :: error: (argument)
+      // :: error: (argument.type.incompatible)
       output(this.field);
     }
 
@@ -55,7 +55,7 @@ public class RawTypesInit {
     }
 
     public void initImpl2(@UnknownInitialization A this) {
-      // :: error: (argument)
+      // :: error: (argument.type.incompatible)
       output(field);
     }
   }
@@ -65,7 +65,7 @@ public class RawTypesInit {
 
     public B() {
       super();
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       this.otherField = null; // error
       this.otherField = "otherField"; // valid
     }
@@ -145,7 +145,7 @@ public class RawTypesInit {
     Integer startTime = 0;
 
     public AllFieldsInitialized() {
-      // :: error: (method.invocation)
+      // :: error: (method.invocation.invalid)
       nonRawMethod();
     }
 
@@ -163,18 +163,18 @@ public class RawTypesInit {
 
     public AllFieldsSetInInitializer() {
       elapsedMillis = 0;
-      // :: error: (method.invocation)
+      // :: error: (method.invocation.invalid)
       nonRawMethod(); // error
       startTime = 0;
-      // :: error: (method.invocation)
+      // :: error: (method.invocation.invalid)
       nonRawMethod(); // error
-      // :: error: (initialization.field.write.initialized)
+      // :: error: (initialization.invalid.field.write.initialized)
       new AFSIICell().afsii = this;
     }
 
     // :: error: (initialization.fields.uninitialized)
     public AllFieldsSetInInitializer(boolean b) {
-      // :: error: (method.invocation)
+      // :: error: (method.invocation.invalid)
       nonRawMethod(); // error
     }
 
@@ -190,7 +190,7 @@ public class RawTypesInit {
 
     public ConstructorInvocations() {
       this(0);
-      // :: error: (method.invocation)
+      // :: error: (method.invocation.invalid)
       nonRawMethod(); // invalid
     }
 
@@ -210,7 +210,7 @@ public class RawTypesInit {
   void cast(@UnknownInitialization Object... args) {
 
     @SuppressWarnings("rawtypes")
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     Object[] argsNonRaw1 = args;
 
     @SuppressWarnings("cast")
@@ -244,14 +244,14 @@ public class RawTypesInit {
     InitInHelperMethod(short constructor_inits_ab) {
       a = 1;
       b = 1;
-      // :: error: (method.invocation)
+      // :: error: (method.invocation.invalid)
       nonRawMethod();
     }
 
     InitInHelperMethod(boolean constructor_inits_a) {
       a = 1;
       init_b();
-      // :: error: (method.invocation)
+      // :: error: (method.invocation.invalid)
       nonRawMethod();
     }
 
@@ -259,13 +259,13 @@ public class RawTypesInit {
     @EnsuresNonNull("b")
     void init_b(@UnknownInitialization InitInHelperMethod this) {
       b = 2;
-      // :: error: (method.invocation)
+      // :: error: (method.invocation.invalid)
       nonRawMethod();
     }
 
     InitInHelperMethod(int constructor_inits_none) {
       init_ab();
-      // :: error: (method.invocation)
+      // :: error: (method.invocation.invalid)
       nonRawMethod();
     }
 
@@ -273,7 +273,7 @@ public class RawTypesInit {
     void init_ab(@UnknownInitialization InitInHelperMethod this) {
       a = 1;
       b = 2;
-      // :: error: (method.invocation)
+      // :: error: (method.invocation.invalid)
       nonRawMethod();
     }
 

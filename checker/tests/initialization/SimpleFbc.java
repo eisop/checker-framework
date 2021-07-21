@@ -21,13 +21,13 @@ public class SimpleFbc {
   void test() {
     @NonNull String s = "234";
 
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     s = null;
     System.out.println(s);
   }
 
   void test2(@UnknownInitialization @NonNull SimpleFbc t) {
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     @NonNull SimpleFbc a = t.f;
   }
 
@@ -35,17 +35,17 @@ public class SimpleFbc {
   void test3(@UnknownInitialization @NonNull SimpleFbc t) {
     @Initialized @Nullable SimpleFbc a = t.f;
 
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     @Initialized @Nullable SimpleFbc b = t.g;
   }
 
   void simplestTestEver() {
     @NonNull String a = "abc";
 
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     a = null;
 
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     @NonNull String b = null;
   }
 

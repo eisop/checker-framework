@@ -20,7 +20,7 @@ public @Interned class InternedClass {
   private InternedClass(int i) {
     value = i;
     // "this" in the constructor is not interned.
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     @Interned InternedClass that = this;
   }
 
@@ -46,7 +46,7 @@ public @Interned class InternedClass {
   }
 
   // Interning method
-  @SuppressWarnings("annotations.on.use")
+  @SuppressWarnings("type.invalid.annotations.on.use")
   private static Map<@UnknownInterned InternedClass, @Interned InternedClass> pool =
       new HashMap<>();
 

@@ -6,18 +6,18 @@ import org.checkerframework.checker.guieffect.qual.UIEffect;
 public class UIChild extends UIParent {
   @Override
   public void doingUIStuff() {
-    // :: error: (call.ui)
+    // :: error: (call.invalid.ui)
     thingy.dangerous();
   }
 
   // Should be an error to make this @UI
   @Override
   @UIEffect
-  // :: error: (override.effect)
+  // :: error: (override.effect.invalid)
   public void doingSafeStuff() {}
 
   public void shouldNotBeUI() {
-    // :: error: (call.ui)
+    // :: error: (call.invalid.ui)
     thingy.dangerous();
   }
 
@@ -28,11 +28,11 @@ public class UIChild extends UIParent {
 
   @UIEffect
   @PolyUIEffect
-  // :: error: (annotations.conflicts) :: error: (polymorphism)
+  // :: error: (annotations.conflicts) :: error: (polymorphism.invalid)
   public void doubleAnnot2() {}
 
   @PolyUIEffect
   @SafeEffect
-  // :: error: (annotations.conflicts) :: error: (polymorphism)
+  // :: error: (annotations.conflicts) :: error: (polymorphism.invalid)
   public void doubleAnnot3() {}
 }

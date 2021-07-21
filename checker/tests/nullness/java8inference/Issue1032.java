@@ -26,7 +26,7 @@ public class Issue1032 {
 
   <T> Stream<@NonNull T> mapTCast(Stream<@Nullable T> arg) {
     // TODO: false postive
-    // :: error: (return)
+    // :: error: (return.type.incompatible)
     return arg.map(Issue1032::<T>castTToNonNull);
   }
 }

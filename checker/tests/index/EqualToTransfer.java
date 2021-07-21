@@ -12,7 +12,7 @@ public class EqualToTransfer {
 
   void eq_bad_check(int[] a) {
     if (1 == a.length) {
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       int @MinLen(2) [] b = a;
     }
   }

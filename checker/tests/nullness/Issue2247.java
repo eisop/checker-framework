@@ -12,22 +12,22 @@ public class Issue2247 {
 
   class ValidUseType {
 
-    // :: error: (annotations.on.use)
+    // :: error: (type.invalid.annotations.on.use)
     void test1(@Nullable DeclaredClass object) {}
 
-    // :: error: (annotations.on.use)
+    // :: error: (type.invalid.annotations.on.use)
     @Nullable DeclaredClass test2() {
       return null;
     }
 
-    // :: error: (annotations.on.use)
+    // :: error: (type.invalid.annotations.on.use)
     void test3(List<@Nullable DeclaredClass> param) {
       @Nullable DeclaredClass object = null;
-      // :: error: (annotations.on.use)
+      // :: error: (type.invalid.annotations.on.use)
       @Nullable DeclaredClass[] array = null;
     }
 
-    // :: error: (annotations.on.use)
+    // :: error: (type.invalid.annotations.on.use)
     <T extends @Nullable DeclaredClass> void test4(@NonNull T t) {}
 
     void test5(Map<String, DeclaredClass> map) {

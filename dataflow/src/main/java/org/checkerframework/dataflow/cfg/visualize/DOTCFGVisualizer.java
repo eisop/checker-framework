@@ -94,7 +94,7 @@ public class DOTCFGVisualizer<
     return Collections.singletonMap("dotFileName", dotFileName);
   }
 
-  @SuppressWarnings("keyfor:enhancedfor")
+  @SuppressWarnings("keyfor:enhancedfor.type.incompatible")
   @Override
   public String visualizeNodes(
       Set<Block> blocks, ControlFlowGraph cfg, @Nullable Analysis<V, S, T> analysis) {

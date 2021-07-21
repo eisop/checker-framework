@@ -20,11 +20,11 @@ public class ConstantsInterning {
     is = AC;
     is = A + "C";
     is = A + B + "C";
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     is = D;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     is = A + E;
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     is = is + is;
     is = Constants2.E;
     is = (String) F;

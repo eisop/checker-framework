@@ -22,22 +22,22 @@ public class Issue3776 {
     new MyInnerClass("1") {};
     this.new MyInnerClass("2") {};
     new MyClass() {};
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     new MyClass(tainted) {};
     new MyClass(1, 2, 3) {};
     new MyClass(1) {};
     new MyInnerClass() {};
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     new MyInnerClass(tainted) {};
     new MyInnerClass(1) {};
     new MyInnerClass(1, 2, 3) {};
     this.new MyInnerClass() {};
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     this.new MyInnerClass(tainted) {};
     this.new MyInnerClass(1) {};
     this.new MyInnerClass(1, 2, 3) {};
     outer.new MyInnerClass() {};
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     outer.new MyInnerClass(tainted) {};
     outer.new MyInnerClass(1) {};
     outer.new MyInnerClass(1, 2, 3) {};

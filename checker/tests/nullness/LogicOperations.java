@@ -59,10 +59,10 @@ public class LogicOperations {
   void sideeffect() {
     Object a = "m";
     if ((a = null) != "n") {
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       @NonNull Object l1 = a;
     }
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     @NonNull Object l2 = a;
   }
 

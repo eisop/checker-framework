@@ -17,10 +17,10 @@ public class SwingTest {
     // ok
     m(BOTTOM);
 
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     m(5);
 
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     m(NORTH);
   }
 
@@ -31,11 +31,11 @@ public class SwingTest {
     @SwingVerticalOrientation int b = 5;
   }
 
-  @SuppressWarnings("fenum:argument")
+  @SuppressWarnings("fenum:argument.type.incompatible")
   static void ignoreOne() {
     m(NORTH);
 
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     @SwingVerticalOrientation int b = 5;
   }
 
@@ -55,7 +55,7 @@ public class SwingTest {
   }
 
   @SwingVerticalOrientation int testInference0() {
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     @SwingVerticalOrientation int boxint = 5;
     int box = boxint;
     return box;
@@ -72,7 +72,7 @@ public class SwingTest {
   }
 
   @SwingVerticalOrientation Object testInference3() {
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     @SwingVerticalOrientation Object boxobj = new Object();
     Object obox = boxobj;
     return obox;
@@ -156,15 +156,15 @@ public class SwingTest {
   }
 
   void testInference8b() {
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     @SwingHorizontalOrientation int s2 = 5;
-    // :: error: (compound.assignment)
+    // :: error: (compound.assignment.type.incompatible)
     s2 += 1;
 
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     s1 = (s2 += s2);
 
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     @SwingHorizontalOrientation String str = "abc";
     // yes, somebody in the Swing API really wrote this.
     str += null;
@@ -183,7 +183,7 @@ public class SwingTest {
         break;
       }
     }
-    // :: error: (return)
+    // :: error: (return.type.incompatible)
     return o;
   }
 
@@ -212,7 +212,7 @@ public class SwingTest {
         break;
       }
     }
-    // :: error: (return)
+    // :: error: (return.type.incompatible)
     return o;
   }
 
@@ -227,7 +227,7 @@ public class SwingTest {
         break;
       }
     }
-    // :: error: (return)
+    // :: error: (return.type.incompatible)
     return o;
   }
 
@@ -260,7 +260,7 @@ public class SwingTest {
 
   @SwingVerticalOrientation Object testDefaulting0() {
     @org.checkerframework.framework.qual.DefaultQualifier(SwingVerticalOrientation.class)
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     Object o = new String();
     return o;
   }

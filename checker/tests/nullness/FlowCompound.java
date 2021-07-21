@@ -10,7 +10,7 @@ public class FlowCompound {
   void test(@Nullable String s) {
 
     if (s == null || s.length() > 0) {
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       @NonNull String test = s;
     }
 

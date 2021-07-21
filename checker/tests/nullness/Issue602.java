@@ -13,9 +13,9 @@ public class Issue602 {
     @NonNull String notNull = "hello";
     String nullable = "";
     while (condition) {
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       notNull = nullable;
-      // :: error: (assignment)
+      // :: error: (assignment.type.incompatible)
       notNull = id(nullable);
       nullable = null;
     }

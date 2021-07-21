@@ -805,7 +805,7 @@ public final class InterningVisitor extends BaseTypeVisitor<InterningAnnotatedTy
               return visit(leftTree, p);
             } else {
               // a == b || a.compareTo(b) == 0
-              @SuppressWarnings("interning:assignment" // AST node comparisons
+              @SuppressWarnings("interning:assignment.type.incompatible" // AST node comparisons
               )
               @InternedDistinct ExpressionTree leftTree = tree.getLeftOperand(); // looking for a==b
               ExpressionTree rightTree = tree.getRightOperand(); // looking for a.compareTo(b) == 0
@@ -955,7 +955,7 @@ public final class InterningVisitor extends BaseTypeVisitor<InterningAnnotatedTy
    * @return the type to check
    */
   DeclaredType typeToCheck() {
-    @SuppressWarnings("signature:assignment") // user input
+    @SuppressWarnings("signature:assignment.type.incompatible") // user input
     @CanonicalName String className = checker.getOption("checkclass");
     if (className == null) {
       return null;

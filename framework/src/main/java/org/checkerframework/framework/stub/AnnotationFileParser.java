@@ -2337,7 +2337,7 @@ public class AnnotationFileParser {
    * @param name classname (simple, or Outer.Inner, or fully-qualified)
    * @return the TypeElement for {@code name}, or null if not found
    */
-  @SuppressWarnings("signature:argument") // string concatenation
+  @SuppressWarnings("signature:argument.type.incompatible") // string concatenation
   private @Nullable TypeElement findTypeOfName(@FullyQualifiedName String name) {
     String packageName = typeBeingParsed.packageName;
     String packagePrefix = (packageName == null) ? "" : packageName + ".";
@@ -2566,7 +2566,7 @@ public class AnnotationFileParser {
    * @param faexpr a field access expression
    * @return the VariableElement for the given field access
    */
-  @SuppressWarnings("signature:argument") // string manipulation
+  @SuppressWarnings("signature:argument.type.incompatible") // string manipulation
   private @Nullable VariableElement findVariableElement(FieldAccessExpr faexpr) {
     if (findVariableElementFieldCache.containsKey(faexpr)) {
       return findVariableElementFieldCache.get(faexpr);

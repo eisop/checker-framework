@@ -94,7 +94,7 @@ public class RawTypeTest {
   }
 
   class C3 implements I2 {
-    // :: error: (override.param) :: error: (type.argument)
+    // :: error: (override.param.invalid) :: error: (type.argument.type.incompatible)
     public void m(MyList<String> l) {}
   }
 

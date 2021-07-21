@@ -7,13 +7,13 @@ import org.checkerframework.checker.i18n.qual.UnknownLocalizableKey;
 public class Issue2264 extends SuperClass {
   // :: warning: (inconsistent.constructor.type)
   @LocalizableKey Issue2264() {
-    // :: error: (super.invocation)
+    // :: error: (super.invocation.invalid)
     super(9);
   }
 }
 
 class ImplicitSuperCall {
-  // :: error: (super.invocation) :: warning: (inconsistent.constructor.type)
+  // :: error: (super.invocation.invalid) :: warning: (inconsistent.constructor.type)
   @LocalizableKey ImplicitSuperCall() {}
 }
 
@@ -22,6 +22,6 @@ class SuperClass {
 }
 
 @LocalizableKey class TestClass {
-  // :: error: (annotations.on.use)
+  // :: error: (type.invalid.annotations.on.use)
   @UnknownLocalizableKey TestClass() {}
 }

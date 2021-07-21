@@ -4,7 +4,7 @@ import org.checkerframework.common.returnsreceiver.qual.*;
 public class SimpleTest {
 
   @This SimpleTest retNull() {
-    // :: error: return
+    // :: error: return.type.incompatible
     return null;
   }
 
@@ -14,7 +14,7 @@ public class SimpleTest {
 
   @This SimpleTest retThisWrapper(@UnknownThis SimpleTest other, boolean flag) {
     if (flag) {
-      // :: error: return
+      // :: error: return.type.incompatible
       return other.retThis();
     } else {
       return this.retThis();
@@ -28,29 +28,29 @@ public class SimpleTest {
 
   @This SimpleTest retNewLocal() {
     SimpleTest x = new SimpleTest();
-    // :: error: return
+    // :: error: return.type.incompatible
     return x;
   }
 
-  // :: error: this.location
+  // :: error: type.invalid.this.location
   @This SimpleTest thisOnParam(@This SimpleTest x) {
     return x;
   }
 
   void thisOnLocal() {
-    // :: error: this.location
-    // :: error: assignment
+    // :: error: type.invalid.this.location
+    // :: error: assignment.type.incompatible
     @This SimpleTest x = new SimpleTest();
 
-    // :: error: this.location
-    // :: error: type.argument
+    // :: error: type.invalid.this.location
+    // :: error: type.argument.type.incompatible
     java.util.List<@This String> l = null;
   }
 
   // can write @This on receiver
   void thisOnReceiver(@This SimpleTest this) {}
 
-  // :: error: this.location :: error: invalid.polymorphic.qualifier.use
+  // :: error: type.invalid.this.location :: error: invalid.polymorphic.qualifier.use
   @This Object f;
 
   interface I {
@@ -60,9 +60,9 @@ public class SimpleTest {
     SimpleTest.@This I setBar();
   }
 
-  // :: error: this.location
+  // :: error: type.invalid.this.location
   static @This Object thisOnStatic() {
-    // :: error: return
+    // :: error: return.type.incompatible
     return new Object();
   }
 }
