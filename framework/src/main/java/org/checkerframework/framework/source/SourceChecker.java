@@ -2543,7 +2543,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             msg.add(
                     String.format(
                             "OutOfMemoryError (max memory = %d, total memory = %d, free memory ="
-                                + " %d)",
+                                    + " %d)",
                             Runtime.getRuntime().maxMemory(),
                             Runtime.getRuntime().totalMemory(),
                             Runtime.getRuntime().freeMemory()));
