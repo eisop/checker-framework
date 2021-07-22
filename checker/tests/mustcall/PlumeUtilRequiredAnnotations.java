@@ -30,8 +30,7 @@ class PlumeUtilRequiredAnnotations {
         private Partitioner2<R, R> eqR2;
 
         // But removing the explicit bounds on Partitioner does (not feasible in this case, though,
-        // because
-        // of the @Nullable annotations):
+        // because of the @Nullable annotations):
         private Partitioner3<T, T> eqT3;
         private Partitioner3<S, S> eqS3;
         private Partitioner3<R, R> eqR3;

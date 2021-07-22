@@ -748,12 +748,10 @@ public class AnnotationFileParser {
      */
     private boolean skipNode(NodeWithAccessModifiers<?> node) {
         // Must include everything with no access modifier, because stub files are allowed to omit
-        // the
-        // access modifier.  Also, interface methods have no access modifier, but they are still
+        // the access modifier.  Also, interface methods have no access modifier, but they are still
         // public.
         // Must include protected JDK methods.  For example, Object.clone is protected, but it
-        // contains
-        // annotations that apply to calls like `super.clone()` and `myArray.clone()`.
+        // contains annotations that apply to calls like `super.clone()` and `myArray.clone()`.
         return (fileType == AnnotationFileType.BUILTIN_STUB
                         || (fileType.isStub() && !mergeStubsWithSource))
                 && node.getModifiers().contains(Modifier.privateModifier());

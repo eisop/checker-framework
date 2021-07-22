@@ -53,16 +53,14 @@ public class MustCallVisitor extends BaseTypeVisitor<MustCallAnnotatedTypeFactor
         if (!checker.hasOption(MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP)) {
             MethodTree enclosingMethod = TreePathUtil.enclosingMethod(this.getCurrentPath());
             // enclosingMethod is null if this return site is inside a lambda. TODO: handle lambdas
-            // more
-            // precisely?
+            // more precisely?
             if (enclosingMethod != null) {
                 ExecutableElement methodElt = TreeUtils.elementFromDeclaration(enclosingMethod);
                 AnnotationMirror notOwningAnno =
                         atypeFactory.getDeclAnnotation(methodElt, NotOwning.class);
                 if (notOwningAnno != null) {
                     // Skip return type subtyping check, because not-owning pointer means Object
-                    // Construction
-                    // Checker won't check anyway.
+                    // Construction Checker won't check anyway.
                     return null;
                 }
             }
@@ -112,8 +110,7 @@ public class MustCallVisitor extends BaseTypeVisitor<MustCallAnnotatedTypeFactor
     public boolean isValidUse(
             AnnotatedDeclaredType declarationType, AnnotatedDeclaredType useType, Tree tree) {
         // MustCallAlias annotations are always permitted on type uses, because these will be
-        // validated
-        // by the Object Construction Checker's -AcheckMustCall algorithm.
+        // validated by the Object Construction Checker's -AcheckMustCall algorithm.
         AnnotatedDeclaredType useTypeCopy = useType.deepCopy();
         if (!checker.hasOption(MustCallChecker.NO_RESOURCE_ALIASES)) {
             useTypeCopy.removeAnnotationByClass(MustCallAlias.class);
@@ -179,8 +176,7 @@ public class MustCallVisitor extends BaseTypeVisitor<MustCallAnnotatedTypeFactor
         if (commonAssignmentCheckOnResourceVariable) {
             commonAssignmentCheckOnResourceVariable = false;
             // The LHS has been marked as a resource variable.  Skip the standard common assignment
-            // check;
-            // instead do a check that does not include "close".
+            // check; instead do a check that does not include "close".
             AnnotationMirror varAnno = varType.getAnnotationInHierarchy(atypeFactory.TOP);
             AnnotationMirror valAnno = valueType.getAnnotationInHierarchy(atypeFactory.TOP);
             if (atypeFactory
@@ -191,8 +187,7 @@ public class MustCallVisitor extends BaseTypeVisitor<MustCallAnnotatedTypeFactor
                 return;
             }
             // Note that in this case, the rest of the common assignment check should fail (barring
-            // an
-            // exception).  Control falls through here to avoid duplicating error-issuing code.
+            // an exception).  Control falls through here to avoid duplicating error-issuing code.
         }
         // commonAssignmentCheckOnResourceVariable is already false, so no need to set it.
         super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);

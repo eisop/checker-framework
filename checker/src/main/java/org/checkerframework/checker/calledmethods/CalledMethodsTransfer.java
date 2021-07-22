@@ -85,8 +85,7 @@ public class CalledMethodsTransfer extends AccumulationTransfer {
             CFValue flowValue = result.getRegularStore().getValue(target);
             if (flowValue != null) {
                 // Dataflow has already recorded information about the target.  Integrate it into
-                // the list
-                // of values in the new annotation.
+                // the list of values in the new annotation.
                 Set<AnnotationMirror> flowAnnos = flowValue.getAnnotations();
                 assert flowAnnos.size() <= 1;
                 for (AnnotationMirror anno : flowAnnos) {
