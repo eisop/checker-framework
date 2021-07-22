@@ -221,8 +221,7 @@ public class InitializationStore<V extends CFAbstractValue<V>, S extends Initial
             FieldAccess key = e.getKey();
             if (other.invariantFields.containsKey(key)) {
                 // TODO: Is the value other.invariantFields.get(key) the same as e.getValue()?
-                // Should the
-                // two values be lubbed?
+                // Should the two values be lubbed?
                 result.invariantFields.put(key, e.getValue());
             }
         }

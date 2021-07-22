@@ -732,8 +732,7 @@ public class AnnotationFileParser {
         typeBeingParsed = new FqName(packageName, null);
         Element elem = elements.getPackageElement(packageName);
         // If the element lookup fails (that is, elem == null), it's because we have an annotation
-        // for a
-        // package that isn't on the classpath, which is fine.
+        // for a package that isn't on the classpath, which is fine.
         if (elem != null) {
             recordDeclAnnotation(elem, packDecl.getAnnotations(), packDecl);
         }
@@ -760,12 +759,10 @@ public class AnnotationFileParser {
      */
     private boolean skipNode(NodeWithAccessModifiers<?> node) {
         // Must include everything with no access modifier, because stub files are allowed to omit
-        // the
-        // access modifier.  Also, interface methods have no access modifier, but they are still
+        // the access modifier.  Also, interface methods have no access modifier, but they are still
         // public.
         // Must include protected JDK methods.  For example, Object.clone is protected, but it
-        // contains
-        // annotations that apply to calls like `super.clone()` and `myArray.clone()`.
+        // contains annotations that apply to calls like `super.clone()` and `myArray.clone()`.
         return (isJdkAsStub || (fileType == AnnotationFileType.STUB && !mergeStubsWithSource))
                 && node.getModifiers().contains(Modifier.privateModifier());
     }
@@ -2269,8 +2266,7 @@ public class AnnotationFileParser {
         TypeElement annoTypeElt = allAnnotations.get(annoNameFq);
         if (annoTypeElt == null) {
             // If the annotation was not imported, then #getImportedAnnotations did not add it to
-            // the
-            // allAnnotations field. This code adds the annotation when it is encountered (i.e.
+            // the allAnnotations field. This code adds the annotation when it is encountered (i.e.
             // here).
             // Note that this does not call AnnotationFileParser#getTypeElement to avoid a spurious
             // diagnostic if the annotation is actually unknown.

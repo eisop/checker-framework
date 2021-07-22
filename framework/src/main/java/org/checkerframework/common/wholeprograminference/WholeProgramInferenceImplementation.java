@@ -158,18 +158,15 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
         // Don't infer formal parameter types from recursive calls.
         //
         // When performing WPI on a library, if there are no external calls (only recursive calls),
-        // then
-        // each iteration of WPI would make the formal parameter types more restrictive, leading to
-        // an
-        // infinite (or very long) loop.
+        // then each iteration of WPI would make the formal parameter types more restrictive,
+        // leading to an infinite (or very long) loop.
         //
         // Consider
         //   void myMethod(int x) { ... myMethod(x-1) ... }`
         // On one iteration, if x has type IntRange(to=100), the recursive call's argument has type
         // IntRange(to=99).  If that is the only call to `MyMethod`, then the formal parameter type
         // would be updated.  On the next iteration it would be refined again to @IntRange(to=98),
-        // and
-        // so forth.  A recursive call should never restrict a formal parameter type.
+        // and so forth.  A recursive call should never restrict a formal parameter type.
         if (isRecursiveCall(methodInvNode)) {
             return;
         }
