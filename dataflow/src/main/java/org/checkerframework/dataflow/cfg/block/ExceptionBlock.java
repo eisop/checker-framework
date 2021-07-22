@@ -1,12 +1,10 @@
 package org.checkerframework.dataflow.cfg.block;
 
-import org.checkerframework.dataflow.cfg.node.Node;
-import org.checkerframework.dataflow.qual.Pure;
-
 import java.util.Map;
 import java.util.Set;
-
 import javax.lang.model.type.TypeMirror;
+import org.checkerframework.dataflow.cfg.node.Node;
+import org.checkerframework.dataflow.qual.Pure;
 
 /**
  * Represents a basic block that contains exactly one {@link Node} which can throw an exception.
@@ -20,19 +18,19 @@ import javax.lang.model.type.TypeMirror;
  */
 public interface ExceptionBlock extends SingleSuccessorBlock {
 
-    /**
-     * Returns the node of this block.
-     *
-     * @return the node of this block
-     */
-    @Pure
-    Node getNode();
+  /**
+   * Returns the node of this block.
+   *
+   * @return the node of this block
+   */
+  @Pure
+  Node getNode();
 
-    /**
-     * Returns the list of exceptional successor blocks as an unmodifiable map.
-     *
-     * @return the list of exceptional successor blocks as an unmodifiable map
-     */
-    @Pure
-    Map<TypeMirror, Set<Block>> getExceptionalSuccessors();
+  /**
+   * Returns the list of exceptional successor blocks as an unmodifiable map.
+   *
+   * @return the list of exceptional successor blocks as an unmodifiable map
+   */
+  @Pure
+  Map<TypeMirror, Set<Block>> getExceptionalSuccessors();
 }
