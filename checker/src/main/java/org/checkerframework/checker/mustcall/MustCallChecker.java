@@ -10,23 +10,23 @@ import org.checkerframework.framework.source.SupportedOptions;
  * another. The Object Construction Checker verifies that the given methods are actually called.
  */
 @StubFiles({
-  "JavaEE.astub",
-  "Reflection.astub",
-  "SocketCreatesObligation.astub",
+    "JavaEE.astub",
+    "Reflection.astub",
+    "SocketCreatesObligation.astub",
 })
 @SupportedOptions({
-  MustCallChecker.NO_CREATES_OBLIGATION,
-  MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP,
-  MustCallChecker.NO_RESOURCE_ALIASES
+    MustCallChecker.NO_CREATES_OBLIGATION,
+    MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP,
+    MustCallChecker.NO_RESOURCE_ALIASES
 })
 public class MustCallChecker extends BaseTypeChecker {
 
-  /** Disables @CreatesObligation support. */
-  public static final String NO_CREATES_OBLIGATION = "noCreatesObligation";
+    /** Disables @CreatesObligation support. */
+    public static final String NO_CREATES_OBLIGATION = "noCreatesObligation";
 
-  /** Disables @Owning/@NotOwning support. */
-  public static final String NO_LIGHTWEIGHT_OWNERSHIP = "noLightweightOwnership";
+    /** Disables @Owning/@NotOwning support. */
+    public static final String NO_LIGHTWEIGHT_OWNERSHIP = "noLightweightOwnership";
 
-  /** Disables @MustCallAlias support. */
-  public static final String NO_RESOURCE_ALIASES = "noResourceAliases";
+    /** Disables @MustCallAlias support. */
+    public static final String NO_RESOURCE_ALIASES = "noResourceAliases";
 }
