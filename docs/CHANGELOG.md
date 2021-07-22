@@ -5,6 +5,21 @@ The new `-AnoJreVersionCheck` command-line argument can be used to not get
 a warning about running the Checker Framework on an unsupported JRE version.
 
 
+Version 3.17.0 (August 3, 2021)
+-------------------------------
+
+**User-visible changes:**
+
+**Implementation details:**
+
+Method renamings in `GenericAnnotatedTypeFactory`:
+* `getPreconditionAnnotation` => `getPreconditionAnnotations`
+* `getPostconditionAnnotation` => `getPostconditionAnnotations`
+* `getPreOrPostconditionAnnotation` => `getPreOrPostconditionAnnotations`
+
+**Closed issues:**
+
+
 Version 3.16.0 (July 13, 2021)
 ------------------------------
 

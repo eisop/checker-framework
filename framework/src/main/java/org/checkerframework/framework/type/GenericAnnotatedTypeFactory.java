@@ -2392,7 +2392,7 @@ public abstract class GenericAnnotatedTypeFactory<
       TypeMirror typeMirror = entry.getKey().asType();
       AnnotatedTypeMirror inferredType =
           storage.atmFromStorageLocation(typeMirror, entry.getValue().type);
-      result.addAll(getPreconditionAnnotation(entry.getKey(), inferredType));
+      result.addAll(getPreconditionAnnotations(entry.getKey(), inferredType));
     }
     Collections.sort(result, Ordering.usingToString());
     return result;
@@ -2418,7 +2418,7 @@ public abstract class GenericAnnotatedTypeFactory<
       TypeMirror typeMirror = entry.getKey().asType();
       AnnotatedTypeMirror inferredType =
           storage.atmFromStorageLocation(typeMirror, entry.getValue().type);
-      result.addAll(getPostconditionAnnotation(entry.getKey(), inferredType, preconds));
+      result.addAll(getPostconditionAnnotations(entry.getKey(), inferredType, preconds));
     }
     Collections.sort(result, Ordering.usingToString());
     return result;
@@ -2452,7 +2452,7 @@ public abstract class GenericAnnotatedTypeFactory<
     List<AnnotationMirror> result = new ArrayList<>();
     for (Map.Entry<VariableElement, AnnotatedTypeMirror> entry :
         methodAnnos.getFieldToPreconditions().entrySet()) {
-      result.addAll(getPreconditionAnnotation(entry.getKey(), entry.getValue()));
+      result.addAll(getPreconditionAnnotations(entry.getKey(), entry.getValue()));
     }
     Collections.sort(result, Ordering.usingToString());
     return result;
@@ -2473,7 +2473,7 @@ public abstract class GenericAnnotatedTypeFactory<
     List<AnnotationMirror> result = new ArrayList<>();
     for (Map.Entry<VariableElement, AnnotatedTypeMirror> entry :
         methodAnnos.getFieldToPostconditions().entrySet()) {
-      result.addAll(getPostconditionAnnotation(entry.getKey(), entry.getValue(), preconds));
+      result.addAll(getPostconditionAnnotations(entry.getKey(), entry.getValue(), preconds));
     }
     Collections.sort(result, Ordering.usingToString());
     return result;
@@ -2492,9 +2492,9 @@ public abstract class GenericAnnotatedTypeFactory<
    * @param inferredType the type of the field, on method entry
    * @return precondition annotations for the element (possibly an empty list)
    */
-  public List<AnnotationMirror> getPreconditionAnnotation(
+  public List<AnnotationMirror> getPreconditionAnnotations(
       VariableElement elt, AnnotatedTypeMirror inferredType) {
-    return getPreOrPostconditionAnnotation(elt, inferredType, BeforeOrAfter.BEFORE, null);
+    return getPreOrPostconditionAnnotations(elt, inferredType, BeforeOrAfter.BEFORE, null);
   }
 
   /**
@@ -2515,13 +2515,13 @@ public abstract class GenericAnnotatedTypeFactory<
    *     postconditions
    * @return postcondition annotations for the element (possibly an empty list)
    */
-  public List<AnnotationMirror> getPostconditionAnnotation(
+  public List<AnnotationMirror> getPostconditionAnnotations(
       VariableElement elt, AnnotatedTypeMirror inferredType, List<AnnotationMirror> preconds) {
-    return getPreOrPostconditionAnnotation(elt, inferredType, BeforeOrAfter.AFTER, preconds);
+    return getPreOrPostconditionAnnotations(elt, inferredType, BeforeOrAfter.AFTER, preconds);
   }
 
   /**
-   * Helper method for {@link #getPreconditionAnnotation} and {@link #getPostconditionAnnotation}.
+   * Helper method for {@link #getPreconditionAnnotations} and {@link #getPostconditionAnnotations}.
    *
    * <p>Returns a {@code @RequiresQualifier} or {@code @EnsuresQualifier} annotation for the given
    * field. Returns an empty list if none can be created, because the qualifier has
@@ -2539,7 +2539,7 @@ public abstract class GenericAnnotatedTypeFactory<
    *     postconditions; non-null exactly when {@code preOrPost} is {@code AFTER}
    * @return precondition or postcondition annotations for the element (possibly an empty list)
    */
-  protected List<AnnotationMirror> getPreOrPostconditionAnnotation(
+  protected List<AnnotationMirror> getPreOrPostconditionAnnotations(
       VariableElement elt,
       AnnotatedTypeMirror inferredType,
       Analysis.BeforeOrAfter preOrPost,
@@ -2567,8 +2567,8 @@ public abstract class GenericAnnotatedTypeFactory<
         declaredAm = declaredType.getAnnotationInHierarchy(inferredAm);
         if (declaredAm == null) {
           throw new BugInCF(
-              "getPreOrPostconditionAnnotation(%s, %s): no defaulted annotation%n "
-                  + " declaredType=%s  [%s %s]%n  inferredType=%s  [%s %s]%n",
+              "getPreOrPostconditionAnnotations(%s, %s): no defaulted annotation%n  declaredType=%s"
+                  + "  [%s %s]%n  inferredType=%s  [%s %s]%n",
               elt,
               inferredType,
               declaredType.toString(true),
