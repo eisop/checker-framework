@@ -1,15 +1,14 @@
 package org.checkerframework.checker.mustcall.qual;
 
-import org.checkerframework.checker.calledmethods.qual.CalledMethods;
-import org.checkerframework.framework.qual.InheritedAnnotation;
-import org.checkerframework.framework.qual.JavaExpression;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import org.checkerframework.checker.calledmethods.qual.CalledMethods;
+import org.checkerframework.framework.qual.InheritedAnnotation;
+import org.checkerframework.framework.qual.JavaExpression;
 
 /**
  * Indicates that the method resets the target's must-call type to its declared type. This
@@ -72,34 +71,34 @@ import java.lang.annotation.Target;
 @Repeatable(CreatesObligation.List.class)
 public @interface CreatesObligation {
 
-    /**
-     * The target of this annotation is stored in this field. The target must be an expression which
-     * can be refined in the store, such as a local variable or field.
-     *
-     * @return the expression to which must-call obligations are added when the annotated method is
-     *     invoked
-     */
-    @JavaExpression
-    String value() default "this";
+  /**
+   * The target of this annotation is stored in this field. The target must be an expression which
+   * can be refined in the store, such as a local variable or field.
+   *
+   * @return the expression to which must-call obligations are added when the annotated method is
+   *     invoked
+   */
+  @JavaExpression
+  String value() default "this";
 
+  /**
+   * A wrapper annotation that makes the {@link CreatesObligation} annotation repeatable.
+   *
+   * <p>Programmers generally do not need to write this. It is created by Java when a programmer
+   * writes more than one {@link CreatesObligation} annotation at the same location.
+   *
+   * @checker_framework.manual #must-call-checker Must Call Checker
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.METHOD})
+  @InheritedAnnotation
+  @interface List {
     /**
-     * A wrapper annotation that makes the {@link CreatesObligation} annotation repeatable.
+     * Return the repeatable annotations.
      *
-     * <p>Programmers generally do not need to write this. It is created by Java when a programmer
-     * writes more than one {@link CreatesObligation} annotation at the same location.
-     *
-     * @checker_framework.manual #must-call-checker Must Call Checker
+     * @return the repeatable annotations
      */
-    @Documented
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target({ElementType.METHOD})
-    @InheritedAnnotation
-    @interface List {
-        /**
-         * Return the repeatable annotations.
-         *
-         * @return the repeatable annotations
-         */
-        CreatesObligation[] value();
-    }
+    CreatesObligation[] value();
+  }
 }

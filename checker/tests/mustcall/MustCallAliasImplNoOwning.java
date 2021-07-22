@@ -4,21 +4,20 @@
 
 // @skip-test until the checks are implemented
 
-import org.checkerframework.checker.mustcall.qual.*;
-
 import java.io.*;
+import org.checkerframework.checker.mustcall.qual.*;
 
 public class MustCallAliasImplNoOwning implements Closeable {
 
-    final Closeable foo;
+  final Closeable foo;
 
-    // :: error: mustcall.alias.invalid
-    public @MustCallAlias MustCallAliasImplNoOwning(@MustCallAlias Closeable foo) {
-        this.foo = foo;
-    }
+  // :: error: mustcall.alias.invalid
+  public @MustCallAlias MustCallAliasImplNoOwning(@MustCallAlias Closeable foo) {
+    this.foo = foo;
+  }
 
-    @Override
-    public void close() throws IOException {
-        this.foo.close();
-    }
+  @Override
+  public void close() throws IOException {
+    this.foo.close();
+  }
 }

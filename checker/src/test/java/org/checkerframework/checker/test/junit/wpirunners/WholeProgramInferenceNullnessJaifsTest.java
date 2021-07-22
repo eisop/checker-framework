@@ -1,12 +1,11 @@
 package org.checkerframework.checker.test.junit.wpirunners;
 
+import java.io.File;
+import java.util.List;
 import org.checkerframework.checker.nullness.NullnessChecker;
 import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
 import org.junit.experimental.categories.Category;
 import org.junit.runners.Parameterized.Parameters;
-
-import java.io.File;
-import java.util.List;
 
 /**
  * Runs whole-program inference and inserts annotations into source code.
@@ -17,19 +16,13 @@ import java.util.List;
  */
 @Category(WholeProgramInferenceNullnessJaifsTest.class)
 public class WholeProgramInferenceNullnessJaifsTest extends CheckerFrameworkPerDirectoryTest {
-    /** @param testFiles the files containing test code, which will be type-checked */
-    public WholeProgramInferenceNullnessJaifsTest(List<File> testFiles) {
-        super(
-                testFiles,
-                NullnessChecker.class,
-                "nullness",
-                "-Anomsgtext",
-                "-Ainfer=jaifs",
-                "-Awarns");
-    }
+  /** @param testFiles the files containing test code, which will be type-checked */
+  public WholeProgramInferenceNullnessJaifsTest(List<File> testFiles) {
+    super(testFiles, NullnessChecker.class, "nullness", "-Anomsgtext", "-Ainfer=jaifs", "-Awarns");
+  }
 
-    @Parameters
-    public static String[] getTestDirs() {
-        return new String[] {"wpi-nullness/non-annotated"};
-    }
+  @Parameters
+  public static String[] getTestDirs() {
+    return new String[] {"wpi-nullness/non-annotated"};
+  }
 }
