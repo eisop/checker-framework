@@ -40,9 +40,7 @@ import org.checkerframework.checker.mustcall.qual.*;
         // :: error: required.method.not.called
         CreatesMustCallForIndirect r = new CreatesMustCallForIndirect();
         // Ideally, we'd issue a reset.not.owning error on the next line instead, but not being able
-        // to
-        // parse
-        // the case and requiring it to be in a local var is okay too.
+        // to parse the case and requiring it to be in a local var is okay too.
         // :: error: createsmustcallfor.target.unparseable
         ((CreatesMustCallForIndirect) r).reset();
     }

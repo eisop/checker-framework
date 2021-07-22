@@ -12,8 +12,7 @@ class MustCallAliasLayeredStreams {
             // The real version of this uses a mix of JDK and custom streams, so it makes more
             // sense...
             // TODO we shouldn't report a warning here and the code is okay because the cache is
-            // non-owning,
-            // and the caller of createInputStream is the owner of all of these streams.
+            // non-owning, and the caller of createInputStream is the owner of all of these streams.
             // :: error: required.method.not.called
             cache =
                     new DataInputStream(

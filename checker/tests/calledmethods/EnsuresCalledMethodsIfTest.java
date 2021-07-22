@@ -10,8 +10,7 @@ class EnsuresCalledMethodsIfTest {
     @EnsuresCalledMethods(value = "#1", methods = "close")
     // The contract is not satisfied.  Suppose `sock` is null.  Then `sock.close()` throws a
     // NullPointerException before `sock.close()` has a chance to be called.  The exception is
-    // caught
-    // and control exits the method without `close()` being called.
+    // caught and control exits the method without `close()` being called.
     // :: error: (contracts.postcondition)
     public static void closeSock(EnsuresCalledMethodsIfTest sock) throws Exception {
         if (!sock.isOpen()) {

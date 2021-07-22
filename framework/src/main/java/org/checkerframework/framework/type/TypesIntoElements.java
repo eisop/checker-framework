@@ -376,8 +376,8 @@ public class TypesIntoElements {
             res = directAnnotations(type, tapos);
 
             // we sometimes fix-up raw types with wildcards, do not write these into the bytecode as
-            // there
-            // are no corresponding type arguments and therefore no location to actually add them to
+            // there are no corresponding type arguments and therefore no location to actually add
+            // them to
             if (!type.isUnderlyingTypeRaw()) {
                 int arg = 0;
                 for (AnnotatedTypeMirror ta : type.getTypeArguments()) {

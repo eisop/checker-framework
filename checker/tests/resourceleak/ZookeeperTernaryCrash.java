@@ -15,8 +15,8 @@ final class ZookeeperTernaryCrash {
             final List<SubjectName> result = new ArrayList<SubjectName>();
             for (List<?> entry : entries) {
                 // the need to add this annotation is annoying, but it's better than the
-                // alternative,
-                // which would be to prevent boxed primitives from having must-call types at all
+                // alternative, which would be to prevent boxed primitives from having must-call
+                // types at all
                 // :: warning: cast.unsafe
                 final Integer type =
                         entry.size() >= 2 ? (@MustCall({}) Integer) entry.get(0) : null;

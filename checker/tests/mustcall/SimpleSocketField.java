@@ -10,8 +10,7 @@ class SimpleSocketField {
     SimpleSocketField() throws Exception {
         @MustCall("close") Socket s = mySock;
         // This assignment is safe, because the only possible value of mySock here is the
-        // unconnected
-        // socket in the field initializer.
+        // unconnected socket in the field initializer.
         @MustCall({}) Socket s1 = mySock;
     }
 

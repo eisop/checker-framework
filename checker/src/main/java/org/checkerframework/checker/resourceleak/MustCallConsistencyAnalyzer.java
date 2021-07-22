@@ -171,8 +171,7 @@ class MustCallConsistencyAnalyzer {
     /* package-private */
     void analyze(ControlFlowGraph cfg) {
         // The `visited` set contains everything that has been added to the worklist, even if it has
-        // not
-        // yet been removed and analyzed.
+        // not yet been removed and analyzed.
         Set<BlockWithObligations> visited = new LinkedHashSet<>();
         Deque<BlockWithObligations> worklist = new ArrayDeque<>();
 
@@ -186,9 +185,8 @@ class MustCallConsistencyAnalyzer {
             BlockWithObligations current = worklist.remove();
             List<Node> nodes = current.block.getNodes();
             // A *mutable* set that eventually holds the set of obligations to be propagated to
-            // successor
-            // blocks. The set is initialized to the current obligations and updated by the methods
-            // invoked in the for loop below.
+            // successor blocks. The set is initialized to the current obligations and updated by
+            // the methods invoked in the for loop below.
             Set<ImmutableSet<LocalVarWithTree>> obligations =
                     new LinkedHashSet<>(current.obligations);
 
@@ -224,8 +222,7 @@ class MustCallConsistencyAnalyzer {
             checkCreatesMustCallForInvocation(obligations, (MethodInvocationNode) node);
             // Count calls to @CreatesMustCallFor methods as creating new resources. Doing so could
             // result in slightly over-counting, because @CreatesMustCallFor doesn't guarantee that
-            // a
-            // new resource is created: it just means that a new resource might have been created.
+            // a new resource is created: it just means that a new resource might have been created.
             incrementNumMustCall(node);
         }
 
@@ -236,9 +233,8 @@ class MustCallConsistencyAnalyzer {
         if (typeFactory.hasDeclaredMustCall(node.getTree())) {
             // The incrementNumMustCall call above increments the count for the target of the
             // @CreatesMustCallFor annotation.  By contrast, this call increments the count for the
-            // return
-            // value of the method (which can't be the target of the annotation, because our syntax
-            // doesn't support that).
+            // return value of the method (which can't be the target of the annotation, because our
+            // syntax doesn't support that).
             incrementNumMustCall(node);
         }
         trackInvocationResult(obligations, node);
@@ -257,8 +253,8 @@ class MustCallConsistencyAnalyzer {
         Node mustCallAliasArgument = getMustCallAliasArgumentNode(node);
         // If the MustCallAlias argument is also in the set of obligations, then remove it -- its
         // obligation has been fulfilled by being passed on to the MustCallAlias constructor
-        // (because we
-        // must be in a constructor body if we've encountered a this/super constructor call).
+        // (because we must be in a constructor body if we've encountered a this/super constructor
+        // call).
         if (mustCallAliasArgument instanceof LocalVariableNode) {
             removeObligationContainingVar(obligations, (LocalVariableNode) mustCallAliasArgument);
         }
@@ -418,9 +414,8 @@ class MustCallConsistencyAnalyzer {
     private void trackInvocationResult(Set<ImmutableSet<LocalVarWithTree>> obligations, Node node) {
         Tree tree = node.getTree();
         // We need to track the result of the call iff there is a temporary variable for the call
-        // node
-        // (because we only create temporaries for expressions that could actually have must-call
-        // values).
+        // node (because we only create temporaries for expressions that could actually have
+        // must-call values).
         LocalVariableNode tmpVar = typeFactory.getTempVarForNode(node);
         if (tmpVar == null) {
             return;
@@ -441,9 +436,8 @@ class MustCallConsistencyAnalyzer {
         LocalVarWithTree tmpVarWithTree = new LocalVarWithTree(new LocalVariable(tmpVar), tree);
         if (mustCallAlias instanceof FieldAccessNode) {
             // We do not track the call result if the MustCallAlias argument is a field.  Handling
-            // of
-            // @Owning fields is a completely separate check, and we never need to track an alias of
-            // non-@Owning fields.
+            // of @Owning fields is a completely separate check, and we never need to track an alias
+            // of non-@Owning fields.
         } else if (mustCallAlias instanceof LocalVariableNode) {
             ImmutableSet<LocalVarWithTree> resourceAliasSetContainingMustCallAlias =
                     getResourceAliasSetForVar(obligations, (LocalVariableNode) mustCallAlias);
@@ -1057,8 +1051,7 @@ class MustCallConsistencyAnalyzer {
      */
     private Node removeCastsAndGetTmpVarIfPresent(Node node) {
         // TODO: Create temp vars for TypeCastNodes as well, so we don't need to explicitly remove
-        // casts
-        // here.
+        // casts here.
         node = removeCasts(node);
         return getTempVarOrNode(node);
     }
@@ -1182,18 +1175,16 @@ class MustCallConsistencyAnalyzer {
             Set<ImmutableSet<LocalVarWithTree>> curObligations =
                     handleTernarySuccIfNeeded(curBlock, succ, obligations);
             // obligationsForSucc eventually contains the obligations to propagate to succ.  The
-            // loop
-            // below mutates it.
+            // loop below mutates it.
             Set<ImmutableSet<LocalVarWithTree>> obligationsForSucc = new LinkedHashSet<>();
             // A detailed reason to give in the case that a relevant variable goes out of scope with
-            // an
-            // unsatisfied obligation along the current control-flow edge.
+            // an unsatisfied obligation along the current control-flow edge.
             String reasonForSucc =
                     exceptionType == null
                             ?
                             // Technically the variable may be going out of scope before the method
-                            // exit, but that
-                            // doesn't seem to provide additional helpful information.
+                            // exit, but that doesn't seem to provide additional helpful
+                            // information.
                             "regular method exit"
                             : "possible exceptional exit due to "
                                     + ((ExceptionBlock) curBlock).getNode().getTree()
@@ -1213,11 +1204,8 @@ class MustCallConsistencyAnalyzer {
                             typeFactory.getTypeFactoryOfSubchecker(MustCallChecker.class);
 
                     // If succ is an exceptional successor, and resourceAliasSet represents the
-                    // temporary
-                    // variable for
-                    // curBlock's node, do not propagate, as in the exceptional case the
-                    // "assignment" to
-                    // the temporary variable does not succeed.
+                    // temporary variable for curBlock's node, do not propagate, as in the
+                    // exceptional case the "assignment" to the temporary variable does not succeed.
                     if (exceptionType != null) {
                         Node exceptionalNode = removeCasts(((ExceptionBlock) curBlock).getNode());
                         LocalVariableNode tmpVarForExcNode =
@@ -1233,18 +1221,12 @@ class MustCallConsistencyAnalyzer {
                     }
 
                     // Always propagate resourceAliasSet to successor if current block represents
-                    // code nested
-                    // in a cast or
-                    // ternary expression.  Without this logic, the analysis may report a false
-                    // positive in
-                    // when the resourceAliasSet represents a temporary variable for a nested
-                    // expression, as
-                    // the temporary
-                    // may not appear in the successor store and hence seems to be going out of
-                    // scope.  The
+                    // code nested in a cast or ternary expression.  Without this logic, the
+                    // analysis may report a false positive in when the resourceAliasSet represents
+                    // a temporary variable for a nested expression, as the temporary may not appear
+                    // in the successor store and hence seems to be going out of scope.  The
                     // temporary will be handled with special logic; casts are unwrapped at various
-                    // points in
-                    // the analysis, and ternary expressions are handled by
+                    // points in the analysis, and ternary expressions are handled by
                     // handleTernarySuccIfNeeded.
                     if (curBlockNodes.size() == 1 && inCastOrTernary(curBlockNodes.get(0))) {
                         obligationsForSucc.add(resourceAliasSet);
@@ -1253,17 +1235,15 @@ class MustCallConsistencyAnalyzer {
 
                     if (curBlockNodes.size() == 0 /* curBlock is special or conditional */) {
                         // Use the store from the block actually being analyzed, rather than
-                        // succRegularStore,
-                        // if succRegularStore contains no information about the variables of
-                        // interest.
+                        // succRegularStore, if succRegularStore contains no information about the
+                        // variables of interest.
                         // In the case where none of the aliases in resourceAliasSet appear in
                         // succRegularStore, the resource is going out of scope, and it doesn't make
                         // sense to pass succRegularStore to checkMustCall - the successor store
-                        // will
-                        // not have any information about it, by construction, and
-                        // any information in the previous store remains true. If any locals from
-                        // the resource
-                        // alias set do appear in succRegularStore, we will always use that store.
+                        // will not have any information about it, by construction, and any
+                        // information in the previous store remains true. If any locals from the
+                        // resource alias set do appear in succRegularStore, we will always use that
+                        // store.
                         CFStore cmStore =
                                 noInfoInSuccStoreForVars
                                         ? analysis.getInput(curBlock).getRegularStore()
@@ -1277,8 +1257,7 @@ class MustCallConsistencyAnalyzer {
                         CFStore cmStoreAfter = typeFactory.getStoreAfter(last);
                         // If this is an exceptional block, check the MC store beforehand to avoid
                         // issuing an error about a call to a CreatesMustCallFor method that might
-                        // throw
-                        // an exception. Otherwise, use the store after.
+                        // throw an exception. Otherwise, use the store after.
                         CFStore mcStore;
                         if (exceptionType != null && isInvocationOfCreatesMustCallForMethod(last)) {
                             mcStore = mcAtf.getStoreBefore(last);
@@ -1606,18 +1585,14 @@ class MustCallConsistencyAnalyzer {
             new HashSet<>(
                     ImmutableSet.of(
                             // Any method call has a CFG edge for Throwable/RuntimeException/Error
-                            // to represent
-                            // run-time
-                            // misbehavior. Ignore it.
+                            // to represent run-time misbehavior. Ignore it.
                             Throwable.class.getCanonicalName(),
                             Error.class.getCanonicalName(),
                             RuntimeException.class.getCanonicalName(),
                             // Use the Nullness Checker to prove this won't happen.
                             NullPointerException.class.getCanonicalName(),
                             // These errors can't be predicted statically, so we'll ignore them and
-                            // assume they
-                            // won't
-                            // happen.
+                            // assume they won't happen.
                             ClassCircularityError.class.getCanonicalName(),
                             ClassFormatError.class.getCanonicalName(),
                             NoClassDefFoundError.class.getCanonicalName(),
@@ -1631,9 +1606,8 @@ class MustCallConsistencyAnalyzer {
                             NegativeArraySizeException.class.getCanonicalName(),
                             // Most of the time, this exception is infeasible, as the charset used
                             // is guaranteed to be present by the Java spec (e.g., "UTF-8").
-                            // Eventually,
-                            // we could refine this exclusion by looking at the charset being
-                            // requested.
+                            // Eventually, we could refine this exclusion by looking at the charset
+                            // being requested.
                             UnsupportedEncodingException.class.getCanonicalName()));
 
     /**

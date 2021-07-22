@@ -68,8 +68,7 @@ class CreatesMustCallForOverride2 {
 
     static class Thudless extends Thud {
         // this method override is also NOT permitted, because the @CreatesMustCallFor("this.myFoo")
-        // annotation
-        // from Thud is inherited!
+        // annotation from Thud is inherited!
         @Override
         @CreatesMustCallFor("this")
         // :: error: creates.mustcall.for.override.invalid
