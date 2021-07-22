@@ -177,10 +177,8 @@ public class JavaParserUtil {
      */
     public static Expression parseExpression(String expression, LanguageLevel languageLevel) {
         // The ParserConfiguration accumulates data each time parse is called, so create a new one
-        // each
-        // time.  There's no method to set the ParserConfiguration used by a JavaParser, so a
-        // JavaParser
-        // has to be created each time.
+        // each time.  There's no method to set the ParserConfiguration used by a JavaParser, so a
+        // JavaParser has to be created each time.
         ParserConfiguration configuration = new ParserConfiguration();
         configuration.setLanguageLevel(languageLevel);
         configuration.setStoreTokens(false);

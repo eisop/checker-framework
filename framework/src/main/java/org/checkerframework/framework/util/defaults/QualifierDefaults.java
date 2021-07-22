@@ -968,8 +968,7 @@ public class QualifierDefaults {
                                 && t.getKind() == TypeKind.EXECUTABLE
                                 && isTopLevelType) {
                             // This is the return type of a constructor declaration (not a
-                            // constructor
-                            // invocation).
+                            // constructor invocation).
                             final AnnotatedTypeMirror returnType =
                                     ((AnnotatedExecutableType) t).getReturnType();
                             if (shouldBeAnnotated(returnType, false)) {

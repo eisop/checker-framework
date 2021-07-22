@@ -564,8 +564,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         boolean hasCapturedTypeVariables = capturedType != type;
         if (hasCapturedTypeVariables) {
             // Check that the extends bound of the captured type variable is a subtype of the
-            // extends
-            // bound of the wildcard.
+            // extends bound of the wildcard.
             int numTypeArgs = capturedType.getTypeArguments().size();
             // First create a mapping from captured type variable to its wildcard.
             Map<TypeVariable, AnnotatedTypeMirror> typeVarToWildcard = new HashMap<>(numTypeArgs);
@@ -586,8 +585,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                     AnnotatedWildcardType wildcard =
                             (AnnotatedWildcardType) type.getTypeArguments().get(i);
                     // Substitute the captured type variables with their wildcards. Without this,
-                    // the
-                    // isSubtype check crashes because wildcards aren't comparable with type
+                    // the isSubtype check crashes because wildcards aren't comparable with type
                     // variables.
                     AnnotatedTypeMirror catpureTypeVarUB =
                             atypeFactory

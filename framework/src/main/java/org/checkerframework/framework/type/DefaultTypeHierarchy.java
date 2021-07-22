@@ -337,12 +337,10 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
                 }
             }
             // If inside is a wildcard, then isSubtype(outsideLower, inside) calls
-            // isSubtype(outsideLower,
-            // inside.getLowerBound()) and isSubtype(inside, outsideUpper) calls
-            // isSubtype(inside.getUpperBound(), outsideUpper). This is slightly different from the
-            // algorithm in the JLS.  Only one of the Java type bounds can be specified, but there
-            // can be
-            // annotations on both the upper and lower bound of a wildcard.
+            // isSubtype(outsideLower, inside.getLowerBound()) and isSubtype(inside, outsideUpper)
+            // calls isSubtype(inside.getUpperBound(), outsideUpper). This is slightly different
+            // from the algorithm in the JLS.  Only one of the Java type bounds can be specified,
+            // but there can be annotations on both the upper and lower bound of a wildcard.
             return isSubtype(outsideLower, inside) && isSubtype(inside, outsideUpper);
         } catch (Throwable ex) {
             // Work around:

@@ -2683,8 +2683,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             AnnotatedDeclaredType type =
                     (AnnotatedDeclaredType) toAnnotatedType(TreeUtils.typeOf(newClassTree), false);
             // In Java 11 and lower, if newClassTree creates an anonymous class, then annotations in
-            // this
-            // location:
+            // this location:
             //   new @HERE Class() {}
             // are on not on the identifier newClassTree, but rather on the modifier newClassTree.
             List<? extends AnnotationTree> annos =
@@ -4921,27 +4920,22 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             AnnotatedTypeMirror capturedTypeArg = capturedType.getTypeArguments().get(i);
             if (uncapturedTypeArg.getKind() == TypeKind.WILDCARD) {
                 // The type argument is a captured type variable. Use the type argument from the
-                // newly
-                // created and yet-to-be annotated capturedType. (The annotations are added by
+                // newly created and yet-to-be annotated capturedType. (The annotations are added by
                 // #annotateCapturedTypeVar, which is called at the end of this method.)
                 typeVarToAnnotatedTypeArg.put(typeVarTypeMirror, capturedTypeArg);
                 newTypeArgs.add(capturedTypeArg);
                 if (TypesUtils.isCapturedTypeVariable(capturedTypeArg.getUnderlyingType())) {
                     // Also, add a mapping from the captured type variable to the annotated captured
                     // type variable, so that if one captured type variable refers to another, the
-                    // same
-                    // AnnotatedTypeVariable object is used.
+                    // same AnnotatedTypeVariable object is used.
                     capturedTypeVarToAnnotatedTypeVar.put(
                             ((AnnotatedTypeVariable) capturedTypeArg).getUnderlyingType(),
                             (AnnotatedTypeVariable) capturedTypeArg);
                 } else {
                     // Javac used a declared type instead of a captured type variable.  This seems
-                    // to happen
-                    // when the bounds of the captured type variable would have been identical. This
-                    // seems to
-                    // be a violation of the JLS, but javac does this, so the Checker Framework must
-                    // handle
-                    // that case.
+                    // to happen when the bounds of the captured type variable would have been
+                    // identical. This seems to be a violation of the JLS, but javac does this, so
+                    // the Checker Framework must handle that case.
                     replaceAnnotations(
                             ((AnnotatedWildcardType) uncapturedTypeArg).getSuperBound(),
                             capturedTypeArg);
@@ -4953,8 +4947,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 typeVarToAnnotatedTypeArg.put(typeVarTypeMirror, uncapturedTypeArg);
                 if (uncapturedTypeArg.getKind() == TypeKind.TYPEVAR) {
                     // If the type arg is a type variable also add it to the
-                    // typeVarToAnnotatedTypeArg map, so
-                    // that references to the type variable are substituted.
+                    // typeVarToAnnotatedTypeArg map, so that references to the type variable are
+                    // substituted.
                     AnnotatedTypeVariable typeVar = (AnnotatedTypeVariable) uncapturedTypeArg;
                     typeVarToAnnotatedTypeArg.put(typeVar.getUnderlyingType(), typeVar);
                 }
@@ -5019,8 +5013,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 AnnotatedDeclaredType uncapturedType, AnnotatedDeclaredType capturedType) {
 
             // The name "originalToCopy" means a mapping from the original to the copy, not an
-            // original
-            // that needs to be copied.
+            // original that needs to be copied.
             IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy =
                     new IdentityHashMap<>();
             originalToCopy.put(uncapturedType, capturedType);
@@ -5055,8 +5048,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 // Note: This `if` statement can't be replaced with
                 //   if (TypesUtils.isCapturedTypeVariable(capturedArg))
                 // because if the bounds of the captured wildcard are equal, then instead of a
-                // captured
-                // wildcard, the type of the bound is used.
+                // captured wildcard, the type of the bound is used.
                 if (uncapturedArg.getKind() == TypeKind.WILDCARD) {
                     AnnotatedTypeMirror newCapArg =
                             typeVarSubstitutor.substituteWithoutCopyingTypeArguments(

@@ -338,8 +338,7 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
                 // We output only the "capture#826" part.
                 // NOTE: The number is the hash code of the captured type variable, so it's
                 // nondeterministic, but it is still important to print it in order to tell the
-                // difference
-                // between two captured types.
+                // difference between two captured types.
                 sb.append(underlyingType, 0, underlyingType.indexOf(" of "));
             } else {
                 sb.append(type.underlyingType);

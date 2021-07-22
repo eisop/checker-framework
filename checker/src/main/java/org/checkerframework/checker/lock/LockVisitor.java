@@ -86,8 +86,7 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
                     || checkerName.equals("LockChecker")
                     || checkerName.equals("org.checkerframework.checker.lock.LockChecker"))) {
                 // The Lock Checker redefines CFAbstractStore#isSideEffectFree in a way that is
-                // incompatible
-                // with (semantically different than) other checkers.
+                // incompatible with (semantically different than) other checkers.
                 inferPurity = false;
                 break;
             }
