@@ -659,7 +659,7 @@ subprojects {
                 return
             }
             args += "${formatScriptsHome}/check-google-java-format.py"
-            args += "--aosp" // 4 space indentation
+            // args += "--aosp" // 4 space indentation
             args += getJavaFilesToFormat(project.name)
         }
         ignoreExitValue = true
@@ -681,7 +681,7 @@ subprojects {
                 return
             }
             args += "${formatScriptsHome}/run-google-java-format.py"
-            args += "--aosp" // 4 space indentation
+            // args += "--aosp" // 4 space indentation
             args += getJavaFilesToFormat(project.name)
         }
     }
