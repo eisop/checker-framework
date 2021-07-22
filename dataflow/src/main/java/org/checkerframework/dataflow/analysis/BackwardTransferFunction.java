@@ -1,9 +1,10 @@
 package org.checkerframework.dataflow.analysis;
 
-import java.util.List;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.cfg.UnderlyingAST;
 import org.checkerframework.dataflow.cfg.node.ReturnNode;
+
+import java.util.List;
 
 /**
  * Interface of a backward transfer function for the abstract interpretation used for the backward
@@ -17,24 +18,24 @@ import org.checkerframework.dataflow.cfg.node.ReturnNode;
  * @param <S> the store type used in the analysis
  */
 public interface BackwardTransferFunction<V extends AbstractValue<V>, S extends Store<S>>
-    extends TransferFunction<V, S> {
+        extends TransferFunction<V, S> {
 
-  /**
-   * Returns the initial store that should be used at the normal exit block.
-   *
-   * @param underlyingAST the underlying AST of the given control flow graph
-   * @param returnNodes the return nodes of the given control flow graph if the underlying AST of
-   *     this graph is a method. Otherwise will be set to {@code null}
-   * @return the initial store that should be used at the normal exit block
-   */
-  S initialNormalExitStore(UnderlyingAST underlyingAST, @Nullable List<ReturnNode> returnNodes);
+    /**
+     * Returns the initial store that should be used at the normal exit block.
+     *
+     * @param underlyingAST the underlying AST of the given control flow graph
+     * @param returnNodes the return nodes of the given control flow graph if the underlying AST of
+     *     this graph is a method. Otherwise will be set to {@code null}
+     * @return the initial store that should be used at the normal exit block
+     */
+    S initialNormalExitStore(UnderlyingAST underlyingAST, @Nullable List<ReturnNode> returnNodes);
 
-  /**
-   * Returns the initial store that should be used at the exceptional exit block or given the
-   * underlying AST of a control flow graph.
-   *
-   * @param underlyingAST the underlying AST of the given control flow graph
-   * @return the initial store that should be used at the exceptional exit block
-   */
-  S initialExceptionalExitStore(UnderlyingAST underlyingAST);
+    /**
+     * Returns the initial store that should be used at the exceptional exit block or given the
+     * underlying AST of a control flow graph.
+     *
+     * @param underlyingAST the underlying AST of the given control flow graph
+     * @return the initial store that should be used at the exceptional exit block
+     */
+    S initialExceptionalExitStore(UnderlyingAST underlyingAST);
 }

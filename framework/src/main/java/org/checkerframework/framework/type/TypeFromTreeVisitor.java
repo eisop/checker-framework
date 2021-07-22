@@ -2,6 +2,7 @@ package org.checkerframework.framework.type;
 
 import com.sun.source.tree.Tree;
 import com.sun.source.util.SimpleTreeVisitor;
+
 import org.checkerframework.javacutil.BugInCF;
 
 /**
@@ -17,16 +18,16 @@ import org.checkerframework.javacutil.BugInCF;
  * @see org.checkerframework.framework.type.TypeFromTree
  */
 abstract class TypeFromTreeVisitor
-    extends SimpleTreeVisitor<AnnotatedTypeMirror, AnnotatedTypeFactory> {
+        extends SimpleTreeVisitor<AnnotatedTypeMirror, AnnotatedTypeFactory> {
 
-  TypeFromTreeVisitor() {}
+    TypeFromTreeVisitor() {}
 
-  @Override
-  public AnnotatedTypeMirror defaultAction(Tree node, AnnotatedTypeFactory f) {
-    if (node == null) {
-      throw new BugInCF("TypeFromTree.defaultAction: null tree");
+    @Override
+    public AnnotatedTypeMirror defaultAction(Tree node, AnnotatedTypeFactory f) {
+        if (node == null) {
+            throw new BugInCF("TypeFromTree.defaultAction: null tree");
+        }
+        throw new BugInCF(
+                "TypeFromTree.defaultAction: conversion undefined for tree type " + node.getKind());
     }
-    throw new BugInCF(
-        "TypeFromTree.defaultAction: conversion undefined for tree type " + node.getKind());
-  }
 }
