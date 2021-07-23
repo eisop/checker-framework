@@ -597,7 +597,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                             .isSubtype(catpureTypeVarUB, wildcard.getExtendsBound())) {
                         checker.reportError(
                                 tree.getTypeArguments().get(i),
-                                "type.argument",
+                                "type.argument.type.incompatible",
                                 element.getTypeParameters().get(i),
                                 element.getSimpleName(),
                                 wildcard.getExtendsBound(),
