@@ -300,8 +300,8 @@ public class InitializationVisitor<
         // Warn about uninitialized static fields.
         Tree.Kind nodeKind = node.getKind();
         // Skip interfaces (and annotations, which are interfaces).  In an interface, every static
-        // field
-        // must be initialized.  Java forbids uninitialized variables and static initalizer blocks.
+        // field must be initialized.  Java forbids uninitialized variables and static initalizer
+        // blocks.
         if (nodeKind != Tree.Kind.INTERFACE && nodeKind != Tree.Kind.ANNOTATION_TYPE) {
             boolean isStatic = true;
             // See GenericAnnotatedTypeFactory.performFlowAnalysis for why we use

@@ -452,8 +452,7 @@ public abstract class CFAbstractTransfer<
             // Maybe insert the declared type:
             if (!isConstructor) {
                 // If it's not a constructor, use the declared type if the receiver of the method is
-                // fully
-                // initialized.
+                // fully initialized.
                 boolean isInitializedReceiver = !isNotFullyInitializedReceiver(methodTree);
                 if (isInitializedReceiver && varEle.getEnclosingElement().equals(classEle)) {
                     store.insertValue(fieldInitialValue.fieldDecl, fieldInitialValue.declared);

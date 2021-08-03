@@ -255,8 +255,8 @@ class MustCallConsistencyAnalyzer {
         List<Node> mustCallAliasArguments = getMustCallAliasArgumentNodes(node);
         // If the MustCallAlias argument is also in the set of obligations, then remove it -- its
         // obligation has been fulfilled by being passed on to the MustCallAlias constructor
-        // (because a
-        // this/super constructor call can only occur in the body of another constructor).
+        // (because a this/super constructor call can only occur in the body of another
+        // constructor).
         for (Node mustCallAliasArgument : mustCallAliasArguments) {
             if (mustCallAliasArgument instanceof LocalVariableNode) {
                 removeObligationsContainingVar(
@@ -462,11 +462,9 @@ class MustCallConsistencyAnalyzer {
             for (Node mustCallAlias : mustCallAliases) {
                 if (mustCallAlias instanceof FieldAccessNode) {
                     // Do not track the call result if the MustCallAlias argument is a field.
-                    // Handling of
-                    // @Owning fields is a completely separate check, and there is never a need to
-                    // track an
-                    // alias of a non-@Owning field, as by definition such a field does not have
-                    // obligations!
+                    // Handling of @Owning fields is a completely separate check, and there is never
+                    // a need to track an alias of a non-@Owning field, as by definition such a
+                    // field does not have obligations!
                 } else {
                     if (!(mustCallAlias instanceof LocalVariableNode)) {
                         throw new TypeSystemError(
@@ -476,8 +474,7 @@ class MustCallConsistencyAnalyzer {
                     Obligation obligationContainingMustCallAlias =
                             getObligationForVar(obligations, (LocalVariableNode) mustCallAlias);
                     // If mustCallAlias is a local variable already being tracked, add
-                    // tmpVarAsResourceAlias
-                    // to the set containing mustCallAlias.
+                    // tmpVarAsResourceAlias to the set containing mustCallAlias.
                     if (obligationContainingMustCallAlias != null) {
                         Set<ResourceAlias> newResourceAliasSet =
                                 FluentIterable.from(

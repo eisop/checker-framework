@@ -1325,8 +1325,7 @@ public abstract class GenericAnnotatedTypeFactory<
                 if (!Ordering.from(sortVariablesFirst).isOrdered(members)) {
                     members = new ArrayList<>(members);
                     // Process variables before methods, so all field initializers are observed
-                    // before the
-                    // constructor is analyzed and reports uninitialized variables.
+                    // before the constructor is analyzed and reports uninitialized variables.
                     members.sort(sortVariablesFirst);
                 }
                 for (Tree m : members) {

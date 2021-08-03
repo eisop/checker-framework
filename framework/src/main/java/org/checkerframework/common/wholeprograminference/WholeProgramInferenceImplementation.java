@@ -242,8 +242,7 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
         // TODO: Probably move some part of this into the AnnotatedTypeFactory.
 
         // This code handles fields of "this" and method parameters (including the receiver
-        // parameter
-        // "this"), for now.  In the future, extend it to other expressions.
+        // parameter "this"), for now.  In the future, extend it to other expressions.
         TypeElement containingClass = (TypeElement) methodElt.getEnclosingElement();
         ThisReference thisReference = new ThisReference(containingClass.asType());
         ClassName classNameReceiver = new ClassName(containingClass.asType());
@@ -309,10 +308,8 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
                 atypeFactory.wpiAdjustForUpdateNonField(inferredType);
             } else {
                 // The parameter is not in the store, so don't attempt to create a postcondition for
-                // it,
-                // since anything other than its default type would not be verifiable. (Only
-                // postconditions
-                // are supported for parameters.)
+                // it, since anything other than its default type would not be verifiable. (Only
+                // postconditions are supported for parameters.)
                 continue;
             }
             T preOrPostConditionAnnos =
@@ -338,8 +335,7 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
                         atypeFactory.getAnnotatedType(methodElt).getReceiverType();
                 if (declaredType == null) {
                     // declaredType is null when the method being analyzed is a constructor (which
-                    // doesn't
-                    // have a receiver).
+                    // doesn't have a receiver).
                     return;
                 }
                 AnnotatedTypeMirror inferredType =
