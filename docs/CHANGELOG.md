@@ -1,4 +1,4 @@
-Version 3.17.0-eisop1 (August ?, 2021)
+Version 3.18.0-eisop1 (September ?, 2021)
 --------------------------------------
 
 The new `-AnoJreVersionCheck` command-line argument can be used to not get
@@ -14,6 +14,19 @@ Changes to `AnnotatedTypeMirror`:
    with other method names. Undoes change in typetools 3.16.0.
  * Remove `getAnnotation()` method. `getAnnotationInHierarchy` should be used instead.
    Undoes change in typetools #3691.
+
+
+Version 3.18.0 (September 1, 2021)
+-------------------------------
+
+**User-visible changes:**
+
+Java records are type-checked.  Thanks to Neil Brown.
+
+**Implementation details:**
+
+**Closed issues:**
+
 
 Version 3.17.0 (August 3, 2021)
 -------------------------------

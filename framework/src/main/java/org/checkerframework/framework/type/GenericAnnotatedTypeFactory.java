@@ -1324,7 +1324,7 @@ public abstract class GenericAnnotatedTypeFactory<
           members.sort(sortVariablesFirst);
         }
         for (Tree m : members) {
-          switch (m.getKind()) {
+          switch (TreeUtils.getKindRecordAsClass(m)) {
             case METHOD:
               MethodTree mt = (MethodTree) m;
 
@@ -1372,7 +1372,7 @@ public abstract class GenericAnnotatedTypeFactory<
               }
               fieldValues.add(new FieldInitialValue<>(fieldExpr, declaredValue, null));
               break;
-            case CLASS:
+            case CLASS: // Including RECORD
             case ANNOTATION_TYPE:
             case INTERFACE:
             case ENUM:
