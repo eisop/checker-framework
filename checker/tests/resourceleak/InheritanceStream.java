@@ -4,19 +4,19 @@
 import java.io.*;
 
 class InheritanceStream {
-    void testBAIS(byte[] buf) {
-        new ByteArrayInputStream(buf);
-    }
+  void testBAIS(byte[] buf) {
+    new ByteArrayInputStream(buf);
+  }
 
-    void testBAOS() {
-        new ByteArrayOutputStream();
-    }
+  void testBAOS() {
+    new ByteArrayOutputStream();
+  }
 
-    void testSR(String buf) {
-        new StringReader(buf);
-    }
+  void testSR(String buf) {
+    new StringReader(buf);
+  }
 
-    void testSW() {
-        new StringWriter();
-    }
+  void testSW() {
+    new StringWriter();
+  }
 }

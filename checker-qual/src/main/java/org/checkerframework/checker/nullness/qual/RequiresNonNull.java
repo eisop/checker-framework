@@ -1,12 +1,11 @@
 package org.checkerframework.checker.nullness.qual;
 
-import org.checkerframework.framework.qual.PreconditionAnnotation;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import org.checkerframework.framework.qual.PreconditionAnnotation;
 
 // TODO: In a fix for https://tinyurl.com/cfissue/1917, add the text:  Every prefix expression must
 // also be non-null; for example, {@code @RequiresNonNull(expression="a.b.c")} implies that both
@@ -64,11 +63,11 @@ import java.lang.annotation.Target;
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
 @PreconditionAnnotation(qualifier = NonNull.class)
 public @interface RequiresNonNull {
-    /**
-     * The Java expressions that need to be {@link
-     * org.checkerframework.checker.nullness.qual.NonNull}.
-     *
-     * @checker_framework.manual #java-expressions-as-arguments Syntax of Java expressions
-     */
-    String[] value();
+  /**
+   * The Java expressions that need to be {@link
+   * org.checkerframework.checker.nullness.qual.NonNull}.
+   *
+   * @checker_framework.manual #java-expressions-as-arguments Syntax of Java expressions
+   */
+  String[] value();
 }
