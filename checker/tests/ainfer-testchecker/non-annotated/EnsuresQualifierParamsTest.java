@@ -112,73 +112,73 @@ class EnsuresQualifierParamsTest {
 
     void client1(Object arg) {
         argIsParent(arg);
-        // :: warning: (assignment)
+        // :: warning: (assignment.type.incompatible)
         @Parent Object p = arg;
     }
 
     void client2(Object arg) {
         argIsParent_2(arg, true);
-        // :: warning: (assignment)
+        // :: warning: (assignment.type.incompatible)
         @Parent Object p = arg;
     }
 
     void client3(Object arg) {
         argIsSibling2(arg);
-        // :: warning: (assignment)
+        // :: warning: (assignment.type.incompatible)
         @Sibling2 Object x = arg;
     }
 
     void client4(Object arg) {
         argIsSibling2_2(arg, true);
-        // :: warning: (assignment)
+        // :: warning: (assignment.type.incompatible)
         @Sibling2 Object x = arg;
     }
 
     void clientThis1() {
         thisIsParent();
-        // :: warning: (assignment)
+        // :: warning: (assignment.type.incompatible)
         @Parent Object o = this;
     }
 
     void clientThis2() {
         thisIsParent_2(true);
-        // :: warning: (assignment)
+        // :: warning: (assignment.type.incompatible)
         @Parent Object o = this;
     }
 
     void clientThis2_2() {
         thisIsParent_2(false);
-        // :: warning: (assignment)
+        // :: warning: (assignment.type.incompatible)
         @Parent Object o = this;
     }
 
     void clientThis2_3() {
         thisIsParent_3(false);
-        // :: warning: (assignment)
+        // :: warning: (assignment.type.incompatible)
         @Parent Object o = this;
     }
 
     void clientThis3() {
         thisIsSibling2();
-        // :: warning: (assignment)
+        // :: warning: (assignment.type.incompatible)
         @Sibling2 Object o = this;
     }
 
     void clientThis4() {
         thisIsSibling2_2(true);
-        // :: warning: (assignment)
+        // :: warning: (assignment.type.incompatible)
         @Sibling2 Object o = this;
     }
 
     void clientThis5() {
         thisIsSibling2_2_2(true);
-        // :: warning: (assignment)
+        // :: warning: (assignment.type.incompatible)
         @Sibling2 Object o = this;
     }
 
     void clientThis6() {
         thisIsParent_2_2(true);
-        // :: warning: (assignment)
+        // :: warning: (assignment.type.incompatible)
         @Parent Object o = this;
     }
 }

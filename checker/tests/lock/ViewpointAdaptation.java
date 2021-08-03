@@ -15,7 +15,7 @@ public class ViewpointAdaptation {
 
     public void method1(final String a) {
         synchronized (a) {
-            // :: error: (expression.unparsable)
+            // :: error: (expression.unparsable.type.invalid)
             f.counter++;
         }
     }

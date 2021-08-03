@@ -1,7 +1,7 @@
 enum EnumFieldUninit {
     DUMMY;
 
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     public static String s = null;
 
     // :: error: (initialization.static.field.uninitialized)
@@ -15,7 +15,7 @@ enum EnumFieldUninit {
         arrayInitInBlock = new String[] {};
     }
 
-    // :: error: (assignment)
+    // :: error: (assignment.type.incompatible)
     static String[] arrayInitToNull = null;
 
     // :: error: (initialization.static.field.uninitialized)
