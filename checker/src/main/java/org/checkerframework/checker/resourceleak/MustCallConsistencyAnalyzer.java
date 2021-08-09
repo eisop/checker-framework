@@ -917,6 +917,7 @@ class MustCallConsistencyAnalyzer {
             node.getTree(),
             "required.method.not.called",
             formatMissingMustCallMethods(mcValues),
+            "field " + lhsElement.getSimpleName().toString(),
             lhsElement.asType().toString(),
             " Non-final owning field might be overwritten");
       }
@@ -1534,6 +1535,7 @@ class MustCallConsistencyAnalyzer {
               firstAlias.tree,
               "required.method.not.called",
               formatMissingMustCallMethods(mustCallValue),
+              firstAlias.reference.toString(),
               firstAlias.reference.getType().toString(),
               outOfScopeReason);
         }
