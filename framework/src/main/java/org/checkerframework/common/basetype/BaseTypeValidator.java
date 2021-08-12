@@ -563,7 +563,8 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
       Map<TypeVariable, AnnotatedTypeMirror> typeVarToWildcard = new HashMap<>(numTypeArgs);
       for (int i = 0; i < numTypeArgs; i++) {
         AnnotatedTypeMirror captureTypeArg = capturedType.getTypeArguments().get(i);
-        if (TypesUtils.isCapturedTypeVariable(captureTypeArg.getUnderlyingType())) {
+        if (TypesUtils.isCapturedTypeVariable(captureTypeArg.getUnderlyingType())
+            && type.getTypeArguments().get(i).getKind() == TypeKind.WILDCARD) {
           AnnotatedTypeVariable capturedTypeVar = (AnnotatedTypeVariable) captureTypeArg;
           AnnotatedWildcardType wildcard = (AnnotatedWildcardType) type.getTypeArguments().get(i);
           typeVarToWildcard.put(capturedTypeVar.getUnderlyingType(), wildcard);
@@ -572,7 +573,8 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
 
       for (int i = 0; i < numTypeArgs; i++) {
         AnnotatedTypeMirror captureTypeArg = capturedType.getTypeArguments().get(i);
-        if (TypesUtils.isCapturedTypeVariable(captureTypeArg.getUnderlyingType())) {
+        if (TypesUtils.isCapturedTypeVariable(captureTypeArg.getUnderlyingType())
+            && type.getTypeArguments().get(i).getKind() == TypeKind.WILDCARD) {
           AnnotatedTypeVariable capturedTypeVar = (AnnotatedTypeVariable) captureTypeArg;
           AnnotatedWildcardType wildcard = (AnnotatedWildcardType) type.getTypeArguments().get(i);
           // Substitute the captured type variables with their wildcards. Without this,
