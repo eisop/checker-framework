@@ -14,7 +14,7 @@ jobs:
   dependsOn:
    - junit_tests_jdk11
    - nonjunit_tests_jdk11
-   - misc_jdk11
+#   - misc_jdk11
    - typecheck_jdk11
   pool:
     vmImage: 'ubuntu-latest'
@@ -38,7 +38,7 @@ jobs:
   dependsOn:
    - junit_tests_jdk11
    - nonjunit_tests_jdk11
-   - misc_jdk11
+#   - misc_jdk11
    - typecheck_jdk11
   pool:
     vmImage: 'ubuntu-latest'
@@ -53,7 +53,7 @@ jobs:
   dependsOn:
    - junit_tests_jdk11
    - nonjunit_tests_jdk11
-   - misc_jdk11
+#   - misc_jdk11
    - typecheck_jdk11
   pool:
     vmImage: 'ubuntu-latest'
@@ -76,7 +76,7 @@ jobs:
   dependsOn:
    - junit_tests_jdk11
    - nonjunit_tests_jdk11
-   - misc_jdk11
+#   - misc_jdk11
    - typecheck_jdk11
   pool:
     vmImage: 'ubuntu-latest'
@@ -90,7 +90,7 @@ jobs:
   dependsOn:
    - junit_tests_jdk11
    - inference_tests_jdk11
-   - misc_jdk11
+#   - misc_jdk11
    - typecheck_jdk11
   pool:
     vmImage: 'ubuntu-latest'
@@ -113,7 +113,7 @@ jobs:
   dependsOn:
    - junit_tests_jdk11
    - inference_tests_jdk11
-   - misc_jdk11
+#   - misc_jdk11
    - typecheck_jdk11
   pool:
     vmImage: 'ubuntu-latest'
@@ -124,12 +124,11 @@ jobs:
   - bash: ./checker/bin-devel/test-cftests-inference.sh
     displayName: test-cftests-inference.sh
 - job: misc_jdk8
-  ## The dependsOn is commented out because misc_jdk8 sometimes fails when misc_jdk11 does not.
-  # dependsOn:
-  #  - junit_tests_jdk11
-  #  - nonjunit_tests_jdk11
-  #  - misc_jdk11
-  #  - typecheck_jdk11
+  dependsOn:
+   - junit_tests_jdk11
+   - nonjunit_tests_jdk11
+   - misc_jdk11
+   - typecheck_jdk11
   pool:
     vmImage: 'ubuntu-latest'
   container: mdernst/cf-ubuntu-jdk8-plus:latest
@@ -165,7 +164,7 @@ jobs:
   dependsOn:
    - junit_tests_jdk11
    - nonjunit_tests_jdk11
-   - misc_jdk11
+#   - misc_jdk11
    - typecheck_jdk11
   pool:
     vmImage: 'ubuntu-latest'
@@ -188,7 +187,7 @@ jobs:
   dependsOn:
    - junit_tests_jdk11
    - nonjunit_tests_jdk11
-   - misc_jdk11
+#   - misc_jdk11
    - typecheck_jdk11
   pool:
     vmImage: 'ubuntu-latest'
@@ -202,7 +201,7 @@ jobs:
   dependsOn:
    - junit_tests_jdk11
    - nonjunit_tests_jdk11
-   - misc_jdk11
+#   - misc_jdk11
    - typecheck_jdk11
    ## Commented to reduce latency and eliminate the "daikon_jdk11 -> daikon_jdk8" critical path.
    # - daikon_jdk11
@@ -247,7 +246,7 @@ jobs:
   dependsOn:
    - junit_tests_jdk11
    - nonjunit_tests_jdk11
-   - misc_jdk11
+#   - misc_jdk11
    - typecheck_jdk11
    - guava_jdk11
   pool:
@@ -271,7 +270,7 @@ jobs:
   dependsOn:
    - junit_tests_jdk11
    - nonjunit_tests_jdk11
-   - misc_jdk11
+#   - misc_jdk11
    - typecheck_jdk11
    - guava_jdk11
   pool:
@@ -286,7 +285,7 @@ jobs:
   dependsOn:
    - junit_tests_jdk11
    - nonjunit_tests_jdk11
-   - misc_jdk11
+#   - misc_jdk11
    - typecheck_jdk11
    - plume_lib_jdk11
   pool:
@@ -310,7 +309,7 @@ jobs:
   dependsOn:
    - junit_tests_jdk11
    - nonjunit_tests_jdk11
-   - misc_jdk11
+#   - misc_jdk11
    - typecheck_jdk11
    - plume_lib_jdk11
   pool:

@@ -1,24 +1,18 @@
 import de.undercouch.gradle.tasks.download.Download
+import org.ajoberstar.grgit.Grgit
 
 plugins {
     // https://plugins.gradle.org/plugin/com.github.johnrengelman.shadow (v5 requires Gradle 5)
     id 'com.github.johnrengelman.shadow' version '7.0.0'
     // https://plugins.gradle.org/plugin/de.undercouch.download
-    id "de.undercouch.download" version "4.1.2"
+    id 'de.undercouch.download' version '4.1.2'
     id 'java'
     // https://github.com/tbroyer/gradle-errorprone-plugin
-    id "net.ltgt.errorprone" version "2.0.2"
+    id 'net.ltgt.errorprone' version '2.0.2'
     // https://plugins.gradle.org/plugin/org.ajoberstar.grgit
     id 'org.ajoberstar.grgit' version '4.1.0' apply false
     // https://docs.gradle.org/current/userguide/eclipse_plugin.html
     id 'eclipse'
-}
-apply plugin: "de.undercouch.download"
-
-import org.ajoberstar.grgit.Grgit
-
-repositories {
-    mavenCentral()
 }
 
 ext {
@@ -79,8 +73,8 @@ task setLocalRepo(type:Exec) {
     commandLine 'git', 'worktree', 'list'
     standardOutput = new ByteArrayOutputStream()
     doLast {
-       String worktreeList = standardOutput.toString()
-       localRepo = worktreeList.substring(0, worktreeList.indexOf(" ")) + "/.git"
+        String worktreeList = standardOutput.toString()
+        localRepo = worktreeList.substring(0, worktreeList.indexOf(" ")) + "/.git"
     }
 }
 
@@ -96,15 +90,16 @@ allprojects {
     apply plugin: 'java'
     apply plugin: 'eclipse'
     apply plugin: 'com.github.johnrengelman.shadow'
-    apply plugin: "de.undercouch.download"
+    apply plugin: 'de.undercouch.download'
     apply plugin: 'net.ltgt.errorprone'
 
     group 'org.checkerframework'
+
     // Increment the minor version (second number) rather than just the patch
     // level (third number) if:
     //   * any new checkers have been added, or
     //   * backward-incompatible changes have been made to APIs or elsewhere.
-    version '3.16.0'
+    version '3.17.0'
 
     repositories {
         mavenCentral()
@@ -147,15 +142,17 @@ allprojects {
 
     // After all the tasks have been created, modify some of them.
     afterEvaluate {
-      configurations {
-        checkerFatJar {
-          canBeConsumed = false
-          canBeResolved = true
+        configurations {
+            checkerFatJar {
+                canBeConsumed = false
+                canBeResolved = true
+            }
         }
-      }
-      dependencies {
-        checkerFatJar(project(path: ":checker", configuration: 'fatJar'))
-      }
+
+        dependencies {
+            checkerFatJar(project(path: ":checker", configuration: 'fatJar'))
+        }
+
         // Add the fat checker.jar to the classpath of every Javadoc task. This allows Javadoc in
         // any module to reference classes in any other module.
         // Also, build and use ManualTaglet as a taglet.
@@ -284,8 +281,8 @@ allprojects {
                 options.errorprone.enabled = false
             }
         }
-    }
-}
+    } // end afterEvaluate
+} // end allProjects
 
 task cloneAndBuildDependencies(type: Exec, group: 'Build') {
     description 'Clones (or updates) and builds all dependencies'
@@ -387,6 +384,7 @@ def createCheckTypeTask(projectName, taskName, checker, args = []) {
                 "--add-exports", "jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
                 "--add-exports", "jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
                 "--add-exports", "jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
+                "--add-exports", "jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
                 "--add-exports", "jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
                 "--add-exports", "jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
                 "--add-exports", "jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
@@ -416,6 +414,7 @@ List<String> getJavaFilesToFormat(projectName) {
     fileTree("${project(projectName).projectDir}/tests").visit { details ->
         // If you change this, also change checker/bin-devel/git.pre-commit
         if (!details.path.contains("nullness-javac-errors")
+                && !details.path.contains("calledmethods-delomboked")
                 && !details.path.contains("returnsreceiverdelomboked")
                 && !details.path.contains("build")
                 && details.name.endsWith('.java')) {
@@ -442,6 +441,24 @@ List<String> getJavaFilesToFormat(projectName) {
         args += project(projectName).relativePath(f)
     }
     return args
+}
+
+task writeListOfJavaFilesToFormat(group: 'Format') {
+    description "Writes a list of Java files subject to formatting, to ${buildDir}/javafiles.txt"
+    doLast {
+        mkdir buildDir
+        File list = new File("${buildDir}/javafiles.txt");
+        list.createNewFile();
+        FileWriter fileWriter = new FileWriter(list)
+        subprojects.forEach {
+            if (!it.name.startsWith("checker-qual-android")) {
+                for (String fileName : getJavaFilesToFormat(it.name)) {
+                    fileWriter.write(fileName)
+                    fileWriter.write(System.lineSeparator())
+                }
+            }
+        }
+    }
 }
 
 task htmlValidate(type: Exec, group: 'Format') {
@@ -502,9 +519,11 @@ javadoc.dependsOn(allJavadoc)
 configurations {
     requireJavadoc
 }
+
 dependencies {
     requireJavadoc "org.plumelib:require-javadoc:1.0.2"
 }
+
 task requireJavadoc(type: JavaExec, group: 'Documentation') {
     description = 'Ensures that Javadoc documentation exists in source code.'
     mainClass = "org.plumelib.javadoc.RequireJavadoc"
@@ -599,17 +618,17 @@ task getCodeFormatScripts() {
 // However, it fails in the presence of worktrees: https://github.com/ajoberstar/grgit/issues/97 .
 // No group so it does not show up in the output of `gradlew tasks`
 task getCodeFormatScriptsInGradle {
-  description "Obtain the run-google-java-format scripts"
-  doLast {
-    if (! new File(formatScriptsHome).exists()) {
-      // There is no support for the --depth argument:
-      // https://github.com/ajoberstar/grgit/issues/155   https://bugs.eclipse.org/bugs/show_bug.cgi?id=475615
-      def rgjfGit = Grgit.clone(dir: formatScriptsHome, uri: 'https://github.com/plume-lib/run-google-java-format.git')
-    } else {
-      def rgjfGit = Grgit.open(dir: formatScriptsHome)
-      rgjfGit.pull()
+    description "Obtain the run-google-java-format scripts"
+    doLast {
+        if (! new File(formatScriptsHome).exists()) {
+            // There is no support for the --depth argument:
+            // https://github.com/ajoberstar/grgit/issues/155   https://bugs.eclipse.org/bugs/show_bug.cgi?id=475615
+            def rgjfGit = Grgit.clone(dir: formatScriptsHome, uri: 'https://github.com/plume-lib/run-google-java-format.git')
+        } else {
+            def rgjfGit = Grgit.open(dir: formatScriptsHome)
+            rgjfGit.pull()
+        }
     }
-  }
 }
 
 // No group so it does not show up in the output of `gradlew tasks`
@@ -652,9 +671,9 @@ task getHtmlTools() {
 
 // No group so it does not show up in the output of `gradlew tasks`
 task pythonIsInstalled(type: Exec) {
-  description "Check that the python3 executable is installed."
-  executable = "python3"
-  args "--version"
+    description "Check that the python3 executable is installed."
+    executable = "python3"
+    args "--version"
 }
 
 task tags {
@@ -683,7 +702,7 @@ subprojects {
         //  * Uncomment "-Werror"
         //  * Don't edit framework/build.gradle to use the same version number
         //    (it is updated when the annotated version of Guava is updated).
-        errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: '2.7.1'
+        errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: '2.8.1'
     }
 
     task checkFormat(type: Exec, dependsOn: [getCodeFormatScripts, pythonIsInstalled], group: 'Format') {
@@ -747,7 +766,7 @@ subprojects {
         relocate 'nonapi.io.github.classgraph', 'org.checkerframework.nonapi.io.github.classgraph'
         // relocate 'sun', 'org.checkerframework.sun'
         relocate 'com.google', 'org.checkerframework.com.google'
-        relocate 'plume', 'org.checkerframework.plume'
+
         exclude '**/module-info.class'
 
         doFirst {
@@ -787,7 +806,7 @@ subprojects {
             }
             manifest {
                 attributes("Implementation-Version": "${project.version}")
-                attributes("Implementation-URL": "https://checkerframework.org")
+                attributes("Implementation-URL": "https://eisop.github.io/")
                 if (! archiveFileName.get().endsWith("source.jar")) {
                     attributes('Automatic-Module-Name': "org.checkerframework." + project.name.replaceAll('-', '.'))
                 }
@@ -911,7 +930,13 @@ subprojects {
                 jvmArgs "-Xbootclasspath/p:${configurations.javacJar.asPath}".toString()
             } else {
                 jvmArgs += [
-                        "--illegal-access=warn",
+                        "--add-exports", "jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
+                        "--add-exports", "jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
+                        "--add-exports", "jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
+                        "--add-exports", "jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
+                        "--add-exports", "jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
+                        "--add-exports", "jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+                        "--add-exports", "jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
                         "--add-opens", "jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED",
                 ]
             }
@@ -982,12 +1007,7 @@ subprojects {
         tasks.create(name: 'inferenceTests', group: 'Verification') {
             description 'Run inference tests.'
             if (project.name.is('checker')) {
-                // TODO JDK16: Use this line instead of the following lines.
-                // dependsOn('ainferTest', 'wpiManyTest', 'wpiPlumeLibTest')
-                dependsOn('ainferTest', 'wpiPlumeLibTest')
-                if (!isJava16) {
-                    dependsOn('wpiManyTest')
-                }
+                dependsOn('ainferTest', 'wpiManyTest', 'wpiPlumeLibTest')
             }
         }
 
@@ -1068,6 +1088,7 @@ task checkBasicStyle(group: 'Format') {
             'checker/dist/META-INF/maven/org.apache.bcel/bcel/pom.xml',
             'checker/dist/META-INF/maven/org.apache.commons/commons-text/pom.xml',
             'framework/src/main/resources/git.properties']
+
     doLast {
         FileTree tree = fileTree(dir: projectDir)
         for (String dir : ignoreDirectories) {
@@ -1136,7 +1157,9 @@ task checkBasicStyle(group: 'Format') {
         }
     }
 }
+
 assemble.mustRunAfter(clean)
+
 task buildAll(group: 'Build') {
     description 'Build all jar files, including source and javadoc jars'
     dependsOn(allJavadoc)
@@ -1176,9 +1199,21 @@ jar.onlyIf {false}
  */
 final sharedPublicationConfiguration(publication) {
     publication.pom {
-        url = 'https://checkerframework.org'
+        url = 'https://eisop.github.io/'
         developers {
             // These are the lead developers/maintainers, not all the developers or contributors.
+
+            // For eisop, previously also typetools
+            developer {
+                id = 'wmdietl'
+                name = 'Werner M. Dietl'
+                email = 'wdietl@gmail.com'
+                url = 'https://ece.uwaterloo.ca/~wdietl/'
+                organization = 'University of Waterloo'
+                organizationUrl = 'https://uwaterloo.ca/'
+            }
+
+            // For typetools
             developer {
                 id = 'mernst'
                 name = 'Michael Ernst'
@@ -1197,9 +1232,9 @@ final sharedPublicationConfiguration(publication) {
         }
 
         scm {
-            url = 'https://github.com/typetools/checker-framework.git'
-            connection = 'scm:git:git://github.com/typetools/checker-framework.git'
-            developerConnection = 'scm:git:ssh://git@github.com/typetools/checker-framework.git'
+            url = 'https://github.com/eisop/checker-framework.git'
+            connection = 'scm:git:git://github.com/eisop/checker-framework.git'
+            developerConnection = 'scm:git:ssh://git@github.com/eisop/checker-framework.git'
         }
     }
 }
