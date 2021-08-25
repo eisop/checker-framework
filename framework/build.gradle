@@ -18,6 +18,11 @@ sourceSets {
         resources {
             // Stub files, message.properties, etc.
             srcDirs += ['src/main/java', "${buildDir}/generated/resources"]
+
+            // NO-AFU
+            exclude '**/org/checkerframework/common/wholeprograminference/**'
+            exclude '**/org/checkerframework/framework/stub/AddAnnotatedFor.java'
+            exclude '**/org/checkerframework/framework/stub/ToIndexFileConverter.java'
         }
     }
     testannotations
