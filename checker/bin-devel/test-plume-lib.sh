@@ -24,7 +24,7 @@ if [[ "${GROUPARG}" == "all" ]] || [[ "${GROUPARG}" == "" ]]; then
         # options does not compile under JDK 8
         PACKAGES=(bcel-util bibtex-clean html-pretty-print icalavailable lookup multi-version-control plume-util require-javadoc)
     elif java -version 2>&1 | grep version | grep 17 ; then
-	# TODO bcel-util does not compile under JDK 17
+        # TODO bcel-util does not compile under JDK 17
         PACKAGES=(bibtex-clean html-pretty-print icalavailable lookup multi-version-control options plume-util require-javadoc)
     else
         PACKAGES=(bcel-util bibtex-clean html-pretty-print icalavailable lookup multi-version-control options plume-util require-javadoc)
