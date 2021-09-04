@@ -1,9 +1,11 @@
 package org.checkerframework.checker.units;
 
-import java.util.SortedSet;
-import javax.annotation.processing.SupportedOptions;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.subtyping.SubtypingChecker;
+
+import java.util.SortedSet;
+
+import javax.annotation.processing.SupportedOptions;
 
 /**
  * Units Checker main class.
@@ -18,9 +20,9 @@ import org.checkerframework.common.subtyping.SubtypingChecker;
 @SupportedOptions({"units", "unitsDirs"})
 public class UnitsChecker extends BaseTypeChecker {
 
-  @Override
-  public SortedSet<String> getSuppressWarningsPrefixes() {
-    return SubtypingChecker.getSuppressWarningsPrefixes(
-        this.visitor, super.getSuppressWarningsPrefixes());
-  }
+    @Override
+    public SortedSet<String> getSuppressWarningsPrefixes() {
+        return SubtypingChecker.getSuppressWarningsPrefixes(
+                this.visitor, super.getSuppressWarningsPrefixes());
+    }
 }
