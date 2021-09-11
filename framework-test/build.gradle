@@ -1,8 +1,16 @@
 import org.gradle.internal.jvm.Jvm
 
+plugins {
+    id 'java-library'
+}
+
 sourceSets {
-    taglet
-    tagletJdk11
+    // Similar test in ../build.gradle
+    if (isJava8) {
+        taglet
+    } else {
+        tagletJdk11
+    }
 }
 
 dependencies {
