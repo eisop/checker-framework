@@ -93,10 +93,10 @@ INTERM_ANNO_REPO = os.path.join(INTERM_REPO_ROOT, "annotation-tools")
 # The central repositories for Checker Framework related projects
 LIVE_ANNO_REPO = "git@github.com:eisop/annotation-tools.git"
 LIVE_CHECKER_REPO = "git@github.com:eisop/checker-framework.git"
-PLUME_SCRIPTS_REPO = "https://github.com/plume-lib/plume-scripts"
-CHECKLINK_REPO = "https://github.com/plume-lib/checklink"
+PLUME_SCRIPTS_REPO = "https://github.com/eisop-plume-lib/plume-scripts"
+CHECKLINK_REPO = "https://github.com/eisop-plume-lib/checklink"
 PLUME_BIB_REPO = "https://github.com/mernst/plume-bib"
-STUBPARSER_REPO = "https://github.com/typetools/stubparser"
+STUBPARSER_REPO = "https://github.com/eisop/stubparser"
 
 # Location of the project directories in which we will build the actual projects.
 # When we build these projects are pushed to the INTERM repositories.

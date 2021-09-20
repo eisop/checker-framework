@@ -106,7 +106,7 @@ miss a step if you only read the paragraph asking you to say 'yes'.
     <b>Update stubparser.</b> If there has been
     a <a href="https://github.com/javaparser/javaparser/releases">JavaParser
     release</a> since the last Checker Framework
-    release, <a href="https://github.com/typetools/stubparser#updating-from-upstream-javaparser">update
+    release, <a href="https://github.com/eisop/stubparser#updating-from-upstream-javaparser">update
     Stubparser from JavaParser</a>.
   </li>
   <li>Update the Checker Framework source code:
@@ -173,7 +173,7 @@ TreeAnnotator
         </p>
       </li>
       <li>
-        <b>Commit and push</b> these changes to typetools/master.
+        <b>Commit and push</b> these changes to eisop/master.
       </li>
     </ul>
   <li>
@@ -184,7 +184,7 @@ TreeAnnotator
       <strong>In a user-specific temporary directory, clone/update the Checker Framework repository (it contains the release scripts).</strong><br/>
       <code>mkdir -p /scratch/$USER/cf-release<br/></code>
       <code>cd /scratch/$USER/cf-release<br/></code>
-      <code>test -d checker-framework && (cd checker-framework && git pull --quiet) || git clone --quiet https://github.com/typetools/checker-framework.git<br/></code>
+      <code>test -d checker-framework && (cd checker-framework && git pull --quiet) || git clone --quiet https://github.com/eisop/checker-framework.git<br/></code>
       <code>cd checker-framework/docs/developer/release<br/></code>
     (The release scripts will checkout and build all dependencies.)
   </li>
@@ -225,9 +225,9 @@ TreeAnnotator
 <ol>
   <li>The following Continuous Integration builds should be passing (refresh this page to see the latest status):
   <ul>
-    <li>Annotation File Utilities: <a href="https://travis-ci.org/typetools/annotation-tools/branches"><img src="https://travis-ci.org/typetools/annotation-tools.svg?branch=master" alt="Travis typetools/annotation-tools status"/></a></li>
-    <li>Checker Framework: <a href="https://dev.azure.com/typetools/checker-framework/_build/latest?definitionId=2&branchName=master"><img src="https://dev.azure.com/typetools/checker-framework/_apis/build/status/typetools.checker-framework?branchName=master" alt="Azure Pipelines typetools/checker-framework status"/></a></li>
-    <li>checker-framework.demos: <a href="https://travis-ci.org/typetools/checker-framework.demos/branches"><img src="https://travis-ci.org/typetools/checker-framework.demos.svg?branch=master" alt="Travis typetools/checker-framework.demos status"/></a></li>
+    <li>Annotation File Utilities: <a href="https://travis-ci.org/eisop/annotation-tools/branches"><img src="https://travis-ci.org/eisop/annotation-tools.svg?branch=master" alt="Travis eisop/annotation-tools status"/></a></li>
+    <li>Checker Framework: <a href="https://dev.azure.com/eisop/checker-framework/_build/latest?definitionId=2&branchName=master"><img src="https://dev.azure.com/eisop/checker-framework/_apis/build/status/eisop.checker-framework?branchName=master" alt="Azure Pipelines eisop/checker-framework status"/></a></li>
+    <li>checker-framework.demos: <a href="https://travis-ci.org/eisop/checker-framework.demos/branches"><img src="https://travis-ci.org/eisop/checker-framework.demos.svg?branch=master" alt="Travis eisop/checker-framework.demos status"/></a></li>
     <li>Daikon: <a href="https://dev.azure.com/codespecs/daikon/_build/latest?definitionId=1&branchName=master"><img src="https://dev.azure.com/codespecs/daikon/_apis/build/status/codespecs.daikon?branchName=master" alt="codespecs/daikon Azure Pipelines status"></a></li>
     <li>guava-typecheck: <a href="https://travis-ci.org/typetests/guava-typecheck/branches"><img src="https://travis-ci.org/typetests/guava-typecheck.svg?branch=master" alt="Travis typetests/guava-typecheck status"/></a></li>
   </ul>
@@ -289,7 +289,7 @@ SONATYPE_NEXUS_PASSWORD=your_password</pre>
         issue tracker for each project that has been released.
         You will need to be a "developer" for each project so that you have update privileges for
         the issue trackers.
-        You should be listed as a member of typetools on a committer on <a href="https://github.com/orgs/typetools/teams/committers">GitHub</a>.
+        You should be listed as a member of eisop as a committer on <a href="https://github.com/orgs/eisop/teams/committers">GitHub</a>.
       </td>
     </tr>
     <tr>
@@ -486,14 +486,14 @@ git config --global user.email you@example.com</pre>
         <ul>
           <li>List all issues (in issue trackers) resolved since the previous release:
             <a href="https://checkerframework.org/CHANGELOG.md">previous release</a>,
-            <a href="https://github.com/typetools/checker-framework/issues?q=is%3Aissue+is%3Aclosed+sort%3Aupdated-desc">issues query</a>,
-            <a href="https://github.com/typetools/checker-framework/blob/master/docs/changelog.txt">current changelog</a>.
+            <a href="https://github.com/eisop/checker-framework/issues?q=is%3Aissue+is%3Aclosed+sort%3Aupdated-desc">issues query</a>,
+            <a href="https://github.com/eisop/checker-framework/blob/master/docs/changelog.txt">current changelog</a>.
           </li>
           <li>
             Ensure the changelogs reflect version control commits since the last release, via the
             command line:<br/>
             <code>cd $CHECKERFRAMEWORK && git log --name-status `git describe --abbrev=0 --tags`..</code><br/>
-            or via <a href="https://github.com/typetools/checker-framework/commits/master">GitHub Checker Framework commit logs</a>.
+            or via <a href="https://github.com/eisop/checker-framework/commits/master">GitHub Checker Framework commit logs</a>.
           </li>
           <li>
             Ensure the changelogs reflect changes to the manual since the last release, via the
@@ -507,14 +507,14 @@ git config --global user.email you@example.com</pre>
         <ul>
           <li>List all issues (in issue trackers) resolved since the previous release:
             <a href="https://checkerframework.org/annotation-file-utilities/changelog.html">previous release</a>,
-            <a href="https://github.com/typetools/annotation-tools/issues?q=is%3Aissue+is%3Aclosed+sort%3Aupdated-desc">issues query</a>,
-            <a href="https://github.com/typetools/annotation-tools/blob/master/annotation-file-utilities/changelog.html">current changelog</a>
+            <a href="https://github.com/eisop/annotation-tools/issues?q=is%3Aissue+is%3Aclosed+sort%3Aupdated-desc">issues query</a>,
+            <a href="https://github.com/eisop/annotation-tools/blob/master/annotation-file-utilities/changelog.html">current changelog</a>
           </li>
           <li>
             Ensure the changelogs reflect version control commits since the last release, via the
             command line:<br/>
             <code>cd $CHECKERFRAMEWORK/../annotation-tools && git log --name-status `git describe --abbrev=0 --tags`..</code><br/>
-            or via <a href="https://github.com/typetools/annotation-tools/commits/master">GitHub Annotation File Utilities commit logs</a>.
+            or via <a href="https://github.com/eisop/annotation-tools/commits/master">GitHub Annotation File Utilities commit logs</a>.
           </li>
           <li>
             Ensure the changelogs reflect changes to the manual since the last release, via the

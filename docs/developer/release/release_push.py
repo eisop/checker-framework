@@ -545,7 +545,7 @@ def main(argv):
             + "\n"
             + "To post the Checker Framework release on GitHub:\n"
             + "\n"
-            + "* Go to https://github.com/typetools/checker-framework/releases/new?tag=checker-framework-"
+            + "* Go to https://github.com/eisop/checker-framework/releases/new?tag=checker-framework-"
             + new_cf_version
             + "\n"
             + "* For the release title, enter: Checker Framework "
@@ -559,7 +559,7 @@ def main(argv):
             + "\n"
             + "To post the Annotation File Utilities release on GitHub:\n"
             + "\n"
-            + "* Go to https://github.com/typetools/annotation-tools/releases/new?tag="
+            + "* Go to https://github.com/eisop/annotation-tools/releases/new?tag="
             + new_cf_version
             + "\n"
             + "* For the release title, enter: Annotation File Utilities "
