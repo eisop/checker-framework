@@ -20,7 +20,7 @@ bug, and we want to fix it.  Please report it.
 ## Submitting changes
 
 Please see the [pull
-requests](https://rawgit.com/eisop/checker-framework/master/docs/developer/developer-manual.html#pull-requests)
+requests](https://htmlpreview.github.io/?https://github.com/eisop/checker-framework/master/docs/developer/developer-manual.html#pull-requests)
 section of the Developer Manual.
 
 Submit changes to the annotated JDK at https://github.com/eisop/jdk/pulls .
