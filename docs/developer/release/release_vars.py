@@ -61,6 +61,8 @@ def execute(command_args, halt_if_fail=True, capture_output=False, working_dir=N
 
 # ---------------------------------------------------------------------------------
 
+# TODO: publish to GitHub
+
 # The location the test site is built in
 DEV_SITE_URL = "https://checkerframework.org/dev"
 DEV_SITE_DIR = "/cse/www2/types/checker-framework/dev"
@@ -142,16 +144,13 @@ CHECKER_LIVE_RELEASES_DIR = os.path.join(LIVE_SITE_DIR, "releases")
 
 os.environ["PARENT_DIR"] = BUILD_DIR
 os.environ["CHECKERFRAMEWORK"] = CHECKER_FRAMEWORK
-perl_libs = TMP_DIR + "/homes/gws/mernst/bin/src/perl:/usr/share/perl5/"
 # Environment variables for tools needed during the build
 os.environ["PLUME_SCRIPTS"] = PLUME_SCRIPTS
 os.environ["CHECKLINK"] = CHECKLINK
 os.environ["BIBINPUTS"] = ".:" + PLUME_BIB
-os.environ["TEXINPUTS"] = ".:/homes/gws/mernst/tex/sty:/homes/gws/mernst/tex:..:"
-os.environ["PERLLIB"] = getAndAppend("PERLLIB", ":") + perl_libs
-os.environ["PERL5LIB"] = getAndAppend("PERL5LIB", ":") + perl_libs
+os.environ["TEXINPUTS"] = ".:..:"
 # Still needed for santiy checks
-os.environ["JAVA_8_HOME"] = "/usr/lib/jvm/java-1.8.0-openjdk/"
+os.environ["JAVA_8_HOME"] = "/usr/lib/jvm/java-8-openjdk-amd64/"
 os.environ["JAVA_HOME"] = os.environ["JAVA_8_HOME"]
 
 EDITOR = os.getenv("EDITOR")
