@@ -42,6 +42,7 @@ public class LockStore extends CFAbstractStore<CFValue, LockStore> {
      */
     protected boolean inConstructorOrInitializer = false;
 
+    /** Annotated type factory. */
     private final LockAnnotatedTypeFactory atypeFactory;
 
     /**

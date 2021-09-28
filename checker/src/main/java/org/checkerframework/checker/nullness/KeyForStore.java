@@ -29,6 +29,11 @@ public class KeyForStore extends CFAbstractStore<KeyForValue, KeyForStore> {
         super(analysis, sequentialSemantics, isBottom);
     }
 
+    /**
+     * Copy constructor.
+     *
+     * @param other the instance of KeyForStore to copy from
+     */
     protected KeyForStore(CFAbstractStore<KeyForValue, KeyForStore> other) {
         super(other);
     }
