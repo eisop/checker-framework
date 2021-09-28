@@ -28,6 +28,11 @@ public class KeyForAnalysis extends CFAbstractAnalysis<KeyForValue, KeyForStore,
     }
 
     @Override
+    public KeyForStore createBottomStore(boolean sequentialSemantics) {
+        return new KeyForStore(this, sequentialSemantics);
+    }
+
+    @Override
     public KeyForStore createCopiedStore(KeyForStore store) {
         return new KeyForStore(store);
     }

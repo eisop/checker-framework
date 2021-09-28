@@ -127,7 +127,6 @@ public class ACSocketTest {
     void ownershipTransfer(String address, int port) {
         Socket s1 = null;
         try {
-            // :: error: required.method.not.called
             s1 = new Socket(address, port);
         } catch (IOException e) {
 

@@ -100,9 +100,7 @@ public class Basics {
         if (true) {
             a = y;
         }
-        @IntRange(from = 15, to = 30)
-        // :: error: (assignment.type.incompatible)
-        Integer test4 = a;
+        @IntRange(from = 15, to = 30) Integer test4 = a;
         @IntRange(from = 3, to = 30) Integer test5 = a;
 
         /* IntRange + IntVal */
@@ -117,9 +115,7 @@ public class Basics {
         if (true) {
             a = y;
         }
-        @IntRange(from = 1, to = 30)
-        // :: error: (assignment.type.incompatible)
-        Integer test8 = a;
+        @IntRange(from = 1, to = 30) Integer test8 = a;
         @IntRange(from = 0, to = 30) Integer test9 = a;
     }
 
@@ -141,9 +137,7 @@ public class Basics {
         if (true) {
             a = y;
         }
-        @IntRange(from = 15, to = 30)
-        // :: error: (assignment.type.incompatible)
-        int test4 = a;
+        @IntRange(from = 15, to = 30) int test4 = a;
         @IntRange(from = 3, to = 30) int test5 = a;
 
         /* IntRange + IntVal */
@@ -158,9 +152,7 @@ public class Basics {
         if (true) {
             a = y;
         }
-        @IntRange(from = 1, to = 30)
-        // :: error: (assignment.type.incompatible)
-        int test8 = a;
+        @IntRange(from = 1, to = 30) int test8 = a;
         @IntRange(from = 0, to = 30) int test9 = a;
     }
 
@@ -186,7 +178,6 @@ public class Basics {
         if (true) {
             a = dv1;
         }
-        // :: error: (assignment.type.incompatible)
         @DoubleVal({4.0, 5.0}) double test1 = a;
         @DoubleVal({0.0, 1.0, 2.0, 3.0, 4.0, 5.0}) double test2 = a;
 
@@ -198,7 +189,6 @@ public class Basics {
         if (true) {
             a = dv1;
         }
-        // :: error: (assignment.type.incompatible)
         test1 = a;
         test2 = a;
 
@@ -207,7 +197,6 @@ public class Basics {
         if (true) {
             a = dv1;
         }
-        // :: error: (assignment.type.incompatible)
         @DoubleVal({4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0}) double test5 = a;
         @UnknownVal double test6 = a;
     }

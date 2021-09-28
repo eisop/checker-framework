@@ -73,10 +73,7 @@ public class Issue3622 {
     public class ImmutableIntList4 {
 
         @Override
-        @SuppressWarnings(
-                "contracts.conditional.postcondition.not.satisfied" // TODO: `if` needs the
-        // BOTH_TO_THEN treatment that ?: gets.
-        )
+        @SuppressWarnings("contracts.conditional.postcondition.not.satisfied")
         public boolean equals(@Nullable Object obj4) {
             boolean b;
             if (obj4 instanceof ImmutableIntList4) {
@@ -91,10 +88,6 @@ public class Issue3622 {
     public class ImmutableIntList5 {
 
         @Override
-        @SuppressWarnings(
-                "contracts.conditional.postcondition.not.satisfied" // TODO: Need special treatment
-        // for true and false boolean  literals (cut off dead parts of graph).
-        )
         public boolean equals(@Nullable Object obj5) {
             return true ? obj5 instanceof ImmutableIntList5 : obj5 instanceof ImmutableIntList5;
         }
@@ -103,10 +96,6 @@ public class Issue3622 {
     public class ImmutableIntList6 {
 
         @Override
-        @SuppressWarnings(
-                "contracts.conditional.postcondition.not.satisfied" // TODO: Need special treatment
-        // for true and false boolean  literals (cut off dead parts of graph).
-        )
         public boolean equals(@Nullable Object obj6) {
             return true ? obj6 instanceof ImmutableIntList6 : false;
         }

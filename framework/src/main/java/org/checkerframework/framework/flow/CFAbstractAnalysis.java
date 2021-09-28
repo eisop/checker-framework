@@ -102,6 +102,9 @@ public abstract class CFAbstractAnalysis<
     /** Instance of the types utility. */
     protected final Types types;
 
+    /** The singleton of bottom store in dataflow analysis for a specific type system */
+    protected S bottomStore;
+
     /**
      * Create a CFAbstractAnalysis.
      *
@@ -170,9 +173,31 @@ public abstract class CFAbstractAnalysis<
     /**
      * Returns an empty store of the appropriate type.
      *
+     * @param sequentialSemantics should the analysis use sequential Java semantics?
      * @return an empty store of the appropriate type
      */
     public abstract S createEmptyStore(boolean sequentialSemantics);
+
+    /**
+     * Create the unique shared instance of bottom store for the underlying type system.
+     *
+     * @param sequentialSemantics should the analysis use sequential Java semantics?
+     * @return the bottom store instance of the appropriate type
+     */
+    public abstract S createBottomStore(boolean sequentialSemantics);
+
+    /**
+     * Get the singleton of the bottom store corresponding to the type.
+     *
+     * @param sequentialSemantics should the analysis use sequential Java semantics?
+     * @return the shared instance of bottom store for the underyling type system
+     */
+    public S getBottomStore(boolean sequentialSemantics) {
+        if (bottomStore == null) {
+            bottomStore = createBottomStore(sequentialSemantics);
+        }
+        return bottomStore;
+    }
 
     /**
      * Returns an identical copy of the store {@code s}.

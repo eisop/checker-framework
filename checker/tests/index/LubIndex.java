@@ -10,7 +10,6 @@ public class LubIndex {
         } else {
             arr = arg2;
         }
-        // :: error: (assignment.type.incompatible)
         int @MinLen(10) [] res = arr;
         int @MinLen(4) [] res2 = arr;
         // :: error: (assignment.type.incompatible)
@@ -24,10 +23,8 @@ public class LubIndex {
         } else {
             arr = arg2;
         }
-        // :: error: (assignment.type.incompatible)
         int @MinLen(10) [] res = arr;
         int @MinLen(4) [] res2 = arr;
-        // :: error: (assignment.type.incompatible)
         int @BottomVal [] res3 = arr;
     }
 

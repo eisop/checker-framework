@@ -29,6 +29,7 @@ public class FlowFormatter {
         if (false) {
             nullAssign = "%s";
         }
+        // :: error: (format.string.invalid)
         f.format(nullAssign, "string");
         // :: error: (assignment.type.incompatible)
         @Format({ConversionCategory.GENERAL}) String err0 = unqual;
