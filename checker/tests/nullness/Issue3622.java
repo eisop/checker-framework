@@ -42,14 +42,6 @@ public class Issue3622 {
         }
     }
 
-    public class ImmutableIntList7 {
-
-        @Override
-        public boolean equals(@Nullable Object obj7) {
-            return obj7 instanceof ImmutableIntList7 ? true : false;
-        }
-    }
-
     public class ImmutableIntList8 {
 
         @Override
@@ -73,10 +65,7 @@ public class Issue3622 {
     public class ImmutableIntList4 {
 
         @Override
-        @SuppressWarnings(
-                "contracts.conditional.postcondition.not.satisfied" // TODO: `if` needs the
-        // BOTH_TO_THEN treatment that ?: gets.
-        )
+        @SuppressWarnings("contracts.conditional.postcondition.not.satisfied")
         public boolean equals(@Nullable Object obj4) {
             boolean b;
             if (obj4 instanceof ImmutableIntList4) {
@@ -109,6 +98,24 @@ public class Issue3622 {
         )
         public boolean equals(@Nullable Object obj6) {
             return true ? obj6 instanceof ImmutableIntList6 : false;
+        }
+    }
+
+    public class ImmutableIntList7 {
+
+        @Override
+        @SuppressWarnings("contracts.conditional.postcondition.not.satisfied")
+        public boolean equals(@Nullable Object obj7) {
+            return obj7 instanceof ImmutableIntList7 ? true : false;
+        }
+    }
+
+    // The false-negative case introduced by 'BOTH_TO_THEN', 'BOTH_TO_ELSE' flow rules
+    public class ImmutableIntList10 {
+        @Override
+        public boolean equals(@Nullable Object obj10) {
+            // :: error:  (contracts.conditional.postcondition.not.satisfied)
+            return (obj10 instanceof ImmutableIntList10) ? true : !(obj10 instanceof List);
         }
     }
 }
