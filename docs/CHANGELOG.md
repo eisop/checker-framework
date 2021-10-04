@@ -18,6 +18,16 @@ in the core Checker Framework "framework" package.
 eisop#121.
 
 
+Version 3.1?.? (November 1, 2021)
+-------------------------------
+
+**User-visible changes:**
+
+**Implementation details:**
+
+**Closed issues:**
+
+
 Version 3.18.1-eisop-1 (October 7, 2021)
 -------------------------------
 
