@@ -113,6 +113,8 @@ public class NullnessAnnotatedTypeFactory
                     "android.annotation.NonNull",
                     // https://android.googlesource.com/platform/frameworks/support/+/master/annotations/src/main/java/android/support/annotation/NonNull.java
                     "android.support.annotation.NonNull",
+                    // https://android.googlesource.com/platform/tools/metalava/+/9ad32fadc5a22e1357c82b447e33ec7fecdcd8c1/stub-annotations/src/main/java/android/support/annotation/RecentlyNonNull.java
+                    "android.support.annotation.RecentlyNonNull",
                     // https://android.googlesource.com/platform/frameworks/support/+/master/annotations/src/main/java/androidx/annotation/NonNull.java
                     "androidx.annotation.NonNull",
                     // https://android.googlesource.com/platform/tools/metalava/+/master/stub-annotations/src/main/java/androidx/annotation/RecentlyNonNull.java
@@ -180,7 +182,7 @@ public class NullnessAnnotatedTypeFactory
                     "android.annotation.Nullable",
                     // https://android.googlesource.com/platform/frameworks/support/+/master/annotations/src/main/java/android/support/annotation/Nullable.java
                     "android.support.annotation.Nullable",
-                    // TODO: found references, but no canonical declaration, maybe generated?
+                    // https://android.googlesource.com/platform/tools/metalava/+/9ad32fadc5a22e1357c82b447e33ec7fecdcd8c1/stub-annotations/src/main/java/android/support/annotation/RecentlyNullable.java
                     "android.support.annotation.RecentlyNullable",
                     // https://android.googlesource.com/platform/frameworks/support/+/master/annotations/src/main/java/androidx/annotation/Nullable.java
                     "androidx.annotation.Nullable",
@@ -204,8 +206,6 @@ public class NullnessAnnotatedTypeFactory
                     "com.google.protobuf.Internal.ProtoMethodMayReturnNull",
                     // https://github.com/mongodb/mongo-java-driver/blob/master/driver-core/src/main/com/mongodb/lang/Nullable.java
                     "com.mongodb.lang.Nullable",
-                    // https://github.com/rharter/auto-value-gson
-                    "com.ryanharter.auto.value.gson.Nullable",
                     // https://github.com/eclipse-ee4j/jaxb-istack-commons/blob/master/istack-commons/runtime/src/main/java/com/sun/istack/Nullable.java
                     "com.sun.istack.Nullable",
                     // https://github.com/openjdk/jdk8/blob/master/jaxws/src/share/jaxws_classes/com/sun/istack/internal/Nullable.java
