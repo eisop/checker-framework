@@ -6,14 +6,14 @@ import org.checkerframework.checker.mustcall.qual.*;
 
 @MustCall("foo") class IgnoredExceptionECM {
 
-  @Owning
-  @MustCall("toString") Object obj;
+    @Owning
+    @MustCall("toString") Object obj;
 
-  @EnsuresCalledMethods(value = "this.obj", methods = "toString")
-  void foo() {
-    // This line will produce an exception,
-    // which the RLC should ignore and verify the method.
-    int y = 5 / 0;
-    this.obj.toString();
-  }
+    @EnsuresCalledMethods(value = "this.obj", methods = "toString")
+    void foo() {
+        // This line will produce an exception,
+        // which the RLC should ignore and verify the method.
+        int y = 5 / 0;
+        this.obj.toString();
+    }
 }
