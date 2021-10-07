@@ -1,7 +1,5 @@
 // Test case for https://tinyurl.com/cfissue/3622
 
-// @skip-test until the issue is fixed
-
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.List;
