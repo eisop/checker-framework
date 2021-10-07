@@ -74,7 +74,6 @@ public class Issue3622 {
         }
     }
 
-    // The following cases are false positives
 
     public class ImmutableIntList8 {
 
@@ -101,7 +100,6 @@ public class Issue3622 {
         }
     }
 
-    //
     public class ImmutableIntList10 {
 
         // The false positive is because Nullness Checker does not store the boolean value in the
