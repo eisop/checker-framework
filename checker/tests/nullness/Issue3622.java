@@ -74,12 +74,13 @@ public class Issue3622 {
         }
     }
 
-
     public class ImmutableIntList8 {
 
-        // The false positive is because the ternary expression has condition of literal `true`
-        // TODO: prune the dead branch like https://github.com/typetools/checker-framework/pull/3389
         @Override
+        // The ternary expression has the condition of literal `true`, so the false-expression is
+        // unreachable. However the store in the unreachable false-branch (where `obj` is @Nullable)
+        // is propagated be propagated to the merge point, which causes the false positive.
+        // TODO: prune the dead branch like https://github.com/typetools/checker-framework/pull/3389
         @SuppressWarnings("contracts.conditional.postcondition.not.satisfied")
         public boolean equals(@Nullable Object obj) {
             return true ? obj instanceof ImmutableIntList8 : false;
@@ -88,12 +89,11 @@ public class Issue3622 {
 
     public class ImmutableIntList9 {
 
-        // The false positive is because the false expression of the tenary expression is literal
-        // `false`. In this case only the else-store before should be propagated to the else-store
-        // after.
-        // TODO: adapt the way of store propagation for boolean variables. i.e. only then-store is
-        // propagated for `true` and only else-store is propagated for `false`.
         @Override
+        // The false expression of the tenary expression is literal `false`. In this case only the
+        // else-store after `false` should be propagated to the else-store of the merge point.
+        // TODO: adapt the way of store propagation for boolean variables. i.e. for `true`, only
+        // then-store is propagated; and for `false`, only else-store is propagated.
         @SuppressWarnings("contracts.conditional.postcondition.not.satisfied")
         public boolean equals(@Nullable Object obj) {
             return obj instanceof ImmutableIntList9 ? true : false;
@@ -102,10 +102,10 @@ public class Issue3622 {
 
     public class ImmutableIntList10 {
 
-        // The false positive is because Nullness Checker does not store the boolean value in the
-        // Nullness analysis, therefore the relation between boolean variable `b` and `obj` is not
-        // known
         @Override
+        // The false positive is because in the Nullness analysis the values of boolean variables
+        // are not stored, therefore the relation between boolean variable `b` and `obj` is not
+        // known
         @SuppressWarnings("contracts.conditional.postcondition.not.satisfied")
         public boolean equals(@Nullable Object obj) {
             boolean b;
