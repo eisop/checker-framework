@@ -71,7 +71,10 @@ public class FormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         try {
             // Use concatenation to avoid ShadowJar relocate
             // "com.google.errorprone.annotations.FormatMethod"
-            @SuppressWarnings("unchecked") // Class must be an annotation type
+            @SuppressWarnings({
+                "unchecked", // Class must be an annotation type
+                "signature:argument.type.incompatible" // Class name intentionally obfuscated
+            })
             Class<? extends Annotation> cgFormatMethod =
                     (Class<? extends Annotation>)
                             Class.forName(

@@ -110,6 +110,8 @@ public class NullnessAnnotatedTypeFactory
     // "rest".
     // Keep the original string constant in a comment to allow searching for it.
     /** Aliases for {@code @Nonnull}. */
+    @SuppressWarnings(
+            "signature:assignment.type.incompatible") // Class names intentionally obfuscated
     private static final List<@FullyQualifiedName String> NONNULL_ALIASES =
             Arrays.asList(
                     // https://android.googlesource.com/platform/frameworks/base/+/master/core/java/android/annotation/NonNull.java
@@ -182,6 +184,8 @@ public class NullnessAnnotatedTypeFactory
     // ../../../../../../../../docs/manual/nullness-checker.tex .
     // See more comments with NONNULL_ALIASES above.
     /** Aliases for {@code @Nullable}. */
+    @SuppressWarnings(
+            "signature:assignment.type.incompatible") // Class names intentionally obfuscated
     private static final List<@FullyQualifiedName String> NULLABLE_ALIASES =
             Arrays.asList(
                     // https://android.googlesource.com/platform/frameworks/base/+/master/core/java/android/annotation/Nullable.java
