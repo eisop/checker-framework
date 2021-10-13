@@ -41,10 +41,6 @@ import org.checkerframework.common.reflection.MethodValAnnotatedTypeFactory;
 import org.checkerframework.common.reflection.MethodValChecker;
 import org.checkerframework.common.reflection.ReflectionResolver;
 import org.checkerframework.common.reflection.qual.MethodVal;
-import org.checkerframework.common.wholeprograminference.WholeProgramInference;
-import org.checkerframework.common.wholeprograminference.WholeProgramInferenceImplementation;
-import org.checkerframework.common.wholeprograminference.WholeProgramInferenceJavaParserStorage;
-import org.checkerframework.common.wholeprograminference.WholeProgramInferenceScenesStorage;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.EnsuresQualifier;
@@ -96,9 +92,6 @@ import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.ImmutableTypes;
 import org.plumelib.util.StringsPlume;
 
-import scenelib.annotations.el.AMethod;
-import scenelib.annotations.el.ATypeElement;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -143,7 +136,15 @@ import javax.lang.model.type.TypeVariable;
 import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
-import javax.tools.Diagnostic;
+
+/* NO-AFU
+   import org.checkerframework.common.wholeprograminference.WholeProgramInference;
+   import org.checkerframework.common.wholeprograminference.WholeProgramInferenceImplementation;
+   import org.checkerframework.common.wholeprograminference.WholeProgramInferenceJavaParserStorage;
+   import org.checkerframework.common.wholeprograminference.WholeProgramInferenceScenesStorage;
+   import scenelib.annotations.el.AMethod;
+   import scenelib.annotations.el.ATypeElement;
+*/
 
 /**
  * The methods of this class take an element or AST node, and return the annotated type as an {@link
@@ -260,8 +261,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /** Represent the type relations. */
     protected TypeHierarchy typeHierarchy;
 
-    /** Performs whole-program inference. If null, whole-program inference is disabled. */
+    /* NO-AFU Performs whole-program inference. If null, whole-program inference is disabled. */
+    /* NO-AFU
     private final @Nullable WholeProgramInference wholeProgramInference;
+    */
 
     /**
      * This formatter is used for converting AnnotatedTypeMirrors to Strings. This formatter will be
@@ -435,11 +438,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /** AnnotationClassLoader used to load type annotation classes via reflective lookup. */
     protected AnnotationClassLoader loader;
 
-    /**
+    /* NO-AFU
      * Which whole-program inference output format to use, if doing whole-program inference. This
      * variable would be final, but it is not set unless WPI is enabled.
      */
+    /* NO-AFU
     public WholeProgramInference.OutputFormat wpiOutputFormat;
+    */
 
     /**
      * Should results be cached? This means that ATM.deepCopy() will be called. ATM.deepCopy() used
@@ -565,47 +570,50 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.typeFormatter = createAnnotatedTypeFormatter();
         this.annotationFormatter = createAnnotationFormatter();
 
-        if (checker.hasOption("infer")) {
-            checkInvalidOptionsInferSignatures();
-            String inferArg = checker.getOption("infer");
-            // No argument means "jaifs", for (temporary) backwards compatibility.
-            if (inferArg == null) {
-                inferArg = "jaifs";
-            }
-            switch (inferArg) {
-                case "stubs":
-                    wpiOutputFormat = WholeProgramInference.OutputFormat.STUB;
-                    break;
-                case "jaifs":
-                    wpiOutputFormat = WholeProgramInference.OutputFormat.JAIF;
-                    break;
-                case "ajava":
-                    wpiOutputFormat = WholeProgramInference.OutputFormat.AJAVA;
-                    break;
-                default:
-                    throw new UserError(
-                            "Bad argument -Ainfer="
-                                    + inferArg
-                                    + " should be one of: -Ainfer=jaifs, -Ainfer=stubs,"
-                                    + " -Ainfer=ajava");
-            }
-            if (wpiOutputFormat == WholeProgramInference.OutputFormat.AJAVA) {
-                wholeProgramInference =
-                        new WholeProgramInferenceImplementation<AnnotatedTypeMirror>(
-                                this, new WholeProgramInferenceJavaParserStorage(this));
-            } else {
-                wholeProgramInference =
-                        new WholeProgramInferenceImplementation<ATypeElement>(
-                                this, new WholeProgramInferenceScenesStorage(this));
-            }
-            if (!checker.hasOption("warns")) {
-                // Without -Awarns, the inference output may be incomplete, because javac halts
-                // after issuing an error.
-                checker.message(Diagnostic.Kind.ERROR, "Do not supply -Ainfer without -Awarns");
-            }
-        } else {
-            wholeProgramInference = null;
-        }
+        /* NO-AFU
+               if (checker.hasOption("infer")) {
+                   checkInvalidOptionsInferSignatures();
+                   String inferArg = checker.getOption("infer");
+                   // No argument means "jaifs", for (temporary) backwards compatibility.
+                   if (inferArg == null) {
+                       inferArg = "jaifs";
+                   }
+                   switch (inferArg) {
+                       case "stubs":
+                           wpiOutputFormat = WholeProgramInference.OutputFormat.STUB;
+                           break;
+                       case "jaifs":
+                           wpiOutputFormat = WholeProgramInference.OutputFormat.JAIF;
+                           break;
+                       case "ajava":
+                           wpiOutputFormat = WholeProgramInference.OutputFormat.AJAVA;
+                           break;
+                       default:
+                           throw new UserError(
+                                   "Bad argument -Ainfer="
+                                           + inferArg
+                                           + " should be one of: -Ainfer=jaifs, -Ainfer=stubs,"
+                                           + " -Ainfer=ajava");
+                   }
+                   if (wpiOutputFormat == WholeProgramInference.OutputFormat.AJAVA) {
+                       wholeProgramInference =
+                               new WholeProgramInferenceImplementation<AnnotatedTypeMirror>(
+                                       this, new WholeProgramInferenceJavaParserStorage(this));
+                   } else {
+                       wholeProgramInference =
+                               new WholeProgramInferenceImplementation<ATypeElement>(
+                                       this, new WholeProgramInferenceScenesStorage(this));
+                   }
+                   if (!checker.hasOption("warns")) {
+                       // Without -Awarns, the inference output may be incomplete, because javac halts
+                       // after issuing an error.
+                       checker.message(Diagnostic.Kind.ERROR, "Do not supply -Ainfer without -Awarns");
+                   }
+               } else {
+                   wholeProgramInference = null;
+               }
+        */
+
         ignoreUninferredTypeArguments = !checker.hasOption("conservativeUninferredTypeArguments");
 
         objectGetClass = TreeUtils.getMethod("java.lang.Object", "getClass", 0, processingEnv);
@@ -688,7 +696,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
     }
 
-    /**
+    /* NO-AFU
      * This method is called only when {@code -Ainfer} is passed as an option. It checks if another
      * option that should not occur simultaneously with the whole-program inference is also passed
      * as argument, and aborts the process if that is the case. For example, the whole-program
@@ -696,6 +704,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *
      * <p>Subclasses may override this method to add more options.
      */
+    /* NO-AFU
     protected void checkInvalidOptionsInferSignatures() {
         // See Issue 683
         // https://github.com/typetools/checker-framework/issues/683
@@ -705,6 +714,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     "The option -Ainfer=... cannot be used together with conservative defaults.");
         }
     }
+    */
 
     /**
      * Actions that logically belong in the constructor, but need to run after the subclass
@@ -815,14 +825,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         return qualifierUpperBounds;
     }
 
-    /**
+    /* NO-AFU
      * Returns the WholeProgramInference instance (may be null).
      *
      * @return the WholeProgramInference instance, or null
      */
+    /* NO-AFU
     public WholeProgramInference getWholeProgramInference() {
         return wholeProgramInference;
     }
+    */
 
     protected void initializeReflectionResolution() {
         if (checker.shouldResolveReflection()) {
@@ -845,14 +857,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param root the new compilation unit to use
      */
     public void setRoot(@Nullable CompilationUnitTree root) {
-        if (root != null && wholeProgramInference != null) {
-            for (Tree typeDecl : root.getTypeDecls()) {
-                if (typeDecl.getKind() == Tree.Kind.CLASS) {
-                    ClassTree classTree = (ClassTree) typeDecl;
-                    wholeProgramInference.preprocessClassTree(classTree);
-                }
-            }
-        }
+        /* NO-AFU
+               if (root != null && wholeProgramInference != null) {
+                   for (Tree typeDecl : root.getTypeDecls()) {
+                       if (typeDecl.getKind() == Tree.Kind.CLASS) {
+                           ClassTree classTree = (ClassTree) typeDecl;
+                           wholeProgramInference.preprocessClassTree(classTree);
+                       }
+                   }
+               }
+        */
 
         this.root = root;
         // Do not clear here. Only the primary checker should clear this cache.
@@ -1325,14 +1339,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     public void postProcessClassTree(ClassTree tree) {
         TypesIntoElements.store(processingEnv, this, tree);
         DeclarationsIntoElements.store(processingEnv, this, tree);
-        if (wholeProgramInference != null) {
-            // Write out the results of whole-program inference, just once for each class.  As soon
-            // as any class is finished processing, all modified scenes are written to files, in
-            // case this was the last class to be processed.  Post-processing of subsequent classes
-            // might result in re-writing some of the scenes if new information has been written to
-            // them.
-            wholeProgramInference.writeResultsToFile(wpiOutputFormat, this.checker);
-        }
+        /* NO-AFU
+               if (wholeProgramInference != null) {
+                   // Write out the results of whole-program inference, just once for each class.  As soon
+                   // as any class is finished processing, all modified scenes are written to files, in
+                   // case this was the last class to be processed.  Post-processing of subsequent classes
+                   // might result in re-writing some of the scenes if new information has been written to
+                   // them.
+                   wholeProgramInference.writeResultsToFile(wpiOutputFormat, this.checker);
+               }
+        */
     }
 
     /**
@@ -1706,7 +1722,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         Set<AnnotationMirror> annotations = type.getEffectiveAnnotations();
         for (AnnotatedTypeMirror supertype : supertypes) {
             if (!annotations.equals(supertype.getEffectiveAnnotations())) {
-                supertype.clearPrimaryAnnotations();
+                supertype.clearAnnotations();
                 // TODO: is this correct for type variables and wildcards?
                 supertype.addAnnotations(annotations);
             }
@@ -2248,7 +2264,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             if (ignoreUninferredTypeArguments) {
                 // Remove the annotations so that default annotations are used instead.
                 // (See call to addDefaultAnnotations below.)
-                t.clearPrimaryAnnotations();
+                t.clearAnnotations();
             } else {
                 t.replaceAnnotations(wildcard.getExtendsBound().getAnnotations());
             }
@@ -2276,6 +2292,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 getAnnotatedType(methodElt); // get unsubstituted type
         AnnotatedExecutableType memberTypeWithOverrides =
                 applyFakeOverrides(receiverType, methodElt, memberTypeWithoutOverrides);
+        memberTypeWithOverrides = applyRecordTypesToAccessors(methodElt, memberTypeWithOverrides);
         methodFromUsePreSubstitution(tree, memberTypeWithOverrides);
 
         AnnotatedExecutableType methodType =
@@ -2401,6 +2418,27 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             methodType = memberType;
         }
         return methodType;
+    }
+
+    /**
+     * Given a method, checks if there is: a record component with the same name AND the record
+     * component has an annotation AND the method has no-arguments. If so, replaces the annotations
+     * on the method return type with those from the record type in the same hierarchy.
+     *
+     * @param member a method or constructor
+     * @param memberType the type of the method/constructor; side-effected by this method
+     * @return {@code memberType} with annotations replaced if applicable
+     */
+    private AnnotatedExecutableType applyRecordTypesToAccessors(
+            ExecutableElement member, AnnotatedExecutableType memberType) {
+        if (memberType.getKind() != TypeKind.EXECUTABLE) {
+            throw new BugInCF(
+                    "member %s has type %s of kind %s", member, memberType, memberType.getKind());
+        }
+
+        stubTypes.injectRecordComponentType(types, member, memberType);
+
+        return memberType;
     }
 
     /**
@@ -2610,6 +2648,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             con = (AnnotatedExecutableType) typeVarSubstitutor.substitute(typeParamToTypeArg, con);
         }
 
+        stubTypes.injectRecordComponentType(types, ctor, con);
+
         return new ParameterizedExecutableType(con, typeargs);
     }
 
@@ -2672,19 +2712,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     .tsym
                     .getTypeParameters()
                     .nonEmpty()) {
-                Pair<Tree, AnnotatedTypeMirror> ctx = this.visitorState.getAssignmentContext();
-                if (ctx != null) {
-                    AnnotatedTypeMirror ctxtype = ctx.second;
+                TreePath p = getPath(newClassTree);
+                AnnotatedTypeMirror ctxtype = TypeArgInferenceUtil.assignedTo(this, p);
+                if (ctxtype != null) {
                     fromNewClassContextHelper(type, ctxtype);
                 } else {
-                    TreePath p = getPath(newClassTree);
-                    AnnotatedTypeMirror ctxtype = TypeArgInferenceUtil.assignedTo(this, p);
-                    if (ctxtype != null) {
-                        fromNewClassContextHelper(type, ctxtype);
-                    } else {
-                        // give up trying and set to raw.
-                        type.setIsUnderlyingTypeRaw();
-                    }
+                    // give up trying and set to raw.
+                    type.setIsUnderlyingTypeRaw();
                 }
             }
             AnnotatedDeclaredType fromTypeTree =
@@ -3515,8 +3549,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         Tree fromElt;
         // Prevent calling declarationFor on elements we know we don't have the tree for.
 
-        switch (elt.getKind()) {
-            case CLASS:
+        switch (ElementUtils.getKindRecordAsClass(elt)) {
+            case CLASS: // Including RECORD
             case ENUM:
             case INTERFACE:
             case ANNOTATION_TYPE:
@@ -5103,7 +5137,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     /**
      * Returns the first TypeVariable in {@code collection} that does not lexically contain any
-     * other type in the collection.
+     * other type in the collection. Or if all the TypeVariables contain another, then it returns
+     * the first TypeVariable in {@code collection}.
      *
      * @param collection a collection of type variables
      * @return the first TypeVariable in {@code collection} that does not contain any other type in
@@ -5112,7 +5147,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     @SuppressWarnings("interning:not.interned") // must be the same object from collection
     private AnnotatedTypeVariable doesNotContainOthers(
             Collection<? extends AnnotatedTypeVariable> collection) {
+        AnnotatedTypeVariable first = null;
         for (AnnotatedTypeVariable candidate : collection) {
+            if (first == null) {
+                first = candidate;
+            }
             boolean doesNotContain = true;
             for (AnnotatedTypeVariable other : collection) {
                 if (candidate != other
@@ -5125,7 +5164,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 return candidate;
             }
         }
-        throw new BugInCF("Not found: %s", StringsPlume.join(",", collection));
+        return first;
     }
 
     /**
@@ -5164,6 +5203,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                         typeVarToAnnotatedTypeArg, typeVariable.getUpperBound());
         AnnotatedTypeMirror upperBound =
                 AnnotatedTypes.annotatedGLB(this, typeVarUpperBound, wildcard.getExtendsBound());
+        // There is a bug in javac such that the upper bound of the captured type variable is not
+        // the greatest lower bound. So the captureTypeVar.getUnderlyingType().getUpperBound() may
+        // not be the same type as upperbound.getUnderlyingType().  See
+        // framework/tests/all-systems/Issue4890Interfaces.java,
+        // framework/tests/all-systems/Issue4890.java and
+        // framework/tests/all-systems/Issue4877.java.
         capturedTypeVar.setUpperBound(upperBound);
 
         // typeVariable's lower bound is a NullType, so there's nothing to substitute.
@@ -5453,7 +5498,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         return null;
     }
 
-    /**
+    /* NO-AFU
      * Changes the type of {@code rhsATM} when being assigned to a field, for use by whole-program
      * inference. The default implementation does nothing.
      *
@@ -5463,38 +5508,46 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param rhsATM the type of the expression being assigned to the field, which is side-effected
      *     by this method
      */
+    /* NO-AFU
     public void wpiAdjustForUpdateField(
             Tree lhsTree, Element element, String fieldName, AnnotatedTypeMirror rhsATM) {}
+    */
 
-    /**
+    /* NO-AFU
      * Changes the type of {@code rhsATM} when being assigned to anything other than a field, for
      * use by whole-program inference. The default implementation does nothing.
      *
      * @param rhsATM the type of the rhs of the pseudo-assignment, which is side-effected by this
      *     method
      */
+    /* NO-AFU
     public void wpiAdjustForUpdateNonField(AnnotatedTypeMirror rhsATM) {}
+    */
 
-    /**
+    /* NO-AFU
      * Side-effects the method or constructor annotations to make any desired changes before writing
      * to an annotation file.
      *
      * @param methodAnnos the method or constructor annotations to modify
      */
+    /* NO-AFU
     public void prepareMethodForWriting(AMethod methodAnnos) {
         // This implementation does nothing.
     }
+    */
 
-    /**
+    /* NO-AFU
      * Side-effects the method or constructor annotations to make any desired changes before writing
      * to an ajava file.
      *
      * @param methodAnnos the method or constructor annotations to modify
      */
+    /* NO-AFU
     public void prepareMethodForWriting(
             WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos methodAnnos) {
         // This implementation does nothing.
     }
+    */
 
     /**
      * Does {@code anno}, which is an {@link org.checkerframework.framework.qual.AnnotatedFor}

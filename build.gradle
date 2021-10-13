@@ -3,7 +3,7 @@ import org.ajoberstar.grgit.Grgit
 
 plugins {
     // https://plugins.gradle.org/plugin/com.github.johnrengelman.shadow (v5 requires Gradle 5)
-    id 'com.github.johnrengelman.shadow' version '7.0.0'
+    id 'com.github.johnrengelman.shadow' version '7.1.0'
     // https://plugins.gradle.org/plugin/de.undercouch.download
     id 'de.undercouch.download' version '4.1.2'
     id 'java'
@@ -23,16 +23,19 @@ ext {
     isJava8 = JavaVersion.current() == JavaVersion.VERSION_1_8
 
     isJava16 = JavaVersion.current() == JavaVersion.VERSION_16
+    isJava17 = JavaVersion.current() == JavaVersion.VERSION_17
+    isJava16plus = isJava16 || isJava17
 
     errorproneJavacVersion = '9+181-r4173-1'
 
     parentDir = file("${rootDir}/../").absolutePath
 
-    annotationTools = "${parentDir}/annotation-tools"
-    afu = "${annotationTools}/annotation-file-utilities"
+    // NO-AFU
+    // annotationTools = "${parentDir}/annotation-tools"
+    // afu = "${annotationTools}/annotation-file-utilities"
 
     stubparser = "${parentDir}/stubparser"
-    stubparserJar = "${stubparser}/javaparser-core/target/stubparser-3.22.1.jar"
+    stubparserJar = "${stubparser}/javaparser-core/target/stubparser-3.23.0.jar"
 
     jtregHome = "${parentDir}/jtreg"
     formatScriptsHome = "${project(':checker').projectDir}/bin-devel/.run-google-java-format"
@@ -55,17 +58,17 @@ switch (JavaVersion.current()) {
     case JavaVersion.VERSION_13:
     case JavaVersion.VERSION_14:
     case JavaVersion.VERSION_15:
-    case JavaVersion.VERSION_17:
+    case JavaVersion.VERSION_16:
     case JavaVersion.VERSION_18:
-        logger.warn("The Checker Framework has only been tested with JDKs 8, 11, and 16." +
+        logger.warn("The Checker Framework has only been tested with JDKs 8, 11, and 17." +
                 " Found version " + JavaVersion.current().majorVersion);
         break;
     case JavaVersion.VERSION_1_8:
     case JavaVersion.VERSION_11:
-    case JavaVersion.VERSION_16:
+    case JavaVersion.VERSION_17:
         break; // Supported versions
     default:
-        throw new GradleException("Build the Checker Framework with JDK 8, 11, or 16." +
+        throw new GradleException("Build the Checker Framework with JDK 8, 11, or 17." +
                 " Found version " + JavaVersion.current().majorVersion);
 }
 
@@ -99,7 +102,7 @@ allprojects {
     // level (third number) if:
     //   * any new checkers have been added, or
     //   * backward-incompatible changes have been made to APIs or elsewhere.
-    version '3.17.0'
+    version '3.18.1-eisop1'
 
     repositories {
         mavenCentral()
@@ -139,6 +142,27 @@ allprojects {
         }
     }
 
+    ext {
+        // A list of add-export and add-open arguments to be used when running the Checker Framework.
+        // Keep this list in sync with the lists in CheckerMain#getExecArguments,
+        // the sections with labels "javac-jdk11-non-modularized", "maven", and "sbt" in the manual
+        // and in the checker-framework-gradle-plugin, CheckerFrameworkPlugin#applyToProject
+        compilerArgsForRunningCF = [
+                // These are required in Java 16+ because the --illegal-access option is set to deny
+                // by default.  None of these packages are accessed via reflection, so the module
+                // only needs to be exported, but not opened.
+                "--add-exports", "jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
+                "--add-exports", "jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
+                "--add-exports", "jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+                "--add-exports", "jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
+                "--add-exports", "jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
+                "--add-exports", "jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
+                "--add-exports", "jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+                "--add-exports", "jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
+                // Required because the Checker Framework reflectively accesses private members in com.sun.tools.javac.comp.
+                "--add-opens", "jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED",
+        ]
+    }
 
     // After all the tasks have been created, modify some of them.
     afterEvaluate {
@@ -157,6 +181,7 @@ allprojects {
         // any module to reference classes in any other module.
         // Also, build and use ManualTaglet as a taglet.
         tasks.withType(Javadoc) {
+            // Similar test in framework-test/build.gradle
             def tagletVersion = isJava8 ? 'taglet' : 'tagletJdk11'
 
             dependsOn(':checker:shadowJar')
@@ -377,20 +402,7 @@ def createCheckTypeTask(projectName, taskName, checker, args = []) {
                 ]
         } else {
             options.fork = true
-            options.forkOptions.jvmArgs += [
-                // These are required in Java 16+ because the --illegal-access option is set to deny
-                // by default.  None of these packages are accessed via reflection, so the module
-                // only needs to be exported, but not opened.
-                "--add-exports", "jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
-                "--add-exports", "jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
-                "--add-exports", "jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
-                "--add-exports", "jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
-                "--add-exports", "jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
-                "--add-exports", "jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
-                "--add-exports", "jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
-                // Required because the Checker Framework reflectively accesses private members in com.sun.tools.javac.comp.
-                "--add-opens", "jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED",
-            ]
+            options.forkOptions.jvmArgs += compilerArgsForRunningCF
        }
     }
 }
@@ -417,6 +429,7 @@ List<String> getJavaFilesToFormat(projectName) {
                 && !details.path.contains("calledmethods-delomboked")
                 && !details.path.contains("returnsreceiverdelomboked")
                 && !details.path.contains("build")
+                && (isJava16plus || !details.path.contains("-records"))
                 && details.name.endsWith('.java')) {
             javaFiles.add(details.file)
         }
@@ -609,7 +622,7 @@ task getCodeFormatScripts() {
         exec {
             workingDir "${formatScriptsHome}/../"
             executable 'git'
-            args = ['clone', '-q', '--depth', '1', 'https://github.com/plume-lib/run-google-java-format.git', '.run-google-java-format']
+            args = ['clone', '-q', '--depth', '1', 'https://github.com/eisop-plume-lib/run-google-java-format.git', '.run-google-java-format']
         }
     }
 }
@@ -623,7 +636,7 @@ task getCodeFormatScriptsInGradle {
         if (! new File(formatScriptsHome).exists()) {
             // There is no support for the --depth argument:
             // https://github.com/ajoberstar/grgit/issues/155   https://bugs.eclipse.org/bugs/show_bug.cgi?id=475615
-            def rgjfGit = Grgit.clone(dir: formatScriptsHome, uri: 'https://github.com/plume-lib/run-google-java-format.git')
+            def rgjfGit = Grgit.clone(dir: formatScriptsHome, uri: 'https://github.com/eisop-plume-lib/run-google-java-format.git')
         } else {
             def rgjfGit = Grgit.open(dir: formatScriptsHome)
             rgjfGit.pull()
@@ -692,6 +705,7 @@ task tags {
 subprojects {
     configurations {
         errorprone
+        annotatedGuava
     }
 
     dependencies {
@@ -702,7 +716,17 @@ subprojects {
         //  * Uncomment "-Werror"
         //  * Don't edit framework/build.gradle to use the same version number
         //    (it is updated when the annotated version of Guava is updated).
-        errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: '2.8.1'
+        errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: '2.9.0'
+
+        // TODO: it's a bug that annotatedlib:guava requires the error_prone_annotations dependency.
+        // Update the next two version numbers in tandem.  Get the Error Prone version from the "compile
+        // dependencies" section of https://mvnrepository.com/artifact/com.google.guava/guava/30.1.1-jre .
+        // (It isn't at https://mvnrepository.com/artifact/org.checkerframework.annotatedlib/guava/30.1.1-jre, which is the bug.)
+        annotatedGuava 'com.google.errorprone:error_prone_annotations:2.9.0'
+        annotatedGuava ('org.checkerframework.annotatedlib:guava:30.1.1-jre') {
+            // So long as Guava only uses annotations from checker-qual, excluding it should not cause problems.
+            exclude group: 'org.checkerframework'
+        }
     }
 
     task checkFormat(type: Exec, dependsOn: [getCodeFormatScripts, pythonIsInstalled], group: 'Format') {
@@ -775,6 +799,8 @@ subprojects {
                 relocate 'com.github.javaparser', 'org.checkerframework.com.github.javaparser'
             }
         }
+
+        minimize()
     }
 
     if (!project.name.startsWith('checker-qual-android')) {
@@ -929,16 +955,7 @@ subprojects {
             if (isJava8) {
                 jvmArgs "-Xbootclasspath/p:${configurations.javacJar.asPath}".toString()
             } else {
-                jvmArgs += [
-                        "--add-exports", "jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
-                        "--add-exports", "jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
-                        "--add-exports", "jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
-                        "--add-exports", "jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
-                        "--add-exports", "jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
-                        "--add-exports", "jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
-                        "--add-exports", "jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
-                        "--add-opens", "jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED",
-                ]
+                jvmArgs += compilerArgsForRunningCF
             }
 
             maxParallelForks = Integer.MAX_VALUE
@@ -1007,7 +1024,8 @@ subprojects {
         tasks.create(name: 'inferenceTests', group: 'Verification') {
             description 'Run inference tests.'
             if (project.name.is('checker')) {
-                dependsOn('ainferTest', 'wpiManyTest', 'wpiPlumeLibTest')
+                // NO-AFU: Needs to depend on future AFU version of CF
+                // dependsOn('ainferTest', 'wpiManyTest', 'wpiPlumeLibTest')
             }
         }
 

@@ -26,26 +26,27 @@ if [ -d "$PLUME_SCRIPTS" ] ; then
   (cd "$PLUME_SCRIPTS" && git pull -q)
 else
   (cd "$CHECKERFRAMEWORK/checker/bin-devel" && \
-      (git clone --depth 1 -q https://github.com/plume-lib/plume-scripts.git .plume-scripts || \
-       git clone --depth 1 -q https://github.com/plume-lib/plume-scripts.git .plume-scripts))
+      (git clone --depth 1 -q https://github.com/eisop-plume-lib/plume-scripts.git .plume-scripts || \
+       git clone --depth 1 -q https://github.com/eisop-plume-lib/plume-scripts.git .plume-scripts))
 fi
 
 # Clone the annotated JDK into ../jdk .
 "$PLUME_SCRIPTS/git-clone-related" eisop jdk
 
-AFU="${AFU:-../annotation-tools/annotation-file-utilities}"
-# Don't use `AT=${AFU}/..` which causes a git failure.
-AT=$(dirname "${AFU}")
+# NO-AFU
+# AFU="${AFU:-../annotation-tools/annotation-file-utilities}"
+# # Don't use `AT=${AFU}/..` which causes a git failure.
+# AT=$(dirname "${AFU}")
 
-## Build annotation-tools (Annotation File Utilities)
-"$PLUME_SCRIPTS/git-clone-related" eisop annotation-tools "${AT}"
-if [ ! -d ../annotation-tools ] ; then
-  ln -s "${AT}" ../annotation-tools
-fi
+# ## Build annotation-tools (Annotation File Utilities)
+# "$PLUME_SCRIPTS/git-clone-related" eisop annotation-tools "${AT}"
+# if [ ! -d ../annotation-tools ] ; then
+#   ln -s "${AT}" ../annotation-tools
+# fi
 
-echo "Running:  (cd ${AT} && ./.build-without-test.sh)"
-(cd "${AT}" && ./.build-without-test.sh)
-echo "... done: (cd ${AT} && ./.build-without-test.sh)"
+# echo "Running:  (cd ${AT} && ./.build-without-test.sh)"
+# (cd "${AT}" && ./.build-without-test.sh)
+# echo "... done: (cd ${AT} && ./.build-without-test.sh)"
 
 
 ## Build stubparser

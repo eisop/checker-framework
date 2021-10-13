@@ -8,9 +8,21 @@ ext {
 
 sourceSets {
     main {
+        java {
+            // NO-AFU
+            exclude '**/org/checkerframework/common/wholeprograminference/**'
+            exclude '**/org/checkerframework/framework/stub/AddAnnotatedFor.java'
+            exclude '**/org/checkerframework/framework/stub/ToIndexFileConverter.java'
+        }
+
         resources {
             // Stub files, message.properties, etc.
             srcDirs += ['src/main/java', "${buildDir}/generated/resources"]
+
+            // NO-AFU
+            exclude '**/org/checkerframework/common/wholeprograminference/**'
+            exclude '**/org/checkerframework/framework/stub/AddAnnotatedFor.java'
+            exclude '**/org/checkerframework/framework/stub/ToIndexFileConverter.java'
         }
     }
     testannotations
@@ -23,19 +35,27 @@ sourcesJar {
 
 def versions = [
         autoValue       : "1.7.4",
-        lombok          : "1.18.20",
+        lombok          : "1.18.22",
 ]
 
+configurations {
+    implementation.extendsFrom(annotatedGuava)
+}
 
 dependencies {
     api project(':javacutil')
     api project(':dataflow')
     api files("${stubparserJar}")
+
+    // NO-AFU
+    /*
     // AFU is an "includedBuild" imported in checker-framework/settings.gradle, so the version number doesn't matter.
     // https://docs.gradle.org/current/userguide/composite_builds.html#settings_defined_composite
     api('org.checkerframework:annotation-file-utilities:*') {
         exclude group: 'com.google.errorprone', module: 'javac'
     }
+    */
+
     api project(':checker-qual')
 
     // External dependencies:
@@ -43,17 +63,7 @@ dependencies {
     // See the comment in ../build.gradle in the shadowJar block.
     implementation 'org.plumelib:plume-util:1.5.8'
     implementation 'org.plumelib:reflection-util:1.0.4'
-    implementation 'io.github.classgraph:classgraph:4.8.113'
-
-    // TODO: it's a bug that annotatedlib:guava requires the error_prone_annotations dependency.
-    // Update the next two version numbers in tandem.  Get the Error Prone version from the "compile
-    // dependencies" section of https://mvnrepository.com/artifact/com.google.guava/guava/28.2-jre .
-    // (It isn't at https://mvnrepository.com/artifact/org.checkerframework.annotatedlib/guava/28.2-jre, which is the bug.)
-    implementation 'com.google.errorprone:error_prone_annotations:2.8.1'
-    implementation ('org.checkerframework.annotatedlib:guava:30.1.1-jre') {
-        // So long as Guava only uses annotations from checker-qual, excluding it should not cause problems.
-        exclude group: 'org.checkerframework'
-    }
+    implementation 'io.github.classgraph:classgraph:4.8.126'
 
     testImplementation group: 'junit', name: 'junit', version: '4.13.2'
     testImplementation project(':framework-test')
@@ -82,7 +92,7 @@ task cloneTypetoolsJdk() {
             exec {
                 workingDir "${annotatedJdkHome}/../"
                 executable 'git'
-                args = ['clone', '-q', '--depth', '1', 'https://github.com/typetools/jdk.git', 'jdk']
+                args = ['clone', '-q', '--depth', '1', 'https://github.com/eisop/jdk.git', 'jdk']
             }
         }
     }
@@ -172,6 +182,8 @@ shadowJar {
     manifest {
         attributes('Automatic-Module-Name': "org.checkerframework.framework")
     }
+
+    minimize()
 }
 
 createCheckTypeTask(project.name, "CompilerMessages",
