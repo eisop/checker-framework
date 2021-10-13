@@ -304,7 +304,7 @@ public class AnalysisResult<V extends AbstractValue<V>, S extends Store<S>> impl
                 return transferInput.getRegularStore();
             case BACKWARD:
                 List<Node> nodes = block.getNodes();
-                if (nodes == null) {
+                if (nodes.isEmpty()) {
                     // This block doesn't contain any node, return the store in the transfer input
                     return transferInput.getRegularStore();
                 } else {
