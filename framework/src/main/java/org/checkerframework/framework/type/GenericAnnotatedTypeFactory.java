@@ -81,6 +81,7 @@ import org.checkerframework.framework.util.defaults.QualifierDefaults;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesTreeAnnotator;
 import org.checkerframework.framework.util.typeinference.TypeArgInferenceUtil;
+import org.checkerframework.idesupport.TypeInformationPresenter;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
@@ -319,6 +320,8 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     protected boolean shouldClearSubcheckerSharedCFGs = true;
 
+    private TypeInformationPresenter typeInformationPresenter;
+
     /**
      * Creates a type factory. Its compilation unit is not yet set.
      *
@@ -343,6 +346,8 @@ public abstract class GenericAnnotatedTypeFactory<
         this.initializationStaticStore = null;
 
         this.cfgVisualizer = createCFGVisualizer();
+
+        this.typeInformationPresenter = new TypeInformationPresenter(this);
 
         if (shouldCache) {
             int cacheSize = getCacheSize();
@@ -419,6 +424,20 @@ public abstract class GenericAnnotatedTypeFactory<
     public void preProcessClassTree(ClassTree classTree) {
         if (this.everUseFlow) {
             checkAndPerformFlowAnalysis(classTree);
+        }
+    }
+
+    /**
+     * Executes type information presenter on the class tree if applicable.
+     *
+     * @param tree the ClassTree that has been type checked
+     */
+    @Override
+    public void postProcessClassTree(ClassTree tree) {
+        super.postProcessClassTree(tree);
+
+        if (checker.hasOption("lspTypeInfo")) {
+            typeInformationPresenter.process(tree);
         }
     }
 

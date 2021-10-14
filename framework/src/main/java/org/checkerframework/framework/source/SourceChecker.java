@@ -383,6 +383,11 @@ import javax.tools.Diagnostic.Kind;
     // Sets AnnotatedTypeFactory shouldCache to false
     "atfDoNotCache",
 
+    /// Language Server Protocol(LSP) Support
+
+    // Output detailed type information for nodes in AST
+    "lspTypeInfo",
+
     /// Miscellaneous debugging options
 
     // Whether to output resource statistics at JVM shutdown
