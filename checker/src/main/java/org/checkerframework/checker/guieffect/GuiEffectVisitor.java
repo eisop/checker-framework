@@ -38,7 +38,6 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.ElementUtils;
-import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
@@ -542,18 +541,11 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
           }
 
           if (ret != null) {
-            Pair<Tree, AnnotatedTypeMirror> preAssignmentContext =
-                visitorState.getAssignmentContext();
-            try {
-              visitorState.setAssignmentContext(Pair.of((Tree) returnTree, ret));
-              commonAssignmentCheck(
-                  ret,
-                  atypeFactory.getAnnotatedType(returnTree.getExpression()),
-                  returnTree.getExpression(),
-                  "return.type.incompatible");
-            } finally {
-              visitorState.setAssignmentContext(preAssignmentContext);
-            }
+            commonAssignmentCheck(
+                ret,
+                atypeFactory.getAnnotatedType(returnTree.getExpression()),
+                returnTree.getExpression(),
+                "return.type.incompatible");
           }
         }
         break;

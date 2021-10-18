@@ -25,6 +25,12 @@ Version 3.1?.? (November 1, 2021)
 
 **Implementation details:**
 
+Removed `org.checkerframework.framework.type.VisitorState`
+
+Deprecated methods in AnnotatedTypeFactory:
+* `getCurrentClassTree`
+* `getCurrentMethodReceiver`
+
 **Closed issues:**
 
 
