@@ -439,7 +439,8 @@ public abstract class CFAbstractTransfer<
      * @param classTree the class that contains {@code methodTree}
      * @param methodTree the method or constructor tree
      */
-    /* TODO: should field visibility matter? An access from outside the class might observe the declared type instead of a refined type. Issue a warning to alert users? */
+    // TODO: should field visibility matter? An access from outside the class might observe
+    // the declared type instead of a refined type. Issue a warning to alert users?
     private void addInitialFieldValues(S store, ClassTree classTree, MethodTree methodTree) {
         boolean isConstructor = TreeUtils.isConstructor(methodTree);
         TypeElement classEle = TreeUtils.elementFromDeclaration(classTree);
