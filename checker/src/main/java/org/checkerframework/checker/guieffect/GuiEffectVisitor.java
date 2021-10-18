@@ -28,6 +28,7 @@ import org.checkerframework.checker.guieffect.qual.PolyUIType;
 import org.checkerframework.checker.guieffect.qual.SafeEffect;
 import org.checkerframework.checker.guieffect.qual.UI;
 import org.checkerframework.checker.guieffect.qual.UIEffect;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.type.AnnotatedTypeFactory.ParameterizedExecutableType;
@@ -44,7 +45,12 @@ import org.checkerframework.javacutil.TypesUtils;
 
 /** Require that only UI code invokes code with the UI effect. */
 public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
+  /** The type of the class currently being visited. */
+  private @Nullable AnnotatedDeclaredType classType = null;
+  /** The receiver type of the enclosing method tree. */
+  private @Nullable AnnotatedDeclaredType receiverType = null;
 
+  /** Whether or not to display debugging information. */
   protected final boolean debugSpew;
 
   // effStack and currentMethods should always be the same size.
@@ -281,8 +287,7 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
       System.err.println("callerTree found: " + callerTree.getKind());
     }
 
-    Effect targetEffect =
-        atypeFactory.getComputedEffectAtCallsite(node, visitorState.getMethodReceiver(), methodElt);
+    Effect targetEffect = atypeFactory.getComputedEffectAtCallsite(node, receiverType, methodElt);
 
     Effect callerEffect = null;
     if (callerTree.getKind() == Tree.Kind.METHOD) {
@@ -292,7 +297,7 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
       }
 
       callerEffect = atypeFactory.getDeclaredEffect(callerElt);
-      final DeclaredType callerReceiverType = this.visitorState.getClassType().getUnderlyingType();
+      final DeclaredType callerReceiverType = classType.getUnderlyingType();
       assert callerReceiverType != null;
       final TypeElement callerReceiverElt = (TypeElement) callerReceiverType.asElement();
       // Note: All these checks should be fast in the common case, but happen for every method
@@ -364,11 +369,14 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
 
   @Override
   public Void visitMethod(MethodTree node, Void p) {
-    // TODO: If the type we're in is a polymorphic (over effect qualifiers) type, the receiver
-    // must be @PolyUI.  Otherwise a "non-polymorphic" method of a polymorphic type could be
-    // called on a UI instance, which then gets a Safe reference to itself (unsound!) that it
-    // can then pass off elsewhere (dangerous!).  So all receivers in methods of a @PolyUIType
-    // must be @PolyUI.
+    AnnotatedExecutableType methodType = atypeFactory.getAnnotatedType(node).deepCopy();
+    AnnotatedDeclaredType previousReceiverType = receiverType;
+    receiverType = methodType.getReceiverType();
+
+    // TODO: If the type we're in is a polymorphic (over effect qualifiers) type, the receiver must
+    // be @PolyUI.  Otherwise a "non-polymorphic" method of a polymorphic type could be called on a
+    // UI instance, which then gets a Safe reference to itself (unsound!) that it can then pass off
+    // elsewhere (dangerous!).  So all receivers in methods of a @PolyUIType must be @PolyUI.
 
     // TODO: What do we do then about classes that inherit from a concrete instantiation?  If it
     // subclasses a Safe instantiation, all is well.  If it subclasses a UI instantiation, then
@@ -439,6 +447,7 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
     Void ret = super.visitMethod(node, p);
     currentMethods.removeFirst();
     effStack.removeFirst();
+    receiverType = previousReceiverType;
     return ret;
   }
 
@@ -585,4 +594,18 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
   // currentMethods.removeFirst();
   // effStack.removeFirst();
   // }
+
+  @Override
+  public void processClassTree(ClassTree classTree) {
+    AnnotatedDeclaredType previousClassType = classType;
+    AnnotatedDeclaredType previousReceiverType = receiverType;
+    receiverType = null;
+    classType = atypeFactory.getAnnotatedType(TreeUtils.elementFromDeclaration(classTree));
+    try {
+      super.processClassTree(classTree);
+    } finally {
+      classType = previousClassType;
+      receiverType = previousReceiverType;
+    }
+  }
 }
