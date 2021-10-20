@@ -432,9 +432,9 @@ public class CheckerMain {
       // See comments in build.gradle
       args.addAll(
           // Keep this list in sync with the lists in checker-framework/build.gradle in
-          // compilerArgsForRunningCFs, the sections with labels
-          // "javac-jdk11-non-modularized", "maven", and "sbt" in the manual, and in the
-          // checker-framework-gradle-plugin, CheckerFrameworkPlugin#applyToProject
+          // compilerArgsForRunningCFs, the sections with labels "javac-jdk11-non-modularized",
+          // "maven", and "sbt" in the manual, and in the checker-framework-gradle-plugin,
+          // CheckerFrameworkPlugin#applyToProject
           Arrays.asList(
               // These are required in Java 16+ because the --illegal-access option is
               // set to deny by default.  None of these packages are accessed via
