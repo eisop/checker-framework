@@ -1,5 +1,6 @@
 package org.checkerframework.idesupport;
 
+import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
@@ -79,7 +80,14 @@ public class TypeInformationPresenter {
         /** 0-based column number of the end position. */
         private final long endCol;
 
-        /** Constructs a new MessageRange with the given position information. */
+        /**
+         * Constructs a new MessageRange with the given position information.
+         *
+         * @param startLine 0-based line number of the start position
+         * @param startCol 0-based column number of the start position
+         * @param endLine 0-based line number of the end position
+         * @param endCol 0-based column number of the end position
+         */
         private MessageRange(long startLine, long startCol, long endLine, long endCol) {
             this.startLine = startLine;
             this.startCol = startCol;
@@ -87,7 +95,15 @@ public class TypeInformationPresenter {
             this.endCol = endCol;
         }
 
-        /** Constructs a new MessageRange with the given position information. */
+        /**
+         * Constructs a new MessageRange with the given position information.
+         *
+         * @param startLine 0-based line number of the start position
+         * @param startCol 0-based column number of the start position
+         * @param endLine 0-based line number of the end position
+         * @param endCol 0-based column number of the end position
+         * @return a new MessageRange with the given position information
+         */
         private static MessageRange of(long startLine, long startCol, long endLine, long endCol) {
             return new MessageRange(startLine, startCol, endLine, endCol);
         }
@@ -117,7 +133,11 @@ public class TypeInformationPresenter {
         /** This is a helper for computing positions of a sub-tree. */
         private final SourcePositions sourcePositions;
 
-        /** Constructs a new reporter for the given class tree. */
+        /**
+         * Constructs a new reporter for the given class tree.
+         *
+         * @param classTree a ClassTree
+         */
         public TypeInformationReporter(ClassTree classTree) {
             this.classTree = classTree;
             this.currentRoot = factory.getChecker().getPathToCompilationUnit().getCompilationUnit();
@@ -262,6 +282,11 @@ public class TypeInformationPresenter {
         public Void visitTypeParameter(TypeParameterTree node, Void unused) {
             reportNodeType(node, factory.getAnnotatedTypeFromTypeTree(node));
             return super.visitTypeParameter(node, unused);
+        }
+
+        @Override
+        public Void visitAssignment(AssignmentTree node, Void unused) {
+            return super.visitAssignment(node, unused);
         }
 
         @Override
