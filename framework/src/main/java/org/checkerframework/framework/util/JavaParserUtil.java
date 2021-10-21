@@ -354,6 +354,9 @@ public class JavaParserUtil {
         case "RELEASE_16":
           currentSourceVersion = ParserConfiguration.LanguageLevel.JAVA_16;
           break;
+        case "RELEASE_17":
+          currentSourceVersion = ParserConfiguration.LanguageLevel.JAVA_17;
+          break;
         default:
           currentSourceVersion = DEFAULT_LANGUAGE_LEVEL;
       }
