@@ -320,7 +320,12 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     protected boolean shouldClearSubcheckerSharedCFGs = true;
 
-    private TypeInformationPresenter typeInformationPresenter;
+    /**
+     * If the option "lspTypeInfo" is defined, this presenter will report the type information of
+     * every type-checked class. This information will be visualized by an editor/IDE that supports
+     * LSP.
+     */
+    private final TypeInformationPresenter typeInformationPresenter;
 
     /**
      * Creates a type factory. Its compilation unit is not yet set.
@@ -347,7 +352,11 @@ public abstract class GenericAnnotatedTypeFactory<
 
         this.cfgVisualizer = createCFGVisualizer();
 
-        this.typeInformationPresenter = new TypeInformationPresenter(this);
+        if (checker.hasOption("lspTypeInfo")) {
+            this.typeInformationPresenter = new TypeInformationPresenter(this);
+        } else {
+            this.typeInformationPresenter = null;
+        }
 
         if (shouldCache) {
             int cacheSize = getCacheSize();
@@ -436,7 +445,7 @@ public abstract class GenericAnnotatedTypeFactory<
     public void postProcessClassTree(ClassTree tree) {
         super.postProcessClassTree(tree);
 
-        if (checker.hasOption("lspTypeInfo")) {
+        if (typeInformationPresenter != null) {
             typeInformationPresenter.process(tree);
         }
     }
