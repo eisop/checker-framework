@@ -1,3 +1,24 @@
+Version 3.18.1-eisop-2 (October ?, 2021)
+-------------------------------
+
+**User-visible changes:**
+
+Avoid shading of string literals which broke some annotation aliasing.
+
+**Implementation details:**
+
+Small improvements and code-style clean-ups in the Dataflow Framework and
+in the core Checker Framework "framework" package.
+
+
+Version 3.18.1-eisop-1 (October 7, 2021)
+-------------------------------
+
+**User-visible changes:**
+
+Add more aliases for nullness annotations; fix manual formatting (#105).
+
+
 Version 3.18.1 (October 4, 2021)
 -------------------------------
 
