@@ -2287,12 +2287,11 @@ public class CFGTranslationPhaseOne extends TreePathScanner<Node, Void> {
         addLabelForNextNode(trueStart);
         Node trueExpr = scan(tree.getTrueExpression(), p);
         trueExpr = conditionalExprPromotion(trueExpr, exprType);
-        extendWithExtendedNode(new UnconditionalJump(merge, FlowRule.BOTH_TO_THEN));
+        extendWithExtendedNode(new UnconditionalJump(merge));
 
         addLabelForNextNode(falseStart);
         Node falseExpr = scan(tree.getFalseExpression(), p);
         falseExpr = conditionalExprPromotion(falseExpr, exprType);
-        extendWithExtendedNode(new UnconditionalJump(merge, FlowRule.BOTH_TO_ELSE));
 
         addLabelForNextNode(merge);
         Node node = new TernaryExpressionNode(tree, condition, trueExpr, falseExpr);

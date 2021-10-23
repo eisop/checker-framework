@@ -46,7 +46,19 @@ public class InitializationStore<V extends CFAbstractValue<V>, S extends Initial
      * @param sequentialSemantics should the analysis use sequential Java semantics?
      */
     public InitializationStore(CFAbstractAnalysis<V, S, ?> analysis, boolean sequentialSemantics) {
-        super(analysis, sequentialSemantics);
+        this(analysis, sequentialSemantics, false);
+    }
+
+    /**
+     * Creates a new InitializationStore.
+     *
+     * @param analysis the analysis class this store belongs to
+     * @param sequentialSemantics should the analysis use sequential Java semantics?
+     * @param isBottom is the store a bottom store?
+     */
+    public InitializationStore(
+            CFAbstractAnalysis<V, S, ?> analysis, boolean sequentialSemantics, boolean isBottom) {
+        super(analysis, sequentialSemantics, isBottom);
         initializedFields = new HashSet<>(4);
         invariantFields = new HashMap<>(4);
     }

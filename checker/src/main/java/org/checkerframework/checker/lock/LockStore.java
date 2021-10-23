@@ -19,10 +19,13 @@ import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.javacutil.AnnotationUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.type.TypeMirror;
 
 /**
  * The Lock Store behaves like CFAbstractStore but requires the ability to insert exact annotations.
@@ -39,10 +42,28 @@ public class LockStore extends CFAbstractStore<CFValue, LockStore> {
      */
     protected boolean inConstructorOrInitializer = false;
 
+    /** Annotated type factory. */
     private final LockAnnotatedTypeFactory atypeFactory;
 
+    /**
+     * Constructor to create a non-bottom LockStore.
+     *
+     * @param analysis the analysis class this store belongs to
+     * @param sequentialSemantics should the analysis use sequential Java semantics?
+     */
     public LockStore(LockAnalysis analysis, boolean sequentialSemantics) {
-        super(analysis, sequentialSemantics);
+        this(analysis, sequentialSemantics, false);
+    }
+
+    /**
+     * Constructor for LockStore.
+     *
+     * @param analysis the analysis class this store belongs to
+     * @param sequentialSemantics should the analysis use sequential Java semantics?
+     * @param isBottom is the store a bottom store?
+     */
+    public LockStore(LockAnalysis analysis, boolean sequentialSemantics, boolean isBottom) {
+        super(analysis, sequentialSemantics, isBottom);
         this.atypeFactory = (LockAnnotatedTypeFactory) analysis.getTypeFactory();
     }
 
@@ -161,6 +182,14 @@ public class LockStore extends CFAbstractStore<CFValue, LockStore> {
         }
 
         return super.getValue(expr);
+    }
+
+    @Override
+    protected CFValue getBottomValue(TypeMirror type) {
+        AnnotationMirror guardBy = ((LockAnnotatedTypeFactory) analysis.getTypeFactory()).GUARDEDBY;
+        AnnotationMirror lockHeld = ((LockAnnotatedTypeFactory) analysis.getTypeFactory()).LOCKHELD;
+
+        return analysis.createAbstractValue(new HashSet<>(Arrays.asList(lockHeld, guardBy)), type);
     }
 
     @Override

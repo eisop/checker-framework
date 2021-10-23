@@ -32,10 +32,12 @@ import org.plumelib.util.ToStringComparator;
 import org.plumelib.util.UniqueId;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.StringJoiner;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BinaryOperator;
@@ -113,6 +115,15 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      */
     protected final boolean sequentialSemantics;
 
+    /**
+     * Is the store a bottom store (a special store that only exists in dead branches and yields
+     * bottom types to avoid false positive)?
+     */
+    protected final boolean isBottom;
+
+    /** The bottom annotations for the current type system. */
+    protected final Set<AnnotationMirror> bottomAnnos;
+
     /** The unique ID for the next-created object. */
     private static final AtomicLong nextUid = new AtomicLong(0);
     /** The unique ID of this object. */
@@ -134,6 +145,18 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      * @param sequentialSemantics should the analysis use sequential Java semantics?
      */
     protected CFAbstractStore(CFAbstractAnalysis<V, S, ?> analysis, boolean sequentialSemantics) {
+        this(analysis, sequentialSemantics, false);
+    }
+
+    /**
+     * Creates a new CFAbstractStore.
+     *
+     * @param analysis the analysis class this store belongs to
+     * @param sequentialSemantics should the analysis use sequential Java semantics?
+     * @param isBottom is the store a bottom store?
+     */
+    protected CFAbstractStore(
+            CFAbstractAnalysis<V, S, ?> analysis, boolean sequentialSemantics, boolean isBottom) {
         this.analysis = analysis;
         localVariableValues = new HashMap<>();
         thisValue = null;
@@ -142,6 +165,10 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         arrayValues = new HashMap<>();
         classValues = new HashMap<>();
         this.sequentialSemantics = sequentialSemantics;
+        this.isBottom = isBottom;
+        this.bottomAnnos = new HashSet<>();
+        this.bottomAnnos.addAll(
+                analysis.getTypeFactory().getQualifierHierarchy().getBottomAnnotations());
     }
 
     /** Copy constructor. */
@@ -154,6 +181,8 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         arrayValues = new HashMap<>(other.arrayValues);
         classValues = new HashMap<>(other.classValues);
         sequentialSemantics = other.sequentialSemantics;
+        this.isBottom = other.isBottom;
+        this.bottomAnnos = other.bottomAnnos;
     }
 
     /**
@@ -392,7 +421,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      */
     protected void insertOrRefine(
             JavaExpression expr, AnnotationMirror newAnno, boolean permitNondeterministic) {
-        if (!canInsertJavaExpression(expr)) {
+        if (!canInsertJavaExpression(expr) || isBottom) {
             return;
         }
         if (!(permitNondeterministic || expr.isDeterministic(analysis.getTypeFactory()))) {
@@ -678,6 +707,8 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
     /**
      * Remove any knowledge about the expression {@code expr} (correctly deciding where to remove
      * the information depending on the type of the expression {@code expr}).
+     *
+     * @param expr the expression of which the value is to be cleared
      */
     public void clearValue(JavaExpression expr) {
         if (expr.containsUnknown()) {
@@ -708,10 +739,13 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      * Returns the current abstract value of a Java expression, or {@code null} if no information is
      * available.
      *
+     * @param expr the expression to look up the value
      * @return the current abstract value of a Java expression, or {@code null} if no information is
      *     available
      */
     public @Nullable V getValue(JavaExpression expr) {
+        if (isBottom) return getBottomValue(expr.getType());
+
         if (expr instanceof LocalVariable) {
             LocalVariable localVar = (LocalVariable) expr;
             return localVariableValues.get(localVar);
@@ -743,6 +777,8 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *     available
      */
     public @Nullable V getValue(FieldAccessNode n) {
+        if (isBottom) return getBottomValue(n.getType());
+
         JavaExpression je = JavaExpression.fromNodeFieldAccess(n);
         if (je instanceof FieldAccess) {
             return fieldValues.get((FieldAccess) je);
@@ -780,6 +816,8 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *     available
      */
     public @Nullable V getValue(MethodInvocationNode n) {
+        if (isBottom) return getBottomValue(n.getType());
+
         JavaExpression method = JavaExpression.fromNode(n);
         if (method == null) {
             return null;
@@ -796,6 +834,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *     available
      */
     public @Nullable V getValue(ArrayAccessNode n) {
+        if (isBottom) return getBottomValue(n.getType());
         ArrayAccess arrayAccess = JavaExpression.fromArrayAccess(n);
         return arrayValues.get(arrayAccess);
     }
@@ -1056,10 +1095,12 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      * Returns the current abstract value of a local variable, or {@code null} if no information is
      * available.
      *
+     * @param n the local variable to look up in this store
      * @return the current abstract value of a local variable, or {@code null} if no information is
      *     available
      */
     public @Nullable V getValue(LocalVariableNode n) {
+        if (isBottom) return getBottomValue(n.getType());
         Element el = n.getElement();
         return localVariableValues.get(new LocalVariable(el));
     }
@@ -1077,7 +1118,18 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *     is available
      */
     public @Nullable V getValue(ThisNode n) {
+        if (isBottom) return getBottomValue(n.getType());
         return thisValue;
+    }
+
+    /**
+     * Return the bottom value for the input {@link TypeMirror}
+     *
+     * @param type the input {@link TypeMirror}
+     * @return the bottom value
+     */
+    protected V getBottomValue(TypeMirror type) {
+        return analysis.createAbstractValue(bottomAnnos, type);
     }
 
     /* --------------------------------------------------------- */
@@ -1090,13 +1142,19 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         return analysis.createCopiedStore((S) this);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public S leastUpperBound(S other) {
+        if (this.isBottom) return other;
+        if (other != null && other.isBottom) return (S) this;
         return upperBound(other, false);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public S widenedUpperBound(S previous) {
+        if (this.isBottom) return previous;
+        if (previous != null && previous.isBottom) return (S) this;
         return upperBound(previous, true);
     }
 
@@ -1263,7 +1321,9 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         @SuppressWarnings("unchecked")
         CFGVisualizer<V, S, ?> castedViz = (CFGVisualizer<V, S, ?>) viz;
         String internal = internalVisualize(castedViz);
-        if (internal.trim().isEmpty()) {
+        if (isBottom) {
+            return this.getClassAndUid() + " - Bottom";
+        } else if (internal.trim().isEmpty()) {
             return this.getClassAndUid() + "()";
         } else {
             return this.getClassAndUid() + "(" + viz.getSeparator() + internal + ")";

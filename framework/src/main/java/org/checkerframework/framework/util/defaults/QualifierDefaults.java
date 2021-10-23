@@ -20,7 +20,6 @@ import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
-import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedNoType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
@@ -843,8 +842,7 @@ public class QualifierDefaults {
                     // || type.getKind() == TypeKind.EXECUTABLE
                     || type.getKind() == TypeKind.NONE
                     || type.getKind() == TypeKind.WILDCARD
-                    || (type.getKind() == TypeKind.TYPEVAR && !applyToTypeVar)
-                    || type instanceof AnnotatedNoType);
+                    || (type.getKind() == TypeKind.TYPEVAR && !applyToTypeVar));
         }
 
         /**

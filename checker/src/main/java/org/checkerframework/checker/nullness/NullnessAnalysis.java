@@ -32,6 +32,11 @@ public class NullnessAnalysis
     }
 
     @Override
+    public NullnessStore createBottomStore(boolean sequentialSemantics) {
+        return new NullnessStore(this, sequentialSemantics, true);
+    }
+
+    @Override
     public NullnessStore createCopiedStore(NullnessStore s) {
         return new NullnessStore(s);
     }
