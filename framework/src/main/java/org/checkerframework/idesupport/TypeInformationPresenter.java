@@ -138,7 +138,7 @@ public class TypeInformationPresenter {
          */
         DECLARED_TYPE,
         /** The declared type of the LHS of an assignment or compound assignment tree. */
-        ASSIGN_LHS_DECLARE_TYPE,
+        ASSIGN_LHS_DECLARED_TYPE,
         /**
          * The type of the RHS of an assignment or compound assignment tree.
          *
@@ -379,7 +379,7 @@ public class TypeInformationPresenter {
             reportTreeType(
                     tree,
                     factory.getAnnotatedTypeLhs(tree.getVariable()),
-                    MessageKind.ASSIGN_LHS_DECLARE_TYPE);
+                    MessageKind.ASSIGN_LHS_DECLARED_TYPE);
             reportTreeType(
                     tree,
                     factory.getAnnotatedType(tree.getExpression()),
@@ -393,7 +393,7 @@ public class TypeInformationPresenter {
             reportTreeType(
                     tree,
                     factory.getAnnotatedTypeLhs(tree.getVariable()),
-                    MessageKind.ASSIGN_LHS_DECLARE_TYPE);
+                    MessageKind.ASSIGN_LHS_DECLARED_TYPE);
             reportTreeType(
                     tree,
                     factory.getAnnotatedType(tree.getExpression()),
