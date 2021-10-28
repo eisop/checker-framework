@@ -205,8 +205,8 @@ public class TypeInformationPresenter {
         }
 
         /**
-         * A wrapper of the method {@link #reportTreeType(Tree, AnnotatedTypeMirror, MessageKind)}
-         * with {@link MessageKind#USE_TYPE} as the default message kind.
+         * A wrapper of the method reportTreeType(Tree, AnnotatedTypeMirror, MessageKind) with
+         * {@link MessageKind#USE_TYPE} as the default message kind.
          *
          * @param tree The tree that is used to find the corresponding range to report.
          * @param type The type that we are going to display.
@@ -302,7 +302,22 @@ public class TypeInformationPresenter {
                     endCol = startCol + ((MemberSelectTree) tree).getIdentifier().length() - 1;
                     break;
                 case MEMBER_REFERENCE:
-                    endCol = startCol + ((MemberReferenceTree) tree).getName().length() - 1;
+                    MemberReferenceTree memberReferenceTree = (MemberReferenceTree) tree;
+
+                    final int identifierLength;
+                    if (memberReferenceTree.getMode() == MemberReferenceTree.ReferenceMode.NEW) {
+                        identifierLength = 3;
+                    } else {
+                        identifierLength = memberReferenceTree.getName().length();
+                    }
+
+                    // The preferred position of a MemberReferenceTree is the head of
+                    // its expression, which is not ideal. Here we compute the range of
+                    // its identifier using the end position and the length of the identifier.
+                    endLine = lineMap.getLineNumber(endPos);
+                    endCol = lineMap.getColumnNumber(endPos) - 1;
+                    startLine = endLine;
+                    startCol = endCol - identifierLength + 1;
                     break;
                 case TYPE_PARAMETER:
                     endCol = startCol + ((TypeParameterTree) tree).getName().length() - 1;
