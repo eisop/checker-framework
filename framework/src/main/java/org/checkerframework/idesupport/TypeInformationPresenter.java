@@ -4,6 +4,7 @@ import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
+import com.sun.source.tree.CompoundAssignmentTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.LineMap;
 import com.sun.source.tree.LiteralTree;
@@ -20,10 +21,15 @@ import com.sun.source.util.TreeScanner;
 import com.sun.tools.javac.tree.JCTree;
 
 import org.checkerframework.common.basetype.BaseTypeChecker;
+import org.checkerframework.framework.flow.CFAbstractAnalysis;
+import org.checkerframework.framework.flow.CFAbstractStore;
+import org.checkerframework.framework.flow.CFAbstractTransfer;
+import org.checkerframework.framework.flow.CFAbstractValue;
 import org.checkerframework.framework.type.AnnotatedTypeFormatter;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.DefaultAnnotatedTypeFormatter;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
+import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TreeUtils;
 
 import javax.tools.Diagnostic;
@@ -37,7 +43,12 @@ import javax.tools.Diagnostic;
 public class TypeInformationPresenter {
 
     /** The AnnotatedTypeFactory for the current analysis. */
-    private final GenericAnnotatedTypeFactory<?, ?, ?, ?> factory;
+    private final GenericAnnotatedTypeFactory<
+                    ? extends CFAbstractValue<?>,
+                    ? extends CFAbstractStore<? extends CFAbstractValue<?>, ?>,
+                    ? extends CFAbstractTransfer<?, ?, ?>,
+                    ? extends CFAbstractAnalysis<?, ?, ?>>
+            factory;
 
     /** This formats the ATMs that the presenter is going to present. */
     private final AnnotatedTypeFormatter typeFormatter;
@@ -115,6 +126,30 @@ public class TypeInformationPresenter {
     }
 
     /**
+     * It is possible to report multiple type messages for the same message range. This enum
+     * provides some explanation for each kind of type message.
+     */
+    enum MessageKind {
+        /** The type of the tree at its use site. */
+        USE_TYPE,
+        /**
+         * The declared type of the tree. For a method, it should be the method's signature. For a
+         * field, it should be the type of the field in its declaration.
+         */
+        DECLARED_TYPE,
+        /** The declared type of the LHS of an assignment or compound assignment tree. */
+        ASSIGN_LHS_DECLARE_TYPE,
+        /**
+         * The type of the RHS of an assignment or compound assignment tree.
+         *
+         * <p>For a postfix operation, it can be considered as a special assignment tree, in which
+         * the LHS is returned and the RHS is the new value of the variable. In this situation, this
+         * message kind means the type of the new value of the variable.
+         */
+        ASSIGN_RHS_TYPE,
+    }
+
+    /**
      * A visitor which traverses a class tree and reports type information of various sub-trees.
      *
      * <p>Note: Since nested class trees will be type-checked separately, this visitor does not dive
@@ -145,80 +180,138 @@ public class TypeInformationPresenter {
         }
 
         /**
-         * Sends out a report that indicates the range corresponds to the given node has the given
-         * type. If the node is an artificial tree, don't report anything.
+         * Sends out a report that indicates the range corresponds to the given tree has the given
+         * type. If the tree is an artificial tree, don't report anything.
          *
-         * @param node The tree that is used to find the corresponding range to report.
+         * @param tree The tree that is used to find the corresponding range to report.
          * @param type The type that we are going to display.
+         * @param messageKind The kind of the given type.
          */
-        private void reportNodeType(Tree node, AnnotatedTypeMirror type) {
-            MessageRange messageRange = computeMessageRange(node);
+        private void reportTreeType(Tree tree, AnnotatedTypeMirror type, MessageKind messageKind) {
+            MessageRange messageRange = computeMessageRange(tree);
             if (messageRange == null) {
-                // don't report if the node doesn't exist in source file
+                // don't report if the tree doesn't exist in source file
                 return;
             }
 
             BaseTypeChecker checker = factory.getChecker();
             checker.reportError(
-                    node,
+                    tree,
                     "lsp.type.information",
                     checker.getClass().getSimpleName(),
+                    messageKind,
                     typeFormatter.format(type),
                     messageRange);
         }
 
         /**
-         * Computes the 0-based inclusive message range for the given node.
+         * A wrapper of the method {@link #reportTreeType(Tree, AnnotatedTypeMirror, MessageKind)}
+         * with {@link MessageKind#USE_TYPE} as the default message kind.
          *
-         * <p>Note that the range sometimes don't cover the entire source code of the node. For
+         * @param tree The tree that is used to find the corresponding range to report.
+         * @param type The type that we are going to display.
+         */
+        private void reportTreeType(Tree tree, AnnotatedTypeMirror type) {
+            reportTreeType(tree, type, MessageKind.USE_TYPE);
+        }
+
+        /**
+         * Computes the 0-based inclusive message range for the given tree.
+         *
+         * <p>Note that the range sometimes don't cover the entire source code of the tree. For
          * example, in "int a = 0", we have a variable tree "int a", but we only want to report the
          * range of the identifier "a". This customizes the positions where we want the type
          * information to show.
          *
-         * @param node The tree for which we want to compute the message range.
-         * @return A message range corresponds to the node.
+         * @param tree The tree for which we want to compute the message range.
+         * @return A message range corresponds to the tree.
          */
-        private MessageRange computeMessageRange(Tree node) {
-            long startPos = sourcePositions.getStartPosition(currentRoot, node);
-            long endPos = sourcePositions.getEndPosition(currentRoot, node);
+        private MessageRange computeMessageRange(Tree tree) {
+            long startPos = sourcePositions.getStartPosition(currentRoot, tree);
+            long endPos = sourcePositions.getEndPosition(currentRoot, tree);
             if (startPos == Diagnostic.NOPOS || endPos == Diagnostic.NOPOS) {
-                // node doesn't exist in source file
+                // tree doesn't exist in source file
                 return null;
             }
 
             LineMap lineMap = currentRoot.getLineMap();
-            startPos = ((JCTree) node).getPreferredPosition();
+            startPos = ((JCTree) tree).getPreferredPosition();
             long startLine = lineMap.getLineNumber(startPos);
             long startCol = lineMap.getColumnNumber(startPos);
             long endLine = startLine;
             long endCol;
 
             // We are decreasing endCol by 1 because we want it to be inclusive
-            switch (node.getKind()) {
+            switch (tree.getKind()) {
+                case UNARY_PLUS:
+                case UNARY_MINUS:
+                case BITWISE_COMPLEMENT:
+                case LOGICAL_COMPLEMENT:
+                case MULTIPLY:
+                case DIVIDE:
+                case REMAINDER:
+                case PLUS:
+                case MINUS:
+                case AND:
+                case XOR:
+                case OR:
+                case ASSIGNMENT:
+                    // 1-character operators
+                    endCol = startCol;
+                    break;
+                case PREFIX_INCREMENT:
+                case PREFIX_DECREMENT:
+                case POSTFIX_INCREMENT:
+                case POSTFIX_DECREMENT:
+                case LEFT_SHIFT:
+                case RIGHT_SHIFT:
+                case CONDITIONAL_AND:
+                case CONDITIONAL_OR:
+                case MULTIPLY_ASSIGNMENT:
+                case DIVIDE_ASSIGNMENT:
+                case REMAINDER_ASSIGNMENT:
+                case PLUS_ASSIGNMENT:
+                case MINUS_ASSIGNMENT:
+                case AND_ASSIGNMENT:
+                case XOR_ASSIGNMENT:
+                case OR_ASSIGNMENT:
+                    // 2-character operators
+                    endCol = startCol + 1;
+                    break;
+                case UNSIGNED_RIGHT_SHIFT:
+                case LEFT_SHIFT_ASSIGNMENT:
+                case RIGHT_SHIFT_ASSIGNMENT:
+                    // 3-character operators
+                    endCol = startCol + 2;
+                    break;
+                case UNSIGNED_RIGHT_SHIFT_ASSIGNMENT:
+                    // 4-character operators
+                    endCol = startCol + 3;
+                    break;
                 case IDENTIFIER:
-                    endCol = startCol + ((IdentifierTree) node).getName().length() - 1;
+                    endCol = startCol + ((IdentifierTree) tree).getName().length() - 1;
                     break;
                 case VARIABLE:
-                    endCol = startCol + ((VariableTree) node).getName().length() - 1;
+                    endCol = startCol + ((VariableTree) tree).getName().length() - 1;
                     break;
                 case MEMBER_SELECT:
                     // The preferred start column of MemberSelectTree locates the "."
                     // character before the member identifier. So we increase startCol
                     // by 1 to point to the start of the member identifier.
                     startCol += 1;
-                    endCol = startCol + ((MemberSelectTree) node).getIdentifier().length() - 1;
+                    endCol = startCol + ((MemberSelectTree) tree).getIdentifier().length() - 1;
                     break;
                 case MEMBER_REFERENCE:
-                    endCol = startCol + ((MemberReferenceTree) node).getName().length() - 1;
+                    endCol = startCol + ((MemberReferenceTree) tree).getName().length() - 1;
                     break;
                 case TYPE_PARAMETER:
-                    endCol = startCol + ((TypeParameterTree) node).getName().length() - 1;
+                    endCol = startCol + ((TypeParameterTree) tree).getName().length() - 1;
                     break;
                 case METHOD:
-                    endCol = startCol + ((MethodTree) node).getName().length() - 1;
+                    endCol = startCol + ((MethodTree) tree).getName().length() - 1;
                     break;
                 case METHOD_INVOCATION:
-                    return computeMessageRange(((MethodInvocationTree) node).getMethodSelect());
+                    return computeMessageRange(((MethodInvocationTree) tree).getMethodSelect());
                 default:
                     endLine = lineMap.getLineNumber(endPos);
                     endCol = lineMap.getColumnNumber(endPos) - 1;
@@ -230,92 +323,162 @@ public class TypeInformationPresenter {
         }
 
         @Override
-        public Void visitIdentifier(IdentifierTree node, Void unused) {
-            switch (TreeUtils.elementFromUse(node).getKind()) {
+        public Void visitClass(ClassTree tree, Void unused) {
+            @SuppressWarnings("interning:not.interned")
+            boolean isNestedClass = tree != classTree;
+            if (isNestedClass) {
+                return null;
+            }
+            return super.visitClass(tree, unused);
+        }
+
+        @Override
+        public Void visitTypeParameter(TypeParameterTree tree, Void unused) {
+            reportTreeType(
+                    tree, factory.getAnnotatedTypeFromTypeTree(tree), MessageKind.DECLARED_TYPE);
+            return super.visitTypeParameter(tree, unused);
+        }
+
+        @Override
+        public Void visitVariable(VariableTree tree, Void unused) {
+            // TODO: "int x = 1" is a VariableTree, but there is no AssignmentTree and it
+            // TODO: is difficult to locate the "=" symbol.
+            reportTreeType(tree, factory.getAnnotatedTypeLhs(tree), MessageKind.DECLARED_TYPE);
+            return super.visitVariable(tree, unused);
+        }
+
+        @Override
+        public Void visitMethod(MethodTree tree, Void unused) {
+            reportTreeType(tree, factory.getAnnotatedType(tree), MessageKind.DECLARED_TYPE);
+            return super.visitMethod(tree, unused);
+        }
+
+        @Override
+        public Void visitMethodInvocation(MethodInvocationTree tree, Void unused) {
+            reportTreeType(tree, factory.methodFromUse(tree).executableType);
+            return super.visitMethodInvocation(tree, unused);
+        }
+
+        @Override
+        public Void visitAssignment(AssignmentTree tree, Void unused) {
+            reportTreeType(
+                    tree,
+                    factory.getAnnotatedTypeLhs(tree.getVariable()),
+                    MessageKind.ASSIGN_LHS_DECLARE_TYPE);
+            reportTreeType(
+                    tree,
+                    factory.getAnnotatedType(tree.getExpression()),
+                    MessageKind.ASSIGN_RHS_TYPE);
+            return super.visitAssignment(tree, unused);
+        }
+
+        @Override
+        public Void visitCompoundAssignment(CompoundAssignmentTree tree, Void unused) {
+            reportTreeType(tree, factory.getAnnotatedType(tree));
+            reportTreeType(
+                    tree,
+                    factory.getAnnotatedTypeLhs(tree.getVariable()),
+                    MessageKind.ASSIGN_LHS_DECLARE_TYPE);
+            reportTreeType(
+                    tree,
+                    factory.getAnnotatedType(tree.getExpression()),
+                    MessageKind.ASSIGN_RHS_TYPE);
+            return super.visitCompoundAssignment(tree, unused);
+        }
+
+        @Override
+        public Void visitUnary(UnaryTree tree, Void unused) {
+            Tree.Kind treeKind = tree.getKind();
+            switch (treeKind) {
+                case UNARY_PLUS:
+                case UNARY_MINUS:
+                case BITWISE_COMPLEMENT:
+                case LOGICAL_COMPLEMENT:
+                case PREFIX_INCREMENT:
+                case PREFIX_DECREMENT:
+                    reportTreeType(tree, factory.getAnnotatedType(tree));
+                    break;
+                case POSTFIX_INCREMENT:
+                case POSTFIX_DECREMENT:
+                    reportTreeType(tree, factory.getAnnotatedType(tree));
+                    reportTreeType(
+                            tree,
+                            factory.getAnnotatedTypeRhsUnaryAssign(tree),
+                            MessageKind.ASSIGN_RHS_TYPE);
+                    break;
+                default:
+                    throw new BugInCF(
+                            "Unsupported unary tree type "
+                                    + treeKind
+                                    + " for "
+                                    + TypeInformationPresenter.class.getCanonicalName());
+            }
+            return super.visitUnary(tree, unused);
+        }
+
+        @Override
+        public Void visitBinary(BinaryTree tree, Void unused) {
+            switch (tree.getKind()) {
+                case LESS_THAN:
+                case GREATER_THAN:
+                case LESS_THAN_EQUAL:
+                case GREATER_THAN_EQUAL:
+                case EQUAL_TO:
+                case NOT_EQUAL_TO:
+                    // don't report if tree is a comparison operator
+                    break;
+                default:
+                    reportTreeType(tree, factory.getAnnotatedType(tree));
+                    break;
+            }
+            return super.visitBinary(tree, unused);
+        }
+
+        @Override
+        public Void visitMemberSelect(MemberSelectTree tree, Void unused) {
+            if (TreeUtils.isFieldAccess(tree)) {
+                reportTreeType(tree, factory.getAnnotatedType(tree));
+            } else if (TreeUtils.isMethodAccess(tree)) {
+                reportTreeType(tree, factory.getAnnotatedType(tree), MessageKind.DECLARED_TYPE);
+            }
+
+            return super.visitMemberSelect(tree, unused);
+        }
+
+        @Override
+        public Void visitMemberReference(MemberReferenceTree tree, Void unused) {
+            // the declared type of the functional interface
+            reportTreeType(tree, factory.getAnnotatedType(tree), MessageKind.DECLARED_TYPE);
+            // the use type of the functional interface
+            reportTreeType(tree, factory.getFnInterfaceFromTree(tree).first);
+            return super.visitMemberReference(tree, unused);
+        }
+
+        @Override
+        public Void visitIdentifier(IdentifierTree tree, Void unused) {
+            switch (TreeUtils.elementFromUse(tree).getKind()) {
                 case ENUM_CONSTANT:
                 case FIELD:
                 case PARAMETER:
                 case LOCAL_VARIABLE:
                 case EXCEPTION_PARAMETER:
                 case RESOURCE_VARIABLE:
-                case METHOD:
                 case CONSTRUCTOR:
-                    reportNodeType(node, factory.getAnnotatedType(node));
+                    reportTreeType(tree, factory.getAnnotatedType(tree));
+                    break;
+                case METHOD:
+                    reportTreeType(tree, factory.getAnnotatedType(tree), MessageKind.DECLARED_TYPE);
                     break;
                 default:
                     break;
             }
-            return super.visitIdentifier(node, unused);
+            return super.visitIdentifier(tree, unused);
         }
 
         @Override
-        public Void visitVariable(VariableTree node, Void unused) {
-            reportNodeType(node, factory.getAnnotatedTypeLhs(node));
-            return super.visitVariable(node, unused);
-        }
-
-        @Override
-        public Void visitLiteral(LiteralTree node, Void unused) {
-            reportNodeType(node, factory.getAnnotatedType(node));
-            return super.visitLiteral(node, unused);
-        }
-
-        @Override
-        public Void visitMemberSelect(MemberSelectTree node, Void unused) {
-            reportNodeType(node, factory.getAnnotatedType(node));
-            return super.visitMemberSelect(node, unused);
-        }
-
-        @Override
-        public Void visitMemberReference(MemberReferenceTree node, Void unused) {
-            reportNodeType(node, factory.getAnnotatedType(node));
-            return super.visitMemberReference(node, unused);
-        }
-
-        @Override
-        public Void visitMethodInvocation(MethodInvocationTree node, Void unused) {
-            reportNodeType(node, factory.methodFromUse(node).executableType);
-            return super.visitMethodInvocation(node, unused);
-        }
-
-        @Override
-        public Void visitTypeParameter(TypeParameterTree node, Void unused) {
-            reportNodeType(node, factory.getAnnotatedTypeFromTypeTree(node));
-            return super.visitTypeParameter(node, unused);
-        }
-
-        @Override
-        public Void visitAssignment(AssignmentTree node, Void unused) {
-            return super.visitAssignment(node, unused);
-        }
-
-        @Override
-        public Void visitMethod(MethodTree node, Void unused) {
-            reportNodeType(node, factory.getAnnotatedType(node));
-            return super.visitMethod(node, unused);
-        }
-
-        @Override
-        public Void visitUnary(UnaryTree node, Void unused) {
-            // TODO: how to implement this method correctly?
-            // TODO: try store after
-            return super.visitUnary(node, unused);
-        }
-
-        @Override
-        public Void visitBinary(BinaryTree node, Void unused) {
-            // TODO: how to implement this method correctly?
-            return super.visitBinary(node, unused);
-        }
-
-        @Override
-        public Void visitClass(ClassTree node, Void unused) {
-            @SuppressWarnings("interning:not.interned")
-            boolean isNestedClass = node != classTree;
-            if (isNestedClass) {
-                return null;
-            }
-            return super.visitClass(node, unused);
+        public Void visitLiteral(LiteralTree tree, Void unused) {
+            reportTreeType(tree, factory.getAnnotatedType(tree));
+            return super.visitLiteral(tree, unused);
         }
     }
 }
