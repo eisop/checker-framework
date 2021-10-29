@@ -1775,7 +1775,7 @@ public class CFGTranslationPhaseOne extends TreePathScanner<Node, Void> {
           targetRHS = unbox(targetLHS);
           value = unbox(value);
         } else {
-          throw new BugInCF("Both argument to logical operation must be numeric or boolean");
+          throw new BugInCF("Both arguments to logical operation must be numeric or boolean");
         }
 
         BinaryTree operTree =
