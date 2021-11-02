@@ -77,7 +77,7 @@ public class Issue3622 {
         @Override
         // The ternary expression has the condition of literal `true`, so the false-expression is
         // unreachable. However the store in the unreachable false-branch (where `obj` is @Nullable)
-        // is propagated be propagated to the merge point, which causes the false positive.
+        // is propagated to the merge point, which causes the false positive.
         // TODO: prune the dead branch like https://github.com/typetools/checker-framework/pull/3389
         @SuppressWarnings("contracts.conditional.postcondition.not.satisfied")
         public boolean equals(@Nullable Object obj) {
