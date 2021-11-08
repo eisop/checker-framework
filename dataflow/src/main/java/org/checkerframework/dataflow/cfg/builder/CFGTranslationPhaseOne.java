@@ -2090,6 +2090,7 @@ public class CFGTranslationPhaseOne extends TreePathScanner<Node, Void> {
     return null;
   }
 
+  // This visits a switch statement, not a switch expression.
   @Override
   public Node visitSwitch(SwitchTree tree, Void p) {
     SwitchBuilder builder = new SwitchBuilder(tree);
@@ -2097,7 +2098,10 @@ public class CFGTranslationPhaseOne extends TreePathScanner<Node, Void> {
     return null;
   }
 
-  /** Helper class for handling switch statements. */
+  /**
+   * Helper class for handling switch statements, including all their substatements such as case
+   * labels.
+   */
   private class SwitchBuilder {
     /** The switch tree. */
     private final SwitchTree switchTree;
@@ -2109,10 +2113,12 @@ public class CFGTranslationPhaseOne extends TreePathScanner<Node, Void> {
     /**
      * Construct a SwitchBuilder.
      *
-     * @param tree switch tree
+     * @param tree a switch tree
      */
     private SwitchBuilder(SwitchTree tree) {
       this.switchTree = tree;
+      // "+ 1" for the default case.  If the switch has an explicit default case, then
+      // the last element of the array is never used.
       this.caseBodyLabels = new Label[switchTree.getCases().size() + 1];
     }
 
@@ -2210,7 +2216,7 @@ public class CFGTranslationPhaseOne extends TreePathScanner<Node, Void> {
 
   @Override
   public Node visitCase(CaseTree tree, Void p) {
-    // This should not be reached.
+    // This assertion assumes that `case` appears only within a switch statement,
     throw new AssertionError("case visitor is implemented in SwitchBuilder");
   }
 
