@@ -129,7 +129,7 @@ public class TypeInformationPresenter {
      * It is possible to report multiple type messages for the same message range. This enum
      * provides some explanation for each kind of type message.
      */
-    enum MessageKind {
+    private enum MessageKind {
         /** The type of the tree at its use site. */
         USE_TYPE,
         /**
