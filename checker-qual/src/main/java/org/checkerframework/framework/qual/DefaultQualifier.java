@@ -36,42 +36,6 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.SOURCE)
 @Target({
-  ElementType.PACKAGE,
-  ElementType.TYPE,
-  ElementType.CONSTRUCTOR,
-  ElementType.METHOD,
-  ElementType.FIELD,
-  ElementType.LOCAL_VARIABLE,
-  ElementType.PARAMETER
-})
-@Repeatable(DefaultQualifier.List.class)
-public @interface DefaultQualifier {
-
-  /**
-   * The Class for the default annotation.
-   *
-   * <p>To prevent affecting other type systems, always specify an annotation in your own type
-   * hierarchy. (For example, do not set {@link
-   * org.checkerframework.common.subtyping.qual.Unqualified} as the default.)
-   */
-  Class<? extends Annotation> value();
-
-  /**
-   * Returns the locations to which the annotation should be applied.
-   *
-   * @return the locations to which the annotation should be applied
-   */
-  TypeUseLocation[] locations() default {TypeUseLocation.ALL};
-
-  /**
-   * A wrapper annotation that makes the {@link DefaultQualifier} annotation repeatable.
-   *
-   * <p>Programmers generally do not need to write this. It is created by Java when a programmer
-   * writes more than one {@link DefaultQualifier} annotation at the same location.
-   */
-  @Documented
-  @Retention(RetentionPolicy.RUNTIME)
-  @Target({
     ElementType.PACKAGE,
     ElementType.TYPE,
     ElementType.CONSTRUCTOR,
@@ -79,13 +43,49 @@ public @interface DefaultQualifier {
     ElementType.FIELD,
     ElementType.LOCAL_VARIABLE,
     ElementType.PARAMETER
-  })
-  @interface List {
+})
+@Repeatable(DefaultQualifier.List.class)
+public @interface DefaultQualifier {
+
     /**
-     * Return the repeatable annotations.
+     * The Class for the default annotation.
      *
-     * @return the repeatable annotations
+     * <p>To prevent affecting other type systems, always specify an annotation in your own type
+     * hierarchy. (For example, do not set {@link
+     * org.checkerframework.common.subtyping.qual.Unqualified} as the default.)
      */
-    DefaultQualifier[] value();
-  }
+    Class<? extends Annotation> value();
+
+    /**
+     * Returns the locations to which the annotation should be applied.
+     *
+     * @return the locations to which the annotation should be applied
+     */
+    TypeUseLocation[] locations() default {TypeUseLocation.ALL};
+
+    /**
+     * A wrapper annotation that makes the {@link DefaultQualifier} annotation repeatable.
+     *
+     * <p>Programmers generally do not need to write this. It is created by Java when a programmer
+     * writes more than one {@link DefaultQualifier} annotation at the same location.
+     */
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({
+        ElementType.PACKAGE,
+        ElementType.TYPE,
+        ElementType.CONSTRUCTOR,
+        ElementType.METHOD,
+        ElementType.FIELD,
+        ElementType.LOCAL_VARIABLE,
+        ElementType.PARAMETER
+    })
+    @interface List {
+        /**
+         * Return the repeatable annotations.
+         *
+         * @return the repeatable annotations
+         */
+        DefaultQualifier[] value();
+    }
 }
