@@ -136,6 +136,8 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.Pair;
+import org.checkerframework.javacutil.SwitchExpressionScanner;
+import org.checkerframework.javacutil.SwitchExpressionScanner.FunctionalSwitchExpressionScanner;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
@@ -349,6 +351,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
   public Void scan(@Nullable Tree tree, Void p) {
     if (tree != null && getCurrentPath() != null) {
       this.atypeFactory.setVisitorTreePath(new TreePath(getCurrentPath(), tree));
+    }
+    if (tree != null && tree.getKind().name().equals("SWITCH_EXPRESSION")) {
+      visitSwitchExpression17(tree);
+      return null;
     }
     return super.scan(tree, p);
   }
@@ -2134,6 +2140,33 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     this.commonAssignmentCheck(cond, node.getTrueExpression(), "conditional.type.incompatible");
     this.commonAssignmentCheck(cond, node.getFalseExpression(), "conditional.type.incompatible");
     return super.visitConditionalExpression(node, p);
+  }
+
+  /**
+   * This method validates the type of the switch expression. It issues an error if the type of a
+   * value that the switch expression can result is not a subtype of the switch type.
+   *
+   * <p>If a subclass overrides this method, it must call {@code super.scan(switchExpressionTree,
+   * null)} so that the blocks and statements in the cases are checked.
+   *
+   * @param switchExpressionTree a {@code SwitchExpressionTree}
+   */
+  public void visitSwitchExpression17(Tree switchExpressionTree) {
+    boolean valid = validateTypeOf(switchExpressionTree);
+    if (valid) {
+      AnnotatedTypeMirror switchType = atypeFactory.getAnnotatedType(switchExpressionTree);
+      SwitchExpressionScanner<Void, Void> scanner =
+          new FunctionalSwitchExpressionScanner<>(
+              (ExpressionTree valueTree, Void unused) -> {
+                BaseTypeVisitor.this.commonAssignmentCheck(
+                    switchType, valueTree, "switch.expression");
+                return null;
+              },
+              (r1, r2) -> null);
+
+      scanner.scanSwitchExpression(switchExpressionTree, null);
+    }
+    super.scan(switchExpressionTree, null);
   }
 
   // **********************************************************************
