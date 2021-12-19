@@ -2228,7 +2228,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     new FunctionalSwitchExpressionScanner<>(
                             (ExpressionTree valueTree, Void unused) -> {
                                 BaseTypeVisitor.this.commonAssignmentCheck(
-                                        switchType, valueTree, "switch.expression");
+                                        switchType,
+                                        valueTree,
+                                        "switch.expression.type.incompatible");
                                 return null;
                             },
                             (r1, r2) -> null);
