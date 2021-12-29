@@ -49,6 +49,7 @@ import org.checkerframework.framework.type.typeannotator.PropagationTypeAnnotato
 import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.QualifierKind;
+import org.checkerframework.framework.util.defaults.QualifierDefaults;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.Pair;
@@ -485,6 +486,11 @@ public class NullnessAnnotatedTypeFactory
         defaultForTypeAnnotator.addAtmClass(AnnotatedNoType.class, NONNULL);
         defaultForTypeAnnotator.addAtmClass(AnnotatedPrimitiveType.class, NONNULL);
         return defaultForTypeAnnotator;
+    }
+
+    @Override
+    protected QualifierDefaults createQualifierDefaults() {
+        return new QualifierDefaults(elements, this, /*shouldApplyNullMarkedDefaults=*/ true);
     }
 
     @Override

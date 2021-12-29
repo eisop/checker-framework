@@ -9,31 +9,27 @@ import java.util.Collections;
 import java.util.List;
 
 /** JUnit tests for the Nullness checker. */
-public class NullnessTest extends CheckerFrameworkPerDirectoryTest {
+public class NullnessNullMarkedSubpackageTest extends CheckerFrameworkPerDirectoryTest {
 
     /**
-     * Create a NullnessTest.
+     * Create a NullnessAssertsTest.
      *
      * @param testFiles the files containing test code, which will be type-checked
      */
-    public NullnessTest(List<File> testFiles) {
-        // TODO: remove soundArrayCreationNullness option once it's no
-        // longer needed.  See issue #986:
-        // https://github.com/typetools/checker-framework/issues/986
+    public NullnessNullMarkedSubpackageTest(List<File> testFiles) {
         super(
                 testFiles,
                 org.checkerframework.checker.nullness.NullnessChecker.class,
                 "nullness",
                 Collections.singletonList("../../jspecify/build/libs/jspecify-0.0.0-SNAPSHOT.jar"),
                 "-AcheckPurityAnnotations",
+                "-AassumeAssertionsAreEnabled",
                 "-Anomsgtext",
-                "-Xlint:deprecation",
-                "-Alint=soundArrayCreationNullness,"
-                        + NullnessChecker.LINT_REDUNDANTNULLCOMPARISON);
+                "-Xlint:deprecation");
     }
 
     @Parameters
     public static String[] getTestDirs() {
-        return new String[] {"nullness", "initialization", "all-systems"};
+        return new String[] {"nullness-nullmarked-subpackage"};
     }
 }

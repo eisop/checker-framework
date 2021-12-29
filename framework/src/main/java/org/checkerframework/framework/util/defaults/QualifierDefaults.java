@@ -13,6 +13,7 @@ import com.sun.source.util.TreePath;
 import com.sun.tools.javac.code.Type.WildcardType;
 
 import org.checkerframework.checker.interning.qual.FindDistinct;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.TypeUseLocation;
@@ -50,6 +51,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.PackageElement;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.util.Elements;
@@ -101,6 +103,9 @@ public class QualifierDefaults {
     /** Defaults for unchecked code. */
     private final DefaultSet uncheckedCodeDefaults = new DefaultSet();
 
+    private final TypeElement nullMarked;
+    private final AnnotationMirror nonNull;
+
     /** Size for caches. */
     private static final int CACHE_SIZE = 300;
 
@@ -109,11 +114,18 @@ public class QualifierDefaults {
             CollectionUtils.createLRUCache(CACHE_SIZE);
 
     /**
-     * Defaults that apply for a certain Element. On the one hand this is used for caching (an
-     * earlier name for the field was "qualifierCache"). It can also be used by type systems to set
-     * defaults for certain Elements.
+     * Defaults that apply for a certain Element and apply (if the Element is a package) to any
+     * subpackages. On the one hand this is used for caching (an earlier name for the field was
+     * "qualifierCache"). It can also be used by type systems to set defaults for certain Elements.
      */
-    private final IdentityHashMap<Element, DefaultSet> elementDefaults = new IdentityHashMap<>();
+    private final IdentityHashMap<Element, DefaultSet> elementDefaultsInheritedBySubpackages =
+            new IdentityHashMap<>();
+
+    /**
+     * Defaults that apply for a certain Element but do not apply to any subpackages.
+     */
+    private final IdentityHashMap<Element, DefaultSet> elementDefaultsNotInheritedBySubpackages =
+            new IdentityHashMap<>();
 
     /** A mapping of Element &rarr; Whether or not that element is AnnotatedFor this type system. */
     private final IdentityHashMap<Element, Boolean> elementAnnotatedFors = new IdentityHashMap<>();
@@ -166,6 +178,8 @@ public class QualifierDefaults {
     /** True if conservative defaults should be used for bytecode. */
     private final boolean useConservativeDefaultsBytecode;
 
+    private final boolean shouldApplyNullMarkedDefaults;
+
     /**
      * Returns an array of locations that are valid for the unchecked value defaults. These are
      * simply by syntax, since an entire file is typechecked, it is not possible for local variables
@@ -180,12 +194,26 @@ public class QualifierDefaults {
      * @param atypeFactory an annotation factory, used to get annotations by name
      */
     public QualifierDefaults(Elements elements, AnnotatedTypeFactory atypeFactory) {
+        this(elements, atypeFactory, /*shouldApplyNullMarkedDefaults=*/ false);
+    }
+
+    public QualifierDefaults(
+            Elements elements,
+            AnnotatedTypeFactory atypeFactory,
+            boolean shouldApplyNullMarkedDefaults) {
         this.elements = elements;
         this.atypeFactory = atypeFactory;
         this.useConservativeDefaultsBytecode =
                 atypeFactory.getChecker().useConservativeDefault("bytecode");
         this.useConservativeDefaultsSource =
                 atypeFactory.getChecker().useConservativeDefault("source");
+        /*
+         * TODO(cpovirk): Having knowledge of nullness inside QualifierDefaults is an ugly hack.
+         * Maybe NullnessAnnotatedTypeFactory should do such work itself, like inside the two
+         * overloads of addComputedTypeAnnotations? But I think I once started down that road and
+         * ran into trouble.
+         */
+        this.shouldApplyNullMarkedDefaults = shouldApplyNullMarkedDefaults;
         ProcessingEnvironment processingEnv = atypeFactory.getProcessingEnv();
         this.defaultQualifierValueElement =
                 TreeUtils.getMethod(DefaultQualifier.class, "value", 0, processingEnv);
@@ -193,6 +221,8 @@ public class QualifierDefaults {
                 TreeUtils.getMethod(DefaultQualifier.class, "locations", 0, processingEnv);
         this.defaultQualifierListValueElement =
                 TreeUtils.getMethod(DefaultQualifier.List.class, "value", 0, processingEnv);
+        this.nullMarked = elements.getTypeElement("org.jspecify.nullness.NullMarked");
+        this.nonNull = AnnotationBuilder.fromClass(elements, NonNull.class);
     }
 
     @Override
@@ -308,8 +338,29 @@ public class QualifierDefaults {
     }
 
     /** Sets the default annotations for a certain Element. */
+    /*
+     * TODO(cpovirk): This method looks dangerous for a type system to call early: If it "adds" a
+     * default for an Element before defaultsAt runs for that Element, that looks like it would
+     * prevent any @DefaultQualifier or similar annotation from having any effect (because
+     * defaultsAt would short-circuit after discovering that an entry already exists for the
+     * Element). Maybe this method should run defaultsAt before inserting its own entry? Or maybe
+     * it's too early to run defaultsAt? Or maybe we'd see new problems in existing code because
+     * we'd start running checkDuplicates to look for overlap between the @DefaultQualifier defaults
+     * and addElementDefault defaults?
+     */
     public void addElementDefault(
             Element elem, AnnotationMirror elementDefaultAnno, TypeUseLocation location) {
+        addElementDefault(
+                elementDefaultsInheritedBySubpackages, elem, elementDefaultAnno, location);
+        addElementDefault(
+                elementDefaultsNotInheritedBySubpackages, elem, elementDefaultAnno, location);
+    }
+
+    private void addElementDefault(
+            IdentityHashMap<Element, DefaultSet> elementDefaults,
+            Element elem,
+            AnnotationMirror elementDefaultAnno,
+            TypeUseLocation location) {
         DefaultSet prevset = elementDefaults.get(elem);
         if (prevset != null) {
             checkDuplicates(prevset, elementDefaultAnno, location);
@@ -620,10 +671,20 @@ public class QualifierDefaults {
         return elementAnnotatedForThisChecker;
     }
 
-    private DefaultSet defaultsAt(final Element elt) {
+    private enum WhoIsAsking {
+        PACKAGE_MEMBER,
+        SUBPACKAGE,
+    }
+
+    private DefaultSet defaultsAt(final Element elt, WhoIsAsking whoIsAskingUs) {
         if (elt == null) {
             return DefaultSet.EMPTY;
         }
+
+        IdentityHashMap<Element, DefaultSet> elementDefaults =
+                whoIsAskingUs == WhoIsAsking.PACKAGE_MEMBER
+                        ? elementDefaultsNotInheritedBySubpackages
+                        : elementDefaultsInheritedBySubpackages;
 
         if (elementDefaults.containsKey(elt)) {
             return elementDefaults.get(elt);
@@ -631,14 +692,28 @@ public class QualifierDefaults {
 
         DefaultSet qualifiers = null;
 
+        if (whoIsAskingUs == WhoIsAsking.PACKAGE_MEMBER && shouldApplyNullMarkedDefaults) {
+            AnnotationMirror nmAnno = atypeFactory.getDeclAnnotations(elt).stream()
+                    .filter(a -> a.getAnnotationType().asElement().equals(nullMarked)).findAny()
+                    .orElse(null);
+
+            if (nmAnno != null) {
+                qualifiers = new DefaultSet();
+                qualifiers.add(new Default(nonNull, TypeUseLocation.UPPER_BOUND));
+            }
+        }
+
         {
             AnnotationMirror dqAnno = atypeFactory.getDeclAnnotation(elt, DefaultQualifier.class);
 
             if (dqAnno != null) {
-                qualifiers = new DefaultSet();
+                if (qualifiers == null) {
+                    qualifiers = new DefaultSet();
+                }
                 Set<Default> p = fromDefaultQualifier(dqAnno);
 
                 if (p != null) {
+                    // TODO(cpovirk): What should happen with conflicts?
                     qualifiers.addAll(p);
                 }
             }
@@ -658,6 +733,7 @@ public class QualifierDefaults {
                 for (AnnotationMirror dqAnno : values) {
                     Set<Default> p = fromDefaultQualifier(dqAnno);
                     if (p != null) {
+                        // TODO(cpovirk): What should happen with conflicts?
                         qualifiers.addAll(p);
                     }
                 }
@@ -665,16 +741,20 @@ public class QualifierDefaults {
         }
 
         Element parent;
+        WhoIsAsking whoAreWeAskingFor;
         if (elt.getKind() == ElementKind.PACKAGE) {
             parent = ElementUtils.parentPackage((PackageElement) elt, elements);
+            whoAreWeAskingFor = WhoIsAsking.SUBPACKAGE;
         } else {
             parent = elt.getEnclosingElement();
+            whoAreWeAskingFor = WhoIsAsking.PACKAGE_MEMBER;
         }
 
-        DefaultSet parentDefaults = defaultsAt(parent);
+        DefaultSet parentDefaults = defaultsAt(parent, whoAreWeAskingFor);
         if (qualifiers == null || qualifiers.isEmpty()) {
             qualifiers = parentDefaults;
         } else {
+            // TODO(cpovirk): What should happen with conflicts?
             qualifiers.addAll(parentDefaults);
         }
 
@@ -745,7 +825,7 @@ public class QualifierDefaults {
      */
     private void applyDefaultsElement(
             final Element annotationScope, final AnnotatedTypeMirror type) {
-        DefaultSet defaults = defaultsAt(annotationScope);
+        DefaultSet defaults = defaultsAt(annotationScope, WhoIsAsking.PACKAGE_MEMBER);
         DefaultApplierElement applier =
                 createDefaultApplierElement(atypeFactory, annotationScope, type, applyToTypeVar);
 
