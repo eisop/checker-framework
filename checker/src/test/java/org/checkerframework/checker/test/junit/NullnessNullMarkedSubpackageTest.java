@@ -1,6 +1,5 @@
 package org.checkerframework.checker.test.junit;
 
-import org.checkerframework.checker.nullness.NullnessChecker;
 import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
 import org.junit.runners.Parameterized.Parameters;
 

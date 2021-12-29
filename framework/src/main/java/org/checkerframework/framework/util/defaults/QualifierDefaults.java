@@ -121,9 +121,7 @@ public class QualifierDefaults {
     private final IdentityHashMap<Element, DefaultSet> elementDefaultsInheritedBySubpackages =
             new IdentityHashMap<>();
 
-    /**
-     * Defaults that apply for a certain Element but do not apply to any subpackages.
-     */
+    /** Defaults that apply for a certain Element but do not apply to any subpackages. */
     private final IdentityHashMap<Element, DefaultSet> elementDefaultsNotInheritedBySubpackages =
             new IdentityHashMap<>();
 
@@ -693,9 +691,11 @@ public class QualifierDefaults {
         DefaultSet qualifiers = null;
 
         if (whoIsAskingUs == WhoIsAsking.PACKAGE_MEMBER && shouldApplyNullMarkedDefaults) {
-            AnnotationMirror nmAnno = atypeFactory.getDeclAnnotations(elt).stream()
-                    .filter(a -> a.getAnnotationType().asElement().equals(nullMarked)).findAny()
-                    .orElse(null);
+            AnnotationMirror nmAnno =
+                    atypeFactory.getDeclAnnotations(elt).stream()
+                            .filter(a -> a.getAnnotationType().asElement().equals(nullMarked))
+                            .findAny()
+                            .orElse(null);
 
             if (nmAnno != null) {
                 qualifiers = new DefaultSet();
