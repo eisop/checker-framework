@@ -24,7 +24,6 @@ public class NullnessTest extends CheckerFrameworkPerDirectoryTest {
                 testFiles,
                 org.checkerframework.checker.nullness.NullnessChecker.class,
                 "nullness",
-                Collections.singletonList("../../jspecify/build/libs/jspecify-0.0.0-SNAPSHOT.jar"),
                 "-AcheckPurityAnnotations",
                 "-Anomsgtext",
                 "-Xlint:deprecation",
