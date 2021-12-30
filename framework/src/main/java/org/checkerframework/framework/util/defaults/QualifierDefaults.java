@@ -348,7 +348,13 @@ public class QualifierDefaults {
         }
     }
 
-    /** Sets the default annotations for a certain Element. */
+    /**
+     * Sets the default annotations for a certain Element.
+     *
+     * @param elem the scope to set the default within
+     * @param elementDefaultAnno the default to set
+     * @param location the location to apply the default to
+     */
     /*
      * TODO(cpovirk): This method looks dangerous for a type system to call early: If it "adds" a
      * default for an Element before defaultsAt runs for that Element, that looks like it would
@@ -367,7 +373,16 @@ public class QualifierDefaults {
                 elementDefaultsNotInheritedBySubpackages, elem, elementDefaultAnno, location);
     }
 
-    /** Sets the default annotations for a certain Element. */
+    /**
+     * Sets the default annotations for a certain Element.
+     *
+     * @param elementDefaults a map of the precomputed or preset defaults; may be either {@link
+     *     #elementDefaultsInheritedBySubpackages} or {@link
+     *     #elementDefaultsNotInheritedBySubpackages}
+     * @param elem the scope to set the default within
+     * @param elementDefaultAnno the default to set
+     * @param location the location to apply the default to
+     */
     private void addElementDefault(
             IdentityHashMap<Element, DefaultSet> elementDefaults,
             Element elem,
@@ -707,6 +722,11 @@ public class QualifierDefaults {
     /**
      * Returns the defaults that apply to the given Element and, based on the value of WhoIsAsking,
      * are applicable to child Elements either within the same package or across packages.
+     *
+     * @param elt the element
+     * @param whoIsAskingUs whether to include defaults that also apply to "subpackages" or only
+     *     defaults that apply within the package
+     * @return the defaults
      */
     private DefaultSet defaultsAt(final Element elt, WhoIsAsking whoIsAskingUs) {
         if (elt == null) {
