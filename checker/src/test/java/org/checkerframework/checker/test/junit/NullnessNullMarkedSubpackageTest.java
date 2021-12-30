@@ -1,6 +1,8 @@
 package org.checkerframework.checker.test.junit;
 
 import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
+import org.checkerframework.framework.test.TestUtilities;
+import org.junit.Test;
 import org.junit.runners.Parameterized.Parameters;
 
 import java.io.File;
@@ -30,5 +32,18 @@ public class NullnessNullMarkedSubpackageTest extends CheckerFrameworkPerDirecto
     @Parameters
     public static String[] getTestDirs() {
         return new String[] {"nullness-nullmarked-subpackage"};
+    }
+
+    @Override
+    @Test
+    public void run() {
+        /*
+         * Skip under JDK8: checker/bin-devel/build.sh doesn't build JSpecify under that version
+         * (since the JSpecify build requires JDK9+), so there would be no JSpecify jar, and tests
+         * would fail on account of the missing classes.
+         */
+        if (TestUtilities.IS_AT_LEAST_9_JVM) {
+            super.run();
+        }
     }
 }
