@@ -103,7 +103,10 @@ public class QualifierDefaults {
     /** Defaults for unchecked code. */
     private final DefaultSet uncheckedCodeDefaults = new DefaultSet();
 
+    /** Element for {@code org.jspecify.nullable.NullMarked}. */
     private final TypeElement nullMarked;
+
+    /** Element for {@code org.checkerframework.checker.nullness.qual.NonNull}. */
     private final AnnotationMirror nonNull;
 
     /** Size for caches. */
@@ -176,6 +179,10 @@ public class QualifierDefaults {
     /** True if conservative defaults should be used for bytecode. */
     private final boolean useConservativeDefaultsBytecode;
 
+    /**
+     * Whether to set a {@code @NonNull} default for type-parameter bounds within the scope of
+     * {@code NullMarked}.
+     */
     private final boolean shouldApplyNullMarkedDefaults;
 
     /**
@@ -195,6 +202,12 @@ public class QualifierDefaults {
         this(elements, atypeFactory, /*shouldApplyNullMarkedDefaults=*/ false);
     }
 
+    /**
+     * @param elements interface to Element data in the current processing environment
+     * @param atypeFactory an annotation factory, used to get annotations by name
+     * @param shouldApplyNullMarkedDefaults whether to set a {@code @NonNull} default for
+     *     type-parameter bounds within the scope of {@code NullMarked}
+     */
     public QualifierDefaults(
             Elements elements,
             AnnotatedTypeFactory atypeFactory,
@@ -354,6 +367,7 @@ public class QualifierDefaults {
                 elementDefaultsNotInheritedBySubpackages, elem, elementDefaultAnno, location);
     }
 
+    /** Sets the default annotations for a certain Element. */
     private void addElementDefault(
             IdentityHashMap<Element, DefaultSet> elementDefaults,
             Element elem,
@@ -669,11 +683,31 @@ public class QualifierDefaults {
         return elementAnnotatedForThisChecker;
     }
 
+    /**
+     * Whether the defaults for an Element are being requested by a member of the same package or by
+     * a "subpackage."
+     *
+     * <p>This matters because {@code NullMarked} affects only enclosed code but annotations like
+     * {@code DefaultQualifier} also affect subpackages.
+     */
     private enum WhoIsAsking {
+        /**
+         * Indicates that the defaults for this Element are being requested by a member of the same
+         * package.
+         */
         PACKAGE_MEMBER,
+
+        /**
+         * Indicates that the defaults for this Element are being requested by a member of a
+         * "subpackage."
+         */
         SUBPACKAGE,
     }
 
+    /**
+     * Returns the defaults that apply to the given Element and, based on the value of WhoIsAsking,
+     * are applicable to child Elements either within the same package or across packages.
+     */
     private DefaultSet defaultsAt(final Element elt, WhoIsAsking whoIsAskingUs) {
         if (elt == null) {
             return DefaultSet.EMPTY;
