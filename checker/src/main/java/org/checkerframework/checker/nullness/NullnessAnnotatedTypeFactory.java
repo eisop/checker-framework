@@ -29,6 +29,8 @@ import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
+import org.checkerframework.framework.qual.DefaultQualifier;
+import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeFormatter;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
@@ -49,7 +51,6 @@ import org.checkerframework.framework.type.typeannotator.PropagationTypeAnnotato
 import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.QualifierKind;
-import org.checkerframework.framework.util.defaults.QualifierDefaults;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.Pair;
@@ -328,6 +329,17 @@ public class NullnessAnnotatedTypeFactory
                 "org.checkerframework.checker.nullness.compatqual.MonotonicNonNullType",
                 MONOTONIC_NONNULL);
 
+        AnnotationMirror nullMarkedDefaultQual =
+                new AnnotationBuilder(processingEnv, DefaultQualifier.class)
+                        .setValue("value", NonNull.class)
+                        .setValue("locations", new TypeUseLocation[] {TypeUseLocation.UPPER_BOUND})
+                        .setValue("applyToSubpackages", false)
+                        .build();
+        addAliasedDeclAnnotation(
+                "org.jspecify.nullness.NullMarked",
+                DefaultQualifier.class.getCanonicalName(),
+                nullMarkedDefaultQual);
+
         boolean permitClearProperty =
                 checker.getLintOption(
                         NullnessChecker.LINT_PERMITCLEARPROPERTY,
@@ -486,11 +498,6 @@ public class NullnessAnnotatedTypeFactory
         defaultForTypeAnnotator.addAtmClass(AnnotatedNoType.class, NONNULL);
         defaultForTypeAnnotator.addAtmClass(AnnotatedPrimitiveType.class, NONNULL);
         return defaultForTypeAnnotator;
-    }
-
-    @Override
-    protected QualifierDefaults createQualifierDefaults() {
-        return new QualifierDefaults(elements, this, /*shouldApplyNullMarkedDefaults=*/ true);
     }
 
     @Override
