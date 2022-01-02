@@ -759,8 +759,6 @@ public class QualifierDefaults {
 
             if (p != null) {
                 qualifiers = new DefaultSet();
-
-                // TODO(cpovirk): What should happen with conflicts?
                 qualifiers.addAll(p);
             }
         }
