@@ -3402,6 +3402,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * must be the same.
      *
      * <p>The point of {@code annotationToUse} is that it may include elements/fields.
+     *
+     * @param alias the class of the alias annotation
+     * @param annotation the class of the canonical annotation
+     * @param annotationToUse the annotation mirror to use
      */
     protected void addAliasedDeclAnnotation(
             Class<? extends Annotation> alias,
@@ -3418,6 +3422,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * must be the same.
      *
      * <p>The point of {@code annotationToUse} is that it may include elements/fields.
+     *
+     * @param alias the fully-qualified name of the alias annotation
+     * @param annotation the fully-qualified name of the canonical annotation
+     * @param annotationToUse the annotation mirror to use
      */
     protected void addAliasedDeclAnnotation(
             @FullyQualifiedName String alias,
