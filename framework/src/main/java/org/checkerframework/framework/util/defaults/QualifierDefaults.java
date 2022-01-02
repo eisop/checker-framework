@@ -685,7 +685,7 @@ public class QualifierDefaults {
     }
 
     /**
-     * Returns the defaults that apply to the given Element, considering defaults form enclosing
+     * Returns the defaults that apply to the given Element, considering defaults from enclosing
      * Elements.
      *
      * @param elt the element
