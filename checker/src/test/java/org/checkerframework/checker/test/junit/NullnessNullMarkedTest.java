@@ -13,7 +13,7 @@ import java.util.List;
 public class NullnessNullMarkedTest extends CheckerFrameworkPerDirectoryTest {
 
     /**
-     * Create a NullnessAssertsTest.
+     * Create a NullnessNullMarkedTest.
      *
      * @param testFiles the files containing test code, which will be type-checked
      */
@@ -23,10 +23,7 @@ public class NullnessNullMarkedTest extends CheckerFrameworkPerDirectoryTest {
                 org.checkerframework.checker.nullness.NullnessChecker.class,
                 "nullness",
                 Collections.singletonList("../../jspecify/build/libs/jspecify-0.0.0-SNAPSHOT.jar"),
-                "-AcheckPurityAnnotations",
-                "-AassumeAssertionsAreEnabled",
-                "-Anomsgtext",
-                "-Xlint:deprecation");
+                "-Anomsgtext");
     }
 
     @Parameters
