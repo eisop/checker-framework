@@ -391,6 +391,7 @@ import javax.tools.Diagnostic.Kind;
     /// Language Server Protocol(LSP) Support
 
     // Output detailed type information for nodes in AST
+    // org.checkerframework.framework.type.AnnotatedTypeFactory
     "lspTypeInfo",
 
     /// Miscellaneous debugging options

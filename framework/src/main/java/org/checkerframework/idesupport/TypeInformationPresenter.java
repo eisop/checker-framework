@@ -25,6 +25,7 @@ import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.flow.CFAbstractStore;
 import org.checkerframework.framework.flow.CFAbstractTransfer;
 import org.checkerframework.framework.flow.CFAbstractValue;
+import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeFormatter;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.DefaultAnnotatedTypeFormatter;
@@ -43,12 +44,19 @@ import javax.tools.Diagnostic;
 public class TypeInformationPresenter {
 
     /** The AnnotatedTypeFactory for the current analysis. */
+    private final AnnotatedTypeFactory factory;
+
+    /**
+     * The GenericAnnotatedTypeFactory for the current analysis. null if the factory is not an
+     * instance of GenericAnnotatedTypeFactory; otherwise, factory and genFactory refer to the same
+     * object.
+     */
     private final GenericAnnotatedTypeFactory<
                     ? extends CFAbstractValue<?>,
                     ? extends CFAbstractStore<? extends CFAbstractValue<?>, ?>,
                     ? extends CFAbstractTransfer<?, ?, ?>,
                     ? extends CFAbstractAnalysis<?, ?, ?>>
-            factory;
+            genFactory;
 
     /** This formats the ATMs that the presenter is going to present. */
     private final AnnotatedTypeFormatter typeFormatter;
@@ -58,8 +66,13 @@ public class TypeInformationPresenter {
      *
      * @param factory The AnnotatedTypeFactory for the current analysis.
      */
-    public TypeInformationPresenter(GenericAnnotatedTypeFactory<?, ?, ?, ?> factory) {
+    public TypeInformationPresenter(AnnotatedTypeFactory factory) {
         this.factory = factory;
+        if (factory instanceof GenericAnnotatedTypeFactory<?, ?, ?, ?>) {
+            this.genFactory = (GenericAnnotatedTypeFactory<?, ?, ?, ?>) factory;
+        } else {
+            this.genFactory = null;
+        }
         this.typeFormatter = new DefaultAnnotatedTypeFormatter(true, true);
     }
 
@@ -358,7 +371,11 @@ public class TypeInformationPresenter {
         public Void visitVariable(VariableTree tree, Void unused) {
             // TODO: "int x = 1" is a VariableTree, but there is no AssignmentTree and it
             // TODO: is difficult to locate the "=" symbol.
-            reportTreeType(tree, factory.getAnnotatedTypeLhs(tree), MessageKind.DECLARED_TYPE);
+            AnnotatedTypeMirror varType =
+                    genFactory != null
+                            ? genFactory.getAnnotatedTypeLhs(tree)
+                            : factory.getAnnotatedType(tree);
+            reportTreeType(tree, varType, MessageKind.DECLARED_TYPE);
             return super.visitVariable(tree, unused);
         }
 
@@ -376,10 +393,11 @@ public class TypeInformationPresenter {
 
         @Override
         public Void visitAssignment(AssignmentTree tree, Void unused) {
-            reportTreeType(
-                    tree,
-                    factory.getAnnotatedTypeLhs(tree.getVariable()),
-                    MessageKind.ASSIGN_LHS_DECLARED_TYPE);
+            AnnotatedTypeMirror varType =
+                    genFactory != null
+                            ? genFactory.getAnnotatedTypeLhs(tree.getVariable())
+                            : factory.getAnnotatedType(tree.getVariable());
+            reportTreeType(tree, varType, MessageKind.ASSIGN_LHS_DECLARED_TYPE);
             reportTreeType(
                     tree,
                     factory.getAnnotatedType(tree.getExpression()),
@@ -390,10 +408,11 @@ public class TypeInformationPresenter {
         @Override
         public Void visitCompoundAssignment(CompoundAssignmentTree tree, Void unused) {
             reportTreeType(tree, factory.getAnnotatedType(tree));
-            reportTreeType(
-                    tree,
-                    factory.getAnnotatedTypeLhs(tree.getVariable()),
-                    MessageKind.ASSIGN_LHS_DECLARED_TYPE);
+            AnnotatedTypeMirror varType =
+                    genFactory != null
+                            ? genFactory.getAnnotatedTypeLhs(tree.getVariable())
+                            : factory.getAnnotatedType(tree.getVariable());
+            reportTreeType(tree, varType, MessageKind.ASSIGN_LHS_DECLARED_TYPE);
             reportTreeType(
                     tree,
                     factory.getAnnotatedType(tree.getExpression()),
@@ -416,10 +435,12 @@ public class TypeInformationPresenter {
                 case POSTFIX_INCREMENT:
                 case POSTFIX_DECREMENT:
                     reportTreeType(tree, factory.getAnnotatedType(tree));
-                    reportTreeType(
-                            tree,
-                            factory.getAnnotatedTypeRhsUnaryAssign(tree),
-                            MessageKind.ASSIGN_RHS_TYPE);
+                    if (genFactory != null) {
+                        reportTreeType(
+                                tree,
+                                genFactory.getAnnotatedTypeRhsUnaryAssign(tree),
+                                MessageKind.ASSIGN_RHS_TYPE);
+                    }
                     break;
                 default:
                     throw new BugInCF(

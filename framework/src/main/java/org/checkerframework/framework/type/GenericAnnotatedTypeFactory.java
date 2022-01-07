@@ -81,7 +81,6 @@ import org.checkerframework.framework.util.defaults.QualifierDefaults;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesTreeAnnotator;
 import org.checkerframework.framework.util.typeinference.TypeArgInferenceUtil;
-import org.checkerframework.idesupport.TypeInformationPresenter;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
@@ -321,13 +320,6 @@ public abstract class GenericAnnotatedTypeFactory<
     protected boolean shouldClearSubcheckerSharedCFGs = true;
 
     /**
-     * If the option "lspTypeInfo" is defined, this presenter will report the type information of
-     * every type-checked class. This information will be visualized by an editor/IDE that supports
-     * LSP.
-     */
-    private final TypeInformationPresenter typeInformationPresenter;
-
-    /**
      * Creates a type factory. Its compilation unit is not yet set.
      *
      * @param checker the checker to which this type factory belongs
@@ -351,12 +343,6 @@ public abstract class GenericAnnotatedTypeFactory<
         this.initializationStaticStore = null;
 
         this.cfgVisualizer = createCFGVisualizer();
-
-        if (checker.hasOption("lspTypeInfo")) {
-            this.typeInformationPresenter = new TypeInformationPresenter(this);
-        } else {
-            this.typeInformationPresenter = null;
-        }
 
         if (shouldCache) {
             int cacheSize = getCacheSize();
@@ -433,20 +419,6 @@ public abstract class GenericAnnotatedTypeFactory<
     public void preProcessClassTree(ClassTree classTree) {
         if (this.everUseFlow) {
             checkAndPerformFlowAnalysis(classTree);
-        }
-    }
-
-    /**
-     * Executes type information presenter on the class tree if applicable.
-     *
-     * @param tree the ClassTree that has been type checked
-     */
-    @Override
-    public void postProcessClassTree(ClassTree tree) {
-        super.postProcessClassTree(tree);
-
-        if (typeInformationPresenter != null) {
-            typeInformationPresenter.process(tree);
         }
     }
 
