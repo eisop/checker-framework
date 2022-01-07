@@ -42,6 +42,16 @@ Checker handles ternary expressions, leading to false positives.)
 typetools #3281
 
 
+Version 3.2?.? (February 1, 2022)
+-------------------------------
+
+**User-visible changes:**
+
+**Implementation details:**
+
+**Closed issues:**
+
+
 Version 3.21.1 (January 7, 2022)
 -------------------------------
 
