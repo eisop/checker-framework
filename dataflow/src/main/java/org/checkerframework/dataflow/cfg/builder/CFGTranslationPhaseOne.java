@@ -57,10 +57,6 @@ import com.sun.source.tree.WildcardTree;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
-import com.sun.tools.javac.code.Symbol.MethodSymbol;
-import com.sun.tools.javac.code.Type;
-import com.sun.tools.javac.processing.JavacProcessingEnvironment;
-import com.sun.tools.javac.util.Context;
 
 import org.checkerframework.checker.interning.qual.FindDistinct;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -128,6 +124,7 @@ import org.checkerframework.dataflow.cfg.node.StringConcatenateNode;
 import org.checkerframework.dataflow.cfg.node.StringConversionNode;
 import org.checkerframework.dataflow.cfg.node.StringLiteralNode;
 import org.checkerframework.dataflow.cfg.node.SuperNode;
+import org.checkerframework.dataflow.cfg.node.SwitchExpressionNode;
 import org.checkerframework.dataflow.cfg.node.SynchronizedNode;
 import org.checkerframework.dataflow.cfg.node.TernaryExpressionNode;
 import org.checkerframework.dataflow.cfg.node.ThisNode;
@@ -145,13 +142,13 @@ import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TypeAnnotationUtils;
 import org.checkerframework.javacutil.TypeKindUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.trees.TreeBuilder;
 import org.plumelib.util.CollectionsPlume;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -266,6 +263,11 @@ public class CFGTranslationPhaseOne extends TreePathScanner<Node, Void> {
 
     /** Nested scopes of try-catch blocks in force at the current program point. */
     private final TryStack tryStack;
+
+    /**
+     * SwitchBuilder for the current switch. Used to match yield statements to enclosing switches.
+     */
+    private SwitchBuilder switchBuilder;
 
     /**
      * Maps from AST {@link Tree}s to sets of {@link Node}s. Every Tree that produces a value will
@@ -456,7 +458,7 @@ public class CFGTranslationPhaseOne extends TreePathScanner<Node, Void> {
         // Add marker to indicate that the next block will be the exit block.
         // Note: if there is a return statement earlier in the method (which is always the case for
         // non-void methods), then this is not strictly necessary. However, it is also not a
-        // problem, as it will just generate a degenerated control graph case that will be removed
+        // problem, as it will just generate a degenerate control graph case that will be removed
         // in a later phase.
         nodeList.add(new UnconditionalJump(regularExitLabel));
 
@@ -489,6 +491,55 @@ public class CFGTranslationPhaseOne extends TreePathScanner<Node, Void> {
      * @param tree the newly created Tree
      */
     public void handleArtificialTree(Tree tree) {}
+
+    // TODO: remove method and instead use JCP to add version-specific methods.
+    // Switch expressions first appeared in 12, standard in 14, so don't use 17.
+    @Override
+    public Node scan(Tree tree, Void p) {
+        if (tree == null) {
+            return null;
+        }
+        // Must use String comparison to support compiling on JDK 11 and earlier.
+        //     Features added between JDK 12 and JDK 17 inclusive.
+        switch (tree.getKind().name()) {
+                // case "BINDING_PATTERN":
+                //  return visitBindingPattern17(path.getLeaf(), p);
+            case "SWITCH_EXPRESSION":
+                return visitSwitchExpression17(tree, p);
+            case "YIELD":
+                return visitYield17(tree, p);
+            default:
+                return super.scan(tree, p);
+        }
+    }
+
+    /**
+     * Visit a SwitchExpressionTree.
+     *
+     * @param yieldTree a YieldTree, typed as Tree to be backward-compatible
+     * @param p parameter
+     * @return the result of visiting the switch expression tree
+     */
+    public Node visitYield17(Tree yieldTree, Void p) {
+        ExpressionTree resultExpression = TreeUtils.yieldTreeGetValue(yieldTree);
+        switchBuilder.buildSwitchExpressionResult(resultExpression);
+        return null;
+    }
+
+    /**
+     * Visit a SwitchExpressionTree
+     *
+     * @param switchExpressionTree a SwitchExpressionTree, typed as Tree to be backward-compatible
+     * @param p parameter
+     * @return the result of visiting the switch expression tree
+     */
+    public Node visitSwitchExpression17(Tree switchExpressionTree, Void p) {
+        SwitchBuilder oldSwitchBuilder = switchBuilder;
+        switchBuilder = new SwitchBuilder(switchExpressionTree);
+        Node res = switchBuilder.build();
+        switchBuilder = oldSwitchBuilder;
+        return res;
+    }
 
     /* --------------------------------------------------------- */
     /* Nodes and Labels Management */
@@ -1685,9 +1736,10 @@ public class CFGTranslationPhaseOne extends TreePathScanner<Node, Void> {
                     }
                     extendWithNode(operNode);
 
-                    TypeCastTree castTree = treeBuilder.buildTypeCast(leftType, operTree);
+                    TypeMirror castType = TypeAnnotationUtils.unannotatedType(leftType);
+                    TypeCastTree castTree = treeBuilder.buildTypeCast(castType, operTree);
                     handleArtificialTree(castTree);
-                    TypeCastNode castNode = new TypeCastNode(castTree, operNode, leftType, types);
+                    TypeCastNode castNode = new TypeCastNode(castTree, operNode, castType, types);
                     castNode.setInSource(false);
                     extendWithNode(castNode);
 
@@ -1735,10 +1787,11 @@ public class CFGTranslationPhaseOne extends TreePathScanner<Node, Void> {
                         }
                         extendWithNode(operNode);
 
-                        TypeCastTree castTree = treeBuilder.buildTypeCast(leftType, operTree);
+                        TypeMirror castType = TypeAnnotationUtils.unannotatedType(leftType);
+                        TypeCastTree castTree = treeBuilder.buildTypeCast(castType, operTree);
                         handleArtificialTree(castTree);
                         TypeCastNode castNode =
-                                new TypeCastNode(castTree, operNode, leftType, types);
+                                new TypeCastNode(castTree, operNode, castType, types);
                         castNode.setInSource(false);
                         extendWithNode(castNode);
 
@@ -1781,9 +1834,10 @@ public class CFGTranslationPhaseOne extends TreePathScanner<Node, Void> {
                     }
                     extendWithNode(operNode);
 
-                    TypeCastTree castTree = treeBuilder.buildTypeCast(leftType, operTree);
+                    TypeMirror castType = TypeAnnotationUtils.unannotatedType(leftType);
+                    TypeCastTree castTree = treeBuilder.buildTypeCast(castType, operTree);
                     handleArtificialTree(castTree);
-                    TypeCastNode castNode = new TypeCastNode(castTree, operNode, leftType, types);
+                    TypeCastNode castNode = new TypeCastNode(castTree, operNode, castType, types);
                     castNode.setInSource(false);
                     extendWithNode(castNode);
 
@@ -1813,7 +1867,7 @@ public class CFGTranslationPhaseOne extends TreePathScanner<Node, Void> {
                     value = unbox(value);
                 } else {
                     throw new BugInCF(
-                            "Both argument to logical operation must be numeric or boolean");
+                            "Both arguments to logical operation must be numeric or boolean");
                 }
 
                 BinaryTree operTree =
@@ -1834,9 +1888,10 @@ public class CFGTranslationPhaseOne extends TreePathScanner<Node, Void> {
                 }
                 extendWithNode(operNode);
 
-                TypeCastTree castTree = treeBuilder.buildTypeCast(leftType, operTree);
+                TypeMirror castType = TypeAnnotationUtils.unannotatedType(leftType);
+                TypeCastTree castTree = treeBuilder.buildTypeCast(castType, operTree);
                 handleArtificialTree(castTree);
-                TypeCastNode castNode = new TypeCastNode(castTree, operNode, leftType, types);
+                TypeCastNode castNode = new TypeCastNode(castTree, operNode, castType, types);
                 castNode.setInSource(false);
                 extendWithNode(castNode);
 
@@ -2131,6 +2186,7 @@ public class CFGTranslationPhaseOne extends TreePathScanner<Node, Void> {
         return null;
     }
 
+    // This visits a switch statement, not a switch expression.
     @Override
     public Node visitSwitch(SwitchTree tree, Void p) {
         SwitchBuilder builder = new SwitchBuilder(tree);
@@ -2138,27 +2194,72 @@ public class CFGTranslationPhaseOne extends TreePathScanner<Node, Void> {
         return null;
     }
 
-    /** Helper class for handling switch statements. */
+    /**
+     * Helper class for handling switch statements and switch expressions, including all their
+     * substatements such as case labels.
+     */
     private class SwitchBuilder {
-        /** The switch tree. */
-        private final SwitchTree switchTree;
+
+        /**
+         * The tree for the switch statement or switch expression. Its type may be {@link
+         * SwitchTree} or {@code SwitchExpressionTree}}
+         */
+        private final Tree switchTree;
+
+        /** The case trees of {@code switchTree} */
+        private final List<? extends CaseTree> caseTrees;
+
+        /**
+         * The Tree for the selector expression.
+         *
+         * <pre>
+         *   switch ( <em> selector expression</em> ) { ... }
+         * </pre>
+         */
+        private final ExpressionTree selectorExprTree;
+
         /** The labels for the case bodies. */
         private final Label[] caseBodyLabels;
-        /** The Node for the switch expression. */
-        private Node switchExpr;
+
+        /**
+         * The Node for the assignment of the switch selector expression to a synthetic local
+         * variable.
+         */
+        private AssignmentNode selectorExprAssignment;
+
+        /**
+         * If {@link #switchTree} is a switch expression, then this is the synthetic variable tree
+         * that all results of {@code #switchTree} are assigned. Otherwise, this is null.
+         */
+        private @Nullable VariableTree switchExprVarTree;
 
         /**
          * Construct a SwitchBuilder.
          *
-         * @param tree switch tree
+         * @param switchTree a {@link SwitchTree} or a {@code SwitchExpressionTree}
          */
-        private SwitchBuilder(SwitchTree tree) {
-            this.switchTree = tree;
-            this.caseBodyLabels = new Label[switchTree.getCases().size() + 1];
+        private SwitchBuilder(Tree switchTree) {
+            this.switchTree = switchTree;
+            if (switchTree instanceof SwitchTree) {
+                SwitchTree switchStatementTree = (SwitchTree) switchTree;
+                this.caseTrees = switchStatementTree.getCases();
+                this.selectorExprTree = switchStatementTree.getExpression();
+            } else {
+                this.caseTrees = TreeUtils.switchExpressionTreeGetCases(switchTree);
+                this.selectorExprTree = TreeUtils.switchExpressionTreeGetExpression(switchTree);
+            }
+            // "+ 1" for the default case.  If the switch has an explicit default case, then
+            // the last element of the array is never used.
+            this.caseBodyLabels = new Label[caseTrees.size() + 1];
         }
 
-        /** Build up the CFG for the switchTree. */
-        public void build() {
+        /**
+         * Build up the CFG for the switchTree.
+         *
+         * @return if the switch is a switch expression, then a {@link SwitchExpressionNode};
+         *     otherwise, null
+         */
+        public @Nullable SwitchExpressionNode build() {
             TryFinallyScopeCell oldBreakTargetL = breakTargetL;
             breakTargetL = new TryFinallyScopeCell(new Label());
             int cases = caseBodyLabels.length - 1;
@@ -2167,42 +2268,23 @@ public class CFGTranslationPhaseOne extends TreePathScanner<Node, Void> {
             }
             caseBodyLabels[cases] = breakTargetL.peekLabel();
 
-            TypeMirror switchExprType = TreeUtils.typeOf(switchTree.getExpression());
-            VariableTree variable =
-                    treeBuilder.buildVariableDecl(
-                            switchExprType, uniqueName("switch"), findOwner(), null);
-            handleArtificialTree(variable);
+            buildSelector();
 
-            VariableDeclarationNode variableNode = new VariableDeclarationNode(variable);
-            variableNode.setInSource(false);
-            extendWithNode(variableNode);
+            buildSwitchExpressionVar();
 
-            IdentifierTree variableUse = treeBuilder.buildVariableUse(variable);
-            handleArtificialTree(variableUse);
+            if (switchTree.getKind() == Tree.Kind.SWITCH) {
+                // It's a switch statement, not a switch expression.
+                extendWithNode(
+                        new MarkerNode(
+                                switchTree,
+                                "start of switch statement #" + TreeUtils.treeUids.get(switchTree),
+                                env.getTypeUtils()));
+            }
 
-            LocalVariableNode variableUseNode = new LocalVariableNode(variableUse);
-            variableUseNode.setInSource(false);
-            extendWithNode(variableUseNode);
-
-            Node switchExprNode = unbox(scan(switchTree.getExpression(), null));
-
-            AssignmentTree assign =
-                    treeBuilder.buildAssignment(variableUse, switchTree.getExpression());
-            handleArtificialTree(assign);
-
-            switchExpr = new AssignmentNode(assign, variableUseNode, switchExprNode);
-            switchExpr.setInSource(false);
-            extendWithNode(switchExpr);
-
-            extendWithNode(
-                    new MarkerNode(
-                            switchTree,
-                            "start of switch statement #" + TreeUtils.treeUids.get(switchTree),
-                            env.getTypeUtils()));
-
+            // Build CFG for the cases.
             Integer defaultIndex = null;
             for (int i = 0; i < cases; ++i) {
-                CaseTree caseTree = switchTree.getCases().get(i);
+                CaseTree caseTree = caseTrees.get(i);
                 if (TreeUtils.caseTreeGetExpressions(caseTree).isEmpty()) {
                     defaultIndex = i;
                 } else {
@@ -2213,19 +2295,104 @@ public class CFGTranslationPhaseOne extends TreePathScanner<Node, Void> {
                 // The checks of all cases must happen before the default case, therefore we build
                 // the default case last.
                 // Fallthrough is still handled correctly with the caseBodyLabels.
-                buildCase(switchTree.getCases().get(defaultIndex), defaultIndex);
+                buildCase(caseTrees.get(defaultIndex), defaultIndex);
             }
 
             addLabelForNextNode(breakTargetL.peekLabel());
             breakTargetL = oldBreakTargetL;
+            if (switchTree.getKind() == Tree.Kind.SWITCH) {
+                // It's a switch statement, not a switch expression.
+                extendWithNode(
+                        new MarkerNode(
+                                switchTree,
+                                "end of switch statement #" + TreeUtils.treeUids.get(switchTree),
+                                env.getTypeUtils()));
+            }
 
-            extendWithNode(
-                    new MarkerNode(
-                            switchTree,
-                            "end of switch statement #" + TreeUtils.treeUids.get(switchTree),
-                            env.getTypeUtils()));
+            if (switchTree.getKind() != Tree.Kind.SWITCH) {
+                // It's a switch expression, not a switch statement.
+                IdentifierTree switchExprVarUseTree =
+                        treeBuilder.buildVariableUse(switchExprVarTree);
+                handleArtificialTree(switchExprVarUseTree);
+
+                LocalVariableNode switchExprVarUseNode =
+                        new LocalVariableNode(switchExprVarUseTree);
+                switchExprVarUseNode.setInSource(false);
+                extendWithNode(switchExprVarUseNode);
+                SwitchExpressionNode switchExpressionNode =
+                        new SwitchExpressionNode(
+                                TreeUtils.typeOf(switchTree), switchTree, switchExprVarUseNode);
+                extendWithNode(switchExpressionNode);
+                return switchExpressionNode;
+            } else {
+                return null;
+            }
         }
 
+        /**
+         * Builds the CFG for the selector expression. It also creates a synthetic variable and
+         * assigns the selector expression to the variable. This assignment node is stored in {@link
+         * #selectorExprAssignment}. It can later be used to refine the selector expression in case
+         * bodies.
+         */
+        private void buildSelector() {
+            // Create a synthetic variable to which the switch selector expression will be assigned
+            TypeMirror selectorExprType = TreeUtils.typeOf(selectorExprTree);
+            VariableTree selectorVarTree =
+                    treeBuilder.buildVariableDecl(
+                            selectorExprType, uniqueName("switch"), findOwner(), null);
+            handleArtificialTree(selectorVarTree);
+
+            VariableDeclarationNode selectorVarNode = new VariableDeclarationNode(selectorVarTree);
+            selectorVarNode.setInSource(false);
+            extendWithNode(selectorVarNode);
+
+            IdentifierTree selectorVarUseTree = treeBuilder.buildVariableUse(selectorVarTree);
+            handleArtificialTree(selectorVarUseTree);
+
+            LocalVariableNode selectorVarUseNode = new LocalVariableNode(selectorVarUseTree);
+            selectorVarUseNode.setInSource(false);
+            extendWithNode(selectorVarUseNode);
+
+            Node selectorExprNode = unbox(scan(selectorExprTree, null));
+
+            AssignmentTree assign =
+                    treeBuilder.buildAssignment(selectorVarUseTree, selectorExprTree);
+            handleArtificialTree(assign);
+
+            selectorExprAssignment =
+                    new AssignmentNode(assign, selectorVarUseNode, selectorExprNode);
+            selectorExprAssignment.setInSource(false);
+            extendWithNode(selectorExprAssignment);
+        }
+
+        /**
+         * If {@link #switchTree} is a switch expression tree, this method creates a synthetic
+         * variable whose value is the value of the switch expression.
+         */
+        private void buildSwitchExpressionVar() {
+            if (switchTree.getKind() == Tree.Kind.SWITCH) {
+                // A switch statement does not have a value, so do nothing.
+                return;
+            }
+            TypeMirror switchExprType = TreeUtils.typeOf(switchTree);
+            switchExprVarTree =
+                    treeBuilder.buildVariableDecl(
+                            switchExprType, uniqueName("switchExpr"), findOwner(), null);
+            handleArtificialTree(switchExprVarTree);
+
+            VariableDeclarationNode switchExprVarNode =
+                    new VariableDeclarationNode(switchExprVarTree);
+            switchExprVarNode.setInSource(false);
+            extendWithNode(switchExprVarNode);
+        }
+
+        /**
+         * Build the CFG for the case tree, {@code tree}.
+         *
+         * @param tree a case tree whose CFG is built
+         * @param index the index of the case tree in {@link #caseBodyLabels}
+         */
         private void buildCase(CaseTree tree, int index) {
             final Label thisBodyL = caseBodyLabels[index];
             final Label nextBodyL = caseBodyLabels[index + 1];
@@ -2238,21 +2405,78 @@ public class CFGTranslationPhaseOne extends TreePathScanner<Node, Void> {
                 for (ExpressionTree exprTree : exprTrees) {
                     exprs.add(scan(exprTree, null));
                 }
-                CaseNode test = new CaseNode(tree, switchExpr, exprs, env.getTypeUtils());
+                CaseNode test =
+                        new CaseNode(tree, selectorExprAssignment, exprs, env.getTypeUtils());
                 extendWithNode(test);
                 extendWithExtendedNode(new ConditionalJump(thisBodyL, nextCaseL));
             }
             addLabelForNextNode(thisBodyL);
-            for (StatementTree stmt : tree.getStatements()) {
-                scan(stmt, null);
+            if (tree.getStatements() != null) {
+                // This is a switch labeled statement groups.
+                for (StatementTree stmt : tree.getStatements()) {
+                    scan(stmt, null);
+                }
+                // Handle possible fall through by adding jump to next body.
+                extendWithExtendedNode(new UnconditionalJump(nextBodyL));
+            } else {
+                // This is a switch rule.
+                Tree bodyTree = TreeUtils.caseTreeGetBody(tree);
+                if (switchTree.getKind() != Tree.Kind.SWITCH
+                        && bodyTree instanceof ExpressionTree) {
+                    buildSwitchExpressionResult((ExpressionTree) bodyTree);
+                } else {
+                    scan(bodyTree, null);
+                    // Switch rules never fall through so add jump to the break target.
+                    assert breakTargetL != null : "no target for case statement";
+                    extendWithExtendedNode(new UnconditionalJump(breakTargetL.accessLabel()));
+                }
             }
-            extendWithExtendedNode(new UnconditionalJump(nextBodyL));
+
             addLabelForNextNode(nextCaseL);
+        }
+
+        /**
+         * Does the following for the result expression of a switch expression, {@code
+         * resultExpression}:
+         *
+         * <ol>
+         *   <li>Builds the CFG for the switch expression result.
+         *   <li>Creates an assignment node for the assignment of {@code resultExpression} to {@code
+         *       switchExprVarTree}.
+         *   <li>Adds an unconditional jump to {@link #breakTargetL} (the end of the switch
+         *       expression).
+         * </ol>
+         *
+         * @param resultExpression the result of a switch expression; either from a yield or an
+         *     expression in a case rule
+         */
+        /* package-private */ void buildSwitchExpressionResult(ExpressionTree resultExpression) {
+            IdentifierTree switchExprVarUseTree = treeBuilder.buildVariableUse(switchExprVarTree);
+            handleArtificialTree(switchExprVarUseTree);
+
+            LocalVariableNode switchExprVarUseNode = new LocalVariableNode(switchExprVarUseTree);
+            switchExprVarUseNode.setInSource(false);
+            extendWithNode(switchExprVarUseNode);
+
+            Node resultExprNode = scan(resultExpression, null);
+
+            AssignmentTree assign =
+                    treeBuilder.buildAssignment(switchExprVarUseTree, resultExpression);
+            handleArtificialTree(assign);
+
+            AssignmentNode assignmentNode =
+                    new AssignmentNode(assign, switchExprVarUseNode, resultExprNode);
+            assignmentNode.setInSource(false);
+            extendWithNode(assignmentNode);
+            // Switch rules never fall through so add jump to the break target.
+            assert breakTargetL != null : "no target for case statement";
+            extendWithExtendedNode(new UnconditionalJump(breakTargetL.accessLabel()));
         }
     }
 
     @Override
     public Node visitCase(CaseTree tree, Void p) {
+        // This assertion assumes that `case` appears only within a switch statement,
         throw new AssertionError("case visitor is implemented in SwitchBuilder");
     }
 
@@ -2287,12 +2511,12 @@ public class CFGTranslationPhaseOne extends TreePathScanner<Node, Void> {
         addLabelForNextNode(trueStart);
         Node trueExpr = scan(tree.getTrueExpression(), p);
         trueExpr = conditionalExprPromotion(trueExpr, exprType);
-        extendWithExtendedNode(new UnconditionalJump(merge, FlowRule.BOTH_TO_THEN));
+        extendWithExtendedNode(new UnconditionalJump(merge));
 
         addLabelForNextNode(falseStart);
         Node falseExpr = scan(tree.getFalseExpression(), p);
         falseExpr = conditionalExprPromotion(falseExpr, exprType);
-        extendWithExtendedNode(new UnconditionalJump(merge, FlowRule.BOTH_TO_ELSE));
+        extendWithExtendedNode(new UnconditionalJump(merge));
 
         addLabelForNextNode(merge);
         Node node = new TernaryExpressionNode(tree, condition, trueExpr, falseExpr);
@@ -3006,30 +3230,7 @@ public class CFGTranslationPhaseOne extends TreePathScanner<Node, Void> {
         ReturnNode result = null;
         if (ret != null) {
             Node node = scan(ret, p);
-            TreePath enclosingPath =
-                    TreePathUtil.pathTillOfKind(
-                            getCurrentPath(),
-                            new HashSet<>(
-                                    Arrays.asList(Tree.Kind.METHOD, Tree.Kind.LAMBDA_EXPRESSION)));
-            Tree enclosing = enclosingPath.getLeaf();
-            if (enclosing.getKind() == Tree.Kind.LAMBDA_EXPRESSION) {
-                LambdaExpressionTree lambdaTree = (LambdaExpressionTree) enclosing;
-                Context ctx = ((JavacProcessingEnvironment) env).getContext();
-                Element overriddenElement =
-                        com.sun.tools.javac.code.Types.instance(ctx)
-                                .findDescriptorSymbol(
-                                        ((Type) trees.getTypeMirror(enclosingPath)).tsym);
-
-                result =
-                        new ReturnNode(
-                                tree,
-                                node,
-                                env.getTypeUtils(),
-                                lambdaTree,
-                                (MethodSymbol) overriddenElement);
-            } else {
-                result = new ReturnNode(tree, node, env.getTypeUtils(), (MethodTree) enclosing);
-            }
+            result = new ReturnNode(tree, node, env.getTypeUtils());
             returnNodes.add(result);
             extendWithNode(result);
         }

@@ -1,14 +1,105 @@
-Version 3.18.1-eisop-2 (October ?, 2021)
+Version 3.21.0-eisop-1 (January ?, 2022)
+-------------------------------
+
+**User-visible changes:**
+
+`DefaultQualifier` supports the new `applyToSubpackages` annotation attribute
+to decide whether a default should also apply to subpackages. To preserve the
+current behavior the default is `true`.
+
+**Implementation details:**
+
+
+**Closed issues:**
+
+
+
+Version 3.21.0 (December 17, 2021)
+-------------------------------
+
+**User-visible changes:**
+
+The Checker Framework now more precisely computes the type of a switch expression.
+
+**Implementation details:**
+
+The Dataflow Framework now analyzes switch expressions and switch statements
+that use the new `->` case syntax. To do so, a new node, SwitchExpressionNode,
+was added.
+
+**Closed issues:**
+#2373, #4934, #4977, #4979, #4987.
+
+Version 3.20.0 (December 6, 2021)
+-------------------------------
+
+**User-visible changes:**
+
+The Checker Framework now runs on code that contains switch expressions and
+switch statements that use the new `->` case syntax, but treats them
+conservatively. A future version will improve precision.
+
+**Implementation details:**
+
+The Dataflow Framework can be run on code that contains switch expressions and
+switch statements that use the new `->` case syntax, but it does not yet
+analyze the cases in a switch expression and it treats `->` as `:`. A future
+version will do so.
+
+Removed methods and classes that have been deprecated for more than one year:
+ * Old way of constructing qualifier hierarchies
+ * `@SuppressWarningsKeys`
+ * `RegularBlock.getContents()`
+ * `TestUtilities.testBooleanProperty()`
+ * `CFAbstractTransfer.getValueWithSameAnnotations()`
+
+**Closed issues:**
+#4911, #4948, #4965.
+
+
+Version 3.19.0-eisop-1 (November 4, 2021)
 -------------------------------
 
 **User-visible changes:**
 
 Avoid shading of string literals which broke some annotation aliasing.
+Add more nullness annotation aliases.
 
 **Implementation details:**
 
+Remove the unsound "BOTH-TO-THEN", "BOTH-TO-ELSE" logic from the Dataflow
+Framework.
+
 Small improvements and code-style clean-ups in the Dataflow Framework and
 in the core Checker Framework "framework" package.
+
+**Closed issues:**
+eisop#121, typetools#4923.
+
+
+Version 3.19.0 (November 1, 2021)
+-------------------------------
+
+**User-visible changes:**
+
+The Checker Framework runs under JDK 17 -- that is, it runs on a version 17 JVM.
+The Checker Framework also continues to run under JDK 8 and JDK 11.  New
+command-line argument `-ApermitUnsupportedJdkVersion` lets you run the Checker
+Framework on any JDK (version 8 or greater) without a warning about an
+unsupported JDK version.  The Checker Framework does not yet run on code that
+contains switch expressions.
+
+**Implementation details:**
+
+Removed `org.checkerframework.framework.type.VisitorState`
+Removed `AnnotatedTypeFactory#postTypeVarSubstitution`
+
+Deprecated methods in AnnotatedTypeFactory:
+* `getCurrentClassTree`
+* `getCurrentMethodReceiver`
+
+**Closed issues:**
+#4932, #4924, #4908, #3014.
 
 
 Version 3.18.1-eisop-1 (October 7, 2021)

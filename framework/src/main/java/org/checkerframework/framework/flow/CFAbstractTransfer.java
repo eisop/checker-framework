@@ -35,6 +35,7 @@ import org.checkerframework.dataflow.cfg.node.ObjectCreationNode;
 import org.checkerframework.dataflow.cfg.node.ReturnNode;
 import org.checkerframework.dataflow.cfg.node.StringConcatenateAssignmentNode;
 import org.checkerframework.dataflow.cfg.node.StringConversionNode;
+import org.checkerframework.dataflow.cfg.node.SwitchExpressionNode;
 import org.checkerframework.dataflow.cfg.node.TernaryExpressionNode;
 import org.checkerframework.dataflow.cfg.node.ThisNode;
 import org.checkerframework.dataflow.cfg.node.VariableDeclarationNode;
@@ -46,7 +47,6 @@ import org.checkerframework.dataflow.util.NodeUtils;
 import org.checkerframework.framework.flow.CFAbstractAnalysis.FieldInitialValue;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
-import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.util.Contract;
 import org.checkerframework.framework.util.Contract.ConditionalPostcondition;
@@ -56,7 +56,6 @@ import org.checkerframework.framework.util.ContractsFromMethod;
 import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
 import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.javacutil.ElementUtils;
-import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 
@@ -193,39 +192,7 @@ public abstract class CFAbstractTransfer<
         GenericAnnotatedTypeFactory<V, S, T, ? extends CFAbstractAnalysis<V, S, T>> factory =
                 analysis.atypeFactory;
         Tree preTree = analysis.getCurrentTree();
-        Pair<Tree, AnnotatedTypeMirror> preContext =
-                factory.getVisitorState().getAssignmentContext();
         analysis.setCurrentTree(tree);
-        // is there an assignment context node available?
-        if (node != null && node.getAssignmentContext() != null) {
-            // Get the declared type of the assignment context by looking up the assignment context
-            // tree's type in the factory while flow is disabled.
-            Tree contextTree = node.getAssignmentContext().getContextTree();
-            AnnotatedTypeMirror assignmentContext = null;
-            if (contextTree != null) {
-                assignmentContext = factory.getAnnotatedTypeLhs(contextTree);
-            } else {
-                Element assignmentContextElement = node.getAssignmentContext().getElementForType();
-                if (assignmentContextElement != null) {
-                    // if contextTree is null, use the element to get the type
-                    assignmentContext = factory.getAnnotatedType(assignmentContextElement);
-                }
-            }
-
-            if (assignmentContext != null) {
-                if (assignmentContext instanceof AnnotatedExecutableType) {
-                    // For a MethodReturnContext, we get the full type of the
-                    // method, but we only want the return type.
-                    assignmentContext =
-                            ((AnnotatedExecutableType) assignmentContext).getReturnType();
-                }
-                factory.getVisitorState()
-                        .setAssignmentContext(
-                                Pair.of(
-                                        node.getAssignmentContext().getContextTree(),
-                                        assignmentContext));
-            }
-        }
         AnnotatedTypeMirror at;
         if (node instanceof MethodInvocationNode
                 && ((MethodInvocationNode) node).getIterableExpression() != null) {
@@ -239,26 +206,7 @@ public abstract class CFAbstractTransfer<
             at = factory.getAnnotatedType(tree);
         }
         analysis.setCurrentTree(preTree);
-        factory.getVisitorState().setAssignmentContext(preContext);
         return analysis.createAbstractValue(at);
-    }
-
-    /**
-     * Returns an abstract value with the given {@code type} and the annotations from {@code
-     * annotatedValue}.
-     *
-     * @param type the type to return
-     * @param annotatedValue the annotations to return
-     * @return an abstract value with the given {@code type} and the annotations from {@code
-     *     annotatedValue}
-     * @deprecated use {@link #getWidenedValue} or {@link #getNarrowedValue}
-     */
-    @Deprecated // 2020-10-02
-    protected V getValueWithSameAnnotations(TypeMirror type, V annotatedValue) {
-        if (annotatedValue == null) {
-            return null;
-        }
-        return analysis.createAbstractValue(annotatedValue.getAnnotations(), type);
     }
 
     /** The fixed initial store. */
@@ -730,6 +678,12 @@ public abstract class CFAbstractTransfer<
         }
         V finishedValue = finishValue(resultValue, thenStore, elseStore);
         return new ConditionalTransferResult<>(finishedValue, thenStore, elseStore);
+    }
+
+    @Override
+    public TransferResult<V, S> visitSwitchExpressionNode(
+            SwitchExpressionNode n, TransferInput<V, S> vsTransferInput) {
+        return visitLocalVariable(n.getSwitchExpressionVar(), vsTransferInput);
     }
 
     /** Reverse the role of the 'thenStore' and 'elseStore'. */
@@ -1221,20 +1175,26 @@ public abstract class CFAbstractTransfer<
         }
     }
 
-    /**
-     * A case produces no value, but it may imply some facts about the argument to the switch
-     * statement.
-     */
+    /** A case produces no value, but it may imply some facts about switch selector expression. */
     @Override
     public TransferResult<V, S> visitCase(CaseNode n, TransferInput<V, S> in) {
         S store = in.getRegularStore();
-        TransferResult<V, S> result =
-                new ConditionalTransferResult<>(
-                        finishValue(null, store), in.getThenStore(), in.getElseStore(), false);
-
+        TransferResult<V, S> lubResult = null;
+        // Case operands are the case constants. For example, A, B and C in case A, B, C:.
+        // This method refines the type of the selector expression and the synthetic variable that
+        // represents the selector expression to the type of the case constant if it is more
+        // precise.
+        // If there are multiple case constants then a new store is created for each case constant
+        // and then they are lubbed. This method returns the lubbed result.
         for (Node caseOperand : n.getCaseOperands()) {
+            TransferResult<V, S> result =
+                    new ConditionalTransferResult<>(
+                            finishValue(null, store),
+                            in.getThenStore().copy(),
+                            in.getElseStore().copy(),
+                            false);
             V caseValue = in.getValueOfSubNode(caseOperand);
-            AssignmentNode assign = (AssignmentNode) n.getSwitchOperand();
+            AssignmentNode assign = n.getSwitchOperand();
             V switchValue = store.getValue(JavaExpression.fromNode(assign.getTarget()));
             result =
                     strengthenAnnotationOfEqualTo(
@@ -1248,8 +1208,22 @@ public abstract class CFAbstractTransfer<
             result =
                     strengthenAnnotationOfEqualTo(
                             result, caseOperand, assign.getTarget(), caseValue, switchValue, false);
+
+            // Lub the result of one case label constant with the result of the others.
+            if (lubResult == null) {
+                lubResult = result;
+            } else {
+                S thenStore = lubResult.getThenStore().leastUpperBound(result.getThenStore());
+                S elseStore = lubResult.getElseStore().leastUpperBound(result.getElseStore());
+                lubResult =
+                        new ConditionalTransferResult<>(
+                                null,
+                                thenStore,
+                                elseStore,
+                                lubResult.storeChanged() || result.storeChanged());
+            }
         }
-        return result;
+        return lubResult;
     }
 
     /**
