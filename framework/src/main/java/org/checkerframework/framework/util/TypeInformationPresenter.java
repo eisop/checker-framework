@@ -1,4 +1,4 @@
-package org.checkerframework.idesupport;
+package org.checkerframework.framework.util;
 
 import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.BinaryTree;
@@ -181,6 +181,9 @@ public class TypeInformationPresenter {
         /** This is a helper for computing positions of a sub-tree. */
         private final SourcePositions sourcePositions;
 
+        /** The checker that's currently running. */
+        private final BaseTypeChecker checker;
+
         /**
          * Constructs a new reporter for the given class tree.
          *
@@ -188,13 +191,16 @@ public class TypeInformationPresenter {
          */
         public TypeInformationReporter(ClassTree classTree) {
             this.classTree = classTree;
-            this.currentRoot = factory.getChecker().getPathToCompilationUnit().getCompilationUnit();
+            this.checker = factory.getChecker();
+            this.currentRoot = this.checker.getPathToCompilationUnit().getCompilationUnit();
             this.sourcePositions = factory.getTreeUtils().getSourcePositions();
         }
 
         /**
-         * Sends out a report that indicates the range corresponds to the given tree has the given
-         * type. If the tree is an artificial tree, don't report anything.
+         * Reports a diagnostic message indicating the range corresponds to the given tree has the
+         * given type. Specifically, the message has key "lsp.type.information", and it contains the
+         * name of the checker, the given messageKind, the given type, and the computed message
+         * range for the tree. If the tree is an artificial tree, don't report anything.
          *
          * @param tree The tree that is used to find the corresponding range to report.
          * @param type The type that we are going to display.
@@ -203,11 +209,12 @@ public class TypeInformationPresenter {
         private void reportTreeType(Tree tree, AnnotatedTypeMirror type, MessageKind messageKind) {
             MessageRange messageRange = computeMessageRange(tree);
             if (messageRange == null) {
-                // don't report if the tree doesn't exist in source file
+                // Don't report if the tree can't be found in the source file.
+                // Please check the implementation of computeMessageRange for
+                // more details.
                 return;
             }
 
-            BaseTypeChecker checker = factory.getChecker();
             checker.reportError(
                     tree,
                     "lsp.type.information",
@@ -243,7 +250,12 @@ public class TypeInformationPresenter {
             long startPos = sourcePositions.getStartPosition(currentRoot, tree);
             long endPos = sourcePositions.getEndPosition(currentRoot, tree);
             if (startPos == Diagnostic.NOPOS || endPos == Diagnostic.NOPOS) {
-                // tree doesn't exist in source file
+                // The tree doesn't exist in the source file.
+                // For example, a class tree may contain a child that represents
+                // a default constructor which is not explicitly written out in
+                // the source file.
+                // For this kind of trees, there's no way to compute their range
+                // in the source file.
                 return null;
             }
 
@@ -269,6 +281,8 @@ public class TypeInformationPresenter {
                 case XOR:
                 case OR:
                 case ASSIGNMENT:
+                case LESS_THAN:
+                case GREATER_THAN:
                     // 1-character operators
                     endCol = startCol;
                     break;
@@ -288,6 +302,10 @@ public class TypeInformationPresenter {
                 case AND_ASSIGNMENT:
                 case XOR_ASSIGNMENT:
                 case OR_ASSIGNMENT:
+                case LESS_THAN_EQUAL:
+                case GREATER_THAN_EQUAL:
+                case EQUAL_TO:
+                case NOT_EQUAL_TO:
                     // 2-character operators
                     endCol = startCol + 1;
                     break;
@@ -355,6 +373,8 @@ public class TypeInformationPresenter {
             @SuppressWarnings("interning:not.interned")
             boolean isNestedClass = tree != classTree;
             if (isNestedClass) {
+                // Since nested class trees will be type-checked separately, this visitor does
+                // not dive into any nested class trees.
                 return null;
             }
             return super.visitClass(tree, unused);
@@ -454,19 +474,7 @@ public class TypeInformationPresenter {
 
         @Override
         public Void visitBinary(BinaryTree tree, Void unused) {
-            switch (tree.getKind()) {
-                case LESS_THAN:
-                case GREATER_THAN:
-                case LESS_THAN_EQUAL:
-                case GREATER_THAN_EQUAL:
-                case EQUAL_TO:
-                case NOT_EQUAL_TO:
-                    // don't report if tree is a comparison operator
-                    break;
-                default:
-                    reportTreeType(tree, factory.getAnnotatedType(tree));
-                    break;
-            }
+            reportTreeType(tree, factory.getAnnotatedType(tree));
             return super.visitBinary(tree, unused);
         }
 
