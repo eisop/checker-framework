@@ -2080,18 +2080,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             }
             return enclosing;
         }
-        Element e = getEnclosingElementForArtificialTree(tree);
-        if (e != null) {
-            Element enclosingMethodOrClass = e;
-            while (enclosingMethodOrClass != null
-                    && enclosingMethodOrClass.getKind() != ElementKind.METHOD
-                    && !enclosingMethodOrClass.getKind().isClass()
-                    && !enclosingMethodOrClass.getKind().isInterface()) {
-                enclosingMethodOrClass = enclosingMethodOrClass.getEnclosingElement();
-            }
-            return declarationFromElement(enclosingMethodOrClass);
-        }
-        return TreePathUtil.enclosingClass(path);
+
+        return getCurrentClassTree(tree);
     }
 
     /**
