@@ -95,6 +95,10 @@ task installGitHooks(type: Copy, dependsOn: 'setLocalRepo') {
 }
 
 allprojects {
+    tasks.withType(JavaCompile).configureEach {
+        options.fork = true
+    }
+
     apply plugin: 'java'
     apply plugin: 'eclipse'
     apply plugin: 'com.github.johnrengelman.shadow'
