@@ -3,6 +3,7 @@ package org.checkerframework.framework.type;
 // The imports from com.sun are all @jdk.Exported and therefore somewhat safe to use.
 // Try to avoid using non-@jdk.Exported classes.
 
+import com.sun.source.tree.AnnotatedTypeTree;
 import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.BinaryTree;
@@ -17,6 +18,7 @@ import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.NewClassTree;
+import com.sun.source.tree.ParameterizedTypeTree;
 import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeCastTree;
@@ -25,7 +27,6 @@ import com.sun.source.util.TreePath;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
-import com.sun.tools.javac.tree.JCTree.JCNewClass;
 import com.sun.tools.javac.util.Options;
 
 import org.checkerframework.checker.interning.qual.FindDistinct;
@@ -270,6 +271,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     private final @Nullable WholeProgramInference wholeProgramInference;
     */
 
+    /** Viewpoint adapter used to perform viewpoint adaptation */
+    protected ViewpointAdapter viewpointAdapter;
+
     /**
      * This formatter is used for converting AnnotatedTypeMirrors to Strings. This formatter will be
      * used by all AnnotatedTypeMirrors created by this factory in their toString methods.
@@ -494,9 +498,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /** Mapping from a Tree to its TreePath. Shared between all instances. */
     private final TreePathCacher treePathCache;
 
-    /** Mapping from CFG-generated trees to their enclosing elements. */
-    protected final Map<Tree, Element> artificialTreeToEnclosingElementMap;
-
     /**
      * Whether to ignore uninferred type arguments. This is a temporary flag to work around Issue
      * 979.
@@ -545,7 +546,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         this.cacheDeclAnnos = new HashMap<>();
 
-        this.artificialTreeToEnclosingElementMap = new HashMap<>();
         // get the shared instance from the checker
         this.treePathCache = checker.getTreePathCacher();
 
@@ -738,6 +738,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.typeHierarchy = createTypeHierarchy();
         this.typeVarSubstitutor = createTypeVariableSubstitutor();
         this.typeArgumentInference = createTypeArgumentInference();
+        this.viewpointAdapter = createViewpointAdapter();
         this.qualifierUpperBounds = createQualifierUpperBounds();
 
         // TODO: is this the best location for declaring this alias?
@@ -876,12 +877,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // Do not clear here. Only the primary checker should clear this cache.
         // treePathCache.clear();
 
-        // setRoot in a GenericAnnotatedTypeFactory will clear this;
-        // if this isn't a GenericATF, then it must clear it itself.
-        if (!(this instanceof GenericAnnotatedTypeFactory)) {
-            artificialTreeToEnclosingElementMap.clear();
-        }
-
         if (shouldCache) {
             // Clear the caches with trees because once the compilation unit changes,
             // the trees may be modified and lose type arguments.
@@ -994,6 +989,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     public final TypeHierarchy getTypeHierarchy() {
         return typeHierarchy;
+    }
+
+    /**
+     * Factory method to create a ViewpointAdaptor. Subclasses should implement and instantiate a
+     * ViewpointAdapter subclass here if viewpoint adaptation is needed for analysis.
+     */
+    protected ViewpointAdapter createViewpointAdapter() {
+        return null;
     }
 
     /**
@@ -1352,6 +1355,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     /**
      * Returns the set of qualifiers that are the upper bounds for a use of the type.
+     *
+     * <p>For a specific type system, the type declaration bound is retrieved in the following
+     * precedence: (1) the annotation on the type declaration bound (2) if an annotation with
+     * {@code @UpperBoundFor} mentions the type or the type kind, use that annotation (3) the top
+     * annotation
      *
      * @param type a type whose upper bounds to obtain
      */
@@ -1725,6 +1733,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             addAnnotationFromFieldInvariant(type, owner, (VariableElement) element);
         }
         addComputedTypeAnnotations(element, type);
+
+        if (viewpointAdapter != null && type.getKind() != TypeKind.EXECUTABLE) {
+            viewpointAdapter.viewpointAdaptMember(owner, element, type);
+        }
     }
 
     /**
@@ -1919,6 +1931,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     typeVarSubstitutor.substitute(typeParamToTypeArg, atv.getLowerBound());
             res.add(new AnnotatedTypeParameterBounds(upper, lower));
         }
+
+        if (viewpointAdapter != null) {
+            viewpointAdapter.viewpointAdaptTypeParameterBounds(type, res);
+        }
         return res;
     }
 
@@ -2044,9 +2060,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Returns the innermost enclosing method or class tree of {@code tree}. If {@code tree} is
-     * artificial (that is, created by dataflow), then {@link #artificialTreeToEnclosingElementMap}
-     * is used to find the enclosing tree.
+     * Returns the innermost enclosing method or class tree of {@code tree}. Since artificial trees
+     * are assigned to be the child node of the original tree, their enclosing trees are found the
+     * same way as normal trees.
      *
      * <p>If the tree is inside an annotation, then {@code null} is returned.
      *
@@ -2256,6 +2272,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 applyFakeOverrides(receiverType, methodElt, memberTypeWithoutOverrides);
         memberTypeWithOverrides = applyRecordTypesToAccessors(methodElt, memberTypeWithOverrides);
         methodFromUsePreSubstitution(tree, memberTypeWithOverrides);
+
+        // Perform viewpoint adaption before type argument substitution.
+        if (viewpointAdapter != null) {
+            viewpointAdapter.viewpointAdaptMethod(receiverType, methodElt, memberTypeWithOverrides);
+        }
 
         AnnotatedExecutableType methodType =
                 AnnotatedTypes.asMemberOf(
@@ -2581,17 +2602,44 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         ExecutableElement ctor = TreeUtils.constructor(tree);
         AnnotatedExecutableType con = getAnnotatedType(ctor); // get unsubstituted type
-        if (TreeUtils.hasSyntheticArgument(tree)) {
-            AnnotatedExecutableType t =
-                    (AnnotatedExecutableType) getAnnotatedType(((JCNewClass) tree).constructor);
-            List<AnnotatedTypeMirror> p = new ArrayList<>(con.getParameterTypes().size() + 1);
-            p.add(t.getParameterTypes().get(0));
-            p.addAll(1, con.getParameterTypes());
-            t.setParameterTypes(p);
-            con = t;
+
+        if (tree.getClassBody() != null) {
+            // The artificial constructor for an anonymous class only contains an invocation of the
+            // corresponding super class constructor. The artificial constructor does not have all
+            // the type annotations the super class constructor has, but conceptually it should have
+            // the same type annotations. Instead of copying all the annotations over, we simply use
+            // the super constructor element for the anonymous class constructor.
+            ExecutableElement superCtor = TreeUtils.anonymousSuperConstructor(tree);
+            AnnotatedExecutableType superCtorType = getAnnotatedType(superCtor);
+
+            if (TreeUtils.hasSyntheticArgument(tree)) {
+                // In JDK 8, an anonymous class instantiation with enclosing expression passes
+                // the enclosing expression as the first argument (i.e. synthetic argument),
+                // while the super constructor parameters does not have the counterpart.
+                // Therefore, we get the first parameter of the anonymous constructor and manually
+                // add it to the parameter list at index 0.
+                List<AnnotatedTypeMirror> actualParams =
+                        new ArrayList<>(superCtorType.getParameterTypes().size() + 1);
+                actualParams.add(con.getParameterTypes().get(0));
+                actualParams.addAll(superCtorType.getParameterTypes());
+                superCtorType.setParameterTypes(actualParams);
+
+                // In this case, the constructor type should record the anonymous constructor
+                // element rather than the super constructor element. The additional synthetic
+                // argument will count during the constructor argument checking. See
+                // org.checkerframework.common.basetype.BaseTypeVisitor#checkConstructorInvocation
+                superCtorType.setElement(ctor);
+            }
+
+            con = superCtorType;
+            ctor = superCtor;
         }
 
         constructorFromUsePreSubstitution(tree, con);
+
+        if (viewpointAdapter != null) {
+            viewpointAdapter.viewpointAdaptConstructor(type, ctor, con);
+        }
 
         con = AnnotatedTypes.asMemberOf(types, this, type, ctor, con);
 
@@ -2695,9 +2743,26 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // In Java 11 and lower, if newClassTree creates an anonymous class, then annotations in
             // this location:
             //   new @HERE Class() {}
-            // are on not on the identifier newClassTree, but rather on the modifier newClassTree.
+            // are not on the identifier newClassTree, but rather on the modifier newClassTree.
             List<? extends AnnotationTree> annos =
                     newClassTree.getClassBody().getModifiers().getAnnotations();
+
+            // If newClassTree creates an anonymous class from an inner class or inner interface,
+            // then annotations in this location:
+            //   new OuterI.@HERE InnerI(){}
+            // are not on the anonymous class modifier, but rather on the type identifier of the
+            // newClassTree.
+            if (annos.isEmpty()) {
+                Tree node = newClassTree.getIdentifier();
+                if (node instanceof ParameterizedTypeTree) {
+                    node = ((ParameterizedTypeTree) node).getType();
+                }
+
+                if (node instanceof AnnotatedTypeTree) {
+                    annos = ((AnnotatedTypeTree) node).getAnnotations();
+                }
+            }
+
             type.addAnnotations(TreeUtils.annotationsFromTypeAnnotationTrees(annos));
 
             // In Java 16+, the annotations are on the identifier, so copy them.
@@ -3660,10 +3725,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             return null;
         }
 
-        if (artificialTreeToEnclosingElementMap.containsKey(node)) {
-            return null;
-        }
-
         if (treePathCache.isCached(node)) {
             return treePathCache.getPath(root, node);
         }
@@ -3725,30 +3786,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Gets the {@link Element} representing the declaration of the method enclosing a tree node.
-     * This feature is used to record the enclosing methods of {@link Tree}s that are created
-     * internally by the checker.
-     *
-     * <p>TODO: Find a better way to store information about enclosing Trees.
-     *
-     * @param node the {@link Tree} to get the enclosing method for
-     * @return the method {@link Element} enclosing the argument, or null if none has been recorded
-     */
-    public final Element getEnclosingElementForArtificialTree(Tree node) {
-        return artificialTreeToEnclosingElementMap.get(node);
-    }
-
-    /**
-     * Adds the given mapping from a synthetic (generated) tree to its enclosing element.
+     * Set the tree path for the given artificial tree.
      *
      * <p>See {@code
      * org.checkerframework.framework.flow.CFCFGBuilder.CFCFGTranslationPhaseOne.handleArtificialTree(Tree)}.
      *
-     * @param tree artifical tree
-     * @param enclosing element that encloses {@code tree}
+     * @param tree the artificial {@link Tree} to set the path for
+     * @param path the {@link TreePath} for the artificial tree
      */
-    public final void setEnclosingElementForArtificialTree(Tree tree, Element enclosing) {
-        artificialTreeToEnclosingElementMap.put(tree, enclosing);
+    public final void setPathForArtificialTree(Tree tree, TreePath path) {
+        treePathCache.addPath(tree, path);
     }
 
     /**

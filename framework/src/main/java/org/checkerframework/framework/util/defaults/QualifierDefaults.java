@@ -489,16 +489,10 @@ public class QualifierDefaults {
     private Element nearestEnclosingExceptLocal(Tree tree) {
         TreePath path = atypeFactory.getPath(tree);
         if (path == null) {
-            Element element = atypeFactory.getEnclosingElementForArtificialTree(tree);
-            if (element != null) {
-                return element;
-            } else {
-                return TreeUtils.elementFromTree(tree);
-            }
+            return TreeUtils.elementFromTree(tree);
         }
 
         Tree prev = null;
-
         for (Tree t : path) {
             switch (TreeUtils.getKindRecordAsClass(t)) {
                 case VARIABLE:
