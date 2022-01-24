@@ -31,7 +31,7 @@ else
 fi
 
 # Clone the annotated JDK into ../jdk .
-"$PLUME_SCRIPTS/git-clone-related" opprop jdk
+"$PLUME_SCRIPTS/git-clone-related" eisop jdk
 
 # NO-AFU
 # AFU="${AFU:-../annotation-tools/annotation-file-utilities}"
@@ -39,7 +39,7 @@ fi
 # AT=$(dirname "${AFU}")
 
 # ## Build annotation-tools (Annotation File Utilities)
-# "$PLUME_SCRIPTS/git-clone-related" opprop annotation-tools "${AT}"
+# "$PLUME_SCRIPTS/git-clone-related" eisop annotation-tools "${AT}"
 # if [ ! -d ../annotation-tools ] ; then
 #   ln -s "${AT}" ../annotation-tools
 # fi
@@ -50,7 +50,7 @@ fi
 
 
 ## Build stubparser
-"$PLUME_SCRIPTS/git-clone-related" opprop stubparser
+"$PLUME_SCRIPTS/git-clone-related" eisop stubparser
 echo "Running:  (cd ../stubparser/ && ./.build-without-test.sh)"
 (cd ../stubparser/ && ./.build-without-test.sh)
 echo "... done: (cd ../stubparser/ && ./.build-without-test.sh)"
