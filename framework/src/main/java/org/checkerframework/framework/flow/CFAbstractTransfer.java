@@ -667,7 +667,21 @@ public abstract class CFAbstractTransfer<
     @Override
     public TransferResult<V, S> visitTernaryExpression(
             TernaryExpressionNode n, TransferInput<V, S> p) {
-        return visitLocalVariable(n.getTernaryExpressionVar(), p);
+        //        return visitLocalVariable(n.getTernaryExpressionVar(), p);
+        TransferResult<V, S> result = super.visitTernaryExpression(n, p);
+        S thenStore = result.getThenStore();
+        S elseStore = result.getElseStore();
+
+        // System.err.println("thenStore: " + thenStore + "\nelseStore: " + elseStore);
+        V thenValue = p.getValueOfSubNode(n.getThenOperand());
+        V elseValue = p.getValueOfSubNode(n.getElseOperand());
+        V resultValue = null;
+        if (thenValue != null && elseValue != null) {
+            // The resulting abstract value is the merge of the 'then' and 'else' branch.
+            resultValue = thenValue.leastUpperBound(elseValue);
+        }
+        V finishedValue = finishValue(resultValue, thenStore, elseStore);
+        return new ConditionalTransferResult<>(finishedValue, thenStore, elseStore);
     }
 
     @Override
