@@ -135,13 +135,30 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
                 } finally {
                     useAssignmentContext = true;
                 }
-                for (int i = 0; i < m.getParameterTypes().size(); i++) {
+
+                int parametersCount = m.getParameterTypes().size();
+                boolean isVarargs = m.getElement().isVarArgs();
+
+                // If the method accepts varargs, we should handle it (the last parameter)
+                // after this for-loop.
+                for (int i = 0; i < (isVarargs ? parametersCount - 1 : parametersCount); i++) {
                     @SuppressWarnings("interning") // Tree must be exactly the same.
                     boolean foundArgument = methodInvocationTree.getArguments().get(i) == tree;
                     if (foundArgument) {
                         contextType = m.getParameterTypes().get(i);
                         break;
                     }
+                }
+
+                if (isVarargs && contextType == null) {
+                    // The previous for-loop cannot find any arguments matching the
+                    // new array tree, thus the tree has to be the argument for varargs.
+                    //
+                    // The tree could be an artificial tree when the code doesn't provide
+                    // any explicit arguments for the varargs (i.e., an empty array).
+                    // So we don't try getting the argument from methodInvocationTree
+                    // to avoid out-of-bound exception.
+                    contextType = m.getParameterTypes().get(parametersCount - 1);
                 }
             }
         }
