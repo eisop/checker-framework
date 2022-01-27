@@ -827,7 +827,6 @@ public abstract class CFAbstractTransfer<
         Node lhs = n.getTarget();
         Node rhs = n.getExpression();
 
-        S store = in.getRegularStore();
         V rhsValue = in.getValueOfSubNode(rhs);
 
         /* NO-AFU
@@ -852,9 +851,18 @@ public abstract class CFAbstractTransfer<
                }
         */
 
-        processCommonAssignment(in, lhs, rhs, store, rhsValue);
-
-        return new RegularTransferResult<>(finishValue(rhsValue, store), store);
+        if (!n.shouldMergeStore() && in.containsTwoStores()) {
+            S thenStore = in.getThenStore();
+            S elseStore = in.getElseStore();
+            processCommonAssignment(in, lhs, rhs, thenStore, rhsValue);
+            processCommonAssignment(in, lhs, rhs, elseStore, rhsValue);
+            return new ConditionalTransferResult<>(
+                    finishValue(rhsValue, thenStore, elseStore), thenStore, elseStore);
+        } else {
+            S store = in.getRegularStore();
+            processCommonAssignment(in, lhs, rhs, store, rhsValue);
+            return new RegularTransferResult<>(finishValue(rhsValue, store), store);
+        }
     }
 
     @Override
