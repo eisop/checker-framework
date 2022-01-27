@@ -2593,7 +2593,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         handleArtificialTree(assign);
 
         AssignmentNode assignmentNode =
-                new AssignmentNode(assign, treeAndLocalVarNode.second, caseExprNode);
+                new AssignmentNode(assign, treeAndLocalVarNode.second, caseExprNode, false);
         assignmentNode.setInSource(false);
         extendWithNode(assignmentNode);
     }

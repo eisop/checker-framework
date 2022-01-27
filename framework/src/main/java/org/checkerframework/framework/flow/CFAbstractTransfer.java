@@ -855,7 +855,7 @@ public abstract class CFAbstractTransfer<
                }
         */
 
-        if (in.containsTwoStores()) {
+        if (!n.shouldMergeStore() && in.containsTwoStores()) {
             S thenStore = in.getThenStore();
             S elseStore = in.getElseStore();
             processCommonAssignment(in, lhs, rhs, thenStore, rhsValue);

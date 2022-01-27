@@ -150,14 +150,19 @@ public class InitializationTransfer<
     @Override
     public TransferResult<V, S> visitAssignment(AssignmentNode n, TransferInput<V, S> in) {
         TransferResult<V, S> result = super.visitAssignment(n, in);
-        //        assert result instanceof RegularTransferResult;
         JavaExpression lhs = JavaExpression.fromNode(n.getTarget());
 
         // If this is an assignment to a field of 'this', then mark the field as initialized.
         if (!lhs.containsUnknown()) {
             if (lhs instanceof FieldAccess) {
                 FieldAccess fa = (FieldAccess) lhs;
-                result.getRegularStore().addInitializedField(fa);
+                if (result.containsTwoStores()) {
+                    // This happens when the stores are not merge for the assignment
+                    result.getThenStore().addInitializedField(fa);
+                    result.getElseStore().addInitializedField(fa);
+                } else {
+                    result.getRegularStore().addInitializedField(fa);
+                }
             }
         }
         return result;

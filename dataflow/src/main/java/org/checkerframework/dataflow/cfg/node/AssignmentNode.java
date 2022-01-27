@@ -30,7 +30,14 @@ public class AssignmentNode extends Node {
     protected final Node lhs;
     protected final Node rhs;
 
+    /** Should the then-store and else-store be merged regarding the context? */
+    private final boolean mergeStore;
+
     public AssignmentNode(Tree tree, Node target, Node expression) {
+        this(tree, target, expression, true);
+    }
+
+    public AssignmentNode(Tree tree, Node target, Node expression, boolean mergeStore) {
         super(TreeUtils.typeOf(tree));
         assert tree instanceof AssignmentTree
                 || tree instanceof VariableTree
@@ -42,6 +49,7 @@ public class AssignmentNode extends Node {
         this.tree = tree;
         this.lhs = target;
         this.rhs = expression;
+        this.mergeStore = mergeStore;
     }
 
     /**
@@ -60,6 +68,10 @@ public class AssignmentNode extends Node {
     @Override
     public Tree getTree() {
         return tree;
+    }
+
+    public boolean shouldMergeStore() {
+        return mergeStore;
     }
 
     @Override
