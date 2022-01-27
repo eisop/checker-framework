@@ -33,10 +33,26 @@ public class AssignmentNode extends Node {
     /** Should the then-store and else-store be merged regarding the context? */
     private final boolean mergeStore;
 
+    /**
+     * Create an AssignmentNode where, if the transfer result is conditional, the then-store and
+     * else-store are always merged.
+     *
+     * @param tree the {@code AssignmentTree} corresponding to the {@code AssignmentNode}
+     * @param target the lhs of {@code tree}
+     * @param expression the rhs of {@code tree}
+     */
     public AssignmentNode(Tree tree, Node target, Node expression) {
         this(tree, target, expression, true);
     }
 
+    /**
+     * Create an AssignmentNode.
+     *
+     * @param tree the {@code AssignmentTree} corresponding to the {@code AssignmentNode}
+     * @param target the lhs of {@code tree}
+     * @param expression the rhs of {@code tree}
+     * @param mergeStore Should the then-store and else-store be merged?
+     */
     public AssignmentNode(Tree tree, Node target, Node expression, boolean mergeStore) {
         super(TreeUtils.typeOf(tree));
         assert tree instanceof AssignmentTree
@@ -70,6 +86,7 @@ public class AssignmentNode extends Node {
         return tree;
     }
 
+    /** Check if the then-store and else-store should be merged. */
     public boolean shouldMergeStore() {
         return mergeStore;
     }

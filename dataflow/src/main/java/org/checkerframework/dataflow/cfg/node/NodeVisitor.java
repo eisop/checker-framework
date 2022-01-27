@@ -170,15 +170,4 @@ public interface NodeVisitor<R, P> {
      *     type is needed
      */
     R visitClassDeclaration(ClassDeclarationNode classDeclarationNode, P p);
-
-    //
-    /**
-     * Merges store after an expression statement.
-     *
-     * @param n the {@link ExpressionStatementNode} to be visited
-     * @param p the argument of the operation implemented by this visitor
-     * @return the return type of the operation implemented by this visitor, use Void if no return
-     *     type is needed
-     */
-    R visitExpressionStatement(ExpressionStatementNode n, P p);
 }
