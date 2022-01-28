@@ -5,6 +5,7 @@ import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.tools.javac.code.Symbol;
 
+import org.checkerframework.dataflow.analysis.RegularTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
 import org.checkerframework.dataflow.cfg.node.AssignmentNode;
@@ -156,13 +157,8 @@ public class InitializationTransfer<
         if (!lhs.containsUnknown()) {
             if (lhs instanceof FieldAccess) {
                 FieldAccess fa = (FieldAccess) lhs;
-                if (result.containsTwoStores()) {
-                    // This happens when the stores are not merge for the assignment
-                    result.getThenStore().addInitializedField(fa);
-                    result.getElseStore().addInitializedField(fa);
-                } else {
-                    result.getRegularStore().addInitializedField(fa);
-                }
+                assert result instanceof RegularTransferResult;
+                result.getRegularStore().addInitializedField(fa);
             }
         }
         return result;
