@@ -11,10 +11,15 @@ import java.util.Collections;
 import java.util.Objects;
 
 /**
- * An ExpressionStatementNode is created for an expression that is used as a statement. An {@code
- * ExpressionStatementNode} is appended to the scanned CFG nodes of the expression. The motivation
- * of this kind of node is to solve the issue
- * https://github.com/typetools/checker-framework/issues/3281
+ * A node for an expression that is used as a statement.
+ *
+ * <pre>
+ *   <em>expression</em>;
+ * </pre>
+ *
+ * An {@code ExpressionStatementNode} appears in the CFG after the node(s) of the expression. The
+ * node can be used for special-handling of expression statements or can be seen as a no-op marker
+ * node.
  */
 public class ExpressionStatementNode extends Node {
     /** The expression constituting this ExpressionStatementNode. */
