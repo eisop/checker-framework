@@ -151,13 +151,17 @@ public class InitializationTransfer<
     @Override
     public TransferResult<V, S> visitAssignment(AssignmentNode n, TransferInput<V, S> in) {
         TransferResult<V, S> result = super.visitAssignment(n, in);
-        assert result instanceof RegularTransferResult;
         JavaExpression lhs = JavaExpression.fromNode(n.getTarget());
 
         // If this is an assignment to a field of 'this', then mark the field as initialized.
         if (!lhs.containsUnknown()) {
             if (lhs instanceof FieldAccess) {
                 FieldAccess fa = (FieldAccess) lhs;
+                // Only ternary expression may cause conditional transfer result, e.g.
+                //      condExpr#num0 = (obj instanceof List)
+                // In such cases, the LHS is never a FieldAccess, so we can assert regular transfer
+                // result here.
+                assert result instanceof RegularTransferResult;
                 result.getRegularStore().addInitializedField(fa);
             }
         }

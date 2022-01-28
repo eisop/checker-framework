@@ -2610,7 +2610,6 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         handleArtificialTree(condExprVarUseTree);
         LocalVariableNode condExprVarUseNode = new LocalVariableNode(condExprVarUseTree);
         condExprVarUseNode.setInSource(false);
-        extendWithNode(condExprVarUseNode);
         return Pair.of(condExprVarUseTree, condExprVarUseNode);
     }
 
