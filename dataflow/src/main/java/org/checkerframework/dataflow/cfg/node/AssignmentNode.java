@@ -30,7 +30,7 @@ public class AssignmentNode extends Node {
     protected final Node lhs;
     protected final Node rhs;
 
-    /** Should the then-store and else-store be merged regarding the context? */
+    /** Whether the then-store and else-store should be merged. */
     private final boolean mergeStore;
 
     /**
