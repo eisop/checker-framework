@@ -854,7 +854,8 @@ public abstract class CFAbstractTransfer<
         */
 
         if (n.isSynthetic() && in.containsTwoStores()) {
-            // This is a synthetic assignment node created for a ternary expression. In this case the `then` and `else` store are not merged.
+            // This is a synthetic assignment node created for a ternary expression. In this case
+            // the `then` and `else` store are not merged.
             S thenStore = in.getThenStore();
             S elseStore = in.getElseStore();
             processCommonAssignment(in, lhs, rhs, thenStore, rhsValue);
