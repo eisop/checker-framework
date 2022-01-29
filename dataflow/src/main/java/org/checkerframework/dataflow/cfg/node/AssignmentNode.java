@@ -23,6 +23,9 @@ import java.util.Objects;
  * </pre>
  *
  * We allow assignments without corresponding AST {@link Tree}s.
+ *
+ * <p>Some desugarings create additional assignments to synthetic local variables. Such assignment
+ * nodes are marked as synthetic to allow special handling in transfer functions.
  */
 public class AssignmentNode extends Node {
 
@@ -30,19 +33,18 @@ public class AssignmentNode extends Node {
     protected final Node lhs;
     protected final Node rhs;
 
-    /** Should the then-store and else-store be merged regarding the context? */
-    private final boolean mergeStore;
+    /** Whether the assignment node is synthetic */
+    protected final boolean synthetic;
 
     /**
-     * Create an AssignmentNode where, if the transfer result is conditional, the then-store and
-     * else-store are always merged.
+     * Create a (non-synthetic) AssignmentNode.
      *
      * @param tree the {@code AssignmentTree} corresponding to the {@code AssignmentNode}
      * @param target the lhs of {@code tree}
      * @param expression the rhs of {@code tree}
      */
     public AssignmentNode(Tree tree, Node target, Node expression) {
-        this(tree, target, expression, true);
+        this(tree, target, expression, false);
     }
 
     /**
@@ -51,9 +53,9 @@ public class AssignmentNode extends Node {
      * @param tree the {@code AssignmentTree} corresponding to the {@code AssignmentNode}
      * @param target the lhs of {@code tree}
      * @param expression the rhs of {@code tree}
-     * @param mergeStore Should the then-store and else-store be merged?
+     * @param synthetic whether the assignment node is synthetic
      */
-    public AssignmentNode(Tree tree, Node target, Node expression, boolean mergeStore) {
+    public AssignmentNode(Tree tree, Node target, Node expression, boolean synthetic) {
         super(TreeUtils.typeOf(tree));
         assert tree instanceof AssignmentTree
                 || tree instanceof VariableTree
@@ -65,7 +67,7 @@ public class AssignmentNode extends Node {
         this.tree = tree;
         this.lhs = target;
         this.rhs = expression;
-        this.mergeStore = mergeStore;
+        this.synthetic = synthetic;
     }
 
     /**
@@ -87,8 +89,8 @@ public class AssignmentNode extends Node {
     }
 
     /** Check if the then-store and else-store should be merged. */
-    public boolean shouldMergeStore() {
-        return mergeStore;
+    public boolean isSynthetic() {
+        return synthetic;
     }
 
     @Override
@@ -98,7 +100,7 @@ public class AssignmentNode extends Node {
 
     @Override
     public String toString() {
-        return getTarget() + " = " + getExpression();
+        return getTarget() + " = " + getExpression() + (synthetic ? " (synthetic)" : "");
     }
 
     @Override
