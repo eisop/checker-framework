@@ -1,4 +1,4 @@
-Version 3.21.0-eisop-1 (January ?, 2022)
+Version 3.21.1-eisop-1 (February ?, 2022)
 -------------------------------
 
 **User-visible changes:**
@@ -11,9 +11,41 @@ current behavior the default is `true`.
 
 **Implementation details:**
 
+Moved files AnnotationFormatter.java and DefaultAnnotationFormatter.java from
+javacutil/src/main/java/org/checkerframework/javacutil/ to
+framework/src/main/java/org/checkerframework/framework/util/.
+typetools PR 3821 incorrectly moved these files, without adapting their
+packages, leading to framework classes in javacutil.
+The AnnotationFormatter depends on the InvisibleQualifier framework
+annotation, so should be in that project.
+Added additional toStringSimple methods to AnnotationUtils to format
+AnnotationMirrors without depending on the framework project.
+
+Dataflow Framework: new `ExpressionStatementNode` marks an expression that is
+used as a statement.
+
+To correctly handle ternary expressions, support synthetic AssignmentNodes that
+do not merge stores. These synthetic assignments are used for the assignments
+to the synthetic variables in a ternary expression.
+(typetools PR #5000 48f2652bc8bf4801b2e750cd92325583939f2f52 added synthetic
+variables for ternary expressions to the CFG. This broke how the Nullness
+Checker handles ternary expressions, leading to false positives.)
 
 **Closed issues:**
+typetools #3281
 
+
+Version 3.21.1 (January 7, 2022)
+-------------------------------
+
+**User-visible changes:**
+
+The Checker Framework Gradle Plugin now works incrementally:  if you change just
+one source file, then Gradle will recompile just that file rather than all
+files.
+
+**Closed issues:**
+#2401, #4994, #4995, #4996.
 
 
 Version 3.21.0 (December 17, 2021)
@@ -31,6 +63,7 @@ was added.
 
 **Closed issues:**
 #2373, #4934, #4977, #4979, #4987.
+
 
 Version 3.20.0 (December 6, 2021)
 -------------------------------
