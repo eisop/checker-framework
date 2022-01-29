@@ -29,8 +29,11 @@ import java.util.Objects;
  */
 public class AssignmentNode extends Node {
 
+    /** The underlying assignment tree. */
     protected final Tree tree;
+    /** The node for the LHS of the assignment tree. */
     protected final Node lhs;
+    /** The node for the RHS of the assignment tree. */
     protected final Node rhs;
 
     /** Whether the assignment node is synthetic */
@@ -88,7 +91,12 @@ public class AssignmentNode extends Node {
         return tree;
     }
 
-    /** Check if the then-store and else-store should be merged. */
+    /**
+     * Check if the assignment node is synthetic, e.g. the synthetic assignment in a ternary
+     * expression.
+     *
+     * @return true if the assignment node is synthetic
+     */
     public boolean isSynthetic() {
         return synthetic;
     }

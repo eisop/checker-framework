@@ -2596,7 +2596,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     }
 
     /**
-     * Build a {@link Pair<IdentifierTree, LocalVariableNode>} representing a use of some variable
+     * Build a pair of <{@link IdentifierTree} and {@link LocalVariableNode} to represent a use of
+     * some variable
      *
      * @param varTree tree for the variable
      * @return a pair whose first element is the synthetic {@link IdentifierTree} for the use, and
