@@ -43,7 +43,7 @@ typetools #3281
 
 
 Version 3.2?.? (February 1, 2022)
--------------------------------
+---------------------------------
 
 **User-visible changes:**
 
@@ -58,7 +58,7 @@ Deprecated CFGLambda.getMethod{Name} in favor of getEnclosingMethod{Name}.
 
 
 Version 3.21.1 (January 7, 2022)
--------------------------------
+--------------------------------
 
 **User-visible changes:**
 
@@ -71,7 +71,7 @@ files.
 
 
 Version 3.21.0 (December 17, 2021)
--------------------------------
+----------------------------------
 
 **User-visible changes:**
 
@@ -88,7 +88,7 @@ was added.
 
 
 Version 3.20.0 (December 6, 2021)
--------------------------------
+---------------------------------
 
 **User-visible changes:**
 
@@ -135,7 +135,7 @@ eisop#121, typetools#4923.
 
 
 Version 3.19.0 (November 1, 2021)
--------------------------------
+---------------------------------
 
 **User-visible changes:**
 
@@ -168,7 +168,7 @@ Add more aliases for nullness annotations; fix manual formatting (#105).
 
 
 Version 3.18.1 (October 4, 2021)
--------------------------------
+--------------------------------
 
 **Closed issues:**
 #4902 and #4903.
@@ -195,7 +195,7 @@ Changes to `AnnotatedTypeMirror`:
 
 
 Version 3.18.0 (September 1, 2021)
--------------------------------
+----------------------------------
 
 **User-visible changes:**
 
