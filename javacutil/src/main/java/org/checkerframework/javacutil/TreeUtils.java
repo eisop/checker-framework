@@ -304,11 +304,12 @@ public final class TreeUtils {
   @Pure
   public static @Nullable Element elementFromTree(Tree tree) {
     if (tree == null) {
-      throw new BugInCF("symbol: tree is null");
+      throw new BugInCF("TreeUtils.elementFromTree: tree is null");
     }
 
     if (!(tree instanceof JCTree)) {
-      throw new BugInCF("symbol: tree is not a valid Javac tree");
+      throw new BugInCF(
+          "TreeUtils.elementFromTree: tree is not a valid Javac tree but a " + tree.getClass());
     }
 
     if (isExpressionTree(tree)) {
@@ -440,7 +441,7 @@ public final class TreeUtils {
   public static ExecutableElement constructor(NewClassTree tree) {
 
     if (!(tree instanceof JCTree.JCNewClass)) {
-      throw new BugInCF("constructor: not a javac internal tree");
+      throw new BugInCF("TreeUtils.constructor: not a javac internal tree");
     }
 
     JCNewClass newClassTree = (JCNewClass) tree;
@@ -960,7 +961,7 @@ public final class TreeUtils {
       Class<?> type, String methodName, ProcessingEnvironment env, String... paramTypes) {
     String typeName = type.getCanonicalName();
     if (typeName == null) {
-      throw new BugInCF("getMethod: class %s has no canonical name", type);
+      throw new BugInCF("TreeUtils.getMethod: class %s has no canonical name", type);
     }
     return getMethod(typeName, methodName, env, paramTypes);
   }
