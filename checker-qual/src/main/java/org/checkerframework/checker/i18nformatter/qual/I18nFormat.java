@@ -1,11 +1,12 @@
 package org.checkerframework.checker.i18nformatter.qual;
 
+import org.checkerframework.framework.qual.SubtypeOf;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.checkerframework.framework.qual.SubtypeOf;
 
 /**
  * This annotation, attached to a String type, indicates that the String may be passed to {@link
@@ -33,10 +34,10 @@ import org.checkerframework.framework.qual.SubtypeOf;
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @SubtypeOf(I18nUnknownFormat.class)
 public @interface I18nFormat {
-  /**
-   * An array of {@link I18nConversionCategory}, indicating the types of legal remaining arguments
-   * when a value of the annotated type is used as the first argument to {@link
-   * java.text.MessageFormat#format(String, Object...) Message.format}.
-   */
-  I18nConversionCategory[] value();
+    /**
+     * An array of {@link I18nConversionCategory}, indicating the types of legal remaining arguments
+     * when a value of the annotated type is used as the first argument to {@link
+     * java.text.MessageFormat#format(String, Object...) Message.format}.
+     */
+    I18nConversionCategory[] value();
 }
