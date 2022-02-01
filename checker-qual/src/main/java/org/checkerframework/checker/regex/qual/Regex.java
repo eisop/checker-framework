@@ -1,12 +1,11 @@
 package org.checkerframework.checker.regex.qual;
 
-import org.checkerframework.framework.qual.SubtypeOf;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import org.checkerframework.framework.qual.SubtypeOf;
 
 /**
  * If a type is annotated as {@code @Regex(n)}, then the run-time value is a regular expression with
@@ -24,6 +23,6 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @SubtypeOf(UnknownRegex.class)
 public @interface Regex {
-    /** The number of groups in the regular expression. Defaults to 0. */
-    int value() default 0;
+  /** The number of groups in the regular expression. Defaults to 0. */
+  int value() default 0;
 }
