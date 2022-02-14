@@ -85,7 +85,7 @@ public class BusyExprStore implements Store<BusyExprStore> {
     /**
      * Add busy expression e to busy expression value set.
      *
-     * @param e
+     * @param e the busy expression to be added
      */
     public void putBusyExpr(BusyExprValue e) {
         busyExprValueSet.add(e);
