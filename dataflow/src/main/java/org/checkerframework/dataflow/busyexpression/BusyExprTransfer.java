@@ -5,7 +5,13 @@ import org.checkerframework.dataflow.analysis.RegularTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
 import org.checkerframework.dataflow.cfg.UnderlyingAST;
-import org.checkerframework.dataflow.cfg.node.*;
+import org.checkerframework.dataflow.cfg.node.AbstractNodeVisitor;
+import org.checkerframework.dataflow.cfg.node.AssignmentNode;
+import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
+import org.checkerframework.dataflow.cfg.node.Node;
+import org.checkerframework.dataflow.cfg.node.ObjectCreationNode;
+import org.checkerframework.dataflow.cfg.node.ReturnNode;
+import org.checkerframework.dataflow.cfg.node.StringConcatenateAssignmentNode;
 
 import java.util.List;
 

@@ -2,12 +2,20 @@ package org.checkerframework.dataflow.busyexpression;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.Store;
-import org.checkerframework.dataflow.cfg.node.*;
+import org.checkerframework.dataflow.cfg.node.IntegerDivisionNode;
+import org.checkerframework.dataflow.cfg.node.Node;
+import org.checkerframework.dataflow.cfg.node.NumericalAdditionNode;
+import org.checkerframework.dataflow.cfg.node.NumericalMultiplicationNode;
+import org.checkerframework.dataflow.cfg.node.NumericalSubtractionNode;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizer;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.javacutil.BugInCF;
 
-import java.util.*;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.StringJoiner;
 
 /** A busy expression store contains a set of busy expressions represented by nodes. */
 public class BusyExprStore implements Store<BusyExprStore> {
