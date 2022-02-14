@@ -7,7 +7,14 @@ import org.checkerframework.dataflow.busyexpression.BusyExprTransfer;
 import org.checkerframework.dataflow.busyexpression.BusyExprValue;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeLauncher;
 
+/** The playground for busy expression analysis */
 public class BusyExpressionPlayground {
+
+    /**
+     * Run busy expression analysis playground on a test file and print the CFG graph
+     *
+     * @param args input arguments
+     */
     public static void main(String[] args) {
 
         /* Configuration: change as appropriate */

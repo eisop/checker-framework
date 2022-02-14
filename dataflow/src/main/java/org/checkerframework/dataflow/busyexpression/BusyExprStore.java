@@ -23,17 +23,22 @@ public class BusyExprStore implements Store<BusyExprStore> {
     /** A set of busy expression abstract values. */
     private final Set<BusyExprValue> busyExprValueSet;
 
+    /**
+     * Create a new BusyExprStore.
+     *
+     * @param busyExprValueSet a set of busy expression abstract values
+     */
     public BusyExprStore(Set<BusyExprValue> busyExprValueSet) {
         this.busyExprValueSet = busyExprValueSet;
     }
 
-    /** Create a new BusyExprStore */
+    /** Create a new BusyExprStore. */
     public BusyExprStore() {
         busyExprValueSet = new LinkedHashSet<>();
     }
 
     /**
-     * Kill expressions if they contain variable v
+     * Kill expressions if they contain variable v.
      *
      * @param v a variable
      */
@@ -49,7 +54,7 @@ public class BusyExprStore implements Store<BusyExprStore> {
     }
 
     /**
-     * Return if the expression contains variable var
+     * Return if the expression contains variable var.
      *
      * @param expr the expression checked
      * @param var the variable
@@ -77,6 +82,11 @@ public class BusyExprStore implements Store<BusyExprStore> {
         return expr.equals(var);
     }
 
+    /**
+     * Add busy expression e to busy expression value set.
+     *
+     * @param e
+     */
     public void putBusyExpr(BusyExprValue e) {
         busyExprValueSet.add(e);
     }

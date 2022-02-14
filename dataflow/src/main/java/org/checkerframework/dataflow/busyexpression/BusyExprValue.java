@@ -5,6 +5,7 @@ import org.checkerframework.dataflow.analysis.AbstractValue;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.javacutil.BugInCF;
 
+/** A busy expression wrapper turning a node into the abstract value */
 public class BusyExprValue implements AbstractValue<BusyExprValue> {
 
     /**
