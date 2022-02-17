@@ -94,6 +94,47 @@ task liveVariableTest(dependsOn: [assemble, compileTestJava], group: 'Verificati
     }
 }
 
+
+task reachDefinitionTest(dependsOn: [assemble, compileTestJava], group: 'Verification') {
+    description 'Test the live variable analysis test for dataflow framework.'
+    inputs.file('tests/reach-definition/Expected.txt')
+    inputs.file('tests/reach-definition/Test.java')
+
+    outputs.file('tests/reach-definition/Out.txt')
+    outputs.file('tests/reach-definition/Test.class')
+
+    delete('tests/reach-definition/Out.txt')
+    delete('tests/reach-definition/Test.class')
+    doLast {
+        javaexec {
+            workingDir = 'tests/reach-definition'
+            if (!JavaVersion.current().java9Compatible) {
+                jvmArgs += "-Xbootclasspath/p:${configurations.javacJar.asPath}".toString()
+            }
+            else if (JavaVersion.current() > JavaVersion.VERSION_11) {
+                jvmArgs += [
+                        "--add-opens", "jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
+                        "--add-opens", "jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED",
+                        "--add-opens", "jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+                        "--add-opens", "jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
+                        "--add-opens", "jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
+                        "--add-opens", "jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+                        "--add-opens", "jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
+                ]
+            }
+
+            classpath = sourceSets.test.runtimeClasspath
+            classpath += sourceSets.test.output
+            mainClass = 'reachDef.ReachDefinition'
+        }
+        exec {
+            workingDir = 'tests/reach-definition'
+            executable 'diff'
+            args = ['-u', 'Expected.txt', 'Out.txt']
+        }
+    }
+}
+
 task issue3447Test(dependsOn: [assemble, compileTestJava], group: 'Verification') {
     description 'Test issue 3447 test case for backward analysis.'
     inputs.file('tests/issue3447/Test.java')
