@@ -17,6 +17,7 @@ dependencies {
 
 // Shadowing Test Sources and Dependencies
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.gradle.plugin.use.internal.InjectedPluginClasspath
 
 /**
  * Creates a task with name dataflow${shadedPkgName} that creates a shaded dataflow jar. The packages will be shaded to
@@ -54,45 +55,60 @@ createDataflowShaded('shaded')
 createDataflowShaded('nullaway')
 createDataflowShaded('errorprone')
 
-task liveVariableTest(dependsOn: [assemble, compileTestJava], group: 'Verification') {
-    description 'Test the live variable analysis test for dataflow framework.'
-    inputs.file('tests/live-variable/Expected.txt')
-    inputs.file('tests/live-variable/Test.java')
+/**
+ * create a task to run dataflow analysis demo
+ * @param taskName specify the taskName of created task
+ * @param dirName specify the directory name of the test file
+ * @param pkgName specify the package name of the demo
+ * @param className specify the class name of the demo
+ * @return
+ */
+def testDataflowAnalysisDemo(taskName, dirName, pkgName, className) {
+    tasks.create(name: taskName, dependsOn: [assemble, compileTestJava], group: 'Verification') {
+        description "Test the ${className} analysis test for dataflow framework."
+        inputs.file("tests/${dirName}/Expected.txt")
+        inputs.file("tests/${dirName}/Test.java")
 
-    outputs.file('tests/live-variable/Out.txt')
-    outputs.file('tests/live-variable/Test.class')
+        outputs.file("tests/${dirName}/Out.txt")
+        outputs.file("tests/${dirName}/Test.class")
 
-    delete('tests/live-variable/Out.txt')
-    delete('tests/live-variable/Test.class')
-    doLast {
-        javaexec {
-            workingDir = 'tests/live-variable'
-            if (!JavaVersion.current().java9Compatible) {
-                jvmArgs += "-Xbootclasspath/p:${configurations.javacJar.asPath}".toString()
+        delete("tests/${dirName}/Out.txt")
+        delete("tests/${dirName}/Test.class")
+        doLast {
+            javaexec {
+                workingDir = "tests/${dirName}"
+                if (!JavaVersion.current().java9Compatible) {
+                    jvmArgs += "-Xbootclasspath/p:${configurations.javacJar.asPath}".toString()
+                }
+                else if (JavaVersion.current() > JavaVersion.VERSION_11) {
+                    jvmArgs += [
+                            "--add-opens", "jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
+                            "--add-opens", "jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED",
+                            "--add-opens", "jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+                            "--add-opens", "jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
+                            "--add-opens", "jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
+                            "--add-opens", "jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+                            "--add-opens", "jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
+                    ]
+                }
+
+                classpath = sourceSets.test.runtimeClasspath
+                classpath += sourceSets.test.output
+                mainClass = "${pkgName}.${className}"
             }
-            else if (JavaVersion.current() > JavaVersion.VERSION_11) {
-                jvmArgs += [
-                    "--add-opens", "jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
-                    "--add-opens", "jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED",
-                    "--add-opens", "jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
-                    "--add-opens", "jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
-                    "--add-opens", "jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
-                    "--add-opens", "jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
-                    "--add-opens", "jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
-                ]
+            exec {
+                workingDir = "tests/${dirName}"
+                executable 'diff'
+                args = ['-u', 'Expected.txt', 'Out.txt']
             }
-
-            classpath = sourceSets.test.runtimeClasspath
-            classpath += sourceSets.test.output
-            mainClass = 'livevar.LiveVariable'
-        }
-        exec {
-            workingDir = 'tests/live-variable'
-            executable 'diff'
-            args = ['-u', 'Expected.txt', 'Out.txt']
         }
     }
 }
+
+// run the liveVariableTest
+testDataflowAnalysisDemo("liveVariableTest", "live-variable", "livevar", "LiveVariable")
+// run the busyExpressionTest
+testDataflowAnalysisDemo("busyExpressionTest", "busy-expression", "busyexpr", "BusyExpression")
 
 task issue3447Test(dependsOn: [assemble, compileTestJava], group: 'Verification') {
     description 'Test issue 3447 test case for backward analysis.'
@@ -107,13 +123,13 @@ task issue3447Test(dependsOn: [assemble, compileTestJava], group: 'Verification'
             }
             else if (JavaVersion.current() > JavaVersion.VERSION_11) {
                 jvmArgs += [
-                    "--add-opens", "jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
-                    "--add-opens", "jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED",
-                    "--add-opens", "jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
-                    "--add-opens", "jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
-                    "--add-opens", "jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
-                    "--add-opens", "jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
-                    "--add-opens", "jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
+                        "--add-opens", "jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
+                        "--add-opens", "jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED",
+                        "--add-opens", "jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+                        "--add-opens", "jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
+                        "--add-opens", "jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
+                        "--add-opens", "jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+                        "--add-opens", "jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
                 ]
             }
             classpath = sourceSets.test.runtimeClasspath
