@@ -10,10 +10,7 @@ public class BusyExprValue implements AbstractValue<BusyExprValue> {
 
     /**
      * A busy expression is represented by a node, which can be a {@link
-     * org.checkerframework.dataflow.cfg.node.NumericalAdditionNode} or {@link
-     * org.checkerframework.dataflow.cfg.node.NumericalSubtractionNode} or {@link
-     * org.checkerframework.dataflow.cfg.node.NumericalMultiplicationNode} or {@link
-     * org.checkerframework.dataflow.cfg.node.IntegerDivisionNode}
+     * org.checkerframework.dataflow.cfg.node.BinaryOperationNode}
      */
     protected final Node busyExpression;
 

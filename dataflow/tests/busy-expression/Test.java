@@ -1,13 +1,23 @@
 class Test {
-    public void test() {
+    public int test() {
         int a = 2, b = 3;
+        int x, y;
         if (a != b) {
-            int x = b - a;
-            int y = a - b;
+            x = b >> a;
+            y = a - b;
         } else {
-            int y = b - a;
+            y = b >> a;
             a = 0;
-            int x = a - b;
+            x = a - b;
         }
+
+        // test exceptional exit block
+        int d;
+        try {
+            d = y / x;
+        } catch (ArithmeticException e) {
+            d = 10000000;
+        }
+        return d;
     }
 }

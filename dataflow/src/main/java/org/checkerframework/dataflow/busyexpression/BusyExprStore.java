@@ -2,11 +2,8 @@ package org.checkerframework.dataflow.busyexpression;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.Store;
-import org.checkerframework.dataflow.cfg.node.IntegerDivisionNode;
+import org.checkerframework.dataflow.cfg.node.BinaryOperationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
-import org.checkerframework.dataflow.cfg.node.NumericalAdditionNode;
-import org.checkerframework.dataflow.cfg.node.NumericalMultiplicationNode;
-import org.checkerframework.dataflow.cfg.node.NumericalSubtractionNode;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizer;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.javacutil.BugInCF;
@@ -61,22 +58,10 @@ public class BusyExprStore implements Store<BusyExprStore> {
      * @return true if the expression contains the variable
      */
     public boolean isExprContainVariable(Node expr, Node var) {
-        if (expr instanceof NumericalAdditionNode) {
-            NumericalAdditionNode addNode = (NumericalAdditionNode) expr;
-            return isExprContainVariable(addNode.getLeftOperand(), var)
-                    || isExprContainVariable(addNode.getRightOperand(), var);
-        } else if (expr instanceof NumericalSubtractionNode) {
-            NumericalSubtractionNode subNode = (NumericalSubtractionNode) expr;
-            return isExprContainVariable(subNode.getLeftOperand(), var)
-                    || isExprContainVariable(subNode.getRightOperand(), var);
-        } else if (expr instanceof NumericalMultiplicationNode) {
-            NumericalMultiplicationNode mulNode = (NumericalMultiplicationNode) expr;
-            return isExprContainVariable(mulNode.getLeftOperand(), var)
-                    || isExprContainVariable(mulNode.getRightOperand(), var);
-        } else if (expr instanceof IntegerDivisionNode) {
-            IntegerDivisionNode divNode = (IntegerDivisionNode) expr;
-            return isExprContainVariable(divNode.getLeftOperand(), var)
-                    || isExprContainVariable(divNode.getRightOperand(), var);
+        if (expr instanceof BinaryOperationNode) {
+            BinaryOperationNode binaryNode = (BinaryOperationNode) expr;
+            return isExprContainVariable(binaryNode.getLeftOperand(), var)
+                    || isExprContainVariable(binaryNode.getRightOperand(), var);
         }
 
         return expr.equals(var);
@@ -96,37 +81,14 @@ public class BusyExprStore implements Store<BusyExprStore> {
      *
      * @param e the expression to be added
      */
-    public void addUseInExpression(Node e) { // todo: local variable?
-        if (e instanceof NumericalAdditionNode) {
+    public void addUseInExpression(Node e) {
+        if (e instanceof BinaryOperationNode) {
             BusyExprValue busyExprValue = new BusyExprValue(e);
             putBusyExpr(busyExprValue);
             // recursively add expressions
-            NumericalAdditionNode addNode = (NumericalAdditionNode) busyExprValue.busyExpression;
-            addUseInExpression(addNode.getLeftOperand());
-            addUseInExpression(addNode.getRightOperand());
-        } else if (e instanceof NumericalSubtractionNode) {
-            BusyExprValue busyExprValue = new BusyExprValue(e);
-            putBusyExpr(busyExprValue);
-            // recursively add expressions
-            NumericalSubtractionNode subNode =
-                    (NumericalSubtractionNode) busyExprValue.busyExpression;
-            addUseInExpression(subNode.getLeftOperand());
-            addUseInExpression(subNode.getRightOperand());
-        } else if (e instanceof NumericalMultiplicationNode) {
-            BusyExprValue busyExprValue = new BusyExprValue(e);
-            putBusyExpr(busyExprValue);
-            // recursively add expressions
-            NumericalMultiplicationNode mulNode =
-                    (NumericalMultiplicationNode) busyExprValue.busyExpression;
-            addUseInExpression(mulNode.getLeftOperand());
-            addUseInExpression(mulNode.getRightOperand());
-        } else if (e instanceof IntegerDivisionNode) {
-            BusyExprValue busyExprValue = new BusyExprValue(e);
-            putBusyExpr(busyExprValue);
-            // recursively add expressions
-            IntegerDivisionNode divNode = (IntegerDivisionNode) busyExprValue.busyExpression;
-            addUseInExpression(divNode.getLeftOperand());
-            addUseInExpression(divNode.getRightOperand());
+            BinaryOperationNode binaryNode = (BinaryOperationNode) busyExprValue.busyExpression;
+            addUseInExpression(binaryNode.getLeftOperand());
+            addUseInExpression(binaryNode.getRightOperand());
         }
     }
 
