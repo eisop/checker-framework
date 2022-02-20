@@ -99,11 +99,6 @@ public class BusyExprTransfer
         return transferResult;
     }
 
-    //    @Override
-    //    public RegularTransferResult<BusyExprValue, BusyExprStore> visitVariableDeclaration(
-    //            VariableDeclarationNode n, TransferInput<BusyExprValue, BusyExprStore> p) {
-    //        return null;
-    //    }
     /**
      * Update the information of busy expression store from an assignment statement.
      *

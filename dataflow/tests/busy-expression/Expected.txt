@@ -1,0 +1,87 @@
+2 -> 3 EACH_TO_EACH
+3 -> 4 EACH_TO_EACH
+4 -> 8 THEN_TO_BOTH
+4 -> 10 ELSE_TO_BOTH
+8 -> 0 EACH_TO_EACH
+10 -> 0 EACH_TO_EACH
+
+2:
+Process order: 1
+AnalysisResult#1
+Before:   busy expressions = none
+~~~~~~~~~
+<entry>
+
+3:
+Process order: 2
+AnalysisResult#3
+Before:   busy expressions = none
+~~~~~~~~~
+a   [ VariableDeclaration ]
+2   [ IntegerLiteral ]
+a = 2   [ Assignment ]
+b   [ VariableDeclaration ]
+3   [ IntegerLiteral ]
+b = 3   [ Assignment ]
+a   [ LocalVariable ]
+b   [ LocalVariable ]
+(a != b)   [ NotEqual ]
+~~~~~~~~~
+TransferInput#31
+After:   busy expressions = (b - a)
+
+4:
+Process order: 3
+AnalysisResult#5
+Before:   busy expressions = (b - a)
+~~~~~~~~~
+ConditionalBlock: then: 8, else: 10
+
+8:
+Process order: 4
+AnalysisResult#7
+Before:   busy expressions = (b - a), (a - b)
+~~~~~~~~~
+x   [ VariableDeclaration ]
+b   [ LocalVariable ]
+a   [ LocalVariable ]
+(b - a)   [ NumericalSubtraction ]
+x = (b - a)   [ Assignment ]
+y   [ VariableDeclaration ]
+a   [ LocalVariable ]
+b   [ LocalVariable ]
+(a - b)   [ NumericalSubtraction ]
+y = (a - b)   [ Assignment ]
+~~~~~~~~~
+TransferInput#2
+After:   busy expressions = none
+
+10:
+Process order: 5
+AnalysisResult#9
+Before:   busy expressions = (b - a)
+~~~~~~~~~
+y   [ VariableDeclaration ]
+b   [ LocalVariable ]
+a   [ LocalVariable ]
+(b - a)   [ NumericalSubtraction ]
+y = (b - a)   [ Assignment ]
+a   [ LocalVariable ]
+0   [ IntegerLiteral ]
+a = 0   [ Assignment ]
+expression statement a = 0   [ ExpressionStatement ]
+x   [ VariableDeclaration ]
+a   [ LocalVariable ]
+b   [ LocalVariable ]
+(a - b)   [ NumericalSubtraction ]
+x = (a - b)   [ Assignment ]
+~~~~~~~~~
+TransferInput#1
+After:   busy expressions = none
+
+0:
+Process order: 6
+AnalysisResult#11
+Before:   busy expressions = none
+~~~~~~~~~
+<exit>

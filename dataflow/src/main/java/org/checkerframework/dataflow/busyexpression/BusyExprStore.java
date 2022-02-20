@@ -38,16 +38,16 @@ public class BusyExprStore implements Store<BusyExprStore> {
     }
 
     /**
-     * Kill expressions if they contain variable v.
+     * Kill expressions if they contain variable var.
      *
-     * @param v a variable
+     * @param var a variable
      */
-    public void killBusyExpr(Node v) {
+    public void killBusyExpr(Node var) {
         Iterator<BusyExprValue> iter = busyExprValueSet.iterator();
         while (iter.hasNext()) {
             BusyExprValue busyExprValue = iter.next();
             Node expr = busyExprValue.busyExpression;
-            if (isExprContainVariable(expr, v)) {
+            if (isExprContainVariable(expr, var)) {
                 iter.remove();
             }
         }
@@ -142,6 +142,9 @@ public class BusyExprStore implements Store<BusyExprStore> {
 
         return new BusyExprStore(busyExprValueSetLub);
     }
+    // flow graph / hierarchy
+    // glb:
+    // lub:
 
     @Override
     public BusyExprStore widenedUpperBound(BusyExprStore previous) {
