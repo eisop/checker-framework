@@ -2,6 +2,7 @@ package org.checkerframework.dataflow.reachdefinition;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.Store;
+import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizer;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.javacutil.BugInCF;
@@ -35,13 +36,13 @@ public class ReachDefinitionStore implements Store<ReachDefinitionStore> {
     /**
      * Remove the information of a reach definition from the reach definition set.
      *
-     * @param def a reach definition
+     * @param defTarget target of a reach definition
      */
-    public void killDef(ReachDefinitionValue def) {
+    public void killDef(Node defTarget) {
         Iterator<ReachDefinitionValue> it = reachDefSet.iterator();
         while (it.hasNext()) {
             ReachDefinitionValue existedDef = it.next();
-            if (existedDef.defs.getTarget().toString().equals(def.defs.getTarget().toString())) {
+            if (existedDef.defs.getTarget().toString().equals(defTarget.toString())) {
                 it.remove();
             }
         }
@@ -81,7 +82,6 @@ public class ReachDefinitionStore implements Store<ReachDefinitionStore> {
                 new HashSet<>(this.reachDefSet.size() + other.reachDefSet.size());
         reachDefSetLub.addAll(this.reachDefSet);
         reachDefSetLub.addAll(other.reachDefSet);
-        System.out.println(reachDefSetLub.toString());
         return new ReachDefinitionStore(reachDefSetLub);
     }
 

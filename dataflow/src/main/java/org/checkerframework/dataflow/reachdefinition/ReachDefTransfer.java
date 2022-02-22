@@ -45,11 +45,11 @@ public class ReachDefTransfer
     /**
      * Update the information of reach definition from an assignment statement.
      *
-     * @param def the def that should be put into the store
-     * @param store the reach defination store
+     * @param def the definition that should be put into the store
+     * @param store the reach definition store
      */
     private void processDefinition(AssignmentNode def, ReachDefinitionStore store) {
-        store.killDef(new ReachDefinitionValue(def));
+        store.killDef(def.getTarget());
         store.putDef(new ReachDefinitionValue(def));
     }
 }
