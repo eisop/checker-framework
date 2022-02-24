@@ -17,7 +17,6 @@ dependencies {
 
 // Shadowing Test Sources and Dependencies
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import org.gradle.plugin.use.internal.InjectedPluginClasspath
 
 /**
  * Creates a task with name dataflow${shadedPkgName} that creates a shaded dataflow jar. The packages will be shaded to
@@ -56,16 +55,16 @@ createDataflowShaded('nullaway')
 createDataflowShaded('errorprone')
 
 /**
- * create a task to run dataflow analysis demo
- * @param taskName specify the taskName of created task
+ * Create a task to run a dataflow analysis demo
+ * @param taskName specify the taskName for the created task
  * @param dirName specify the directory name of the test file
  * @param pkgName specify the package name of the demo
  * @param className specify the class name of the demo
  * @return
  */
-def testDataflowAnalysisDemo(taskName, dirName, pkgName, className) {
+def testDataflowAnalysis(taskName, dirName, className) {
     tasks.create(name: taskName, dependsOn: [assemble, compileTestJava], group: 'Verification') {
-        description "Test the ${className} analysis test for dataflow framework."
+        description "Run the ${dirName} dataflow framework test."
         inputs.file("tests/${dirName}/Expected.txt")
         inputs.file("tests/${dirName}/Test.java")
 
@@ -94,7 +93,7 @@ def testDataflowAnalysisDemo(taskName, dirName, pkgName, className) {
 
                 classpath = sourceSets.test.runtimeClasspath
                 classpath += sourceSets.test.output
-                mainClass = "${pkgName}.${className}"
+                mainClass = "${className}"
             }
             exec {
                 workingDir = "tests/${dirName}"
@@ -105,8 +104,7 @@ def testDataflowAnalysisDemo(taskName, dirName, pkgName, className) {
     }
 }
 
-// run the liveVariableTest
-testDataflowAnalysisDemo("liveVariableTest", "live-variable", "livevar", "LiveVariable")
+testDataflowAnalysis("liveVariableTest", "live-variable", "livevar.LiveVariable")
 
 task issue3447Test(dependsOn: [assemble, compileTestJava], group: 'Verification') {
     description 'Test issue 3447 test case for backward analysis.'
