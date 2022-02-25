@@ -1,4 +1,4 @@
-package org.checkerframework.dataflow.reachdefinitions;
+package org.checkerframework.dataflow.reachingdefinitions;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.AbstractValue;
@@ -6,7 +6,7 @@ import org.checkerframework.dataflow.cfg.node.AssignmentNode;
 import org.checkerframework.javacutil.BugInCF;
 
 /** A reach definition (which is represented by a node) wrapper turning node into abstract value. */
-public class ReachDefinitionsValue implements AbstractValue<ReachDefinitionsValue> {
+public class ReachingDefinitionsValue implements AbstractValue<ReachingDefinitionsValue> {
 
     /**
      * A reach definition is represented by a node, which can be a {@link
@@ -15,7 +15,7 @@ public class ReachDefinitionsValue implements AbstractValue<ReachDefinitionsValu
     protected final AssignmentNode def;
 
     @Override
-    public ReachDefinitionsValue leastUpperBound(ReachDefinitionsValue other) {
+    public ReachingDefinitionsValue leastUpperBound(ReachingDefinitionsValue other) {
         throw new BugInCF("lub of reachDef get called!");
     }
 
@@ -24,7 +24,7 @@ public class ReachDefinitionsValue implements AbstractValue<ReachDefinitionsValu
      *
      * @param n a node
      */
-    public ReachDefinitionsValue(AssignmentNode n) {
+    public ReachingDefinitionsValue(AssignmentNode n) {
         this.def = n;
     }
 
@@ -35,10 +35,10 @@ public class ReachDefinitionsValue implements AbstractValue<ReachDefinitionsValu
 
     @Override
     public boolean equals(@Nullable Object obj) {
-        if (!(obj instanceof ReachDefinitionsValue)) {
+        if (!(obj instanceof ReachingDefinitionsValue)) {
             return false;
         }
-        ReachDefinitionsValue other = (ReachDefinitionsValue) obj;
+        ReachingDefinitionsValue other = (ReachingDefinitionsValue) obj;
         return this.def.equals(other.def);
     }
 

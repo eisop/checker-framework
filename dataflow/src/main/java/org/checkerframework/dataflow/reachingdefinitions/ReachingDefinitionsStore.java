@@ -1,4 +1,4 @@
-package org.checkerframework.dataflow.reachdefinitions;
+package org.checkerframework.dataflow.reachingdefinitions;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.Store;
@@ -14,13 +14,13 @@ import java.util.Set;
 import java.util.StringJoiner;
 
 /** A reach definition store contains a set of reach definitions represented by nodes. */
-public class ReachDefinitionsStore implements Store<ReachDefinitionsStore> {
+public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore> {
 
     /** A set of reach definitions abstract values. */
-    private final Set<ReachDefinitionsValue> reachDefSet;
+    private final Set<ReachingDefinitionsValue> reachDefSet;
 
     /** Create a new ReachDefinitionStore. */
-    public ReachDefinitionsStore() {
+    public ReachingDefinitionsStore() {
         reachDefSet = new LinkedHashSet<>();
     }
 
@@ -29,7 +29,7 @@ public class ReachDefinitionsStore implements Store<ReachDefinitionsStore> {
      *
      * @param reachDefSet a set of reach definition abstract values
      */
-    public ReachDefinitionsStore(Set<ReachDefinitionsValue> reachDefSet) {
+    public ReachingDefinitionsStore(Set<ReachingDefinitionsValue> reachDefSet) {
         this.reachDefSet = reachDefSet;
     }
 
@@ -39,9 +39,9 @@ public class ReachDefinitionsStore implements Store<ReachDefinitionsStore> {
      * @param defTarget target of a reach definition
      */
     public void killDef(Node defTarget) {
-        Iterator<ReachDefinitionsValue> it = reachDefSet.iterator();
+        Iterator<ReachingDefinitionsValue> it = reachDefSet.iterator();
         while (it.hasNext()) {
-            ReachDefinitionsValue existedDef = it.next();
+            ReachingDefinitionsValue existedDef = it.next();
             if (existedDef.def.getTarget().toString().equals(defTarget.toString())) {
                 it.remove();
             }
@@ -53,16 +53,16 @@ public class ReachDefinitionsStore implements Store<ReachDefinitionsStore> {
      *
      * @param def a reach definition
      */
-    public void putDef(ReachDefinitionsValue def) {
+    public void putDef(ReachingDefinitionsValue def) {
         reachDefSet.add(def);
     }
 
     @Override
     public boolean equals(@Nullable Object obj) {
-        if (!(obj instanceof ReachDefinitionsStore)) {
+        if (!(obj instanceof ReachingDefinitionsStore)) {
             return false;
         }
-        ReachDefinitionsStore other = (ReachDefinitionsStore) obj;
+        ReachingDefinitionsStore other = (ReachingDefinitionsStore) obj;
         return other.reachDefSet.equals(this.reachDefSet);
     }
 
@@ -72,22 +72,22 @@ public class ReachDefinitionsStore implements Store<ReachDefinitionsStore> {
     }
 
     @Override
-    public ReachDefinitionsStore copy() {
-        return new ReachDefinitionsStore(new HashSet<>(reachDefSet));
+    public ReachingDefinitionsStore copy() {
+        return new ReachingDefinitionsStore(new HashSet<>(reachDefSet));
     }
 
     @Override
-    public ReachDefinitionsStore leastUpperBound(ReachDefinitionsStore other) {
-        Set<ReachDefinitionsValue> reachDefSetLub =
+    public ReachingDefinitionsStore leastUpperBound(ReachingDefinitionsStore other) {
+        Set<ReachingDefinitionsValue> reachDefSetLub =
                 new HashSet<>(this.reachDefSet.size() + other.reachDefSet.size());
         reachDefSetLub.addAll(this.reachDefSet);
         reachDefSetLub.addAll(other.reachDefSet);
-        return new ReachDefinitionsStore(reachDefSetLub);
+        return new ReachingDefinitionsStore(reachDefSetLub);
     }
 
     /** It should not be called since it is not used by the backward analysis. */
     @Override
-    public ReachDefinitionsStore widenedUpperBound(ReachDefinitionsStore previous) {
+    public ReachingDefinitionsStore widenedUpperBound(ReachingDefinitionsStore previous) {
         throw new BugInCF("wub of reach definition get called!");
     }
 
@@ -97,13 +97,13 @@ public class ReachDefinitionsStore implements Store<ReachDefinitionsStore> {
     }
 
     @Override
-    public String visualize(CFGVisualizer<?, ReachDefinitionsStore, ?> viz) {
+    public String visualize(CFGVisualizer<?, ReachingDefinitionsStore, ?> viz) {
         String key = "reach definitions";
         if (reachDefSet.isEmpty()) {
             return viz.visualizeStoreKeyVal(key, "none");
         }
         StringJoiner sjStoreVal = new StringJoiner(", ");
-        for (ReachDefinitionsValue reachDefValue : reachDefSet) {
+        for (ReachingDefinitionsValue reachDefValue : reachDefSet) {
             sjStoreVal.add(reachDefValue.toString());
         }
         return viz.visualizeStoreKeyVal(key, sjStoreVal.toString());
