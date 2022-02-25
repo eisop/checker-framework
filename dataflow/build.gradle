@@ -124,6 +124,7 @@ def testDataflowAnalysis(taskName, dirName, className, diff) {
     allDataflowTests.dependsOn << taskName
 }
 testDataflowAnalysis("liveVariableTest", "live-variable", "livevar.LiveVariable")
+testDataflowAnalysis("reachDefinitionsTest", "reach-definitions", "reachDefs.ReachDefinitions")
 
 // When adding a new test case, don't forget to add the temporary files to `../.gitignore`.
 testDataflowAnalysis("liveVariableTest", "live-variable", "livevar.LiveVariable", true)
