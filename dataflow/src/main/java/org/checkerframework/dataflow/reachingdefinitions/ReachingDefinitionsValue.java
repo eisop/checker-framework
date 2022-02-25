@@ -6,7 +6,7 @@ import org.checkerframework.dataflow.cfg.node.AssignmentNode;
 import org.checkerframework.javacutil.BugInCF;
 
 /**
- * A reaching definition (which is represented by a node) wrapper turning node into abstract value.
+ * A reaching definitions (which is represented by a node) wrapper turning node into abstract value.
  */
 public class ReachingDefinitionsValue implements AbstractValue<ReachingDefinitionsValue> {
 

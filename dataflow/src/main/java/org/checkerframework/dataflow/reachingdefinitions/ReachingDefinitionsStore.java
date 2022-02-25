@@ -17,20 +17,20 @@ import java.util.StringJoiner;
 public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore> {
 
     /** A set of reaching definitions abstract values. */
-    private final Set<ReachingDefinitionsValue> reachDefSet;
+    private final Set<ReachingDefinitionsValue> reachingDefSet;
 
     /** Create a new ReachDefinitionStore. */
     public ReachingDefinitionsStore() {
-        reachDefSet = new LinkedHashSet<>();
+        reachingDefSet = new LinkedHashSet<>();
     }
 
     /**
      * Create a new ReachDefinitionStore.
      *
-     * @param reachDefSet a set of reaching definitions abstract values
+     * @param reachingDefSet a set of reaching definitions abstract values
      */
-    public ReachingDefinitionsStore(Set<ReachingDefinitionsValue> reachDefSet) {
-        this.reachDefSet = reachDefSet;
+    public ReachingDefinitionsStore(Set<ReachingDefinitionsValue> reachingDefSet) {
+        this.reachingDefSet = reachingDefSet;
     }
 
     /**
@@ -39,7 +39,7 @@ public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore>
      * @param defTarget target of a reaching definition
      */
     public void killDef(Node defTarget) {
-        Iterator<ReachingDefinitionsValue> it = reachDefSet.iterator();
+        Iterator<ReachingDefinitionsValue> it = reachingDefSet.iterator();
         while (it.hasNext()) {
             ReachingDefinitionsValue existedDef = it.next();
             if (existedDef.def.getTarget().toString().equals(defTarget.toString())) {
@@ -54,7 +54,7 @@ public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore>
      * @param def a reaching definition
      */
     public void putDef(ReachingDefinitionsValue def) {
-        reachDefSet.add(def);
+        reachingDefSet.add(def);
     }
 
     @Override
@@ -63,26 +63,26 @@ public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore>
             return false;
         }
         ReachingDefinitionsStore other = (ReachingDefinitionsStore) obj;
-        return other.reachDefSet.equals(this.reachDefSet);
+        return other.reachingDefSet.equals(this.reachingDefSet);
     }
 
     @Override
     public int hashCode() {
-        return this.reachDefSet.hashCode();
+        return this.reachingDefSet.hashCode();
     }
 
     @Override
     public ReachingDefinitionsStore copy() {
-        return new ReachingDefinitionsStore(new HashSet<>(reachDefSet));
+        return new ReachingDefinitionsStore(new HashSet<>(reachingDefSet));
     }
 
     @Override
     public ReachingDefinitionsStore leastUpperBound(ReachingDefinitionsStore other) {
-        Set<ReachingDefinitionsValue> reachDefSetLub =
-                new HashSet<>(this.reachDefSet.size() + other.reachDefSet.size());
-        reachDefSetLub.addAll(this.reachDefSet);
-        reachDefSetLub.addAll(other.reachDefSet);
-        return new ReachingDefinitionsStore(reachDefSetLub);
+        Set<ReachingDefinitionsValue> reachingDefSetLub =
+                new HashSet<>(this.reachingDefSet.size() + other.reachingDefSet.size());
+        reachingDefSetLub.addAll(this.reachingDefSet);
+        reachingDefSetLub.addAll(other.reachingDefSet);
+        return new ReachingDefinitionsStore(reachingDefSetLub);
     }
 
     /** It should not be called since it is not used by the backward analysis. */
@@ -99,11 +99,11 @@ public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore>
     @Override
     public String visualize(CFGVisualizer<?, ReachingDefinitionsStore, ?> viz) {
         String key = "reaching definitions";
-        if (reachDefSet.isEmpty()) {
+        if (reachingDefSet.isEmpty()) {
             return viz.visualizeStoreKeyVal(key, "none");
         }
         StringJoiner sjStoreVal = new StringJoiner(", ");
-        for (ReachingDefinitionsValue reachDefValue : reachDefSet) {
+        for (ReachingDefinitionsValue reachDefValue : reachingDefSet) {
             sjStoreVal.add(reachDefValue.toString());
         }
         return viz.visualizeStoreKeyVal(key, sjStoreVal.toString());
@@ -111,6 +111,6 @@ public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore>
 
     @Override
     public String toString() {
-        return reachDefSet.toString();
+        return reachingDefSet.toString();
     }
 }

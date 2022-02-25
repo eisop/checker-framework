@@ -1736,30 +1736,30 @@ update the information of live variables for each node in the stores.
 \flow{LiveSimple}{.33}{1}{Simple sequential program to illustrate live variable.  Intermediate analysis results are shown.}
 
 
-\section{Example: Reach Definition}
+\section{Example: Reaching Definitions}
 
-A reach definition analysis for definitions(assignments) was implemented
+A reaching definitions analysis for definitions(assignments) was implemented
 to show the forward analysis works properly. The main class is
-\code{org.checkerframework.dataflow.cfg.playground.ReachDefinitionPlayground}.
+\code{org.checkerframework.dataflow.cfg.playground.ReachingDefinitionsPlayground}.
 
-\textbf{Abstract values.} A class \code{ReachDefinitionValue} is a reach
-definition (which is represented by a node) wrapper turning node into
+\textbf{Abstract values.} A class \code{ReachingDefinitionsValue} is a reaching
+definitions (which is represented by a node) wrapper turning node into
 abstract value. A node can only be \code{AssignmentNode}.
 
-\textbf{The store.} The reach definition store \code{ReachDefinitionStore} has a field
-\code{reachDefSet} which contains a set of \code{ReachDefinitionValue}s. Only
+\textbf{The store.} The reaching definitions store \code{ReachingDefinitionsStore} has a field
+\code{reachingDefSet} which contains a set of \code{ReachingDefinitionsValue}s. Only
 \code{AssignmentNode} will be considered as a
-definition and added to \code{reachDefSet}. The store defines methods
-\code{putDef(ReachDefinitionValue)} and \code{killDef(Node)} to add
-and kill reach definitions.
+definition and added to \code{reachingDefSet}. The store defines methods
+\code{putDef(ReachingDefinitionValue)} and \code{killDef(Node)} to add
+and kill reaching definitions.
 
-\textbf{The transfer function.} The transfer function \code{ReachDefinitionTransfer}
+\textbf{The transfer function.} The transfer function \code{ReachingDefinitionTransfer}
 initializes empty store. The transfer function visits assignments to
-update the information of reach definitions for each node in the stores.
+update the information of reaching definitions for each node in the stores.
 
 \textbf{Example.} An example is shown in \autoref{fig:ReachSimple}.
 
-\flow{ReachSimple}{.33}{1}{Simple sequential program to illustrate reach definitions.  Intermediate analysis results are shown.}
+\flow{ReachSimple}{.33}{1}{Simple sequential program to illustrate reaching definitions.  Intermediate analysis results are shown.}
 
 
 \section{Default Analysis}
