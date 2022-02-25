@@ -123,6 +123,7 @@ def testDataflowAnalysis(taskName, dirName, className, diff) {
 
     allDataflowTests.dependsOn << taskName
 }
+
 testDataflowAnalysis("liveVariableTest", "live-variable", "livevar.LiveVariable")
 testDataflowAnalysis("reachDefinitionsTest", "reach-definitions", "reachDefs.ReachDefinitions")
 
