@@ -1,18 +1,18 @@
-package reachDef;
+package reachDefs;
 
 import org.checkerframework.dataflow.analysis.ForwardAnalysis;
 import org.checkerframework.dataflow.analysis.ForwardAnalysisImpl;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeLauncher;
-import org.checkerframework.dataflow.reachdefinition.ReachDefTransfer;
-import org.checkerframework.dataflow.reachdefinition.ReachDefinitionStore;
-import org.checkerframework.dataflow.reachdefinition.ReachDefinitionValue;
+import org.checkerframework.dataflow.reachdefinitions.ReachDefinitionsStore;
+import org.checkerframework.dataflow.reachdefinitions.ReachDefinitionsTransfer;
+import org.checkerframework.dataflow.reachdefinitions.ReachDefinitionsValue;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Map;
 
 /** Used in liveVariableTest Gradle task to test the LiveVariable analysis. */
-public class ReachDefinition {
+public class ReachDefinitions {
 
     /**
      * The main method expects to be run in dataflow/tests/live-variable directory.
@@ -26,8 +26,8 @@ public class ReachDefinition {
         String clazz = "Test";
         String outputFile = "Out.txt";
 
-        ReachDefTransfer transfer = new ReachDefTransfer();
-        ForwardAnalysis<ReachDefinitionValue, ReachDefinitionStore, ReachDefTransfer>
+        ReachDefinitionsTransfer transfer = new ReachDefinitionsTransfer();
+        ForwardAnalysis<ReachDefinitionsValue, ReachDefinitionsStore, ReachDefinitionsTransfer>
                 forwardAnalysis = new ForwardAnalysisImpl<>(transfer);
         CFGVisualizeLauncher cfgVisualizeLauncher = new CFGVisualizeLauncher();
         Map<String, Object> res =
