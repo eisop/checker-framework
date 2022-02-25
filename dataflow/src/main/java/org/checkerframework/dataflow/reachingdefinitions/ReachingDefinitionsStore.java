@@ -13,10 +13,10 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.StringJoiner;
 
-/** A reach definition store contains a set of reach definitions represented by nodes. */
+/** A reaching definitions store contains a set of reaching definitions represented by nodes. */
 public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore> {
 
-    /** A set of reach definitions abstract values. */
+    /** A set of reaching definitions abstract values. */
     private final Set<ReachingDefinitionsValue> reachDefSet;
 
     /** Create a new ReachDefinitionStore. */
@@ -27,16 +27,16 @@ public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore>
     /**
      * Create a new ReachDefinitionStore.
      *
-     * @param reachDefSet a set of reach definition abstract values
+     * @param reachDefSet a set of reaching definitions abstract values
      */
     public ReachingDefinitionsStore(Set<ReachingDefinitionsValue> reachDefSet) {
         this.reachDefSet = reachDefSet;
     }
 
     /**
-     * Remove the information of a reach definition from the reach definition set.
+     * Remove the information of a reaching definition from the reaching definitions set.
      *
-     * @param defTarget target of a reach definition
+     * @param defTarget target of a reaching definition
      */
     public void killDef(Node defTarget) {
         Iterator<ReachingDefinitionsValue> it = reachDefSet.iterator();
@@ -49,9 +49,9 @@ public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore>
     }
 
     /**
-     * Add the information of a reach definition into the reach definition set.
+     * Add the information of a reaching definition into the reaching definitions set.
      *
-     * @param def a reach definition
+     * @param def a reaching definition
      */
     public void putDef(ReachingDefinitionsValue def) {
         reachDefSet.add(def);
@@ -88,7 +88,7 @@ public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore>
     /** It should not be called since it is not used by the backward analysis. */
     @Override
     public ReachingDefinitionsStore widenedUpperBound(ReachingDefinitionsStore previous) {
-        throw new BugInCF("wub of reach definition get called!");
+        throw new BugInCF("wub of reaching definitions get called!");
     }
 
     @Override
@@ -98,7 +98,7 @@ public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore>
 
     @Override
     public String visualize(CFGVisualizer<?, ReachingDefinitionsStore, ?> viz) {
-        String key = "reach definitions";
+        String key = "reaching definitions";
         if (reachDefSet.isEmpty()) {
             return viz.visualizeStoreKeyVal(key, "none");
         }

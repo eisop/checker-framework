@@ -1,4 +1,4 @@
-package reachingDefs;
+package reachingdefinitions;
 
 import org.checkerframework.dataflow.analysis.ForwardAnalysis;
 import org.checkerframework.dataflow.analysis.ForwardAnalysisImpl;
@@ -11,11 +11,11 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Map;
 
-/** Used in liveVariableTest Gradle task to test the LiveVariable analysis. */
+/** Used in reachingDefinitionsTest Gradle task to test the ReachingDefinitions analysis. */
 public class ReachingDefinitions {
 
     /**
-     * The main method expects to be run in dataflow/tests/live-variable directory.
+     * The main method expects to be run in dataflow/tests/reaching-definitions directory.
      *
      * @param args not used
      */
@@ -27,7 +27,10 @@ public class ReachingDefinitions {
         String outputFile = "Out.txt";
 
         ReachingDefinitionsTransfer transfer = new ReachingDefinitionsTransfer();
-        ForwardAnalysis<ReachingDefinitionsValue, ReachingDefinitionsStore, ReachingDefinitionsTransfer>
+        ForwardAnalysis<
+                        ReachingDefinitionsValue,
+                        ReachingDefinitionsStore,
+                        ReachingDefinitionsTransfer>
                 forwardAnalysis = new ForwardAnalysisImpl<>(transfer);
         CFGVisualizeLauncher cfgVisualizeLauncher = new CFGVisualizeLauncher();
         Map<String, Object> res =

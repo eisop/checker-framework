@@ -13,7 +13,7 @@ import org.checkerframework.dataflow.cfg.node.Node;
 
 import java.util.List;
 
-/** A reach definition transfer function. */
+/** A reaching definitions transfer function. */
 public class ReachingDefinitionsTransfer
         extends AbstractNodeVisitor<
                 TransferResult<ReachingDefinitionsValue, ReachingDefinitionsStore>,
@@ -33,8 +33,10 @@ public class ReachingDefinitionsTransfer
     }
 
     @Override
-    public RegularTransferResult<ReachingDefinitionsValue, ReachingDefinitionsStore> visitAssignment(
-            AssignmentNode n, TransferInput<ReachingDefinitionsValue, ReachingDefinitionsStore> p) {
+    public RegularTransferResult<ReachingDefinitionsValue, ReachingDefinitionsStore>
+            visitAssignment(
+                    AssignmentNode n,
+                    TransferInput<ReachingDefinitionsValue, ReachingDefinitionsStore> p) {
         RegularTransferResult<ReachingDefinitionsValue, ReachingDefinitionsStore> transferResult =
                 (RegularTransferResult<ReachingDefinitionsValue, ReachingDefinitionsStore>)
                         super.visitAssignment(n, p);
@@ -43,10 +45,10 @@ public class ReachingDefinitionsTransfer
     }
 
     /**
-     * Update the information of reach definition from an assignment statement.
+     * Update the information of reaching definitions from an assignment statement.
      *
      * @param def the definition that should be put into the store
-     * @param store the reach definition store
+     * @param store the reaching definitions store
      */
     private void processDefinition(AssignmentNode def, ReachingDefinitionsStore store) {
         store.killDef(def.getTarget());
