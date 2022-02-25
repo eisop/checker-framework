@@ -56,10 +56,9 @@ createDataflowShaded('errorprone')
 
 /**
  * Create a task to run a dataflow analysis demo
- * @param taskName specify the taskName for the created task
- * @param dirName specify the directory name of the test file
- * @param pkgName specify the package name of the demo
- * @param className specify the class name of the demo
+ * @param taskName the taskName for the created task
+ * @param dirName the directory name of the test file
+ * @param className the fully-qualified name of the test class
  * @return
  */
 def testDataflowAnalysis(taskName, dirName, className) {
