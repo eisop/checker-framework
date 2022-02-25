@@ -103,6 +103,7 @@ def testDataflowAnalysis(taskName, dirName, className) {
     }
 }
 testDataflowAnalysis("liveVariableTest", "live-variable", "livevar.LiveVariable")
+testDataflowAnalysis("reachDefinitionsTest", "reach-definitions", "reachDefs.ReachDefinitions")
 
 task issue3447Test(dependsOn: [assemble, compileTestJava], group: 'Verification') {
     description 'Test issue 3447 test case for backward analysis.'
