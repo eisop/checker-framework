@@ -64,7 +64,7 @@ createDataflowShaded('errorprone')
 def testDataflowAnalysis(taskName, dirName, className) {
     tasks.create(name: taskName, dependsOn: [assemble, compileTestJava], group: 'Verification') {
         description "Run the ${dirName} dataflow framework test."
-        inputs.file("tests/${dirName}/Expected.txt")
+        inputs.file("tests/${dirName}/${className}.Expected.txt")
         inputs.file("tests/${dirName}/Test.java")
 
         outputs.file("tests/${dirName}/Out.txt")
@@ -97,13 +97,13 @@ def testDataflowAnalysis(taskName, dirName, className) {
             exec {
                 workingDir = "tests/${dirName}"
                 executable 'diff'
-                args = ['-u', 'Expected.txt', 'Out.txt']
+                args = ['-u', "${className}.Expected.txt", 'Out.txt']
             }
         }
     }
 }
 
-testDataflowAnalysis("liveVariableTest", "live-variable", "livevar.LiveVariable")
+testDataflowAnalysis("liveVariableTest", "dfa", "livevar.LiveVariable")
 
 task issue3447Test(dependsOn: [assemble, compileTestJava], group: 'Verification') {
     description 'Test issue 3447 test case for backward analysis.'
