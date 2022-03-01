@@ -42,7 +42,7 @@ public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore>
         Iterator<ReachingDefinitionsValue> it = reachingDefSet.iterator();
         while (it.hasNext()) {
             ReachingDefinitionsValue existedDef = it.next();
-            if (existedDef.def.getTarget().toString().equals(defTarget.toString())) {
+            if (existedDef.def.getTarget().equals(defTarget)) {
                 it.remove();
             }
         }
