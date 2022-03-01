@@ -1,12 +1,13 @@
 package org.checkerframework.checker.index.qual;
 
+import org.checkerframework.framework.qual.JavaExpression;
+import org.checkerframework.framework.qual.SubtypeOf;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.checkerframework.framework.qual.JavaExpression;
-import org.checkerframework.framework.qual.SubtypeOf;
 
 /**
  * An expression whose type has this annotation evaluates to a value that is a sequence, and that
@@ -20,7 +21,7 @@ import org.checkerframework.framework.qual.SubtypeOf;
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @SubtypeOf(SameLenUnknown.class)
 public @interface SameLen {
-  /** A list of other sequences with the same length. */
-  @JavaExpression
-  String[] value();
+    /** A list of other sequences with the same length. */
+    @JavaExpression
+    String[] value();
 }
