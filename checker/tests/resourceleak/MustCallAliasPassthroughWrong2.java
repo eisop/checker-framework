@@ -5,19 +5,18 @@
 // MCA annotation on the return type is super misleading and will lead to FPs. It would be better
 // to annotate code like this with @Owning on the constructor.
 
+import java.io.*;
 import org.checkerframework.checker.calledmethods.qual.*;
 import org.checkerframework.checker.mustcall.qual.*;
 
-import java.io.*;
-
 class MustCallAliasPassthroughWrong2 extends FilterInputStream {
-    // :: error: mustcallalias.out.of.scope
-    @MustCallAlias MustCallAliasPassthroughWrong2(@MustCallAlias InputStream is) throws Exception {
-        super(null);
-        closeIS(is);
-    }
+  // :: error: mustcallalias.out.of.scope
+  @MustCallAlias MustCallAliasPassthroughWrong2(@MustCallAlias InputStream is) throws Exception {
+    super(null);
+    closeIS(is);
+  }
 
-    void closeIS(@Owning InputStream is) throws Exception {
-        is.close();
-    }
+  void closeIS(@Owning InputStream is) throws Exception {
+    is.close();
+  }
 }

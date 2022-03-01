@@ -3,9 +3,9 @@
 import org.checkerframework.checker.testchecker.ainfer.qual.Sibling1;
 
 public class MultidimensionalAnnotatedArray {
-    boolean[][] field = getArray();
+  boolean[][] field = getArray();
 
-    public boolean[] @Sibling1 [] getArray() {
-        return null;
-    }
+  public boolean[] @Sibling1 [] getArray() {
+    return null;
+  }
 }
