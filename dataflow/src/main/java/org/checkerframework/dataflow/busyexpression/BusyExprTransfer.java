@@ -11,7 +11,6 @@ import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.ObjectCreationNode;
 import org.checkerframework.dataflow.cfg.node.ReturnNode;
-import org.checkerframework.dataflow.cfg.node.StringConcatenateAssignmentNode;
 
 import java.util.List;
 
@@ -46,17 +45,6 @@ public class BusyExprTransfer
                 (RegularTransferResult<BusyExprValue, BusyExprStore>) super.visitAssignment(n, p);
         processBusyExprInAssignment(
                 n.getTarget(), n.getExpression(), transferResult.getRegularStore());
-        return transferResult;
-    }
-
-    @Override
-    public RegularTransferResult<BusyExprValue, BusyExprStore> visitStringConcatenateAssignment(
-            StringConcatenateAssignmentNode n, TransferInput<BusyExprValue, BusyExprStore> p) {
-        RegularTransferResult<BusyExprValue, BusyExprStore> transferResult =
-                (RegularTransferResult<BusyExprValue, BusyExprStore>)
-                        super.visitStringConcatenateAssignment(n, p);
-        processBusyExprInAssignment(
-                n.getLeftOperand(), n.getRightOperand(), transferResult.getRegularStore());
         return transferResult;
     }
 

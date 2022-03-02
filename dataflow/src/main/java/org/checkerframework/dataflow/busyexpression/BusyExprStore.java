@@ -44,7 +44,7 @@ public class BusyExprStore implements Store<BusyExprStore> {
         while (iter.hasNext()) {
             BusyExprValue busyExprValue = iter.next();
             Node expr = busyExprValue.busyExpression;
-            if (isExprContainVariable(expr, var)) {
+            if (exprContainsVariable(expr, var)) {
                 iter.remove();
             }
         }
@@ -57,11 +57,11 @@ public class BusyExprStore implements Store<BusyExprStore> {
      * @param var the variable
      * @return true if the expression contains the variable
      */
-    public boolean isExprContainVariable(Node expr, Node var) {
+    public boolean exprContainsVariable(Node expr, Node var) {
         if (expr instanceof BinaryOperationNode) {
             BinaryOperationNode binaryNode = (BinaryOperationNode) expr;
-            return isExprContainVariable(binaryNode.getLeftOperand(), var)
-                    || isExprContainVariable(binaryNode.getRightOperand(), var);
+            return exprContainsVariable(binaryNode.getLeftOperand(), var)
+                    || exprContainsVariable(binaryNode.getRightOperand(), var);
         }
 
         return expr.equals(var);
@@ -83,10 +83,9 @@ public class BusyExprStore implements Store<BusyExprStore> {
      */
     public void addUseInExpression(Node e) {
         if (e instanceof BinaryOperationNode) {
-            BusyExprValue busyExprValue = new BusyExprValue(e);
-            putBusyExpr(busyExprValue);
+            putBusyExpr(new BusyExprValue(e));
             // recursively add expressions
-            BinaryOperationNode binaryNode = (BinaryOperationNode) busyExprValue.busyExpression;
+            BinaryOperationNode binaryNode = (BinaryOperationNode) e;
             addUseInExpression(binaryNode.getLeftOperand());
             addUseInExpression(binaryNode.getRightOperand());
         }
@@ -104,9 +103,6 @@ public class BusyExprStore implements Store<BusyExprStore> {
 
         return new BusyExprStore(busyExprValueSetLub);
     }
-    // flow graph / hierarchy
-    // glb:
-    // lub:
 
     @Override
     public BusyExprStore widenedUpperBound(BusyExprStore previous) {

@@ -1,14 +1,15 @@
 class Test {
-    public int test() {
+    public int test(int m) {
         int a = 2, b = 3;
-        int x, y;
+        int x = 1;
+        Integer y;
         if (a != b) {
             x = b >> a;
-            y = a - b;
+            y = new Integer(a - b);
         } else {
             y = b >> a;
             a = 0;
-            x = a - b;
+            test(a - b);
         }
 
         // test exceptional exit block
