@@ -13,9 +13,9 @@ import java.util.Map;
 public class PerformDFATest {
 
     /**
-     * The main method expects to be run in dataflow/tests/live-variable directory.
+     * The performTest method perform the tests of dfa.
      *
-     * @param analysis instance of forward or backword analysis.
+     * @param analysis instance of forward or backward analysis.
      */
     public static <V extends AbstractValue<V>, S extends Store<S>, T extends TransferFunction<V, S>>
             void performTest(Analysis<V, S, T> analysis) {
