@@ -18,6 +18,6 @@ public class LiveVariable {
         LiveVarTransfer transfer = new LiveVarTransfer();
         BackwardAnalysis<LiveVarValue, LiveVarStore, LiveVarTransfer> backwardAnalysis =
                 new BackwardAnalysisImpl<>(transfer);
-        common.PerformDFATest.performTest(backwardAnalysis);
+        common.DataflowTester.performTest(backwardAnalysis);
     }
 }

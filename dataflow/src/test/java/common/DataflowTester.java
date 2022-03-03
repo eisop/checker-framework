@@ -10,10 +10,10 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Map;
 
-public class PerformDFATest {
+public class DataflowTester {
 
     /**
-     * The performTest method perform the tests of dfa.
+     * The performTest method performs the tests for some dataflow analysis.
      *
      * @param analysis instance of forward or backward analysis.
      */
