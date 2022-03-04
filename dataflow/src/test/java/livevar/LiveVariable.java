@@ -5,6 +5,7 @@ import org.checkerframework.dataflow.analysis.BackwardAnalysisImpl;
 import org.checkerframework.dataflow.livevariable.LiveVarStore;
 import org.checkerframework.dataflow.livevariable.LiveVarTransfer;
 import org.checkerframework.dataflow.livevariable.LiveVarValue;
+import org.checkerframework.dataflow.util.DataflowTester;
 
 /** Used in liveVariableTest Gradle task to test the LiveVariable analysis. */
 public class LiveVariable {
@@ -18,6 +19,6 @@ public class LiveVariable {
         LiveVarTransfer transfer = new LiveVarTransfer();
         BackwardAnalysis<LiveVarValue, LiveVarStore, LiveVarTransfer> backwardAnalysis =
                 new BackwardAnalysisImpl<>(transfer);
-        common.DataflowTester.performTest(backwardAnalysis);
+        DataflowTester.performTest(backwardAnalysis);
     }
 }

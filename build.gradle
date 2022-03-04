@@ -1047,7 +1047,7 @@ subprojects {
             }
 
             if (project.name.is('dataflow')) {
-                dependsOn('liveVariableTest')
+                dependsOn('allDataflowTests')
                 dependsOn('issue3447Test')
             }
         }

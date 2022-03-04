@@ -55,7 +55,12 @@ createDataflowShaded('nullaway')
 createDataflowShaded('errorprone')
 
 /**
- * Create a task to run a dataflow analysis demo
+ * Create a task to run a dataflow analysis testcase
+ * To add a dataflow analysis case, in normal cases you only
+ * need to add your test code directory and the classname and
+ * method {org.checkerframework.dataflow.util.DataflowTester.performTest}
+ * will receive your analysis instance. Go org.checkerframework.dataflow.util.DataflowTester
+ * to see more details if you want to make any change on it.
  * @param taskName the taskName for the created task
  * @param dirName the directory name of the test file
  * @param className the fully-qualified name of the test class
@@ -104,6 +109,14 @@ def testDataflowAnalysis(taskName, dirName, className) {
 }
 
 testDataflowAnalysis("liveVariableTest", "live-variable", "livevar.LiveVariable")
+
+
+// allDataflowTests for dataflow analysis tests
+tasks.create(name: 'allDataflowTests', group: 'Verification') {
+    description 'Run all dataflow analysis tests'
+    // Once there is a new type of dataflow test, add it into dependsOn
+    dependsOn('liveVariableTest')
+}
 
 task issue3447Test(dependsOn: [assemble, compileTestJava], group: 'Verification') {
     description 'Test issue 3447 test case for backward analysis.'
