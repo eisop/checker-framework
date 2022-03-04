@@ -1,15 +1,21 @@
 package common;
 
-import org.checkerframework.dataflow.analysis.AbstractValue;
 import org.checkerframework.dataflow.analysis.Analysis;
-import org.checkerframework.dataflow.analysis.Store;
-import org.checkerframework.dataflow.analysis.TransferFunction;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeLauncher;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Map;
 
+/**
+ * A common tester performs dataflow tests.
+ *
+ * <p>A DataflowTester receive the {@link Analysis} instance from specific dataflow test, e.g.,
+ * {@link livevar.LiveVariable}, then generate CFG by using this instance. In order to test the
+ * correctness of the analysis, performTest reads from the input file inputFile and then generates
+ * an output file of CFG, which will be compared with an expectation output file under the working
+ * dir.
+ */
 public class DataflowTester {
 
     /**
@@ -17,8 +23,7 @@ public class DataflowTester {
      *
      * @param analysis instance of forward or backward analysis.
      */
-    public static <V extends AbstractValue<V>, S extends Store<S>, T extends TransferFunction<V, S>>
-            void performTest(Analysis<V, S, T> analysis) {
+    public static void performTest(Analysis<?, ?, ?> analysis) {
 
         String inputFile = "Test.java";
         String method = "test";
