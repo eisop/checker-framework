@@ -10,12 +10,13 @@ import java.util.Collection;
 import java.util.Objects;
 
 /**
- * A node for the string concatenation compound assignment:
- *
- * <pre>
+ * @deprecated Use {@code #AssignmentNode()} instead. A node for the string concatenation compound
+ *     assignment:
+ *     <pre>
  *   <em>variable</em> += <em>expression</em>
  * </pre>
  */
+@Deprecated()
 public class StringConcatenateAssignmentNode extends Node {
     /** The entire tree of the assignment */
     protected final Tree tree;

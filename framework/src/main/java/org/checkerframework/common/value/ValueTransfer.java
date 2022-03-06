@@ -601,6 +601,7 @@ public class ValueTransfer extends CFTransfer {
     }
 
     @Override
+    @Deprecated()
     public TransferResult<CFValue, CFStore> visitStringConcatenateAssignment(
             StringConcatenateAssignmentNode n, TransferInput<CFValue, CFStore> p) {
         TransferResult<CFValue, CFStore> result = super.visitStringConcatenateAssignment(n, p);

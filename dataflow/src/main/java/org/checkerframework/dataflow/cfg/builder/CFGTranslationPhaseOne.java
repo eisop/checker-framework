@@ -1810,11 +1810,12 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                                         withoutAssignment(kind),
                                         tree.getVariable(),
                                         tree.getExpression());
+                        handleArtificialTree(operTree);
                         Node operNode = new StringConcatenateNode(operTree, targetRHS, value);
                         extendWithNode(operNode);
-                        AssignmentNode r = new AssignmentNode(tree, targetLHS, operNode);
-                        extendWithNode(r);
-                        return r;
+                        AssignmentNode assignNode = new AssignmentNode(tree, targetLHS, operNode);
+                        extendWithNode(assignNode);
+                        return assignNode;
                     } else {
                         TypeMirror promotedType = binaryPromotedType(leftType, rightType);
                         Node targetRHS = binaryNumericPromotion(targetLHS, promotedType);

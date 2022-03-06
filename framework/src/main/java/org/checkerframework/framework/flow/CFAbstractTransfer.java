@@ -912,6 +912,7 @@ public abstract class CFAbstractTransfer<
     }
 
     @Override
+    @Deprecated()
     public TransferResult<V, S> visitStringConcatenateAssignment(
             StringConcatenateAssignmentNode n, TransferInput<V, S> in) {
         // This gets the type of LHS + RHS
