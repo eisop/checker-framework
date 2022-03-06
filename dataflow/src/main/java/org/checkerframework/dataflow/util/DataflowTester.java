@@ -23,9 +23,8 @@ public class DataflowTester {
      *
      * @param analysis instance of forward or backward analysis.
      */
-    @SuppressWarnings("CatchAndPrintStackTrace")
+    @SuppressWarnings("CatchAndPrintStackTrace") // we want to use e.printStackTrace here.
     public static void performTest(Analysis<?, ?, ?> analysis) {
-
         String inputFile = "Test.java";
         String method = "test";
         String clazz = "Test";
@@ -35,7 +34,9 @@ public class DataflowTester {
         Map<String, Object> res =
                 cfgVisualizeLauncher.generateStringOfCFG(inputFile, method, clazz, true, analysis);
         try (FileWriter out = new FileWriter(outputFile)) {
-            out.write(res.get("stringGraph").toString());
+            if (res != null && res.get("stringGraph") != null) {
+                out.write(res.get("stringGraph").toString());
+            }
             out.write("\n");
         } catch (IOException e) {
             e.printStackTrace();
