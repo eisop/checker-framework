@@ -8,8 +8,8 @@ import java.io.IOException;
 import java.util.Map;
 
 /**
- * It's basically a class that provides utility for running some dataflow analysis tests and playgrounds.
- *
+ * It's basically a class that provides utility for running some dataflow analysis tests and
+ * playgrounds.
  */
 public class DataflowPerformer {
 
