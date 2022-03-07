@@ -13,6 +13,8 @@ import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
 import org.checkerframework.dataflow.analysis.RegularTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
+// TODO: remove this line after merging StringConcatenateAssignmentNode completely.
+import org.checkerframework.dataflow.cfg.node.*;
 import org.checkerframework.dataflow.cfg.node.BitwiseAndNode;
 import org.checkerframework.dataflow.cfg.node.BitwiseComplementNode;
 import org.checkerframework.dataflow.cfg.node.BitwiseOrNode;
@@ -41,7 +43,6 @@ import org.checkerframework.dataflow.cfg.node.NumericalMultiplicationNode;
 import org.checkerframework.dataflow.cfg.node.NumericalPlusNode;
 import org.checkerframework.dataflow.cfg.node.NumericalSubtractionNode;
 import org.checkerframework.dataflow.cfg.node.SignedRightShiftNode;
-import org.checkerframework.dataflow.cfg.node.StringConcatenateAssignmentNode;
 import org.checkerframework.dataflow.cfg.node.StringConcatenateNode;
 import org.checkerframework.dataflow.cfg.node.StringConversionNode;
 import org.checkerframework.dataflow.cfg.node.StringLiteralNode;
