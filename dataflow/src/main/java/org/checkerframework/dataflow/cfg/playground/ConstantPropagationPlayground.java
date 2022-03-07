@@ -5,7 +5,7 @@ import org.checkerframework.dataflow.analysis.ForwardAnalysisImpl;
 import org.checkerframework.dataflow.constantpropagation.Constant;
 import org.checkerframework.dataflow.constantpropagation.ConstantPropagationStore;
 import org.checkerframework.dataflow.constantpropagation.ConstantPropagationTransfer;
-import org.checkerframework.dataflow.util.DataflowTester;
+import org.checkerframework.dataflow.util.DataflowPerformer;
 
 /** The playground of constant propagation analysis. */
 public class ConstantPropagationPlayground {
@@ -20,6 +20,6 @@ public class ConstantPropagationPlayground {
         ConstantPropagationTransfer transfer = new ConstantPropagationTransfer();
         ForwardAnalysis<Constant, ConstantPropagationStore, ConstantPropagationTransfer>
                 forwardAnalysis = new ForwardAnalysisImpl<>(transfer);
-        DataflowTester.performPlayground(forwardAnalysis);
+        DataflowPerformer.performPlayground(forwardAnalysis);
     }
 }

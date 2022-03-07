@@ -8,20 +8,15 @@ import java.io.IOException;
 import java.util.Map;
 
 /**
- * A utils performs dataflow tests or playgrounds.
+ * It's basically a class that provides utility for running some dataflow analysis tests and playgrounds.
  *
- * <p>A DataflowTester receive the {@link Analysis} instance from specific dataflow test/playground,
- * e.g., LiveVariable, then generate CFG by using this instance. PerformTest reads from the input
- * file inputFile and then generates an output file of CFG, which will be compared with an
- * expectation output file under the working directory; while performPlayground generates the dot of
- * CFG.
  */
-public class DataflowTester {
+public class DataflowPerformer {
 
     /**
      * The performTest method performs the tests for some dataflow analysis.
      *
-     * @param analysis instance of forward or backward analysis.
+     * @param analysis instance of forward or backward analysis from specific dataflow test case.
      */
     @SuppressWarnings("CatchAndPrintStackTrace") // we want to use e.printStackTrace here.
     public static void performTest(Analysis<?, ?, ?> analysis) {
@@ -47,7 +42,7 @@ public class DataflowTester {
      * The performPlayground method performs the playgrounds for some dataflow analysis. In order to
      * run this method successfully, make sure the settings of inputFile and outputDir are correct.
      *
-     * @param analysis instance of forward or backward analysis.
+     * @param analysis instance of forward or backward analysis from specific dataflow playground..
      */
     public static void performPlayground(Analysis<?, ?, ?> analysis) {
 

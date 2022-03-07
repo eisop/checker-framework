@@ -54,16 +54,19 @@ createDataflowShaded('shaded')
 createDataflowShaded('nullaway')
 createDataflowShaded('errorprone')
 
+// allDataflowTests for dataflow analysis tests
+tasks.create(name: 'allDataflowTests', group: 'Verification') {
+    description 'Run all dataflow analysis tests'
+}
+
 /**
- * Create a task to run a dataflow analysis testcase
- * To add a dataflow analysis case, in normal cases you only
- * need to add your test code directory and the classname and
- * method {org.checkerframework.dataflow.util.DataflowTester.performTest}
- * will receive your analysis instance. Go org.checkerframework.dataflow.util.DataflowTester
- * to see more details if you want to make any change on it.
- * @param taskName the taskName for the created task
- * @param dirName the directory name of the test file
- * @param className the fully-qualified name of the test class
+ * Create a task to run a dataflow analysis test case
+ * Usually, to add a new dataflow analysis test, you only need to provide the
+ * directory which contains some test files and the classname of the test entrance.
+ * Please check org.checkerframework.dataflow.util.DataflowTester for more details.
+ * @param taskName the task name for the new task
+ * @param dirName the directory name of the directory that contains the test files
+ * @param className the name of the test class
  * @return
  */
 def testDataflowAnalysis(taskName, dirName, className) {
@@ -106,17 +109,14 @@ def testDataflowAnalysis(taskName, dirName, className) {
             }
         }
     }
+
+    allDataflowTests.dependsOn << taskName
 }
 
 testDataflowAnalysis("liveVariableTest", "live-variable", "livevar.LiveVariable")
 
 
-// allDataflowTests for dataflow analysis tests
-tasks.create(name: 'allDataflowTests', group: 'Verification') {
-    description 'Run all dataflow analysis tests'
-    // Once there is a new type of dataflow test, add it into dependsOn
-    dependsOn('liveVariableTest')
-}
+
 
 task issue3447Test(dependsOn: [assemble, compileTestJava], group: 'Verification') {
     description 'Test issue 3447 test case for backward analysis.'

@@ -5,7 +5,7 @@ import org.checkerframework.dataflow.analysis.BackwardAnalysisImpl;
 import org.checkerframework.dataflow.livevariable.LiveVarStore;
 import org.checkerframework.dataflow.livevariable.LiveVarTransfer;
 import org.checkerframework.dataflow.livevariable.LiveVarValue;
-import org.checkerframework.dataflow.util.DataflowTester;
+import org.checkerframework.dataflow.util.DataflowPerformer;
 
 /** The playground of live variable analysis. */
 public class LiveVariablePlayground {
@@ -20,6 +20,6 @@ public class LiveVariablePlayground {
         LiveVarTransfer transfer = new LiveVarTransfer();
         BackwardAnalysis<LiveVarValue, LiveVarStore, LiveVarTransfer> backwardAnalysis =
                 new BackwardAnalysisImpl<>(transfer);
-        DataflowTester.performPlayground(backwardAnalysis);
+        DataflowPerformer.performPlayground(backwardAnalysis);
     }
 }
