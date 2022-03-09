@@ -54,19 +54,23 @@ createDataflowShaded('shaded')
 createDataflowShaded('nullaway')
 createDataflowShaded('errorprone')
 
+tasks.withType(Test) {
+    dependsOn('allDataflowTests')
+}
 // allDataflowTests for dataflow analysis tests
 tasks.create(name: 'allDataflowTests', group: 'Verification') {
     description 'Run all dataflow analysis tests'
 }
 
 /**
- * Create a task to run a dataflow analysis test case
- * Usually, to add a new dataflow analysis test, you only need to provide the
- * directory which contains some test files and the classname of the test entrance.
- * Please check org.checkerframework.dataflow.util.DataflowTester for more details.
+ * Create a task to run a dataflow analysis test case.
+ * To add a new dataflow analysis test, you need to provide the
+ * task name, the directory which contains the test files, and the fully-qualified class
+ * name of the test class.
+ * See org.checkerframework.dataflow.cfg.visualize.CFGVisualizeLauncher for more details.
  * @param taskName the task name for the new task
  * @param dirName the directory name of the directory that contains the test files
- * @param className the name of the test class
+ * @param className the fully-qualified name of the test class
  * @return
  */
 def testDataflowAnalysis(taskName, dirName, className) {
@@ -116,8 +120,6 @@ def testDataflowAnalysis(taskName, dirName, className) {
 testDataflowAnalysis("liveVariableTest", "live-variable", "livevar.LiveVariable")
 
 
-
-
 task issue3447Test(dependsOn: [assemble, compileTestJava], group: 'Verification') {
     description 'Test issue 3447 test case for backward analysis.'
     inputs.file('tests/issue3447/Test.java')
@@ -147,6 +149,8 @@ task issue3447Test(dependsOn: [assemble, compileTestJava], group: 'Verification'
         }
     }
 }
+
+allDataflowTests.dependsOn << issue3447Test
 
 apply from: rootProject.file("gradle-mvn-push.gradle")
 

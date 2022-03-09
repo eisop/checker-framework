@@ -16,6 +16,7 @@ import org.checkerframework.dataflow.cfg.CFGProcessor.CFGProcessResult;
 import org.checkerframework.dataflow.cfg.ControlFlowGraph;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -51,7 +52,7 @@ public class CFGVisualizeLauncher {
         String input = args[0];
         File file = new File(input);
         if (!file.canRead()) {
-            cfgVisualizeLauncher.printError("Cannot read input file: " + file.getAbsolutePath());
+            printError("Cannot read input file: " + file.getAbsolutePath());
             cfgVisualizeLauncher.printUsage();
             System.exit(1);
         }
@@ -68,8 +69,7 @@ public class CFGVisualizeLauncher {
             switch (args[i]) {
                 case "--outputdir":
                     if (i >= args.length - 1) {
-                        cfgVisualizeLauncher.printError(
-                                "Did not find <outputdir> after --outputdir.");
+                        printError("Did not find <outputdir> after --outputdir.");
                         continue;
                     }
                     i++;
@@ -80,7 +80,7 @@ public class CFGVisualizeLauncher {
                     break;
                 case "--method":
                     if (i >= args.length - 1) {
-                        cfgVisualizeLauncher.printError("Did not find <name> after --method.");
+                        printError("Did not find <name> after --method.");
                         continue;
                     }
                     i++;
@@ -88,7 +88,7 @@ public class CFGVisualizeLauncher {
                     break;
                 case "--class":
                     if (i >= args.length - 1) {
-                        cfgVisualizeLauncher.printError("Did not find <name> after --class.");
+                        printError("Did not find <name> after --class.");
                         continue;
                     }
                     i++;
@@ -101,7 +101,7 @@ public class CFGVisualizeLauncher {
                     string = true;
                     break;
                 default:
-                    cfgVisualizeLauncher.printError("Unknown command line argument: " + args[i]);
+                    printError("Unknown command line argument: " + args[i]);
                     error = true;
                     break;
             }
@@ -183,7 +183,7 @@ public class CFGVisualizeLauncher {
      * @param analysis analysis to perform before the visualization (or {@code null} if no analysis
      *     is to be performed)
      */
-    public <V extends AbstractValue<V>, S extends Store<S>, T extends TransferFunction<V, S>>
+    public static <V extends AbstractValue<V>, S extends Store<S>, T extends TransferFunction<V, S>>
             void generateDOTofCFG(
                     String inputFile,
                     String outputDir,
@@ -220,7 +220,8 @@ public class CFGVisualizeLauncher {
      * @param method name of the method to generate the CFG for
      * @return control flow graph of the specified method
      */
-    protected ControlFlowGraph generateMethodCFG(String file, String clas, final String method) {
+    protected static ControlFlowGraph generateMethodCFG(
+            String file, String clas, final String method) {
 
         CFGProcessor cfgProcessor = new CFGProcessor(clas, method);
 
@@ -268,11 +269,52 @@ public class CFGVisualizeLauncher {
     }
 
     /**
+     * The performTest method performs the tests for some dataflow analysis.
+     *
+     * @param analysis instance of forward or backward analysis from specific dataflow test case.
+     */
+    @SuppressWarnings("CatchAndPrintStackTrace") // we want to use e.printStackTrace here.
+    public static void generateStringofCFGforTests(Analysis<?, ?, ?> analysis) {
+
+        String inputFile = "Test.java";
+        String method = "test";
+        String clazz = "Test";
+        String outputFile = "Out.txt";
+
+        Map<String, Object> res = generateStringOfCFG(inputFile, method, clazz, true, analysis);
+        try (FileWriter out = new FileWriter(outputFile)) {
+            if (res != null && res.get("stringGraph") != null) {
+                out.write(res.get("stringGraph").toString());
+            }
+            out.write("\n");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * The performPlayground method performs the playgrounds for some dataflow analysis. In order to
+     * run this method successfully, make sure the settings of inputFile and outputDir are correct.
+     *
+     * @param analysis instance of forward or backward analysis from specific dataflow playground..
+     */
+    public static void generateDOTofCFGforPlayground(Analysis<?, ?, ?> analysis) {
+        /* Configuration: change as appropriate */
+        String inputFile = "Test.java"; // input file name and path
+        String outputDir = "cfg"; // output directory
+        String method = "test"; // name of the method to analyze
+        String clazz = "Test"; // name of the class to consider
+
+        // Run the analysis and create a PDF file
+        generateDOTofCFG(inputFile, outputDir, method, clazz, true, true, analysis);
+    }
+
+    /**
      * Invoke "dot" command to generate a PDF.
      *
      * @param file name of the dot file
      */
-    protected void producePDF(String file) {
+    protected static void producePDF(String file) {
         try {
             String command = "dot -Tpdf \"" + file + "\" -o \"" + file + ".pdf\"";
             Process child = Runtime.getRuntime().exec(new String[] {"/bin/sh", "-c", command});
@@ -298,7 +340,7 @@ public class CFGVisualizeLauncher {
      * @return a map which includes a key "stringGraph" and the String representation of CFG as the
      *     value
      */
-    public <V extends AbstractValue<V>, S extends Store<S>, T extends TransferFunction<V, S>>
+    public static <V extends AbstractValue<V>, S extends Store<S>, T extends TransferFunction<V, S>>
             @Nullable Map<String, Object> generateStringOfCFG(
             String inputFile,
             String method,
@@ -345,7 +387,7 @@ public class CFGVisualizeLauncher {
      *
      * @param string error message
      */
-    protected void printError(@Nullable String string) {
+    protected static void printError(@Nullable String string) {
         System.err.println("ERROR: " + string);
     }
 }
