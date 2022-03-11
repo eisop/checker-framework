@@ -36,7 +36,12 @@ import javax.tools.JavaFileObject;
  * org.checkerframework.dataflow.cfg.playground.ConstantPropagationPlayground} for another way to
  * use it.
  */
-public class CFGVisualizeLauncher {
+public final class CFGVisualizeLauncher {
+
+    /** Class cannot be instantiated. */
+    private CFGVisualizeLauncher() {
+        throw new AssertionError("Class CFGVisualizeLauncher cannot be instantiated.");
+    }
 
     /**
      * The main entry point of CFGVisualizeLauncher.
@@ -44,16 +49,15 @@ public class CFGVisualizeLauncher {
      * @param args the passed arguments, see {@link #printUsage()} for the usage
      */
     public static void main(String[] args) {
-        CFGVisualizeLauncher cfgVisualizeLauncher = new CFGVisualizeLauncher();
         if (args.length == 0) {
-            cfgVisualizeLauncher.printUsage();
+            printUsage();
             System.exit(1);
         }
         String input = args[0];
         File file = new File(input);
         if (!file.canRead()) {
             printError("Cannot read input file: " + file.getAbsolutePath());
-            cfgVisualizeLauncher.printUsage();
+            printUsage();
             System.exit(1);
         }
 
@@ -112,12 +116,9 @@ public class CFGVisualizeLauncher {
         }
 
         if (!string) {
-            cfgVisualizeLauncher.generateDOTofCFGWithoutAnalysis(
-                    input, output, method, clas, pdf, verbose);
+            generateDOTofCFGWithoutAnalysis(input, output, method, clas, pdf, verbose);
         } else {
-            String stringGraph =
-                    cfgVisualizeLauncher.generateStringOfCFGWithoutAnalysis(
-                            input, method, clas, verbose);
+            String stringGraph = generateStringOfCFGWithoutAnalysis(input, method, clas, verbose);
             System.out.println(stringGraph);
         }
     }
@@ -132,7 +133,7 @@ public class CFGVisualizeLauncher {
      * @param pdf also generate a PDF
      * @param verbose show verbose information in CFG
      */
-    protected void generateDOTofCFGWithoutAnalysis(
+    private static void generateDOTofCFGWithoutAnalysis(
             String inputFile,
             String outputDir,
             String method,
@@ -151,7 +152,7 @@ public class CFGVisualizeLauncher {
      * @param verbose show verbose information in CFG
      * @return the String representation of the CFG
      */
-    protected String generateStringOfCFGWithoutAnalysis(
+    private static String generateStringOfCFGWithoutAnalysis(
             String inputFile, String method, String clas, boolean verbose) {
         @Nullable Map<String, Object> res =
                 generateStringOfCFG(inputFile, method, clas, verbose, null);
@@ -220,7 +221,7 @@ public class CFGVisualizeLauncher {
      * @param method name of the method to generate the CFG for
      * @return control flow graph of the specified method
      */
-    protected static ControlFlowGraph generateMethodCFG(
+    private static ControlFlowGraph generateMethodCFG(
             String file, String clas, final String method) {
 
         CFGProcessor cfgProcessor = new CFGProcessor(clas, method);
@@ -314,7 +315,7 @@ public class CFGVisualizeLauncher {
      *
      * @param file name of the dot file
      */
-    protected static void producePDF(String file) {
+    private static void producePDF(String file) {
         try {
             String command = "dot -Tpdf \"" + file + "\" -o \"" + file + ".pdf\"";
             Process child = Runtime.getRuntime().exec(new String[] {"/bin/sh", "-c", command});
@@ -362,7 +363,7 @@ public class CFGVisualizeLauncher {
     }
 
     /** Print usage information. */
-    protected void printUsage() {
+    private static void printUsage() {
         System.out.println(
                 "Generate the control flow graph of a Java method, represented as a DOT or String"
                         + " graph.");
@@ -387,7 +388,7 @@ public class CFGVisualizeLauncher {
      *
      * @param string error message
      */
-    protected static void printError(@Nullable String string) {
+    private static void printError(@Nullable String string) {
         System.err.println("ERROR: " + string);
     }
 }
