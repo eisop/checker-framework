@@ -221,7 +221,7 @@ public final class CFGVisualizeLauncher {
      * @param method name of the method to generate the CFG for
      * @return control flow graph of the specified method
      */
-    private static ControlFlowGraph generateMethodCFG(
+    public static ControlFlowGraph generateMethodCFG(
             String file, String clas, final String method) {
 
         CFGProcessor cfgProcessor = new CFGProcessor(clas, method);
@@ -315,7 +315,7 @@ public final class CFGVisualizeLauncher {
      *
      * @param file name of the dot file
      */
-    private static void producePDF(String file) {
+    public static void producePDF(String file) {
         try {
             String command = "dot -Tpdf \"" + file + "\" -o \"" + file + ".pdf\"";
             Process child = Runtime.getRuntime().exec(new String[] {"/bin/sh", "-c", command});
