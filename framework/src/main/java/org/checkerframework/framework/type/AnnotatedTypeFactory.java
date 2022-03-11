@@ -576,47 +576,47 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /* NO-AFU
-           if (checker.hasOption("infer")) {
-               checkInvalidOptionsInferSignatures();
-               String inferArg = checker.getOption("infer");
-               // No argument means "jaifs", for (temporary) backwards compatibility.
-               if (inferArg == null) {
-                   inferArg = "jaifs";
-               }
-               switch (inferArg) {
-                   case "stubs":
-                       wpiOutputFormat = WholeProgramInference.OutputFormat.STUB;
-                       break;
-                   case "jaifs":
-                       wpiOutputFormat = WholeProgramInference.OutputFormat.JAIF;
-                       break;
-                   case "ajava":
-                       wpiOutputFormat = WholeProgramInference.OutputFormat.AJAVA;
-                       break;
-                   default:
-                       throw new UserError(
-                               "Bad argument -Ainfer="
-                                       + inferArg
-                                       + " should be one of: -Ainfer=jaifs, -Ainfer=stubs,"
-                                       + " -Ainfer=ajava");
-               }
-               if (wpiOutputFormat == WholeProgramInference.OutputFormat.AJAVA) {
-                   wholeProgramInference =
-                           new WholeProgramInferenceImplementation<AnnotatedTypeMirror>(
-                                   this, new WholeProgramInferenceJavaParserStorage(this));
-               } else {
-                   wholeProgramInference =
-                           new WholeProgramInferenceImplementation<ATypeElement>(
-                                   this, new WholeProgramInferenceScenesStorage(this));
-               }
-               if (!checker.hasOption("warns")) {
-                   // Without -Awarns, the inference output may be incomplete, because javac halts
-                   // after issuing an error.
-                   checker.message(Diagnostic.Kind.ERROR, "Do not supply -Ainfer without -Awarns");
-               }
-           } else {
-               wholeProgramInference = null;
-           }
+    if (checker.hasOption("infer")) {
+      checkInvalidOptionsInferSignatures();
+      String inferArg = checker.getOption("infer");
+      // No argument means "jaifs", for (temporary) backwards compatibility.
+      if (inferArg == null) {
+        inferArg = "jaifs";
+      }
+      switch (inferArg) {
+        case "stubs":
+          wpiOutputFormat = WholeProgramInference.OutputFormat.STUB;
+          break;
+        case "jaifs":
+          wpiOutputFormat = WholeProgramInference.OutputFormat.JAIF;
+          break;
+        case "ajava":
+          wpiOutputFormat = WholeProgramInference.OutputFormat.AJAVA;
+          break;
+        default:
+          throw new UserError(
+              "Bad argument -Ainfer="
+                  + inferArg
+                  + " should be one of: -Ainfer=jaifs, -Ainfer=stubs, -Ainfer=ajava");
+      }
+      boolean showWpiFailedInferences = checker.hasOption("showWpiFailedInferences");
+      if (wpiOutputFormat == WholeProgramInference.OutputFormat.AJAVA) {
+        wholeProgramInference =
+            new WholeProgramInferenceImplementation<AnnotatedTypeMirror>(
+                this, new WholeProgramInferenceJavaParserStorage(this), showWpiFailedInferences);
+      } else {
+        wholeProgramInference =
+            new WholeProgramInferenceImplementation<ATypeElement>(
+                this, new WholeProgramInferenceScenesStorage(this), showWpiFailedInferences);
+      }
+      if (!checker.hasOption("warns")) {
+        // Without -Awarns, the inference output may be incomplete, because javac halts
+        // after issuing an error.
+        checker.message(Diagnostic.Kind.ERROR, "Do not supply -Ainfer without -Awarns");
+      }
+    } else {
+      wholeProgramInference = null;
+    }
     */
 
     ignoreUninferredTypeArguments = !checker.hasOption("conservativeUninferredTypeArguments");
