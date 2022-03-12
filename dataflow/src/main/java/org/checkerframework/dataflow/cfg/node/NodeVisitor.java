@@ -66,7 +66,7 @@ public interface NodeVisitor<R, P> {
 
     R visitBitwiseXor(BitwiseXorNode n, P p);
 
-    // Compound assignments
+    // TODO: Remove it in the future because we need to pass the check now
     R visitStringConcatenateAssignment(StringConcatenateAssignmentNode n, P p);
 
     // Comparison operations
