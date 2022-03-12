@@ -64,11 +64,10 @@ public interface NodeVisitor<R, P> {
 
     R visitBitwiseOr(BitwiseOrNode n, P p);
 
-    // visitBitwiseXor
     R visitBitwiseXor(BitwiseXorNode n, P p);
 
-    // Compound operation
-    @Deprecated
+    // Compound assignments
+    @Deprecated()
     R visitStringConcatenateAssignment(StringConcatenateAssignmentNode n, P p);
 
     // Comparison operations
