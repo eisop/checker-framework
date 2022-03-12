@@ -159,7 +159,7 @@ public abstract class AbstractNodeVisitor<R, P> implements NodeVisitor<R, P> {
     }
 
     // Compound assignments
-    @Deprecated()
+    @Deprecated
     @Override
     public R visitStringConcatenateAssignment(StringConcatenateAssignmentNode n, P p) {
         return visitNode(n, p);

@@ -13,8 +13,6 @@ import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
 import org.checkerframework.dataflow.analysis.RegularTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
-// TODO: remove this line after merging StringConcatenateAssignmentNode completely.
-import org.checkerframework.dataflow.cfg.node.*;
 import org.checkerframework.dataflow.cfg.node.BitwiseAndNode;
 import org.checkerframework.dataflow.cfg.node.BitwiseComplementNode;
 import org.checkerframework.dataflow.cfg.node.BitwiseOrNode;
@@ -602,9 +600,10 @@ public class ValueTransfer extends CFTransfer {
     }
 
     @Override
-    @Deprecated()
+    @Deprecated
     public TransferResult<CFValue, CFStore> visitStringConcatenateAssignment(
-            StringConcatenateAssignmentNode n, TransferInput<CFValue, CFStore> p) {
+            org.checkerframework.dataflow.cfg.node.StringConcatenateAssignmentNode n,
+            TransferInput<CFValue, CFStore> p) {
         TransferResult<CFValue, CFStore> result = super.visitStringConcatenateAssignment(n, p);
         return stringConcatenation(n.getLeftOperand(), n.getRightOperand(), p, result);
     }

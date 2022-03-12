@@ -16,8 +16,6 @@ import org.checkerframework.dataflow.analysis.TransferResult;
 import org.checkerframework.dataflow.cfg.UnderlyingAST;
 import org.checkerframework.dataflow.cfg.UnderlyingAST.CFGLambda;
 import org.checkerframework.dataflow.cfg.UnderlyingAST.CFGMethod;
-// TODO: remove this line after merging StringConcatenateAssignmentNode completely.
-import org.checkerframework.dataflow.cfg.node.*;
 import org.checkerframework.dataflow.cfg.node.AbstractNodeVisitor;
 import org.checkerframework.dataflow.cfg.node.ArrayAccessNode;
 import org.checkerframework.dataflow.cfg.node.AssignmentNode;
@@ -913,9 +911,10 @@ public abstract class CFAbstractTransfer<
     }
 
     @Override
-    @Deprecated()
+    @Deprecated
     public TransferResult<V, S> visitStringConcatenateAssignment(
-            StringConcatenateAssignmentNode n, TransferInput<V, S> in) {
+            org.checkerframework.dataflow.cfg.node.StringConcatenateAssignmentNode n,
+            TransferInput<V, S> in) {
         // This gets the type of LHS + RHS
         TransferResult<V, S> result = super.visitStringConcatenateAssignment(n, in);
         Node lhs = n.getLeftOperand();

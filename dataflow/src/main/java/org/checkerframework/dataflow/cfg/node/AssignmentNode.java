@@ -18,7 +18,7 @@ import java.util.Objects;
  *
  * <pre>
  *   <em>variable</em> = <em>expression</em>
- *   <em>String variable+</em> = <em>expression</em>
+ *   <em>variable</em> += <em>expression</em>
  *   <em>expression</em> . <em>field</em> = <em>expression</em>
  *   <em>expression</em> [ <em>index</em> ] = <em>expression</em>
  * </pre>
@@ -28,7 +28,11 @@ import java.util.Objects;
  * <p>Some desugarings create additional assignments to synthetic local variables. Such assignment
  * nodes are marked as synthetic to allow special handling in transfer functions.
  *
- * <p>StringConcatenateAssignmentNode is parsed as an Assignment node now.
+ * <p>String concatenation compound assignments are desugared to an assignment and a string
+ * concatenation.
+ *
+ * <p>Number concatenation compound assignments are desugared to an assignment and a number
+ * concatenation.
  */
 public class AssignmentNode extends Node {
 
