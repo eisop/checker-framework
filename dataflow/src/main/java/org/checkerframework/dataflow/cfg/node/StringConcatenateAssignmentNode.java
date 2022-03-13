@@ -16,7 +16,8 @@ import java.util.Objects;
  *   <em>variable</em> += <em>expression</em>
  * </pre>
  *
- * @deprecated Use {@code #AssignmentNode()} instead.
+ * @deprecated StringConcatenateAssignmentNode is not generated anymore in CFG nodes, and that
+ *     instead an assignment and concatenation is generated.
  */
 @Deprecated
 public class StringConcatenateAssignmentNode extends Node {

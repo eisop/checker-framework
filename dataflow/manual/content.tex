@@ -1338,11 +1338,15 @@ cases that were better handled by desugaring.
 
     \item Once we decided to make conversion nodes explicit it made
       sense to desugar compound assignments.  A compound assignment
-      like \begin{verbatim}Integer i; i += 3;\end{verbatim} or
-      \begin{verbatim}String s; s += "a";\end{verbatim} performs
+      like \begin{verbatim}Integer i; i += 3;\end{verbatim} performs
       both an unboxing and a boxing operation on \code{i}.  Desugaring
       all compound assignments greatly reduced the total number of
       node classes.
+
+    \item Also, we desugared string concatenation assignments. A string
+      concatenation assignment like \begin{verbatim}String s; s += "str";
+      \end{verbatim} is represented as \begin{verbatim}String s; s = s + "str";
+      \end{verbatim} in CFGs.
 
     \end{itemize}
 
