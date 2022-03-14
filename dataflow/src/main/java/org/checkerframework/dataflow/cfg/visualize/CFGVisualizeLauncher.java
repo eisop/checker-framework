@@ -270,12 +270,12 @@ public final class CFGVisualizeLauncher {
     }
 
     /**
-     * The performTest method performs the tests for some dataflow analysis.
+     * Write down generated String representation of the CFG.
      *
      * @param analysis instance of forward or backward analysis from specific dataflow test case.
      */
     @SuppressWarnings("CatchAndPrintStackTrace") // we want to use e.printStackTrace here.
-    public static void generateStringofCFGforTests(Analysis<?, ?, ?> analysis) {
+    public static void writeDownStringOfCFG(Analysis<?, ?, ?> analysis) {
 
         String inputFile = "Test.java";
         String method = "test";
@@ -291,23 +291,6 @@ public final class CFGVisualizeLauncher {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    /**
-     * The performPlayground method performs the playgrounds for some dataflow analysis. In order to
-     * run this method successfully, make sure the settings of inputFile and outputDir are correct.
-     *
-     * @param analysis instance of forward or backward analysis from specific dataflow playground..
-     */
-    public static void generateDOTofCFGforPlayground(Analysis<?, ?, ?> analysis) {
-        /* Configuration: change as appropriate */
-        String inputFile = "Test.java"; // input file name and path
-        String outputDir = "cfg"; // output directory
-        String method = "test"; // name of the method to analyze
-        String clazz = "Test"; // name of the class to consider
-
-        // Run the analysis and create a PDF file
-        generateDOTofCFG(inputFile, outputDir, method, clazz, true, true, analysis);
     }
 
     /**
