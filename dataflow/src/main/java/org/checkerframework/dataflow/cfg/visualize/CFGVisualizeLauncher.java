@@ -221,7 +221,7 @@ public final class CFGVisualizeLauncher {
      * @param method name of the method to generate the CFG for
      * @return control flow graph of the specified method
      */
-    public static ControlFlowGraph generateMethodCFG(
+    private static ControlFlowGraph generateMethodCFG(
             String file, String clas, final String method) {
 
         CFGProcessor cfgProcessor = new CFGProcessor(clas, method);
@@ -276,7 +276,6 @@ public final class CFGVisualizeLauncher {
      */
     @SuppressWarnings("CatchAndPrintStackTrace") // we want to use e.printStackTrace here.
     public static void writeDownStringOfCFG(Analysis<?, ?, ?> analysis) {
-
         String inputFile = "Test.java";
         String method = "test";
         String clazz = "Test";
@@ -298,7 +297,7 @@ public final class CFGVisualizeLauncher {
      *
      * @param file name of the dot file
      */
-    public static void producePDF(String file) {
+    private static void producePDF(String file) {
         try {
             String command = "dot -Tpdf \"" + file + "\" -o \"" + file + ".pdf\"";
             Process child = Runtime.getRuntime().exec(new String[] {"/bin/sh", "-c", command});
