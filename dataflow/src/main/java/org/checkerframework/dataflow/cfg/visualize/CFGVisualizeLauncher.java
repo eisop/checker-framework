@@ -270,12 +270,12 @@ public final class CFGVisualizeLauncher {
     }
 
     /**
-     * Write down generated String representation of the CFG.
+     * Write generated String representation of the CFG to a file.
      *
      * @param analysis instance of forward or backward analysis from specific dataflow test case.
      */
     @SuppressWarnings("CatchAndPrintStackTrace") // we want to use e.printStackTrace here.
-    public static void writeDownStringOfCFG(Analysis<?, ?, ?> analysis) {
+    public static void writeStringOfCFG(Analysis<?, ?, ?> analysis) {
         String inputFile = "Test.java";
         String method = "test";
         String clazz = "Test";

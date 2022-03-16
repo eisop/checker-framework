@@ -77,7 +77,9 @@ tasks.create(name: 'allDataflowTests', group: 'Verification') {
 def testDataflowAnalysis(taskName, dirName, className, diff) {
     tasks.create(name: taskName, dependsOn: [assemble, compileTestJava], group: 'Verification') {
         description "Run the ${dirName} dataflow framework test."
-        inputs.file("tests/${dirName}/Expected.txt")
+        if (diff) {
+            inputs.file("tests/${dirName}/Expected.txt")
+        }
         inputs.file("tests/${dirName}/Test.java")
 
         outputs.file("tests/${dirName}/Out.txt")

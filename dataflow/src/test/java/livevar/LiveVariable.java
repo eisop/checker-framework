@@ -19,6 +19,6 @@ public class LiveVariable {
         LiveVarTransfer transfer = new LiveVarTransfer();
         BackwardAnalysis<LiveVarValue, LiveVarStore, LiveVarTransfer> backwardAnalysis =
                 new BackwardAnalysisImpl<>(transfer);
-        CFGVisualizeLauncher.writeDownStringOfCFG(backwardAnalysis);
+        CFGVisualizeLauncher.writeStringOfCFG(backwardAnalysis);
     }
 }
