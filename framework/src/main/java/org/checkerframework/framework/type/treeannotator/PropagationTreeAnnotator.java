@@ -18,7 +18,6 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.QualifierHierarchy;
-import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.CollectionUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
@@ -337,16 +336,8 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
      * @param annos annotations to add to type
      */
     private void addAnnoOrBound(AnnotatedTypeMirror type, Set<? extends AnnotationMirror> annos) {
-        Set<AnnotationMirror> boundAnnos =
-                atypeFactory.getQualifierUpperBounds().getBoundQualifiers(type.getUnderlyingType());
-        Set<AnnotationMirror> annosToAdd = AnnotationUtils.createAnnotationSet();
-        for (AnnotationMirror boundAnno : boundAnnos) {
-            AnnotationMirror anno = qualHierarchy.findAnnotationInSameHierarchy(annos, boundAnno);
-            if (anno != null && !qualHierarchy.isSubtype(anno, boundAnno)) {
-                annosToAdd.add(boundAnno);
-            }
-        }
+        Set<AnnotationMirror> annosToAdd =
+                atypeFactory.getAnnoOrTypeBound(type.getUnderlyingType(), annos);
         type.addMissingAnnotations(annosToAdd);
-        type.addMissingAnnotations(annos);
     }
 }

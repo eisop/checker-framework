@@ -5668,4 +5668,31 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
         return ImmutableTypes.isImmutable(TypeAnnotationUtils.unannotatedType(type).toString());
     }
+
+    /**
+     * Returns the qualifiers in {@code annos} that are below the qualifier upper bound of {@code
+     * type}. If a qualifier in {@code annos} is above the bound, then the bound is added to the
+     * result instead.g
+     *
+     * @param type java type that specifies the qualifier upper bound
+     * @param annos annotations to add to the {@link AnnotatedTypeMirror} of type
+     */
+    public Set<AnnotationMirror> getAnnoOrTypeBound(
+            TypeMirror type, Set<? extends AnnotationMirror> annos) {
+        Set<AnnotationMirror> boundAnnos = getTypeDeclarationBounds(type);
+        Set<AnnotationMirror> results = AnnotationUtils.createAnnotationSet();
+
+        for (AnnotationMirror anno : annos) {
+            AnnotationMirror boundAnno =
+                    qualHierarchy.findAnnotationInSameHierarchy(boundAnnos, anno);
+            assert boundAnno != null;
+
+            if (!qualHierarchy.isSubtype(anno, boundAnno)) {
+                results.add(boundAnno);
+            } else {
+                results.add(anno);
+            }
+        }
+        return results;
+    }
 }
