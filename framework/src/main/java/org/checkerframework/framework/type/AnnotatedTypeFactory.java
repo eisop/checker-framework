@@ -5672,10 +5672,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /**
      * Returns the qualifiers in {@code annos} that are below the qualifier upper bound of {@code
      * type}. If a qualifier in {@code annos} is above the bound, then the bound is added to the
-     * result instead.g
+     * result instead.
      *
      * @param type java type that specifies the qualifier upper bound
      * @param annos annotations to add to the {@link AnnotatedTypeMirror} of type
+     * @return the modified {@code annos} by applying the rules above
      */
     public Set<AnnotationMirror> getAnnoOrTypeBound(
             TypeMirror type, Set<? extends AnnotationMirror> annos) {
