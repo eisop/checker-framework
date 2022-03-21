@@ -655,7 +655,7 @@ public abstract class AnnotatedTypeMirror {
     public boolean removeAnnotationByClass(Class<? extends Annotation> a) {
         AnnotationMirror anno = atypeFactory.getAnnotationByClass(annotations, a);
         if (anno != null) {
-            return annotations.remove(anno);
+            return this.removeAnnotation(anno);
         }
         return false;
     }
@@ -1522,6 +1522,19 @@ public abstract class AnnotatedTypeMirror {
             fixupBoundAnnotations();
         }
 
+        @Override
+        public boolean removeAnnotation(AnnotationMirror a) {
+            boolean ret = super.removeAnnotation(a);
+            if (lowerBound != null) {
+                ret |= lowerBound.removeAnnotation(a);
+            }
+            if (upperBound != null) {
+                ret |= upperBound.removeAnnotation(a);
+            }
+            fixupBoundAnnotations();
+            return ret;
+        }
+
         /**
          * Change whether this {@code AnnotatedTypeVariable} is considered a use or a declaration
          * (use this method with caution).
@@ -1913,6 +1926,19 @@ public abstract class AnnotatedTypeMirror {
             fixupBoundAnnotations();
         }
 
+        @Override
+        public boolean removeAnnotation(AnnotationMirror a) {
+            boolean ret = super.removeAnnotation(a);
+            if (superBound != null) {
+                ret |= superBound.removeAnnotation(a);
+            }
+            if (extendsBound != null) {
+                ret |= extendsBound.removeAnnotation(a);
+            }
+            fixupBoundAnnotations();
+            return ret;
+        }
+
         /**
          * Sets the super bound of this wildcard.
          *
@@ -2117,6 +2143,18 @@ public abstract class AnnotatedTypeMirror {
         public void addAnnotation(AnnotationMirror a) {
             super.addAnnotation(a);
             fixupBoundAnnotations();
+        }
+
+        @Override
+        public boolean removeAnnotation(AnnotationMirror a) {
+            boolean ret = super.removeAnnotation(a);
+            if (bounds != null) {
+                for (AnnotatedTypeMirror bound : bounds) {
+                    ret |= bound.removeAnnotation(a);
+                }
+            }
+            fixupBoundAnnotations();
+            return ret;
         }
 
         /**
