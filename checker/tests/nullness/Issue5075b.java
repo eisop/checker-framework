@@ -1,7 +1,7 @@
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 class Issue5075b {
-    class CExpl<V extends @Nullable Object> {
+    static class CExpl<V extends @Nullable Object> {
         I<V> c(N n) {
             return h(n.i());
         }
@@ -15,7 +15,7 @@ class Issue5075b {
         }
     }
 
-    class CImpl<V extends @Nullable Object> {
+    static class CImpl<V> {
         I<V> c(N n) {
             return h(n.i());
         }
