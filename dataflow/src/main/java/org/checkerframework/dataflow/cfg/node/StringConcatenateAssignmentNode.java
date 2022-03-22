@@ -16,10 +16,10 @@ import java.util.Objects;
  *   <em>variable</em> += <em>expression</em>
  * </pre>
  *
- * @deprecated StringConcatenateAssignmentNode is not generated anymore in CFG nodes, and that
- *     instead an assignment and concatenation is generated.
+ * @deprecated StringConcatenateAssignmentNode is no longer used in CFGs. Instead, an assignment and
+ *     a concatenation node are generated.
  */
-@Deprecated
+@Deprecated // 2022-03-22
 public class StringConcatenateAssignmentNode extends Node {
     /** The entire tree of the assignment */
     protected final Tree tree;

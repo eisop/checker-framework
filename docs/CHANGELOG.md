@@ -12,8 +12,9 @@ Changed `CFAbstractTransfer.insertIntoStores` from public to protected
 visibility. It is only meant as a utility method for use within a
 transfer function.
 
-Deprecated class `StringConcatenateAssignmentNode` and its related usage.
-`CFGTranslationPhaseOne` now generates an assignment and concatenation instead.
+Deprecated class `StringConcatenateAssignmentNode` and its usages.
+`CFGTranslationPhaseOne` now generates an assignment and a concatenation node instead.
+This avoids error prone duplication of logic.
 
 **Closed issues:**
 

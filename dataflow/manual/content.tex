@@ -1343,10 +1343,12 @@ cases that were better handled by desugaring.
       all compound assignments greatly reduced the total number of
       node classes.
 
-    \item Also, we desugared string concatenation assignments. A string
-      concatenation assignment like \begin{verbatim}String s; s += "str";
-      \end{verbatim} is represented as \begin{verbatim}String s; s = s + "str";
-      \end{verbatim} in CFGs.
+    \item String concatenation assignments are also desugared. A string
+      concatenation assignment like
+      \begin{verbatim}String s; s += "str";\end{verbatim} is represented as
+      \begin{verbatim}String s; s = s + "str";\end{verbatim} in CFGs.
+      This avoids duplicating the same logic that is necessary in assignment
+      and concatenation nodes, which was error prone.
 
     \end{itemize}
 

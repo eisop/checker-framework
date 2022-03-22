@@ -31,8 +31,7 @@ import java.util.Objects;
  * <p>String concatenation compound assignments are desugared to an assignment and a string
  * concatenation.
  *
- * <p>Numeric concatenation compound assignments are desugared to an assignment and a numeric
- * concatenation.
+ * <p>Numeric compound assignments are desugared to an assignment and a numeric operation.
  */
 public class AssignmentNode extends Node {
 
