@@ -67,11 +67,13 @@ tasks.create(name: 'allDataflowTests', group: 'Verification') {
  * To add a new dataflow analysis test, you need to provide the
  * task name, the directory which contains the test files, and the fully-qualified class
  * name of the test class.
+ * Optionally, when option {@code diff} is true, the output is compared against a
+ * {@code Expected.txt} file.
  * See org.checkerframework.dataflow.cfg.visualize.CFGVisualizeLauncher for more details.
  * @param taskName the task name for the new task
  * @param dirName the directory name of the directory that contains the test files
  * @param className the fully-qualified name of the test class
- * @param diff compare output with Expectation or not
+ * @param diff whether to compare the generated output with a {@code Expected.txt} file
  * @return
  */
 def testDataflowAnalysis(taskName, dirName, className, diff) {
@@ -122,6 +124,7 @@ def testDataflowAnalysis(taskName, dirName, className, diff) {
     allDataflowTests.dependsOn << taskName
 }
 
+// When adding a new test case, don't forget to add the temporary files to `.gitignore`.
 testDataflowAnalysis("liveVariableTest", "live-variable", "livevar.LiveVariable", true)
 testDataflowAnalysis("issue3447Test", "issue3447", "livevar.LiveVariable", false)
 

@@ -275,12 +275,12 @@ public final class CFGVisualizeLauncher {
      * @param analysis instance of forward or backward analysis from specific dataflow test case.
      */
     @SuppressWarnings("CatchAndPrintStackTrace") // we want to use e.printStackTrace here.
-    public static void writeStringOfCFG(Analysis<?, ?, ?> analysis) {
-        String inputFile = "Test.java";
-        String method = "test";
-        String clazz = "Test";
-        String outputFile = "Out.txt";
-
+    public static void writeStringOfCFG(
+            String inputFile,
+            String method,
+            String clazz,
+            String outputFile,
+            Analysis<?, ?, ?> analysis) {
         Map<String, Object> res = generateStringOfCFG(inputFile, method, clazz, true, analysis);
         try (FileWriter out = new FileWriter(outputFile)) {
             if (res != null && res.get("stringGraph") != null) {

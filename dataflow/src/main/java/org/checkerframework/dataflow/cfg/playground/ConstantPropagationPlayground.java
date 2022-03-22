@@ -7,7 +7,7 @@ import org.checkerframework.dataflow.constantpropagation.Constant;
 import org.checkerframework.dataflow.constantpropagation.ConstantPropagationStore;
 import org.checkerframework.dataflow.constantpropagation.ConstantPropagationTransfer;
 
-/** The playground of constant propagation analysis. */
+/** The playground for constant propagation analysis. */
 public class ConstantPropagationPlayground {
 
     /**
