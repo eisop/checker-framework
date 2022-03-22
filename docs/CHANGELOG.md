@@ -18,7 +18,7 @@ visibility. It is only meant as a utility method for use within a
 transfer function.
 
 Deprecated class `StringConcatenateAssignmentNode` and its usages.
-`CFGTranslationPhaseOne` now generates an assignment and a concatenation node instead.
+String concatenate assignments are now desugared to an assignment and a concatenation node instead.
 This avoids error prone duplication of logic.
 
 **Closed issues:**
