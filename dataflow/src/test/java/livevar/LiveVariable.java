@@ -18,13 +18,13 @@ public class LiveVariable {
     public static void main(String[] args) {
         String inputFile = "Test.java";
         String method = "test";
-        String clazz = "Test";
+        String clas = "Test";
         String outputFile = "Out.txt";
 
         LiveVarTransfer transfer = new LiveVarTransfer();
         BackwardAnalysis<LiveVarValue, LiveVarStore, LiveVarTransfer> backwardAnalysis =
                 new BackwardAnalysisImpl<>(transfer);
         CFGVisualizeLauncher.writeStringOfCFG(
-                inputFile, method, clazz, outputFile, backwardAnalysis);
+                inputFile, method, clas, outputFile, backwardAnalysis);
     }
 }

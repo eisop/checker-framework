@@ -270,18 +270,22 @@ public final class CFGVisualizeLauncher {
     }
 
     /**
-     * Write generated String representation of the CFG to a file.
+     * Write generated String representation of the CFG for a method to a file.
      *
-     * @param analysis instance of forward or backward analysis from specific dataflow test case.
+     * @param inputFile a Java source file, used as input
+     * @param method name of the method to generate the CFG for
+     * @param clas name of the class which includes the method to generate the CFG for
+     * @param outputFile source output file
+     * @param analysis instance of forward or backward analysis from specific dataflow test case
      */
     @SuppressWarnings("CatchAndPrintStackTrace") // we want to use e.printStackTrace here.
     public static void writeStringOfCFG(
             String inputFile,
             String method,
-            String clazz,
+            String clas,
             String outputFile,
             Analysis<?, ?, ?> analysis) {
-        Map<String, Object> res = generateStringOfCFG(inputFile, method, clazz, true, analysis);
+        Map<String, Object> res = generateStringOfCFG(inputFile, method, clas, true, analysis);
         try (FileWriter out = new FileWriter(outputFile)) {
             if (res != null && res.get("stringGraph") != null) {
                 out.write(res.get("stringGraph").toString());
