@@ -3,6 +3,11 @@ Version 3.21.3-eisop1 (March ?, 2022)
 
 **User-visible changes:**
 
+If you supply the new `-AjspecifyNullMarkedAlias=false` command-line
+option, then the Nullness Checker will not treat
+`org.jspecify.nullness.NullMarked` as a defaulting annotation.
+By default the `NullMarked` annotation continues to be recognized.
+
 **Implementation details:**
 
 Changed `AnnotatedTypeFactory.initializeAtm` from public to package
@@ -13,6 +18,7 @@ visibility. It is only meant as a utility method for use within a
 transfer function.
 
 **Closed issues:**
+typetools#5075.
 
 
 Version 3.21.3 (March 1, 2022)
