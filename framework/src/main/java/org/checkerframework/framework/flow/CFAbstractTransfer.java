@@ -74,6 +74,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 
 /**
@@ -1358,9 +1359,16 @@ public abstract class CFAbstractTransfer<
             StringConversionNode n, TransferInput<V, S> p) {
         TransferResult<V, S> result = super.visitStringConversion(n, p);
         TypeMirror strType = n.getType();
-        Tree operandTree = n.getOperand().getTree();
-        Set<AnnotationMirror> operandAnnos =
-                analysis.atypeFactory.getAnnotatedType(operandTree).getEffectiveAnnotations();
+
+        Set<AnnotationMirror> operandAnnos = p.getValueOfSubNode(n.getOperand()).getAnnotations();
+        if (operandAnnos.isEmpty() && n.getOperand().getType().getKind() == TypeKind.TYPEVAR) {
+            // use effective annotation if we didn't find any annotations in the value of
+            // a type variable
+            Tree operandTree = n.getOperand().getTree();
+            operandAnnos =
+                    analysis.atypeFactory.getAnnotatedType(operandTree).getEffectiveAnnotations();
+        }
+
         Set<AnnotationMirror> resultAnnos =
                 analysis.atypeFactory.getAnnoOrTypeBound(strType, operandAnnos);
         result.setResultValue(analysis.createAbstractValue(resultAnnos, strType));
