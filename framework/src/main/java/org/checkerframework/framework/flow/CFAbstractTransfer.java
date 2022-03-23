@@ -911,7 +911,7 @@ public abstract class CFAbstractTransfer<
     }
 
     @Override
-    @Deprecated
+    @Deprecated // 2022-03-22
     public TransferResult<V, S> visitStringConcatenateAssignment(
             org.checkerframework.dataflow.cfg.node.StringConcatenateAssignmentNode n,
             TransferInput<V, S> in) {

@@ -600,7 +600,7 @@ public class ValueTransfer extends CFTransfer {
     }
 
     @Override
-    @Deprecated
+    @Deprecated // 2022-03-22
     public TransferResult<CFValue, CFStore> visitStringConcatenateAssignment(
             org.checkerframework.dataflow.cfg.node.StringConcatenateAssignmentNode n,
             TransferInput<CFValue, CFStore> p) {
