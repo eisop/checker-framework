@@ -22,6 +22,7 @@ String concatenate assignments are now desugared to an assignment and a concaten
 This avoids error prone duplication of logic.
 
 **Closed issues:**
+typetools#5075.
 
 
 Version 3.21.3 (March 1, 2022)
