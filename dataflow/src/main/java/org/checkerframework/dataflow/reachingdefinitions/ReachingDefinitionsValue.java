@@ -41,7 +41,7 @@ public class ReachingDefinitionsValue implements AbstractValue<ReachingDefinitio
             return false;
         }
         ReachingDefinitionsValue other = (ReachingDefinitionsValue) obj;
-        return this.def.equals(other.def);
+        return this.def == other.def;
     }
 
     @Override

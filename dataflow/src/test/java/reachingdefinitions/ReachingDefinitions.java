@@ -7,10 +7,6 @@ import org.checkerframework.dataflow.reachingdefinitions.ReachingDefinitionsStor
 import org.checkerframework.dataflow.reachingdefinitions.ReachingDefinitionsTransfer;
 import org.checkerframework.dataflow.reachingdefinitions.ReachingDefinitionsValue;
 
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.Map;
-
 /** Used in reachingDefinitionsTest Gradle task to test the ReachingDefinitions analysis. */
 public class ReachingDefinitions {
 
@@ -23,7 +19,7 @@ public class ReachingDefinitions {
 
         String inputFile = "Test.java";
         String method = "test";
-        String clazz = "Test";
+        String clas = "Test";
         String outputFile = "Out.txt";
 
         ReachingDefinitionsTransfer transfer = new ReachingDefinitionsTransfer();
@@ -32,15 +28,6 @@ public class ReachingDefinitions {
                         ReachingDefinitionsStore,
                         ReachingDefinitionsTransfer>
                 forwardAnalysis = new ForwardAnalysisImpl<>(transfer);
-        CFGVisualizeLauncher cfgVisualizeLauncher = new CFGVisualizeLauncher();
-        Map<String, Object> res =
-                cfgVisualizeLauncher.generateStringOfCFG(
-                        inputFile, method, clazz, true, forwardAnalysis);
-        try (FileWriter out = new FileWriter(outputFile)) {
-            out.write(res.get("stringGraph").toString());
-            out.write("\n");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        CFGVisualizeLauncher.writeStringOfCFG(inputFile, method, clas, outputFile, forwardAnalysis);
     }
 }

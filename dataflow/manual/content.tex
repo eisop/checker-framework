@@ -1739,10 +1739,8 @@ update the information of live variables for each node in the stores.
 \section{Example: Reaching Definitions}
 
 The reaching definitions for a given program point are those assignments that
-may have defined the current values of variables.
-
-A reaching definitions analysis for definitions(assignments) was implemented
-to show the forward analysis works properly.
+may have updated the current values of variables.
+This reaching definitions analysis is a standard example of a forward analysis.
 
 \textbf{Abstract values.} A class \code{ReachingDefinitionsValue} is a reaching
 definitions (which is represented by a node) wrapper turning node into

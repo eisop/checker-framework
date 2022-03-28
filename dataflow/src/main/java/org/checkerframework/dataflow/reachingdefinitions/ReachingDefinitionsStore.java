@@ -13,7 +13,7 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.StringJoiner;
 
-/** A reaching definitions store contains a set of reaching definitions represented by nodes. */
+/** A reaching definitions store records information about ReachingDefinitionsValue */
 public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore> {
 
     /** A set of reaching definitions abstract values. */
@@ -111,6 +111,6 @@ public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore>
 
     @Override
     public String toString() {
-        return reachingDefSet.toString();
+        return "ReachingDefinitionsStore: " + reachingDefSet.toString();
     }
 }
