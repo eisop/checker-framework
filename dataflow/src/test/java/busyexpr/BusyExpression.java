@@ -7,10 +7,6 @@ import org.checkerframework.dataflow.busyexpression.BusyExprTransfer;
 import org.checkerframework.dataflow.busyexpression.BusyExprValue;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeLauncher;
 
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.Map;
-
 /** Used in busyExpressionTest Gradle task to test the BusyExpression analysis. */
 public class BusyExpression {
     /**
@@ -28,15 +24,7 @@ public class BusyExpression {
         BusyExprTransfer transfer = new BusyExprTransfer();
         BackwardAnalysis<BusyExprValue, BusyExprStore, BusyExprTransfer> backwardAnalysis =
                 new BackwardAnalysisImpl<>(transfer);
-        CFGVisualizeLauncher cfgVisualizeLauncher = new CFGVisualizeLauncher();
-        Map<String, Object> res =
-                cfgVisualizeLauncher.generateStringOfCFG(
-                        inputFile, method, clazz, true, backwardAnalysis);
-        try (FileWriter out = new FileWriter(outputFile)) {
-            out.write(res.get("stringGraph").toString());
-            out.write("\n");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        CFGVisualizeLauncher.writeStringOfCFG(
+                inputFile, method, clazz, outputFile, backwardAnalysis);
     }
 }

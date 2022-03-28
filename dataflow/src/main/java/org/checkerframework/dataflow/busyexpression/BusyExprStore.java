@@ -9,7 +9,6 @@ import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.javacutil.BugInCF;
 
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.StringJoiner;
@@ -40,14 +39,8 @@ public class BusyExprStore implements Store<BusyExprStore> {
      * @param var a variable
      */
     public void killBusyExpr(Node var) {
-        Iterator<BusyExprValue> iter = busyExprValueSet.iterator();
-        while (iter.hasNext()) {
-            BusyExprValue busyExprValue = iter.next();
-            Node expr = busyExprValue.busyExpression;
-            if (exprContainsVariable(expr, var)) {
-                iter.remove();
-            }
-        }
+        busyExprValueSet.removeIf(
+                busyExprValue -> exprContainsVariable(busyExprValue.busyExpression, var));
     }
 
     /**
@@ -83,9 +76,9 @@ public class BusyExprStore implements Store<BusyExprStore> {
      */
     public void addUseInExpression(Node e) {
         if (e instanceof BinaryOperationNode) {
-            putBusyExpr(new BusyExprValue(e));
-            // recursively add expressions
             BinaryOperationNode binaryNode = (BinaryOperationNode) e;
+            putBusyExpr(new BusyExprValue(binaryNode));
+            // recursively add expressions
             addUseInExpression(binaryNode.getLeftOperand());
             addUseInExpression(binaryNode.getRightOperand());
         }

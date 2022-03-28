@@ -28,8 +28,7 @@ public class BusyExpressionPlayground {
         BusyExprTransfer transfer = new BusyExprTransfer();
         BackwardAnalysis<BusyExprValue, BusyExprStore, BusyExprTransfer> backwardAnalysis =
                 new BackwardAnalysisImpl<>(transfer);
-        CFGVisualizeLauncher cfgVisualizeLauncher = new CFGVisualizeLauncher();
-        cfgVisualizeLauncher.generateDOTofCFG(
+        CFGVisualizeLauncher.generateDOTofCFG(
                 inputFile, outputDir, method, clazz, true, true, backwardAnalysis);
     }
 }
