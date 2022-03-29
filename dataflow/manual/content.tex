@@ -1742,22 +1742,19 @@ The reaching definitions for a given program point are those assignments that
 may have updated the current values of variables.
 This reaching definitions analysis is a standard example of a forward analysis.
 
-\textbf{Abstract values.} A class \code{ReachingDefinitionsValue} is a reaching
-definitions (which is represented by a node) wrapper turning node into
-abstract value. A node can only be \code{AssignmentNode}.
+\textbf{Abstract values.} A class \code{ReachingDefinitionsValue} is used as an
+abstract value, which can only wrap \code{AssignmentNode}. The reaching definitions
+processes such values in the store.
 
 \textbf{The store.} The reaching definitions store \code{ReachingDefinitionsStore} has a field
-\code{reachingDefSet} which contains a set of \code{ReachingDefinitionsValue}s. Only
-\code{AssignmentNode} will be considered as a
-definition and added to \code{reachingDefSet}. The store defines methods
+\code{reachingDefSet} which contains a set of \code{ReachingDefinitionsValue}s. The store defines methods
 \code{putDef(ReachingDefinitionValue)} and \code{killDef(Node)} to add
-and kill reaching definitions. A definition will be added in the store when the analysis visits
-an \code{AssignmentNode}, and will be killed if afterwards the analysis visits a new
-\code{AssignmentNode} with the same lhs.
+and kill reaching definitions.
 
-\textbf{The transfer function.} The transfer function \code{ReachingDefinitionTransfer}
-initializes empty store. The transfer function visits assignments to
-update the information of reaching definitions for each node in the stores.
+\textbf{The transfer function.} The transfer function visits \code{AssignmentNode} to
+update the information of reaching definitions in the stores. A reaching definition will
+be killed in the store when its lhs is same as that of the new generated value, and the new
+generated value will be added into the store.
 
 \textbf{Example.} An example is shown in \autoref{fig:ReachSimple}.
 
