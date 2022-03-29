@@ -7,7 +7,6 @@ import org.checkerframework.dataflow.cfg.visualize.CFGVisualizer;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.javacutil.BugInCF;
 
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -27,9 +26,10 @@ public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore>
     /**
      * Create a new ReachDefinitionStore.
      *
-     * @param reachingDefSet a set of reaching definitions abstract values
+     * @param reachingDefSet a set of reaching definitions abstract values, this parameter is
+     *     captured and that the caller should not retain an alias
      */
-    public ReachingDefinitionsStore(Set<ReachingDefinitionsValue> reachingDefSet) {
+    public ReachingDefinitionsStore(LinkedHashSet<ReachingDefinitionsValue> reachingDefSet) {
         this.reachingDefSet = reachingDefSet;
     }
 
@@ -41,8 +41,8 @@ public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore>
     public void killDef(Node defTarget) {
         Iterator<ReachingDefinitionsValue> it = reachingDefSet.iterator();
         while (it.hasNext()) {
-            ReachingDefinitionsValue existedDef = it.next();
-            if (existedDef.def.getTarget().equals(defTarget)) {
+            ReachingDefinitionsValue generatedDefValue = it.next();
+            if (generatedDefValue.def.getTarget().equals(defTarget)) {
                 it.remove();
             }
         }
@@ -73,19 +73,19 @@ public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore>
 
     @Override
     public ReachingDefinitionsStore copy() {
-        return new ReachingDefinitionsStore(new HashSet<>(reachingDefSet));
+        return new ReachingDefinitionsStore(new LinkedHashSet<>(reachingDefSet));
     }
 
     @Override
     public ReachingDefinitionsStore leastUpperBound(ReachingDefinitionsStore other) {
-        Set<ReachingDefinitionsValue> reachingDefSetLub =
-                new HashSet<>(this.reachingDefSet.size() + other.reachingDefSet.size());
+        LinkedHashSet<ReachingDefinitionsValue> reachingDefSetLub =
+                new LinkedHashSet<>(this.reachingDefSet.size() + other.reachingDefSet.size());
         reachingDefSetLub.addAll(this.reachingDefSet);
         reachingDefSetLub.addAll(other.reachingDefSet);
         return new ReachingDefinitionsStore(reachingDefSetLub);
     }
 
-    /** It should not be called since it is not used by the backward analysis. */
+    /** We do not call widenedUpperBound in this analysis. */
     @Override
     public ReachingDefinitionsStore widenedUpperBound(ReachingDefinitionsStore previous) {
         throw new BugInCF("wub of reaching definitions get called!");

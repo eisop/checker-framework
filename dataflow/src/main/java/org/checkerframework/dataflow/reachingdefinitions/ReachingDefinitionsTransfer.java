@@ -13,7 +13,11 @@ import org.checkerframework.dataflow.cfg.node.Node;
 
 import java.util.List;
 
-/** A reaching definitions transfer function. */
+/**
+ * A reaching definitions transfer function. The transfer function processes the
+ * ReachingDefinitionsValue in ReachingDefinitioinsStore, killing the value with same LHS and
+ * putting new generated value into the store. See dataflow manual for more details.
+ */
 public class ReachingDefinitionsTransfer
         extends AbstractNodeVisitor<
                 TransferResult<ReachingDefinitionsValue, ReachingDefinitionsStore>,

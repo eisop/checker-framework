@@ -53,7 +53,7 @@ c   [ LocalVariable ]
 d = (a + c)   [ Assignment ]
 ~~~~~~~~~
 AnalysisResult#3
-After:   reaching definitions = d = (a + c), a = 1, b = 2, c = 3
+After:   reaching definitions = a = 1, b = 2, c = 3, d = (a + c)
 
 10:
 Process order: 5
@@ -72,7 +72,7 @@ After:   reaching definitions = a = 1, b = 2, c = 3, e = (a + b)
 11:
 Process order: 6
 TransferInput#32
-Before:   reaching definitions = a = 1, b = 2, c = 3, d = (a + c), e = (a + b)
+Before:   reaching definitions = a = 1, b = 2, c = 3, e = (a + b), d = (a + c)
 ~~~~~~~~~
 b   [ LocalVariable ]
 0   [ IntegerLiteral ]
@@ -86,11 +86,11 @@ a   [ LocalVariable ]
 return a   [ Return ]
 ~~~~~~~~~
 AnalysisResult#7
-After:   reaching definitions = d = (a + c), a = b, b = 0, c = 3, e = (a + b)
+After:   reaching definitions = c = 3, e = (a + b), d = (a + c), b = 0, a = b
 
 0:
 Process order: 7
 TransferInput#44
-Before:   reaching definitions = d = (a + c), a = b, b = 0, c = 3, e = (a + b)
+Before:   reaching definitions = c = 3, e = (a + b), d = (a + c), b = 0, a = b
 ~~~~~~~~~
 <exit>
