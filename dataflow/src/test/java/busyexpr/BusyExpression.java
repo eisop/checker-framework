@@ -16,7 +16,7 @@ public class BusyExpression {
      */
     public static void main(String[] args) {
 
-        String inputFile = "dataflow/tests/busy-expression/Test.java"; // input file name;
+        String inputFile = "Test.java"; // input file name;
         String method = "test";
         String clazz = "Test";
         String outputFile = "Out.txt";

@@ -8,7 +8,6 @@ import org.checkerframework.dataflow.cfg.visualize.CFGVisualizer;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.javacutil.BugInCF;
 
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.StringJoiner;
@@ -22,7 +21,8 @@ public class BusyExprStore implements Store<BusyExprStore> {
     /**
      * Create a new BusyExprStore.
      *
-     * @param busyExprValueSet a set of busy expression abstract values
+     * @param busyExprValueSet a set of busy expression abstract values.
+     * The parameter is captured and that the caller should not retain an alias
      */
     public BusyExprStore(Set<BusyExprValue> busyExprValueSet) {
         this.busyExprValueSet = busyExprValueSet;
@@ -86,12 +86,12 @@ public class BusyExprStore implements Store<BusyExprStore> {
 
     @Override
     public BusyExprStore copy() {
-        return new BusyExprStore(new HashSet<>(busyExprValueSet));
+        return new BusyExprStore(new LinkedHashSet<>(busyExprValueSet));
     }
 
     @Override
     public BusyExprStore leastUpperBound(BusyExprStore other) {
-        Set<BusyExprValue> busyExprValueSetLub = new HashSet<>(this.busyExprValueSet);
+        Set<BusyExprValue> busyExprValueSetLub = new LinkedHashSet<>(this.busyExprValueSet);
         busyExprValueSetLub.retainAll(other.busyExprValueSet);
 
         return new BusyExprStore(busyExprValueSetLub);
