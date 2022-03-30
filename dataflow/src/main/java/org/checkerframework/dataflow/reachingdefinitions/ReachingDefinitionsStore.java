@@ -42,6 +42,11 @@ public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore>
         Iterator<ReachingDefinitionsValue> it = reachingDefSet.iterator();
         while (it.hasNext()) {
             ReachingDefinitionsValue generatedDefValue = it.next();
+            // It's preferred to use "==" to compare two nodes in checker framework,
+            // but in this case we use `equals` to only measure value equality.
+            // If we use "==", two expressions from different nodes with same
+            // abstract values will not consider as the same and cause the analysis
+            // incorrect. Hence we use `equals` in place of `==`.
             if (generatedDefValue.def.getTarget().equals(defTarget)) {
                 it.remove();
             }
