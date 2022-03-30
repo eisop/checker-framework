@@ -21,8 +21,8 @@ public class BusyExprStore implements Store<BusyExprStore> {
     /**
      * Create a new BusyExprStore.
      *
-     * @param busyExprValueSet a set of busy expression abstract values.
-     * The parameter is captured and that the caller should not retain an alias
+     * @param busyExprValueSet a set of busy expression abstract values. The parameter is captured
+     *     and that the caller should not retain an alias
      */
     public BusyExprStore(Set<BusyExprValue> busyExprValueSet) {
         this.busyExprValueSet = busyExprValueSet;
