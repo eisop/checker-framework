@@ -2035,8 +2035,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     if (prefixes.isEmpty() || (prefixes.contains(SUPPRESS_ALL_PREFIX) && prefixes.size() == 1)) {
       throw new BugInCF(
           "Checker must provide a SuppressWarnings prefix."
-              + " SourceChecker#getSuppressWarningsPrefixes was not overridden"
-              + " correctly.");
+              + " SourceChecker#getSuppressWarningsPrefixes was not overridden correctly.");
     }
 
     if (shouldSuppress(getSuppressWarningsStringsFromOption(), errKey)) {
@@ -2047,6 +2046,25 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     // trees.getPath might be slow, but this is only used in error reporting
     @Nullable TreePath path = trees.getPath(this.currentRoot, tree);
+
+    return shouldSuppressWarnings(path, errKey);
+  }
+
+  /**
+   * Determines whether all the warnings pertaining to a given tree path should be suppressed.
+   * Returns true if the path is within the scope of a @SuppressWarnings annotation, one of whose
+   * values suppresses all the checker's warnings.
+   *
+   * @param path the TreePath that might be a source of, or related to, a warning
+   * @param errKey the error key the checker is emitting
+   * @return true if no warning should be emitted for the given path because it is contained by a
+   *     declaration with an appropriately-valued {@code @SuppressWarnings} annotation; false
+   *     otherwise
+   */
+  public boolean shouldSuppressWarnings(@Nullable TreePath path, String errKey) {
+    if (path == null) {
+      return false;
+    }
 
     @Nullable VariableTree var = TreePathUtil.enclosingVariable(path);
     if (var != null && shouldSuppressWarnings(TreeUtils.elementFromTree(var), errKey)) {
