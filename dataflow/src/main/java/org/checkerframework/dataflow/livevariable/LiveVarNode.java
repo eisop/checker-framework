@@ -1,12 +1,10 @@
 package org.checkerframework.dataflow.livevariable;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.analysis.AbstractValue;
 import org.checkerframework.dataflow.cfg.node.Node;
-import org.checkerframework.javacutil.BugInCF;
 
-/** A live variable (which is represented by a node) wrapper turning node into abstract value. */
-public class LiveVarValue implements AbstractValue<LiveVarValue> {
+/** A LiveVarNode contains a CFG node, which can only be a LocalVariableNode or FieldAccessNode. */
+public class LiveVarNode {
 
     /**
      * A live variable is represented by a node, which can be a {@link
@@ -15,17 +13,12 @@ public class LiveVarValue implements AbstractValue<LiveVarValue> {
      */
     protected final Node liveVariable;
 
-    @Override
-    public LiveVarValue leastUpperBound(LiveVarValue other) {
-        throw new BugInCF("lub of LiveVar get called!");
-    }
-
     /**
      * Create a new live variable.
      *
      * @param n a node
      */
-    public LiveVarValue(Node n) {
+    public LiveVarNode(Node n) {
         this.liveVariable = n;
     }
 
@@ -36,10 +29,14 @@ public class LiveVarValue implements AbstractValue<LiveVarValue> {
 
     @Override
     public boolean equals(@Nullable Object obj) {
-        if (!(obj instanceof LiveVarValue)) {
+        if (!(obj instanceof LiveVarNode)) {
             return false;
         }
-        LiveVarValue other = (LiveVarValue) obj;
+        LiveVarNode other = (LiveVarNode) obj;
+        // We use `.equals` instead of `==` here to compare value equality.
+        // We want two different nodes with same values (that is, the two nodes
+        // refer to the same live variable in the program) to be regarded as
+        // the same here.
         return this.liveVariable.equals(other.liveVariable);
     }
 
