@@ -1754,7 +1754,7 @@ and kill live variables.
 \textbf{The transfer function.} The transfer function \code{LiveVarTransfer}
 initializes empty stores at normal and exceptional exit blocks (because this
 is a backward transfer function). The transfer function visits assignments to
-update the values in the stores.
+update the live variable values in the stores.
 
 \textbf{Example.} An example is shown in \autoref{fig:LiveSimple}.
 
