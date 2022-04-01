@@ -3,7 +3,12 @@ package org.checkerframework.dataflow.livevariable;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.cfg.node.Node;
 
-/** A LiveVarNode contains a CFG node, which can only be a LocalVariableNode or FieldAccessNode. */
+/**
+ * A LiveVarNode contains a CFG node, which can only be a LocalVariableNode or FieldAccessNode. It
+ * is used to represent the estimate of live variables at certain program point during dataflow
+ * analysis. When merging two stores, the `equals` method will perform the value equality check
+ * between two LiveVarNodes
+ */
 public class LiveVarNode {
 
     /**

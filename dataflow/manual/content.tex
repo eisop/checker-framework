@@ -299,12 +299,12 @@ package org.checkerframework.checker.nullness;
 class NullnessValue extends CFAbstractValue<NullnessValue>
 \end{verbatim}
 
-\subsubsection{UnusedAbsValue}
-\label{sec:UnusedAbsValue_classes}
+\subsubsection{UnusedAbstractValue}
+\label{sec:UnusedAbstractValue_classes}
 
-UnusedAbsValue, as the name suggests, is an AbstractValue but is
+UnusedAbstractValue, as the name suggests, is an AbstractValue but is
 not involved in any computation during dataflow analysis. That is, the
-UnusedAbsValue implements the leastUpperBound method in a way it
+UnusedAbstractValue implements the leastUpperBound method in a way it
 just throws an error if it is called, without computing the lub with the
 other AbstractValue.
 
@@ -317,10 +317,10 @@ is sufficient and we do not have to implement a specific AbstractValue for this 
 
 \begin{verbatim}
 package org.checkerframework.dataflow.analysis;
-public class UnusedAbsValue implements AbstractValue<UnusedAbsValue> {
+public class UnusedAbstractValue implements AbstractValue<UnusedAbstractValue> {
     @Override
-    public UnusedAbsValue leastUpperBound(UnusedAbsValue other) {
-        throw new BugInCF("lub of UnusedAbsValue gets called!");
+    public UnusedAbstractValue leastUpperBound(UnusedAbstractValue other) {
+        throw new BugInCF("lub of UnusedAbstractValue gets called!");
     }
 }
 \end{verbatim}

@@ -2,7 +2,7 @@ package livevar;
 
 import org.checkerframework.dataflow.analysis.BackwardAnalysis;
 import org.checkerframework.dataflow.analysis.BackwardAnalysisImpl;
-import org.checkerframework.dataflow.analysis.UnusedAbsValue;
+import org.checkerframework.dataflow.analysis.UnusedAbstractValue;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeLauncher;
 import org.checkerframework.dataflow.livevariable.LiveVarStore;
 import org.checkerframework.dataflow.livevariable.LiveVarTransfer;
@@ -22,7 +22,7 @@ public class LiveVariable {
         String outputFile = "Out.txt";
 
         LiveVarTransfer transfer = new LiveVarTransfer();
-        BackwardAnalysis<UnusedAbsValue, LiveVarStore, LiveVarTransfer> backwardAnalysis =
+        BackwardAnalysis<UnusedAbstractValue, LiveVarStore, LiveVarTransfer> backwardAnalysis =
                 new BackwardAnalysisImpl<>(transfer);
         CFGVisualizeLauncher.writeStringOfCFG(
                 inputFile, method, clas, outputFile, backwardAnalysis);

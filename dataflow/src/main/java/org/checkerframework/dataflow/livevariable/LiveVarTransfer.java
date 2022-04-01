@@ -4,7 +4,7 @@ import org.checkerframework.dataflow.analysis.BackwardTransferFunction;
 import org.checkerframework.dataflow.analysis.RegularTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
-import org.checkerframework.dataflow.analysis.UnusedAbsValue;
+import org.checkerframework.dataflow.analysis.UnusedAbstractValue;
 import org.checkerframework.dataflow.cfg.UnderlyingAST;
 import org.checkerframework.dataflow.cfg.node.AbstractNodeVisitor;
 import org.checkerframework.dataflow.cfg.node.AssignmentNode;
@@ -18,9 +18,9 @@ import java.util.List;
 /** A live variable transfer function. */
 public class LiveVarTransfer
         extends AbstractNodeVisitor<
-                TransferResult<UnusedAbsValue, LiveVarStore>,
-                TransferInput<UnusedAbsValue, LiveVarStore>>
-        implements BackwardTransferFunction<UnusedAbsValue, LiveVarStore> {
+                TransferResult<UnusedAbstractValue, LiveVarStore>,
+                TransferInput<UnusedAbstractValue, LiveVarStore>>
+        implements BackwardTransferFunction<UnusedAbstractValue, LiveVarStore> {
 
     @Override
     public LiveVarStore initialNormalExitStore(
@@ -34,26 +34,27 @@ public class LiveVarTransfer
     }
 
     @Override
-    public RegularTransferResult<UnusedAbsValue, LiveVarStore> visitNode(
-            Node n, TransferInput<UnusedAbsValue, LiveVarStore> p) {
+    public RegularTransferResult<UnusedAbstractValue, LiveVarStore> visitNode(
+            Node n, TransferInput<UnusedAbstractValue, LiveVarStore> p) {
         return new RegularTransferResult<>(null, p.getRegularStore());
     }
 
     @Override
-    public RegularTransferResult<UnusedAbsValue, LiveVarStore> visitAssignment(
-            AssignmentNode n, TransferInput<UnusedAbsValue, LiveVarStore> p) {
-        RegularTransferResult<UnusedAbsValue, LiveVarStore> transferResult =
-                (RegularTransferResult<UnusedAbsValue, LiveVarStore>) super.visitAssignment(n, p);
+    public RegularTransferResult<UnusedAbstractValue, LiveVarStore> visitAssignment(
+            AssignmentNode n, TransferInput<UnusedAbstractValue, LiveVarStore> p) {
+        RegularTransferResult<UnusedAbstractValue, LiveVarStore> transferResult =
+                (RegularTransferResult<UnusedAbstractValue, LiveVarStore>)
+                        super.visitAssignment(n, p);
         processLiveVarInAssignment(
                 n.getTarget(), n.getExpression(), transferResult.getRegularStore());
         return transferResult;
     }
 
     @Override
-    public RegularTransferResult<UnusedAbsValue, LiveVarStore> visitMethodInvocation(
-            MethodInvocationNode n, TransferInput<UnusedAbsValue, LiveVarStore> p) {
-        RegularTransferResult<UnusedAbsValue, LiveVarStore> transferResult =
-                (RegularTransferResult<UnusedAbsValue, LiveVarStore>)
+    public RegularTransferResult<UnusedAbstractValue, LiveVarStore> visitMethodInvocation(
+            MethodInvocationNode n, TransferInput<UnusedAbstractValue, LiveVarStore> p) {
+        RegularTransferResult<UnusedAbstractValue, LiveVarStore> transferResult =
+                (RegularTransferResult<UnusedAbstractValue, LiveVarStore>)
                         super.visitMethodInvocation(n, p);
         LiveVarStore store = transferResult.getRegularStore();
         for (Node arg : n.getArguments()) {
@@ -63,10 +64,10 @@ public class LiveVarTransfer
     }
 
     @Override
-    public RegularTransferResult<UnusedAbsValue, LiveVarStore> visitObjectCreation(
-            ObjectCreationNode n, TransferInput<UnusedAbsValue, LiveVarStore> p) {
-        RegularTransferResult<UnusedAbsValue, LiveVarStore> transferResult =
-                (RegularTransferResult<UnusedAbsValue, LiveVarStore>)
+    public RegularTransferResult<UnusedAbstractValue, LiveVarStore> visitObjectCreation(
+            ObjectCreationNode n, TransferInput<UnusedAbstractValue, LiveVarStore> p) {
+        RegularTransferResult<UnusedAbstractValue, LiveVarStore> transferResult =
+                (RegularTransferResult<UnusedAbstractValue, LiveVarStore>)
                         super.visitObjectCreation(n, p);
         LiveVarStore store = transferResult.getRegularStore();
         for (Node arg : n.getArguments()) {
@@ -76,10 +77,10 @@ public class LiveVarTransfer
     }
 
     @Override
-    public RegularTransferResult<UnusedAbsValue, LiveVarStore> visitReturn(
-            ReturnNode n, TransferInput<UnusedAbsValue, LiveVarStore> p) {
-        RegularTransferResult<UnusedAbsValue, LiveVarStore> transferResult =
-                (RegularTransferResult<UnusedAbsValue, LiveVarStore>) super.visitReturn(n, p);
+    public RegularTransferResult<UnusedAbstractValue, LiveVarStore> visitReturn(
+            ReturnNode n, TransferInput<UnusedAbstractValue, LiveVarStore> p) {
+        RegularTransferResult<UnusedAbstractValue, LiveVarStore> transferResult =
+                (RegularTransferResult<UnusedAbstractValue, LiveVarStore>) super.visitReturn(n, p);
         Node result = n.getResult();
         if (result != null) {
             LiveVarStore store = transferResult.getRegularStore();
