@@ -1892,6 +1892,9 @@ public abstract class GenericAnnotatedTypeFactory<
     /**
      * Applies the annotations inferred by the org.checkerframework.dataflow analysis to the type
      * {@code type}.
+     *
+     * @param type the type to modify
+     * @param as the inferred annotations to apply
      */
     protected void applyInferredAnnotations(AnnotatedTypeMirror type, Value as) {
         inferredTypesApplier.applyInferredType(type, as.getAnnotations(), as.getUnderlyingType());
