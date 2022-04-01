@@ -1531,7 +1531,6 @@ public abstract class AnnotatedTypeMirror {
             if (upperBound != null) {
                 ret |= upperBound.removeAnnotation(a);
             }
-            fixupBoundAnnotations();
             return ret;
         }
 
@@ -1935,7 +1934,6 @@ public abstract class AnnotatedTypeMirror {
             if (extendsBound != null) {
                 ret |= extendsBound.removeAnnotation(a);
             }
-            fixupBoundAnnotations();
             return ret;
         }
 
@@ -2153,7 +2151,6 @@ public abstract class AnnotatedTypeMirror {
                     ret |= bound.removeAnnotation(a);
                 }
             }
-            fixupBoundAnnotations();
             return ret;
         }
 
@@ -2166,9 +2163,7 @@ public abstract class AnnotatedTypeMirror {
                 Set<AnnotationMirror> newAnnos = this.getAnnotationsField();
                 if (bounds != null) {
                     for (AnnotatedTypeMirror bound : bounds) {
-                        if (bound.getKind() != TypeKind.TYPEVAR) {
-                            bound.replaceAnnotations(newAnnos);
-                        }
+                        bound.replaceAnnotations(newAnnos);
                     }
                 }
             }
