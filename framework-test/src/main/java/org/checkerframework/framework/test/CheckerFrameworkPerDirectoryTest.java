@@ -137,6 +137,8 @@ public abstract class CheckerFrameworkPerDirectoryTest {
         this.testDir = "tests" + File.separator + testDir;
         this.classpathExtra = classpathExtra;
         this.checkerOptions = new ArrayList<>(Arrays.asList(checkerOptions));
+        // -Anomsgtext is needed to ensure expected errors can be matched
+        this.checkerOptions.add("-Anomsgtext");
         this.checkerOptions.add("-AajavaChecks");
     }
 
