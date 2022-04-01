@@ -12,6 +12,6 @@ public class UnusedAbsValue implements AbstractValue<UnusedAbsValue> {
 
     @Override
     public UnusedAbsValue leastUpperBound(UnusedAbsValue other) {
-        throw new BugInCF("lub of UnusedAbsValue gets called!");
+        throw new BugInCF("UnusedAbstractValue.leastUpperBound was called!");
     }
 }
