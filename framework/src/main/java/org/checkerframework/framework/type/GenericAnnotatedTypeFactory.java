@@ -221,6 +221,12 @@ public abstract class GenericAnnotatedTypeFactory<
     private boolean shouldDefaultTypeVarLocals;
 
     /**
+     * The inferred types applier utility to use. Initialized in postInit() and should not be
+     * re-assigned after initialization.
+     */
+    private DefaultInferredTypesApplier inferredTypesApplier;
+
+    /**
      * Elements representing variables for which the type of the initializer is being determined in
      * order to apply qualifier parameter defaults.
      *
@@ -408,6 +414,8 @@ public abstract class GenericAnnotatedTypeFactory<
         this.emptyStore = analysis.createEmptyStore(transfer.usesSequentialSemantics());
 
         this.parseAnnotationFiles();
+
+        this.inferredTypesApplier = new DefaultInferredTypesApplier(getQualifierHierarchy(), this);
     }
 
     /**
@@ -1886,9 +1894,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * {@code type}.
      */
     protected void applyInferredAnnotations(AnnotatedTypeMirror type, Value as) {
-        DefaultInferredTypesApplier applier =
-                new DefaultInferredTypesApplier(getQualifierHierarchy(), this);
-        applier.applyInferredType(type, as.getAnnotations(), as.getUnderlyingType());
+        inferredTypesApplier.applyInferredType(type, as.getAnnotations(), as.getUnderlyingType());
     }
 
     /**
