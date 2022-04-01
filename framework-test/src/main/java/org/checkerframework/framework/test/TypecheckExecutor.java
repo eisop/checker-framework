@@ -97,6 +97,10 @@ public class TypecheckExecutor {
 
         nonJvmOptions.add("-AnoJreVersionCheck");
 
+        // -Anomsgtext is needed to ensure expected errors can be matched
+        nonJvmOptions.add("-Anomsgtext");
+        nonJvmOptions.add("-AajavaChecks");
+
         options.addAll(nonJvmOptions);
 
         if (configuration.shouldEmitDebugInfo()) {
