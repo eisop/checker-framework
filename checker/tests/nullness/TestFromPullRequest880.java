@@ -5,22 +5,23 @@
 // Also note a test that uses multiple compilation units at:
 //   checker/jtreg/nullness/annotationsOnExtends/
 
+import org.checkerframework.checker.nullness.qual.NonNull;
+
 import java.io.Serializable;
 import java.util.List;
-import org.checkerframework.checker.nullness.qual.NonNull;
 
 class TFPR880Test implements Serializable {}
 
 class TFPR880Use {
-  void foo() {
-    TFPR880Test other = null;
-  }
+    void foo() {
+        TFPR880Test other = null;
+    }
 }
 
 abstract class TFPR880TestSub extends TFPR880Test implements List<@NonNull String> {}
 
 class TFPR880SubUse {
-  void foo() {
-    TFPR880TestSub other = null;
-  }
+    void foo() {
+        TFPR880TestSub other = null;
+    }
 }
