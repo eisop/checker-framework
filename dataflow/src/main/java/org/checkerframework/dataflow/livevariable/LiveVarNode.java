@@ -1,6 +1,8 @@
 package org.checkerframework.dataflow.livevariable;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.cfg.node.FieldAccessNode;
+import org.checkerframework.dataflow.cfg.node.LocalVariableNode;
 import org.checkerframework.dataflow.cfg.node.Node;
 
 /**
@@ -24,6 +26,7 @@ public class LiveVarNode {
      * @param n a node
      */
     public LiveVarNode(Node n) {
+        assert n instanceof FieldAccessNode || n instanceof LocalVariableNode;
         this.liveVariable = n;
     }
 

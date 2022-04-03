@@ -308,21 +308,16 @@ UnusedAbstractValue implements the leastUpperBound method in a way it
 just throws an error if it is called, without computing the lub with the
 other AbstractValue.
 
-It can be used in an analysis which does not require any computation
-between two AbstractValues. For example, in LiveVariable analysis (\autoref{sec:live_variable}), we
-need to compute the lub of successors' stores, and it is meaningless to
-further calculate the lub of two individual live variables in a smaller granularity.
+For some analysis, lub can be computed at the store level, and no need
+to compute it at the abstract value level. For example, in LiveVariable analysis
+(\autoref{sec:live_variable}), we need to compute the lub of successors' stores, and
+it is meaningless to further calculate the lub of two individual live variables in a smaller granularity.
 Since there's no computation between two AbstractValues, using the UnusedAbstractValue
 is sufficient and we do not have to implement a specific AbstractValue for this analysis.
 
 \begin{verbatim}
 package org.checkerframework.dataflow.analysis;
-public class UnusedAbstractValue implements AbstractValue<UnusedAbstractValue> {
-    @Override
-    public UnusedAbstractValue leastUpperBound(UnusedAbstractValue other) {
-        throw new BugInCF("lub of UnusedAbstractValue gets called!");
-    }
-}
+public final class UnusedAbstractValue implements AbstractValue<UnusedAbstractValue>
 \end{verbatim}
 
 \subsubsection{Store}
