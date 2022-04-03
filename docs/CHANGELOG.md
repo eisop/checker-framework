@@ -1,4 +1,4 @@
-Version 3.21.3-eisop2 (March ?, 2022)
+Version 3.21.4-eisop1 (April ?, 2022)
 -------------------------------------
 
 **User-visible changes:**
@@ -6,7 +6,14 @@ Version 3.21.3-eisop2 (March ?, 2022)
 **Implementation details:**
 
 **Closed issues:**
-eisop#199.
+eisop#199, eisop#204.
+
+
+Version 3.21.4 (April 1, 2022)
+---------------------------------
+
+**Closed issues:**
+#5086.
 
 
 Version 3.21.3-eisop1 (March 23, 2022)
@@ -4237,7 +4244,7 @@ Code Changes
     fixed generic and array handling of @ReadOnly
     fixed @RoMaybe resolution of receivers at method invocation
     fixed parsing of parenthesized trees and conditional trees
-    added initial support for for-enhanced loop
+    added initial support for enhanced-for loop
     fixed constructor behavior on @ReadOnly classes
     added checks for annotations on primitive types inside arrays
 
