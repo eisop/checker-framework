@@ -21,7 +21,7 @@ import java.util.StringJoiner;
 /** A live variable store contains a set of live variables represented by nodes. */
 public class LiveVarStore implements Store<LiveVarStore> {
 
-    /** Stores a set of live variables either LocalVariableNode or FieldAccessNode */
+    /** The set of live variables in this store */
     private final Set<LiveVarNode> liveVarNodeSet;
 
     /** Create a new LiveVarStore. */
@@ -32,7 +32,7 @@ public class LiveVarStore implements Store<LiveVarStore> {
     /**
      * Create a new LiveVarStore.
      *
-     * @param liveVarNodeSet a set of live variable values , the parameter is captured and that the
+     * @param liveVarNodeSet the set of live variable nodes. The parameter is captured and the
      *     caller should not retain an alias.
      */
     public LiveVarStore(Set<LiveVarNode> liveVarNodeSet) {
