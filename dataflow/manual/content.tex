@@ -303,15 +303,13 @@ class NullnessValue extends CFAbstractValue<NullnessValue>
 \label{sec:unused_abstract_value_class}
 
 UnusedAbstractValue, as the name suggests, is an AbstractValue but is
-not involved in any computation during dataflow analysis. That is, the
-UnusedAbstractValue implements the leastUpperBound method in a way it
-just throws an error if it is called, without computing the lub with the
-other AbstractValue.
+not involved in any computation during dataflow analysis. This class should
+only be used as a type argument in transfer functions. It is implemented because some
+analyses don't need and don't have their own AbstractValue classes.
 
-For some analysis, lub can be computed at the store level, and no need
-to compute it at the abstract value level. For example, in LiveVariable analysis
-(\autoref{sec:live_variable}), we need to compute the lub of successors' stores, and
-it is meaningless to further calculate the lub of two individual live variables in a smaller granularity.
+For example, in LiveVariable analysis (\autoref{sec:live_variable})
+, we need to compute the least upper bound of successors' stores, and
+it is meaningless to further calculate the least upper bound of two individual live variables in a smaller granularity.
 Since there's no computation between two AbstractValues, using the UnusedAbstractValue
 is sufficient and we do not have to implement a specific AbstractValue for this analysis.
 
