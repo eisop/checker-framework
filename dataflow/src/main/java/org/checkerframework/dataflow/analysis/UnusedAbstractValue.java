@@ -11,6 +11,7 @@ import org.checkerframework.javacutil.BugInCF;
  */
 public final class UnusedAbstractValue implements AbstractValue<UnusedAbstractValue> {
 
+    /** This class cannot be instantiated */
     private UnusedAbstractValue() {
         throw new AssertionError("Class UnusedAbstractValue cannot be instantiated.");
     }
