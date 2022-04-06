@@ -1,4 +1,4 @@
-Version 3.21.4-eisop1 (April ?, 2022)
+Version 3.21.4-eisop2 (April ?, 2022)
 -------------------------------------
 
 **User-visible changes:**
@@ -6,11 +6,18 @@ Version 3.21.4-eisop1 (April ?, 2022)
 **Implementation details:**
 
 **Closed issues:**
+eisop#210.
+
+
+Version 3.21.4-eisop1 (April 4, 2022)
+-------------------------------------
+
+**Closed issues:**
 eisop#199, eisop#204.
 
 
 Version 3.21.4 (April 1, 2022)
----------------------------------
+------------------------------
 
 **Closed issues:**
 #5086.
