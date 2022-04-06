@@ -3,7 +3,7 @@ package org.checkerframework.dataflow.analysis;
 import org.checkerframework.javacutil.BugInCF;
 
 /**
- * UnusedAbstractValue is an AbstractValue but is not involved in any lub computation during
+ * UnusedAbstractValue is an AbstractValue that is not involved in any lub computation during
  * dataflow analysis. For those analyses which handle lub computation at a higher level (e.g., store
  * level), it is sufficient to use UnusedAbstractValue and unnecessary to implement another specific
  * AbstractValue. Example analysis using UnusedAbstractValue is LiveVariable analysis. This is a
