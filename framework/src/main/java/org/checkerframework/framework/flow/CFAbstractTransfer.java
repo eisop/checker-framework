@@ -1358,7 +1358,6 @@ public abstract class CFAbstractTransfer<
     public TransferResult<V, S> visitStringConversion(
             StringConversionNode n, TransferInput<V, S> p) {
         TransferResult<V, S> result = super.visitStringConversion(n, p);
-        TypeMirror strType = n.getType();
 
         Set<AnnotationMirror> operandAnnos = p.getValueOfSubNode(n.getOperand()).getAnnotations();
         if (operandAnnos.isEmpty() && n.getOperand().getType().getKind() == TypeKind.TYPEVAR) {
@@ -1369,6 +1368,7 @@ public abstract class CFAbstractTransfer<
                     analysis.atypeFactory.getAnnotatedType(operandTree).getEffectiveAnnotations();
         }
 
+        TypeMirror strType = n.getType();
         Set<AnnotationMirror> resultAnnos =
                 analysis.atypeFactory.getAnnoOrTypeBound(strType, operandAnnos);
         result.setResultValue(analysis.createAbstractValue(resultAnnos, strType));
