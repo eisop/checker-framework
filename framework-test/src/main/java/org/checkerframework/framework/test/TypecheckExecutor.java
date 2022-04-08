@@ -97,7 +97,7 @@ public class TypecheckExecutor {
 
         nonJvmOptions.add("-AnoJreVersionCheck");
 
-        // -Anomsgtext is needed to ensure expected errors can be matched
+        // -Anomsgtext is needed to ensure expected errors can be matched.
         // Note: Since "-Anomsgtext" is always added to the non-JVM options,
         //  we are passing `true` as the `noMsgText` argument to all invocations
         //  of `TestDiagnosticUtils.fromJavaxDiagnosticList`.
