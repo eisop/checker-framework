@@ -1,4 +1,14 @@
-Version 3.21.4-eisop1 (April ?, 2022)
+Version 3.21.4-eisop2 (April ?, 2022)
+-------------------------------------
+
+**Implementation details:**
+
+Changed `TypecheckExecutor.compile`, a utility method for running the Checker
+Framework on test files, to always include the non-JVM options `-Anomsgtext`
+and `-AajavaChecks`.
+
+
+Version 3.21.4-eisop1 (April 4, 2022)
 -------------------------------------
 
 **User-visible changes:**
