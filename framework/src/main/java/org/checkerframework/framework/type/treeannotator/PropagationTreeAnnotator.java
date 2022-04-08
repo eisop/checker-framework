@@ -336,11 +336,8 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
      * @param annos annotations to add to type
      */
     private void addAnnoOrBound(AnnotatedTypeMirror type, Set<? extends AnnotationMirror> annos) {
-        // We use the erased type to avoid getting annotations for the use of a type variable
-        // directly. For example, in `Arrays.asList(T... a)`, the component type of its vararg
-        // parameter `a` is the type variable "T".
         Set<AnnotationMirror> annosToAdd =
-                atypeFactory.getAnnoOrTypeBound(type.getErased().getUnderlyingType(), annos);
+                atypeFactory.getAnnoOrTypeBound(type.getUnderlyingType(), annos);
         type.addMissingAnnotations(annosToAdd);
     }
 }
