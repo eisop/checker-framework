@@ -390,6 +390,8 @@ public abstract class CFAbstractTransfer<
     // the declared type instead of a refined type. Issue a warning to alert users?
     private void addInitialFieldValues(S store, ClassTree classTree, MethodTree methodTree) {
         boolean isConstructor = TreeUtils.isConstructor(methodTree);
+        boolean isStaticMethod =
+                ElementUtils.isStatic(TreeUtils.elementFromDeclaration(methodTree));
         TypeElement classEle = TreeUtils.elementFromDeclaration(classTree);
         for (FieldInitialValue<V> fieldInitialValue : analysis.getFieldInitialValues()) {
             VariableElement varEle = fieldInitialValue.fieldDecl.getField();
@@ -406,6 +408,10 @@ public abstract class CFAbstractTransfer<
                 // If it's not a constructor, use the declared type if the receiver of the method is
                 // fully initialized.
                 boolean isInitializedReceiver = !isNotFullyInitializedReceiver(methodTree);
+                boolean isStaticField = ElementUtils.isStatic(varEle);
+                if (isStaticMethod && !isStaticField) {
+                    continue;
+                }
                 if (isInitializedReceiver && varEle.getEnclosingElement().equals(classEle)) {
                     store.insertValue(fieldInitialValue.fieldDecl, fieldInitialValue.declared);
                 }
