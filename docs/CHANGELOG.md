@@ -5,9 +5,12 @@ Version 3.21.4-eisop2 (April ?, 2022)
 
 **Implementation details:**
 
-Changed `TypecheckExecutor.compile`, a utility method for running the Checker
-Framework on test files, to always include the non-JVM options `-Anomsgtext`
-and `-AajavaChecks`.
+Type system test drivers no longer need to pass `-Anomsgtext`.
+The Checker Framework test driver (in `TypecheckExecutor.compile`) now always
+passes the `-Anomsgtext` option.
+
+Moved the `-AajavaChecks` option from `CheckerFrameworkPerDirectoryTest` to
+`TypecheckExecutor.compile` to ensure the option is used for all tests.
 
 **Closed issues:**
 eisop#210.
