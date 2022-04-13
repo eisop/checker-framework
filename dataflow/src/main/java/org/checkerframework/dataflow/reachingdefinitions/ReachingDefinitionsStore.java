@@ -12,11 +12,11 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.StringJoiner;
 
-/** A reaching definitions store records information about ReachingDefinitionsValue */
+/** A reaching definitions store records information about ReachingDefinitionsNode */
 public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore> {
 
-    /** A set of reaching definitions abstract values. */
-    private final Set<ReachingDefinitionsValue> reachingDefSet;
+    /** The set of reaching definitions in this store */
+    private final Set<ReachingDefinitionsNode> reachingDefSet;
 
     /** Create a new ReachDefinitionStore. */
     public ReachingDefinitionsStore() {
@@ -26,10 +26,10 @@ public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore>
     /**
      * Create a new ReachDefinitionStore.
      *
-     * @param reachingDefSet a set of reaching definitions abstract values, this parameter is
-     *     captured and that the caller should not retain an alias
+     * @param reachingDefSet a set of reaching definitions nodes, this parameter is captured and
+     *     that the caller should not retain an alias
      */
-    public ReachingDefinitionsStore(LinkedHashSet<ReachingDefinitionsValue> reachingDefSet) {
+    public ReachingDefinitionsStore(LinkedHashSet<ReachingDefinitionsNode> reachingDefSet) {
         this.reachingDefSet = reachingDefSet;
     }
 
@@ -39,15 +39,15 @@ public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore>
      * @param defTarget target of a reaching definition
      */
     public void killDef(Node defTarget) {
-        Iterator<ReachingDefinitionsValue> it = reachingDefSet.iterator();
+        Iterator<ReachingDefinitionsNode> it = reachingDefSet.iterator();
         while (it.hasNext()) {
-            ReachingDefinitionsValue generatedDefValue = it.next();
+            ReachingDefinitionsNode generatedDefNode = it.next();
             // It's preferred to use "==" to compare two nodes in checker framework,
             // but in this case we use `equals` to only measure value equality.
             // If we use "==", two expressions from different nodes with same
-            // abstract values will not consider as the same and cause the analysis
+            // abstract nodes will not consider as the same and cause the analysis
             // incorrect. Hence we use `equals` in place of `==`.
-            if (generatedDefValue.def.getTarget().equals(defTarget)) {
+            if (generatedDefNode.def.getTarget().equals(defTarget)) {
                 it.remove();
             }
         }
@@ -58,7 +58,7 @@ public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore>
      *
      * @param def a reaching definition
      */
-    public void putDef(ReachingDefinitionsValue def) {
+    public void putDef(ReachingDefinitionsNode def) {
         reachingDefSet.add(def);
     }
 
@@ -83,7 +83,7 @@ public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore>
 
     @Override
     public ReachingDefinitionsStore leastUpperBound(ReachingDefinitionsStore other) {
-        LinkedHashSet<ReachingDefinitionsValue> reachingDefSetLub =
+        LinkedHashSet<ReachingDefinitionsNode> reachingDefSetLub =
                 new LinkedHashSet<>(this.reachingDefSet.size() + other.reachingDefSet.size());
         reachingDefSetLub.addAll(this.reachingDefSet);
         reachingDefSetLub.addAll(other.reachingDefSet);
@@ -108,8 +108,8 @@ public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore>
             return viz.visualizeStoreKeyVal(key, "none");
         }
         StringJoiner sjStoreVal = new StringJoiner(", ");
-        for (ReachingDefinitionsValue reachDefValue : reachingDefSet) {
-            sjStoreVal.add(reachDefValue.toString());
+        for (ReachingDefinitionsNode reachDefNode : reachingDefSet) {
+            sjStoreVal.add(reachDefNode.toString());
         }
         return viz.visualizeStoreKeyVal(key, sjStoreVal.toString());
     }

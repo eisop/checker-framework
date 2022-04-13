@@ -1761,12 +1761,12 @@ The reaching definitions for a given program point are those assignments that
 may have updated the current values of variables.
 This reaching definitions analysis is a standard example of a forward analysis.
 
-\textbf{Abstract values.} A class \code{ReachingDefinitionsValue} is used as an
+\textbf{The node.} A class \code{ReachingDefinitionsNode} is used as an
 abstract value, which can only wrap \code{AssignmentNode}. The reaching definitions
 processes such values in the store.
 
 \textbf{The store.} The reaching definitions store \code{ReachingDefinitionsStore} has a field
-\code{reachingDefSet} which contains a set of \code{ReachingDefinitionsValue}s. The store defines methods
+\code{reachingDefSet} which contains a set of \code{ReachingDefinitionsNode}s. The store defines methods
 \code{putDef(ReachingDefinitionValue)} and \code{killDef(Node)} to add
 and kill reaching definitions.
 

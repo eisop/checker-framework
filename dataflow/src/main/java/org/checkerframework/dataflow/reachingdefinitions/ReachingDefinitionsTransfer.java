@@ -5,6 +5,7 @@ import org.checkerframework.dataflow.analysis.ForwardTransferFunction;
 import org.checkerframework.dataflow.analysis.RegularTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
+import org.checkerframework.dataflow.analysis.UnusedAbstractValue;
 import org.checkerframework.dataflow.cfg.UnderlyingAST;
 import org.checkerframework.dataflow.cfg.node.AbstractNodeVisitor;
 import org.checkerframework.dataflow.cfg.node.AssignmentNode;
@@ -15,14 +16,14 @@ import java.util.List;
 
 /**
  * A reaching definitions transfer function. The transfer function processes the
- * ReachingDefinitionsValue in ReachingDefinitioinsStore, killing the value with same LHS and
- * putting new generated value into the store. See dataflow manual for more details.
+ * ReachingDefinitionsNode in ReachingDefinitionsStore, killing the node with same LHS and putting
+ * new generated node into the store. See dataflow manual for more details.
  */
 public class ReachingDefinitionsTransfer
         extends AbstractNodeVisitor<
-                TransferResult<ReachingDefinitionsValue, ReachingDefinitionsStore>,
-                TransferInput<ReachingDefinitionsValue, ReachingDefinitionsStore>>
-        implements ForwardTransferFunction<ReachingDefinitionsValue, ReachingDefinitionsStore> {
+                TransferResult<UnusedAbstractValue, ReachingDefinitionsStore>,
+                TransferInput<UnusedAbstractValue, ReachingDefinitionsStore>>
+        implements ForwardTransferFunction<UnusedAbstractValue, ReachingDefinitionsStore> {
 
     @Override
     public ReachingDefinitionsStore initialStore(
@@ -31,18 +32,16 @@ public class ReachingDefinitionsTransfer
     }
 
     @Override
-    public RegularTransferResult<ReachingDefinitionsValue, ReachingDefinitionsStore> visitNode(
-            Node n, TransferInput<ReachingDefinitionsValue, ReachingDefinitionsStore> p) {
+    public RegularTransferResult<UnusedAbstractValue, ReachingDefinitionsStore> visitNode(
+            Node n, TransferInput<UnusedAbstractValue, ReachingDefinitionsStore> p) {
         return new RegularTransferResult<>(null, p.getRegularStore());
     }
 
     @Override
-    public RegularTransferResult<ReachingDefinitionsValue, ReachingDefinitionsStore>
-            visitAssignment(
-                    AssignmentNode n,
-                    TransferInput<ReachingDefinitionsValue, ReachingDefinitionsStore> p) {
-        RegularTransferResult<ReachingDefinitionsValue, ReachingDefinitionsStore> transferResult =
-                (RegularTransferResult<ReachingDefinitionsValue, ReachingDefinitionsStore>)
+    public RegularTransferResult<UnusedAbstractValue, ReachingDefinitionsStore> visitAssignment(
+            AssignmentNode n, TransferInput<UnusedAbstractValue, ReachingDefinitionsStore> p) {
+        RegularTransferResult<UnusedAbstractValue, ReachingDefinitionsStore> transferResult =
+                (RegularTransferResult<UnusedAbstractValue, ReachingDefinitionsStore>)
                         super.visitAssignment(n, p);
         processDefinition(n, transferResult.getRegularStore());
         return transferResult;
@@ -56,6 +55,6 @@ public class ReachingDefinitionsTransfer
      */
     private void processDefinition(AssignmentNode def, ReachingDefinitionsStore store) {
         store.killDef(def.getTarget());
-        store.putDef(new ReachingDefinitionsValue(def));
+        store.putDef(new ReachingDefinitionsNode(def));
     }
 }

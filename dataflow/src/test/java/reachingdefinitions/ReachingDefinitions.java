@@ -2,10 +2,10 @@ package reachingdefinitions;
 
 import org.checkerframework.dataflow.analysis.ForwardAnalysis;
 import org.checkerframework.dataflow.analysis.ForwardAnalysisImpl;
+import org.checkerframework.dataflow.analysis.UnusedAbstractValue;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeLauncher;
 import org.checkerframework.dataflow.reachingdefinitions.ReachingDefinitionsStore;
 import org.checkerframework.dataflow.reachingdefinitions.ReachingDefinitionsTransfer;
-import org.checkerframework.dataflow.reachingdefinitions.ReachingDefinitionsValue;
 
 /** Used in reachingDefinitionsTest Gradle task to test the ReachingDefinitions analysis. */
 public class ReachingDefinitions {
@@ -23,10 +23,7 @@ public class ReachingDefinitions {
         String outputFile = "Out.txt";
 
         ReachingDefinitionsTransfer transfer = new ReachingDefinitionsTransfer();
-        ForwardAnalysis<
-                        ReachingDefinitionsValue,
-                        ReachingDefinitionsStore,
-                        ReachingDefinitionsTransfer>
+        ForwardAnalysis<UnusedAbstractValue, ReachingDefinitionsStore, ReachingDefinitionsTransfer>
                 forwardAnalysis = new ForwardAnalysisImpl<>(transfer);
         CFGVisualizeLauncher.writeStringOfCFG(inputFile, method, clas, outputFile, forwardAnalysis);
     }

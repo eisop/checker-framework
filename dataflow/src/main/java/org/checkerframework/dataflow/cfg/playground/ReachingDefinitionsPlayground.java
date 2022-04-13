@@ -2,10 +2,10 @@ package org.checkerframework.dataflow.cfg.playground;
 
 import org.checkerframework.dataflow.analysis.ForwardAnalysis;
 import org.checkerframework.dataflow.analysis.ForwardAnalysisImpl;
+import org.checkerframework.dataflow.analysis.UnusedAbstractValue;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeLauncher;
 import org.checkerframework.dataflow.reachingdefinitions.ReachingDefinitionsStore;
 import org.checkerframework.dataflow.reachingdefinitions.ReachingDefinitionsTransfer;
-import org.checkerframework.dataflow.reachingdefinitions.ReachingDefinitionsValue;
 
 /** The playground of reaching definitions analysis. */
 public class ReachingDefinitionsPlayground {
@@ -24,10 +24,7 @@ public class ReachingDefinitionsPlayground {
 
         // Run the analysis and create a PDF file
         ReachingDefinitionsTransfer transfer = new ReachingDefinitionsTransfer();
-        ForwardAnalysis<
-                        ReachingDefinitionsValue,
-                        ReachingDefinitionsStore,
-                        ReachingDefinitionsTransfer>
+        ForwardAnalysis<UnusedAbstractValue, ReachingDefinitionsStore, ReachingDefinitionsTransfer>
                 forwardAnalysis = new ForwardAnalysisImpl<>(transfer);
         CFGVisualizeLauncher.generateDOTofCFG(
                 inputFile, outputDir, method, clazz, true, true, forwardAnalysis);
