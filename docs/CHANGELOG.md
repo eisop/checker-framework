@@ -7,8 +7,8 @@ Version 3.21.4-eisop2 (April ?, 2022)
 
 Added a new gradle task `fastAssemble` to quickly rebuild the Checker
 Framework for local development. This command will assemble the jar
-files without generating any Javadoc, thus it's faster than the gradle
-assemble task.
+files without generating any Javadoc or sources.jar files, thus it is
+faster than the gradle assemble task.
 
 Type system test drivers no longer need to pass `-Anomsgtext`.
 The Checker Framework test driver (in `TypecheckExecutor.compile`) now always
