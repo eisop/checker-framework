@@ -392,10 +392,10 @@ public abstract class CFAbstractTransfer<
         boolean isConstructor = TreeUtils.isConstructor(methodTree);
         boolean isStaticMethod =
                 ElementUtils.isStatic(TreeUtils.elementFromDeclaration(methodTree));
-        @SuppressWarnings("UnusedVariable")
         TypeElement classEle = TreeUtils.elementFromDeclaration(classTree);
         for (FieldInitialValue<V> fieldInitialValue : analysis.getFieldInitialValues()) {
             VariableElement varEle = fieldInitialValue.fieldDecl.getField();
+            boolean fieldNotFromEnclosingClass = varEle.getEnclosingElement().equals(classEle);
             // Insert the value from the initializer of private final fields.
             if (fieldInitialValue.initializer != null
                     // && varEle.getModifiers().contains(Modifier.PRIVATE)
@@ -414,13 +414,13 @@ public abstract class CFAbstractTransfer<
                 if (isStaticMethod && !isStaticField) {
                     continue;
                 }
-                if (isInitializedReceiver) {
+                if (isInitializedReceiver && fieldNotFromEnclosingClass) {
                     store.insertValue(fieldInitialValue.fieldDecl, fieldInitialValue.declared);
                 }
             } else {
                 // If it is a constructor, then only use the declared type if the field has been
                 // initialized.
-                if (fieldInitialValue.initializer != null) {
+                if (fieldInitialValue.initializer != null && fieldNotFromEnclosingClass) {
                     store.insertValue(fieldInitialValue.fieldDecl, fieldInitialValue.declared);
                 }
             }
