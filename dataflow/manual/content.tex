@@ -1756,9 +1756,9 @@ update the live variable values in the stores.
 
 \section{Example: Very Busy Expression Analysis}
 
-Very busy expression analysis is a backward analysis that intersects abstract states from successors.
-An expression is very busy if no matter what path is taken, the expression is used before any variables
-occurring in it are redefined.
+Very busy expression analysis determines an expression to be very busy if no matter what path is taken,
+the expression is used before any variables occurring in it are redefined.
+This analysis is a backward analysis that intersects abstract states from successors.
 \\
 The main class is \code{org.checkerframework.dataflow.cfg.playground.BusyExpressionPlayground}.
 

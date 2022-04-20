@@ -1,4 +1,4 @@
-package org.checkerframework.dataflow.busyexpression;
+package org.checkerframework.dataflow.busyexpr;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.Store;
@@ -44,7 +44,9 @@ public class BusyExprStore implements Store<BusyExprStore> {
     }
 
     /**
-     * Return true if the expression contains variable var.
+     * Return true if the expression contains variable var. Note that {@code .equals} is used in the
+     * return statement to verify value equality, as the statement decides whether the two nodes
+     * have the same value, not represent same CFG node.
      *
      * @param expr the expression checked
      * @param var the variable
@@ -99,7 +101,7 @@ public class BusyExprStore implements Store<BusyExprStore> {
 
     @Override
     public BusyExprStore widenedUpperBound(BusyExprStore previous) {
-        throw new BugInCF("wub of BusyExprStore get called!");
+        throw new BugInCF("BusyExprStore.widenedUpperBound was called!");
     }
 
     @Override

@@ -1,4 +1,4 @@
-package org.checkerframework.dataflow.busyexpression;
+package org.checkerframework.dataflow.busyexpr;
 
 import org.checkerframework.dataflow.analysis.BackwardTransferFunction;
 import org.checkerframework.dataflow.analysis.RegularTransferResult;
@@ -45,8 +45,9 @@ public class BusyExprTransfer
         RegularTransferResult<UnusedAbstractValue, BusyExprStore> transferResult =
                 (RegularTransferResult<UnusedAbstractValue, BusyExprStore>)
                         super.visitAssignment(n, p);
-        processBusyExprInAssignment(
-                n.getTarget(), n.getExpression(), transferResult.getRegularStore());
+        BusyExprStore store = transferResult.getRegularStore();
+        store.killBusyExpr(n.getTarget());
+        store.addUseInExpression(n.getExpression());
         return transferResult;
     }
 
@@ -87,17 +88,5 @@ public class BusyExprTransfer
             store.addUseInExpression(result);
         }
         return transferResult;
-    }
-
-    /**
-     * Update the information of busy expression store from an assignment statement.
-     *
-     * @param variable if any expression has this variable, that expression should be killed
-     * @param expression the expression should be added
-     * @param store the busy expression store
-     */
-    public void processBusyExprInAssignment(Node variable, Node expression, BusyExprStore store) {
-        store.killBusyExpr(variable);
-        store.addUseInExpression(expression);
     }
 }

@@ -3,8 +3,8 @@ package busyexpr;
 import org.checkerframework.dataflow.analysis.BackwardAnalysis;
 import org.checkerframework.dataflow.analysis.BackwardAnalysisImpl;
 import org.checkerframework.dataflow.analysis.UnusedAbstractValue;
-import org.checkerframework.dataflow.busyexpression.BusyExprStore;
-import org.checkerframework.dataflow.busyexpression.BusyExprTransfer;
+import org.checkerframework.dataflow.busyexpr.BusyExprStore;
+import org.checkerframework.dataflow.busyexpr.BusyExprTransfer;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeLauncher;
 
 /** Used in busyExpressionTest Gradle task to test the BusyExpression analysis. */
