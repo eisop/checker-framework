@@ -395,14 +395,22 @@ public abstract class CFAbstractTransfer<
         TypeElement classEle = TreeUtils.elementFromDeclaration(classTree);
         for (FieldInitialValue<V> fieldInitialValue : analysis.getFieldInitialValues()) {
             VariableElement varEle = fieldInitialValue.fieldDecl.getField();
-            boolean fieldNotFromEnclosingClass = varEle.getEnclosingElement().equals(classEle);
+            @SuppressWarnings("ComplexBooleanConstant")
+            boolean fieldNotFromEnclosingClass =
+                    varEle.getEnclosingElement().equals(classEle) || true;
+            boolean isStaticField = ElementUtils.isStatic(varEle);
+            if (isStaticMethod && !isStaticField) {
+                continue;
+            }
             // Insert the value from the initializer of private final fields.
             if (fieldInitialValue.initializer != null
                     // && varEle.getModifiers().contains(Modifier.PRIVATE)
                     && ElementUtils.isFinal(varEle)
                     && analysis.atypeFactory.isImmutable(ElementUtils.getType(varEle))) {
                 store.insertValue(fieldInitialValue.fieldDecl, fieldInitialValue.initializer);
-                continue; // This insert is more specific compared with the below two inserts.
+                // This insert is more specific compared with the below two inserts, and it will
+                // overwrite them. So, it's pointless to execute the below code in the for loop.
+                continue;
             }
 
             // Maybe insert the declared type:
@@ -410,10 +418,6 @@ public abstract class CFAbstractTransfer<
                 // If it's not a constructor, use the declared type if the receiver of the method is
                 // fully initialized.
                 boolean isInitializedReceiver = !isNotFullyInitializedReceiver(methodTree);
-                boolean isStaticField = ElementUtils.isStatic(varEle);
-                if (isStaticMethod && !isStaticField) {
-                    continue;
-                }
                 if (isInitializedReceiver && fieldNotFromEnclosingClass) {
                     store.insertValue(fieldInitialValue.fieldDecl, fieldInitialValue.declared);
                 }
