@@ -1768,15 +1768,15 @@ and \code{LeftShiftNode}.
 
 \textbf{The store.} The busy expression store \code{BusyExprStore} has a field
 \code{busyExprValueSet} which contains a set of \code{BusyExprValue}s.
-If a node is \code{BinaryOperationNode}, \code{addUseInExpression(Node)}
-will recursively analyze the rhs and lhs of the node to determine
+If a node is a \code{BinaryOperationNode}, \code{addUseInExpression(Node)}
+will recursively analyze the subexpressions of the node to determine
 if they are nested \code{BinaryOperationNode}s. We then use \code{putBusyExpr(BusyExprValue)}
 to put the expression in the set. \code{killBusyExpr(Node)} is used when a variable is re-assigned.
 
 \textbf{The transfer function.} The transfer function \code{BusyExprTransfer}
 initializes empty stores at normal and exceptional exit blocks (because this
 is a backward transfer function). The transfer function visits assignment, method invocation,
-return statement to update the busy expression values in the stores.
+and return statement nodes to update the busy expression values in the stores.
 
 \textbf{Example.} An example is shown in \autoref{fig:BusyExprSimple}.
 

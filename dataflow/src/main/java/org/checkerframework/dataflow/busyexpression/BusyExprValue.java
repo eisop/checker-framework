@@ -5,7 +5,7 @@ import org.checkerframework.dataflow.cfg.node.BinaryOperationNode;
 
 /**
  * BusyExprValue class contains a BinaryOperationNode. So we only consider expressions that are in
- * form of BinaryOperationNode: <em>lefOperandNode</em> <em>operator</em> <em>rightOperandNode</em>
+ * form of BinaryOperationNode: <em>lefOperandNode</em> <em>operator</em> <em>rightOperandNode</em>.
  */
 public class BusyExprValue {
 
@@ -40,7 +40,7 @@ public class BusyExprValue {
             return false;
         }
         BusyExprValue other = (BusyExprValue) obj;
-        // Use `equals` to measure value inequality rather than using `==`
+        // Use `equals` to check equality rather than using `==`.
         return this.busyExpression.equals(other.busyExpression);
     }
 }
