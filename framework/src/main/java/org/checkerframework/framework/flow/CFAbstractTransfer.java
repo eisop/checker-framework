@@ -395,9 +395,7 @@ public abstract class CFAbstractTransfer<
         TypeElement classEle = TreeUtils.elementFromDeclaration(classTree);
         for (FieldInitialValue<V> fieldInitialValue : analysis.getFieldInitialValues()) {
             VariableElement varEle = fieldInitialValue.fieldDecl.getField();
-            @SuppressWarnings("ComplexBooleanConstant")
-            boolean fieldNotFromEnclosingClass =
-                    varEle.getEnclosingElement().equals(classEle) || true;
+            boolean fieldNotFromEnclosingClass = varEle.getEnclosingElement().equals(classEle);
             boolean isStaticField = ElementUtils.isStatic(varEle);
             if (isStaticMethod && !isStaticField) {
                 continue;
