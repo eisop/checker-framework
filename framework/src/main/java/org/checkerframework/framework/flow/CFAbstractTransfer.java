@@ -395,7 +395,6 @@ public abstract class CFAbstractTransfer<
         TypeElement classEle = TreeUtils.elementFromDeclaration(classTree);
         for (FieldInitialValue<V> fieldInitialValue : analysis.getFieldInitialValues()) {
             VariableElement varEle = fieldInitialValue.fieldDecl.getField();
-            boolean fieldNotFromEnclosingClass = varEle.getEnclosingElement().equals(classEle);
             boolean isStaticField = ElementUtils.isStatic(varEle);
             if (isStaticMethod && !isStaticField) {
                 continue;
@@ -406,11 +405,14 @@ public abstract class CFAbstractTransfer<
                     && ElementUtils.isFinal(varEle)
                     && analysis.atypeFactory.isImmutable(ElementUtils.getType(varEle))) {
                 store.insertValue(fieldInitialValue.fieldDecl, fieldInitialValue.initializer);
-                // The type from the initializer is always more specific than (or equal to) the declared type of the field.
-                // So, if there is an initializer, there is no point in inserting the declared type below.
+                // The type from the initializer is always more specific than (or equal to) the
+                // declared type of the field.
+                // So, if there is an initializer, there is no point in inserting the declared type
+                // below.
                 continue;
             }
 
+            boolean fieldNotFromEnclosingClass = varEle.getEnclosingElement().equals(classEle);
             // Maybe insert the declared type:
             if (!isConstructor) {
                 // If it's not a constructor, use the declared type if the receiver of the method is
