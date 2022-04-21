@@ -46,7 +46,7 @@ public class BusyExprStore implements Store<BusyExprStore> {
     /**
      * Return true if the expression contains variable var. Note that {@code .equals} is used in the
      * return statement to verify value equality, as the statement decides whether the two nodes
-     * have the same value, not represent same CFG node.
+     * have the same value, not represent the same CFG node.
      *
      * @param expr the expression checked
      * @param var the variable
