@@ -406,8 +406,8 @@ public abstract class CFAbstractTransfer<
                     && ElementUtils.isFinal(varEle)
                     && analysis.atypeFactory.isImmutable(ElementUtils.getType(varEle))) {
                 store.insertValue(fieldInitialValue.fieldDecl, fieldInitialValue.initializer);
-                // This insert is more specific compared with the below two inserts, and it will
-                // overwrite them. So, it's pointless to execute the below code in the for loop.
+                // The type from the initializer is always more specific than (or equal to) the declared type of the field.
+                // So, if there is an initializer, there is no point in inserting the declared type below.
                 continue;
             }
 
