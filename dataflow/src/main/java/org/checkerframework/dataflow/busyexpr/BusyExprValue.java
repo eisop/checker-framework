@@ -6,9 +6,9 @@ import org.checkerframework.dataflow.cfg.node.BinaryOperationNode;
 /**
  * BusyExprValue class contains a BinaryOperationNode. So we only consider expressions that are in
  * form of BinaryOperationNode: <em>lefOperandNode</em> <em>operator</em> <em>rightOperandNode</em>.
- * We override {@code .equals} in this class to compare Nodes by value equality rather than
+ * We override {@code .equals} in this class to compare nodes by value equality rather than
  * reference equality. We want two different nodes with the same value (that is, two nodes refer to
- * the same live variable in the program) to be regarded as the same.
+ * the same busy expression in the program) to be regarded as the same.
  */
 public class BusyExprValue {
 
