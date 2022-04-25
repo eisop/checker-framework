@@ -515,7 +515,7 @@ public final class TreeUtils {
      */
     public static ExecutableType constructorType(NewClassTree tree) {
         if (!(tree instanceof JCTree.JCNewClass)) {
-            throw new BugInCF("TreeUtils.constructor: not a javac internal tree");
+            throw new BugInCF("TreeUtils.constructorType: not a javac internal tree");
         }
 
         JCNewClass newClassTree = (JCNewClass) tree;
