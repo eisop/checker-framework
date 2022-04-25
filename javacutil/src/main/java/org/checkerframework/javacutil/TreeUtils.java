@@ -85,6 +85,7 @@ import javax.lang.model.element.Name;
 import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
@@ -503,6 +504,22 @@ public final class TreeUtils {
             Element e = newClassTree.constructor;
             return (ExecutableElement) e;
         }
+    }
+
+    /**
+     * Determines the type for a constructor at its call site given an invocation via {@code new}.
+     *
+     * @param tree the constructor invocation0
+     * @return the {@link ExecutableType} corresponding to the constructor call (i.e., the given
+     *     {@code tree}) at its call site
+     */
+    public static ExecutableType constructorType(NewClassTree tree) {
+        if (!(tree instanceof JCTree.JCNewClass)) {
+            throw new BugInCF("TreeUtils.constructor: not a javac internal tree");
+        }
+
+        JCNewClass newClassTree = (JCNewClass) tree;
+        return (ExecutableType) newClassTree.constructorType;
     }
 
     /**
