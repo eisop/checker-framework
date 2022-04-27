@@ -1,4 +1,4 @@
-package org.checkerframework.dataflow.reachingdefinitions;
+package org.checkerframework.dataflow.reachingdef;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.Store;
@@ -12,41 +12,40 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.StringJoiner;
 
-/** A reaching definitions store records information about ReachingDefinitionsNode */
-public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore> {
+/** A reaching definition store contains a set of reaching definitions represented by ReachingDefinitionNode */
+public class ReachingDefinitionStore implements Store<ReachingDefinitionStore> {
 
     /** The set of reaching definitions in this store */
-    private final Set<ReachingDefinitionsNode> reachingDefSet;
+    private final Set<ReachingDefinitionNode> reachingDefSet;
 
     /** Create a new ReachDefinitionStore. */
-    public ReachingDefinitionsStore() {
+    public ReachingDefinitionStore() {
         reachingDefSet = new LinkedHashSet<>();
     }
 
     /**
      * Create a new ReachDefinitionStore.
      *
-     * @param reachingDefSet a set of reaching definitions nodes, this parameter is captured and
+     * @param reachingDefSet a set of reaching definition nodes, this parameter is captured and
      *     that the caller should not retain an alias
      */
-    public ReachingDefinitionsStore(LinkedHashSet<ReachingDefinitionsNode> reachingDefSet) {
+    public ReachingDefinitionStore(LinkedHashSet<ReachingDefinitionNode> reachingDefSet) {
         this.reachingDefSet = reachingDefSet;
     }
 
     /**
-     * Remove the information of a reaching definition from the reaching definitions set.
+     * Remove the information of a reaching definition from the reaching definition set.
      *
      * @param defTarget target of a reaching definition
      */
     public void killDef(Node defTarget) {
-        Iterator<ReachingDefinitionsNode> it = reachingDefSet.iterator();
+        Iterator<ReachingDefinitionNode> it = reachingDefSet.iterator();
         while (it.hasNext()) {
-            ReachingDefinitionsNode generatedDefNode = it.next();
-            // It's preferred to use "==" to compare two nodes in checker framework,
-            // but in this case we use `equals` to only measure value equality.
-            // If we use "==", two expressions from different nodes with same
-            // abstract nodes will not consider as the same and cause the analysis
-            // incorrect. Hence we use `equals` in place of `==`.
+            // We use `.equals` instead of `==` here to compare value equality
+            // rather than reference equality, because if two left-hand side node
+            // have same values, we need to kill the old one and replace with the
+            // new one.
+            ReachingDefinitionNode generatedDefNode = it.next();
             if (generatedDefNode.def.getTarget().equals(defTarget)) {
                 it.remove();
             }
@@ -54,20 +53,20 @@ public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore>
     }
 
     /**
-     * Add the information of a reaching definition into the reaching definitions set.
+     * Add a reaching definition to the reaching definition set.
      *
      * @param def a reaching definition
      */
-    public void putDef(ReachingDefinitionsNode def) {
+    public void putDef(ReachingDefinitionNode def) {
         reachingDefSet.add(def);
     }
 
     @Override
     public boolean equals(@Nullable Object obj) {
-        if (!(obj instanceof ReachingDefinitionsStore)) {
+        if (!(obj instanceof ReachingDefinitionStore)) {
             return false;
         }
-        ReachingDefinitionsStore other = (ReachingDefinitionsStore) obj;
+        ReachingDefinitionStore other = (ReachingDefinitionStore) obj;
         return other.reachingDefSet.equals(this.reachingDefSet);
     }
 
@@ -77,23 +76,22 @@ public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore>
     }
 
     @Override
-    public ReachingDefinitionsStore copy() {
-        return new ReachingDefinitionsStore(new LinkedHashSet<>(reachingDefSet));
+    public ReachingDefinitionStore copy() {
+        return new ReachingDefinitionStore(new LinkedHashSet<>(reachingDefSet));
     }
 
     @Override
-    public ReachingDefinitionsStore leastUpperBound(ReachingDefinitionsStore other) {
-        LinkedHashSet<ReachingDefinitionsNode> reachingDefSetLub =
+    public ReachingDefinitionStore leastUpperBound(ReachingDefinitionStore other) {
+        LinkedHashSet<ReachingDefinitionNode> reachingDefSetLub =
                 new LinkedHashSet<>(this.reachingDefSet.size() + other.reachingDefSet.size());
         reachingDefSetLub.addAll(this.reachingDefSet);
         reachingDefSetLub.addAll(other.reachingDefSet);
-        return new ReachingDefinitionsStore(reachingDefSetLub);
+        return new ReachingDefinitionStore(reachingDefSetLub);
     }
 
-    /** We do not call widenedUpperBound in this analysis. */
     @Override
-    public ReachingDefinitionsStore widenedUpperBound(ReachingDefinitionsStore previous) {
-        throw new BugInCF("wub of reaching definitions get called!");
+    public ReachingDefinitionStore widenedUpperBound(ReachingDefinitionStore previous) {
+        throw new BugInCF("wub of reaching definition get called!");
     }
 
     @Override
@@ -102,13 +100,13 @@ public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore>
     }
 
     @Override
-    public String visualize(CFGVisualizer<?, ReachingDefinitionsStore, ?> viz) {
+    public String visualize(CFGVisualizer<?, ReachingDefinitionStore, ?> viz) {
         String key = "reaching definitions";
         if (reachingDefSet.isEmpty()) {
             return viz.visualizeStoreKeyVal(key, "none");
         }
         StringJoiner sjStoreVal = new StringJoiner(", ");
-        for (ReachingDefinitionsNode reachDefNode : reachingDefSet) {
+        for (ReachingDefinitionNode reachDefNode : reachingDefSet) {
             sjStoreVal.add(reachDefNode.toString());
         }
         return viz.visualizeStoreKeyVal(key, sjStoreVal.toString());
@@ -116,6 +114,6 @@ public class ReachingDefinitionsStore implements Store<ReachingDefinitionsStore>
 
     @Override
     public String toString() {
-        return "ReachingDefinitionsStore: " + reachingDefSet.toString();
+        return "ReachingDefinitionStore: " + reachingDefSet.toString();
     }
 }

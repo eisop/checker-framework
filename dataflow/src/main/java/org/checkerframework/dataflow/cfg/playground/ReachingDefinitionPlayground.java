@@ -4,13 +4,13 @@ import org.checkerframework.dataflow.analysis.ForwardAnalysis;
 import org.checkerframework.dataflow.analysis.ForwardAnalysisImpl;
 import org.checkerframework.dataflow.analysis.UnusedAbstractValue;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeLauncher;
-import org.checkerframework.dataflow.reachingdefinitions.ReachingDefinitionsStore;
-import org.checkerframework.dataflow.reachingdefinitions.ReachingDefinitionsTransfer;
+import org.checkerframework.dataflow.reachingdef.ReachingDefinitionStore;
+import org.checkerframework.dataflow.reachingdef.ReachingDefinitionTransfer;
 
-/** The playground of reaching definitions analysis. */
-public class ReachingDefinitionsPlayground {
+/** The playground of reaching definition analysis. */
+public class ReachingDefinitionPlayground {
     /**
-     * Run reaching definitions analysis for a specific file and create a PDF of the CFG in the end.
+     * Run reaching definition analysis for a specific file and create a PDF of the CFG in the end.
      *
      * @param args input arguments, not used
      */
@@ -23,8 +23,8 @@ public class ReachingDefinitionsPlayground {
         String clazz = "Test"; // name of the class to consider
 
         // Run the analysis and create a PDF file
-        ReachingDefinitionsTransfer transfer = new ReachingDefinitionsTransfer();
-        ForwardAnalysis<UnusedAbstractValue, ReachingDefinitionsStore, ReachingDefinitionsTransfer>
+        ReachingDefinitionTransfer transfer = new ReachingDefinitionTransfer();
+        ForwardAnalysis<UnusedAbstractValue, ReachingDefinitionStore, ReachingDefinitionTransfer>
                 forwardAnalysis = new ForwardAnalysisImpl<>(transfer);
         CFGVisualizeLauncher.generateDOTofCFG(
                 inputFile, outputDir, method, clazz, true, true, forwardAnalysis);
