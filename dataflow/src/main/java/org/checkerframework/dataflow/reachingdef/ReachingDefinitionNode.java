@@ -5,7 +5,7 @@ import org.checkerframework.dataflow.cfg.node.AssignmentNode;
 
 /**
  * A ReachingDefinitionNode contains a CFG node, which can only be a AssignmentNode. It is used to
- * represent the estimate of reaching definitions at certain CFG block during dataflow analysis. We
+ * represent the estimate of a reaching definition at certain CFG block during dataflow analysis. We
  * override `.equals` in this class to compare Nodes by value equality rather than reference
  * equality. We want two different nodes with the same values (that is, the two nodes refer to the
  * same reaching definition in the program) to be regarded as the same here.
