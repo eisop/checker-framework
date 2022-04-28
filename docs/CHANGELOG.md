@@ -33,6 +33,8 @@ eisop#210.
 Version 3.21.5 (May 1, 2022)
 ---------------------------------
 **User-visible changes:**
+@PolySigned change
+constructorForUse
 
 **Implementation details:**
 
