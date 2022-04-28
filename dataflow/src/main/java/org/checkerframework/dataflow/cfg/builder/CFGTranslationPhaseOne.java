@@ -1230,7 +1230,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * This method applies to both method invocations and constructor calls.
      *
      * @param method an ExecutableElement representing a method to be called
-     * @param methodType an ExecutableType representing the type of method call
+     * @param methodType an ExecutableType representing the type of the method call
      * @param actualExprs a List of argument expressions to a call
      * @return a List of {@link Node}s representing arguments after conversions required by a call
      *     to this method
@@ -1281,7 +1281,6 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 // NOTE: When the last parameter is a type variable vararg and the compiler
                 // cannot find a specific type use to substitute for it, the compiler will
                 // create an unbounded component type instead. For example,
-                //
                 // for the following method declaration:
                 // <T> void foo(T... ts) {}
                 // consider this method invocation:
@@ -1464,8 +1463,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             // See also BaseTypeVisitor.visitMethodInvocation and QualifierPolymorphism.annotate.
             arguments = Collections.emptyList();
         } else {
-            ExecutableType methodType = (ExecutableType) TreeUtils.typeOf(tree.getMethodSelect());
-            arguments = convertCallArguments(method, methodType, actualExprs);
+            arguments = convertCallArguments(method, TreeUtils.typeFromUse(tree), actualExprs);
         }
 
         // TODO: lock the receiver for synchronized methods
@@ -3350,7 +3348,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         List<? extends ExpressionTree> actualExprs = tree.getArguments();
 
         List<Node> arguments =
-                convertCallArguments(constructor, TreeUtils.constructorType(tree), actualExprs);
+                convertCallArguments(constructor, TreeUtils.typeFromUse(tree), actualExprs);
 
         // TODO: for anonymous classes, don't use the identifier alone.
         // See Issue 890.

@@ -6,9 +6,9 @@ Version 3.21.4-eisop2 (April ?, 2022)
 **Implementation details:**
 
 Fixed the types of `MethodInvocationNode#arguments` and
-`ObjectCreationNode#arguments` in CFG. Previously, argument nodes are created
-using the types from method declaration, which means some nodes are using type
-variables that are not substituted by type arguments at the call site.
+`ObjectCreationNode#arguments` in CFGs. Previously, argument nodes are created
+using the types from the method declaration, which means some nodes are using
+type variables that are not substituted by type arguments at the call site.
 For example, we used to observe `new T[]{"a", "b"}` instead of
 `new String[]{"a", "b"}`, while the second one makes more sense.
 
