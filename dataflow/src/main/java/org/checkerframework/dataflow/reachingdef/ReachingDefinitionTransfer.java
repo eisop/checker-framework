@@ -16,8 +16,8 @@ import java.util.List;
 
 /**
  * The reaching definition transfer function. The transfer function processes the
- * ReachingDefinitionNode in ReachingDefinitionStore, killing the node with same LHS and putting
- * new generated node into the store. See dataflow manual for more details.
+ * ReachingDefinitionNode in ReachingDefinitionStore, killing the node with same LHS and putting new
+ * generated node into the store. See dataflow manual for more details.
  */
 public class ReachingDefinitionTransfer
         extends AbstractNodeVisitor<

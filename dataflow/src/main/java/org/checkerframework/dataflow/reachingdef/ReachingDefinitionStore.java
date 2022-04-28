@@ -12,7 +12,10 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.StringJoiner;
 
-/** A reaching definition store contains a set of reaching definitions represented by ReachingDefinitionNode */
+/**
+ * A reaching definition store contains a set of reaching definitions represented by
+ * ReachingDefinitionNode
+ */
 public class ReachingDefinitionStore implements Store<ReachingDefinitionStore> {
 
     /** The set of reaching definitions in this store */
@@ -26,8 +29,8 @@ public class ReachingDefinitionStore implements Store<ReachingDefinitionStore> {
     /**
      * Create a new ReachDefinitionStore.
      *
-     * @param reachingDefSet a set of reaching definition nodes, this parameter is captured and
-     *     that the caller should not retain an alias
+     * @param reachingDefSet a set of reaching definition nodes, this parameter is captured and that
+     *     the caller should not retain an alias
      */
     public ReachingDefinitionStore(LinkedHashSet<ReachingDefinitionNode> reachingDefSet) {
         this.reachingDefSet = reachingDefSet;
@@ -91,7 +94,7 @@ public class ReachingDefinitionStore implements Store<ReachingDefinitionStore> {
 
     @Override
     public ReachingDefinitionStore widenedUpperBound(ReachingDefinitionStore previous) {
-        throw new BugInCF("wub of reaching definition get called!");
+        throw new BugInCF("ReachingDefinitionStore.widenedUpperBound was called!");
     }
 
     @Override
@@ -105,7 +108,7 @@ public class ReachingDefinitionStore implements Store<ReachingDefinitionStore> {
         if (reachingDefSet.isEmpty()) {
             return viz.visualizeStoreKeyVal(key, "none");
         }
-        StringJoiner sjStoreVal = new StringJoiner(", ");
+        StringJoiner sjStoreVal = new StringJoiner(", ", "{ ", " }");
         for (ReachingDefinitionNode reachDefNode : reachingDefSet) {
             sjStoreVal.add(reachDefNode.toString());
         }

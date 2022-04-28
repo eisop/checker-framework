@@ -38,19 +38,19 @@ a   [ LocalVariable ]
 (a > 0)   [ GreaterThan ]
 ~~~~~~~~~
 AnalysisResult#1
-After:   reaching definitions = a = 1, b = 2, c = 3, x = "a", y = "b"
+After:   reaching definitions = { a = 1, b = 2, c = 3, x = "a", y = "b" }
 
 4:
 Process order: 3
 TransferInput#21
-Before:   reaching definitions = a = 1, b = 2, c = 3, x = "a", y = "b"
+Before:   reaching definitions = { a = 1, b = 2, c = 3, x = "a", y = "b" }
 ~~~~~~~~~
 ConditionalBlock: then: 8, else: 10
 
 8:
 Process order: 4
 TransferInput#23
-Before:   reaching definitions = a = 1, b = 2, c = 3, x = "a", y = "b"
+Before:   reaching definitions = { a = 1, b = 2, c = 3, x = "a", y = "b" }
 ~~~~~~~~~
 d   [ VariableDeclaration ]
 a   [ LocalVariable ]
@@ -59,12 +59,12 @@ c   [ LocalVariable ]
 d = (a + c)   [ Assignment ]
 ~~~~~~~~~
 AnalysisResult#3
-After:   reaching definitions = a = 1, b = 2, c = 3, x = "a", y = "b", d = (a + c)
+After:   reaching definitions = { a = 1, b = 2, c = 3, x = "a", y = "b", d = (a + c) }
 
 10:
 Process order: 5
 TransferInput#24
-Before:   reaching definitions = a = 1, b = 2, c = 3, x = "a", y = "b"
+Before:   reaching definitions = { a = 1, b = 2, c = 3, x = "a", y = "b" }
 ~~~~~~~~~
 e   [ VariableDeclaration ]
 a   [ LocalVariable ]
@@ -73,12 +73,12 @@ b   [ LocalVariable ]
 e = (a + b)   [ Assignment ]
 ~~~~~~~~~
 AnalysisResult#5
-After:   reaching definitions = a = 1, b = 2, c = 3, x = "a", y = "b", e = (a + b)
+After:   reaching definitions = { a = 1, b = 2, c = 3, x = "a", y = "b", e = (a + b) }
 
 11:
 Process order: 6
 TransferInput#38
-Before:   reaching definitions = a = 1, b = 2, c = 3, x = "a", y = "b", e = (a + b), d = (a + c)
+Before:   reaching definitions = { a = 1, b = 2, c = 3, x = "a", y = "b", e = (a + b), d = (a + c) }
 ~~~~~~~~~
 b   [ LocalVariable ]
 0   [ IntegerLiteral ]
@@ -97,11 +97,11 @@ a   [ LocalVariable ]
 return a   [ Return ]
 ~~~~~~~~~
 AnalysisResult#7
-After:   reaching definitions = c = 3, y = "b", e = (a + b), d = (a + c), b = 0, a = b, x = (x + y)
+After:   reaching definitions = { c = 3, y = "b", e = (a + b), d = (a + c), b = 0, a = b, x = (x + y) }
 
 0:
 Process order: 7
 TransferInput#55
-Before:   reaching definitions = c = 3, y = "b", e = (a + b), d = (a + c), b = 0, a = b, x = (x + y)
+Before:   reaching definitions = { c = 3, y = "b", e = (a + b), d = (a + c), b = 0, a = b, x = (x + y) }
 ~~~~~~~~~
 <exit>

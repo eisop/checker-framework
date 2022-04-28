@@ -17,8 +17,9 @@ public class ReachingDefinitionPlayground {
     public static void main(String[] args) {
 
         /* Configuration: change as appropriate */
-        String inputFile = "Test.java"; // input file name and path
-        String outputDir = "cfg"; // output directory
+        String inputFile =
+                "./dataflow/manual/examples/ReachSimple.java"; // input file name and path
+        String outputDir = "."; // output directory
         String method = "test"; // name of the method to analyze
         String clazz = "Test"; // name of the class to consider
 

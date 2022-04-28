@@ -8,6 +8,5 @@ class Test {
     }
     b = 0;
     a = b;
-    return a;
   }
 }
