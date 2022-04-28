@@ -71,6 +71,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.StringJoiner;
@@ -144,6 +145,8 @@ public final class TreeUtils {
     /** The value of Flags.RECORD which does not exist in Java 9 or 11. */
     private static final long Flags_RECORD = 2305843009213693952L;
 
+    private static final Set<Tree.Kind> BINARY_COMPARISON_TREE_KINDS = new HashSet<>();
+
     static {
         final SourceVersion latestSource = SourceVersion.latest();
         SourceVersion java12;
@@ -210,6 +213,13 @@ public final class TreeUtils {
             err.initCause(e);
             throw err;
         }
+
+        BINARY_COMPARISON_TREE_KINDS.add(Tree.Kind.EQUAL_TO);
+        BINARY_COMPARISON_TREE_KINDS.add(Tree.Kind.NOT_EQUAL_TO);
+        BINARY_COMPARISON_TREE_KINDS.add(Tree.Kind.LESS_THAN);
+        BINARY_COMPARISON_TREE_KINDS.add(Tree.Kind.GREATER_THAN);
+        BINARY_COMPARISON_TREE_KINDS.add(Tree.Kind.LESS_THAN_EQUAL);
+        BINARY_COMPARISON_TREE_KINDS.add(Tree.Kind.GREATER_THAN_EQUAL);
     }
 
     /**
@@ -2067,5 +2077,16 @@ public final class TreeUtils {
             kind = Tree.Kind.CLASS;
         }
         return kind;
+    }
+
+    /**
+     * Indicates that the result of the operation is a boolean value.
+     *
+     * @param tree the tree to check
+     * @return whether the result is boolean
+     */
+    public static boolean isBinaryComparisonOrInstanceOfOperator(Tree tree) {
+        return BINARY_COMPARISON_TREE_KINDS.contains(tree.getKind())
+                || tree.getKind() == Tree.Kind.INSTANCE_OF;
     }
 }

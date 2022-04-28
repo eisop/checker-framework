@@ -21,6 +21,7 @@ import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.javacutil.CollectionUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
+import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeKindUtils;
 
 import java.util.Map;
@@ -236,7 +237,12 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
                 qualHierarchy.leastUpperBounds(
                         argTypes.first.getEffectiveAnnotations(),
                         argTypes.second.getEffectiveAnnotations());
-        type.addMissingAnnotations(lubs);
+
+        if (TreeUtils.isBinaryComparisonOrInstanceOfOperator(node)) {
+            addAnnoOrBound(type, lubs);
+        } else {
+            type.addMissingAnnotations(lubs);
+        }
 
         return null;
     }
