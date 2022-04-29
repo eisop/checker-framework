@@ -1225,7 +1225,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     }
 
     /**
-     * Given a method element, its type at the call site, and as list of argument expressions,
+     * Given a method element, its type at the call site, and a list of argument expressions,
      * return a list of {@link Node}s representing the arguments converted for a call of the method.
      * This method applies to both method invocations and constructor calls.
      *
