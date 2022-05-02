@@ -1,9 +1,18 @@
-Version 3.21.4-eisop2 (April ?, 2022)
--------------------------------------
+Version 3.21.5-eisop1 (May ?, 2022)
+-----------------------------------
 
 **User-visible changes:**
 
+Added reaching definitions and very busy expressions analysis demos.
+
 **Implementation details:**
+
+Fixed the types of `MethodInvocationNode#arguments` and
+`ObjectCreationNode#arguments` in CFGs. Previously, argument nodes are created
+using the types from the method declaration, which means some nodes are using
+type variables that are not substituted by type arguments at the call site.
+For example, we used to observe `new T[]{"a", "b"}` instead of
+`new String[]{"a", "b"}`, while the second one makes more sense.
 
 Added a new gradle task `fastAssemble` to quickly rebuild the Checker
 Framework for local development. This command will assemble the jar
@@ -19,6 +28,15 @@ Moved the `-AajavaChecks` option from `CheckerFrameworkPerDirectoryTest` to
 
 **Closed issues:**
 eisop#210.
+
+
+Version 3.21.5 (May 1, 2022)
+---------------------------------
+**User-visible changes:**
+
+**Implementation details:**
+
+**Closed issues:**
 
 
 Version 3.21.4-eisop1 (April 4, 2022)
