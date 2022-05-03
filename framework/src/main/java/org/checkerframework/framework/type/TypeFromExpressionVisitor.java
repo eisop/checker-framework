@@ -355,7 +355,7 @@ class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
         // Clear the annotations on the return type, so that the explicit annotations can be added
         // first, then the annotations from the return type are added as needed.
         Set<AnnotationMirror> fromReturn = new AnnotationMirrorSet(returnType.getAnnotations());
-        returnType.clearPrimaryAnnotations();
+        returnType.clearAnnotations();
         returnType.addAnnotations(f.getExplicitNewClassAnnos(node));
         returnType.addMissingAnnotations(fromReturn);
         return returnType;

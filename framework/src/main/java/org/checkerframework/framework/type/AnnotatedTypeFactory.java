@@ -2586,7 +2586,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         } else {
             type = getAnnotatedType(TypesUtils.getTypeElement(type.underlyingType));
             // Add explicit annotations below.
-            type.clearPrimaryAnnotations();
+            type.clearAnnotations();
         }
 
         Set<AnnotationMirror> explicitAnnos = getExplicitNewClassAnnos(tree);
@@ -2727,7 +2727,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         Set<AnnotationMirror> explicitAnnos = getExplicitNewClassAnnos(newClassTree);
         // Type may already have explicit dependent type annotations that have not yet been vpa.
-        type.clearPrimaryAnnotations();
+        type.clearAnnotations();
         type.addAnnotations(explicitAnnos);
         return type;
     }
