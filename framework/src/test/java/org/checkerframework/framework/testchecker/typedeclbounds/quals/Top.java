@@ -1,4 +1,4 @@
-package org.checkerframework.framework.testchecker.implicitconversion.quals;
+package org.checkerframework.framework.testchecker.typedeclbounds.quals;
 
 import org.checkerframework.framework.qual.DefaultQualifierInHierarchy;
 import org.checkerframework.framework.qual.SubtypeOf;

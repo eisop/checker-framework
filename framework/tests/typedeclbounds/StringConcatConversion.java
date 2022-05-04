@@ -1,4 +1,4 @@
-import org.checkerframework.framework.testchecker.implicitconversion.quals.*;
+import org.checkerframework.framework.testchecker.typedeclbounds.quals.*;
 
 import java.util.ArrayList;
 import java.util.List;
