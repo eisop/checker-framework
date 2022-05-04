@@ -477,7 +477,7 @@ of \<ElementType.TYPE\_PARAMETER>, but no other \<ElementType> values.
 % \sunjavadocanno{java.base/java/lang/annotation/Target.html}{Target}.)
 
 The annotations should be placed within a directory called \<qual>, and
-\<qual> should be placed in the same directory as your checker's source file.
+\<qual> may not be in the same directory as your checker's source file.
 The Checker Framework automatically treats any annotation that
 is declared in the \<qual> package as a type qualifier.
 (See Section \ref{creating-indicating-supported-annotations} for more details.)
@@ -560,9 +560,7 @@ hierarchy.
   \begin{sloppypar}
   If the top qualifier of the hierarchy is the generic unqualified type
   (this is not recommended!), then its children
-  will use \code{@SubtypeOf(Unqualified.class)}, but no
-  \code{@SubtypeOf(\{\})} annotation on the top qualifier \<Unqualified> is
-  necessary.  For an example, see the
+  will use \code{@SubtypeOf(Unqualified.class)}.  For an example, see the
   \<Encrypted> type system of Section~\ref{encrypted-example}.
   \end{sloppypar}
 
@@ -638,7 +636,7 @@ files that the checker reads.
 
 \begin{sloppypar}
 Alternately, the type system designer may specify a default procedurally,
-by overriding the
+by calling the
 \refmethod{framework/type}{GenericAnnotatedTypeFactory}{addCheckedCodeDefaults}{-org.checkerframework.framework.util.defaults.QualifierDefaults-}
 method.  You may do this even if you have declaratively defined the
 qualifier hierarchy.
@@ -687,7 +685,7 @@ qualifier on every type --- a defaulted or inferred type qualifier if the
 programmer didn't write a type qualifier explicitly.
 
 
-\subsectionAndLabel{Completeness of the type hierarchy}{creating-bottom-and-top-qualifier}
+\subsectionAndLabel{Completeness of the qualifier hierarchy}{creating-bottom-and-top-qualifier}
 
 When you define a type system, its type hierarchy must be a
 lattice:  every set of types has a unique least upper bound and a unique
@@ -711,7 +709,7 @@ Your type hierarchy must have a bottom qualifier
 --- a qualifier that is a (direct or indirect) subtype of every other
 qualifier.
 
-\<null> is the bottom type. Because the only value with type \<Void> is
+\<null> has the bottom type. Because the only value with type \<Void> is
 \<null>, uses of the type \<Void> are also bottom.
 (The only exception
 is if the type system has special treatment for \<null> values, as the
