@@ -72,7 +72,7 @@ public class DefaultInferredTypesApplier {
             AnnotationMirror inferred,
             TypeMirror inferredTypeMirror,
             AnnotationMirror top) {
-        AnnotationMirror primary = type.getAnnotationInHierarchy(top);
+        AnnotationMirror primary = type.getEffectiveAnnotationInHierarchy(top);
         if (inferred == null) {
 
             if (primary == null) {
@@ -140,8 +140,12 @@ public class DefaultInferredTypesApplier {
             AnnotationMirror atvLBAnno = atvLB.getAnnotationInHierarchy(top);
 
             annotatedTypeVariable.removeAnnotationInHierarchy(top);
-            atvUB.addAnnotation(atvUBAnno);
-            atvLB.addAnnotation(atvLBAnno);
+            if (atvUBAnno != null) {
+                atvUB.addAnnotation(atvUBAnno);
+            }
+            if (atvLBAnno != null) {
+                atvLB.addAnnotation(atvLBAnno);
+            }
             apply(atvUB, ub, typeVar.getUpperBound(), top);
             apply(atvLB, lb, typeVar.getLowerBound(), top);
         }
