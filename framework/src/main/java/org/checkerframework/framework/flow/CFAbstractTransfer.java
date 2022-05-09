@@ -1027,6 +1027,9 @@ public abstract class CFAbstractTransfer<
     }
 
     @Override
+    // TODO: Note the underlying type of this node is boolean, but its operand may
+    //  have a different underlying type. Should we consider refining the annotations
+    //  of this node based on the information from its operand?
     public TransferResult<V, S> visitInstanceOf(InstanceOfNode node, TransferInput<V, S> in) {
         TransferResult<V, S> result = super.visitInstanceOf(node, in);
         // The "reference type" is the type after "instanceof".
