@@ -3,6 +3,8 @@ package org.checkerframework.framework.testchecker.typedeclbounds;
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.testchecker.typedeclbounds.quals.Bottom;
+import org.checkerframework.framework.testchecker.typedeclbounds.quals.S1;
+import org.checkerframework.framework.testchecker.typedeclbounds.quals.S2;
 import org.checkerframework.framework.testchecker.typedeclbounds.quals.Top;
 
 import java.lang.annotation.Annotation;
@@ -19,6 +21,6 @@ public class TypeDeclBoundsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
 
     @Override
     protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
-        return new HashSet<>(Arrays.asList(Top.class, Bottom.class));
+        return new HashSet<>(Arrays.asList(Top.class, Bottom.class, S1.class, S2.class));
     }
 }
