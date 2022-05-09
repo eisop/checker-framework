@@ -238,7 +238,10 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
                         argTypes.first.getEffectiveAnnotations(),
                         argTypes.second.getEffectiveAnnotations());
 
-        if (TreeUtils.isBinaryComparisonOrInstanceOfOperator(node)) {
+        if (TreeUtils.isBinaryComparison(node)) {
+            // When we have binary comparison, the result type (boolean) can be different
+            // from the operands' types. So we need to apply the bounds of boolean to the
+            // lubs.
             addAnnoOrBound(type, lubs);
         } else {
             type.addMissingAnnotations(lubs);

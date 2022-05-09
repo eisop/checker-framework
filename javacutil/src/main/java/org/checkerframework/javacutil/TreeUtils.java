@@ -146,6 +146,7 @@ public final class TreeUtils {
     /** The value of Flags.RECORD which does not exist in Java 9 or 11. */
     private static final long Flags_RECORD = 2305843009213693952L;
 
+    /** The set of tree kinds that can be categorized as binary comparison. */
     private static final Set<Tree.Kind> BINARY_COMPARISON_TREE_KINDS = new HashSet<>();
 
     static {
@@ -2126,13 +2127,12 @@ public final class TreeUtils {
     }
 
     /**
-     * Indicates that the result of the operation is a boolean value.
+     * Indicates that the {@code tree} is a binary tree that performs comparison.
      *
      * @param tree the tree to check
-     * @return whether the result is boolean
+     * @return whether the tree represents a binary comparison
      */
-    public static boolean isBinaryComparisonOrInstanceOfOperator(Tree tree) {
-        return BINARY_COMPARISON_TREE_KINDS.contains(tree.getKind())
-                || tree.getKind() == Tree.Kind.INSTANCE_OF;
+    public static boolean isBinaryComparison(Tree tree) {
+        return BINARY_COMPARISON_TREE_KINDS.contains(tree.getKind());
     }
 }
