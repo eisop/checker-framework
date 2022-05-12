@@ -190,7 +190,7 @@ public class ResourceLeakAnnotatedTypeFactory extends CalledMethodsAnnotatedType
       return Collections.emptyList();
     }
     return AnnotationUtils.getElementValueArray(
-        mustCallAnnotation, mustCallValueElement, String.class);
+        mustCallAnnotation, mustCallValueElement, String.class, Collections.emptyList());
   }
 
   /**
