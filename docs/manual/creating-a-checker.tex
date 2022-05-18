@@ -476,11 +476,12 @@ of \<ElementType.TYPE\_PARAMETER>, but no other \<ElementType> values.
 % \refqualclass{framework/qual}{SubtypeOf} and
 % \sunjavadocanno{java.base/java/lang/annotation/Target.html}{Target}.)
 
-The qualifiers should be in a \<qual> subpackage of the type checker subpackage -
-that is the checker reflectively looks and the only thing that matters for that is the package name.
+The qualifiers should be in a \<qual> subpackage of the type checker package ---
+by default, the checker reflectively determines the qualifiers and the only thing that matters for that is the package name.
 As mentioned in {creating-parts-of-a-checker}, the files for that \<qual> package can be
 either in a subdirectory or in a separate gradle module, depending on whether
-they should be distributable separately. The Checker Framework automatically treats any annotation that
+they should be distributable separately.
+The Checker Framework automatically treats any annotation that
 is declared in the \<qual> package as a type qualifier.
 (See Section \ref{creating-indicating-supported-annotations} for more details.)
 For example, the Nullness Checker's source file is located at
