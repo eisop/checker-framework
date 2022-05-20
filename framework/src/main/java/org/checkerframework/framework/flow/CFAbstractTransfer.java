@@ -1387,7 +1387,7 @@ public abstract class CFAbstractTransfer<
 
         TypeMirror strType = n.getType();
         Set<AnnotationMirror> resultAnnos =
-                analysis.atypeFactory.getAnnoOrTypeBound(strType, operandAnnos);
+                analysis.atypeFactory.getAnnotationOrTypeDeclarationBound(strType, operandAnnos);
         result.setResultValue(analysis.createAbstractValue(resultAnnos, strType));
         return result;
     }

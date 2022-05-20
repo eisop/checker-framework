@@ -2132,7 +2132,7 @@ public final class TreeUtils {
      * @param tree the tree to check
      * @return whether the tree represents a binary comparison
      */
-    public static boolean isBinaryComparison(Tree tree) {
+    public static boolean isBinaryComparison(BinaryTree tree) {
         return BINARY_COMPARISON_TREE_KINDS.contains(tree.getKind());
     }
 }

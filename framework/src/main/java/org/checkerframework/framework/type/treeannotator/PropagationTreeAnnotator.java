@@ -242,10 +242,9 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
             // When we have binary comparison, the result type (boolean) can be different
             // from the operands' types. So we need to apply the bounds of boolean to the
             // lubs.
-            addAnnoOrBound(type, lubs);
-        } else {
-            type.addMissingAnnotations(lubs);
+            lubs = atypeFactory.getAnnotationOrTypeDeclarationBound(type.getUnderlyingType(), lubs);
         }
+        type.addMissingAnnotations(lubs);
 
         return null;
     }
@@ -346,7 +345,7 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
      */
     private void addAnnoOrBound(AnnotatedTypeMirror type, Set<? extends AnnotationMirror> annos) {
         Set<AnnotationMirror> annosToAdd =
-                atypeFactory.getAnnoOrTypeBound(type.getUnderlyingType(), annos);
+                atypeFactory.getAnnotationOrTypeDeclarationBound(type.getUnderlyingType(), annos);
         type.addMissingAnnotations(annosToAdd);
     }
 }
