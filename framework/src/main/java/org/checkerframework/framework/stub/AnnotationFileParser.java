@@ -1339,6 +1339,7 @@ public class AnnotationFileParser {
         if (fileType.isStub()) {
             typeParameters.removeAll(methodType.getTypeVariables());
         }
+
         return methodType.getTypeVariables();
     }
 
@@ -1800,10 +1801,10 @@ public class AnnotationFileParser {
             warn(decl, msg);
             return;
         }
-
         for (int i = 0; i < typeParameters.size(); ++i) {
             TypeParameter param = typeParameters.get(i);
             AnnotatedTypeVariable paramType = (AnnotatedTypeVariable) typeArguments.get(i);
+
             if (param.getTypeBound() == null || param.getTypeBound().isEmpty()) {
                 // No bound so annotations are both lower and upper bounds
                 annotate(paramType, param.getAnnotations(), param);
