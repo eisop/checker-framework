@@ -1825,7 +1825,7 @@ public class AnnotationFileParser {
                     // If there is an explicit "T extends Object" type parameter bound,
                     // treat it like an explicit use of "Object" in code.
                     AnnotatedTypeMirror ub = atypeFactory.getAnnotatedType(Object.class);
-                    paramType.getUpperBound().addAnnotations(ub.getAnnotations());
+                    paramType.getUpperBound().replaceAnnotations(ub.getAnnotations());
                 }
             }
             putMerge(
