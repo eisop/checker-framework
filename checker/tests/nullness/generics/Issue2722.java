@@ -1,3 +1,6 @@
+// Test case for issue #2722:
+// https://github.com/typetools/checker-framework/issues/2722
+
 import java.util.Arrays;
 import java.util.List;
 
