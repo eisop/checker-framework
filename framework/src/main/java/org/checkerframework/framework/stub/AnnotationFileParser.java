@@ -1339,7 +1339,6 @@ public class AnnotationFileParser {
         if (fileType.isStub()) {
             typeParameters.removeAll(methodType.getTypeVariables());
         }
-
         return methodType.getTypeVariables();
     }
 
@@ -1801,10 +1800,10 @@ public class AnnotationFileParser {
             warn(decl, msg);
             return;
         }
+
         for (int i = 0; i < typeParameters.size(); ++i) {
             TypeParameter param = typeParameters.get(i);
             AnnotatedTypeVariable paramType = (AnnotatedTypeVariable) typeArguments.get(i);
-
             if (param.getTypeBound() == null || param.getTypeBound().isEmpty()) {
                 // No bound so annotations are both lower and upper bounds
                 annotate(paramType, param.getAnnotations(), param);
@@ -1815,6 +1814,18 @@ public class AnnotationFileParser {
                     // TODO: add support for intersection types
                     stubWarnNotFound(
                             param, "Annotations on intersection types are not yet supported");
+                }
+                if (param.getTypeBound().size() == 1
+                        && param.getTypeBound().get(0).getAnnotations().isEmpty()
+                        && paramType
+                                .getUpperBound()
+                                .getUnderlyingType()
+                                .toString()
+                                .contentEquals("java.lang.Object")) {
+                    // If there is an explicit "T extends Object" type parameter bound,
+                    // treat it like an explicit use of "Object" in code.
+                    AnnotatedTypeMirror ub = atypeFactory.getAnnotatedType(Object.class);
+                    paramType.getUpperBound().addAnnotations(ub.getAnnotations());
                 }
             }
             putMerge(
