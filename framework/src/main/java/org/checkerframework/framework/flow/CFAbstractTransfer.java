@@ -74,7 +74,6 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 
 /**
@@ -1030,9 +1029,6 @@ public abstract class CFAbstractTransfer<
     }
 
     @Override
-    // TODO: Note the underlying type of this node is boolean, but its operand may
-    //  have a different underlying type. Should we consider refining the annotations
-    //  of this node based on the information from its operand?
     public TransferResult<V, S> visitInstanceOf(InstanceOfNode node, TransferInput<V, S> in) {
         TransferResult<V, S> result = super.visitInstanceOf(node, in);
         // The "reference type" is the type after "instanceof".
@@ -1375,20 +1371,7 @@ public abstract class CFAbstractTransfer<
     public TransferResult<V, S> visitStringConversion(
             StringConversionNode n, TransferInput<V, S> p) {
         TransferResult<V, S> result = super.visitStringConversion(n, p);
-
-        Set<AnnotationMirror> operandAnnos = p.getValueOfSubNode(n.getOperand()).getAnnotations();
-        if (operandAnnos.isEmpty() && n.getOperand().getType().getKind() == TypeKind.TYPEVAR) {
-            // use effective annotation if we didn't find any annotations in the value of
-            // a type variable
-            Tree operandTree = n.getOperand().getTree();
-            operandAnnos =
-                    analysis.atypeFactory.getAnnotatedType(operandTree).getEffectiveAnnotations();
-        }
-
-        TypeMirror strType = n.getType();
-        Set<AnnotationMirror> resultAnnos =
-                analysis.atypeFactory.getAnnotationOrTypeDeclarationBound(strType, operandAnnos);
-        result.setResultValue(analysis.createAbstractValue(resultAnnos, strType));
+        result.setResultValue(p.getValueOfSubNode(n.getOperand()));
         return result;
     }
 

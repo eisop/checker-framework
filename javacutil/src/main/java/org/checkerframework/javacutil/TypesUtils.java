@@ -337,6 +337,17 @@ public final class TypesUtils {
     }
 
     /**
+     * Checks if the type represents a character type, that is either char (primitive type) or
+     * java.lang.Character.
+     *
+     * @param type the type to test
+     * @return true iff type represents a character type
+     */
+    public static boolean isCharType(TypeMirror type) {
+        return isDeclaredOfName(type, "java.lang.Character") || type.getKind() == TypeKind.CHAR;
+    }
+
+    /**
      * Check if the type represents a declared type of the given qualified name.
      *
      * @param type the type

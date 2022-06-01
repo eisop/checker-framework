@@ -1833,21 +1833,6 @@ public abstract class GenericAnnotatedTypeFactory<
         log("%s GATF.addComputedTypeAnnotations#7(%s, %s)%n", thisClass, treeString, type);
 
         if (iUseFlow) {
-            // NOTE: Sometimes the inferred value may have an incomparable java type and
-            // annotation. The reason is the inconsistency between CFG and AST. For example,
-            //
-            // "some string" + someObj
-            //
-            // we have a string concatenation where the RHS is a string conversion node in CFG,
-            // but it is simply an Object in AST. So it is possible that, for the RHS, the ATM
-            // is "@A Object" and the inferred value is "@B String".
-            // In this situation, we may have two concerns:
-            // 1. If @B <: @A, then we apply @B to the ATM without changing its underlying type,
-            //    i.e., @B Object. The concern is that @B may not look compatible to Object.
-            // 2. If !(@B <: @A), then we ignore the inferred value and keep the ATM as
-            //    @A Object. This may affect the type of the string concatenation because it is
-            //    expecting a converted string on the RHS.
-            // We may need to think about how to address these concerns in the future.
             Value as = getInferredValueFor(tree);
             if (as != null) {
                 applyInferredAnnotations(type, as);

@@ -212,12 +212,15 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
             // propagated annotations won't be applied.  So don't compute them.
             return null;
         }
-        AnnotatedTypeMirror rhs = atypeFactory.getAnnotatedType(node.getExpression());
-        AnnotatedTypeMirror lhs = atypeFactory.getAnnotatedType(node.getVariable());
+
+        Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> argTypes =
+                atypeFactory.compoundAssignmentTreeArgTypes(node);
         Set<? extends AnnotationMirror> lubs =
                 qualHierarchy.leastUpperBounds(
-                        rhs.getEffectiveAnnotations(), lhs.getEffectiveAnnotations());
+                        argTypes.first.getEffectiveAnnotations(),
+                        argTypes.second.getEffectiveAnnotations());
         type.addMissingAnnotations(lubs);
+
         return null;
     }
 

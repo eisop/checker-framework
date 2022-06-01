@@ -3069,59 +3069,93 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Returns the types of the two arguments to the BinaryTree, accounting for widening and
-     * unboxing if applicable.
+     * Returns the types of the two arguments to the BinaryTree. Please refer to {@link
+     * #binaryTreeArgTypes(TypeMirror, AnnotatedTypeMirror, AnnotatedTypeMirror)} )} for more
+     * details.
      *
      * @param node a binary tree
-     * @return the types of the two arguments
+     * @return the types of the two arguments (note that the underlying java types of both operands
+     *     will be converted to string if the binary operation is string concatenation)
      */
     public Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> binaryTreeArgTypes(BinaryTree node) {
         return binaryTreeArgTypes(
-                getAnnotatedType(node.getLeftOperand()), getAnnotatedType(node.getRightOperand()));
+                TreeUtils.typeOf(node),
+                getAnnotatedType(node.getLeftOperand()),
+                getAnnotatedType(node.getRightOperand()));
     }
 
     /**
-     * Returns the types of the two arguments to the CompoundAssignmentTree, accounting for widening
-     * and unboxing if applicable.
+     * Returns the types of the two arguments to the CompoundAssignmentTree. Please refer to {@link
+     * #binaryTreeArgTypes(TypeMirror, AnnotatedTypeMirror, AnnotatedTypeMirror)} ) for more
+     * details.
      *
      * @param node a compound assignment tree
-     * @return the types of the two arguments
+     * @return the types of the two arguments (note that the underlying java types of the right
+     *     operand will be converted to string if the binary operation is string concatenation)
      */
     public Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> compoundAssignmentTreeArgTypes(
             CompoundAssignmentTree node) {
         return binaryTreeArgTypes(
-                getAnnotatedType(node.getVariable()), getAnnotatedType(node.getExpression()));
+                TreeUtils.typeOf(node.getVariable()),
+                getAnnotatedType(node.getVariable()),
+                getAnnotatedType(node.getExpression()));
     }
 
     /**
-     * Returns the types of the two arguments to a binary operation, accounting for widening and
-     * unboxing if applicable.
+     * Returns the types of the two arguments to a binary operation. There are two special cases: 1.
+     * If both operands have numeric type, widening and unboxing will be applied accordingly. 2. If
+     * the binary operation is string concatenation (i.e., result is a string) and there is one
+     * operand of non-string type, we are going to return the type of its converted string by
+     * applying the declaration bounds of string type. Please check {@link
+     * #getAnnotationOrTypeDeclarationBound} for more details.
      *
+     * @param resultType the type of the result of a binary operation
      * @param left the type of the left argument of a binary operation
      * @param right the type of the right argument of a binary operation
-     * @return the types of the two arguments
+     * @return the types of the two arguments (note that the underlying java types of both operands
+     *     will be converted to string if the binary operation is string concatenation)
      */
     public Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> binaryTreeArgTypes(
-            AnnotatedTypeMirror left, AnnotatedTypeMirror right) {
-        TypeKind resultTypeKind =
+            TypeMirror resultType, AnnotatedTypeMirror left, AnnotatedTypeMirror right) {
+        TypeKind widenedNumericType =
                 TypeKindUtils.widenedNumericType(
                         left.getUnderlyingType(), right.getUnderlyingType());
-        if (TypeKindUtils.isNumeric(resultTypeKind)) {
-            TypeMirror resultTypeMirror = types.getPrimitiveType(resultTypeKind);
+        if (TypeKindUtils.isNumeric(widenedNumericType)) {
+            TypeMirror widenedNumericTypeMirror = types.getPrimitiveType(widenedNumericType);
             AnnotatedPrimitiveType leftUnboxed = applyUnboxing(left);
             AnnotatedPrimitiveType rightUnboxed = applyUnboxing(right);
             AnnotatedPrimitiveType leftWidened =
-                    (leftUnboxed.getKind() == resultTypeKind
+                    (leftUnboxed.getKind() == widenedNumericType
                             ? leftUnboxed
-                            : getWidenedPrimitive(leftUnboxed, resultTypeMirror));
+                            : getWidenedPrimitive(leftUnboxed, widenedNumericTypeMirror));
             AnnotatedPrimitiveType rightWidened =
-                    (rightUnboxed.getKind() == resultTypeKind
+                    (rightUnboxed.getKind() == widenedNumericType
                             ? rightUnboxed
-                            : getWidenedPrimitive(rightUnboxed, resultTypeMirror));
+                            : getWidenedPrimitive(rightUnboxed, widenedNumericTypeMirror));
             return Pair.of(leftWidened, rightWidened);
-        } else {
-            return Pair.of(left, right);
+        } else if (TypesUtils.isString(resultType)) {
+            // the result of a binary operation is String iff it's string concatenation
+            AnnotatedTypeMirror leftStringConverted = left;
+            AnnotatedTypeMirror rightStringConverted = right;
+
+            if (!TypesUtils.isString(left.getUnderlyingType())) {
+                leftStringConverted = toAnnotatedType(resultType, false);
+                Set<AnnotationMirror> annos =
+                        getAnnotationOrTypeDeclarationBound(
+                                resultType, left.getEffectiveAnnotations());
+                leftStringConverted.addAnnotations(annos);
+            }
+            if (!TypesUtils.isString(right.getUnderlyingType())) {
+                rightStringConverted = toAnnotatedType(resultType, false);
+                Set<AnnotationMirror> annos =
+                        getAnnotationOrTypeDeclarationBound(
+                                resultType, right.getEffectiveAnnotations());
+                rightStringConverted.addAnnotations(annos);
+            }
+            return Pair.of(leftStringConverted, rightStringConverted);
         }
+
+        return Pair.of(left, right);
     }
 
     /**
