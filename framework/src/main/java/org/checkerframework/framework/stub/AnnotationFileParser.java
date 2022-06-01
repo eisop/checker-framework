@@ -1579,7 +1579,7 @@ public class AnnotationFileParser {
                             astNode);
                     annotate(wildcardType.getExtendsBound(), primaryAnnotations, astNode);
                 } else if (primaryAnnotations.isEmpty()) {
-                    // Unannotated, unbounded wildcard "?": remove any existing annotations and
+                    // Unannotated unbounded wildcard "?": remove any existing annotations and
                     // add the annotations from the type variable corresponding to the wildcard.
                     wildcardType.getExtendsBound().clearAnnotations();
                     wildcardType.getSuperBound().clearAnnotations();
