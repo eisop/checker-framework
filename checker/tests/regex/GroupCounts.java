@@ -39,14 +39,14 @@ public class GroupCounts {
         @Regex(6) Pattern p4a = Pattern.compile(r5, 0); // error
         // :: error: (assignment.type.incompatible)
         @Regex(6) Pattern p5 = Pattern.compile(r3); // error
-        // :: error: (assignment)
+        // :: error: (assignment.type.incompatible)
         @Regex(6) Pattern p5a = Pattern.compile(r3, 0); // error
 
         // Make sure Pattern.compile still works when passed an @UnknownRegex String
         // that's actually a regex, with the warning suppressed.
         @SuppressWarnings("regex:argument.type.incompatible")
         Pattern p6 = Pattern.compile("(" + r + ")");
-        @SuppressWarnings("regex:argument")
+        @SuppressWarnings("regex:argument.type.incompatible")
         Pattern p6a = Pattern.compile("(" + r + ")", 0);
     }
 
