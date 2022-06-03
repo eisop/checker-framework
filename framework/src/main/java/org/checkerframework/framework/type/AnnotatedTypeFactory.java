@@ -1406,7 +1406,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * This method will compare the given {@code annos} with the declaration bounds of {@code type}.
+     * Compare the given {@code annos} with the declaration bounds of {@code type} and return the appropriate qualifiers.
      * For each qualifier in {@code annos}, if it is a subtype of the declaration bound in the same
      * hierarchy, it will be added to the result; otherwise, the declaration bound will be added to
      * the result instead.
