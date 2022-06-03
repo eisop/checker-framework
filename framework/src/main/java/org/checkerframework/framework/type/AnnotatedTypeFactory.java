@@ -1406,10 +1406,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Compare the given {@code annos} with the declaration bounds of {@code type} and return the appropriate qualifiers.
-     * For each qualifier in {@code annos}, if it is a subtype of the declaration bound in the same
-     * hierarchy, it will be added to the result; otherwise, the declaration bound will be added to
-     * the result instead.
+     * Compare the given {@code annos} with the declaration bounds of {@code type} and return the
+     * appropriate qualifiers. For each qualifier in {@code annos}, if it is a subtype of the
+     * declaration bound in the same hierarchy, it will be added to the result; otherwise, the
+     * declaration bound will be added to the result instead.
      *
      * @param type java type that specifies the qualifier upper bound
      * @param annos a set of qualifiers to be compared with the declaration bounds of {@code type}
