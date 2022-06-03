@@ -157,6 +157,9 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
                     // Note that leftOpType.getUnderlyingType() and rightOpType.getUnderlyingType()
                     // are always java.lang.String. Please refer to binaryTreeArgTypes for more
                     // details.
+                    // Here, the original types of operands can be something different from string.
+                    // For example, "123" + obj is a string concatenation in which the original type
+                    // of the right operand is java.lang.Object.
                     TypeMirror leftOpOriginalType = TreeUtils.typeOf(leftOp);
                     TypeMirror rightOpOriginalType = TreeUtils.typeOf(rightOp);
 

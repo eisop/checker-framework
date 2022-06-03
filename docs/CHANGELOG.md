@@ -3,7 +3,16 @@ Version 3.22.1-eisop1 (June ?, 2022)
 
 **User-visible changes:**
 
+Deprecated `AnnotatedTypeFactory.binaryTreeArgTypes(AnnotatedTypeMirror, AnnotatedTypeMirror)` in favor of
+`AnnotatedTypeFactory.binaryTreeArgTypes(BinaryTree)` and
+`AnnotatedTypeFactory.compoundAssignmentTreeArgTypes`.
+
 **Implementation details:**
+
+In `PropagationTreeAnnotator.visitBinary`, we now consider the two cases where
+the resulting Java type of a binary operation can be different from the operands'
+types: string concatenation and binary comparison. We will apply the declaration
+bounds of the resulting Java type to ensure annotations in the ATM are valid.
 
 **Closed issues:**
 

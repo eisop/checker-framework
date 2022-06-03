@@ -3074,8 +3074,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * details.
      *
      * @param node a binary tree
-     * @return the types of the two arguments (note that the underlying java types of both operands
-     *     will be converted to string if the binary operation is string concatenation)
+     * @return the types of the two arguments
      */
     public Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> binaryTreeArgTypes(BinaryTree node) {
         return binaryTreeArgTypes(
@@ -3090,8 +3089,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * details.
      *
      * @param node a compound assignment tree
-     * @return the types of the two arguments (note that the underlying java types of the right
-     *     operand will be converted to string if the binary operation is string concatenation)
+     * @return the types of the two arguments
      */
     public Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> compoundAssignmentTreeArgTypes(
             CompoundAssignmentTree node) {
@@ -3102,20 +3100,21 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Returns the types of the two arguments to a binary operation. There are two special cases: 1.
-     * If both operands have numeric type, widening and unboxing will be applied accordingly. 2. If
-     * the binary operation is string concatenation (i.e., result is a string) and there is one
-     * operand of non-string type, we are going to return the type of its converted string by
-     * applying the declaration bounds of string type. Please check {@link
+     * Returns the types of the two arguments to a binary operation. There are two special cases:
+     *
+     * <p>1. If both operands have numeric type, widening and unboxing will be applied accordingly.
+     *
+     * <p>2. If we have a non-string operand in a string concatenation (i.e., result is a string),
+     * we will always return a string ATM for the operand. The resulting ATM will have the original
+     * annotations with the declaration bounds of string type applied. Please check {@link
      * #getAnnotationOrTypeDeclarationBound} for more details.
      *
      * @param resultType the type of the result of a binary operation
      * @param left the type of the left argument of a binary operation
      * @param right the type of the right argument of a binary operation
-     * @return the types of the two arguments (note that the underlying java types of both operands
-     *     will be converted to string if the binary operation is string concatenation)
+     * @return the types of the two arguments
      */
-    public Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> binaryTreeArgTypes(
+    private Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> binaryTreeArgTypes(
             TypeMirror resultType, AnnotatedTypeMirror left, AnnotatedTypeMirror right) {
         TypeKind widenedNumericType =
                 TypeKindUtils.widenedNumericType(
@@ -3156,6 +3155,40 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         return Pair.of(left, right);
+    }
+
+    /**
+     * Returns the types of the two arguments to a binary operation, accounting for widening and
+     * unboxing if applicable.
+     *
+     * @param left the type of the left argument of a binary operation
+     * @param right the type of the right argument of a binary operation
+     * @return the types of the two arguments
+     * @deprecated use {@link #binaryTreeArgTypes(BinaryTree)} or {@link
+     *     #compoundAssignmentTreeArgTypes(CompoundAssignmentTree)}
+     */
+    @Deprecated // 2022-06-03
+    public Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> binaryTreeArgTypes(
+            AnnotatedTypeMirror left, AnnotatedTypeMirror right) {
+        TypeKind resultTypeKind =
+                TypeKindUtils.widenedNumericType(
+                        left.getUnderlyingType(), right.getUnderlyingType());
+        if (TypeKindUtils.isNumeric(resultTypeKind)) {
+            TypeMirror resultTypeMirror = types.getPrimitiveType(resultTypeKind);
+            AnnotatedPrimitiveType leftUnboxed = applyUnboxing(left);
+            AnnotatedPrimitiveType rightUnboxed = applyUnboxing(right);
+            AnnotatedPrimitiveType leftWidened =
+                    (leftUnboxed.getKind() == resultTypeKind
+                            ? leftUnboxed
+                            : getWidenedPrimitive(leftUnboxed, resultTypeMirror));
+            AnnotatedPrimitiveType rightWidened =
+                    (rightUnboxed.getKind() == resultTypeKind
+                            ? rightUnboxed
+                            : getWidenedPrimitive(rightUnboxed, resultTypeMirror));
+            return Pair.of(leftWidened, rightWidened);
+        } else {
+            return Pair.of(left, right);
+        }
     }
 
     /**

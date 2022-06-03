@@ -326,7 +326,7 @@ public final class TypesUtils {
     }
 
     /**
-     * Checks if the type represents a boolean type, that is either boolean (primitive type) or
+     * Checks if the type represents a boolean type, i.e., it is either boolean (primitive type) or
      * java.lang.Boolean.
      *
      * @param type the type to test
@@ -337,7 +337,7 @@ public final class TypesUtils {
     }
 
     /**
-     * Checks if the type represents a character type, that is either char (primitive type) or
+     * Checks if the type represents a character type, i.e., it is either char (primitive type) or
      * java.lang.Character.
      *
      * @param type the type to test

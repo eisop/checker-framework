@@ -71,7 +71,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.StringJoiner;
@@ -147,7 +146,7 @@ public final class TreeUtils {
     private static final long Flags_RECORD = 2305843009213693952L;
 
     /** The set of tree kinds that can be categorized as binary comparison. */
-    private static final Set<Tree.Kind> BINARY_COMPARISON_TREE_KINDS = new HashSet<>();
+    private static final Set<Tree.Kind> BINARY_COMPARISON_TREE_KINDS;
 
     static {
         final SourceVersion latestSource = SourceVersion.latest();
@@ -216,12 +215,14 @@ public final class TreeUtils {
             throw err;
         }
 
-        BINARY_COMPARISON_TREE_KINDS.add(Tree.Kind.EQUAL_TO);
-        BINARY_COMPARISON_TREE_KINDS.add(Tree.Kind.NOT_EQUAL_TO);
-        BINARY_COMPARISON_TREE_KINDS.add(Tree.Kind.LESS_THAN);
-        BINARY_COMPARISON_TREE_KINDS.add(Tree.Kind.GREATER_THAN);
-        BINARY_COMPARISON_TREE_KINDS.add(Tree.Kind.LESS_THAN_EQUAL);
-        BINARY_COMPARISON_TREE_KINDS.add(Tree.Kind.GREATER_THAN_EQUAL);
+        BINARY_COMPARISON_TREE_KINDS =
+                EnumSet.of(
+                        Tree.Kind.EQUAL_TO,
+                        Tree.Kind.NOT_EQUAL_TO,
+                        Tree.Kind.LESS_THAN,
+                        Tree.Kind.GREATER_THAN,
+                        Tree.Kind.LESS_THAN_EQUAL,
+                        Tree.Kind.GREATER_THAN_EQUAL);
     }
 
     /**
@@ -2127,7 +2128,7 @@ public final class TreeUtils {
     }
 
     /**
-     * Indicates that the {@code tree} is a binary tree that performs comparison.
+     * Returns true if the {@code tree} is a binary tree that performs a comparison.
      *
      * @param tree the tree to check
      * @return whether the tree represents a binary comparison
