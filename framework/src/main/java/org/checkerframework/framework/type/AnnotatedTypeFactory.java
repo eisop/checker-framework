@@ -3152,7 +3152,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param right the type of the right argument of a binary operation
      * @return the types of the two arguments
      */
-    private Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> binaryTreeArgTypes(
+    protected Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> binaryTreeArgTypes(
             TypeMirror resultType, AnnotatedTypeMirror left, AnnotatedTypeMirror right) {
         TypeKind widenedNumericType =
                 TypeKindUtils.widenedNumericType(
