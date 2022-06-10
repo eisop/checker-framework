@@ -1018,14 +1018,22 @@ public abstract class CFAbstractTransfer<
         // add new information based on postcondition
         processPostconditions(n, store, method, invocationTree);
 
-        S thenStore = store;
-        S elseStore = thenStore.copy();
+        ContractsFromMethod contractsUtils = analysis.atypeFactory.getContractsFromMethod();
+        Set<ConditionalPostcondition> conditionalPostconditions =
+                contractsUtils.getConditionalPostconditions(method);
 
-        // add new information based on conditional postcondition
-        processConditionalPostconditions(n, method, invocationTree, thenStore, elseStore);
+        if (conditionalPostconditions.isEmpty()) {
+            return new RegularTransferResult<>(finishValue(resValue, store), store);
+        } else {
+            S thenStore = store;
+            S elseStore = thenStore.copy();
 
-        return new ConditionalTransferResult<>(
-                finishValue(resValue, thenStore, elseStore), thenStore, elseStore);
+            // add new information based on conditional postcondition
+            processConditionalPostconditions(n, method, invocationTree, thenStore, elseStore);
+
+            return new ConditionalTransferResult<>(
+                    finishValue(resValue, thenStore, elseStore), thenStore, elseStore);
+        }
     }
 
     @Override
