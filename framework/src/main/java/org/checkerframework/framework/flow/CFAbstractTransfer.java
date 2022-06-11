@@ -58,6 +58,7 @@ import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
