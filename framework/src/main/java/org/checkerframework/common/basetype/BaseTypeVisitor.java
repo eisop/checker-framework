@@ -2368,6 +2368,18 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
+     * Allow no incomparable cast by default. Other type systems may override this method to allow
+     * certain incomparable casts.
+     *
+     * @param castType castType
+     * @param exprType exprType
+     * @return always false in BaseTypeVisitor
+     */
+    protected boolean isIncomparableCastSafe(AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
+        return false;
+    }
+
+    /**
      * Returns true if the cast is safe.
      *
      * <p>Only primary qualifiers are checked unless the command line option "checkCastElementType"
@@ -2380,21 +2392,22 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     protected boolean isTypeCastSafe(AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
 
         final TypeKind castTypeKind = castType.getKind();
-        if (castTypeKind == TypeKind.DECLARED) {
-            // Don't issue an error if the annotations are equivalent to the qualifier upper bound
-            // of the type.
-            AnnotatedDeclaredType castDeclared = (AnnotatedDeclaredType) castType;
-            Set<AnnotationMirror> bounds =
-                    atypeFactory.getTypeDeclarationBounds(castDeclared.getUnderlyingType());
+        QualifierHierarchy qualifierHierarchy = atypeFactory.getQualifierHierarchy();
+        Set<AnnotationMirror> castAnnos;
 
-            if (AnnotationUtils.areSame(castDeclared.getAnnotations(), bounds)) {
-                return true;
+        if (castTypeKind == TypeKind.DECLARED) { // Check if the downcast is valid
+            TypeMirror castJavaType = castType.getUnderlyingType();
+            TypeMirror exprJavaType = exprType.getUnderlyingType();
+            if (exprJavaType.getClass().isAssignableFrom(castJavaType.getClass())) {
+                if (qualifierHierarchy.isSubtype(castType.getAnnotations(), exprType.getAnnotations())
+                        || qualifierHierarchy.isSubtype(exprType.getAnnotations(), castType.getAnnotations())) {
+                    return true;
+                } else {
+                    return isIncomparableCastSafe(castType, exprType);
+                }
             }
         }
 
-        QualifierHierarchy qualifierHierarchy = atypeFactory.getQualifierHierarchy();
-
-        Set<AnnotationMirror> castAnnos;
         if (!checker.hasOption("checkCastElementType")) {
             // checkCastElementType option wasn't specified, so only check effective annotations.
             castAnnos = castType.getEffectiveAnnotations();
