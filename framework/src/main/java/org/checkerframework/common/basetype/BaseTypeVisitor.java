@@ -2375,7 +2375,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param exprType exprType
      * @return always false in BaseTypeVisitor
      */
-    protected boolean isIncomparableCastSafe(AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
+    protected boolean isIncomparableCastSafe(
+            AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
         return false;
     }
 
@@ -2393,14 +2394,15 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         final TypeKind castTypeKind = castType.getKind();
         QualifierHierarchy qualifierHierarchy = atypeFactory.getQualifierHierarchy();
-        Set<AnnotationMirror> castAnnos;
 
         if (castTypeKind == TypeKind.DECLARED) { // Check if the downcast is valid
             TypeMirror castJavaType = castType.getUnderlyingType();
             TypeMirror exprJavaType = exprType.getUnderlyingType();
-            if (exprJavaType.getClass().isAssignableFrom(castJavaType.getClass())) {
-                if (qualifierHierarchy.isSubtype(castType.getAnnotations(), exprType.getAnnotations())
-                        || qualifierHierarchy.isSubtype(exprType.getAnnotations(), castType.getAnnotations())) {
+            if (TypesUtils.isErasedSubtype(castJavaType, exprJavaType, types)) {
+                Set<AnnotationMirror> castAnnos = castType.getAnnotations();
+                Set<AnnotationMirror> exprAnnos = exprType.getAnnotations();
+                if (qualifierHierarchy.isSubtype(castAnnos, exprAnnos)
+                        || qualifierHierarchy.isSubtype(exprAnnos, castAnnos)) {
                     return true;
                 } else {
                     return isIncomparableCastSafe(castType, exprType);
@@ -2408,6 +2410,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
         }
 
+        Set<AnnotationMirror> castAnnos;
         if (!checker.hasOption("checkCastElementType")) {
             // checkCastElementType option wasn't specified, so only check effective annotations.
             castAnnos = castType.getEffectiveAnnotations();
