@@ -108,7 +108,6 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
         if (lambdaParamType != null) {
             return lambdaParamType;
         }
-
         return result;
     }
 
