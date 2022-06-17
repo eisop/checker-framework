@@ -977,9 +977,10 @@ public final class InterningVisitor extends BaseTypeVisitor<InterningAnnotatedTy
     }
 
     @Override
-    protected boolean isTypeCastSafe(AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
+    protected CastSafeKind isTypeCastSafe(
+            AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
         if (castType.getKind().isPrimitive()) {
-            return true;
+            return CastSafeKind.WARNING;
         }
         return super.isTypeCastSafe(castType, exprType);
     }
