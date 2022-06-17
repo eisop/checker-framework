@@ -95,7 +95,9 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
                     result.replaceAnnotation(anno);
                 } else {
                     // Type annotations apply to the innermost type.
-                    innerType.replaceAnnotation(anno);
+                    // We need to use addAnnotation instead of replaceAnnotation, otherwise testcase
+                    // would fail.
+                    innerType.addAnnotation(anno);
                 }
             }
         }
