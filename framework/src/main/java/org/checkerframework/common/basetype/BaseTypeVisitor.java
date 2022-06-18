@@ -2514,7 +2514,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     atypeFactory.getTypeDeclarationBounds(castDeclared.getUnderlyingType());
 
             if (AnnotationUtils.areSame(castDeclared.getAnnotations(), bounds)) {
-                return CastSafeKind.SAFE;
+                TypeMirror castJavaType = castType.getUnderlyingType();
+                TypeMirror exprJavaType = exprType.getUnderlyingType();
+                if (TypesUtils.isErasedSubtype(castJavaType, exprJavaType, types)) {
+                    return CastSafeKind.SAFE;
+                }
             }
         }
         return CastSafeKind.WARNING;
