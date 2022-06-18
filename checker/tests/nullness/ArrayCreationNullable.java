@@ -22,8 +22,6 @@ public class ArrayCreationNullable {
         // Allowed.
         objs = p;
         objs[0].toString();
-        // :: error: (type.invalid.conflicting.annos)
-        @Nullable @NonNull Object[] pro;
     }
 
     @DefaultQualifier(NonNull.class)
