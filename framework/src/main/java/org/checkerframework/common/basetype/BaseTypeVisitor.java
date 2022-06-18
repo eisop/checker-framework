@@ -2460,9 +2460,22 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
         }
 
+        //        // Return a warning in this case, as compiler will not report the unchecked
+        // warning in
+        //        // this case, and we cannot statically verify the subtype relation of the
+        // annotations.
+        //        if (castTypeKind == TypeKind.TYPEVAR && exprType.getKind() == TypeKind.TYPEVAR) {
+        //            TypeMirror castJavaType = castType.getUnderlyingType();
+        //            TypeMirror exprJavaType = exprType.getUnderlyingType();
+        //            if (TypesUtils.areSameTypeVariables(castJavaType, exprJavaType)) {
+        //                return CastSafeKind.WARNING;
+        //            }
+        //        }
+
         AnnotatedTypeMirror exprTypeWidened = atypeFactory.getWidenedType(exprType, castType);
         boolean result =
                 qualifierHierarchy.isSubtype(exprTypeWidened.getEffectiveAnnotations(), castAnnos);
+
         if (result) {
             return CastSafeKind.SAFE;
         } else if (flagEnabled) { // when the flag is enabled and it is not an upcast, return an
@@ -2482,8 +2495,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     protected CastSafeKind isSafeDowncast(
             AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
-        Set<AnnotationMirror> castAnnos = castType.getAnnotations();
-        Set<AnnotationMirror> exprAnnos = exprType.getAnnotations();
+        Set<AnnotationMirror> castAnnos = castType.getEffectiveAnnotations();
+        Set<AnnotationMirror> exprAnnos = exprType.getEffectiveAnnotations();
         QualifierHierarchy qualifierHierarchy = atypeFactory.getQualifierHierarchy();
 
         if (!qualifierHierarchy.isSubtype(castAnnos, exprAnnos)) { // not a downcast
