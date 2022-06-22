@@ -1095,7 +1095,7 @@ public abstract class AnnotatedTypeMirror {
          *
          * @param enclosingType the new enclosing type
          */
-        public void setEnclosingType(@Nullable AnnotatedDeclaredType enclosingType) {
+        /*package-private*/ void setEnclosingType(@Nullable AnnotatedDeclaredType enclosingType) {
             this.enclosingType = enclosingType;
         }
 
