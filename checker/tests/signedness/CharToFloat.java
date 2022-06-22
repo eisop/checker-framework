@@ -2,7 +2,9 @@
 
 public class CharToFloat {
     void castCharacter(Object o) {
+        // :: error: (cast.incompatible)
         floatParameter((Character) o);
+        // :: error: (cast.incompatible)
         doubleParameter((Character) o);
     }
 

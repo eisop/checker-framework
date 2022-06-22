@@ -142,6 +142,7 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.ElementFilter;
 import javax.tools.Diagnostic.Kind;
 
@@ -2364,11 +2365,16 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         if (!calledOnce) {
             CastSafeKind castResult = isTypeCastSafe(castType, exprType);
 
-            if (castResult == CastSafeKind.WARNING
-                    || castResult == CastSafeKind.ERROR) { // TODO: refine the error report
+            if (castResult == CastSafeKind.WARNING) {
                 checker.reportWarning(
                         typeCastTree,
                         "cast.unsafe",
+                        exprType.toString(true),
+                        castType.toString(true));
+            } else if (castResult == CastSafeKind.ERROR) {
+                checker.reportError(
+                        typeCastTree,
+                        "cast.incompatible",
                         exprType.toString(true),
                         castType.toString(true));
             }
@@ -2460,17 +2466,16 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
         }
 
-        //        // Return a warning in this case, as compiler will not report the unchecked
-        // warning in
-        //        // this case, and we cannot statically verify the subtype relation of the
-        // annotations.
-        //        if (castTypeKind == TypeKind.TYPEVAR && exprType.getKind() == TypeKind.TYPEVAR) {
-        //            TypeMirror castJavaType = castType.getUnderlyingType();
-        //            TypeMirror exprJavaType = exprType.getUnderlyingType();
-        //            if (TypesUtils.areSameTypeVariables(castJavaType, exprJavaType)) {
-        //                return CastSafeKind.WARNING;
-        //            }
-        //        }
+        // Return a warning in this case, as compiler will not report the unchecked warning in
+        // this case, and we cannot statically verify the subtype relation of the annotations.
+        if (castTypeKind == TypeKind.TYPEVAR && exprType.getKind() == TypeKind.TYPEVAR) {
+            TypeMirror castJavaType = castType.getUnderlyingType();
+            TypeMirror exprJavaType = exprType.getUnderlyingType();
+            if (TypesUtils.areSameTypeVariables(
+                    (TypeVariable) castJavaType, (TypeVariable) exprJavaType)) {
+                return CastSafeKind.WARNING;
+            }
+        }
 
         AnnotatedTypeMirror exprTypeWidened = atypeFactory.getWidenedType(exprType, castType);
         boolean result =

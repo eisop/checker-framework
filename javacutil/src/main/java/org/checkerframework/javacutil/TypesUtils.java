@@ -296,13 +296,12 @@ public final class TypesUtils {
     /**
      * Returns true iff the arguments are both the same type variables.
      *
-     * @param t1 a type
-     * @param t2 a type
+     * @param v1 a type variable
+     * @param v2 a type variable
      * @return whether the arguments are the same type variables
      */
-    public static boolean areSameTypeVariables(
-            TypeMirror t1, TypeMirror t2) { // TODO: a cheaper way of doing this?
-        return t1.toString().equals(t2.toString());
+    public static boolean areSameTypeVariables(TypeVariable v1, TypeVariable v2) {
+        return v1.asElement().getSimpleName() == v2.asElement().getSimpleName();
     }
 
     /// Predicates
