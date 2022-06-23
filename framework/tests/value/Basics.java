@@ -170,7 +170,7 @@ public class Basics {
         @IntVal({0, 1, 2}) int sc = (@IntVal({0, 1, 2}) int) input;
         // :: warning: (cast.unsafe)
         @IntVal({1}) int uc = (@IntVal({1}) int) input;
-        // :: warning: (cast.unsafe)
+        // :: error: (cast.incompatible)
         @IntVal({2}) int bc = (@IntVal({2}) int) input;
     }
 

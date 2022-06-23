@@ -318,7 +318,7 @@ public class ChapterExamples {
         o2 = o1; // {"lock"} and {} are not identical sets.
     }
 
-    @SuppressWarnings("lock:cast.unsafe")
+    @SuppressWarnings("lock:cast.incompatible")
     void someMethod2() {
         // A cast can be used if the user knows it is safe to do so.
         // However, the @SuppressWarnings must be added.
@@ -564,7 +564,7 @@ public class ChapterExamples {
 
     private static final Object NULL_KEY = new Object();
     // A guardsatisfied.location.disallowed error is issued for the cast.
-    @SuppressWarnings({"cast.unsafe", "guardsatisfied.location.disallowed"})
+    @SuppressWarnings({"cast.incompatible", "guardsatisfied.location.disallowed"})
     private static @GuardSatisfied(1) Object maskNull(@GuardSatisfied(1) Object key) {
         return (key == null ? (@GuardSatisfied(1) Object) NULL_KEY : key);
     }

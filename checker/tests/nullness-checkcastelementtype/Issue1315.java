@@ -13,7 +13,7 @@ public class Issue1315 {
 
         @SuppressWarnings("unchecked")
         T test1(@Nullable Object p) {
-            // :: warning: (cast.unsafe)
+            // :: error: (cast.incompatible)
             return (T) p;
         }
         // The Nullness Checker should not issue a cast.unsafe warning,

@@ -16,7 +16,7 @@ public class Issue1032 {
         return arg.map(Issue1032::castStringToNonNull);
     }
 
-    @SuppressWarnings("nullness")
+    @SuppressWarnings("nullness", "cast.unsafe")
     static <T> @NonNull T castTToNonNull(@Nullable T arg) {
         return (@NonNull T) arg;
     }

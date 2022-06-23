@@ -88,9 +88,9 @@ public class CastsNullness {
             // :: error: (assignment.type.incompatible)
             t = (@Nullable T) null;
             nt = (@Nullable T) null;
-            // :: warning: (cast.unsafe)
+            // :: error: (cast.incompatible)
             t = (T) null;
-            // :: warning: (cast.unsafe)
+            // :: error: (cast.incompatible)
             nt = (T) null;
         }
     }
