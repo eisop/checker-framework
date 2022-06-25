@@ -150,6 +150,33 @@ public interface QualifierHierarchy {
     }
 
     /**
+     * Tests whether all qualifiers in {@code qualifiers1} are comparable with the qualifier in the
+     * same hierarchy in {@code qualifiers2}.
+     *
+     * @param qualifiers1 set of qualifiers; exactly one per hierarchy
+     * @param qualifiers2 set of qualifiers; exactly one per hierarchy
+     * @return true iff all qualifiers in {@code qualifiers1} are comparable with qualifiers in
+     *     {@code qualifiers2}
+     */
+    default boolean isComparable(
+            Collection<? extends AnnotationMirror> qualifiers1,
+            Collection<? extends AnnotationMirror> qualifiers2) {
+        assertSameSize(qualifiers1, qualifiers2);
+        for (AnnotationMirror subQual : qualifiers1) {
+            AnnotationMirror superQual = findAnnotationInSameHierarchy(qualifiers2, subQual);
+            if (superQual == null) {
+                throw new BugInCF(
+                        "QualifierHierarchy: missing annotation in hierarchy %s. found: %s",
+                        subQual, StringsPlume.join(",", qualifiers2));
+            }
+            if (!isSubtype(subQual, superQual) && !isSubtype(superQual, subQual)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
      * Returns the least upper bound (LUB) of the qualifiers {@code qualifier1} and {@code
      * qualifier2}. Returns {@code null} if the qualifiers are not from the same qualifier
      * hierarchy.
