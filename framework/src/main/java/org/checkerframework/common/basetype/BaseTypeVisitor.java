@@ -2396,11 +2396,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * isUpcast
+     * Return true if it's an upcast (from the view of the qualifiers) and it's safe.
      *
      * @param castType castType
      * @param exprType exprType
-     * @return CastSafeKind
+     * @return Can return NOT_UPCAST, WARNING or SAFE CastSafeKind.
      */
     protected CastSafeKind isUpcast(AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
         QualifierHierarchy qualifierHierarchy = atypeFactory.getQualifierHierarchy();
@@ -2511,11 +2511,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * isSafeDowncast
+     * Return true if it's a downcast (from the view of the qualifiers) and the cast is safe.
      *
      * @param castType castType
      * @param exprType exprType
-     * @return CastSafeKind
+     * @return Can return SAFE, NOT_DOWNCAST or WARNING.
      */
     protected CastSafeKind isSafeDowncast(
             AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
@@ -2545,6 +2545,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         return CastSafeKind.WARNING;
     }
 
+    /**
+     * If it's an incomparable cast in terms of qualifiers, return ERROR by default. Subchecker can
+     * override this method to allow certain incomparable casts.
+     *
+     * @param castType castType
+     * @param exprType exprType
+     * @return CastSafeKind.ERROR if it's an incomparable cast.
+     */
     protected CastSafeKind isSafeIncomparableCast(
             AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
         return CastSafeKind.ERROR;
