@@ -2383,10 +2383,15 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     /** CastSafeKind */
     protected enum CastSafeKind {
+        /** The cast is safe */
         SAFE,
+        /** The cast is illegal */
         ERROR,
+        /** Cannot statically verify the cast, report a warning */
         WARNING,
+        /** It's not an upcast */
         NOT_UPCAST,
+        /** It's not a downcast */
         NOT_DOWNCAST
     }
 
@@ -2472,16 +2477,22 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             TypeVariable castTV = (TypeVariable) castType.getUnderlyingType();
             TypeVariable exprTV = (TypeVariable) exprType.getUnderlyingType();
             if (TypesUtils.areSameTypeVariables(castTV, exprTV)) {
-                Set<AnnotationMirror> t1 =
+                Set<AnnotationMirror> castLower =
                         AnnotatedTypes.findEffectiveLowerBoundAnnotations(
                                 qualifierHierarchy, castType);
-                Set<AnnotationMirror> t2 =
+                Set<AnnotationMirror> exprLower =
+                        AnnotatedTypes.findEffectiveLowerBoundAnnotations(
+                                qualifierHierarchy, exprType);
+                Set<AnnotationMirror> castUpper =
+                        AnnotatedTypes.findEffectiveAnnotations(qualifierHierarchy, castType);
+                Set<AnnotationMirror> exprUpper =
                         AnnotatedTypes.findEffectiveAnnotations(qualifierHierarchy, exprType);
 
-                if (!qualifierHierarchy.isSubtype(t2, t1)) {
-                    return CastSafeKind.WARNING;
+                if (qualifierHierarchy.isSubtype(exprLower, castLower)
+                        && qualifierHierarchy.isSubtype(exprUpper, castUpper)) {
+                    return CastSafeKind.SAFE;
                 }
-                return CastSafeKind.SAFE;
+                return CastSafeKind.WARNING;
             }
         }
 
@@ -2491,9 +2502,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         if (result) {
             return CastSafeKind.SAFE;
-        } else if (checkCastElementType) { // when the flag is enabled and it is not an upcast,
-            // return an
-            // error
+        } else if (checkCastElementType) {
+            // when the flag is enabled, and it is not an upcast, return an error
             return CastSafeKind.WARNING;
         } else {
             return CastSafeKind.NOT_UPCAST;
