@@ -1,4 +1,4 @@
-Version 3.22.2-eisop1 (July ?, 2022)
+Version 3.23.0-eisop1 (July ?, 2022)
 ------------------------------------
 
 **User-visible changes:**
@@ -26,10 +26,15 @@ Improved the CFG type of implicit this receivers. (typetools#5174)
 eisop#270, typetools#5174, typetools#5189, eisop#281.
 
 
-Version 3.22.3 (July 1, 2022)
+Version 3.23.0 (July 1, 2022)
 -----------------------------
 
 **User-visible changes:**
+
+By default, command-line argument `-AstubWarnIfNotFound` is treated as true
+for stub files provided on the command line and false for built-in stub
+files.  Use `-AstubWarnIfNotFound` to enable it for all stub files, and use
+new `-AstubNoWarnIfNotFound` to disable it for all stub files.
 
 New command-line argument `-ApermitStaticOwning` suppresses Resource Leak
 Checker warnings related to static owning fields.
