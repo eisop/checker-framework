@@ -391,7 +391,7 @@ public class AnnotationFileElementTypes {
      *     does not appear in an annotation file.
      */
     public Set<AnnotationMirror> getDeclAnnotations(Element elt) {
-        if (parsing) {
+        if (parsing && elt.getKind() != ElementKind.PACKAGE) {
             return Collections.emptySet();
         }
 
