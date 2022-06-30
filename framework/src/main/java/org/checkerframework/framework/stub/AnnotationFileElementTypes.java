@@ -392,7 +392,8 @@ public class AnnotationFileElementTypes {
      */
     public Set<AnnotationMirror> getDeclAnnotations(Element elt) {
         // If currently parsing a file, return an empty set.
-        // The only exception is package because we always load package-info eagerly.
+        // The only exception is package because we always load package-info eagerly
+        // and there is no parent element to parse.
         if (parsing && elt.getKind() != ElementKind.PACKAGE) {
             return Collections.emptySet();
         }
