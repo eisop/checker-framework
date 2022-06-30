@@ -4180,12 +4180,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         // If parsing annotation files, return only the annotations in the element.
-        if (elt.getKind() != ElementKind.PACKAGE) {
-            if (stubTypes.isParsing()
-                    || ajavaTypes.isParsing()
-                    || (currentFileAjavaTypes != null && currentFileAjavaTypes.isParsing())) {
-                return results;
-            }
+        boolean isParsing =
+                stubTypes.isParsing()
+                        || ajavaTypes.isParsing()
+                        || (currentFileAjavaTypes != null && currentFileAjavaTypes.isParsing());
+        if (isParsing && elt.getKind() != ElementKind.PACKAGE) {
+            return results;
         }
 
         // Add annotations from annotation files.

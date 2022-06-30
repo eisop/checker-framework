@@ -3,6 +3,10 @@ Version 3.22.2-eisop1 (July ?, 2022)
 
 **User-visible changes:**
 
+Method `AnnotatedTypeFactory.getDeclAnnotations` should now return
+the parsed annotations for a package element. Previously, it could
+return an empty set when it's parsing another file.
+
 **Implementation details:**
 
 Method `CFAbstractTransfer.visitMethodInvocation` now only creates a
