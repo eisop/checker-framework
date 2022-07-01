@@ -398,14 +398,9 @@ def createCheckTypeTask(projectName, taskName, checker, args = []) {
         group 'Verification'
         // Always run the task.
         outputs.upToDateWhen { false }
+        source = project("${projectName}").sourceSets.main.java
         classpath = files(project("${projectName}").compileJava.classpath,project(':checker-qual').sourceSets.main.output)
         destinationDirectory = file("${buildDir}")
-
-        // Although this will not make javac process files in a deterministic order,
-        // the input order is deterministic and can be helpful for debugging.
-        def filesToCheck = new ArrayList<>(project("${projectName}").sourceSets.main.java.getFiles())
-        Collections.sort(filesToCheck, Comparator.comparing(File::getName))
-        source = filesToCheck
 
         options.annotationProcessorPath = files(project(':checker').tasks.shadowJar.archivePath)
         options.compilerArgs += [
