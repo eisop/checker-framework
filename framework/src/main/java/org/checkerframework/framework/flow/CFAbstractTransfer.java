@@ -1,9 +1,6 @@
 package org.checkerframework.framework.flow;
 
-import com.sun.source.tree.ClassTree;
-import com.sun.source.tree.ExpressionTree;
-import com.sun.source.tree.MethodTree;
-import com.sun.source.tree.Tree;
+import com.sun.source.tree.*;
 import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.interning.qual.InternedDistinct;
@@ -985,6 +982,37 @@ public abstract class CFAbstractTransfer<
           }
         }
         */
+        NewClassTree newClassTree = n.getTree();
+        ExecutableElement constructorElt = TreeUtils.getSuperConstructor(newClassTree);
+        ContractsFromMethod contractsUtils = analysis.atypeFactory.getContractsFromMethod();
+        Set<Postcondition> postconditions = contractsUtils.getPostconditions(constructorElt);
+        S store = p.getRegularStore();
+        StringToJavaExpression stringToJavaExpr =
+                stringExpr ->
+                        StringToJavaExpression.atConstructorInvocation(
+                                stringExpr, newClassTree, analysis.checker);
+        for (Contract pc : postconditions) {
+            AnnotationMirror anno =
+                    pc.viewpointAdaptDependentTypeAnnotation(
+                            analysis.atypeFactory, stringToJavaExpr, /*errorTree=*/ null);
+            String expressionString = pc.expressionString;
+            try {
+                JavaExpression je = stringToJavaExpr.toJavaExpression(expressionString);
+                store.insertOrRefinePermitNondeterministic(je, anno);
+            } catch (JavaExpressionParseException e) {
+                // report errors here
+                if (e.isFlowParseError()) {
+                    Object[] args = new Object[e.args.length + 1];
+                    args[0] =
+                            ElementUtils.getSimpleSignature(TreeUtils.elementFromUse(newClassTree));
+                    System.arraycopy(e.args, 0, args, 1, e.args.length);
+                    analysis.checker.reportError(
+                            newClassTree, "flowexpr.parse.error.postcondition", args);
+                } else {
+                    analysis.checker.report(newClassTree, e.getDiagMessage());
+                }
+            }
+        }
         return super.visitObjectCreation(n, p);
     }
 
