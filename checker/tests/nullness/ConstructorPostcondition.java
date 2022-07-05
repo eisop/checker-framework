@@ -6,7 +6,7 @@ public class ConstructorPostcondition {
         @Nullable Object f;
     }
 
-    // ::error: contracts.postcondition.not.satisfied
+    // ::error: (contracts.postcondition.not.satisfied)
     @EnsuresNonNull("#1.f")
     ConstructorPostcondition(Box b) {}
 
