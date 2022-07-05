@@ -1536,24 +1536,29 @@ public class ValueTransfer extends CFTransfer {
 
     @Override
     protected void processConditionalPostconditions(
-            MethodInvocationNode n,
+            Node n,
             ExecutableElement methodElement,
             Tree tree,
             CFStore thenStore,
             CFStore elseStore) {
+        // Process MethodInvocationNode only
+        if (!(n instanceof MethodInvocationNode)) {
+            return;
+        }
         // For String.startsWith(String) and String.endsWith(String), refine the minimum length
         // of the receiver to the minimum length of the argument.
-
         ValueMethodIdentifier methodIdentifier = atypeFactory.getMethodIdentifier();
         if (methodIdentifier.isStartsWithMethod(methodElement)
                 || methodIdentifier.isEndsWithMethod(methodElement)) {
 
-            Node argumentNode = n.getArgument(0);
+            Node argumentNode = ((MethodInvocationNode) n).getArgument(0);
             AnnotationMirror argumentAnno = getArrayOrStringAnnotation(argumentNode);
             int minLength = atypeFactory.getMinLenValue(argumentAnno);
             // Update the annotation of the receiver
             if (minLength != 0) {
-                JavaExpression receiver = JavaExpression.fromNode(n.getTarget().getReceiver());
+                JavaExpression receiver =
+                        JavaExpression.fromNode(
+                                ((MethodInvocationNode) n).getTarget().getReceiver());
 
                 AnnotationMirror minLenAnno =
                         atypeFactory.createArrayLenRangeAnnotation(minLength, Integer.MAX_VALUE);

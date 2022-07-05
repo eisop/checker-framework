@@ -1,6 +1,11 @@
 package org.checkerframework.framework.flow;
 
-import com.sun.source.tree.*;
+import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.ExpressionTree;
+import com.sun.source.tree.MethodInvocationTree;
+import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.NewClassTree;
+import com.sun.source.tree.Tree;
 import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.interning.qual.InternedDistinct;
@@ -987,6 +992,8 @@ public abstract class CFAbstractTransfer<
         ContractsFromMethod contractsUtils = analysis.atypeFactory.getContractsFromMethod();
         Set<Postcondition> postconditions = contractsUtils.getPostconditions(constructorElt);
         S store = p.getRegularStore();
+        // add new information based on postcondition
+        processPostconditions(n, store, constructorElt, newClassTree);
         StringToJavaExpression stringToJavaExpr =
                 stringExpr ->
                         StringToJavaExpression.atConstructorInvocation(
@@ -1144,66 +1151,65 @@ public abstract class CFAbstractTransfer<
     /**
      * Add information from the postconditions of a method to the store after an invocation.
      *
-     * @param invocationNode a method call
+     * @param n a method call or an object creation
      * @param store a store; is side-effected by this method
      * @param methodElement the method being called
-     * @param invocationTree the tree for the method call
+     * @param tree the tree for the method call or for the object creation
      */
     protected void processPostconditions(
-            MethodInvocationNode invocationNode,
-            S store,
-            ExecutableElement methodElement,
-            Tree invocationTree) {
+            Node n, S store, ExecutableElement methodElement, Tree tree) {
         ContractsFromMethod contractsUtils = analysis.atypeFactory.getContractsFromMethod();
         Set<Postcondition> postconditions = contractsUtils.getPostconditions(methodElement);
-        processPostconditionsAndConditionalPostconditions(
-                invocationNode, invocationTree, store, null, postconditions);
+        processPostconditionsAndConditionalPostconditions(n, tree, store, null, postconditions);
     }
 
     /**
      * Add information from the conditional postconditions of a method to the stores after an
      * invocation.
      *
-     * @param invocationNode a method call
+     * @param n a method call or an object creation node
      * @param methodElement the method being called
-     * @param invocationTree the tree for the method call
+     * @param tree the tree for the method call or for the object creation
      * @param thenStore the "then" store; is side-effected by this method
      * @param elseStore the "else" store; is side-effected by this method
      */
     protected void processConditionalPostconditions(
-            MethodInvocationNode invocationNode,
-            ExecutableElement methodElement,
-            Tree invocationTree,
-            S thenStore,
-            S elseStore) {
+            Node n, ExecutableElement methodElement, Tree tree, S thenStore, S elseStore) {
         ContractsFromMethod contractsUtils = analysis.atypeFactory.getContractsFromMethod();
         Set<ConditionalPostcondition> conditionalPostconditions =
                 contractsUtils.getConditionalPostconditions(methodElement);
         processPostconditionsAndConditionalPostconditions(
-                invocationNode, invocationTree, thenStore, elseStore, conditionalPostconditions);
+                n, tree, thenStore, elseStore, conditionalPostconditions);
     }
 
     /**
      * Add information from the postconditions and conditional postconditions of a method to the
      * stores after an invocation.
      *
-     * @param invocationNode a method call
-     * @param invocationTree the tree for the method call
+     * @param n a method call node or an object creation node
+     * @param tree the tree for the method call or for the object creation
      * @param thenStore the "then" store; is side-effected by this method
      * @param elseStore the "else" store; is side-effected by this method
      * @param postconditions the postconditions
      */
     private void processPostconditionsAndConditionalPostconditions(
-            MethodInvocationNode invocationNode,
-            Tree invocationTree,
-            S thenStore,
-            S elseStore,
-            Set<? extends Contract> postconditions) {
+            Node n, Tree tree, S thenStore, S elseStore, Set<? extends Contract> postconditions) {
 
-        StringToJavaExpression stringToJavaExpr =
-                stringExpr ->
-                        StringToJavaExpression.atMethodInvocation(
-                                stringExpr, invocationNode, analysis.checker);
+        StringToJavaExpression stringToJavaExpr = null;
+        if (n instanceof MethodInvocationNode) {
+            stringToJavaExpr =
+                    stringExpr ->
+                            StringToJavaExpression.atMethodInvocation(
+                                    stringExpr, (MethodInvocationNode) n, analysis.checker);
+        }
+
+        if (n instanceof ObjectCreationNode) {
+            stringToJavaExpr =
+                    stringExpr ->
+                            StringToJavaExpression.atConstructorInvocation(
+                                    stringExpr, (NewClassTree) tree, analysis.checker);
+        }
+
         for (Contract p : postconditions) {
             // Viewpoint-adapt to the method use (the call site).
             AnnotationMirror anno =
@@ -1231,14 +1237,22 @@ public abstract class CFAbstractTransfer<
                 // report errors here
                 if (e.isFlowParseError()) {
                     Object[] args = new Object[e.args.length + 1];
-                    args[0] =
-                            ElementUtils.getSimpleSignature(
-                                    TreeUtils.elementFromUse(invocationNode.getTree()));
+                    if (n instanceof MethodInvocationNode) {
+                        args[0] =
+                                ElementUtils.getSimpleSignature(
+                                        TreeUtils.elementFromUse((MethodInvocationTree) tree));
+                    }
+
+                    if (n instanceof ObjectCreationNode) {
+                        args[0] =
+                                ElementUtils.getSimpleSignature(
+                                        TreeUtils.elementFromUse((NewClassTree) tree));
+                    }
+
                     System.arraycopy(e.args, 0, args, 1, e.args.length);
-                    analysis.checker.reportError(
-                            invocationTree, "flowexpr.parse.error.postcondition", args);
+                    analysis.checker.reportError(tree, "flowexpr.parse.error.postcondition", args);
                 } else {
-                    analysis.checker.report(invocationTree, e.getDiagMessage());
+                    analysis.checker.report(tree, e.getDiagMessage());
                 }
             }
         }
