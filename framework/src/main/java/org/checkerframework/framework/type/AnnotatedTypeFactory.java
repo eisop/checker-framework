@@ -270,8 +270,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     private final @Nullable WholeProgramInference wholeProgramInference;
     */
 
-    /** Viewpoint adapter used to perform viewpoint adaptation */
-    protected ViewpointAdapter viewpointAdapter;
+    /** Viewpoint adapter used to perform viewpoint adaptation or null */
+    protected @Nullable ViewpointAdapter viewpointAdapter;
 
     /**
      * This formatter is used for converting AnnotatedTypeMirrors to Strings. This formatter will be
@@ -1042,10 +1042,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Factory method to create a ViewpointAdaptor. Subclasses should implement and instantiate a
-     * ViewpointAdapter subclass here if viewpoint adaptation is needed for analysis.
+     * Factory method to create a ViewpointAdapter. Subclasses should implement and instantiate a
+     * ViewpointAdapter subclass if viewpoint adaptation is needed for a type system.
+     *
+     * @return viewpoint adapter to perform viewpoint adaptation or null
      */
-    protected ViewpointAdapter createViewpointAdapter() {
+    protected @Nullable ViewpointAdapter createViewpointAdapter() {
         return null;
     }
 
@@ -2334,7 +2336,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     public ParameterizedExecutableType methodFromUse(
             ExpressionTree tree, ExecutableElement methodElt, AnnotatedTypeMirror receiverType) {
-
         AnnotatedExecutableType memberTypeWithoutOverrides =
                 getAnnotatedType(methodElt); // get unsubstituted type
         AnnotatedExecutableType memberTypeWithOverrides =

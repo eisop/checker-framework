@@ -35,18 +35,24 @@ import javax.lang.model.type.TypeKind;
  * <p>Subclasses implement the computation of the precise viewpoint adapted type given a receiver
  * type and a declared type, and implement how to extract the qualifier given an ATM.
  */
-@SuppressWarnings("PublicConstructorForAbstractClass")
 public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
 
-    // This prevents calling combineTypeWithType on type variable if it is an upper bound
-    // of another type variable. We only viewpoint adapt type variable that is not upper-bound.
+    /**
+     * True iff we are adapting type variable bounds. This prevents calling combineTypeWithType on
+     * type variable if it is an upper bound of another type variable. We only viewpoint adapt a
+     * type variable that is not an upper-bound.
+     */
     private boolean isTypeVarExtends = false;
 
     /** The annotated type factory. */
     protected final AnnotatedTypeFactory atypeFactory;
 
-    /** The class constructor. */
-    public AbstractViewpointAdapter(final AnnotatedTypeFactory atypeFactory) {
+    /**
+     * Construct an abstract viewpoint adapter with the given type factory.
+     *
+     * @param atypeFactory the type factory to use
+     */
+    protected AbstractViewpointAdapter(final AnnotatedTypeFactory atypeFactory) {
         this.atypeFactory = atypeFactory;
     }
 
@@ -184,7 +190,12 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         methodType.setTypeVariables(unsubstitutedMethodType.getTypeVariables());
     }
 
-    /** Check if the method invocation should be adapted. */
+    /**
+     * Determine if an invocation of the given method needs to be adapted.
+     *
+     * @param element the executable element for a method
+     * @return true if an invocation of the executable element needs to be adapted
+     */
     protected boolean shouldAdaptMethod(ExecutableElement element) {
         return !ElementUtils.isStatic(element);
     }
@@ -193,8 +204,8 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
     public void viewpointAdaptTypeParameterBounds(
             AnnotatedTypeMirror receiverType,
             List<AnnotatedTypeParameterBounds> typeParameterBounds) {
-
-        List<AnnotatedTypeParameterBounds> adaptedTypeParameterBounds = new ArrayList<>();
+        List<AnnotatedTypeParameterBounds> adaptedTypeParameterBounds =
+                new ArrayList<>(typeParameterBounds.size());
         for (AnnotatedTypeParameterBounds typeParameterBound : typeParameterBounds) {
             AnnotatedTypeMirror adaptedUpper =
                     combineTypeWithType(receiverType, typeParameterBound.getUpperBound());
@@ -234,16 +245,16 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
     }
 
     /**
-     * Extract qualifier from {@link AnnotatedTypeMirror}.
+     * Extract the relevant qualifier from an {@link AnnotatedTypeMirror}.
      *
      * @param atm AnnotatedTypeMirror from which qualifier is extracted
-     * @return qualifier extracted
+     * @return extracted qualifier
      */
     protected abstract AnnotationMirror extractAnnotationMirror(AnnotatedTypeMirror atm);
 
     /**
-     * Sub-procedure to combine receiver qualifiers with declared types. qualifiers are extracted
-     * from declared types to furthur perform viewpoint adaptation only between two qualifiers.
+     * Combine receiver qualifiers with declared types. Qualifiers are extracted from declared types
+     * to further perform viewpoint adaptation only between two qualifiers.
      *
      * @param receiverAnnotation receiver qualifier
      * @param declared declared type
@@ -361,7 +372,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             return ant;
         } else {
             throw new BugInCF(
-                    "ViewpointAdaptor::combineAnnotationWithType: Unknown decl: "
+                    "ViewpointAdapter::combineAnnotationWithType: Unknown decl: "
                             + declared
                             + " of kind: "
                             + declared.getKind());
@@ -380,8 +391,8 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             AnnotationMirror receiverAnnotation, AnnotationMirror declaredAnnotation);
 
     /**
-     * If rhs contains/is type variable use whose type arguments should be inferred from the
-     * receiver, i.e. lhs, this method substitutes that type argument into rhs, and return the
+     * If rhs contains/is a type variable use whose type arguments should be inferred from the
+     * receiver, i.e. lhs, this method substitutes that type argument into rhs, and returns the
      * reference to rhs. This method is side effect free, because rhs will be copied and that copy
      * gets modified and returned.
      *
@@ -445,7 +456,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             // nothing to do for primitive types and the null type
         } else {
             throw new BugInCF(
-                    "ViewpointAdaptor::substituteTVars: Cannot handle rhs: "
+                    "ViewpointAdapter::substituteTVars: Cannot handle rhs: "
                             + rhs
                             + " of kind: "
                             + rhs.getKind());
@@ -455,7 +466,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
     }
 
     /**
-     * Return actual type argument for formal type parameter "var" from 'type"
+     * Return actual type argument for formal type parameter "var" from "type"
      *
      * @param type type from which type arguments are extracted to replace "var"
      * @param var formal type parameter that needs real type arguments
@@ -478,7 +489,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
     }
 
     /**
-     * Find the index(position) of this type variable from type
+     * Find the index (position) of this type variable from type
      *
      * @param type type from which we infer actual type arguments
      * @param var formal type parameter

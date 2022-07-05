@@ -8,10 +8,10 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 
 /**
- * This interface defines the methods that must be implemented by a viewpoint adaptor utility class.
+ * A viewpoint adapter.
  *
- * <p>Standard viewpoint adaptation applies to member/field accesses, constructor invocations,
- * method invocations and type parameter instantiations.
+ * <p>Viewpoint adaptation applies to member/field accesses, constructor invocations, method
+ * invocations, and type parameter bound instantiations.
  */
 public interface ViewpointAdapter {
 
@@ -19,7 +19,7 @@ public interface ViewpointAdapter {
      * Viewpoint adapts a member/field access.
      *
      * <p>Developer notes: When this method is invoked on a member/field with a type given by a type
-     * parameter. The type arguments are correctly substituted, and memberType is already in a good
+     * parameter, the type arguments are correctly substituted, and memberType is already in a good
      * shape. Only annotations on the memberType should be replaced by the viewpoint adapted ones.
      *
      * @param receiverType receiver type through which the member/field is accessed.
