@@ -6,8 +6,8 @@ public class ConstructorPostcondition {
         @Nullable Object f;
     }
 
-    // ::error: (contracts.postcondition.not.satisfied)
     @EnsuresNonNull("#1.f")
+    // ::error: (contracts.postcondition.not.satisfied)
     ConstructorPostcondition(Box b) {}
 
     @EnsuresNonNull("#1.f")
