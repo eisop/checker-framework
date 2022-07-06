@@ -1729,14 +1729,29 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             return scan(mtree.getExpression(), null);
         } else {
             Element ele = TreeUtils.elementFromUse(tree);
-            TypeElement declaringClass = ElementUtils.enclosingTypeElement(ele);
-            TypeMirror type = ElementUtils.getType(declaringClass);
+            TypeElement declClassElem = ElementUtils.enclosingTypeElement(ele);
+            TypeMirror declClassType = ElementUtils.getType(declClassElem);
+
             if (ElementUtils.isStatic(ele)) {
-                ClassNameNode node = new ClassNameNode(type, declaringClass);
+                ClassNameNode node = new ClassNameNode(declClassType, declClassElem);
                 extendWithClassNameNode(node);
                 return node;
             } else {
-                Node node = new ImplicitThisNode(type);
+                TreePath enclClassPath = TreePathUtil.pathTillClass(getCurrentPath());
+                ClassTree enclClassTree = (ClassTree) enclClassPath.getLeaf();
+                TypeElement enclClassElem = TreeUtils.elementFromDeclaration(enclClassTree);
+                TypeMirror enclClassType = enclClassElem.asType();
+                while (!TypesUtils.isErasedSubtype(enclClassType, declClassType, types)) {
+                    enclClassPath = TreePathUtil.pathTillClass(enclClassPath.getParentPath());
+                    if (enclClassPath == null) {
+                        enclClassType = declClassType;
+                        break;
+                    }
+                    enclClassTree = (ClassTree) enclClassPath.getLeaf();
+                    enclClassElem = TreeUtils.elementFromDeclaration(enclClassTree);
+                    enclClassType = enclClassElem.asType();
+                }
+                Node node = new ImplicitThisNode(enclClassType);
                 extendWithNode(node);
                 return node;
             }
@@ -3428,9 +3443,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         Node node = new FieldAccessNode(tree, expr);
 
         Element element = TreeUtils.elementFromUse(tree);
-        if (ElementUtils.isStatic(element)
-                || expr instanceof ImplicitThisNode
-                || expr instanceof ExplicitThisNode) {
+        if (ElementUtils.isStatic(element) || expr instanceof ThisNode) {
             // No NullPointerException can be thrown, use normal node
             extendWithNode(node);
         } else {
