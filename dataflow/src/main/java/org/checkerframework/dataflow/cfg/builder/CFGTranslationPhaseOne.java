@@ -1727,35 +1727,37 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         if (tree.getKind() == Tree.Kind.MEMBER_SELECT) {
             MemberSelectTree mtree = (MemberSelectTree) tree;
             return scan(mtree.getExpression(), null);
-        } else {
-            Element ele = TreeUtils.elementFromUse(tree);
-            TypeElement declClassElem = ElementUtils.enclosingTypeElement(ele);
-            TypeMirror declClassType = ElementUtils.getType(declClassElem);
-
-            if (ElementUtils.isStatic(ele)) {
-                ClassNameNode node = new ClassNameNode(declClassType, declClassElem);
-                extendWithClassNameNode(node);
-                return node;
-            } else {
-                TreePath enclClassPath = TreePathUtil.pathTillClass(getCurrentPath());
-                ClassTree enclClassTree = (ClassTree) enclClassPath.getLeaf();
-                TypeElement enclClassElem = TreeUtils.elementFromDeclaration(enclClassTree);
-                TypeMirror enclClassType = enclClassElem.asType();
-                while (!TypesUtils.isErasedSubtype(enclClassType, declClassType, types)) {
-                    enclClassPath = TreePathUtil.pathTillClass(enclClassPath.getParentPath());
-                    if (enclClassPath == null) {
-                        enclClassType = declClassType;
-                        break;
-                    }
-                    enclClassTree = (ClassTree) enclClassPath.getLeaf();
-                    enclClassElem = TreeUtils.elementFromDeclaration(enclClassTree);
-                    enclClassType = enclClassElem.asType();
-                }
-                Node node = new ImplicitThisNode(enclClassType);
-                extendWithNode(node);
-                return node;
-            }
         }
+
+        // Access through an implicit receiver
+        Element ele = TreeUtils.elementFromUse(tree);
+        TypeElement declClassElem = ElementUtils.enclosingTypeElement(ele);
+        TypeMirror declClassType = ElementUtils.getType(declClassElem);
+
+        if (ElementUtils.isStatic(ele)) {
+            ClassNameNode node = new ClassNameNode(declClassType, declClassElem);
+            extendWithClassNameNode(node);
+            return node;
+        }
+
+        // Access through an implicit `this`
+        TreePath enclClassPath = TreePathUtil.pathTillClass(getCurrentPath());
+        ClassTree enclClassTree = (ClassTree) enclClassPath.getLeaf();
+        TypeElement enclClassElem = TreeUtils.elementFromDeclaration(enclClassTree);
+        TypeMirror enclClassType = enclClassElem.asType();
+        while (!TypesUtils.isErasedSubtype(enclClassType, declClassType, types)) {
+            enclClassPath = TreePathUtil.pathTillClass(enclClassPath.getParentPath());
+            if (enclClassPath == null) {
+                enclClassType = declClassType;
+                break;
+            }
+            enclClassTree = (ClassTree) enclClassPath.getLeaf();
+            enclClassElem = TreeUtils.elementFromDeclaration(enclClassTree);
+            enclClassType = enclClassElem.asType();
+        }
+        Node node = new ImplicitThisNode(enclClassType);
+        extendWithNode(node);
+        return node;
     }
 
     /**
