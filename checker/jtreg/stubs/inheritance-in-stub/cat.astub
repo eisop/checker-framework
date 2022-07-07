@@ -1,0 +1,5 @@
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+public class Cat extends Pet {
+    void playWith(@Nullable Pet other) {}
+}
