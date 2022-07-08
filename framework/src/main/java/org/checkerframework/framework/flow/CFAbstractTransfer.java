@@ -2,7 +2,6 @@ package org.checkerframework.framework.flow;
 
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ExpressionTree;
-import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
@@ -57,10 +56,7 @@ import org.checkerframework.framework.util.Contract.Precondition;
 import org.checkerframework.framework.util.ContractsFromMethod;
 import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
 import org.checkerframework.framework.util.StringToJavaExpression;
-import org.checkerframework.javacutil.ElementUtils;
-import org.checkerframework.javacutil.TreePathUtil;
-import org.checkerframework.javacutil.TreeUtils;
-import org.checkerframework.javacutil.TypesUtils;
+import org.checkerframework.javacutil.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1012,7 +1008,7 @@ public abstract class CFAbstractTransfer<
                }
         */
 
-        Tree invocationTree = n.getTree();
+        ExpressionTree invocationTree = n.getTree();
 
         // Determine the abstract value for the method call.
         // look up the call's value from factory
@@ -1129,7 +1125,7 @@ public abstract class CFAbstractTransfer<
      * @param tree the tree for the method call or for the object creation
      */
     protected void processPostconditions(
-            Node n, S store, ExecutableElement methodElement, Tree tree) {
+            Node n, S store, ExecutableElement methodElement, ExpressionTree tree) {
         ContractsFromMethod contractsUtils = analysis.atypeFactory.getContractsFromMethod();
         Set<Postcondition> postconditions = contractsUtils.getPostconditions(methodElement);
         processPostconditionsAndConditionalPostconditions(n, tree, store, null, postconditions);
@@ -1139,19 +1135,23 @@ public abstract class CFAbstractTransfer<
      * Add information from the conditional postconditions of a method to the stores after an
      * invocation.
      *
-     * @param n a method call or an object creation node
+     * @param invocationNode a method call
      * @param methodElement the method being called
-     * @param tree the tree for the method call or for the object creation
+     * @param invocationTree the tree for the method call
      * @param thenStore the "then" store; is side-effected by this method
      * @param elseStore the "else" store; is side-effected by this method
      */
     protected void processConditionalPostconditions(
-            Node n, ExecutableElement methodElement, Tree tree, S thenStore, S elseStore) {
+            MethodInvocationNode invocationNode,
+            ExecutableElement methodElement,
+            ExpressionTree invocationTree,
+            S thenStore,
+            S elseStore) {
         ContractsFromMethod contractsUtils = analysis.atypeFactory.getContractsFromMethod();
         Set<ConditionalPostcondition> conditionalPostconditions =
                 contractsUtils.getConditionalPostconditions(methodElement);
         processPostconditionsAndConditionalPostconditions(
-                n, tree, thenStore, elseStore, conditionalPostconditions);
+                invocationNode, invocationTree, thenStore, elseStore, conditionalPostconditions);
     }
 
     /**
@@ -1165,7 +1165,11 @@ public abstract class CFAbstractTransfer<
      * @param postconditions the postconditions
      */
     private void processPostconditionsAndConditionalPostconditions(
-            Node n, Tree tree, S thenStore, S elseStore, Set<? extends Contract> postconditions) {
+            Node n,
+            ExpressionTree tree,
+            S thenStore,
+            S elseStore,
+            Set<? extends Contract> postconditions) {
 
         StringToJavaExpression stringToJavaExpr = null;
         if (n instanceof MethodInvocationNode) {
@@ -1173,13 +1177,15 @@ public abstract class CFAbstractTransfer<
                     stringExpr ->
                             StringToJavaExpression.atMethodInvocation(
                                     stringExpr, (MethodInvocationNode) n, analysis.checker);
-        }
-
-        if (n instanceof ObjectCreationNode) {
+        } else if (n instanceof ObjectCreationNode) {
             stringToJavaExpr =
                     stringExpr ->
                             StringToJavaExpression.atConstructorInvocation(
                                     stringExpr, (NewClassTree) tree, analysis.checker);
+        } else {
+            throw new BugInCF(
+                    "Error passing other type of nodes into"
+                            + " processPostconditionsAndConditionalPostconditions");
         }
 
         for (Contract p : postconditions) {
@@ -1209,18 +1215,9 @@ public abstract class CFAbstractTransfer<
                 // report errors here
                 if (e.isFlowParseError()) {
                     Object[] args = new Object[e.args.length + 1];
-                    if (n instanceof MethodInvocationNode) {
-                        args[0] =
-                                ElementUtils.getSimpleSignature(
-                                        TreeUtils.elementFromUse((MethodInvocationTree) tree));
-                    }
-
-                    if (n instanceof ObjectCreationNode) {
-                        args[0] =
-                                ElementUtils.getSimpleSignature(
-                                        TreeUtils.elementFromUse((NewClassTree) tree));
-                    }
-
+                    args[0] =
+                            ElementUtils.getSimpleSignature(
+                                    (ExecutableElement) TreeUtils.elementFromUse(tree));
                     System.arraycopy(e.args, 0, args, 1, e.args.length);
                     analysis.checker.reportError(tree, "flowexpr.parse.error.postcondition", args);
                 } else {

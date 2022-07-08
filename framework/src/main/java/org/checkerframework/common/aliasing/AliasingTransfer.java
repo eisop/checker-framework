@@ -1,6 +1,6 @@
 package org.checkerframework.common.aliasing;
 
-import com.sun.source.tree.MethodInvocationTree;
+import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.Tree;
 
 import org.checkerframework.common.aliasing.qual.LeakedToResult;
@@ -22,6 +22,7 @@ import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.List;
@@ -84,17 +85,32 @@ public class AliasingTransfer extends CFTransfer {
      */
     @Override
     protected void processPostconditions(
-            Node n, CFStore store, ExecutableElement methodElement, Tree tree) {
+            Node n, CFStore store, ExecutableElement methodElement, ExpressionTree tree) {
         // Process MethodInvocation node only
-        if (!(n instanceof MethodInvocationNode)) {
-            return;
+        MethodInvocationNode methodInvocationNode = null;
+        ObjectCreationNode objectCreationNode = null;
+        if (n instanceof MethodInvocationNode) {
+            methodInvocationNode = (MethodInvocationNode) n;
+        } else if (n instanceof ObjectCreationNode) {
+            objectCreationNode = (ObjectCreationNode) n;
+        } else {
+            throw new BugInCF(
+                    "Error passing other type of nodes into"
+                            + " processPostconditions of AliasingTransfer");
         }
-        super.processPostconditions(n, store, methodElement, tree);
-        if (TreeUtils.isEnumSuper((MethodInvocationTree) n.getTree())) {
+        super.processPostconditions(
+                methodInvocationNode != null ? methodInvocationNode : objectCreationNode,
+                store,
+                methodElement,
+                tree);
+        if (methodInvocationNode != null && TreeUtils.isEnumSuper(methodInvocationNode.getTree())) {
             // Skipping the init() method for enums.
             return;
         }
-        List<Node> args = ((MethodInvocationNode) n).getArguments();
+        List<Node> args =
+                methodInvocationNode != null
+                        ? methodInvocationNode.getArguments()
+                        : objectCreationNode.getArguments();
         List<? extends VariableElement> params = methodElement.getParameters();
         assert (args.size() == params.size())
                 : "Number of arguments in "
@@ -116,12 +132,14 @@ public class AliasingTransfer extends CFTransfer {
         }
 
         // Now, doing the same as above for the receiver parameter
-        Node receiver = ((MethodInvocationNode) n).getTarget().getReceiver();
-        AnnotatedDeclaredType receiverType = annotatedType.getReceiverType();
-        if (receiverType != null
-                && !receiverType.hasAnnotation(LeakedToResult.class)
-                && !receiverType.hasAnnotation(NonLeaked.class)) {
-            store.clearValue(JavaExpression.fromNode(receiver));
+        if (methodInvocationNode != null) {
+            Node receiver = ((MethodInvocationNode) n).getTarget().getReceiver();
+            AnnotatedDeclaredType receiverType = annotatedType.getReceiverType();
+            if (receiverType != null
+                    && !receiverType.hasAnnotation(LeakedToResult.class)
+                    && !receiverType.hasAnnotation(NonLeaked.class)) {
+                store.clearValue(JavaExpression.fromNode(receiver));
+            }
         }
     }
 
