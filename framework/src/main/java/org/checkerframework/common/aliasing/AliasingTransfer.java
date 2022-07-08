@@ -112,7 +112,8 @@ public class AliasingTransfer extends CFTransfer {
                         ? methodInvocationNode.getArguments()
                         : objectCreationNode.getArguments();
         List<? extends VariableElement> params = methodElement.getParameters();
-        assert (args.size() == params.size())
+        // Only check MethodInvocationNode
+        assert (methodInvocationNode != null && args.size() == params.size())
                 : "Number of arguments in "
                         + "the method call "
                         + n
