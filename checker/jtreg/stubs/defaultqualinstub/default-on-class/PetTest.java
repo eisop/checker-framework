@@ -11,5 +11,9 @@ public class PetTest {
     void foo() {
         Cat c = new Cat();
         c.playWith(null);
+        Pet p = c;
+        // Currently, we trust the annotations in astub files.
+        // TODO: issue a warning for this unsound behavior
+        p.playWith(null);
     }
 }
