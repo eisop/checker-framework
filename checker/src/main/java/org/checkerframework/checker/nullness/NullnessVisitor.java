@@ -721,6 +721,15 @@ public class NullnessVisitor
 
     @Override
     public Void visitNewClass(NewClassTree node, Void p) {
+        Tree enclosingExpr = node.getEnclosingExpression();
+        if (enclosingExpr != null) {
+            AnnotatedDeclaredType type =
+                    (AnnotatedDeclaredType) atypeFactory.getAnnotatedType(enclosingExpr);
+            AnnotationMirror nullableAnno = type.getAnnotation(Nullable.class);
+            if (nullableAnno != null) {
+                checker.reportError(node, "nullness.on.receiver");
+            }
+        }
         AnnotatedDeclaredType type = atypeFactory.getAnnotatedType(node);
         ExpressionTree identifier = node.getIdentifier();
         if (identifier instanceof AnnotatedTypeTree) {
