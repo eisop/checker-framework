@@ -95,14 +95,12 @@ public class AliasingTransfer extends CFTransfer {
             objectCreationNode = (ObjectCreationNode) n;
         } else {
             throw new BugInCF(
-                    "Error passing other type of nodes into"
-                            + " processPostconditions of AliasingTransfer");
+                    "Error passing other type of node"
+                            + n.getClass().getSimpleName()
+                            + " into processPostconditions of AliasingTransfer,"
+                            + " expecting MethodInvocationNode or ObjectCreationNode");
         }
-        super.processPostconditions(
-                methodInvocationNode != null ? methodInvocationNode : objectCreationNode,
-                store,
-                methodElement,
-                tree);
+        super.processPostconditions(n, store, methodElement, tree);
         if (methodInvocationNode != null && TreeUtils.isEnumSuper(methodInvocationNode.getTree())) {
             // Skipping the init() method for enums.
             return;
@@ -113,14 +111,15 @@ public class AliasingTransfer extends CFTransfer {
                         : objectCreationNode.getArguments();
         List<? extends VariableElement> params = methodElement.getParameters();
         // Only check MethodInvocationNode
-        assert (methodInvocationNode != null && args.size() == params.size())
-                : "Number of arguments in "
-                        + "the method call "
-                        + n
-                        + " is different from the"
-                        + " number of parameters for the method declaration: "
-                        + methodElement.getSimpleName();
-
+        if (methodInvocationNode != null) {
+            assert (args.size() == params.size())
+                    : "Number of arguments in "
+                            + "the method call "
+                            + n
+                            + " is different from the"
+                            + " number of parameters for the method declaration: "
+                            + methodElement.getSimpleName();
+        }
         AnnotatedExecutableType annotatedType = factory.getAnnotatedType(methodElement);
         List<AnnotatedTypeMirror> paramTypes = annotatedType.getParameterTypes();
         for (int i = 0; i < args.size(); i++) {
