@@ -46,6 +46,8 @@ Checker warnings related to field initialization.
 
 **Closed issues:**
 
+#4855, #5151, #5166, #5172, #5175, #5181, #5189.
+
 
 Version 3.22.2 (June 14, 2022)
 ------------------------------
