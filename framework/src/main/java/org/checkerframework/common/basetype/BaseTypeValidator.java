@@ -638,8 +638,8 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                             checker.reportError(
                                     tree.getTypeArguments().get(i),
                                     "type.invalid.super.wildcard",
-                                    wildcard.getExtendsBound(),
-                                    wildcard.getSuperBound());
+                                    wildcard.getSuperBound(),
+                                    wildcard.getExtendsBound());
                         }
                     }
                 }
