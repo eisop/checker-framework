@@ -33,13 +33,16 @@ public class StringCFGVisualizer<
     /** Stream to output String representation to. */
     protected PrintStream out;
 
+    /** Create a StringCFGVisualizer. */
+    public StringCFGVisualizer() {
+        out = System.out;
+    }
+
     @Override
     public void init(Map<String, Object> args) {
         super.init(args);
         PrintStream argout = (PrintStream) args.get("output");
-        if (argout == null) {
-            out = System.out;
-        } else {
+        if (argout != null) {
             out = argout;
         }
     }
