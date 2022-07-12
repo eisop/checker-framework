@@ -1,8 +1,8 @@
-1310 -> 1311
-1311 -> 1308
+2 -> 3
+3 -> 0
 
-1310:
-Before: NullnessStore#3090(
+2:
+Before: NullnessStore#1(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -10,8 +10,8 @@ Before: NullnessStore#3090(
 ~~~~~~~~~
 <entry>
 
-1311:
-Before: NullnessStore#3090(
+3:
+Before: NullnessStore#1(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -20,8 +20,8 @@ Before: NullnessStore#3090(
 ""   [ StringLiteral ]    > NV{@Initialized @NonNull, String, poly nn/n = f/f}
 (this).sf = ""   [ Assignment ]    > NV{@Initialized @NonNull, String, poly nn/n = f/f}
 
-1308:
-Before: NullnessStore#3091(
+0:
+Before: NullnessStore#2(
   Issue5174Super<S>.sf > NV{@Initialized @NonNull, String, poly nn/n = f/f}
   initialized fields = [sf]
   invariant fields = []
@@ -29,11 +29,11 @@ Before: NullnessStore#3091(
   isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
-1315 -> 1316
-1316 -> 1313
+7 -> 8
+8 -> 5
 
-1315:
-Before: NullnessStore#3095(
+7:
+Before: NullnessStore#6(
   in > NV{, S, poly nn/n = f/f}
   Issue5174Super<S>.sf > NV{@Initialized @NonNull, Object, poly nn/n = f/f}
   this.f > NV{, S, poly nn/n = f/f}
@@ -44,8 +44,8 @@ Before: NullnessStore#3095(
 ~~~~~~~~~
 <entry>
 
-1316:
-Before: NullnessStore#3095(
+8:
+Before: NullnessStore#6(
   in > NV{, S, poly nn/n = f/f}
   Issue5174Super<S>.sf > NV{@Initialized @NonNull, Object, poly nn/n = f/f}
   this.f > NV{, S, poly nn/n = f/f}
@@ -57,8 +57,8 @@ Before: NullnessStore#3095(
 in   [ LocalVariable ]    > NV{, S, poly nn/n = f/f}
 return in   [ Return ]    > NV{@FBCBottom @NonNull, boolean, poly nn/n = f/f}
 
-1313:
-Before: NullnessStore#3096(
+5:
+Before: NullnessStore#7(
   in > NV{, S, poly nn/n = f/f}
   Issue5174Super<S>.sf > NV{@Initialized @NonNull, Object, poly nn/n = f/f}
   this.f > NV{, S, poly nn/n = f/f}
@@ -68,15 +68,15 @@ Before: NullnessStore#3096(
   isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
-1321 -> 1322
-1322 -> 1323
-1323 -> 1324
-1323 -> 1320
-1323 -> 1320
-1324 -> 1319
+13 -> 14
+14 -> 15
+15 -> 16
+15 -> 12
+15 -> 12
+16 -> 11
 
-1321:
-Before: NullnessStore#3100(
+13:
+Before: NullnessStore#11(
   f > NV{, S, poly nn/n = f/f}
   Issue5174Super<S>.sf > NV{@Initialized @NonNull, Object, poly nn/n = f/f}
   initialized fields = [sf]
@@ -86,8 +86,8 @@ Before: NullnessStore#3100(
 ~~~~~~~~~
 <entry>
 
-1322:
-Before: NullnessStore#3100(
+14:
+Before: NullnessStore#11(
   f > NV{, S, poly nn/n = f/f}
   Issue5174Super<S>.sf > NV{@Initialized @NonNull, Object, poly nn/n = f/f}
   initialized fields = [sf]
@@ -98,8 +98,8 @@ Before: NullnessStore#3100(
 (this)   [ ImplicitThis ]
 (this).<init>   [ MethodAccess ]    > NV{@UnderInitialization @NonNull, Issue5174Super, poly nn/n = f/f}
 
-1323:
-Before: NullnessStore#3101(
+15:
+Before: NullnessStore#12(
   f > NV{, S, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Super, poly nn/n = f/f}
   Issue5174Super<S>.sf > NV{@Initialized @NonNull, Object, poly nn/n = f/f}
@@ -110,8 +110,8 @@ Before: NullnessStore#3101(
 ~~~~~~~~~
 (this).<init>()   [ MethodInvocation ]    > NV{@UnderInitialization @NonNull, Object, poly nn/n = f/f}
 
-1324:
-Before: NullnessStore#3102(
+16:
+Before: NullnessStore#13(
   f > NV{, S, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Super, poly nn/n = f/f}
   Issue5174Super<S>.sf > NV{@UnknownInitialization @NonNull, Object, poly nn/n = f/f}
@@ -128,8 +128,8 @@ this.f   [ FieldAccess ]
 this.f = f   [ Assignment ]    > NV{, S, poly nn/n = f/f}
 expression statement this.f = f   [ ExpressionStatement ]
 
-1320:
-Before: NullnessStore#3103(
+12:
+Before: NullnessStore#14(
   f > NV{, S, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Super, poly nn/n = f/f}
   Issue5174Super<S>.sf > NV{@Initialized @NonNull, Object, poly nn/n = f/f}
@@ -140,8 +140,8 @@ Before: NullnessStore#3103(
 ~~~~~~~~~
 <exceptional-exit>
 
-1319:
-Before: NullnessStore#3106(
+11:
+Before: NullnessStore#17(
   f > NV{, S, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Super, poly nn/n = f/f}
   Issue5174Super<S>.sf > NV{@UnknownInitialization @NonNull, Object, poly nn/n = f/f}
@@ -152,15 +152,15 @@ Before: NullnessStore#3106(
   isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
-1328 -> 1329
-1329 -> 1330
-1330 -> 1331
-1330 -> 1327
-1330 -> 1327
-1331 -> 1326
+20 -> 21
+21 -> 22
+22 -> 23
+22 -> 19
+22 -> 19
+23 -> 18
 
-1328:
-Before: NullnessStore#3114(
+20:
+Before: NullnessStore#25(
   f > NV{, T, poly nn/n = f/f}
   initialized fields = []
   invariant fields = []
@@ -169,8 +169,8 @@ Before: NullnessStore#3114(
 ~~~~~~~~~
 <entry>
 
-1329:
-Before: NullnessStore#3114(
+21:
+Before: NullnessStore#25(
   f > NV{, T, poly nn/n = f/f}
   initialized fields = []
   invariant fields = []
@@ -181,8 +181,8 @@ Before: NullnessStore#3114(
 (this).<init>   [ MethodAccess ]    > NV{@UnderInitialization(Issue5174Sub.class) @NonNull, Issue5174Sub, poly nn/n = f/f}
 f   [ LocalVariable ]    > NV{, T, poly nn/n = f/f}
 
-1330:
-Before: NullnessStore#3115(
+22:
+Before: NullnessStore#26(
   f > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   initialized fields = []
@@ -192,8 +192,8 @@ Before: NullnessStore#3115(
 ~~~~~~~~~
 (this).<init>(f)   [ MethodInvocation ]    > NV{@UnderInitialization @NonNull, Issue5174Super, poly nn/n = f/f}
 
-1331:
-Before: NullnessStore#3116(
+23:
+Before: NullnessStore#27(
   f > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   initialized fields = [f, sf]
@@ -203,8 +203,8 @@ Before: NullnessStore#3116(
 ~~~~~~~~~
 expression statement super(f)   [ ExpressionStatement ]
 
-1327:
-Before: NullnessStore#3119(
+19:
+Before: NullnessStore#30(
   f > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   initialized fields = []
@@ -214,8 +214,8 @@ Before: NullnessStore#3119(
 ~~~~~~~~~
 <exceptional-exit>
 
-1326:
-Before: NullnessStore#3122(
+18:
+Before: NullnessStore#33(
   f > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   initialized fields = [f, sf]
@@ -224,15 +224,15 @@ Before: NullnessStore#3122(
   isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
-1335 -> 1336
-1336 -> 1337
-1337 -> 1338
-1337 -> 1334
-1337 -> 1334
-1338 -> 1333
+27 -> 28
+28 -> 29
+29 -> 30
+29 -> 26
+29 -> 26
+30 -> 25
 
-1335:
-Before: NullnessStore#3129(
+27:
+Before: NullnessStore#40(
   in > NV{, T, poly nn/n = f/f}
   initialized fields = []
   invariant fields = []
@@ -241,8 +241,8 @@ Before: NullnessStore#3129(
 ~~~~~~~~~
 <entry>
 
-1336:
-Before: NullnessStore#3129(
+28:
+Before: NullnessStore#40(
   in > NV{, T, poly nn/n = f/f}
   initialized fields = []
   invariant fields = []
@@ -254,8 +254,8 @@ o   [ VariableDeclaration ]
 (this).methodInner   [ MethodAccess ]
 in   [ LocalVariable ]    > NV{, T, poly nn/n = f/f}
 
-1337:
-Before: NullnessStore#3130(
+29:
+Before: NullnessStore#41(
   in > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   initialized fields = []
@@ -265,8 +265,8 @@ Before: NullnessStore#3130(
 ~~~~~~~~~
 (this).methodInner(in)   [ MethodInvocation ]    > NV{, T, poly nn/n = f/f}
 
-1338:
-Before: NullnessStore#3131(
+30:
+Before: NullnessStore#42(
   in > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   initialized fields = []
@@ -276,8 +276,8 @@ Before: NullnessStore#3131(
 ~~~~~~~~~
 o = (this).methodInner(in)   [ Assignment ]    > NV{, T, poly nn/n = f/f}
 
-1334:
-Before: NullnessStore#3132(
+26:
+Before: NullnessStore#43(
   in > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   initialized fields = []
@@ -287,8 +287,8 @@ Before: NullnessStore#3132(
 ~~~~~~~~~
 <exceptional-exit>
 
-1333:
-Before: NullnessStore#3135(
+25:
+Before: NullnessStore#46(
   in > NV{, T, poly nn/n = f/f}
   o > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
@@ -298,15 +298,15 @@ Before: NullnessStore#3135(
   isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
-1342 -> 1343
-1343 -> 1344
-1344 -> 1345
-1344 -> 1341
-1344 -> 1341
-1345 -> 1340
+34 -> 35
+35 -> 36
+36 -> 37
+36 -> 33
+36 -> 33
+37 -> 32
 
-1342:
-Before: NullnessStore#3142(
+34:
+Before: NullnessStore#53(
   in > NV{, T, poly nn/n = f/f}
   initialized fields = []
   invariant fields = []
@@ -315,8 +315,8 @@ Before: NullnessStore#3142(
 ~~~~~~~~~
 <entry>
 
-1343:
-Before: NullnessStore#3142(
+35:
+Before: NullnessStore#53(
   in > NV{, T, poly nn/n = f/f}
   initialized fields = []
   invariant fields = []
@@ -328,8 +328,8 @@ this   [ ExplicitThis ]    > NV{@Initialized @NonNull, Issue5174Sub, poly nn/n =
 this.methodInner   [ MethodAccess ]
 in   [ LocalVariable ]    > NV{, T, poly nn/n = f/f}
 
-1344:
-Before: NullnessStore#3143(
+36:
+Before: NullnessStore#54(
   in > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   initialized fields = []
@@ -339,8 +339,8 @@ Before: NullnessStore#3143(
 ~~~~~~~~~
 this.methodInner(in)   [ MethodInvocation ]    > NV{, T, poly nn/n = f/f}
 
-1345:
-Before: NullnessStore#3144(
+37:
+Before: NullnessStore#55(
   in > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   initialized fields = []
@@ -350,8 +350,8 @@ Before: NullnessStore#3144(
 ~~~~~~~~~
 o = this.methodInner(in)   [ Assignment ]    > NV{, T, poly nn/n = f/f}
 
-1341:
-Before: NullnessStore#3145(
+33:
+Before: NullnessStore#56(
   in > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   initialized fields = []
@@ -361,8 +361,8 @@ Before: NullnessStore#3145(
 ~~~~~~~~~
 <exceptional-exit>
 
-1340:
-Before: NullnessStore#3148(
+32:
+Before: NullnessStore#59(
   in > NV{, T, poly nn/n = f/f}
   o > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
@@ -372,11 +372,11 @@ Before: NullnessStore#3148(
   isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
-1349 -> 1350
-1350 -> 1347
+41 -> 42
+42 -> 39
 
-1349:
-Before: NullnessStore#3155(
+41:
+Before: NullnessStore#66(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -384,8 +384,8 @@ Before: NullnessStore#3155(
 ~~~~~~~~~
 <entry>
 
-1350:
-Before: NullnessStore#3155(
+42:
+Before: NullnessStore#66(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -396,8 +396,8 @@ o   [ VariableDeclaration ]
 (this).f   [ FieldAccess ]    > NV{, T, poly nn/n = f/f}
 o = (this).f   [ Assignment ]    > NV{, T, poly nn/n = f/f}
 
-1347:
-Before: NullnessStore#3156(
+39:
+Before: NullnessStore#67(
   o > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   initialized fields = []
@@ -406,11 +406,11 @@ Before: NullnessStore#3156(
   isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
-1354 -> 1355
-1355 -> 1352
+46 -> 47
+47 -> 44
 
-1354:
-Before: NullnessStore#3160(
+46:
+Before: NullnessStore#71(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -418,8 +418,8 @@ Before: NullnessStore#3160(
 ~~~~~~~~~
 <entry>
 
-1355:
-Before: NullnessStore#3160(
+47:
+Before: NullnessStore#71(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -430,8 +430,8 @@ this   [ ExplicitThis ]    > NV{@Initialized @NonNull, Issue5174Sub, poly nn/n =
 this.f   [ FieldAccess ]    > NV{, T, poly nn/n = f/f}
 o = this.f   [ Assignment ]    > NV{, T, poly nn/n = f/f}
 
-1352:
-Before: NullnessStore#3161(
+44:
+Before: NullnessStore#72(
   o > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   initialized fields = []
@@ -440,29 +440,29 @@ Before: NullnessStore#3161(
   isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
-1359 -> 1360
-1360 -> 1361
-1361 -> 1362
-1361 -> 1358
-1361 -> 1358
-1361 -> 1358
-1361 -> 1358
-1362 -> 1363
-1363 -> 1364
-1363 -> 1358
-1363 -> 1358
-1363 -> 1358
-1363 -> 1358
-1364 -> 1365
-1365 -> 1366
-1365 -> 1358
-1365 -> 1358
-1365 -> 1358
-1365 -> 1358
-1366 -> 1357
+51 -> 52
+52 -> 53
+53 -> 54
+53 -> 50
+53 -> 50
+53 -> 50
+53 -> 50
+54 -> 55
+55 -> 56
+55 -> 50
+55 -> 50
+55 -> 50
+55 -> 50
+56 -> 57
+57 -> 58
+57 -> 50
+57 -> 50
+57 -> 50
+57 -> 50
+58 -> 49
 
-1359:
-Before: NullnessStore#3165(
+51:
+Before: NullnessStore#76(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -470,8 +470,8 @@ Before: NullnessStore#3165(
 ~~~~~~~~~
 <entry>
 
-1360:
-Before: NullnessStore#3165(
+52:
+Before: NullnessStore#76(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -480,8 +480,8 @@ Before: NullnessStore#3165(
 o   [ VariableDeclaration ]
 o   [ LocalVariable ]
 
-1361:
-Before: NullnessStore#3166(
+53:
+Before: NullnessStore#77(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -489,8 +489,8 @@ Before: NullnessStore#3166(
 ~~~~~~~~~
 Issue5174Super   [ ClassName ]
 
-1362:
-Before: NullnessStore#3167(
+54:
+Before: NullnessStore#78(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -501,8 +501,8 @@ o = Issue5174Super.sf   [ Assignment ]    > NV{@Initialized @NonNull, Object, po
 expression statement o = sf   [ ExpressionStatement ]
 o   [ LocalVariable ]
 
-1358:
-Before: NullnessStore#3168(
+50:
+Before: NullnessStore#79(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -510,8 +510,8 @@ Before: NullnessStore#3168(
 ~~~~~~~~~
 <exceptional-exit>
 
-1363:
-Before: NullnessStore#3175(
+55:
+Before: NullnessStore#86(
   o > NV{@Initialized @NonNull, Object, poly nn/n = f/f}
   Issue5174Super.class > NV{@UnknownInitialization @NonNull, Issue5174Super, poly nn/n = f/f}
   initialized fields = []
@@ -521,8 +521,8 @@ Before: NullnessStore#3175(
 ~~~~~~~~~
 Issue5174Sub   [ ClassName ]    > NV{@Initialized @NonNull, Issue5174Sub, poly nn/n = f/f}
 
-1364:
-Before: NullnessStore#3176(
+56:
+Before: NullnessStore#87(
   o > NV{@Initialized @NonNull, Object, poly nn/n = f/f}
   Issue5174Super.class > NV{@UnknownInitialization @NonNull, Issue5174Super, poly nn/n = f/f}
   initialized fields = []
@@ -535,8 +535,8 @@ o = Issue5174Sub.sf   [ Assignment ]    > NV{@Initialized @NonNull, Object, poly
 expression statement o = Issue5174Sub.sf   [ ExpressionStatement ]
 o   [ LocalVariable ]
 
-1365:
-Before: NullnessStore#3185(
+57:
+Before: NullnessStore#96(
   o > NV{@Initialized @NonNull, Object, poly nn/n = f/f}
   Issue5174Sub.class > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   Issue5174Super.class > NV{@UnknownInitialization @NonNull, Issue5174Super, poly nn/n = f/f}
@@ -547,8 +547,8 @@ Before: NullnessStore#3185(
 ~~~~~~~~~
 Issue5174Super   [ ClassName ]    > NV{@Initialized @NonNull, Issue5174Super, poly nn/n = f/f}
 
-1366:
-Before: NullnessStore#3186(
+58:
+Before: NullnessStore#97(
   o > NV{@Initialized @NonNull, Object, poly nn/n = f/f}
   Issue5174Sub.class > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   Issue5174Super.class > NV{@UnknownInitialization @NonNull, Issue5174Super, poly nn/n = f/f}
@@ -561,8 +561,8 @@ Issue5174Super.sf   [ FieldAccess ]    > NV{@Initialized @NonNull, Object, poly 
 o = Issue5174Super.sf   [ Assignment ]    > NV{@Initialized @NonNull, Object, poly nn/n = f/f}
 expression statement o = Issue5174Super.sf   [ ExpressionStatement ]
 
-1357:
-Before: NullnessStore#3195(
+49:
+Before: NullnessStore#106(
   o > NV{@Initialized @NonNull, Object, poly nn/n = f/f}
   Issue5174Sub.class > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   Issue5174Super.class > NV{@UnknownInitialization @NonNull, Issue5174Super, poly nn/n = f/f}
@@ -572,15 +572,15 @@ Before: NullnessStore#3195(
   isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
-1370 -> 1371
-1371 -> 1372
-1372 -> 1373
-1372 -> 1369
-1372 -> 1369
-1373 -> 1368
+62 -> 63
+63 -> 64
+64 -> 65
+64 -> 61
+64 -> 61
+65 -> 60
 
-1370:
-Before: NullnessStore#3206(
+62:
+Before: NullnessStore#117(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -588,8 +588,8 @@ Before: NullnessStore#3206(
 ~~~~~~~~~
 <entry>
 
-1371:
-Before: NullnessStore#3206(
+63:
+Before: NullnessStore#117(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -598,8 +598,8 @@ Before: NullnessStore#3206(
 (this)   [ ImplicitThis ]
 (this).<init>   [ MethodAccess ]    > NV{@UnderInitialization(Issue5174Sub.SubNested.class) @NonNull, SubNested, poly nn/n = f/f}
 
-1372:
-Before: NullnessStore#3207(
+64:
+Before: NullnessStore#118(
   this > NV{@UnknownInitialization @NonNull, SubNested, poly nn/n = f/f}
   initialized fields = []
   invariant fields = []
@@ -608,8 +608,8 @@ Before: NullnessStore#3207(
 ~~~~~~~~~
 (this).<init>()   [ MethodInvocation ]    > NV{@UnderInitialization @NonNull, Object, poly nn/n = f/f}
 
-1373:
-Before: NullnessStore#3208(
+65:
+Before: NullnessStore#119(
   this > NV{@UnknownInitialization @NonNull, SubNested, poly nn/n = f/f}
   this.<init>() > NV{@UnderInitialization @NonNull, Object, poly nn/n = f/f}
   initialized fields = []
@@ -619,8 +619,8 @@ Before: NullnessStore#3208(
 ~~~~~~~~~
 expression statement super()   [ ExpressionStatement ]
 
-1369:
-Before: NullnessStore#3209(
+61:
+Before: NullnessStore#120(
   this > NV{@UnknownInitialization @NonNull, SubNested, poly nn/n = f/f}
   initialized fields = []
   invariant fields = []
@@ -629,8 +629,8 @@ Before: NullnessStore#3209(
 ~~~~~~~~~
 <exceptional-exit>
 
-1368:
-Before: NullnessStore#3212(
+60:
+Before: NullnessStore#123(
   this > NV{@UnknownInitialization @NonNull, SubNested, poly nn/n = f/f}
   this.<init>() > NV{@UnderInitialization @NonNull, Object, poly nn/n = f/f}
   initialized fields = []
@@ -639,15 +639,15 @@ Before: NullnessStore#3212(
   isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
-1377 -> 1378
-1378 -> 1379
-1379 -> 1380
-1379 -> 1376
-1379 -> 1376
-1380 -> 1375
+69 -> 70
+70 -> 71
+71 -> 72
+71 -> 68
+71 -> 68
+72 -> 67
 
-1377:
-Before: NullnessStore#3219(
+69:
+Before: NullnessStore#130(
   in > NV{, T, poly nn/n = f/f}
   initialized fields = []
   invariant fields = []
@@ -656,8 +656,8 @@ Before: NullnessStore#3219(
 ~~~~~~~~~
 <entry>
 
-1378:
-Before: NullnessStore#3219(
+70:
+Before: NullnessStore#130(
   in > NV{, T, poly nn/n = f/f}
   initialized fields = []
   invariant fields = []
@@ -669,8 +669,8 @@ o   [ VariableDeclaration ]
 (this).methodInner   [ MethodAccess ]
 in   [ LocalVariable ]    > NV{, T, poly nn/n = f/f}
 
-1379:
-Before: NullnessStore#3220(
+71:
+Before: NullnessStore#131(
   in > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   initialized fields = []
@@ -680,8 +680,8 @@ Before: NullnessStore#3220(
 ~~~~~~~~~
 (this).methodInner(in)   [ MethodInvocation ]    > NV{, T, poly nn/n = f/f}
 
-1380:
-Before: NullnessStore#3221(
+72:
+Before: NullnessStore#132(
   in > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   initialized fields = []
@@ -691,8 +691,8 @@ Before: NullnessStore#3221(
 ~~~~~~~~~
 o = (this).methodInner(in)   [ Assignment ]    > NV{, T, poly nn/n = f/f}
 
-1376:
-Before: NullnessStore#3222(
+68:
+Before: NullnessStore#133(
   in > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   initialized fields = []
@@ -702,8 +702,8 @@ Before: NullnessStore#3222(
 ~~~~~~~~~
 <exceptional-exit>
 
-1375:
-Before: NullnessStore#3225(
+67:
+Before: NullnessStore#136(
   in > NV{, T, poly nn/n = f/f}
   o > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
@@ -713,25 +713,25 @@ Before: NullnessStore#3225(
   isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
-1384 -> 1385
-1385 -> 1386
-1386 -> 1388
-1386 -> 1383
-1386 -> 1383
-1386 -> 1383
-1386 -> 1383
-1388 -> 1390
-1388 -> 1383
-1390 -> 1391
-1390 -> 1383
-1391 -> 1392
-1392 -> 1393
-1392 -> 1383
-1392 -> 1383
-1393 -> 1382
+76 -> 77
+77 -> 78
+78 -> 80
+78 -> 75
+78 -> 75
+78 -> 75
+78 -> 75
+80 -> 82
+80 -> 75
+82 -> 83
+82 -> 75
+83 -> 84
+84 -> 85
+84 -> 75
+84 -> 75
+85 -> 74
 
-1384:
-Before: NullnessStore#3232(
+76:
+Before: NullnessStore#143(
   in > NV{, T, poly nn/n = f/f}
   initialized fields = []
   invariant fields = []
@@ -740,8 +740,8 @@ Before: NullnessStore#3232(
 ~~~~~~~~~
 <entry>
 
-1385:
-Before: NullnessStore#3232(
+77:
+Before: NullnessStore#143(
   in > NV{, T, poly nn/n = f/f}
   initialized fields = []
   invariant fields = []
@@ -750,8 +750,8 @@ Before: NullnessStore#3232(
 ~~~~~~~~~
 o   [ VariableDeclaration ]
 
-1386:
-Before: NullnessStore#3233(
+78:
+Before: NullnessStore#144(
   in > NV{, T, poly nn/n = f/f}
   initialized fields = []
   invariant fields = []
@@ -760,8 +760,8 @@ Before: NullnessStore#3233(
 ~~~~~~~~~
 Issue5174Sub   [ ClassName ]    > NV{@Initialized @NonNull, Issue5174Sub, poly nn/n = f/f}
 
-1388:
-Before: NullnessStore#3234(
+80:
+Before: NullnessStore#145(
   in > NV{, T, poly nn/n = f/f}
   initialized fields = []
   invariant fields = []
@@ -770,8 +770,8 @@ Before: NullnessStore#3234(
 ~~~~~~~~~
 Issue5174Sub.this   [ FieldAccess ]    > NV{@Initialized @NonNull, Issue5174Sub, poly nn/n = f/f}
 
-1383:
-Before: NullnessStore#3251(
+75:
+Before: NullnessStore#162(
   in > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   initialized fields = []
@@ -781,8 +781,8 @@ Before: NullnessStore#3251(
 ~~~~~~~~~
 <exceptional-exit>
 
-1390:
-Before: NullnessStore#3242(
+82:
+Before: NullnessStore#153(
   in > NV{, T, poly nn/n = f/f}
   Issue5174Sub.class > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   initialized fields = []
@@ -792,8 +792,8 @@ Before: NullnessStore#3242(
 ~~~~~~~~~
 Issue5174Sub.this.methodInner   [ MethodAccess ]
 
-1391:
-Before: NullnessStore#3245(
+83:
+Before: NullnessStore#156(
   in > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   Issue5174Sub.class > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
@@ -804,8 +804,8 @@ Before: NullnessStore#3245(
 ~~~~~~~~~
 in   [ LocalVariable ]    > NV{, T, poly nn/n = f/f}
 
-1392:
-Before: NullnessStore#3248(
+84:
+Before: NullnessStore#159(
   in > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   Issue5174Sub.class > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
@@ -816,8 +816,8 @@ Before: NullnessStore#3248(
 ~~~~~~~~~
 Issue5174Sub.this.methodInner(in)   [ MethodInvocation ]    > NV{, T, poly nn/n = f/f}
 
-1393:
-Before: NullnessStore#3249(
+85:
+Before: NullnessStore#160(
   in > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   Issue5174Sub.class > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
@@ -828,8 +828,8 @@ Before: NullnessStore#3249(
 ~~~~~~~~~
 o = Issue5174Sub.this.methodInner(in)   [ Assignment ]    > NV{, T, poly nn/n = f/f}
 
-1382:
-Before: NullnessStore#3254(
+74:
+Before: NullnessStore#165(
   in > NV{, T, poly nn/n = f/f}
   o > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
@@ -840,11 +840,11 @@ Before: NullnessStore#3254(
   isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
-1397 -> 1398
-1398 -> 1395
+89 -> 90
+90 -> 87
 
-1397:
-Before: NullnessStore#3265(
+89:
+Before: NullnessStore#176(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -852,8 +852,8 @@ Before: NullnessStore#3265(
 ~~~~~~~~~
 <entry>
 
-1398:
-Before: NullnessStore#3265(
+90:
+Before: NullnessStore#176(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -864,8 +864,8 @@ o   [ VariableDeclaration ]
 (this).f   [ FieldAccess ]    > NV{, T, poly nn/n = f/f}
 o = (this).f   [ Assignment ]    > NV{, T, poly nn/n = f/f}
 
-1395:
-Before: NullnessStore#3266(
+87:
+Before: NullnessStore#177(
   o > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   initialized fields = []
@@ -874,21 +874,21 @@ Before: NullnessStore#3266(
   isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
-1402 -> 1403
-1403 -> 1404
-1404 -> 1406
-1404 -> 1401
-1404 -> 1401
-1404 -> 1401
-1404 -> 1401
-1406 -> 1408
-1406 -> 1401
-1408 -> 1409
-1408 -> 1401
-1409 -> 1400
+94 -> 95
+95 -> 96
+96 -> 98
+96 -> 93
+96 -> 93
+96 -> 93
+96 -> 93
+98 -> 100
+98 -> 93
+100 -> 101
+100 -> 93
+101 -> 92
 
-1402:
-Before: NullnessStore#3270(
+94:
+Before: NullnessStore#181(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -896,8 +896,8 @@ Before: NullnessStore#3270(
 ~~~~~~~~~
 <entry>
 
-1403:
-Before: NullnessStore#3270(
+95:
+Before: NullnessStore#181(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -905,8 +905,8 @@ Before: NullnessStore#3270(
 ~~~~~~~~~
 o   [ VariableDeclaration ]
 
-1404:
-Before: NullnessStore#3271(
+96:
+Before: NullnessStore#182(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -914,8 +914,8 @@ Before: NullnessStore#3271(
 ~~~~~~~~~
 Issue5174Sub   [ ClassName ]    > NV{@Initialized @NonNull, Issue5174Sub, poly nn/n = f/f}
 
-1406:
-Before: NullnessStore#3272(
+98:
+Before: NullnessStore#183(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -923,8 +923,8 @@ Before: NullnessStore#3272(
 ~~~~~~~~~
 Issue5174Sub.this   [ FieldAccess ]    > NV{@Initialized @NonNull, Issue5174Sub, poly nn/n = f/f}
 
-1401:
-Before: NullnessStore#3273(
+93:
+Before: NullnessStore#184(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -932,8 +932,8 @@ Before: NullnessStore#3273(
 ~~~~~~~~~
 <exceptional-exit>
 
-1408:
-Before: NullnessStore#3280(
+100:
+Before: NullnessStore#191(
   Issue5174Sub.class > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   initialized fields = []
   invariant fields = []
@@ -942,8 +942,8 @@ Before: NullnessStore#3280(
 ~~~~~~~~~
 Issue5174Sub.this.f   [ FieldAccess ]    > NV{, T, poly nn/n = f/f}
 
-1409:
-Before: NullnessStore#3283(
+101:
+Before: NullnessStore#194(
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   Issue5174Sub.class > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   initialized fields = []
@@ -953,8 +953,8 @@ Before: NullnessStore#3283(
 ~~~~~~~~~
 o = Issue5174Sub.this.f   [ Assignment ]    > NV{, T, poly nn/n = f/f}
 
-1400:
-Before: NullnessStore#3286(
+92:
+Before: NullnessStore#197(
   o > NV{, T, poly nn/n = f/f}
   this > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   Issue5174Sub.class > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
@@ -964,29 +964,29 @@ Before: NullnessStore#3286(
   isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
-1413 -> 1414
-1414 -> 1415
-1415 -> 1416
-1415 -> 1412
-1415 -> 1412
-1415 -> 1412
-1415 -> 1412
-1416 -> 1417
-1417 -> 1418
-1417 -> 1412
-1417 -> 1412
-1417 -> 1412
-1417 -> 1412
-1418 -> 1419
-1419 -> 1420
-1419 -> 1412
-1419 -> 1412
-1419 -> 1412
-1419 -> 1412
-1420 -> 1411
+105 -> 106
+106 -> 107
+107 -> 108
+107 -> 104
+107 -> 104
+107 -> 104
+107 -> 104
+108 -> 109
+109 -> 110
+109 -> 104
+109 -> 104
+109 -> 104
+109 -> 104
+110 -> 111
+111 -> 112
+111 -> 104
+111 -> 104
+111 -> 104
+111 -> 104
+112 -> 103
 
-1413:
-Before: NullnessStore#3295(
+105:
+Before: NullnessStore#206(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -994,8 +994,8 @@ Before: NullnessStore#3295(
 ~~~~~~~~~
 <entry>
 
-1414:
-Before: NullnessStore#3295(
+106:
+Before: NullnessStore#206(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -1004,8 +1004,8 @@ Before: NullnessStore#3295(
 o   [ VariableDeclaration ]
 o   [ LocalVariable ]
 
-1415:
-Before: NullnessStore#3296(
+107:
+Before: NullnessStore#207(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -1013,8 +1013,8 @@ Before: NullnessStore#3296(
 ~~~~~~~~~
 Issue5174Super   [ ClassName ]
 
-1416:
-Before: NullnessStore#3297(
+108:
+Before: NullnessStore#208(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -1025,8 +1025,8 @@ o = Issue5174Super.sf   [ Assignment ]    > NV{@Initialized @NonNull, Object, po
 expression statement o = sf   [ ExpressionStatement ]
 o   [ LocalVariable ]
 
-1412:
-Before: NullnessStore#3298(
+104:
+Before: NullnessStore#209(
   initialized fields = []
   invariant fields = []
   isPolyNullNonNull = false
@@ -1034,8 +1034,8 @@ Before: NullnessStore#3298(
 ~~~~~~~~~
 <exceptional-exit>
 
-1417:
-Before: NullnessStore#3305(
+109:
+Before: NullnessStore#216(
   o > NV{@Initialized @NonNull, Object, poly nn/n = f/f}
   Issue5174Super.class > NV{@UnknownInitialization @NonNull, Issue5174Super, poly nn/n = f/f}
   initialized fields = []
@@ -1045,8 +1045,8 @@ Before: NullnessStore#3305(
 ~~~~~~~~~
 Issue5174Sub   [ ClassName ]    > NV{@Initialized @NonNull, Issue5174Sub, poly nn/n = f/f}
 
-1418:
-Before: NullnessStore#3306(
+110:
+Before: NullnessStore#217(
   o > NV{@Initialized @NonNull, Object, poly nn/n = f/f}
   Issue5174Super.class > NV{@UnknownInitialization @NonNull, Issue5174Super, poly nn/n = f/f}
   initialized fields = []
@@ -1059,8 +1059,8 @@ o = Issue5174Sub.sf   [ Assignment ]    > NV{@Initialized @NonNull, Object, poly
 expression statement o = Issue5174Sub.sf   [ ExpressionStatement ]
 o   [ LocalVariable ]
 
-1419:
-Before: NullnessStore#3315(
+111:
+Before: NullnessStore#226(
   o > NV{@Initialized @NonNull, Object, poly nn/n = f/f}
   Issue5174Sub.class > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   Issue5174Super.class > NV{@UnknownInitialization @NonNull, Issue5174Super, poly nn/n = f/f}
@@ -1071,8 +1071,8 @@ Before: NullnessStore#3315(
 ~~~~~~~~~
 Issue5174Super   [ ClassName ]    > NV{@Initialized @NonNull, Issue5174Super, poly nn/n = f/f}
 
-1420:
-Before: NullnessStore#3316(
+112:
+Before: NullnessStore#227(
   o > NV{@Initialized @NonNull, Object, poly nn/n = f/f}
   Issue5174Sub.class > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   Issue5174Super.class > NV{@UnknownInitialization @NonNull, Issue5174Super, poly nn/n = f/f}
@@ -1085,8 +1085,8 @@ Issue5174Super.sf   [ FieldAccess ]    > NV{@Initialized @NonNull, Object, poly 
 o = Issue5174Super.sf   [ Assignment ]    > NV{@Initialized @NonNull, Object, poly nn/n = f/f}
 expression statement o = Issue5174Super.sf   [ ExpressionStatement ]
 
-1411:
-Before: NullnessStore#3325(
+103:
+Before: NullnessStore#236(
   o > NV{@Initialized @NonNull, Object, poly nn/n = f/f}
   Issue5174Sub.class > NV{@UnknownInitialization @NonNull, Issue5174Sub, poly nn/n = f/f}
   Issue5174Super.class > NV{@UnknownInitialization @NonNull, Issue5174Super, poly nn/n = f/f}

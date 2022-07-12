@@ -1,9 +1,5 @@
-/*
- * @test
- * @summary Test case for Issue 5174 https://github.com/typetools/checker-framework/issues/5174
- *
- * @compile/ref=Issue5174.out -processor org.checkerframework.checker.nullness.NullnessChecker -Acfgviz=org.checkerframework.dataflow.cfg.visualize.StringCFGVisualizer -AassumeKeyFor Issue5174.java
- */
+// Test case for Issue 5174:
+// https://github.com/typetools/checker-framework/issues/5174
 
 class Issue5174Super<S> {
     S methodInner(S in) {
