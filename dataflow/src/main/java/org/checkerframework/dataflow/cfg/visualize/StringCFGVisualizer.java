@@ -17,6 +17,7 @@ import org.checkerframework.dataflow.expression.FieldAccess;
 import org.checkerframework.dataflow.expression.LocalVariable;
 import org.checkerframework.dataflow.expression.MethodCall;
 
+import java.io.PrintStream;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -29,6 +30,17 @@ public class StringCFGVisualizer<
                 V extends AbstractValue<V>, S extends Store<S>, T extends TransferFunction<V, S>>
         extends AbstractCFGVisualizer<V, S, T> {
 
+    protected PrintStream out;
+
+    @Override
+    public void init(Map<String, Object> args) {
+        super.init(args);
+        out = (PrintStream) args.get("output");
+        if (out == null) {
+            out = System.out;
+        }
+    }
+
     @Override
     public String getSeparator() {
         return "\n";
@@ -39,6 +51,15 @@ public class StringCFGVisualizer<
             ControlFlowGraph cfg, Block entry, @Nullable Analysis<V, S, T> analysis) {
         String stringGraph = visualizeGraph(cfg, entry, analysis);
         return Collections.singletonMap("stringGraph", stringGraph);
+    }
+
+    @Override
+    public Map<String, Object> visualizeWithAction(
+            ControlFlowGraph cfg, Block entry, @Nullable Analysis<V, S, T> analysis) {
+        Map<String, Object> vis = visualize(cfg, entry, analysis);
+        String stringGraph = (String) vis.get("stringGraph");
+        out.println(stringGraph);
+        return vis;
     }
 
     @SuppressWarnings("keyfor:enhancedfor.type.incompatible")
