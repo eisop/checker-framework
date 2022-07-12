@@ -723,7 +723,7 @@ public class NullnessVisitor
     public Void visitNewClass(NewClassTree node, Void p) {
         ExpressionTree enclosingExpr = node.getEnclosingExpression();
         if (enclosingExpr != null) {
-            checkForNullability(enclosingExpr, "nullness.on.receiver");
+            checkForNullability(enclosingExpr, DEREFERENCE_OF_NULLABLE);
         }
         AnnotatedDeclaredType type = atypeFactory.getAnnotatedType(node);
         ExpressionTree identifier = node.getIdentifier();
