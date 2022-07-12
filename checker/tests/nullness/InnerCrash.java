@@ -8,7 +8,7 @@ class InnerCrash {
     }
 
     static void foo() {
-        // ::error: (nullness.on.receiver)
+        // :: error: (nullness.on.receiver)
         Object o = getInnerCrash().new Inner();
     }
 }
