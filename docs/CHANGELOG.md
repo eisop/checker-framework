@@ -5,6 +5,11 @@ Version 3.22.2-eisop1 (July ?, 2022)
 
 **Implementation details:**
 
+Added support for viewpoint adaptation of types via the added
+ViewpointAdapter interface. This support is experimental and the API
+will change, in particular if the feature is fully integrated with
+the DependentTypesHelper.
+
 Method `AnnotatedTypeFactory.getDeclAnnotations` now returns the
 annotations for a package element. Previously, it returned an empty set
 when parsing another file. (eisop#270)
@@ -14,9 +19,11 @@ Method `CFAbstractTransfer.visitMethodInvocation` now only creates a
 Boolean. This avoids unnecessary duplication of many stores, reducing
 memory consumption.
 
+Improved the CFG type of implicit this receivers. (typetools#5174)
+
 **Closed issues:**
 
-eisop#270, typetools#5189.
+eisop#270, typetools#5174, typetools#5189, eisop#281.
 
 
 Version 3.22.2 (July 1, 2022)
