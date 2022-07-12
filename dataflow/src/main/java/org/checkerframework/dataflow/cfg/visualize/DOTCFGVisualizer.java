@@ -93,6 +93,9 @@ public class DOTCFGVisualizer<
             ControlFlowGraph cfg, Block entry, @Nullable Analysis<V, S, T> analysis) {
         Map<String, Object> vis = visualize(cfg, entry, analysis);
         String dotGraph = (String) vis.get("dotGraph");
+        if (dotGraph == null) {
+            throw new BugInCF("dotGraph key missing in visualize result!");
+        }
         String dotFileName = dotOutputFileName(cfg.underlyingAST);
 
         try {

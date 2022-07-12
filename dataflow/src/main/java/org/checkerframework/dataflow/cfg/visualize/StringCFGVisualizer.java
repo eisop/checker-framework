@@ -30,14 +30,17 @@ public class StringCFGVisualizer<
                 V extends AbstractValue<V>, S extends Store<S>, T extends TransferFunction<V, S>>
         extends AbstractCFGVisualizer<V, S, T> {
 
+    /** Stream to output String representation to. */
     protected PrintStream out;
 
     @Override
     public void init(Map<String, Object> args) {
         super.init(args);
-        out = (PrintStream) args.get("output");
-        if (out == null) {
+        PrintStream argout = (PrintStream) args.get("output");
+        if (argout == null) {
             out = System.out;
+        } else {
+            out = argout;
         }
     }
 
