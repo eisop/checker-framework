@@ -126,11 +126,11 @@ public class AliasingTransfer extends CFTransfer {
             AnnotatedTypeFactory.ParameterizedExecutableType fromUse =
                     factory.constructorFromUse((NewClassTree) tree);
             AnnotatedExecutableType invokedMethod = fromUse.executableType;
-            List<AnnotatedTypeMirror> objeectParams =
+            List<AnnotatedTypeMirror> objectParams =
                     AnnotatedTypes.adaptParameters(
                             factory, invokedMethod, ((NewClassTree) tree).getArguments());
             List<?> passedArgs = ((NewClassTree) tree).getArguments();
-            assert (passedArgs.size() == objeectParams.size())
+            assert (passedArgs.size() == objectParams.size())
                     : "Number of arguments in "
                             + "the object creation "
                             + n
