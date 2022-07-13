@@ -53,10 +53,6 @@ bounds of the resulting Java type to ensure annotations in the ATM are valid.
 Deprecated `AnnotatedTypeFactory.binaryTreeArgTypes(AnnotatedTypeMirror, AnnotatedTypeMirror)` in favor of
 `AnnotatedTypeFactory.binaryTreeArgTypes(BinaryTree)` and
 `AnnotatedTypeFactory.compoundAssignmentTreeArgTypes(CompoundAssignmentTree)`.
-=======
-Version 3.22.1 (June 1, 2022)
------------------------------
->>>>>>> 3471a2a88... Prepare for Checker Framework release 3.22.2
 
 **Closed issues:**
 
