@@ -3,20 +3,20 @@
 import org.checkerframework.checker.mustcall.qual.*;
 
 class Enclosing {
-  @InheritableMustCall("a")
-  static class Foo {
-    void a() {}
-  }
-
-  static class Nested {
-    // :: error: required.method.not.called
-    @Owning Foo foo;
-
-    @CreatesMustCallFor("this")
-    void initFoo() {
-      if (this.foo == null) {
-        this.foo = new Foo();
-      }
+    @InheritableMustCall("a")
+    static class Foo {
+        void a() {}
     }
-  }
+
+    static class Nested {
+        // :: error: required.method.not.called
+        @Owning Foo foo;
+
+        @CreatesMustCallFor("this")
+        void initFoo() {
+            if (this.foo == null) {
+                this.foo = new Foo();
+            }
+        }
+    }
 }
