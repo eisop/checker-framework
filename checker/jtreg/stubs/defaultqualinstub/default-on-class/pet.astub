@@ -1,8 +1,0 @@
-import org.checkerframework.framework.qual.DefaultQualifier;
-import org.checkerframework.framework.qual.TypeUseLocation;
-import org.checkerframework.checker.nullness.qual.Nullable;
-
-@DefaultQualifier(value = Nullable.class, locations = TypeUseLocation.PARAMETER)
-public class Pet {
-    void playWith(Pet other) {}
-}
