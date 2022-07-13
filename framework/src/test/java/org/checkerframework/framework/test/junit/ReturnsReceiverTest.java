@@ -1,10 +1,11 @@
 package org.checkerframework.framework.test.junit;
 
-import java.io.File;
-import java.util.List;
 import org.checkerframework.common.returnsreceiver.ReturnsReceiverChecker;
 import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
 import org.junit.runners.Parameterized.Parameters;
+
+import java.io.File;
+import java.util.List;
 
 /**
  * Test runner for tests of the Returns Receiver Checker.
@@ -13,12 +14,17 @@ import org.junit.runners.Parameterized.Parameters;
  * case, create a Java file in that directory.
  */
 public class ReturnsReceiverTest extends CheckerFrameworkPerDirectoryTest {
-  public ReturnsReceiverTest(List<File> testFiles) {
-    super(testFiles, ReturnsReceiverChecker.class, "returnsreceiver", "-Astubs=stubs/", "-nowarn");
-  }
+    public ReturnsReceiverTest(List<File> testFiles) {
+        super(
+                testFiles,
+                ReturnsReceiverChecker.class,
+                "returnsreceiver",
+                "-Astubs=stubs/",
+                "-nowarn");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"returnsreceiver", "all-systems"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"returnsreceiver", "all-systems"};
+    }
 }
