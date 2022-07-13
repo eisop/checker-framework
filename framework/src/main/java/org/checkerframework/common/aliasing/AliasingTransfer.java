@@ -1,6 +1,7 @@
 package org.checkerframework.common.aliasing;
 
 import com.sun.source.tree.ExpressionTree;
+import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
 
 import org.checkerframework.common.aliasing.qual.LeakedToResult;
@@ -22,6 +23,7 @@ import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TreeUtils;
 
@@ -95,10 +97,9 @@ public class AliasingTransfer extends CFTransfer {
             objectCreationNode = (ObjectCreationNode) n;
         } else {
             throw new BugInCF(
-                    "Error passing other type of node"
-                            + n.getClass().getSimpleName()
-                            + " into processPostconditions of AliasingTransfer,"
-                            + " expecting MethodInvocationNode or ObjectCreationNode");
+                    "processPostconditions in AliasingTransfer expects "
+                            + "a MethodInvocationNode or ObjectCreationNode argument; received a "
+                            + n.getClass().getSimpleName());
         }
         super.processPostconditions(n, store, methodElement, tree);
         if (methodInvocationNode != null && TreeUtils.isEnumSuper(methodInvocationNode.getTree())) {
@@ -115,6 +116,23 @@ public class AliasingTransfer extends CFTransfer {
             assert (args.size() == params.size())
                     : "Number of arguments in "
                             + "the method call "
+                            + n
+                            + " is different from the"
+                            + " number of parameters for the method declaration: "
+                            + methodElement.getSimpleName();
+        }
+        // use adaptParameters for object creation node
+        if (objectCreationNode != null) {
+            AnnotatedTypeFactory.ParameterizedExecutableType fromUse =
+                    factory.constructorFromUse((NewClassTree) tree);
+            AnnotatedExecutableType invokedMethod = fromUse.executableType;
+            List<AnnotatedTypeMirror> objeectParams =
+                    AnnotatedTypes.adaptParameters(
+                            factory, invokedMethod, ((NewClassTree) tree).getArguments());
+            List<?> passedArgs = ((NewClassTree) tree).getArguments();
+            assert (passedArgs.size() == objeectParams.size())
+                    : "Number of arguments in "
+                            + "the object creation "
                             + n
                             + " is different from the"
                             + " number of parameters for the method declaration: "
@@ -142,6 +160,8 @@ public class AliasingTransfer extends CFTransfer {
                 store.clearValue(JavaExpression.fromNode(receiver));
             }
         }
+        // TODO: also do the same for the receiver for objectCreationNode
+        // after the issue https://github.com/eisop/checker-framework/issues/282 is solved.
     }
 
     /**

@@ -1188,10 +1188,10 @@ public abstract class CFAbstractTransfer<
                                     stringExpr, (NewClassTree) tree, analysis.checker);
         } else {
             throw new BugInCF(
-                    "Error passing other type of node"
-                            + n.getClass().getSimpleName()
-                            + " into processPostconditionsAndConditionalPostconditions"
-                            + " expecting MethodInvocationNode or ObjectCreationNode");
+                    "processPostconditionsAndConditionalPostconditions in CFAbstractTransfer"
+                        + " expects a MethodInvocationNode or ObjectCreationNode argument; received"
+                        + " a "
+                            + n.getClass().getSimpleName());
         }
 
         for (Contract p : postconditions) {
