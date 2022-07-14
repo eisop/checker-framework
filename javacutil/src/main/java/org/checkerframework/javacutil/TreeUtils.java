@@ -1917,7 +1917,7 @@ public final class TreeUtils {
    * pattern.
    *
    * @param instanceOfTree the {@link InstanceOfTree} whose pattern is returned
-   * @return the {@code PatternTree} of {@code instanceOfTree} or null if is doesn't exist
+   * @return the {@code PatternTree} of {@code instanceOfTree} or null if it doesn't exist
    */
   public static @Nullable Tree instanceOfTreeGetPattern(InstanceOfTree instanceOfTree) {
     if (atLeastJava16) {
