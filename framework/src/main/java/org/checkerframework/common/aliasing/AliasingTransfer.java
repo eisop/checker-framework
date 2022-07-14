@@ -87,8 +87,7 @@ public class AliasingTransfer extends CFTransfer {
      */
     @Override
     protected void processPostconditions(
-            Node n, CFStore store, ExecutableElement methodElement, ExpressionTree tree) {
-        // Process MethodInvocation node only
+            Node n, CFStore store, ExecutableElement executableElement, ExpressionTree tree) {
         MethodInvocationNode methodInvocationNode = null;
         ObjectCreationNode objectCreationNode = null;
         if (n instanceof MethodInvocationNode) {
@@ -101,7 +100,7 @@ public class AliasingTransfer extends CFTransfer {
                             + "a MethodInvocationNode or ObjectCreationNode argument; received a "
                             + n.getClass().getSimpleName());
         }
-        super.processPostconditions(n, store, methodElement, tree);
+        super.processPostconditions(n, store, executableElement, tree);
         if (methodInvocationNode != null && TreeUtils.isEnumSuper(methodInvocationNode.getTree())) {
             // Skipping the init() method for enums.
             return;
@@ -110,7 +109,7 @@ public class AliasingTransfer extends CFTransfer {
                 methodInvocationNode != null
                         ? methodInvocationNode.getArguments()
                         : objectCreationNode.getArguments();
-        List<? extends VariableElement> params = methodElement.getParameters();
+        List<? extends VariableElement> params = executableElement.getParameters();
         // Only check MethodInvocationNode
         if (methodInvocationNode != null) {
             assert (args.size() == params.size())
@@ -119,7 +118,7 @@ public class AliasingTransfer extends CFTransfer {
                             + n
                             + " is different from the"
                             + " number of parameters for the method declaration: "
-                            + methodElement.getSimpleName();
+                            + executableElement.getSimpleName();
         }
         // use adaptParameters for object creation node
         if (objectCreationNode != null) {
@@ -136,9 +135,9 @@ public class AliasingTransfer extends CFTransfer {
                             + n
                             + " is different from the"
                             + " number of parameters for the method declaration: "
-                            + methodElement.getSimpleName();
+                            + executableElement.getSimpleName();
         }
-        AnnotatedExecutableType annotatedType = factory.getAnnotatedType(methodElement);
+        AnnotatedExecutableType annotatedType = factory.getAnnotatedType(executableElement);
         List<AnnotatedTypeMirror> paramTypes = annotatedType.getParameterTypes();
         if (args.size() == paramTypes.size()) {
             for (int i = 0; i < args.size(); i++) {
@@ -160,8 +159,8 @@ public class AliasingTransfer extends CFTransfer {
                 store.clearValue(JavaExpression.fromNode(receiver));
             }
         }
-        // TODO: also do the same for the receiver for objectCreationNode
-        // after the issue https://github.com/eisop/checker-framework/issues/282 is solved.
+        // TODO: do the same for the receiver of the objectCreationNode,
+        // after issue https://github.com/eisop/checker-framework/issues/282 is resolved.
     }
 
     /**
