@@ -1125,13 +1125,13 @@ public abstract class CFAbstractTransfer<
      *
      * @param n a method call or an object creation
      * @param store a store; is side-effected by this method
-     * @param methodElement the method being called
+     * @param executableElement the method being called or the new object
      * @param tree the tree for the method call or for the object creation
      */
     protected void processPostconditions(
-            Node n, S store, ExecutableElement methodElement, ExpressionTree tree) {
+            Node n, S store, ExecutableElement executableElement, ExpressionTree tree) {
         ContractsFromMethod contractsUtils = analysis.atypeFactory.getContractsFromMethod();
-        Set<Postcondition> postconditions = contractsUtils.getPostconditions(methodElement);
+        Set<Postcondition> postconditions = contractsUtils.getPostconditions(executableElement);
         processPostconditionsAndConditionalPostconditions(n, tree, store, null, postconditions);
     }
 

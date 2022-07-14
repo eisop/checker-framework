@@ -121,13 +121,11 @@ public class AliasingTransfer extends CFTransfer {
                             + executableElement.getSimpleName();
         }
         // use adaptParameters for object creation node
+        AnnotatedExecutableType annotatedType = factory.getAnnotatedType(executableElement);
         if (objectCreationNode != null) {
-            AnnotatedTypeFactory.ParameterizedExecutableType fromUse =
-                    factory.constructorFromUse((NewClassTree) tree);
-            AnnotatedExecutableType invokedMethod = fromUse.executableType;
             List<AnnotatedTypeMirror> objectParams =
                     AnnotatedTypes.adaptParameters(
-                            factory, invokedMethod, ((NewClassTree) tree).getArguments());
+                            factory, annotatedType, ((NewClassTree) tree).getArguments());
             List<?> passedArgs = ((NewClassTree) tree).getArguments();
             assert (passedArgs.size() == objectParams.size())
                     : "Number of arguments in "
@@ -137,7 +135,6 @@ public class AliasingTransfer extends CFTransfer {
                             + " number of parameters for the method declaration: "
                             + executableElement.getSimpleName();
         }
-        AnnotatedExecutableType annotatedType = factory.getAnnotatedType(executableElement);
         List<AnnotatedTypeMirror> paramTypes = annotatedType.getParameterTypes();
         if (args.size() == paramTypes.size()) {
             for (int i = 0; i < args.size(); i++) {
