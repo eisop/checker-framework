@@ -104,8 +104,7 @@ public class AnnotationFileElementTypes {
     this.annotationFileAnnos = new AnnotationFileAnnotations();
     this.parsingCount = 0;
     String release = SystemUtil.getReleaseValue(factory.getProcessingEnv());
-    this.annotatedJdkVersion =
-        release != null ? release : String.valueOf(SystemUtil.getJreVersion());
+    this.annotatedJdkVersion = release != null ? release : String.valueOf(SystemUtil.jreVersion);
 
     this.shouldParseJdk = !factory.getChecker().hasOption("ignorejdkastub");
     this.parseAllJdkFiles = factory.getChecker().hasOption("parseAllJdk");

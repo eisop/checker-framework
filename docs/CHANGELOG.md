@@ -1,5 +1,15 @@
-Version 3.23.0-eisop3 (July ?, 2022)
-------------------------------------
+Version 3.24.0-eisop1 (August 5, 2022)
+--------------------------------------
+
+**User-visible changes:**
+
+**Implementation details:**
+
+**Closed issues:**
+
+
+Version 3.24.0 (??)
+-------------------
 
 **User-visible changes:**
 
@@ -50,6 +60,12 @@ Improved the CFG type of implicit this receivers. (typetools#5174)
 
 eisop#270, eisop#281, typetools#5174, typetools#5189.
 
+=======
+Prefer `SystemUtil.jreVersion` to `SystemUtil.getJreVersion()`.
+
+**Closed issues:**
+
+>>>>>>> c37aff5ef... Prefer `SystemUtil.jreVersion` to `SystemUtil.getJreVersion()`
 
 Version 3.23.0 (July 11, 2022)
 ------------------------------
