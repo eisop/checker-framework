@@ -200,6 +200,14 @@ public abstract class AbstractAnalysis<
             assert !n.isLValue() : "Did not expect an lvalue, but got " + n;
             if (!currentNode.getOperands().contains(n)
                     && !currentNode.getTransitiveOperands().contains(n)) {
+                if (n instanceof AssignmentNode) {
+                    Node expr = ((AssignmentNode) n).getExpression();
+                    Node target = ((AssignmentNode) n).getTarget();
+                    if (currentNode.getOperands().contains(target)
+                            || currentNode.getTransitiveOperands().contains(target)) {
+                        return nodeValues.get(expr);
+                    }
+                }
                 return null;
             }
             // fall through when the current node is not 'n', and 'n' is not a subnode.
