@@ -2942,15 +2942,15 @@ public class AnnotationFileParser {
         if (stored == null) {
             annotationFileAnnos.declAnnos.put(key, new HashSet<>(annos));
         } else {
-            if (fileType != AnnotationFileType.JDK_STUB) {
-                stored.addAll(annos);
-            } else {
-                // JDK annotations should not replace any annotation of the same type.
-                List<AnnotationMirror> origStored = new ArrayList<>(stored);
-                for (AnnotationMirror anno : annos) {
-                    if (!AnnotationUtils.containsSameByName(origStored, anno)) {
-                        stored.add(anno);
-                    }
+            // JDK annotations should not replace any annotation of the same type.
+            List<AnnotationMirror> origStored = new ArrayList<>(stored);
+            for (AnnotationMirror anno : annos) {
+                AnnotationMirror sameAnno = AnnotationUtils.getSameByName(origStored, anno);
+                if (sameAnno == null) {
+                    stored.add(anno);
+                } else if (fileType != AnnotationFileType.JDK_STUB) {
+                    stored.remove(sameAnno);
+                    stored.add(anno);
                 }
             }
         }

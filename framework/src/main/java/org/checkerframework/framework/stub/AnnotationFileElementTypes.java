@@ -37,6 +37,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -95,6 +96,12 @@ public class AnnotationFileElementTypes {
     private final boolean parseAllJdkFiles;
 
     /**
+     * Stores the fully qualified name of classes that are currently being parsed in {@link
+     * #parseEnclosingClass}
+     */
+    private final Set<String> processingClasses;
+
+    /**
      * Creates an empty annotation source.
      *
      * @param factory AnnotatedTypeFactory
@@ -109,6 +116,8 @@ public class AnnotationFileElementTypes {
 
         this.shouldParseJdk = !factory.getChecker().hasOption("ignorejdkastub");
         this.parseAllJdkFiles = factory.getChecker().hasOption("parseAllJdk");
+
+        this.processingClasses = new LinkedHashSet<>();
     }
 
     /**
@@ -356,9 +365,6 @@ public class AnnotationFileElementTypes {
      *     does not appear in an annotation file.
      */
     public AnnotatedTypeMirror getAnnotatedTypeMirror(Element e) {
-        if (parsing) {
-            return null;
-        }
         parseEnclosingClass(e);
         AnnotatedTypeMirror type = annotationFileAnnos.atypes.get(e);
         return type == null ? null : type.deepCopy();
@@ -391,10 +397,6 @@ public class AnnotationFileElementTypes {
      *     does not appear in an annotation file.
      */
     public Set<AnnotationMirror> getDeclAnnotations(Element elt) {
-        if (parsing) {
-            return Collections.emptySet();
-        }
-
         parseEnclosingClass(elt);
         String eltName = ElementUtils.getQualifiedName(elt);
         if (annotationFileAnnos.declAnnos.containsKey(eltName)) {
@@ -625,15 +627,23 @@ public class AnnotationFileElementTypes {
             return;
         }
         String className = getOutermostEnclosingClass(e);
-        if (className == null || className.isEmpty()) {
+        if (className == null || className.isEmpty() || processingClasses.contains(className)) {
             return;
         }
-        if (jdkStubFiles.containsKey(className)) {
-            parseJdkStubFile(jdkStubFiles.get(className));
-            jdkStubFiles.remove(className);
-        } else if (jdkStubFilesJar.containsKey(className)) {
-            parseJdkJarEntry(jdkStubFilesJar.get(className));
-            jdkStubFilesJar.remove(className);
+
+        boolean prevParsing = parsing;
+        processingClasses.add(className);
+        try {
+            if (jdkStubFiles.containsKey(className)) {
+                parseJdkStubFile(jdkStubFiles.get(className));
+                jdkStubFiles.remove(className);
+            } else if (jdkStubFilesJar.containsKey(className)) {
+                parseJdkJarEntry(jdkStubFilesJar.get(className));
+                jdkStubFilesJar.remove(className);
+            }
+        } finally {
+            processingClasses.remove(className);
+            parsing = prevParsing;
         }
     }
 

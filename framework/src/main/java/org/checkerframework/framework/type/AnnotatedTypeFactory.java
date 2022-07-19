@@ -4214,12 +4214,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             }
         }
 
-        if (stubTypes.isParsing()
-                || ajavaTypes.isParsing()
-                || (currentFileAjavaTypes != null && currentFileAjavaTypes.isParsing())) {
-            return results;
-        }
-
         // Add annotations from annotation files.
         results.addAll(stubTypes.getDeclAnnotations(elt));
         results.addAll(ajavaTypes.getDeclAnnotations(elt));
@@ -4235,7 +4229,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         // Add the element and its annotations to the cache.
-        cacheDeclAnnos.put(elt, results);
+        if (!stubTypes.isParsing()
+                && !ajavaTypes.isParsing()
+                && (currentFileAjavaTypes == null || !currentFileAjavaTypes.isParsing())) {
+            cacheDeclAnnos.put(elt, results);
+        }
         return results;
     }
 
