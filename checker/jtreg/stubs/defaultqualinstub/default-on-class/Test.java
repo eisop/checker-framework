@@ -10,14 +10,13 @@ import org.checkerframework.checker.nullness.qual.*;
  */
 
 public class Test {
-    void foo(List<?> list, MutableList<?> mutableList) {
-        // as defined in list.astub, the extends bound for elements in `list` is @NonNull by default
-        @NonNull Object o1 = list.get(0);
+    // l1 has type List<? extends @NonNull Object>
+    // mutableList has type MutableList<? extends @Nullable Object>
+    void foo(List<?> l1, MutableList<?> mutableList) {
+        // retainAll only accepts List with non-null elements
+        l1.retainAll(mutableList);
 
-        // the extends bound is @Nullable for elements in `mutableList` by default
-        @NonNull Object o2 = mutableList.get(0);
-
-        // invalid assignment
-        List<?> list2 = mutableList;
+        // l2 has type List<? extends @NonNull Object>
+        List<?> l2 = mutableList;
     }
 }

@@ -1,4 +1,4 @@
 public abstract class MutableList<T> extends List<T> {
     @Override
-    abstract T get(int index);
+    abstract void retainAll(List<?> other);
 }
