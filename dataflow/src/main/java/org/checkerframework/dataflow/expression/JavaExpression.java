@@ -22,7 +22,6 @@ import org.checkerframework.dataflow.cfg.node.ArrayAccessNode;
 import org.checkerframework.dataflow.cfg.node.ArrayCreationNode;
 import org.checkerframework.dataflow.cfg.node.BinaryOperationNode;
 import org.checkerframework.dataflow.cfg.node.ClassNameNode;
-import org.checkerframework.dataflow.cfg.node.ExplicitThisNode;
 import org.checkerframework.dataflow.cfg.node.FieldAccessNode;
 import org.checkerframework.dataflow.cfg.node.LocalVariableNode;
 import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
@@ -280,8 +279,6 @@ public abstract class JavaExpression {
         JavaExpression result = null;
         if (receiverNode instanceof FieldAccessNode) {
             result = fromNodeFieldAccess((FieldAccessNode) receiverNode);
-        } else if (receiverNode instanceof ExplicitThisNode) {
-            result = new ThisReference(receiverNode.getType());
         } else if (receiverNode instanceof ThisNode) {
             result = new ThisReference(receiverNode.getType());
         } else if (receiverNode instanceof SuperNode) {
@@ -609,9 +606,9 @@ public abstract class JavaExpression {
     ///
 
     /**
-     * Returns the receiver of the given invocation
+     * Returns the receiver of the given invocation.
      *
-     * @param accessTree method or constructor invocation
+     * @param accessTree a method or constructor invocation
      * @return the receiver of the given invocation
      */
     public static JavaExpression getReceiver(ExpressionTree accessTree) {
@@ -634,6 +631,9 @@ public abstract class JavaExpression {
      *
      * <p>Returns either a new ClassName or a new ThisReference depending on whether ele is static
      * or not. The passed element must be a field, method, or class.
+     *
+     * <p>When this returns a ThisReference, its type is the class that declares {@code ele}, which
+     * is not necessarily the type of {@code this} at the invocation site.
      *
      * @param ele a field, method, or class
      * @return either a new ClassName or a new ThisReference depending on whether ele is static or
