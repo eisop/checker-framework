@@ -7,6 +7,7 @@ import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.Arrays;
@@ -84,10 +85,12 @@ public class AssignmentNode extends Node {
      *
      * @return the left-hand-side of the assignment
      */
+    @Pure
     public Node getTarget() {
         return lhs;
     }
 
+    @Pure
     public Node getExpression() {
         return rhs;
     }

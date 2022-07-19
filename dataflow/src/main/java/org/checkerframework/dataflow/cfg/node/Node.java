@@ -155,6 +155,7 @@ public abstract class Node implements UniqueId {
      *
      * @return a collection containing all of the operand {@link Node}s of this {@link Node}
      */
+    @Pure
     public abstract Collection<Node> getOperands();
 
     /**
@@ -164,6 +165,7 @@ public abstract class Node implements UniqueId {
      * @return a collection containing all of the operand {@link Node}s of this {@link Node}, as
      *     well as (transitively) the operands of its operands
      */
+    @Pure
     public Collection<Node> getTransitiveOperands() {
         ArrayDeque<Node> operands = new ArrayDeque<>(getOperands());
         ArrayDeque<Node> transitiveOperands = new ArrayDeque<>(operands.size());
