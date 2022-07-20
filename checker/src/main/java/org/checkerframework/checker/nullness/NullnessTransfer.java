@@ -23,6 +23,7 @@ import org.checkerframework.dataflow.cfg.node.ReturnNode;
 import org.checkerframework.dataflow.cfg.node.ThrowNode;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.expression.LocalVariable;
+import org.checkerframework.dataflow.util.PurityUtils;
 import org.checkerframework.framework.flow.CFAbstractStore;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
@@ -357,21 +358,29 @@ public class NullnessTransfer
             MethodInvocationNode n, TransferInput<NullnessValue, NullnessStore> in) {
         TransferResult<NullnessValue, NullnessStore> result = super.visitMethodInvocation(n, in);
 
-        // Make receiver non-null.
+        MethodInvocationTree tree = n.getTree();
+        ExecutableElement method = TreeUtils.elementFromUse(tree);
+
+        boolean isMethodSideEffectFree = PurityUtils.isSideEffectFree(atypeFactory, method);
         Node receiver = n.getTarget().getReceiver();
-        makeNonNull(result, receiver);
+        if (JavaExpression.fromNode(receiver).isUnassignableByOtherCode()
+                || isMethodSideEffectFree) {
+            // Make receiver non-null.
+            makeNonNull(result, receiver);
+        }
 
         // For all formal parameters with a non-null annotation, make the actual argument non-null.
         // The point of this is to prevent cascaded errors -- the Nullness Checker will issue a
         // warning for the method invocation, but not for subsequent uses of the argument.  See test
         // case FlowNullness.java.
-        MethodInvocationTree tree = n.getTree();
-        ExecutableElement method = TreeUtils.elementFromUse(tree);
         AnnotatedExecutableType methodType = nullnessTypeFactory.getAnnotatedType(method);
         List<AnnotatedTypeMirror> methodParams = methodType.getParameterTypes();
         List<? extends ExpressionTree> methodArgs = tree.getArguments();
         for (int i = 0; i < methodParams.size() && i < methodArgs.size(); ++i) {
-            if (methodParams.get(i).hasAnnotation(NONNULL)) {
+            if (methodParams.get(i).hasAnnotation(NONNULL)
+                    && (isMethodSideEffectFree
+                            || JavaExpression.fromTree(methodArgs.get(i))
+                                    .isUnassignableByOtherCode())) {
                 makeNonNull(result, n.getArgument(i));
             }
         }
