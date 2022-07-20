@@ -146,7 +146,8 @@ public abstract class Node implements UniqueId {
     }
 
     /**
-     * Return field variable inSource.
+     * Return whether this node represents a tree that appears in the source code (true) or one that
+     * the CFG or builder added while desugaring (false).
      *
      * @return inSource
      */
