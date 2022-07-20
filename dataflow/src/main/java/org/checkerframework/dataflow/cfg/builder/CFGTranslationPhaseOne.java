@@ -3956,11 +3956,12 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         result = new LocalVariableNode(resultExpr);
                         result.setInSource(false);
                         extendWithNode(result);
-                        createIncrementOrDecrementAssign(tree, expr, isIncrement, isPostfix);
-                    } else {
-                        result =
-                                createIncrementOrDecrementAssign(
-                                        tree, expr, isIncrement, isPostfix);
+                    }
+                    AssignmentNode unaryAssign =
+                            createIncrementOrDecrementAssign(tree, expr, isIncrement, isPostfix);
+                    if (!isPostfix) {
+                        result = unaryAssign;
+                    }
                     }
                     break;
                 }
