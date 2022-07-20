@@ -3962,7 +3962,6 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                     if (!isPostfix) {
                         result = unaryAssign;
                     }
-                    }
                     break;
                 }
 
