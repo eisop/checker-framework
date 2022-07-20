@@ -145,7 +145,11 @@ public abstract class Node implements UniqueId {
         lvalue = true;
     }
 
-    /** Return field variable inSource. */
+    /**
+     * Return field variable inSource.
+     *
+     * @return inSource
+     */
     @Pure
     public boolean getInSource() {
         return inSource;
