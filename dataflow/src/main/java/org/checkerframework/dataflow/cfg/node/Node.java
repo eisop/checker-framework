@@ -149,7 +149,7 @@ public abstract class Node implements UniqueId {
      * Return whether this node represents a tree that appears in the source code (true) or one that
      * the CFG or builder added while desugaring (false).
      *
-     * @return inSource
+     * @return whether this node represents a tree that appears in the source code
      */
     @Pure
     public boolean getInSource() {
