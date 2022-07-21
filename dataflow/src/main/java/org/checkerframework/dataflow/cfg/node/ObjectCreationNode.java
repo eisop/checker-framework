@@ -27,16 +27,21 @@ public class ObjectCreationNode extends Node {
     // Class body for anonymous classes, otherwise null.
     protected final @Nullable ClassDeclarationNode classbody;
 
+    // Enclosing type receiver
+    protected final Node receiver;
+
     public ObjectCreationNode(
             NewClassTree tree,
             Node constructor,
             List<Node> arguments,
-            @Nullable ClassDeclarationNode classbody) {
+            @Nullable ClassDeclarationNode classbody,
+            Node receiver) {
         super(TreeUtils.typeOf(tree));
         this.tree = tree;
         this.constructor = constructor;
         this.arguments = arguments;
         this.classbody = classbody;
+        this.receiver = receiver;
     }
 
     public Node getConstructor() {
@@ -50,6 +55,11 @@ public class ObjectCreationNode extends Node {
     public Node getArgument(int i) {
         return arguments.get(i);
     }
+
+    public Node getReceiver() {
+        return receiver;
+    }
+    ;
 
     public @Nullable Node getClassBody() {
         return classbody;

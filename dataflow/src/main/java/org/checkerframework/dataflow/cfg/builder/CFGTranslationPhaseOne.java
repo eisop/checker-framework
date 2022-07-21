@@ -3375,8 +3375,9 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         // see JLS 15.9
 
         Tree enclosingExpr = tree.getEnclosingExpression();
+        Node receiver = null;
         if (enclosingExpr != null) {
-            scan(enclosingExpr, p);
+            receiver = scan(enclosingExpr, p);
         }
 
         // Convert constructor arguments
@@ -3395,7 +3396,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         // Note that getClassBody() and therefore classbody can be null.
         ClassDeclarationNode classbody = (ClassDeclarationNode) scan(tree.getClassBody(), p);
 
-        Node node = new ObjectCreationNode(tree, constructorNode, arguments, classbody);
+        Node node = new ObjectCreationNode(tree, constructorNode, arguments, classbody, receiver);
 
         List<? extends TypeMirror> thrownTypes = constructor.getThrownTypes();
         Set<TypeMirror> thrownSet =
