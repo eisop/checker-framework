@@ -97,6 +97,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
@@ -2952,14 +2953,22 @@ public class AnnotationFileParser {
         if (stored == null) {
             annotationFileAnnos.declAnnos.put(key, new HashSet<>(annos));
         } else {
-            // JDK annotations should not replace any annotation of the same type.
             // TODO: Currently, we assume there can be at most one annotation of the same name
             //  in both `stored` and `annos`. Maybe we should consider the situation of multiple
             //  entries having the same name.
-            if (fileType != AnnotationFileType.JDK_STUB) {
+            Set<AnnotationMirror> annotationsToAdd = annos;
+            if (fileType == AnnotationFileType.JDK_STUB) {
+                // JDK annotations should not replace any annotation of the same type.
+                annotationsToAdd =
+                        annos.stream()
+                                .filter(am -> !AnnotationUtils.containsSameByName(stored, am))
+                                .collect(Collectors.toSet());
+            } else {
+                // Annotations that are not from the annotated JDK may replace existing
+                // annotations of the same type.
                 stored.removeIf(am -> AnnotationUtils.containsSameByName(annos, am));
             }
-            stored.addAll(annos);
+            stored.addAll(annotationsToAdd);
         }
     }
 
