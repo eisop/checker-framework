@@ -146,6 +146,7 @@ public class AnnotationFileElementTypes {
      * annotation is requested from a class in that file.
      */
     public void parseStubFiles() {
+        assert parsingCount == 0;
         ++parsingCount;
         BaseTypeChecker checker = factory.getChecker();
         ProcessingEnvironment processingEnv = factory.getProcessingEnv();
@@ -199,10 +200,12 @@ public class AnnotationFileElementTypes {
         }
 
         --parsingCount;
+        assert parsingCount == 0;
     }
 
     /** Parses the ajava files passed through the -Aajava command-line option. */
     public void parseAjavaFiles() {
+        assert parsingCount == 0;
         ++parsingCount;
         // TODO: Error if this is called more than once?
         SourceChecker checker = factory.getChecker();
@@ -214,6 +217,7 @@ public class AnnotationFileElementTypes {
 
         parseAnnotationFiles(ajavaFiles, AnnotationFileType.AJAVA);
         --parsingCount;
+        assert parsingCount == 0;
     }
 
     /**
@@ -226,6 +230,7 @@ public class AnnotationFileElementTypes {
      * @param root javac tree for the compilation unit stored in {@code ajavaFile}
      */
     public void parseAjavaFileWithTree(String ajavaPath, CompilationUnitTree root) {
+        assert parsingCount == 0;
         ++parsingCount;
         SourceChecker checker = factory.getChecker();
         ProcessingEnvironment processingEnv = factory.getProcessingEnv();
@@ -238,6 +243,7 @@ public class AnnotationFileElementTypes {
         }
 
         --parsingCount;
+        assert parsingCount == 0;
     }
 
     /**
@@ -621,6 +627,17 @@ public class AnnotationFileElementTypes {
         }
 
         String className = getOutermostEnclosingClass(e);
+        if (className == null || className.isEmpty()) {
+            // TODO: maybe investigate other situations where the enclosing class is missing
+            //            if (e.getKind() != ElementKind.PACKAGE && e.getKind() !=
+            // ElementKind.MODULE) {
+            //                factory.getChecker().reportWarning(e, "unexpected element " + e + " of
+            // kind " + e.getKind());
+            //            }
+
+            return;
+        }
+
         if (!processingClasses.add(className)) {
             // TODO: some declaration annotations in the enclosing class may still
             //  be missing, we can revisit this part if it's causing issues
@@ -629,11 +646,9 @@ public class AnnotationFileElementTypes {
 
         try {
             if (jdkStubFiles.containsKey(className)) {
-                parseJdkStubFile(jdkStubFiles.get(className));
-                jdkStubFiles.remove(className);
+                parseJdkStubFile(jdkStubFiles.remove(className));
             } else if (jdkStubFilesJar.containsKey(className)) {
-                parseJdkJarEntry(jdkStubFilesJar.get(className));
-                jdkStubFilesJar.remove(className);
+                parseJdkJarEntry(jdkStubFilesJar.remove(className));
             }
         } finally {
             processingClasses.remove(className);
