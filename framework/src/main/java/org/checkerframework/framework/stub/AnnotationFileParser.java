@@ -2953,16 +2953,13 @@ public class AnnotationFileParser {
             annotationFileAnnos.declAnnos.put(key, new HashSet<>(annos));
         } else {
             // JDK annotations should not replace any annotation of the same type.
-            List<AnnotationMirror> origStored = new ArrayList<>(stored);
-            for (AnnotationMirror anno : annos) {
-                AnnotationMirror sameAnno = AnnotationUtils.getSameByName(origStored, anno);
-                if (sameAnno == null) {
-                    stored.add(anno);
-                } else if (fileType != AnnotationFileType.JDK_STUB) {
-                    stored.remove(sameAnno);
-                    stored.add(anno);
-                }
+            // TODO: Currently, we assume there can be at most one annotation of the same name
+            //  in both `stored` and `annos`. Maybe we should consider the situation of multiple
+            //  entries having the same name.
+            if (fileType != AnnotationFileType.JDK_STUB) {
+                stored.removeIf(am -> AnnotationUtils.containsSameByName(annos, am));
             }
+            stored.addAll(annos);
         }
     }
 

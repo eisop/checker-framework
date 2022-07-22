@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Set;
 
 // There should be no warnings for the following operations
-// if annotated JDK is loaded properly
+// if the annotated JDK is loaded properly
 public class AnnotatedJdkTest {
     String toStringTest(Object v) {
         return v.toString();
