@@ -2008,7 +2008,7 @@ public final class TreeUtils {
    * Returns the value (expression) for {@code yieldTree}.
    *
    * @param yieldTree the yield tree
-   * @return the value (expression) for {@code yieldTree}.
+   * @return the value (expression) for {@code yieldTree}
    */
   public static ExpressionTree yieldTreeGetValue(Tree yieldTree) {
     if (atLeastJava13) {
