@@ -1913,8 +1913,8 @@ public final class TreeUtils {
   }
 
   /**
-   * Returns the pattern of {@code instanceOfTree} tree or null if the instanceof does not have a
-   * pattern.
+   * Returns the pattern of {@code instanceOfTree} tree. Returns null if the instanceof does not
+   * have a pattern, including if the JDK version does not support instance-of patterns.
    *
    * @param instanceOfTree the {@link InstanceOfTree} whose pattern is returned
    * @return the {@code PatternTree} of {@code instanceOfTree} or null if it doesn't exist
