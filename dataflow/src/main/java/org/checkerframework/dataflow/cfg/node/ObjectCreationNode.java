@@ -3,39 +3,52 @@ package org.checkerframework.dataflow.cfg.node;
 import com.sun.source.tree.NewClassTree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.javacutil.TreeUtils;
 import org.plumelib.util.StringsPlume;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * A node for new object creation.
  *
  * <pre>
  *   <em>new constructor(arg1, arg2, ...)</em>
+ *   <em>enclosingExpression.new constructor(arg1, arg2, ...)</em>
  * </pre>
  */
 public class ObjectCreationNode extends Node {
 
+    /** The tree for the object creation. */
     protected final NewClassTree tree;
+
+    /** The enclosing type receiver of the object creation, which can be nullable. */
+    protected final @Nullable Node receiver;
+
+    /** The constructor node of the object creation. */
     protected final Node constructor;
+
+    /** The arguments of the object creation. */
     protected final List<Node> arguments;
 
-    // Class body for anonymous classes, otherwise null.
+    /** Class body for anonymous classes, otherwise null. */
     protected final @Nullable ClassDeclarationNode classbody;
 
-    // Enclosing type receiver
-    protected final Node receiver;
-
+    /**
+     * Constructs a {@link ObjectCreationNode}.
+     *
+     * @param tree the NewClassTree
+     * @param receiver the enclosingType receiver if exists
+     * @param constructor the constructor node
+     * @param arguments the passed arguments
+     * @param classbody the ClassDeclarationNode
+     */
     public ObjectCreationNode(
             NewClassTree tree,
+            @Nullable Node receiver,
             Node constructor,
             List<Node> arguments,
-            @Nullable ClassDeclarationNode classbody,
-            Node receiver) {
+            @Nullable ClassDeclarationNode classbody) {
         super(TreeUtils.typeOf(tree));
         this.tree = tree;
         this.constructor = constructor;
@@ -44,28 +57,34 @@ public class ObjectCreationNode extends Node {
         this.receiver = receiver;
     }
 
+    @Pure
     public Node getConstructor() {
         return constructor;
     }
 
+    @Pure
     public List<Node> getArguments() {
         return arguments;
     }
 
+    @Pure
     public Node getArgument(int i) {
         return arguments.get(i);
     }
 
+    /** @return the enclosing type receiver, or null if there is no such receiver */
+    @Pure
     public Node getReceiver() {
         return receiver;
     }
-    ;
 
+    @Pure
     public @Nullable Node getClassBody() {
         return classbody;
     }
 
     @Override
+    @Pure
     public NewClassTree getTree() {
         return tree;
     }
@@ -76,6 +95,7 @@ public class ObjectCreationNode extends Node {
     }
 
     @Override
+    @Pure
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("new " + constructor + "(");
@@ -90,6 +110,7 @@ public class ObjectCreationNode extends Node {
     }
 
     @Override
+    @Pure
     public boolean equals(@Nullable Object obj) {
         if (!(obj instanceof ObjectCreationNode)) {
             return false;
@@ -104,11 +125,13 @@ public class ObjectCreationNode extends Node {
     }
 
     @Override
+    @Pure
     public int hashCode() {
         return Objects.hash(constructor, arguments);
     }
 
     @Override
+    @Pure
     public Collection<Node> getOperands() {
         ArrayList<Node> list = new ArrayList<>(1 + arguments.size());
         list.add(constructor);

@@ -3396,7 +3396,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         // Note that getClassBody() and therefore classbody can be null.
         ClassDeclarationNode classbody = (ClassDeclarationNode) scan(tree.getClassBody(), p);
 
-        Node node = new ObjectCreationNode(tree, constructorNode, arguments, classbody, receiver);
+        Node node = new ObjectCreationNode(tree, receiver, constructorNode, arguments, classbody);
 
         List<? extends TypeMirror> thrownTypes = constructor.getThrownTypes();
         Set<TypeMirror> thrownSet =
