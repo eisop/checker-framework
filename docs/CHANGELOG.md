@@ -263,7 +263,7 @@ even if it is parsing a different stub file.
 
 **Closed issues:**
 
-eisop#308.
+eisop#308, eisop#282.
 
 
 Version 3.23.0-eisop1 (July 14, 2022)
