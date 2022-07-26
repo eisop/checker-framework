@@ -132,6 +132,9 @@ import javax.tools.Diagnostic.Kind;
     "assumeAssertionsAreEnabled",
     "assumeAssertionsAreDisabled",
 
+    // Whether to assume receiver and params of the method to be non-null after the method
+    // invocation.
+    "receiverAndParamsNullableAfterMethodCall",
     // Treat checker errors as warnings
     // org.checkerframework.framework.source.SourceChecker.report
     "warns",

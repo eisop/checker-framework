@@ -125,6 +125,13 @@ by the Checker Framework.
 \end{itemize}
 
 \item
+  \label{nullness-receiverAndParamsNullableAfterMethodCall}%
+  If you supply the \code{-AreceiverAndParamsNullableAfterMethodCall} command-line option, then the
+  checker will assume receiver and params are nullable after the method invocation. When running gradle
+  tests we disable this option by default except when doing \code{checkNullness} test.
+\end{itemize}
+
+\item
   Options that warn about poor code style:
 
 \begin{itemize}

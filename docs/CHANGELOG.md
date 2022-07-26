@@ -1,3 +1,6 @@
+**Implementation details:**
+Add commandline option `AreceiverAndParamsNullableAfterMethodCall`
+
 Version 3.23.0-eisop3 (July ?, 2022)
 ------------------------------------
 

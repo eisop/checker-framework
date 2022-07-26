@@ -360,10 +360,15 @@ public class NullnessTransfer
 
         MethodInvocationTree tree = n.getTree();
         ExecutableElement method = TreeUtils.elementFromUse(tree);
+        boolean nonNullAssumption =
+                !analysis.getTypeFactory()
+                        .getChecker()
+                        .hasOption("receiverAndParamsNullableAfterMethodCall");
 
         boolean isMethodSideEffectFree = PurityUtils.isSideEffectFree(atypeFactory, method);
         Node receiver = n.getTarget().getReceiver();
-        if (JavaExpression.fromNode(receiver).isUnassignableByOtherCode()
+        if (nonNullAssumption
+                || JavaExpression.fromNode(receiver).isUnassignableByOtherCode()
                 || isMethodSideEffectFree) {
             // Make receiver non-null.
             makeNonNull(result, receiver);
@@ -378,7 +383,8 @@ public class NullnessTransfer
         List<? extends ExpressionTree> methodArgs = tree.getArguments();
         for (int i = 0; i < methodParams.size() && i < methodArgs.size(); ++i) {
             if (methodParams.get(i).hasAnnotation(NONNULL)
-                    && (isMethodSideEffectFree
+                    && (nonNullAssumption
+                            || isMethodSideEffectFree
                             || JavaExpression.fromTree(methodArgs.get(i))
                                     .isUnassignableByOtherCode())) {
                 makeNonNull(result, n.getArgument(i));
