@@ -11,15 +11,25 @@ pr:
 jobs:
 
 # The dependsOn clauses are:
-#  * Everything depends on the 4 main jdk17 jobs (except those jobs themselves!).
+#  * Everything depends on the canary jobs (the 4 main jdk17 jobs), except those jobs themselves.
 #  * Anything *_jdk8 or *_jdk11 depends on *_jdk17.
 
-- job: junit_tests_jdk8
+- job: canary_jobs
   dependsOn:
    - junit_tests_jdk17
    - nonjunit_tests_jdk17
    - misc_jdk17
    - typecheck_jdk17
+  pool:
+    vmImage: 'ubuntu-latest'
+  steps:
+  - bash: true
+    displayName: canary_jobs
+
+- job: junit_tests_jdk8
+  dependsOn:
+   - canary_jobs
+   - junit_tests_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: mdernst/cf-ubuntu-jdk8:latest
@@ -31,10 +41,8 @@ jobs:
     displayName: test-cftests-junit.sh
 - job: junit_tests_jdk11
   dependsOn:
+   - canary_jobs
    - junit_tests_jdk17
-   - nonjunit_tests_jdk17
-   - misc_jdk17
-   - typecheck_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: mdernst/cf-ubuntu-jdk11:latest
@@ -71,10 +79,8 @@ jobs:
 
 - job: nonjunit_tests_jdk8
   dependsOn:
-   - junit_tests_jdk17
+   - canary_jobs
    - nonjunit_tests_jdk17
-   - misc_jdk17
-   - typecheck_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: mdernst/cf-ubuntu-jdk8:latest
@@ -85,10 +91,8 @@ jobs:
     displayName: test-cftests-nonjunit.sh
 - job: nonjunit_tests_jdk11
   dependsOn:
-   - junit_tests_jdk17
+   - canary_jobs
    - nonjunit_tests_jdk17
-   - misc_jdk17
-   - typecheck_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: mdernst/cf-ubuntu-jdk11:latest
@@ -123,10 +127,7 @@ jobs:
 
 - job: inference_tests_jdk8
   dependsOn:
-   - junit_tests_jdk17
-   - nonjunit_tests_jdk17
-   - misc_jdk17
-   - typecheck_jdk17
+   - canary_jobs
    - inference_tests_jdk17
   pool:
     vmImage: 'ubuntu-latest'
@@ -138,10 +139,7 @@ jobs:
     displayName: test-cftests-inference.sh
 - job: inference_tests_jdk11
   dependsOn:
-   - junit_tests_jdk17
-   - nonjunit_tests_jdk17
-   - misc_jdk17
-   - typecheck_jdk17
+   - canary_jobs
    - inference_tests_jdk17
   pool:
     vmImage: 'ubuntu-latest'
@@ -177,10 +175,8 @@ jobs:
 
 - job: misc_jdk8
   dependsOn:
-   - junit_tests_jdk17
-   - nonjunit_tests_jdk17
+   - canary_jobs
    - misc_jdk17
-   - typecheck_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: mdernst/cf-ubuntu-jdk8-plus:latest
@@ -191,10 +187,8 @@ jobs:
     displayName: test-misc.sh
 - job: misc_jdk11
   dependsOn:
-   - junit_tests_jdk17
-   - nonjunit_tests_jdk17
+   - canary_jobs
    - misc_jdk17
-   - typecheck_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: mdernst/cf-ubuntu-jdk11-plus:latest
@@ -214,9 +208,7 @@ jobs:
     displayName: test-misc.sh
 - job: misc_jdk_next
   dependsOn:
-   - junit_tests_jdk17
-   - nonjunit_tests_jdk17
-   - misc_jdk17
+   - canary_jobs
    - typecheck_jdk17
   pool:
     vmImage: 'ubuntu-latest'
@@ -243,9 +235,7 @@ jobs:
     displayName: test-typecheck.sh
 - job: typecheck_jdk11
   dependsOn:
-   - junit_tests_jdk17
-   - nonjunit_tests_jdk17
-   - misc_jdk17
+   - canary_jobs
    - typecheck_jdk17
   pool:
     vmImage: 'ubuntu-latest'
@@ -281,12 +271,8 @@ jobs:
 
 - job: daikon_jdk8
   dependsOn:
-   - junit_tests_jdk17
-   - nonjunit_tests_jdk17
-   - misc_jdk17
-   - typecheck_jdk17
-   ## Commented to reduce latency and eliminate the "daikon_jdk17 -> daikon_jdk8" critical path.
-   # - daikon_jdk17
+   - canary_jobs
+   - daikon_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: mdernst/cf-ubuntu-jdk8:latest
@@ -298,10 +284,8 @@ jobs:
     displayName: test-daikon.sh
 - job: daikon_jdk11
   dependsOn:
-   - junit_tests_jdk17
-   - nonjunit_tests_jdk17
-   - misc_jdk17
-   - typecheck_jdk17
+   - canary_jobs
+   - daikon_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: mdernst/cf-ubuntu-jdk11:latest
@@ -312,8 +296,6 @@ jobs:
   - bash: ./checker/bin-devel/test-daikon.sh
     displayName: test-daikon.sh
 - job: daikon_jdk17
-  #  ## Commented to reduce latency and eliminate the "daikon_jdk17 -> daikon_jdk17" critical path.
-  #  # - daikon_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: mdernst/cf-ubuntu-jdk17:latest
@@ -326,10 +308,7 @@ jobs:
 
 - job: guava_jdk8
   dependsOn:
-   - junit_tests_jdk17
-   - nonjunit_tests_jdk17
-   - misc_jdk17
-   - typecheck_jdk17
+   - canary_jobs
    - guava_jdk17
   pool:
     vmImage: 'ubuntu-latest'
@@ -341,10 +320,7 @@ jobs:
     displayName: test-guava.sh
 - job: guava_jdk11
   dependsOn:
-   - junit_tests_jdk17
-   - nonjunit_tests_jdk17
-   - misc_jdk17
-   - typecheck_jdk17
+   - canary_jobs
    - guava_jdk17
   pool:
     vmImage: 'ubuntu-latest'
@@ -381,10 +357,7 @@ jobs:
 
 - job: plume_lib_jdk8
   dependsOn:
-   - junit_tests_jdk17
-   - nonjunit_tests_jdk17
-   - misc_jdk17
-   - typecheck_jdk17
+   - canary_jobs
    - plume_lib_jdk17
   pool:
     vmImage: 'ubuntu-latest'
@@ -396,10 +369,7 @@ jobs:
     displayName: test-plume-lib.sh
 - job: plume_lib_jdk11
   dependsOn:
-   - junit_tests_jdk17
-   - nonjunit_tests_jdk17
-   - misc_jdk17
-   - typecheck_jdk17
+   - canary_jobs
    - plume_lib_jdk17
   pool:
     vmImage: 'ubuntu-latest'
@@ -437,10 +407,7 @@ jobs:
 ## The downstream jobs are not currently needed because test-downstream.sh is empty.
 # - job: downstream_jdk8
 #   dependsOn:
-#    - junit_tests_jdk17
-#    - nonjunit_tests_jdk17
-#    - misc_jdk17
-#    - typecheck_jdk17
+#    - canary_jobs
 #    - downstream_jdk17
 #   pool:
 #     vmImage: 'ubuntu-latest'
@@ -452,10 +419,7 @@ jobs:
 #     displayName: test-downstream.sh
 # - job: downstream_jdk11
 #   dependsOn:
-#    - junit_tests_jdk17
-#    - nonjunit_tests_jdk17
-#    - misc_jdk17
-#    - typecheck_jdk17
+#    - canary_jobs
 #    - downstream_jdk17
 #   pool:
 #     vmImage: 'ubuntu-latest'
@@ -466,10 +430,7 @@ jobs:
 #   - bash: ./checker/bin-devel/test-downstream.sh
 #     displayName: test-downstream.sh
 # - job: downstream_jdk17
-#    - junit_tests_jdk17
-#    - nonjunit_tests_jdk17
-#    - misc_jdk17
-#    - typecheck_jdk17
+#    - canary_jobs
 #   pool:
 #     vmImage: 'ubuntu-latest'
 #   container: mdernst/cf-ubuntu-jdk17:latest
