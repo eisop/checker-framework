@@ -110,7 +110,7 @@ allprojects {
     // level (third number) if:
     //   * any new checkers have been added, or
     //   * backward-incompatible changes have been made to APIs or elsewhere.
-    version '3.23.0-eisop2-SNAPSHOT'
+    version '3.23.0-eisop3-SNAPSHOT'
 
     repositories {
         mavenCentral()
@@ -475,6 +475,14 @@ List<String> getJavaFilesToFormat(projectName) {
             javaFiles.add(details.file)
         }
     }
+
+    // Add documentation example and tutorial
+    fileTree("${rootDir}/docs").visit { details ->
+        if (details.name.endsWith('.java')) {
+            javaFiles.add(details.file)
+        }
+    }
+    // Don't reformat the sources in dataflow/manual/examples/
 
     List<String> args = new ArrayList<>(javaFiles.size());
     for (File f : javaFiles) {
