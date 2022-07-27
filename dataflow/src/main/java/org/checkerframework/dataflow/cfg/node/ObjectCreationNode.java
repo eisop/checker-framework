@@ -60,16 +60,31 @@ public class ObjectCreationNode extends Node {
         this.receiver = receiver;
     }
 
+    /**
+     * Returns the constructor node
+     *
+     * @return the constructor node
+     */
     @Pure
     public Node getConstructor() {
         return constructor;
     }
 
+    /**
+     * Returns the arguments
+     *
+     * @return the arguments
+     */
     @Pure
     public List<Node> getArguments() {
         return arguments;
     }
 
+    /**
+     * Returns the argument
+     *
+     * @return the argument
+     */
     @Pure
     public Node getArgument(int i) {
         return arguments.get(i);
@@ -78,13 +93,18 @@ public class ObjectCreationNode extends Node {
     /**
      * Returns the enclosing type receiver if exists
      *
-     * @return the the enclosing type receiver
+     * @return the enclosing type receiver
      */
     @Pure
     public @Nullable Node getReceiver() {
         return receiver;
     }
 
+    /**
+     * Returns the classbody
+     *
+     * @return the classbody
+     */
     @Pure
     public @Nullable Node getClassBody() {
         return classbody;
