@@ -163,7 +163,7 @@ public abstract class AnnotatedTypeMirror {
   }
 
   @Override
-  public final boolean equals(Object o) {
+  public final boolean equals(@Nullable Object o) {
     if (o == this) {
       return true;
     }
