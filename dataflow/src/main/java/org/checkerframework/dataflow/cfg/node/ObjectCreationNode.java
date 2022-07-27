@@ -7,7 +7,10 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.javacutil.TreeUtils;
 import org.plumelib.util.StringsPlume;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
 
 /**
  * A node for new object creation.
@@ -74,7 +77,7 @@ public class ObjectCreationNode extends Node {
 
     /** Return the enclosing type receiver, or null if there is no such receiver */
     @Pure
-    public Node getReceiver() {
+    public @Nullable Node getReceiver() {
         return receiver;
     }
 
