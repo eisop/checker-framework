@@ -75,7 +75,6 @@ public class ObjectCreationNode extends Node {
         return arguments.get(i);
     }
 
-    /** @return the enclosing type receiver, or null if there is no such receiver */
     @Pure
     public @Nullable Node getReceiver() {
         return receiver;
