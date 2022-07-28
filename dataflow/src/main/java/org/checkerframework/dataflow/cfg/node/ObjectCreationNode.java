@@ -83,6 +83,7 @@ public class ObjectCreationNode extends Node {
     /**
      * Returns the argument
      *
+     * @param i the index of the argument
      * @return the argument
      */
     @Pure
