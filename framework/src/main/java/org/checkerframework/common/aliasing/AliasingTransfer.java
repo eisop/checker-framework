@@ -10,7 +10,11 @@ import org.checkerframework.common.aliasing.qual.Unique;
 import org.checkerframework.dataflow.analysis.RegularTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
-import org.checkerframework.dataflow.cfg.node.*;
+import org.checkerframework.dataflow.cfg.node.ArrayCreationNode;
+import org.checkerframework.dataflow.cfg.node.AssignmentNode;
+import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
+import org.checkerframework.dataflow.cfg.node.Node;
+import org.checkerframework.dataflow.cfg.node.ObjectCreationNode;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.flow.CFStore;
@@ -107,9 +111,10 @@ public class AliasingTransfer extends CFTransfer {
                 methodInvocationNode != null
                         ? methodInvocationNode.getArguments()
                         : objectCreationNode.getArguments();
-        List<?> params = null;
+        List<AnnotatedTypeMirror> params = null;
+        AnnotatedExecutableType annotatedType = factory.getAnnotatedType(executableElement);
         if (methodInvocationNode != null) {
-            params = executableElement.getParameters();
+            params = annotatedType.getParameterTypes();
         } else if (objectCreationNode != null) {
             AnnotatedTypeFactory.ParameterizedExecutableType fromUse =
                     factory.constructorFromUse((NewClassTree) tree);
@@ -136,12 +141,10 @@ public class AliasingTransfer extends CFTransfer {
                         + " is different from the"
                         + " number of parameters for the method declaration: "
                         + executableElement.getSimpleName();
-        AnnotatedExecutableType annotatedType = factory.getAnnotatedType(executableElement);
-        List<AnnotatedTypeMirror> paramTypes = annotatedType.getParameterTypes();
-        if (args.size() == paramTypes.size()) {
+        if (args.size() == params.size()) {
             for (int i = 0; i < args.size(); i++) {
                 Node arg = args.get(i);
-                AnnotatedTypeMirror paramType = paramTypes.get(i);
+                AnnotatedTypeMirror paramType = params.get(i);
                 if (!paramType.hasAnnotation(NonLeaked.class)
                         && !paramType.hasAnnotation(LeakedToResult.class)) {
                     store.clearValue(JavaExpression.fromNode(arg));
