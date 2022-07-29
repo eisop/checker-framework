@@ -10,10 +10,7 @@ import org.checkerframework.common.aliasing.qual.Unique;
 import org.checkerframework.dataflow.analysis.RegularTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
-import org.checkerframework.dataflow.cfg.node.AssignmentNode;
-import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
-import org.checkerframework.dataflow.cfg.node.Node;
-import org.checkerframework.dataflow.cfg.node.ObjectCreationNode;
+import org.checkerframework.dataflow.cfg.node.*;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.flow.CFStore;
@@ -27,6 +24,7 @@ import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TreeUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.lang.model.element.ExecutableElement;
@@ -109,34 +107,35 @@ public class AliasingTransfer extends CFTransfer {
                 methodInvocationNode != null
                         ? methodInvocationNode.getArguments()
                         : objectCreationNode.getArguments();
-        List<? extends VariableElement> params = executableElement.getParameters();
-        // Only check MethodInvocationNode
+        List<?> params = null;
         if (methodInvocationNode != null) {
-            assert (args.size() == params.size())
-                    : "Number of arguments in "
-                            + "the method call "
-                            + n
-                            + " is different from the"
-                            + " number of parameters for the method declaration: "
-                            + executableElement.getSimpleName();
-        }
-        // use adaptParameters for object creation node
-        if (objectCreationNode != null) {
+            params = executableElement.getParameters();
+        } else if (objectCreationNode != null) {
             AnnotatedTypeFactory.ParameterizedExecutableType fromUse =
                     factory.constructorFromUse((NewClassTree) tree);
             AnnotatedExecutableType constructorType = fromUse.executableType;
-            List<AnnotatedTypeMirror> objectParams =
+            params =
                     AnnotatedTypes.adaptParameters(
                             factory, constructorType, ((NewClassTree) tree).getArguments());
-            List<?> passedArgs = ((NewClassTree) tree).getArguments();
-            assert (passedArgs.size() == objectParams.size())
-                    : "Number of arguments in "
-                            + "the object creation "
-                            + n
-                            + " is different from the"
-                            + " number of parameters for the method declaration: "
-                            + executableElement.getSimpleName();
+            List<Node> tmp = new ArrayList<>();
+            // expand ArrayCreationNode such as new int []
+            for (int i = 0; i < args.size(); i++) {
+                if (args.get(i) instanceof ArrayCreationNode) {
+                    for (Node arg : ((ArrayCreationNode) args.get(i)).getInitializers()) {
+                        tmp.add(arg);
+                    }
+                } else {
+                    tmp.add(args.get(i));
+                }
+            }
+            args = tmp;
         }
+        assert (args.size() == params.size())
+                : "Number of arguments in "
+                        + n
+                        + " is different from the"
+                        + " number of parameters for the method declaration: "
+                        + executableElement.getSimpleName();
         AnnotatedExecutableType annotatedType = factory.getAnnotatedType(executableElement);
         List<AnnotatedTypeMirror> paramTypes = annotatedType.getParameterTypes();
         if (args.size() == paramTypes.size()) {
