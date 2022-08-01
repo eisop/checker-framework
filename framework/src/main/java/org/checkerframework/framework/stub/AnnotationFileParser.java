@@ -2212,7 +2212,7 @@ public class AnnotationFileParser {
       }
     }
     if (!noWarn) {
-      if (methodDecl.getAccessSpecifier() == AccessSpecifier.PACKAGE_PRIVATE) {
+      if (methodDecl.getAccessSpecifier() == AccessSpecifier.NONE) {
         // This might be a false positive warning.  The stub parser permits a stub file to
         // omit the access specifier, but package-private methods aren't in the TypeElement.
         stubWarnNotFound(
