@@ -1300,7 +1300,8 @@ public abstract class CFAbstractTransfer<
      *
      * @param value1 an abstract value to be compared with
      * @param value2 an abstract value to be compared with
-     * @return the more specific value of the two parameters, or, if they are incomparable, {@code value1}
+     * @return the more specific value of the two parameters, or, if they are incomparable, {@code
+     *     value1}
      */
     @Pure
     public V moreSpecificValue(V value1, V value2) {
