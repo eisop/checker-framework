@@ -8,10 +8,14 @@ Version 3.24.0-eisop1 (August 5, 2022)
 **Closed issues:**
 
 
-Version 3.24.0 (??)
--------------------
+Version 3.24.0 (August 1, 2022)
+-------------------------------
 
 **User-visible changes:**
+
+Performance improvements.
+
+Minor bug fixes and enhancements.
 
 **Implementation details:**
 
@@ -65,7 +69,12 @@ Prefer `SystemUtil.jreVersion` to `SystemUtil.getJreVersion()`.
 
 **Closed issues:**
 
+<<<<<<< HEAD
 >>>>>>> c37aff5ef... Prefer `SystemUtil.jreVersion` to `SystemUtil.getJreVersion()`
+=======
+#5200
+
+>>>>>>> ebe1ea31a... Update version number to 3.24.0
 
 Version 3.23.0 (July 11, 2022)
 ------------------------------
