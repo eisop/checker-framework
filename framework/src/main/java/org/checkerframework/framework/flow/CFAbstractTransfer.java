@@ -43,6 +43,7 @@ import org.checkerframework.dataflow.cfg.node.WideningConversionNode;
 import org.checkerframework.dataflow.expression.FieldAccess;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.expression.LocalVariable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.dataflow.util.NodeUtils;
 import org.checkerframework.framework.flow.CFAbstractAnalysis.FieldInitialValue;
@@ -148,7 +149,7 @@ public abstract class CFAbstractTransfer<
      * @return true if the transfer function uses sequential semantics, false if it uses concurrent
      *     semantics
      */
-    @SideEffectFree
+    @Pure
     public boolean usesSequentialSemantics() {
         return sequentialSemantics;
     }
@@ -164,7 +165,7 @@ public abstract class CFAbstractTransfer<
      * @param store the store
      * @return the possibly-modified value
      */
-    @SideEffectFree
+    @Pure
     protected @Nullable V finishValue(@Nullable V value, S store) {
         return value;
     }
@@ -181,7 +182,7 @@ public abstract class CFAbstractTransfer<
      * @param elseStore the "else" store
      * @return the possibly-modified value
      */
-    @SideEffectFree
+    @Pure
     protected @Nullable V finishValue(@Nullable V value, S thenStore, S elseStore) {
         return value;
     }
@@ -494,7 +495,7 @@ public abstract class CFAbstractTransfer<
      * @param methodDeclTree the declaration of the method or constructor
      * @return true if the receiver of a method or constructor might not yet be fully initialized
      */
-    @SideEffectFree
+    @Pure
     protected boolean isNotFullyInitializedReceiver(MethodTree methodDeclTree) {
         return TreeUtils.isConstructor(methodDeclTree);
     }
@@ -1301,7 +1302,7 @@ public abstract class CFAbstractTransfer<
      * @param value2 an abstract value to be compared with
      * @return A more specific value of the two params
      */
-    @SideEffectFree
+    @Pure
     public V moreSpecificValue(V value1, V value2) {
         if (value1 == null) {
             return value2;
