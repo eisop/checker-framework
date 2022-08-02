@@ -202,10 +202,12 @@ public abstract class AbstractAnalysis<
                     && !currentNode.getTransitiveOperands().contains(n)) {
                 // if n.getTree.getKind is a postfix tree, we check if the target of the assignment
                 // is contained in the operands or not.
-                Tree.Kind nKind = n.getTree().getKind();
-                if (n instanceof AssignmentNode
-                        && (nKind == Tree.Kind.POSTFIX_DECREMENT
-                                || nKind == Tree.Kind.POSTFIX_INCREMENT)) {
+                if (n instanceof AssignmentNode) {
+                    Tree.Kind nKind = n.getTree().getKind();
+                    if ((nKind != Tree.Kind.POSTFIX_DECREMENT
+                            && nKind != Tree.Kind.POSTFIX_INCREMENT)) {
+                        return null;
+                    }
                     Node expr = ((AssignmentNode) n).getExpression();
                     Node target = ((AssignmentNode) n).getTarget();
                     if (currentNode.getOperands().contains(target)
