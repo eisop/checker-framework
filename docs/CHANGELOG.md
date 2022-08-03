@@ -33,7 +33,7 @@ Prefer `SystemUtil.jreVersion` to `SystemUtil.getJreVersion()`.
 
 **Closed issues:**
 
-#5200, #5216
+#5200, #5216.
 
 
 Version 3.23.0-eisop2 (July 22, 2022)
