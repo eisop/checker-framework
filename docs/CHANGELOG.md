@@ -3,6 +3,8 @@ Version 3.23.0-eisop3 (July ?, 2022)
 
 **User-visible changes:**
 
+Post-conditions can be used on the parameters of the constructor.
+
 **Implementation details:**
 
 **Closed issues:**
