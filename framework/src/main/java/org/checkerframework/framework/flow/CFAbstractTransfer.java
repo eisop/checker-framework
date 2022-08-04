@@ -1134,7 +1134,7 @@ public abstract class CFAbstractTransfer<
      *
      * @param n a method call or an object creation
      * @param store a store; is side-effected by this method
-     * @param executableElement the method being called or the new object
+     * @param executableElement the method or constructor being called
      * @param tree the tree for the method call or for the object creation
      */
     protected void processPostconditions(
