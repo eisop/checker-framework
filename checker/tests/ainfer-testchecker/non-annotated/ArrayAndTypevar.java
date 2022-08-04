@@ -3,15 +3,15 @@
 
 class ArrayAndTypevar {
 
-  private class MyClass<T> {
-    private T t;
+    private class MyClass<T> {
+        private T t;
 
-    public MyClass(T t) {
-      this.t = t;
+        public MyClass(T t) {
+            this.t = t;
+        }
     }
-  }
 
-  public void test() {
-    MyClass<String[]> m = new MyClass<String[]>(new String[] {"foo", "bar"});
-  }
+    public void test() {
+        MyClass<String[]> m = new MyClass<String[]>(new String[] {"foo", "bar"});
+    }
 }

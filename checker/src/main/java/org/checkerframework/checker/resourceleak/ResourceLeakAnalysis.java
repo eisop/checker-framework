@@ -10,15 +10,15 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
  * MustCallConsistencyAnalyzer#ignoredExceptionTypes}.
  */
 public class ResourceLeakAnalysis extends CalledMethodsAnalysis {
-  /**
-   * Creates a new {@code CalledMethodsAnalysis}.
-   *
-   * @param checker the checker
-   * @param factory the factory
-   */
-  protected ResourceLeakAnalysis(
-      BaseTypeChecker checker, CalledMethodsAnnotatedTypeFactory factory) {
-    super(checker, factory);
-    ignoredExceptionTypes.addAll(MustCallConsistencyAnalyzer.ignoredExceptionTypes);
-  }
+    /**
+     * Creates a new {@code CalledMethodsAnalysis}.
+     *
+     * @param checker the checker
+     * @param factory the factory
+     */
+    protected ResourceLeakAnalysis(
+            BaseTypeChecker checker, CalledMethodsAnnotatedTypeFactory factory) {
+        super(checker, factory);
+        ignoredExceptionTypes.addAll(MustCallConsistencyAnalyzer.ignoredExceptionTypes);
+    }
 }

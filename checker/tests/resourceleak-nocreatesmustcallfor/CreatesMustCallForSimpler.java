@@ -8,24 +8,24 @@ import org.checkerframework.checker.mustcall.qual.*;
 @InheritableMustCall("a")
 class CreatesMustCallForSimpler {
 
-  @CreatesMustCallFor
-  void reset() {}
+    @CreatesMustCallFor
+    void reset() {}
 
-  @CreatesMustCallFor("this")
-  void resetThis() {}
+    @CreatesMustCallFor("this")
+    void resetThis() {}
 
-  void a() {}
+    void a() {}
 
-  static @MustCall({}) CreatesMustCallForSimpler makeNoMC() {
-    // :: error: (return.type.incompatible)
-    return new CreatesMustCallForSimpler();
-  }
+    static @MustCall({}) CreatesMustCallForSimpler makeNoMC() {
+        // :: error: (return.type.incompatible)
+        return new CreatesMustCallForSimpler();
+    }
 
-  static void test1() {
-    CreatesMustCallForSimpler cos = makeNoMC();
-    @MustCall({}) CreatesMustCallForSimpler a = cos;
-    cos.reset();
-    @CalledMethods({"reset"}) CreatesMustCallForSimpler b = cos;
-    @CalledMethods({}) CreatesMustCallForSimpler c = cos;
-  }
+    static void test1() {
+        CreatesMustCallForSimpler cos = makeNoMC();
+        @MustCall({}) CreatesMustCallForSimpler a = cos;
+        cos.reset();
+        @CalledMethods({"reset"}) CreatesMustCallForSimpler b = cos;
+        @CalledMethods({}) CreatesMustCallForSimpler c = cos;
+    }
 }

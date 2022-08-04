@@ -11,23 +11,23 @@ import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
  * analysis as provided by {@link CFAnalysis}.
  */
 public class BaseAnnotatedTypeFactory
-    extends GenericAnnotatedTypeFactory<CFValue, CFStore, CFTransfer, CFAnalysis> {
+        extends GenericAnnotatedTypeFactory<CFValue, CFStore, CFTransfer, CFAnalysis> {
 
-  public BaseAnnotatedTypeFactory(BaseTypeChecker checker, boolean useFlow) {
-    super(checker, useFlow);
+    public BaseAnnotatedTypeFactory(BaseTypeChecker checker, boolean useFlow) {
+        super(checker, useFlow);
 
-    // Every subclass must call postInit!
-    if (this.getClass() == BaseAnnotatedTypeFactory.class) {
-      this.postInit();
+        // Every subclass must call postInit!
+        if (this.getClass() == BaseAnnotatedTypeFactory.class) {
+            this.postInit();
+        }
     }
-  }
 
-  public BaseAnnotatedTypeFactory(BaseTypeChecker checker) {
-    this(checker, flowByDefault);
-  }
+    public BaseAnnotatedTypeFactory(BaseTypeChecker checker) {
+        this(checker, flowByDefault);
+    }
 
-  @Override
-  protected CFAnalysis createFlowAnalysis() {
-    return new CFAnalysis(checker, this);
-  }
+    @Override
+    protected CFAnalysis createFlowAnalysis() {
+        return new CFAnalysis(checker, this);
+    }
 }

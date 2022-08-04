@@ -779,7 +779,7 @@ subprojects {
                 return
             }
             args += "${formatScriptsHome}/check-google-java-format.py"
-            // args += "--aosp" // 4 space indentation
+            args += "--aosp" // 4 space indentation
             args += getJavaFilesToFormat(project.name)
             // Since the scripts are downloaded from third-party Github, the environment variable
             // is the only way to add the necessary open:
@@ -804,7 +804,7 @@ subprojects {
                 return
             }
             args += "${formatScriptsHome}/run-google-java-format.py"
-            // args += "--aosp" // 4 space indentation
+            args += "--aosp" // 4 space indentation
             args += getJavaFilesToFormat(project.name)
         }
     }

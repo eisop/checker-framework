@@ -1,11 +1,12 @@
-import java.util.List;
-import java.util.function.Consumer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class Issue1818 {
-  void f() {
-    Consumer<List<?>> c = values -> values.forEach(value -> g(value));
-  }
+import java.util.List;
+import java.util.function.Consumer;
 
-  void g(@Nullable Object o) {}
+public class Issue1818 {
+    void f() {
+        Consumer<List<?>> c = values -> values.forEach(value -> g(value));
+    }
+
+    void g(@Nullable Object o) {}
 }
