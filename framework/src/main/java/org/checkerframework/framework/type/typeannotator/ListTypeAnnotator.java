@@ -1,11 +1,10 @@
 package org.checkerframework.framework.type.typeannotator;
 
-import org.checkerframework.framework.type.AnnotatedTypeMirror;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.checkerframework.framework.type.AnnotatedTypeMirror;
 
 /**
  * ListTypeAnnotator is a TypeAnnotator that executes a list of {@link TypeAnnotator} for each type
@@ -19,50 +18,50 @@ import java.util.List;
  */
 public final class ListTypeAnnotator extends TypeAnnotator {
 
-    /**
-     * The annotators that will be executed for each type scanned by this TypeAnnotator. They are
-     * executed in order.
-     */
-    private final List<TypeAnnotator> annotators;
+  /**
+   * The annotators that will be executed for each type scanned by this TypeAnnotator. They are
+   * executed in order.
+   */
+  private final List<TypeAnnotator> annotators;
 
-    /**
-     * Create a new ListTypeAnnotator.
-     *
-     * @param annotators the annotators that will be executed for each type scanned by this
-     *     TypeAnnotator. They are executed in the order passed in.
-     */
-    public ListTypeAnnotator(TypeAnnotator... annotators) {
-        this(Arrays.asList(annotators));
+  /**
+   * Create a new ListTypeAnnotator.
+   *
+   * @param annotators the annotators that will be executed for each type scanned by this
+   *     TypeAnnotator. They are executed in the order passed in.
+   */
+  public ListTypeAnnotator(TypeAnnotator... annotators) {
+    this(Arrays.asList(annotators));
+  }
+
+  /**
+   * @param annotators the annotators that will be executed for each type scanned by this
+   *     TypeAnnotator. They are executed in the order passed in.
+   */
+  public ListTypeAnnotator(List<TypeAnnotator> annotators) {
+    super(null);
+    List<TypeAnnotator> annotatorList = new ArrayList<>(annotators.size());
+    for (TypeAnnotator annotator : annotators) {
+      if (annotator instanceof ListTypeAnnotator) {
+        annotatorList.addAll(((ListTypeAnnotator) annotator).annotators);
+      } else {
+        annotatorList.add(annotator);
+      }
+    }
+    this.annotators = Collections.unmodifiableList(annotatorList);
+  }
+
+  @Override
+  protected Void scan(AnnotatedTypeMirror type, Void aVoid) {
+    for (TypeAnnotator annotator : annotators) {
+      annotator.visit(type, aVoid);
     }
 
-    /**
-     * @param annotators the annotators that will be executed for each type scanned by this
-     *     TypeAnnotator. They are executed in the order passed in.
-     */
-    public ListTypeAnnotator(List<TypeAnnotator> annotators) {
-        super(null);
-        List<TypeAnnotator> annotatorList = new ArrayList<>(annotators.size());
-        for (TypeAnnotator annotator : annotators) {
-            if (annotator instanceof ListTypeAnnotator) {
-                annotatorList.addAll(((ListTypeAnnotator) annotator).annotators);
-            } else {
-                annotatorList.add(annotator);
-            }
-        }
-        this.annotators = Collections.unmodifiableList(annotatorList);
-    }
+    return null;
+  }
 
-    @Override
-    protected Void scan(AnnotatedTypeMirror type, Void aVoid) {
-        for (TypeAnnotator annotator : annotators) {
-            annotator.visit(type, aVoid);
-        }
-
-        return null;
-    }
-
-    @Override
-    public String toString() {
-        return "ListTypeAnnotator" + annotators;
-    }
+  @Override
+  public String toString() {
+    return "ListTypeAnnotator" + annotators;
+  }
 }

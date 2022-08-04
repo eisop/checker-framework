@@ -11,5 +11,5 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @compile/fail/ref=StubTypeParamsClass.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -Astubs=box-nonnull.astub -Werror StubTypeParamsClass.java
  */
 public class StubTypeParamsClass {
-    @Nullable Box<@Nullable Object> f;
+  @Nullable Box<@Nullable Object> f;
 }
