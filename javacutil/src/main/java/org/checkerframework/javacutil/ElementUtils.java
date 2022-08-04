@@ -981,7 +981,7 @@ public class ElementUtils {
   @SuppressWarnings({"unchecked", "nullness"}) // because of cast from reflection
   public static List<? extends Element> getRecordComponents(TypeElement element) {
     try {
-      return (@NonNull List<? extends Element>) getRecordComponentsMethod.invoke(element);
+      return (@NonNull List<? extends Element>) TYPEELEMENT_GETRECORDCOMPONENTS.invoke(element);
     } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
       throw new Error("Cannot call TypeElement.getRecordComponents()", e);
     }
