@@ -1,7 +1,7 @@
 package org.checkerframework.common.aliasing;
 
 import com.sun.source.tree.ExpressionTree;
-import com.sun.source.tree.NewClassTree;
+import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.Tree;
 
 import org.checkerframework.common.aliasing.qual.LeakedToResult;
@@ -10,7 +10,6 @@ import org.checkerframework.common.aliasing.qual.Unique;
 import org.checkerframework.dataflow.analysis.RegularTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
-import org.checkerframework.dataflow.cfg.node.ArrayCreationNode;
 import org.checkerframework.dataflow.cfg.node.AssignmentNode;
 import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
@@ -24,11 +23,8 @@ import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
-import org.checkerframework.framework.util.AnnotatedTypes;
-import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TreeUtils;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.lang.model.element.ExecutableElement;
@@ -90,79 +86,45 @@ public class AliasingTransfer extends CFTransfer {
     @Override
     protected void processPostconditions(
             Node n, CFStore store, ExecutableElement executableElement, ExpressionTree tree) {
-        MethodInvocationNode methodInvocationNode = null;
-        ObjectCreationNode objectCreationNode = null;
-        if (n instanceof MethodInvocationNode) {
-            methodInvocationNode = (MethodInvocationNode) n;
-        } else if (n instanceof ObjectCreationNode) {
-            objectCreationNode = (ObjectCreationNode) n;
-        } else {
-            throw new BugInCF(
-                    "processPostconditions in AliasingTransfer expects "
-                            + "a MethodInvocationNode or ObjectCreationNode argument; received a "
-                            + n.getClass().getSimpleName());
+        // TODO: Process ObjectCreationNode here after finish the pull request:
+        // https://github.com/eisop/checker-framework/pull/314
+        if (!(n instanceof MethodInvocationNode)) {
+            return;
         }
         super.processPostconditions(n, store, executableElement, tree);
-        if (methodInvocationNode != null && TreeUtils.isEnumSuper(methodInvocationNode.getTree())) {
+        if (TreeUtils.isEnumSuper((MethodInvocationTree) n.getTree())) {
             // Skipping the init() method for enums.
             return;
         }
-        List<Node> args =
-                methodInvocationNode != null
-                        ? methodInvocationNode.getArguments()
-                        : objectCreationNode.getArguments();
-        List<AnnotatedTypeMirror> params = null;
-        AnnotatedExecutableType annotatedType = factory.getAnnotatedType(executableElement);
-        if (methodInvocationNode != null) {
-            params = annotatedType.getParameterTypes();
-        } else if (objectCreationNode != null) {
-            AnnotatedTypeFactory.ParameterizedExecutableType fromUse =
-                    factory.constructorFromUse((NewClassTree) tree);
-            AnnotatedExecutableType constructorType = fromUse.executableType;
-            params =
-                    AnnotatedTypes.adaptParameters(
-                            factory, constructorType, ((NewClassTree) tree).getArguments());
-            List<Node> tmp = new ArrayList<>();
-            // expand ArrayCreationNode such as new int []
-            for (int i = 0; i < args.size(); i++) {
-                if (args.get(i) instanceof ArrayCreationNode) {
-                    for (Node arg : ((ArrayCreationNode) args.get(i)).getInitializers()) {
-                        tmp.add(arg);
-                    }
-                } else {
-                    tmp.add(args.get(i));
-                }
-            }
-            args = tmp;
-        }
+        List<Node> args = ((MethodInvocationNode) n).getArguments();
+        List<? extends VariableElement> params = executableElement.getParameters();
         assert (args.size() == params.size())
                 : "Number of arguments in "
+                        + "the method call "
                         + n
                         + " is different from the"
                         + " number of parameters for the method declaration: "
                         + executableElement.getSimpleName();
-        if (args.size() == params.size()) {
-            for (int i = 0; i < args.size(); i++) {
-                Node arg = args.get(i);
-                AnnotatedTypeMirror paramType = params.get(i);
-                if (!paramType.hasAnnotation(NonLeaked.class)
-                        && !paramType.hasAnnotation(LeakedToResult.class)) {
-                    store.clearValue(JavaExpression.fromNode(arg));
-                }
+
+        AnnotatedExecutableType annotatedType = factory.getAnnotatedType(executableElement);
+        List<AnnotatedTypeMirror> paramTypes = annotatedType.getParameterTypes();
+        for (int i = 0; i < args.size(); i++) {
+            Node arg = args.get(i);
+            AnnotatedTypeMirror paramType = paramTypes.get(i);
+            if (!paramType.hasAnnotation(NonLeaked.class)
+                    && !paramType.hasAnnotation(LeakedToResult.class)) {
+                store.clearValue(JavaExpression.fromNode(arg));
             }
         }
+
         // Now, doing the same as above for the receiver parameter
-        if (methodInvocationNode != null) {
-            Node receiver = ((MethodInvocationNode) n).getTarget().getReceiver();
-            AnnotatedDeclaredType receiverType = annotatedType.getReceiverType();
-            if (receiverType != null
-                    && !receiverType.hasAnnotation(LeakedToResult.class)
-                    && !receiverType.hasAnnotation(NonLeaked.class)) {
-                store.clearValue(JavaExpression.fromNode(receiver));
-            }
+        Node receiver = ((MethodInvocationNode) n).getTarget().getReceiver();
+        AnnotatedDeclaredType receiverType = annotatedType.getReceiverType();
+        if (receiverType != null
+                && !receiverType.hasAnnotation(LeakedToResult.class)
+                && !receiverType.hasAnnotation(NonLeaked.class)) {
+            store.clearValue(JavaExpression.fromNode(receiver));
         }
-        // TODO: do the same for the receiver of the objectCreationNode,
-        // after issue https://github.com/eisop/checker-framework/issues/282 is resolved.
     }
 
     /**

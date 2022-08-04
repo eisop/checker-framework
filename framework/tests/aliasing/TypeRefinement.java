@@ -45,8 +45,6 @@ public class TypeRefinement {
         leaked(unique);
         // :: error: (argument.type.incompatible)
         isUnique(unique);
-        // :: error: (argument.type.incompatible)
-        new InnerUnique(unique);
     }
 
     void rule3() {
@@ -58,8 +56,6 @@ public class TypeRefinement {
         String notUnique = leakedToResult(unique);
         // :: error: (argument.type.incompatible)
         isUnique(unique);
-        // :: error: (argument.type.incompatible)
-        new InnerUnique(unique);
     }
 
     void nonLeaked(@NonLeaked String s) {}
@@ -72,9 +68,4 @@ public class TypeRefinement {
 
     // @NonLeaked so it doesn't refine the type of the argument.
     void isUnique(@NonLeaked @Unique String s) {}
-
-    // for constructor
-    public class InnerUnique {
-        public InnerUnique(@NonLeaked @Unique String s) {}
-    }
 }
