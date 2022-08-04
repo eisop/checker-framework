@@ -390,8 +390,7 @@ public class NullnessVisitor
 
     if (checker.hasOption("assumeAssertionsAreEnabled")
         || CFCFGBuilder.assumeAssertionsActivatedForAssertTree(checker, node)) {
-      /// There is nothing to do here, but don't perform the `else` test.
-      // doVisitAssert = true;
+      doVisitAssert = true;
     } else if (checker.hasOption("assumeAssertionsAreDisabled")) {
       doVisitAssert = false;
     } else {
