@@ -3,7 +3,7 @@ Version 3.24.0-eisop1 (August 5, 2022)
 
 **User-visible changes:**
 
-Post-conditions can be used on the parameters of the constructor.
+Postconditions on the parameters of a constructor are now used at new object creations.
 
 **Implementation details:**
 
