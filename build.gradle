@@ -45,7 +45,6 @@ ext {
     stubparser = "${parentDir}/stubparser"
     stubparserJar = "${stubparser}/javaparser-core/target/stubparser-3.24.3.jar"
 
-    jtregHome = "${parentDir}/jtreg"
     formatScriptsHome = "${project(':checker').projectDir}/bin-devel/.run-google-java-format"
     plumeScriptsHome = "${project(':checker').projectDir}/bin-devel/.plume-scripts"
     htmlToolsHome = "${project(':checker').projectDir}/bin-devel/.html-tools"
@@ -922,7 +921,7 @@ subprojects {
 
         // Add jtregTests to framework and checker modules
         if (project.name.is('framework') || project.name.is('checker')) {
-            tasks.create(name: 'jtregTests', dependsOn: ':downloadJtreg', group: 'Verification') {
+            tasks.create(name: 'jtregTests', group: 'Verification') {
                 description 'Run the jtreg tests.'
                 dependsOn('compileJava')
                 dependsOn('compileTestJava')
@@ -933,7 +932,7 @@ subprojects {
                 String tests = '.'
                 doLast {
                     exec {
-                        executable "${jtregHome}/bin/jtreg"
+                        executable "jtreg"
                         args = [
                                 "-dir:${projectDir}/jtreg",
                                 "-workDir:${jtregOutput}/${name}/work",
