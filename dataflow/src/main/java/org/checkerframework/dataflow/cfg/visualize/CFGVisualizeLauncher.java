@@ -234,6 +234,7 @@ public final class CFGVisualizeLauncher {
       // warnings about our exception).
       System.setErr(
           new PrintStream(
+              // In JDK 11+, this can be just "OutputStream.nullOutputStream()".
               new OutputStream() {
                 @Override
                 public void write(int b) throws IOException {}
