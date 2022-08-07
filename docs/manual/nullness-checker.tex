@@ -124,8 +124,8 @@ by the Checker Framework.
   \refqualclass{checker/nullness/qual}{KeyFor} and related qualifiers.
 
 \item
-  \label{nullness-receiverAndParamsNullableAfterMethodCall}%
-  If you supply the \code{-AreceiverAndParamsNullableAfterMethodCall} command-line option, then the
+  \label{nullness-conservativeArgumentNullnessAfterInvocation}%
+  If you supply the \code{-AconservativeArgumentNullnessAfterInvocation} command-line option, then the
   checker will assume receiver and params are nullable after the method invocation. When running gradle
   tests we disable this option by default except when doing \code{checkNullness} test.
 \end{itemize}

@@ -86,6 +86,8 @@ public class NullnessTransfer
      */
     protected final @Nullable KeyForAnnotatedTypeFactory keyForTypeFactory;
 
+    private final boolean nonNullAssumptionAfterInvocation;
+
     /**
      * Create a new NullnessTransfer for the given analysis.
      *
@@ -115,6 +117,11 @@ public class NullnessTransfer
                                 TypesUtils.typeFromClass(Map.class, analysis.getTypes(), elements),
                                 nullnessTypeFactory,
                                 false);
+
+        nonNullAssumptionAfterInvocation =
+                !analysis.getTypeFactory()
+                        .getChecker()
+                        .hasOption("conservativeArgumentNullnessAfterInvocation");
     }
 
     /**
@@ -346,11 +353,20 @@ public class NullnessTransfer
         return result;
     }
 
-    /*
-     * Provided that m is of a type that implements interface java.util.Map:
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Without specifying conservativeArgumentNullnessAfterInvocation flag, receiver and params
+     * are default to be non-null in the transfer result.
+     *
+     * <p>Specifying the flag make the analysis more conservative by checking the method is
+     * SideEffectFree or the receiver is unassignable or not.
+     *
+     * <p>Provided that m is of a type that implements interface java.util.Map:
+     *
      * <ul>
-     * <li>Given a call m.get(k), if k is @KeyFor("m") and m's value type is @NonNull,
-     *     then the result is @NonNull in the thenStore and elseStore of the transfer result.
+     *   <li>Given a call m.get(k), if k is @KeyFor("m") and m's value type is @NonNull, then the
+     *       result is @NonNull in the thenStore and elseStore of the transfer result.
      * </ul>
      */
     @Override
@@ -360,16 +376,12 @@ public class NullnessTransfer
 
         MethodInvocationTree tree = n.getTree();
         ExecutableElement method = TreeUtils.elementFromUse(tree);
-        boolean nonNullAssumption =
-                !analysis.getTypeFactory()
-                        .getChecker()
-                        .hasOption("receiverAndParamsNullableAfterMethodCall");
 
         boolean isMethodSideEffectFree = PurityUtils.isSideEffectFree(atypeFactory, method);
         Node receiver = n.getTarget().getReceiver();
-        if (nonNullAssumption
-                || JavaExpression.fromNode(receiver).isUnassignableByOtherCode()
-                || isMethodSideEffectFree) {
+        if (nonNullAssumptionAfterInvocation
+                || isMethodSideEffectFree
+                || JavaExpression.fromNode(receiver).isUnassignableByOtherCode()) {
             // Make receiver non-null.
             makeNonNull(result, receiver);
         }
@@ -383,7 +395,7 @@ public class NullnessTransfer
         List<? extends ExpressionTree> methodArgs = tree.getArguments();
         for (int i = 0; i < methodParams.size() && i < methodArgs.size(); ++i) {
             if (methodParams.get(i).hasAnnotation(NONNULL)
-                    && (nonNullAssumption
+                    && (nonNullAssumptionAfterInvocation
                             || isMethodSideEffectFree
                             || JavaExpression.fromTree(methodArgs.get(i))
                                     .isUnassignableByOtherCode())) {

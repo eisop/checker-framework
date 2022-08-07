@@ -4,9 +4,18 @@ Version 3.24.0-eisop2 (August ?, 2022)
 
 **User-visible changes:**
 
+New command-line option `AconservativeArgumentNullnessAfterInvocation` for nullness checker
+
 **Implementation details:**
 
+Added a command-line flag `AconservativeArgumentNullnessAfterInvocation` for a more conservative
+nullness analysis. Without specifying the flag, receiver and non-null parameters used in a method call
+or constructor invocation are enforced to be non-null after the invocation. The flag is only enabled for
+`checkNullness` task by default.
+
 **Closed issues:**
+
+eisop#300.
 
 
 Version 3.24.0-eisop1 (August 5, 2022)
