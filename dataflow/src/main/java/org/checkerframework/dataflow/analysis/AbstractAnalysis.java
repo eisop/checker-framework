@@ -201,10 +201,15 @@ public abstract class AbstractAnalysis<
             if (!currentNode.getOperands().contains(n)
                     && !currentNode.getTransitiveOperands().contains(n)) {
                 // Special handling for the postfix operation, as the operation introduces a
-                // temporary
-                // variable for CFG but not for the AST side, thus cause inconsistency.
+                // temporary variable for CFG but not for the AST side,
+                // thus cause inconsistency.
                 // See https://github.com/eisop/checker-framework/pull/304
                 if (n instanceof AssignmentNode) {
+                    Tree.Kind nKind = ((AssignmentNode) n).getTree().getKind();
+                    if (nKind != Tree.Kind.POSTFIX_DECREMENT
+                            && nKind != Tree.Kind.POSTFIX_INCREMENT) {
+                        return null;
+                    }
                     Node expr = ((AssignmentNode) n).getExpression();
                     Node target = ((AssignmentNode) n).getTarget();
                     if (currentNode.getOperands().contains(target)
