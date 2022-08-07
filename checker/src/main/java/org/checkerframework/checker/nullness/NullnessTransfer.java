@@ -86,6 +86,10 @@ public class NullnessTransfer
      */
     protected final @Nullable KeyForAnnotatedTypeFactory keyForTypeFactory;
 
+    /**
+     * True if conservativeArgumentNullnessAfterInvocation flag is enabled, meaning after method
+     * call or constructor invocation, parameters and receiver of the method are made to non-null.
+     */
     private final boolean nonNullAssumptionAfterInvocation;
 
     /**
