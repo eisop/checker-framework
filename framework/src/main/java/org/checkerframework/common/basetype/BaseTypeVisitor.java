@@ -2523,7 +2523,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         Set<AnnotationMirror> exprAnnos = exprType.getEffectiveAnnotations();
         QualifierHierarchy qualifierHierarchy = atypeFactory.getQualifierHierarchy();
 
-        for (int i = 0; i < castAnnos.size(); i++) {}
         if (!qualifierHierarchy.isComparable(castAnnos, exprAnnos)) { // exists an incomparable cast
             return CastSafeKind.NOT_DOWNCAST;
         }
