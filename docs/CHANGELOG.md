@@ -10,6 +10,18 @@ Version 3.25.0-eisop1 (September 2, 2022)
 eisop#321.
 
 
+Version 3.24.1 (??, 2022)
+-------------------------
+
+**User-visible changes:**
+
+Make `mustcall.not.inheritable` a warning rather than an error
+
+**Implementation details:**
+
+**Closed issues:**
+
+
 Version 3.24.0-eisop1 (August 5, 2022)
 --------------------------------------
 
