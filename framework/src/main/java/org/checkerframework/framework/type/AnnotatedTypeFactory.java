@@ -3962,7 +3962,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
    * <ul>
    *   <li>on the element
    *   <li>written in stubfiles
-   *   <li>inherited from overriden methods, (see {@link InheritedAnnotation})
+   *   <li>inherited from overridden methods, (see {@link InheritedAnnotation})
    *   <li>inherited from superclasses or super interfaces (see {@link Inherited})
    * </ul>
    *
@@ -4106,7 +4106,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
    * <ul>
    *   <li>on the element
    *   <li>written in stubfiles
-   *   <li>inherited from overriden methods, (see {@link InheritedAnnotation})
+   *   <li>inherited from overridden methods, (see {@link InheritedAnnotation})
    *   <li>inherited from superclasses or super interfaces (see {@link Inherited})
    * </ul>
    *
@@ -4126,7 +4126,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     Set<AnnotationMirror> results = AnnotationUtils.createAnnotationSet();
     // Retrieving the annotations from the element.
     // This includes annotations inherited from superclasses, but not superinterfaces or
-    // overriden methods.
+    // overridden methods.
     List<? extends AnnotationMirror> fromEle = elements.getAllAnnotationMirrors(elt);
     for (AnnotationMirror annotation : fromEle) {
       try {
