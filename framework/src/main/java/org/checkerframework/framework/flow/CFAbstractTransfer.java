@@ -3,6 +3,7 @@ package org.checkerframework.framework.flow;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.util.TreePath;
 
@@ -43,6 +44,8 @@ import org.checkerframework.dataflow.cfg.node.WideningConversionNode;
 import org.checkerframework.dataflow.expression.FieldAccess;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.expression.LocalVariable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.dataflow.util.NodeUtils;
 import org.checkerframework.framework.flow.CFAbstractAnalysis.FieldInitialValue;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
@@ -55,6 +58,7 @@ import org.checkerframework.framework.util.Contract.Precondition;
 import org.checkerframework.framework.util.ContractsFromMethod;
 import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
 import org.checkerframework.framework.util.StringToJavaExpression;
+import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
@@ -147,6 +151,7 @@ public abstract class CFAbstractTransfer<
      * @return true if the transfer function uses sequential semantics, false if it uses concurrent
      *     semantics
      */
+    @Pure
     public boolean usesSequentialSemantics() {
         return sequentialSemantics;
     }
@@ -162,6 +167,7 @@ public abstract class CFAbstractTransfer<
      * @param store the store
      * @return the possibly-modified value
      */
+    @SideEffectFree
     protected @Nullable V finishValue(@Nullable V value, S store) {
         return value;
     }
@@ -178,6 +184,7 @@ public abstract class CFAbstractTransfer<
      * @param elseStore the "else" store
      * @return the possibly-modified value
      */
+    @SideEffectFree
     protected @Nullable V finishValue(@Nullable V value, S thenStore, S elseStore) {
         return value;
     }
@@ -490,6 +497,7 @@ public abstract class CFAbstractTransfer<
      * @param methodDeclTree the declaration of the method or constructor
      * @return true if the receiver of a method or constructor might not yet be fully initialized
      */
+    @Pure
     protected boolean isNotFullyInitializedReceiver(MethodTree methodDeclTree) {
         return TreeUtils.isConstructor(methodDeclTree);
     }
@@ -566,6 +574,7 @@ public abstract class CFAbstractTransfer<
      * @param in the transfer input
      * @return the input information, as a TransferResult
      */
+    @SideEffectFree
     protected TransferResult<V, S> createTransferResult(@Nullable V value, TransferInput<V, S> in) {
         if (in.containsTwoStores()) {
             S thenStore = in.getThenStore();
@@ -588,6 +597,7 @@ public abstract class CFAbstractTransfer<
      * @param in the TransferResult to copy
      * @return the input informatio
      */
+    @SideEffectFree
     protected TransferResult<V, S> recreateTransferResult(
             @Nullable V value, TransferResult<V, S> in) {
         if (in.containsTwoStores()) {
@@ -822,6 +832,7 @@ public abstract class CFAbstractTransfer<
      * @return a list containing all the right- and left-hand sides in the given assignment node; it
      *     contains just the node itself if it is not an assignment)
      */
+    @SideEffectFree
     protected List<Node> splitAssignments(Node node) {
         if (node instanceof AssignmentNode) {
             List<Node> result = new ArrayList<>(2);
@@ -985,6 +996,11 @@ public abstract class CFAbstractTransfer<
           }
         }
         */
+        NewClassTree newClassTree = n.getTree();
+        ExecutableElement constructorElt = TreeUtils.getSuperConstructor(newClassTree);
+        S store = p.getRegularStore();
+        // add new information based on postcondition
+        processPostconditions(n, store, constructorElt, newClassTree);
         return super.visitObjectCreation(n, p);
     }
 
@@ -1005,7 +1021,7 @@ public abstract class CFAbstractTransfer<
                }
         */
 
-        Tree invocationTree = n.getTree();
+        ExpressionTree invocationTree = n.getTree();
 
         // Determine the abstract value for the method call.
         // look up the call's value from factory
@@ -1116,20 +1132,16 @@ public abstract class CFAbstractTransfer<
     /**
      * Add information from the postconditions of a method to the store after an invocation.
      *
-     * @param invocationNode a method call
+     * @param n a method call or an object creation
      * @param store a store; is side-effected by this method
-     * @param methodElement the method being called
-     * @param invocationTree the tree for the method call
+     * @param executableElement the method or constructor being called
+     * @param tree the tree for the method call or for the object creation
      */
     protected void processPostconditions(
-            MethodInvocationNode invocationNode,
-            S store,
-            ExecutableElement methodElement,
-            Tree invocationTree) {
+            Node n, S store, ExecutableElement executableElement, ExpressionTree tree) {
         ContractsFromMethod contractsUtils = analysis.atypeFactory.getContractsFromMethod();
-        Set<Postcondition> postconditions = contractsUtils.getPostconditions(methodElement);
-        processPostconditionsAndConditionalPostconditions(
-                invocationNode, invocationTree, store, null, postconditions);
+        Set<Postcondition> postconditions = contractsUtils.getPostconditions(executableElement);
+        processPostconditionsAndConditionalPostconditions(n, tree, store, null, postconditions);
     }
 
     /**
@@ -1145,7 +1157,7 @@ public abstract class CFAbstractTransfer<
     protected void processConditionalPostconditions(
             MethodInvocationNode invocationNode,
             ExecutableElement methodElement,
-            Tree invocationTree,
+            ExpressionTree invocationTree,
             S thenStore,
             S elseStore) {
         ContractsFromMethod contractsUtils = analysis.atypeFactory.getContractsFromMethod();
@@ -1159,23 +1171,38 @@ public abstract class CFAbstractTransfer<
      * Add information from the postconditions and conditional postconditions of a method to the
      * stores after an invocation.
      *
-     * @param invocationNode a method call
-     * @param invocationTree the tree for the method call
+     * @param n a method call node or an object creation node
+     * @param tree the tree for the method call or for the object creation
      * @param thenStore the "then" store; is side-effected by this method
      * @param elseStore the "else" store; is side-effected by this method
      * @param postconditions the postconditions
      */
     private void processPostconditionsAndConditionalPostconditions(
-            MethodInvocationNode invocationNode,
-            Tree invocationTree,
+            Node n,
+            ExpressionTree tree,
             S thenStore,
             S elseStore,
             Set<? extends Contract> postconditions) {
 
-        StringToJavaExpression stringToJavaExpr =
-                stringExpr ->
-                        StringToJavaExpression.atMethodInvocation(
-                                stringExpr, invocationNode, analysis.checker);
+        StringToJavaExpression stringToJavaExpr = null;
+        if (n instanceof MethodInvocationNode) {
+            stringToJavaExpr =
+                    stringExpr ->
+                            StringToJavaExpression.atMethodInvocation(
+                                    stringExpr, (MethodInvocationNode) n, analysis.checker);
+        } else if (n instanceof ObjectCreationNode) {
+            stringToJavaExpr =
+                    stringExpr ->
+                            StringToJavaExpression.atConstructorInvocation(
+                                    stringExpr, (NewClassTree) tree, analysis.checker);
+        } else {
+            throw new BugInCF(
+                    "processPostconditionsAndConditionalPostconditions in CFAbstractTransfer"
+                        + " expects a MethodInvocationNode or ObjectCreationNode argument; received"
+                        + " a "
+                            + n.getClass().getSimpleName());
+        }
+
         for (Contract p : postconditions) {
             // Viewpoint-adapt to the method use (the call site).
             AnnotationMirror anno =
@@ -1205,12 +1232,11 @@ public abstract class CFAbstractTransfer<
                     Object[] args = new Object[e.args.length + 1];
                     args[0] =
                             ElementUtils.getSimpleSignature(
-                                    TreeUtils.elementFromUse(invocationNode.getTree()));
+                                    (ExecutableElement) TreeUtils.elementFromUse(tree));
                     System.arraycopy(e.args, 0, args, 1, e.args.length);
-                    analysis.checker.reportError(
-                            invocationTree, "flowexpr.parse.error.postcondition", args);
+                    analysis.checker.reportError(tree, "flowexpr.parse.error.postcondition", args);
                 } else {
-                    analysis.checker.report(invocationTree, e.getDiagMessage());
+                    analysis.checker.report(tree, e.getDiagMessage());
                 }
             }
         }
@@ -1288,7 +1314,13 @@ public abstract class CFAbstractTransfer<
     /**
      * Returns the abstract value of {@code (value1, value2)} that is more specific. If the two are
      * incomparable, then {@code value1} is returned.
+     *
+     * @param value1 an abstract value to be compared with
+     * @param value2 an abstract value to be compared with
+     * @return the more specific value of the two parameters, or, if they are incomparable, {@code
+     *     value1}
      */
+    @Pure
     public V moreSpecificValue(V value1, V value2) {
         if (value1 == null) {
             return value2;
@@ -1326,6 +1358,7 @@ public abstract class CFAbstractTransfer<
      * @return an abstract value with the given {@code type} and the annotations from {@code
      *     annotatedValue}; returns null if {@code annotatedValue} is null
      */
+    @SideEffectFree
     protected V getNarrowedValue(TypeMirror type, V annotatedValue) {
         if (annotatedValue == null) {
             return null;
@@ -1348,6 +1381,7 @@ public abstract class CFAbstractTransfer<
      * @return an abstract value with the given {@code type} and the annotations from {@code
      *     annotatedValue}; returns null if {@code annotatedValue} is null
      */
+    @SideEffectFree
     protected V getWidenedValue(TypeMirror type, V annotatedValue) {
         if (annotatedValue == null) {
             return null;

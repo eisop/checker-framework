@@ -1,5 +1,5 @@
-Version 3.23.0-eisop3 (July ?, 2022)
-------------------------------------
+Version 3.24.0-eisop2 (August ?, 2022)
+--------------------------------------
 
 **User-visible changes:**
 
@@ -8,6 +8,32 @@ Version 3.23.0-eisop3 (July ?, 2022)
 **Closed issues:**
 
 eisop#282.
+
+
+Version 3.24.0-eisop1 (August 5, 2022)
+--------------------------------------
+
+**User-visible changes:**
+
+Postconditions on the parameters of a constructor are now used at new object creations.
+
+
+Version 3.24.0 (August 3, 2022)
+-------------------------------
+
+**User-visible changes:**
+
+Performance improvements.
+
+Minor bug fixes and enhancements.
+
+**Implementation details:**
+
+Prefer `SystemUtil.jreVersion` to `SystemUtil.getJreVersion()`.
+
+**Closed issues:**
+
+#5200, #5216
 
 
 Version 3.23.0-eisop2 (July 22, 2022)
