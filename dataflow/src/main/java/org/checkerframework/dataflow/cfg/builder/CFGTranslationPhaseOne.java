@@ -1252,6 +1252,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      *     to this method
      */
     protected List<Node> convertCallArguments(
+            Node expressionTypeReceiver,
             ExecutableElement method,
             ExecutableType methodType,
             List<? extends ExpressionTree> actualExprs) {
@@ -1287,13 +1288,20 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             } else {
                 assert lastParamType instanceof ArrayType
                         : "variable argument formal must be an array";
-                // Apply method invocation conversion to lastArgIndex arguments and use the
-                // remaining ones to initialize an array.
-                for (int i = 0; i < lastArgIndex; i++) {
-                    Node actualVal = scan(actualExprs.get(i), null);
-                    convertedNodes.add(methodInvocationConvert(actualVal, formals.get(i)));
+                // For an inner class constructor, add the receiver as the first arguments
+                // explicitly.
+                // TODO: need to determine whether the first argument is a receiver
+                if (expressionTypeReceiver != null) {
+                    convertedNodes.add(expressionTypeReceiver);
+                    lastArgIndex = lastArgIndex - 1;
+                } else {
+                    // Apply method invocation conversion to lastArgIndex arguments and use the
+                    // remaining ones to initialize an array.
+                    for (int i = 0; i < lastArgIndex; i++) {
+                        Node actualVal = scan(actualExprs.get(i), null);
+                        convertedNodes.add(methodInvocationConvert(actualVal, formals.get(i)));
+                    }
                 }
-
                 // NOTE: When the last parameter is a type variable vararg and the compiler
                 // cannot find a specific type use to substitute for it, the compiler will
                 // create an unbounded component type instead. For example,
@@ -1479,7 +1487,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             // See also BaseTypeVisitor.visitMethodInvocation and QualifierPolymorphism.annotate.
             arguments = Collections.emptyList();
         } else {
-            arguments = convertCallArguments(method, TreeUtils.typeFromUse(tree), actualExprs);
+            arguments =
+                    convertCallArguments(null, method, TreeUtils.typeFromUse(tree), actualExprs);
         }
 
         // TODO: lock the receiver for synchronized methods
@@ -3386,8 +3395,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         List<? extends ExpressionTree> actualExprs = tree.getArguments();
 
         List<Node> arguments =
-                convertCallArguments(constructor, TreeUtils.typeFromUse(tree), actualExprs);
-
+                convertCallArguments(
+                        receiver, constructor, TreeUtils.typeFromUse(tree), actualExprs);
         // TODO: for anonymous classes, don't use the identifier alone.
         // See Issue 890.
         Node constructorNode = scan(tree.getIdentifier(), p);
