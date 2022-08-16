@@ -57,7 +57,7 @@ echo "... done: (cd ../stubparser/ && ./.build-without-test.sh)"
 
 
 ## Build JSpecify, only for the purpose of using its tests.
-"$PLUME_SCRIPTS/git-clone-related" jspecify jspecify
+"$PLUME_SCRIPTS/git-clone-related" wmdietl jspecify
 if type -p java; then
   _java=java
 elif [[ -n "$JAVA_HOME" ]] && [[ -x "$JAVA_HOME/bin/java" ]];  then
