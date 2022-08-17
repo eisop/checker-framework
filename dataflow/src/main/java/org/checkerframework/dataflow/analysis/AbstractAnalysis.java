@@ -200,9 +200,12 @@ public abstract class AbstractAnalysis<
             assert !n.isLValue() : "Did not expect an lvalue, but got " + n;
             if (!currentNode.getOperands().contains(n)
                     && !currentNode.getTransitiveOperands().contains(n)) {
-                // Special handling for the postfix operation, as the operation introduces a
-                // temporary variable for CFG but not for the AST side,
-                // thus cause inconsistency.
+                // If n is an AssignmentNode and its tree kind is postfix operation,
+                // check if the target of this AssignmentNode is the operand of the currentNode.
+                // The special check is needed as postfix operation introduces a temporary variable
+                // for the CFG but not the AST. Thus, when querying the annotated type from the CFG
+                // side
+                // , this mismatch cause losing the flow-sensitive result.
                 // See https://github.com/eisop/checker-framework/pull/304
                 if (n instanceof AssignmentNode) {
                     Tree.Kind nKind = ((AssignmentNode) n).getTree().getKind();
