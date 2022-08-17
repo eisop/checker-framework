@@ -87,8 +87,9 @@ public class NullnessTransfer
     protected final @Nullable KeyForAnnotatedTypeFactory keyForTypeFactory;
 
     /**
-     * True if conservativeArgumentNullnessAfterInvocation flag is enabled, meaning that after a method
-     * call or constructor invocation, arguments of the invocation (including the receiver) are assumed to be non-null.
+     * True if conservativeArgumentNullnessAfterInvocation flag is turned off, meaning that after a
+     * method call or constructor invocation, arguments of the invocation (including the receiver)
+     * are assumed to be non-null.
      */
     private final boolean nonNullAssumptionAfterInvocation;
 
@@ -360,11 +361,13 @@ public class NullnessTransfer
     /**
      * {@inheritDoc}
      *
-     * <p>Without specifying conservativeArgumentNullnessAfterInvocation flag, receiver and params
-     * are default to be non-null in the transfer result.
+     * <p>Without specifying conservativeArgumentNullnessAfterInvocation flag, the receiver and
+     * arguments that are passed to non-null parameters in a method call or constructor invocation
+     * are assumed to be non-null after the invocation
      *
-     * <p>Specifying the flag make the analysis more conservative by checking the method is
-     * SideEffectFree or the receiver is unassignable or not.
+     * <p>Specifying the flag makes the analysis more conservative by checking the method is
+     * SideEffectFree or the receiver is unassignable or not. Only if either one of the two is true,
+     * the receiver is made to non-null. Similar logic is applied to the parameters of the method.
      *
      * <p>Provided that m is of a type that implements interface java.util.Map:
      *
