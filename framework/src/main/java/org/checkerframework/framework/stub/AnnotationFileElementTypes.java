@@ -93,10 +93,26 @@ public class AnnotationFileElementTypes {
     private final boolean parseAllJdkFiles;
 
     /**
-     * Stores the fully qualified name of classes that are currently being parsed in {@link
-     * #parseEnclosingClass}
+     * Stores the fully qualified name of top-level classes (from any type of stub file) that are
+     * currently being parsed. This can stop recursively parsing an annotated JDK class that is
+     * currently being processed, which prevents conflicts of definition and infinite loops.
      */
     private final Set<String> processingClasses = new LinkedHashSet<>();
+
+    private final AnnotationFileParser.Listener afpListener =
+            new AnnotationFileParser.Listener() {
+                @Override
+                public void preProcessTopLevelType(String typeName) {
+                    boolean success = processingClasses.add(typeName);
+                    assert success;
+                }
+
+                @Override
+                public void postProcessTopLevelType(String typeName) {
+                    boolean success = processingClasses.remove(typeName);
+                    assert success;
+                }
+            };
 
     /**
      * Creates an empty annotation source.
@@ -161,7 +177,8 @@ public class AnnotationFileElementTypes {
                         factory,
                         processingEnv,
                         annotationFileAnnos,
-                        AnnotationFileType.BUILTIN_STUB);
+                        AnnotationFileType.BUILTIN_STUB,
+                        afpListener);
             }
             String jdkVersionStub = "jdk" + annotatedJdkVersion + ".astub";
             InputStream jdkVersionStubIn = checker.getClass().getResourceAsStream(jdkVersionStub);
@@ -172,7 +189,8 @@ public class AnnotationFileElementTypes {
                         factory,
                         processingEnv,
                         annotationFileAnnos,
-                        AnnotationFileType.BUILTIN_STUB);
+                        AnnotationFileType.BUILTIN_STUB,
+                        afpListener);
             }
 
             // 2. Annotated JDK
@@ -237,7 +255,7 @@ public class AnnotationFileElementTypes {
         try {
             InputStream in = new FileInputStream(ajavaPath);
             AnnotationFileParser.parseAjavaFile(
-                    ajavaPath, in, root, factory, processingEnv, annotationFileAnnos);
+                    ajavaPath, in, root, factory, processingEnv, annotationFileAnnos, afpListener);
         } catch (IOException e) {
             checker.message(Kind.NOTE, "Could not read ajava file: " + ajavaPath);
         }
@@ -286,7 +304,8 @@ public class AnnotationFileElementTypes {
                             annotationFileAnnos,
                             fileType == AnnotationFileType.AJAVA
                                     ? AnnotationFileType.AJAVA_AS_STUB
-                                    : fileType);
+                                    : fileType,
+                            afpListener);
                 }
             } else {
                 // We didn't find the files.
@@ -298,7 +317,13 @@ public class AnnotationFileElementTypes {
                 InputStream in = checker.getClass().getResourceAsStream(path);
                 if (in != null) {
                     AnnotationFileParser.parseStubFile(
-                            path, in, factory, processingEnv, annotationFileAnnos, fileType);
+                            path,
+                            in,
+                            factory,
+                            processingEnv,
+                            annotationFileAnnos,
+                            fileType,
+                            afpListener);
                 } else {
                     // Didn't find the file.  Issue a warning.
 
@@ -638,20 +663,16 @@ public class AnnotationFileElementTypes {
             return;
         }
 
-        if (!processingClasses.add(className)) {
+        if (processingClasses.contains(className)) {
             // TODO: some declaration annotations in the enclosing class may still
             //  be missing, we can revisit this part if it's causing issues
             return;
         }
 
-        try {
-            if (jdkStubFiles.containsKey(className)) {
-                parseJdkStubFile(jdkStubFiles.remove(className));
-            } else if (jdkStubFilesJar.containsKey(className)) {
-                parseJdkJarEntry(jdkStubFilesJar.remove(className));
-            }
-        } finally {
-            processingClasses.remove(className);
+        if (jdkStubFiles.containsKey(className)) {
+            parseJdkStubFile(jdkStubFiles.remove(className));
+        } else if (jdkStubFilesJar.containsKey(className)) {
+            parseJdkJarEntry(jdkStubFilesJar.remove(className));
         }
     }
 
@@ -700,7 +721,8 @@ public class AnnotationFileElementTypes {
                     jdkStub,
                     factory,
                     factory.getProcessingEnv(),
-                    annotationFileAnnos);
+                    annotationFileAnnos,
+                    afpListener);
         } catch (IOException e) {
             throw new BugInCF("cannot open the jdk stub file " + path, e);
         } finally {
@@ -728,7 +750,8 @@ public class AnnotationFileElementTypes {
                     jdkStub,
                     factory,
                     factory.getProcessingEnv(),
-                    annotationFileAnnos);
+                    annotationFileAnnos,
+                    afpListener);
         } catch (IOException e) {
             throw new BugInCF("cannot open the Jar file " + connection.getEntryName(), e);
         } catch (BugInCF e) {
