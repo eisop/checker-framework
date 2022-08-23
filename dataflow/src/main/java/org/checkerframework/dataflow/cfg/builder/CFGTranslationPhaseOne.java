@@ -1267,6 +1267,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * a list of {@link Node}s representing the arguments converted for a call of the method. This
      * method applies to both method invocations and constructor calls.
      *
+     * @param expressionTypeReceiver a receiver of inner class
      * @param method an ExecutableElement representing a method to be called
      * @param methodType an ExecutableType representing the type of the method call
      * @param actualExprs a List of argument expressions to a call
@@ -1287,10 +1288,15 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         ArrayList<Node> convertedNodes = new ArrayList<>(numFormals);
 
         int numActuals = actualExprs.size();
+        int lastArgIndex = numFormals - 1;
+        // For an inner class constructor, add the receiver as the first arguments
+        // explicitly.
+        if (expressionTypeReceiver != null) {
+            convertedNodes.add(expressionTypeReceiver);
+        }
         if (method.isVarArgs()) {
             // Create a new array argument if the actuals outnumber the formals, or if the last
             // actual is not assignable to the last formal.
-            int lastArgIndex = numFormals - 1;
             TypeMirror lastParamType = formals.get(lastArgIndex);
             if (numActuals == numFormals
                     && types.isAssignable(
