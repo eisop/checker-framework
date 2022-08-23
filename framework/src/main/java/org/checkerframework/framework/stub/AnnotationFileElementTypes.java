@@ -99,21 +99,6 @@ public class AnnotationFileElementTypes {
      */
     private final Set<String> processingClasses = new LinkedHashSet<>();
 
-    private final AnnotationFileParser.Listener afpListener =
-            new AnnotationFileParser.Listener() {
-                @Override
-                public void preProcessTopLevelType(String typeName) {
-                    boolean success = processingClasses.add(typeName);
-                    assert success;
-                }
-
-                @Override
-                public void postProcessTopLevelType(String typeName) {
-                    boolean success = processingClasses.remove(typeName);
-                    assert success;
-                }
-            };
-
     /**
      * Creates an empty annotation source.
      *
@@ -178,7 +163,7 @@ public class AnnotationFileElementTypes {
                         processingEnv,
                         annotationFileAnnos,
                         AnnotationFileType.BUILTIN_STUB,
-                        afpListener);
+                        this);
             }
             String jdkVersionStub = "jdk" + annotatedJdkVersion + ".astub";
             InputStream jdkVersionStubIn = checker.getClass().getResourceAsStream(jdkVersionStub);
@@ -190,7 +175,7 @@ public class AnnotationFileElementTypes {
                         processingEnv,
                         annotationFileAnnos,
                         AnnotationFileType.BUILTIN_STUB,
-                        afpListener);
+                        this);
             }
 
             // 2. Annotated JDK
@@ -255,7 +240,7 @@ public class AnnotationFileElementTypes {
         try {
             InputStream in = new FileInputStream(ajavaPath);
             AnnotationFileParser.parseAjavaFile(
-                    ajavaPath, in, root, factory, processingEnv, annotationFileAnnos, afpListener);
+                    ajavaPath, in, root, factory, processingEnv, annotationFileAnnos, this);
         } catch (IOException e) {
             checker.message(Kind.NOTE, "Could not read ajava file: " + ajavaPath);
         }
@@ -305,7 +290,7 @@ public class AnnotationFileElementTypes {
                             fileType == AnnotationFileType.AJAVA
                                     ? AnnotationFileType.AJAVA_AS_STUB
                                     : fileType,
-                            afpListener);
+                            this);
                 }
             } else {
                 // We didn't find the files.
@@ -317,13 +302,7 @@ public class AnnotationFileElementTypes {
                 InputStream in = checker.getClass().getResourceAsStream(path);
                 if (in != null) {
                     AnnotationFileParser.parseStubFile(
-                            path,
-                            in,
-                            factory,
-                            processingEnv,
-                            annotationFileAnnos,
-                            fileType,
-                            afpListener);
+                            path, in, factory, processingEnv, annotationFileAnnos, fileType, this);
                 } else {
                     // Didn't find the file.  Issue a warning.
 
@@ -722,7 +701,7 @@ public class AnnotationFileElementTypes {
                     factory,
                     factory.getProcessingEnv(),
                     annotationFileAnnos,
-                    afpListener);
+                    this);
         } catch (IOException e) {
             throw new BugInCF("cannot open the jdk stub file " + path, e);
         } finally {
@@ -751,7 +730,7 @@ public class AnnotationFileElementTypes {
                     factory,
                     factory.getProcessingEnv(),
                     annotationFileAnnos,
-                    afpListener);
+                    this);
         } catch (IOException e) {
             throw new BugInCF("cannot open the Jar file " + connection.getEntryName(), e);
         } catch (BugInCF e) {
@@ -895,5 +874,27 @@ public class AnnotationFileElementTypes {
         } catch (IOException e) {
             throw new BugInCF("Cannot open the jar file " + resourceURL.getFile(), e);
         }
+    }
+
+    /**
+     * This method is invoked each time before {@link AnnotationFileParser} processes a top-level
+     * type.
+     *
+     * @param typeName The fully qualified name of the top-level type
+     */
+    void preProcessTopLevelType(String typeName) {
+        boolean success = processingClasses.add(typeName);
+        assert success;
+    }
+
+    /**
+     * This method is invoked each time after {@link AnnotationFileParser} processes a top-level
+     * type.
+     *
+     * @param typeName The fully qualified name of the top-level type
+     */
+    void postProcessTopLevelType(String typeName) {
+        boolean success = processingClasses.remove(typeName);
+        assert success;
     }
 }
