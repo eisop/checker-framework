@@ -4,6 +4,7 @@ import com.sun.source.tree.NewClassTree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.TreeUtils;
 import org.plumelib.util.StringsPlume;
 
@@ -25,13 +26,14 @@ public class ObjectCreationNode extends Node {
     /** The tree for the object creation. */
     protected final NewClassTree tree;
 
-    /** The enclosing type receiver of the object creation, which can be nullable. */
+    /** The receiver of the object creation. */
     protected final @Nullable Node receiver;
 
     /** The constructor node of the object creation. */
     protected final Node constructor;
 
     /** The arguments of the object creation. */
+    // TODO: explain the optional receiver
     protected final List<Node> arguments;
 
     /** Class body for anonymous classes, otherwise null. */
@@ -54,10 +56,10 @@ public class ObjectCreationNode extends Node {
             @Nullable ClassDeclarationNode classbody) {
         super(TreeUtils.typeOf(tree));
         this.tree = tree;
+        this.receiver = receiver;
         this.constructor = constructor;
         this.arguments = arguments;
         this.classbody = classbody;
-        this.receiver = receiver;
     }
 
     /**
@@ -71,7 +73,7 @@ public class ObjectCreationNode extends Node {
     }
 
     /**
-     * Returns the arguments
+     * Returns the explicit arguments to the object creation
      *
      * @return the arguments
      */
@@ -81,7 +83,7 @@ public class ObjectCreationNode extends Node {
     }
 
     /**
-     * Returns the argument
+     * Returns the i-th explicit argument to the object creation
      *
      * @param i the index of the argument
      * @return the argument
@@ -92,7 +94,7 @@ public class ObjectCreationNode extends Node {
     }
 
     /**
-     * Returns the enclosing type receiver if exists
+     * Returns the receiver, the receiver only exists if the object creation is from an inner class
      *
      * @return the enclosing type receiver
      */
@@ -123,11 +125,22 @@ public class ObjectCreationNode extends Node {
     }
 
     @Override
-    @Pure
+    @SideEffectFree
     public String toString() {
         StringBuilder sb = new StringBuilder();
+        List<Node> argumentsDeepCopy = new ArrayList<Node>();
+        int startingIndex = 0;
+        if (receiver != null) {
+            sb.append(receiver + ".");
+            // Remove the first argument if there is a receiver
+            startingIndex = 1;
+        }
+        for (int i = startingIndex; i < arguments.size(); i++) {
+            argumentsDeepCopy.add(arguments.get(i));
+        }
         sb.append("new " + constructor + "(");
-        sb.append(StringsPlume.join(", ", arguments));
+
+        sb.append(StringsPlume.join(", ", argumentsDeepCopy));
         sb.append(")");
         if (classbody != null) {
             // TODO: maybe this can be done nicer...
@@ -147,21 +160,35 @@ public class ObjectCreationNode extends Node {
         if (constructor == null && other.getConstructor() != null) {
             return false;
         }
+        if ((receiver != null && other.getReceiver() == null)
+                || (receiver == null && other.getReceiver() != null)
+                || (receiver != null && !getReceiver().equals(other.getReceiver()))) {
+            return false;
+        }
 
         return getConstructor().equals(other.getConstructor())
                 && getArguments().equals(other.getArguments());
     }
 
     @Override
-    @Pure
+    @SideEffectFree
     public int hashCode() {
-        return Objects.hash(constructor, arguments);
+        int result;
+        if (receiver != null) {
+            result = Objects.hash(receiver, constructor, arguments);
+        } else {
+            result = Objects.hash(constructor, arguments);
+        }
+        return result;
     }
 
     @Override
     @Pure
     public Collection<Node> getOperands() {
         ArrayList<Node> list = new ArrayList<>(1 + arguments.size());
+        if (receiver != null) {
+            list.add(receiver);
+        }
         list.add(constructor);
         list.addAll(arguments);
         return list;
