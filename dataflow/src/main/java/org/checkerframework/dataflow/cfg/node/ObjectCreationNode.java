@@ -162,7 +162,9 @@ public class ObjectCreationNode extends Node {
         }
         if ((receiver != null && other.getReceiver() == null)
                 || (receiver == null && other.getReceiver() != null)
-                || (receiver != null && !getReceiver().equals(other.getReceiver()))) {
+                || (receiver != null
+                        && other.getReceiver() != null
+                        && !getReceiver().equals(other.getReceiver()))) {
             return false;
         }
 
