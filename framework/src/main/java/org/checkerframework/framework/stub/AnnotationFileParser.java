@@ -3278,10 +3278,4 @@ public class AnnotationFileParser {
             }
         }
     }
-
-    public interface Listener {
-        default void preProcessTopLevelType(String typeName) {}
-
-        default void postProcessTopLevelType(String typeName) {}
-    }
 }
