@@ -10,8 +10,8 @@ Version 3.25.0-eisop1 (September 2, 2022)
 eisop#321.
 
 
-Version 3.24.1 (??, 2022)
--------------------------
+Version 3.25.0 (September 1, 2022)
+----------------------------------
 
 **User-visible changes:**
 
