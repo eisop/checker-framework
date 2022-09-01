@@ -106,14 +106,9 @@ miss a step if you only read the paragraph asking you to say 'yes'.
     <b>Update stubparser.</b> If there has been
     a <a href="https://github.com/javaparser/javaparser/releases">JavaParser
     release</a> since the last Checker Framework
-<<<<<<< HEAD
     release, <a href="https://github.com/eisop/stubparser#updating-from-upstream-javaparser">update
-    Stubparser from JavaParser</a>.  Do this on your own computer; it doesn't have to be done on buffalo.
-=======
-    release, <a href="https://github.com/typetools/stubparser#updating-from-upstream-javaparser">update
-      Stubparser from JavaParser</a>.
-    Do this on your own computer; it doesn't have to be done on the CSE file system..
->>>>>>> 07b1fd69a... Generalize instructions
+    Stubparser from JavaParser</a>.
+    Do this on your own computer; it doesn't have to be done in the Release Docker image.
   </li>
   <li>On your own computer, update the Checker Framework source code <em>in the <code>master</code> branch</em>:
     <ul>
@@ -186,7 +181,8 @@ TreeAnnotator
       <strong>In a user-specific temporary directory, clone/update the Checker Framework repository (it contains the release scripts).</strong><br/>
       <!-- This isn't a <pre> block because that formats differently than commands. -->
       <code>mkdir -p /tmp/$USER/cf-release<br/></code>
-      <code>chmod -R types_www /tmp/$USER/cf-release<br/></code>
+      <code>chown -R types_www /tmp/$USER/cf-release<br/></code>
+      <code>chmod -R g+rw /tmp/$USER/cf-release<br/></code>
       <code>cd /tmp/$USER/cf-release<br/></code>
       <code>test -d checker-framework && (cd checker-framework && git pull --ff-only --quiet) || git clone --quiet https://github.com/eisop/checker-framework.git<br/></code>
       <code>cd checker-framework/docs/developer/release<br/></code>
@@ -215,12 +211,8 @@ TreeAnnotator
   <li> <strong>Update list of qualifiers in Project Lombok.</strong>
     Follow the instructions in <a href="https://github.com/projectlombok/lombok/blob/master/src/core/lombok/core/handlers/HandlerUtil.java#L108">HandlerUtil.java</a>.
     If the release did not add, remove, or rename any type qualifiers, no changes are required.
-<<<<<<< HEAD
     Those instructions do not work on macOS, so you may need to use the
     <a href="#release_docker">Release Docker image</a> to make the changes.
-=======
-    Those instructions do not work on macOS, so you may need to use a Linux machine to make the changes.
->>>>>>> 07b1fd69a... Generalize instructions
   </li>
   <li><strong>Update the Annotation Tools' use of the Checker Framework</strong>
     by making a pull request that changes two occurrences of the old version number in
@@ -470,13 +462,8 @@ git config --global user.email you@example.com</pre>
         <td>release_vars.py</td>
         <td>Global variables used in release_push, release_build, and sanity_checks.  These should NOT
           be used in release_utils as release_utils is supposed to consist of self-contained
-<<<<<<< HEAD
           reusable methods.  These variables are tailored for running the scripts in
           the <a href="#release_docker">Release Docker image</a>.
-=======
-          reusable methods.  These variables are tailored for running the scripts on
-          buffalo.cs.washington.edu.
->>>>>>> 07b1fd69a... Generalize instructions
         </td>
       </tr>
       <tr>
