@@ -27,6 +27,8 @@ Added `DoNothingChecker` that does nothing.
 
 **Closed issues:**
 
+#5216, #5240, #5256, #5273.
+
 
 Version 3.24.0-eisop1 (August 5, 2022)
 --------------------------------------
