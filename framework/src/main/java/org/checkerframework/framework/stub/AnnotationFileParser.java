@@ -202,8 +202,13 @@ public class AnnotationFileParser {
     // Not final in order to accommodate a default value.
     private StubUnit stubUnit;
 
+    /** The processing environment */
     private final ProcessingEnvironment processingEnv;
+
+    /** The type factory */
     private final AnnotatedTypeFactory atypeFactory;
+
+    /** The element utilities */
     private final Elements elements;
 
     /** The manager that controls the stub file parsing process. */
