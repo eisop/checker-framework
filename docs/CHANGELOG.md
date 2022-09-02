@@ -9,6 +9,7 @@ the Nullness Checker. In previous versions and without specifying the new flag, 
 or constructor invocation are assumed to be non-null after the invocation.
 This assumption is unsound in general, but holds for most code.
 Use the new flag to soundly handle the nullness of the receiver and arguments in an invocation.
+In a future version, we might change the default for this option.
 
 **Implementation details:**
 

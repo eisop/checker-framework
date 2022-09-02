@@ -361,13 +361,13 @@ public class NullnessTransfer
     /**
      * {@inheritDoc}
      *
-     * <p>Without specifying conservativeArgumentNullnessAfterInvocation flag, the receiver and
+     * <p>When the conservativeArgumentNullnessAfterInvocation flag is turned off, the receiver and
      * arguments that are passed to non-null parameters in a method call or constructor invocation
-     * are assumed to be non-null after the invocation
+     * are unsoundly assumed to be non-null after the invocation.
      *
-     * <p>Specifying the flag makes the analysis more conservative by checking the method is
-     * SideEffectFree or the receiver is unassignable or not. Only if either one of the two is true,
-     * the receiver is made to non-null. Similar logic is applied to the parameters of the method.
+     * <p>When the flag is turned on, the analysis is more conservative by checking the method is
+     * SideEffectFree or the receiver is unassignable. Only if either one of the two is true,
+     * is the receiver made non-null. Similar logic is applied to the arguments of the invocation.
      *
      * <p>Provided that m is of a type that implements interface java.util.Map:
      *

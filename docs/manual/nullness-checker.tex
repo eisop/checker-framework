@@ -125,12 +125,12 @@ by the Checker Framework.
 
 \item
   \label{nullness-conservativeArgumentNullnessAfterInvocation}%
-  Applying the `-AconservativeArgumentNullnessAfterInvocation` improves the soundness of
-  the Nullness Checker. In previous versions and without specifying the new flag, the receiver and
+  If you supply the `-AconservativeArgumentNullnessAfterInvocation` command-line option, the soundness of
+  the Nullness Checker is improved. In previous versions and without supplying the new flag, the receiver and
   arguments that are passed to non-null parameters in a method call
   or constructor invocation are assumed to be non-null after the invocation.
   This assumption is unsound in general, but holds for most code.
-  Use the new flag to soundly handle the nullness of the receiver and arguments in an invocation.
+  Use this flag to soundly handle the nullness of the receiver and arguments in an invocation.
 \end{itemize}
 
 \item
