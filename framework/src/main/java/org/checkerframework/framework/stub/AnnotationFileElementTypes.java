@@ -886,7 +886,7 @@ public class AnnotationFileElementTypes {
         boolean added = processingClasses.add(typeName);
         if (!added) {
             throw new BugInCF(
-                    "Trying to process " + typeName + " which is already being processed.");
+                    "Trying to process type " + typeName + " which is already being processed.");
         }
     }
 
@@ -899,8 +899,7 @@ public class AnnotationFileElementTypes {
     void postProcessTopLevelType(String typeName) {
         boolean removed = processingClasses.remove(typeName);
         if (!removed) {
-            throw new BugInCF(
-                    "Trying to remove a type " + typeName + " that has no processing record.");
+            throw new BugInCF("Cannot find the processing record for type " + typeName);
         }
     }
 }
