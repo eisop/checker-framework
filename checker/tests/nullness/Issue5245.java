@@ -5,7 +5,7 @@
 import java.util.List;
 
 class CFRepro<E> {
-  final CFRepro<List<String>> repro = new CFRepro<>(List.of());
+    final CFRepro<List<String>> repro = new CFRepro<>(List.of());
 
-  <V extends E> CFRepro(V unknownObj) {}
+    <V extends E> CFRepro(V unknownObj) {}
 }

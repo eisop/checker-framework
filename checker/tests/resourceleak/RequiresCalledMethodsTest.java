@@ -1,53 +1,54 @@
-import java.io.*;
 import org.checkerframework.checker.calledmethods.qual.*;
 import org.checkerframework.checker.mustcall.qual.*;
 
+import java.io.*;
+
 public class RequiresCalledMethodsTest {
 
-  @InheritableMustCall("a")
-  static class Foo {
-    void a() {}
+    @InheritableMustCall("a")
+    static class Foo {
+        void a() {}
 
-    void c() {}
-  }
-
-  @InheritableMustCall("releaseFoo")
-  static class FooField {
-    private @Owning Foo foo = null;
-
-    @RequiresCalledMethods(
-        value = {"this.foo"},
-        methods = {"a"})
-    @CreatesMustCallFor("this")
-    void overwriteFooCorrect() {
-      this.foo = new Foo();
+        void c() {}
     }
 
-    @CreatesMustCallFor("this")
-    void overwriteFooWrong() {
-      // :: error: required.method.not.called
-      this.foo = new Foo();
-    }
+    @InheritableMustCall("releaseFoo")
+    static class FooField {
+        private @Owning Foo foo = null;
 
-    @CreatesMustCallFor("this")
-    void overwriteFooWithoutReleasing() {
-      // :: error: contracts.precondition.not.satisfied
-      overwriteFooCorrect();
-    }
+        @RequiresCalledMethods(
+                value = {"this.foo"},
+                methods = {"a"})
+        @CreatesMustCallFor("this")
+        void overwriteFooCorrect() {
+            this.foo = new Foo();
+        }
 
-    void releaseThenOverwriteFoo() {
-      releaseFoo();
-      // :: error: reset.not.owning
-      overwriteFooCorrect();
-    }
+        @CreatesMustCallFor("this")
+        void overwriteFooWrong() {
+            // :: error: required.method.not.called
+            this.foo = new Foo();
+        }
 
-    @EnsuresCalledMethods(
-        value = {"this.foo"},
-        methods = {"a"})
-    void releaseFoo() {
-      if (this.foo != null) {
-        foo.a();
-      }
+        @CreatesMustCallFor("this")
+        void overwriteFooWithoutReleasing() {
+            // :: error: contracts.precondition.not.satisfied
+            overwriteFooCorrect();
+        }
+
+        void releaseThenOverwriteFoo() {
+            releaseFoo();
+            // :: error: reset.not.owning
+            overwriteFooCorrect();
+        }
+
+        @EnsuresCalledMethods(
+                value = {"this.foo"},
+                methods = {"a"})
+        void releaseFoo() {
+            if (this.foo != null) {
+                foo.a();
+            }
+        }
     }
-  }
 }

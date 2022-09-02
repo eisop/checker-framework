@@ -5,13 +5,13 @@ import java.net.Socket;
 
 class MCANotOwningField {
 
-  final Socket s;
+    final Socket s;
 
-  MCANotOwningField(Socket s) throws Exception {
-    this.s = s;
-  }
+    MCANotOwningField(Socket s) throws Exception {
+        this.s = s;
+    }
 
-  void simple() throws Exception {
-    s.getInputStream();
-  }
+    void simple() throws Exception {
+        s.getInputStream();
+    }
 }
