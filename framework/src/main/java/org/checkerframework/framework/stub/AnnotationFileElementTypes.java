@@ -880,7 +880,7 @@ public class AnnotationFileElementTypes {
      * This method is invoked each time before {@link AnnotationFileParser} processes a top-level
      * type.
      *
-     * @param typeName The fully qualified name of the top-level type
+     * @param typeName the fully qualified name of the top-level type
      */
     void preProcessTopLevelType(String typeName) {
         boolean success = processingClasses.add(typeName);
