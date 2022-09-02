@@ -673,7 +673,7 @@ public class AnnotationFileParser {
      * @param processingEnv ProcessingEnvironment to use
      * @param annotationFileAnnos annotations from the annotation file; side-effected by this method
      * @param fileType the annotation file type and source
-     * @param fileElementTypes The manager that controls the stub file parsing process
+     * @param fileElementTypes the manager that controls the stub file parsing process
      */
     public static void parseStubFile(
             String filename,
