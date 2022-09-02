@@ -891,7 +891,7 @@ public class AnnotationFileElementTypes {
      * This method is invoked each time after {@link AnnotationFileParser} processes a top-level
      * type.
      *
-     * @param typeName The fully qualified name of the top-level type
+     * @param typeName the fully qualified name of the top-level type
      */
     void postProcessTopLevelType(String typeName) {
         boolean success = processingClasses.remove(typeName);
