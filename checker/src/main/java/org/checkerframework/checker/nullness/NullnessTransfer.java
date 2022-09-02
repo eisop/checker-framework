@@ -337,7 +337,11 @@ public class NullnessTransfer
     @Override
     public TransferResult<NullnessValue, NullnessStore> visitMethodAccess(
             MethodAccessNode n, TransferInput<NullnessValue, NullnessStore> p) {
-        return super.visitMethodAccess(n, p);
+        TransferResult<NullnessValue, NullnessStore> result = super.visitMethodAccess(n, p);
+        // In contrast to conditional makeNonNull in visitMethodInvocation, this
+        // makeNonNull is unconditional, as the receiver must be non-null for dereferencing.
+        makeNonNull(result, n.getReceiver());
+        return result;
     }
 
     @Override
