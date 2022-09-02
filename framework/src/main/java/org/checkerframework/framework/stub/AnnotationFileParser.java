@@ -706,7 +706,7 @@ public class AnnotationFileParser {
      * @param atypeFactory AnnotatedTypeFactory to use
      * @param processingEnv ProcessingEnvironment to use
      * @param ajavaAnnos annotations from the ajava file; side-effected by this method
-     * @param fileElementTypes The manager that controls the stub file parsing process
+     * @param fileElementTypes the manager that controls the stub file parsing process
      */
     public static void parseAjavaFile(
             String filename,
