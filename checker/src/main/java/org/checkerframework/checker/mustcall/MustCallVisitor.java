@@ -152,7 +152,7 @@ public class MustCallVisitor extends BaseTypeVisitor<MustCallAnnotatedTypeFactor
             }
             AnnotationMirror inheritedMCAnno = atypeFactory.createMustCall(inheritedMustCallVal);
 
-            AnnotationMirror effectiveMCAnno = type.getAnnotation();
+            AnnotationMirror effectiveMCAnno = type.getAnnotationInHierarchy(atypeFactory.TOP);
 
             if (!atypeFactory.getQualifierHierarchy().isSubtype(inheritedMCAnno, effectiveMCAnno)) {
 
