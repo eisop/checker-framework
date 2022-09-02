@@ -126,7 +126,7 @@ public class NullnessTransfer
         nonNullAssumptionAfterInvocation =
                 !analysis.getTypeFactory()
                         .getChecker()
-                        .hasOption("conservativeArgumentNullnessAfterInvocation");
+                        .getBooleanOption("conservativeArgumentNullnessAfterInvocation", false);
     }
 
     /**
