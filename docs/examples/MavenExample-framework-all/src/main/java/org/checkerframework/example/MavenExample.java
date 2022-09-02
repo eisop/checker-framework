@@ -14,14 +14,14 @@ import org.checkerframework.common.value.qual.IntVal;
  */
 public class MavenExample {
 
-    public static @IntVal(5) int five = 5;
+  public static @IntVal(5) int five = 5;
 
-    public static void main(final String[] args) {
-        System.out.println("Hello World!");
+  public static void main(final String[] args) {
+    System.out.println("Hello World!");
 
-        StrBuilder stb = new StrBuilder();
+    StrBuilder stb = new StrBuilder();
 
-        @IntVal(55) int l = five; // error on this line
-        System.out.println(l);
-    }
+    @IntVal(55) int l = five; // error on this line
+    System.out.println(l);
+  }
 }
