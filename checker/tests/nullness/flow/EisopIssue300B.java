@@ -3,7 +3,7 @@
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-class EisopIssue300B {
+public class EisopIssue300B {
     @Nullable Object f = "";
 
     void m(Object o) {

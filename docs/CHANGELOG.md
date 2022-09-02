@@ -15,8 +15,7 @@ In a future version, we might change the default for this option.
 
 **Closed issues:**
 
-eisop#300.
-eisop#321.
+eisop#300, eisop#321.
 
 
 Version 3.25.0 (September 1, 2022)
