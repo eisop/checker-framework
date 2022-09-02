@@ -883,8 +883,11 @@ public class AnnotationFileElementTypes {
      * @param typeName the fully qualified name of the top-level type
      */
     void preProcessTopLevelType(String typeName) {
-        boolean success = processingClasses.add(typeName);
-        assert success;
+        boolean added = processingClasses.add(typeName);
+        if (!added) {
+            throw new BugInCF(
+                    "Trying to process " + typeName + " which is already being processed.");
+        }
     }
 
     /**
@@ -894,7 +897,10 @@ public class AnnotationFileElementTypes {
      * @param typeName the fully qualified name of the top-level type
      */
     void postProcessTopLevelType(String typeName) {
-        boolean success = processingClasses.remove(typeName);
-        assert success;
+        boolean removed = processingClasses.remove(typeName);
+        if (!removed) {
+            throw new BugInCF(
+                    "Trying to remove a type " + typeName + " that has no processing record.");
+        }
     }
 }

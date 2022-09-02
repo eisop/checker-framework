@@ -744,6 +744,7 @@ public class AnnotationFileParser {
      * @param atypeFactory AnnotatedTypeFactory to use
      * @param processingEnv ProcessingEnvironment to use
      * @param stubAnnos annotations from the stub file; side-effected by this method
+     * @param fileElementTypes the manager that controls the stub file parsing process
      */
     public static void parseJdkFileAsStub(
             String filename,
@@ -3149,20 +3150,28 @@ public class AnnotationFileParser {
     private class AjavaAnnotationCollectorVisitor extends DefaultJointVisitor {
         @Override
         public Void visitClass(ClassTree javacTree, Node javaParserNode) {
-            TypeDeclaration<?> typeDecl = (TypeDeclaration<?>) javaParserNode;
-            Optional<String> typeDeclName = typeDecl.getFullyQualifiedName();
-            boolean callListener = typeDeclName.isPresent() && typeDecl.isTopLevelType();
             List<AnnotatedTypeVariable> typeDeclTypeParameters = null;
+            boolean shouldProcessTypeDecl =
+                    javaParserNode instanceof TypeDeclaration<?>
+                            && !(javaParserNode instanceof AnnotationDeclaration);
+            Optional<String> typeDeclName = Optional.empty();
+            boolean callListener = false;
+
+            if (shouldProcessTypeDecl) {
+                TypeDeclaration<?> typeDecl = (TypeDeclaration<?>) javaParserNode;
+                typeDeclName = typeDecl.getFullyQualifiedName();
+                callListener = typeDeclName.isPresent() && typeDecl.isTopLevelType();
+            }
 
             if (callListener) {
                 fileElementTypes.preProcessTopLevelType(typeDeclName.get());
             }
             try {
-                if (!(typeDecl instanceof AnnotationDeclaration)) {
+                if (shouldProcessTypeDecl) {
                     typeDeclTypeParameters =
-                            processTypeDecl((TypeDeclaration<?>) typeDecl, null, javacTree);
+                            processTypeDecl((TypeDeclaration<?>) javaParserNode, null, javacTree);
                 }
-                super.visitClass(javacTree, typeDecl);
+                super.visitClass(javacTree, javaParserNode);
             } finally {
                 if (typeDeclTypeParameters != null) {
                     typeParameters.removeAll(typeDeclTypeParameters);
