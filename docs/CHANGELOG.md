@@ -3,9 +3,9 @@ Version 3.24.0-eisop2 (August ?, 2022)
 
 **User-visible changes:**
 
-
-The new command-line argument `-AconservativeArgumentNullnessAfterInvocation` improves the soundness of
-the Nullness Checker. In previous versions and without specifying the new flag, the receiver and arguments that are passed to non-null parameters in a method call
+The new command-line argument `-AconservativeArgumentNullnessAfterInvocation` improves
+the soundness of the Nullness Checker. In previous versions and without supplying the
+new flag, the receiver and arguments that are passed to non-null parameters in a method call
 or constructor invocation are assumed to be non-null after the invocation.
 This assumption is unsound in general, but holds for most code.
 Use the new flag to soundly handle the nullness of the receiver and arguments in an invocation.

@@ -337,9 +337,7 @@ public class NullnessTransfer
     @Override
     public TransferResult<NullnessValue, NullnessStore> visitMethodAccess(
             MethodAccessNode n, TransferInput<NullnessValue, NullnessStore> p) {
-        TransferResult<NullnessValue, NullnessStore> result = super.visitMethodAccess(n, p);
-        makeNonNull(result, n.getReceiver());
-        return result;
+        return super.visitMethodAccess(n, p);
     }
 
     @Override
@@ -366,8 +364,8 @@ public class NullnessTransfer
      * are unsoundly assumed to be non-null after the invocation.
      *
      * <p>When the flag is turned on, the analysis is more conservative by checking the method is
-     * SideEffectFree or the receiver is unassignable. Only if either one of the two is true,
-     * is the receiver made non-null. Similar logic is applied to the arguments of the invocation.
+     * SideEffectFree or the receiver is unassignable. Only if either one of the two is true, is the
+     * receiver made non-null. Similar logic is applied to the arguments of the invocation.
      *
      * <p>Provided that m is of a type that implements interface java.util.Map:
      *
