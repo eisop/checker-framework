@@ -145,39 +145,12 @@ public class AnnotationFileElementTypes {
     assert parsingCount == 0;
     ++parsingCount;
     BaseTypeChecker checker = factory.getChecker();
-    ProcessingEnvironment processingEnv = factory.getProcessingEnv();
-    // 1. jdk.astub
-    // Only look in .jar files, and parse it right away.
     if (!checker.hasOption("ignorejdkastub")) {
-      try (InputStream jdkStubIn = checker.getClass().getResourceAsStream("jdk.astub")) {
-        if (jdkStubIn != null) {
-          AnnotationFileParser.parseStubFile(
-              checker.getClass().getResource("jdk.astub").toString(),
-              jdkStubIn,
-              factory,
-              processingEnv,
-              annotationFileAnnos,
-              AnnotationFileType.BUILTIN_STUB,
-              this);
-        }
-      } catch (IOException e) {
-        throw new Error(e);
-      }
+      // 1. jdk.astub
+      // Only look in .jar files, and parse it right away.
+      parseOneStubFile(checker.getClass(), "jdk.astub");
       String jdkVersionStub = "jdk" + annotatedJdkVersion + ".astub";
-      try (InputStream jdkVersionStubIn = checker.getClass().getResourceAsStream(jdkVersionStub)) {
-        if (jdkVersionStubIn != null) {
-          AnnotationFileParser.parseStubFile(
-              checker.getClass().getResource(jdkVersionStub).toString(),
-              jdkVersionStubIn,
-              factory,
-              processingEnv,
-              annotationFileAnnos,
-              AnnotationFileType.BUILTIN_STUB,
-              this);
-        }
-      } catch (IOException e) {
-        checker.message(Kind.NOTE, "Could not read annotation resource: " + jdkVersionStub);
-      }
+      parseOneStubFile(checker.getClass(), jdkVersionStub);
 
       // 2. Annotated JDK
       // This preps but does not parse the JDK files (except package-info.java files).
@@ -205,6 +178,32 @@ public class AnnotationFileElementTypes {
 
     --parsingCount;
     assert parsingCount == 0;
+  }
+
+  /**
+   * Parse one .astub file.
+   *
+   * @param checkerClass the location of the resource in the checker.jar file
+   * @param stubFileName the basename of the .astub file
+   */
+  private void parseOneStubFile(Class<?> checkerClass, String stubFileName) {
+    BaseTypeChecker checker = factory.getChecker();
+    ProcessingEnvironment processingEnv = factory.getProcessingEnv();
+    try (InputStream jdkVersionStubIn = checkerClass.getResourceAsStream(stubFileName)) {
+      if (jdkVersionStubIn != null) {
+        AnnotationFileParser.parseStubFile(
+            checkerClass.getResource(stubFileName).toString(),
+            jdkVersionStubIn,
+            factory,
+            processingEnv,
+            annotationFileAnnos,
+            AnnotationFileType.BUILTIN_STUB);
+      }
+    } catch (IOException e) {
+      checker.message(
+          Kind.NOTE,
+          "Could not read annotation resource from " + checkerClass + ": " + stubFileName);
+    }
   }
 
   /** Parses the ajava files passed through the -Aajava command-line option. */
