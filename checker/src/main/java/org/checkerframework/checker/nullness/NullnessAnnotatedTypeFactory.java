@@ -637,13 +637,6 @@ public class NullnessAnnotatedTypeFactory
             return null;
         }
 
-        // The result of a binary operation is always non-null.
-        @Override
-        public Void visitBinary(BinaryTree node, AnnotatedTypeMirror type) {
-            type.replaceAnnotation(NONNULL);
-            return null;
-        }
-
         // The result of a compound operation is always non-null.
         @Override
         public Void visitCompoundAssignment(CompoundAssignmentTree node, AnnotatedTypeMirror type) {
