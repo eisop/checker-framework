@@ -997,8 +997,9 @@ public class AnnotatedTypes {
         }
 
         // Handle anonymous constructors that extend a class with an enclosing type.
+        // TODO: How can we tell whether it is inner class
         if (method.getElement().getKind() == ElementKind.CONSTRUCTOR
-                && method.getElement().getEnclosingElement().getSimpleName().contentEquals("")) {
+                && method.getElement().getEnclosingElement() != null) {
             DeclaredType t =
                     TypesUtils.getSuperClassOrInterface(
                             method.getElement().getEnclosingElement().asType(), atypeFactory.types);

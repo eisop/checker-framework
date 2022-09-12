@@ -9,6 +9,25 @@ public class Issue282 {
     }
 
     public void test1() {
-        Inner inner = new Issue282().new Inner() {};
+        // The enclosing type is @H1S1 @H2Top
+        //        Inner inner = new Issue282().new Inner() {};
+        // The enclosing type is @H1Top @H2Top
+        new Inner();
     }
+
+    //    class TestConstructorParameter {
+    //
+    //        // :: warning: (inconsistent.constructor.type) :: error: (super.invocation.invalid)
+    //        TestConstructorParameter(Object p) {
+    //            @H1S1 Object l1 = p;
+    //            // :: error: (assignment.type.incompatible)
+    //            @H1S2 Object l2 = p;
+    //            Object l3 = p;
+    //        }
+    //
+    //        void call() {
+    //            // :: warning: (cast.unsafe.constructor.invocation)
+    //            new TestConstructorParameter(new @H1S1 Object());
+    //        }
+    //    }
 }

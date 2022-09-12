@@ -2014,6 +2014,25 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotatedExecutableType constructorType = fromUse.executableType;
         List<AnnotatedTypeMirror> typeargs = fromUse.typeArgs;
 
+        // type check anonymous class
+        AnnotatedDeclaredType receiverType = constructorType.getReceiverType();
+        List<AnnotatedTypeMirror> parameterTypes = constructorType.getParameterTypes();
+        if (receiverType != null && parameterTypes.size() != 0) {
+            try {
+                if (!atypeFactory
+                        .getTypeHierarchy()
+                        .isSubtype(receiverType, parameterTypes.get(0))) {
+                    checker.reportError(
+                            node,
+                            "receiver.invalid",
+                            receiverType.toString(),
+                            parameterTypes.get(0).toString());
+                }
+            } catch (Exception e) {
+                System.out.println("Okay");
+            }
+        }
+
         List<? extends ExpressionTree> passedArguments = node.getArguments();
         List<AnnotatedTypeMirror> params =
                 AnnotatedTypes.adaptParameters(atypeFactory, constructorType, passedArguments);
