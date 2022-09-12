@@ -366,9 +366,10 @@ public class MustCallVisitor extends BaseTypeVisitor<MustCallAnnotatedTypeFactor
     }
 
     @Override
-    protected boolean isTypeCastSafe(AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
+    protected CastSafeKind isTypeCastSafe(
+            AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
         if (noMustCallObligation(castType) || noMustCallObligation(exprType)) {
-            return true;
+            return CastSafeKind.SAFE;
         }
 
         return super.isTypeCastSafe(castType, exprType);
