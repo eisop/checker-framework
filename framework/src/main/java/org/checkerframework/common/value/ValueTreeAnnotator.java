@@ -545,7 +545,7 @@ class ValueTreeAnnotator extends TreeAnnotator {
       return;
     }
 
-    VariableElement fieldElement = (VariableElement) TreeUtils.elementFromTree(tree);
+    VariableElement fieldElement = TreeUtils.variableElementFromTree(tree);
     Object value = fieldElement.getConstantValue();
     if (value != null) {
       // The field is a compile-time constant.
