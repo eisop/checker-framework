@@ -877,33 +877,29 @@ public abstract class CFAbstractTransfer<
     TransferResult<V, S> result = super.visitReturn(n, p);
 
     /* NO-AFU
-           if (shouldPerformWholeProgramInference(n.getTree())) {
-               // Retrieves class containing the method
-               ClassTree classTree = analysis.getContainingClass(n.getTree());
-               // classTree is null e.g. if this is a return statement in a lambda.
-               if (classTree == null) {
-                   return result;
-               }
-               ClassSymbol classSymbol = (ClassSymbol) TreeUtils.elementFromTree(classTree);
+    if (shouldPerformWholeProgramInference(n.getTree())) {
+      // Retrieves class containing the method
+      ClassTree classTree = analysis.getContainingClass(n.getTree());
+      // classTree is null e.g. if this is a return statement in a lambda.
+      if (classTree == null) {
+        return result;
+      }
+      ClassSymbol classSymbol = (ClassSymbol) TreeUtils.elementFromDeclaration(classTree);
 
-               ExecutableElement methodElem =
-                       TreeUtils.elementFromDeclaration(analysis.getContainingMethod(n.getTree()));
+      ExecutableElement methodElem =
+          TreeUtils.elementFromDeclaration(analysis.getContainingMethod(n.getTree()));
 
-               Map<AnnotatedDeclaredType, ExecutableElement> overriddenMethods =
-                       AnnotatedTypes.overriddenMethods(
-                               analysis.atypeFactory.getElementUtils(),
-                               analysis.atypeFactory,
-                               methodElem);
+      Map<AnnotatedDeclaredType, ExecutableElement> overriddenMethods =
+          AnnotatedTypes.overriddenMethods(
+              analysis.atypeFactory.getElementUtils(), analysis.atypeFactory, methodElem);
 
-               // Updates the inferred return type of the method
-               analysis.atypeFactory
-                       .getWholeProgramInference()
-                       .updateFromReturn(
-                               n,
-                               classSymbol,
-                               analysis.getContainingMethod(n.getTree()),
-                               overriddenMethods);
-           }
+      // Updates the inferred return type of the method
+      analysis
+          .atypeFactory
+          .getWholeProgramInference()
+          .updateFromReturn(
+              n, classSymbol, analysis.getContainingMethod(n.getTree()), overriddenMethods);
+    }
     */
 
     return result;

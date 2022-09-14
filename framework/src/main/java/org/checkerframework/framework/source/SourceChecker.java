@@ -2094,12 +2094,12 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
       Tree decl = declPath.getLeaf();
 
       if (decl.getKind() == Tree.Kind.VARIABLE) {
-        Element elt = TreeUtils.elementFromTree((VariableTree) decl);
+        Element elt = TreeUtils.elementFromDeclaration((VariableTree) decl);
         if (shouldSuppressWarnings(elt, errKey)) {
           return true;
         }
       } else if (decl.getKind() == Tree.Kind.METHOD) {
-        Element elt = TreeUtils.elementFromTree((MethodTree) decl);
+        Element elt = TreeUtils.elementFromDeclaration((MethodTree) decl);
         if (shouldSuppressWarnings(elt, errKey)) {
           return true;
         }
@@ -2111,7 +2111,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         }
       } else if (TreeUtils.classTreeKinds().contains(decl.getKind())) {
         // A class tree
-        Element elt = TreeUtils.elementFromTree((ClassTree) decl);
+        Element elt = TreeUtils.elementFromDeclaration((ClassTree) decl);
         if (shouldSuppressWarnings(elt, errKey)) {
           return true;
         }
@@ -2428,7 +2428,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
    * @param element an element
    * @return true iff the enclosing class of element should be skipped
    */
-  public final boolean shouldSkipUses(Element element) {
+  public final boolean shouldSkipUses(@Nullable Element element) {
     if (element == null) {
       return false;
     }
