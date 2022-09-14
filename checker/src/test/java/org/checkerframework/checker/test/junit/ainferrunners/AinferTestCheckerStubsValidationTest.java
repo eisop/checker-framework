@@ -21,9 +21,10 @@ public class AinferTestCheckerStubsValidationTest extends AinferValidatePerDirec
     super(
         testFiles,
         AinferTestChecker.class,
+        "testchecker",
         "ainfer-testchecker/annotated",
         AinferTestCheckerStubsTest.class,
-        astubsArgFromFiles(testFiles),
+        astubsArgFromFiles(testFiles, "testchecker"),
         // "-AstubDebug",
         "-AmergeStubsWithSource",
         "-Awarns",
