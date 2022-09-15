@@ -2015,21 +2015,22 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         List<AnnotatedTypeMirror> typeargs = fromUse.typeArgs;
 
         // type check anonymous class
-        AnnotatedDeclaredType receiverType = constructorType.getReceiverType();
+        AnnotatedDeclaredType returnType = (AnnotatedDeclaredType) constructorType.getReturnType();
+        AnnotatedDeclaredType enclosingType = returnType.getEnclosingType();
         List<AnnotatedTypeMirror> parameterTypes = constructorType.getParameterTypes();
-        if (receiverType != null && parameterTypes.size() != 0) {
-            try {
+        if (enclosingType != null && parameterTypes.size() != 0) {
+            // Check underlying type should be the same
+            if (types.isSameType(
+                    enclosingType.getUnderlyingType(), parameterTypes.get(0).getUnderlyingType())) {
                 if (!atypeFactory
                         .getTypeHierarchy()
-                        .isSubtype(receiverType, parameterTypes.get(0))) {
+                        .isSubtype(enclosingType, parameterTypes.get(0))) {
                     checker.reportError(
                             node,
                             "receiver.invalid",
-                            receiverType.toString(),
+                            enclosingType.toString(),
                             parameterTypes.get(0).toString());
                 }
-            } catch (Exception e) {
-                System.out.println("Okay");
             }
         }
 

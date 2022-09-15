@@ -2753,13 +2753,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             con.getReturnType().replaceAnnotations(superCon.getReturnType().getAnnotations());
         } else {
             con = AnnotatedTypes.asMemberOf(types, this, type, ctor, con);
-            // add to parameter types
-            if (enclosingType != null) {
-                List<AnnotatedTypeMirror> p = new ArrayList<>(con.getParameterTypes().size() + 1);
-                p.add(con.receiverType);
-                p.addAll(1, con.getParameterTypes());
-                con.setParameterTypes(p);
-            }
+            //            if (enclosingType != null) {
+            //                List<AnnotatedTypeMirror> p = new
+            // ArrayList<>(con.getParameterTypes().size() + 1);
+            //                p.add(con.receiverType);
+            //                p.addAll(1, con.getParameterTypes());
+            //                con.setParameterTypes(p);
+            //            }
         }
 
         Map<TypeVariable, AnnotatedTypeMirror> typeParamToTypeArg =
@@ -2790,7 +2790,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (enclosingType != null) {
             // Reset the enclosing type because it can be substituted incorrectly.
             ((AnnotatedDeclaredType) con.getReturnType()).setEnclosingType(enclosingType);
-            con.setReceiverType(enclosingType);
         }
         return new ParameterizedExecutableType(con, typeargs);
     }
