@@ -1897,8 +1897,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
    *     argument
    */
   private String @Nullable [] getSuppressWarningsStringsFromOption() {
-    Map<String, String> options = getOptions();
     if (this.suppressWarningsStringsFromOption == null) {
+      Map<String, String> options = getOptions();
       if (!options.containsKey("suppressWarnings")) {
         return null;
       }
