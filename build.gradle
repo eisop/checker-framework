@@ -424,6 +424,7 @@ def createCheckTypeTask(projectName, taskName, checker, args = []) {
                 '-ArequirePrefixInWarningSuppressions',
                 '-AwarnUnneededSuppressions',
                 '-AnoJreVersionCheck',
+                '-AconservativeArgumentNullnessAfterInvocation=true',
         ]
         options.compilerArgs += args
         options.forkOptions.jvmArgs += ["-Xmx2g"]
