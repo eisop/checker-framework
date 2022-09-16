@@ -214,7 +214,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
   protected final Trees trees;
 
   /** TreeBuilder instance. */
-  protected final TreeBuilder treeBuilder;
+  public final TreeBuilder treeBuilder;
 
   /** AnnotationProvider instance. */
   protected final AnnotationProvider annotationProvider;

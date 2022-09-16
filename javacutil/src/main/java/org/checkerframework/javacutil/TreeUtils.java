@@ -397,6 +397,7 @@ public final class TreeUtils {
    *
    * @param tree the tree corresponding to a use of an element
    * @return the element for the corresponding declaration, {@code null} otherwise
+   * @deprecated use elementFromUse or elementFromTree
    */
   @Pure
   @Deprecated // not for removal; retain to prevent calls to this overload
@@ -440,7 +441,7 @@ public final class TreeUtils {
    */
   @Pure
   public static VariableElement variableElementFromUse(ExpressionTree tree) {
-    VariableElement result = (VariableElement) TreeUtils.elementFromTree(tree);
+    VariableElement result = TreeUtils.variableElementFromTree(tree);
     if (result == null) {
       throw new BugInCF("null element for %s [%s]", tree, tree.getClass());
     }
