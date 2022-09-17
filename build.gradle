@@ -74,9 +74,7 @@ ext {
 }
 
 // Keep in sync with check in
-// framework/src/main/java/org/checkerframework/framework/source/SourceChecker.java
-// (org.checkerframework.framework.source.SourceChecker.init) and with text in
-// docs/manual/introduction.tex (#installation).
+// framework/src/main/java/org/checkerframework/framework/source/SourceChecker.java .
 switch (JavaVersion.current()) {
     case JavaVersion.VERSION_1_9:
     case JavaVersion.VERSION_1_10:
