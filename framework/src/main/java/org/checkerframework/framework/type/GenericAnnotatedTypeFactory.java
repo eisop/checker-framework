@@ -41,6 +41,8 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
+import org.checkerframework.afu.scenelib.annotations.el.AField;
+import org.checkerframework.afu.scenelib.annotations.el.AMethod;
 import org.checkerframework.checker.formatter.qual.FormatMethod;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
@@ -120,14 +122,6 @@ import org.checkerframework.javacutil.UserError;
 import org.plumelib.reflection.Signatures;
 import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.SystemPlume;
-
-/* NO-AFU
-   import org.checkerframework.common.wholeprograminference.WholeProgramInferenceImplementation;
-   import org.checkerframework.common.wholeprograminference.WholeProgramInferenceJavaParserStorage;
-   import org.checkerframework.common.wholeprograminference.WholeProgramInferenceScenesStorage;
-   import scenelib.annotations.el.AField;
-   import scenelib.annotations.el.AMethod;
-*/
 
 /**
  * A factory that extends {@link AnnotatedTypeFactory} to optionally use flow-sensitive qualifier
