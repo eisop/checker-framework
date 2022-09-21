@@ -377,7 +377,7 @@ public class AnnotationFileElementTypes {
     if (parsing) {
       return null;
     }
-    parseEnclosingClass(e);
+    parseEnclosingJdkClass(e);
     AnnotatedTypeMirror type = annotationFileAnnos.atypes.get(e);
     return type == null ? null : type.deepCopy();
   }
@@ -393,7 +393,7 @@ public class AnnotationFileElementTypes {
    *     not appear in an annotation file.
    */
   public Set<AnnotationMirror> getDeclAnnotations(Element elt) {
-    parseEnclosingClass(elt);
+    parseEnclosingJdkClass(elt);
     String eltName = ElementUtils.getQualifiedName(elt);
     if (annotationFileAnnos.declAnnos.containsKey(eltName)) {
       return annotationFileAnnos.declAnnos.get(eltName);
@@ -595,12 +595,12 @@ public class AnnotationFileElementTypes {
   ///
 
   /**
-   * Parses the outermost enclosing class of {@code e} if there exists an annotation file for it and
-   * it has not already been parsed.
+   * Parses the outermost enclosing class of {@code e} if it is in the JDK, there exists an
+   * annotation file for it, and it has not already been parsed.
    *
    * @param e element whose outermost enclosing class will be parsed
    */
-  private void parseEnclosingClass(Element e) {
+  private void parseEnclosingJdkClass(Element e) {
     if (!shouldParseJdk
         || e.getKind() == ElementKind.PACKAGE
         || e.getKind() == ElementKind.MODULE) {
