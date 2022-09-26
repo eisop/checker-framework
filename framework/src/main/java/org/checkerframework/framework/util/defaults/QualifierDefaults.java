@@ -578,7 +578,7 @@ public class QualifierDefaults {
     applyToTypeVar =
         defaultTypeVarLocals
             && elt != null
-            && elt.getKind() == ElementKind.LOCAL_VARIABLE
+            && ElementUtils.isLocalVariable(elt)
             && type.getKind() == TypeKind.TYPEVAR;
     applyDefaultsElement(elt, type);
     applyToTypeVar = false;

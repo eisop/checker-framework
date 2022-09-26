@@ -123,7 +123,7 @@ public final class ElementAnnotationApplier {
       TypeVarUseApplier.apply(type, element, typeFactory);
 
     } else if (VariableApplier.accepts(type, element)) {
-      if (element.getKind() != ElementKind.LOCAL_VARIABLE) {
+      if (!ElementUtils.isLocalVariable(element)) {
         // For local variables we have the source code,
         // so there is no need to look at the Element.
         // This is needed to avoid a bug in the JDK:
