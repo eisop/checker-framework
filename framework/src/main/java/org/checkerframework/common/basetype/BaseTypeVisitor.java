@@ -2067,6 +2067,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      *   <li>if c is generic, passed type arguments are subtypes of c type variables
      * </ul>
      */
+    @SuppressWarnings("ModifiedButNotUsed")
     @Override
     public Void visitNewClass(NewClassTree node, Void p) {
         if (checker.shouldSkipUses(TreeUtils.elementFromUse(node))) {
@@ -2112,7 +2113,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         ExecutableElement constructor = constructorType.getElement();
         CharSequence constructorName = ElementUtils.getSimpleNameOrDescription(constructor);
 
-        checkArguments(params, passedArguments, constructorName, constructor.getParameters());
+        // TODO: fix paramNames
+        checkArguments(params, passedArgumentsWithEnclosingType, constructorName, params);
         checkVarargs(constructorType, node);
 
         List<AnnotatedTypeParameterBounds> paramBounds =
@@ -3523,7 +3525,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         listToString(passedArgs),
                         executableName,
                         listToString(paramNames));
-
         for (int i = 0; i < size; ++i) {
             commonAssignmentCheck(
                     requiredArgs.get(i),
