@@ -2004,6 +2004,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      *   <li>if c is generic, passed type arguments are subtypes of c type variables
      * </ul>
      */
+    @SuppressWarnings("ModifiedButNotUsed")
     @Override
     public Void visitNewClass(NewClassTree node, Void p) {
         if (checker.shouldSkipUses(TreeUtils.constructor(node))) {
@@ -2014,34 +2015,26 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotatedExecutableType constructorType = fromUse.executableType;
         List<AnnotatedTypeMirror> typeargs = fromUse.typeArgs;
 
-        // type check anonymous class
-        AnnotatedDeclaredType returnType = (AnnotatedDeclaredType) constructorType.getReturnType();
-        AnnotatedDeclaredType enclosingType = returnType.getEnclosingType();
-        List<AnnotatedTypeMirror> parameterTypes = constructorType.getParameterTypes();
-        if (enclosingType != null && parameterTypes.size() != 0) {
-            // Check underlying type should be the same
-            if (types.isSameType(
-                    enclosingType.getUnderlyingType(), parameterTypes.get(0).getUnderlyingType())) {
-                if (!atypeFactory
-                        .getTypeHierarchy()
-                        .isSubtype(enclosingType, parameterTypes.get(0))) {
-                    checker.reportError(
-                            node,
-                            "receiver.invalid",
-                            enclosingType.toString(),
-                            parameterTypes.get(0).toString());
-                }
+        List<AnnotatedTypeMirror> params = constructorType.getParameterTypes();
+        List<? extends ExpressionTree> passedArguments = node.getArguments();
+        // add enclosing type to passed arguments
+        List<ExpressionTree> passedArgumentsWithEnclosingType = new ArrayList<>(passedArguments);
+        if (node.getEnclosingExpression() != null) {
+            passedArgumentsWithEnclosingType.add(0, node.getEnclosingExpression());
+        }
+        // process Var Args
+        if (constructorType.getElement().isVarArgs()) {
+            AnnotatedArrayType varargs = (AnnotatedArrayType) params.get(params.size() - 1);
+            params = new ArrayList<>(params.subList(0, params.size() - 1));
+            for (int i = passedArgumentsWithEnclosingType.size() - params.size(); i > 0; --i) {
+                params.add(varargs.getComponentType().deepCopy());
             }
         }
-
-        List<? extends ExpressionTree> passedArguments = node.getArguments();
-        List<AnnotatedTypeMirror> params =
-                AnnotatedTypes.adaptParameters(atypeFactory, constructorType, passedArguments);
-
         ExecutableElement constructor = constructorType.getElement();
         CharSequence constructorName = ElementUtils.getSimpleNameOrDescription(constructor);
 
-        checkArguments(params, passedArguments, constructorName, constructor.getParameters());
+        // TODO: fix paramNames
+        checkArguments(params, passedArgumentsWithEnclosingType, constructorName, params);
         checkVarargs(constructorType, node);
 
         List<AnnotatedTypeParameterBounds> paramBounds =
@@ -3447,7 +3440,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         listToString(passedArgs),
                         executableName,
                         listToString(paramNames));
-
         for (int i = 0; i < size; ++i) {
             commonAssignmentCheck(
                     requiredArgs.get(i),

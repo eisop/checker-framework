@@ -2711,6 +2711,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             viewpointAdapter.viewpointAdaptConstructor(type, ctor, con);
         }
 
+        AnnotatedExecutableType superCon = getAnnotatedType(TreeUtils.getSuperConstructor(tree));
+        constructorFromUsePreSubstitution(tree, superCon);
+        // no viewpoint adaptation needed for super invocation
+        superCon = AnnotatedTypes.asMemberOf(types, this, type, superCon.getElement(), superCon);
         if (tree.getClassBody() != null) {
             // Because the anonymous constructor can't have explicit annotations on its parameters,
             // they are copied from the super constructor invoked in the anonymous constructor. To
@@ -2719,12 +2723,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // 2. adapt it to this call site.
             // 3. copy the parameters to the anonymous constructor, `con`.
             // 4. copy annotations on the return type to `con`.
-            AnnotatedExecutableType superCon =
-                    getAnnotatedType(TreeUtils.getSuperConstructor(tree));
-            constructorFromUsePreSubstitution(tree, superCon);
-            // no viewpoint adaptation needed for super invocation
-            superCon =
-                    AnnotatedTypes.asMemberOf(types, this, type, superCon.getElement(), superCon);
+
             if (superCon.getParameterTypes().size() == con.getParameterTypes().size()) {
                 con.setParameterTypes(superCon.getParameterTypes());
             } else {
@@ -2753,13 +2752,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             con.getReturnType().replaceAnnotations(superCon.getReturnType().getAnnotations());
         } else {
             con = AnnotatedTypes.asMemberOf(types, this, type, ctor, con);
-            //            if (enclosingType != null) {
-            //                List<AnnotatedTypeMirror> p = new
-            // ArrayList<>(con.getParameterTypes().size() + 1);
-            //                p.add(con.receiverType);
-            //                p.addAll(1, con.getParameterTypes());
-            //                con.setParameterTypes(p);
-            //            }
+            if (enclosingType != null) {
+                List<AnnotatedTypeMirror> p = new ArrayList<>(con.getParameterTypes().size() + 1);
+                p.add(superCon.receiverType);
+                p.addAll(1, con.getParameterTypes());
+                con.setParameterTypes(p);
+            }
         }
 
         Map<TypeVariable, AnnotatedTypeMirror> typeParamToTypeArg =
