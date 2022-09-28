@@ -236,12 +236,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
    * command line.
    */
   private final boolean checkPurity;
-  /**
-   * True if purity annotations should be inferred. Should be set to false if both the Lock Checker
-   * (or some other checker that overrides {@link CFAbstractStore#isSideEffectFree} in a
-   * non-standard way) and some other checker is being run.
-   */
-  protected boolean inferPurity = true;
 
   /** The tree of the enclosing method that is currently being visited. */
   protected @Nullable MethodTree methodTree = null;
@@ -1010,35 +1004,18 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
       // Issue a warning if the method is pure, but not annotated as such.
       EnumSet<Pure.Kind> additionalKinds = r.getKinds().clone();
       /* NO-AFU
-             if (!(infer && inferPurity)) {
-                 // During WPI, propagate all purity kinds, even those that are already
-                 // present (because they were inferred in a previous WPI round).
+      if (!infer) {
+        // During WPI, propagate all purity kinds, even those that are already
+        // present (because they were inferred in a previous WPI round).
       */
       additionalKinds.removeAll(kinds);
       /* NO-AFU
-             }
+      }
       */
       if (TreeUtils.isConstructor(node)) {
         additionalKinds.remove(Pure.Kind.DETERMINISTIC);
       }
       if (!additionalKinds.isEmpty()) {
-        /* NO-AFU
-                      if (infer) {
-                          if (inferPurity) {
-                              WholeProgramInference wpi = atypeFactory.getWholeProgramInference();
-                              ExecutableElement methodElt = TreeUtils.elementFromDeclaration(node);
-                              if (additionalKinds.size() == 2) {
-                                  wpi.addMethodDeclarationAnnotation(methodElt, PURE);
-                              } else if (additionalKinds.contains(Pure.Kind.SIDE_EFFECT_FREE)) {
-                                  wpi.addMethodDeclarationAnnotation(methodElt, SIDE_EFFECT_FREE);
-                              } else if (additionalKinds.contains(Pure.Kind.DETERMINISTIC)) {
-                                  wpi.addMethodDeclarationAnnotation(methodElt, DETERMINISTIC);
-                              } else {
-                                  throw new BugInCF("Unexpected purity kind in " + additionalKinds);
-                              }
-                          }
-                      } else {
-        */
         if (additionalKinds.size() == 2) {
           checker.reportWarning(node, "purity.more.pure", node.getName());
         } else if (additionalKinds.contains(Pure.Kind.SIDE_EFFECT_FREE)) {
@@ -1048,7 +1025,21 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         } else {
           throw new BugInCF("Unexpected purity kind in " + additionalKinds);
         }
-        // NO-AFU }
+        /* NO-AFU
+        if (infer) {
+          WholeProgramInference wpi = atypeFactory.getWholeProgramInference();
+          ExecutableElement methodElt = TreeUtils.elementFromDeclaration(node);
+          if (additionalKinds.size() == 2) {
+            wpi.addMethodDeclarationAnnotation(methodElt, PURE);
+          } else if (additionalKinds.contains(Pure.Kind.SIDE_EFFECT_FREE)) {
+            wpi.addMethodDeclarationAnnotation(methodElt, SIDE_EFFECT_FREE);
+          } else if (additionalKinds.contains(Pure.Kind.DETERMINISTIC)) {
+            wpi.addMethodDeclarationAnnotation(methodElt, DETERMINISTIC);
+          } else {
+            throw new BugInCF("Unexpected purity kind in " + additionalKinds);
+          }
+        }
+        */
       }
     }
   }
