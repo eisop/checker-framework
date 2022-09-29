@@ -1545,6 +1545,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         Element element = TreeUtils.elementFromTree(tree);
 
         if (element != null) {
+            ElementKind elemKind = element.getKind();
+            // TypeUseLocation.java doesn't have ENUM type use location right now.
+            if (elemKind == ElementKind.ENUM) {
+                return;
+            }
             for (AnnotationMirror am : type.getAnnotations()) {
                 List<TypeUseLocation> locations =
                         AnnoToTargetLocations.get(AnnotationUtils.annotationName(am));
@@ -1554,7 +1559,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     continue;
                 }
                 boolean issueError = true;
-                switch (element.getKind()) {
+                switch (elemKind) {
                     case CONSTRUCTOR:
                         if (locations.contains(TypeUseLocation.CONSTRUCTOR_RESULT))
                             issueError = false;
@@ -4763,6 +4768,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * check the return type.
      *
      * @param tree the AST type supplied by the user
+     * @param validateTargetLocation if true, validate the target location of annotations
+     * @return true if the type is valid
      */
     public boolean validateTypeOf(Tree tree, boolean validateTargetLocation) {
         AnnotatedTypeMirror type;
