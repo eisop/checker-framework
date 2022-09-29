@@ -352,7 +352,7 @@ public final class InterningVisitor extends BaseTypeVisitor<InterningAnnotatedTy
     }
 
     @Override
-    public boolean validateTypeOf(Tree tree) {
+    public boolean validateTypeOf(Tree tree, boolean validateTargetLocation) {
         // Don't check the result type of a constructor, because it must be @UnknownInterned, even
         // if the type on the class declaration is @Interned.
         if (tree.getKind() == Tree.Kind.METHOD && TreeUtils.isConstructor((MethodTree) tree)) {
@@ -371,7 +371,7 @@ public final class InterningVisitor extends BaseTypeVisitor<InterningAnnotatedTy
                 }
             }
         }
-        return super.validateTypeOf(tree);
+        return super.validateTypeOf(tree, validateTargetLocation);
     }
 
     /**

@@ -68,6 +68,8 @@ import org.checkerframework.framework.ajava.JointVisitorWithDefaultAction;
 import org.checkerframework.framework.flow.CFAbstractStore;
 import org.checkerframework.framework.flow.CFAbstractValue;
 import org.checkerframework.framework.qual.DefaultQualifier;
+import org.checkerframework.framework.qual.TargetLocations;
+import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.qual.Unused;
 import org.checkerframework.framework.source.DiagMessage;
 import org.checkerframework.framework.source.SourceVisitor;
@@ -250,6 +252,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     protected @Nullable MethodTree methodTree = null;
 
     /**
+     * Map from String (canonical name of the qualifier) to its TypeUseLocations declared
+     * in @TargetLocations
+     */
+    protected final HashMap<String, List<TypeUseLocation>> AnnoToTargetLocations = new HashMap<>();
+    /**
      * @param checker the type-checker associated with this visitor (for callbacks to {@link
      *     TypeHierarchy#isSubtype})
      */
@@ -281,6 +288,29 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         */
         suggestPureMethods = checker.hasOption("suggestPureMethods"); // NO-AFU || infer;
         checkPurity = checker.hasOption("checkPurityAnnotations") || suggestPureMethods;
+        initAnnoToTargetLocations();
+    }
+
+    /** Initialize AnnoToTargetLocations, which is used for declared typeuse locations lookup. */
+    protected void initAnnoToTargetLocations() {
+        for (Class<? extends Annotation> qual : atypeFactory.getSupportedTypeQualifiers()) {
+            // skip qualifiers having enclosed elements
+            if (!elements.getTypeElement(qual.getCanonicalName()).getEnclosedElements().isEmpty()) {
+                continue;
+            }
+            AnnotationMirror am = AnnotationBuilder.fromClass(elements, qual);
+            TargetLocations tls =
+                    am.getAnnotationType().asElement().getAnnotation(TargetLocations.class);
+            // @Target({ElementType.TYPE_USE})} together with no @TargetLocations(...) means that
+            // the qualifier can be written on any type use
+            // TODO: do we have to consider the scenario that @Target contains other ElementType?
+            if (tls == null) {
+                AnnoToTargetLocations.put(qual.getCanonicalName(), new ArrayList<>());
+                continue;
+            }
+            List<TypeUseLocation> locations = Arrays.asList(tls.value());
+            AnnoToTargetLocations.put(qual.getCanonicalName(), locations);
+        }
     }
 
     /**
@@ -913,11 +943,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             checkPurity(node);
 
             // Passing the whole method/constructor validates the return type
-            validateTypeOf(node);
+            validateTypeOf(node, true);
 
             // Validate types in throws clauses
             for (ExpressionTree thr : node.getThrows()) {
-                validateTypeOf(thr);
+                validateTypeOf(thr, false);
             }
 
             atypeFactory.getDependentTypesHelper().checkMethodForErrorExpressions(node, methodType);
@@ -956,7 +986,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                             node.getParameters());
             checkContractsAtMethodDeclaration(
                     node, methodElement, formalParamNames, abstractMethod);
-
             /* NO-AFU
                    // Infer postconditions
                    if (atypeFactory.getWholeProgramInference() != null) {
@@ -1430,7 +1459,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     (AnnotatedIntersectionType) type.getUpperBound();
             checkExplicitAnnotationsOnIntersectionBounds(intersection, node.getBounds());
         }
-        validateTypeOf(node);
+        validateTypeOf(node, true);
 
         return super.visitTypeParameter(node, p);
     }
@@ -1496,9 +1525,117 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         } else {
             // commonAssignmentCheck validates the type of node,
             // so only validate if commonAssignmentCheck wasn't called
-            validateTypeOf(node);
+            validateTypeOf(node, false);
         }
+        validateVariablesTargetLocation(node, variableType);
+
         return super.visitVariable(node, p);
+    }
+
+    /**
+     * Validate if the annotations on the VariableTree are at the right locations, which is
+     * specified by the meta-annotation @TargetLocations. The difference of this method between
+     * {@link BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation...)}
+     * is that this one is only used in {@link BaseTypeVisitor#visitVariable(VariableTree, Void)}
+     *
+     * @param tree annotations on this VariableTree will be validated
+     * @param type the type of the tree
+     */
+    protected void validateVariablesTargetLocation(Tree tree, AnnotatedTypeMirror type) {
+        Element element = TreeUtils.elementFromTree(tree);
+
+        if (element != null) {
+            for (AnnotationMirror am : type.getAnnotations()) {
+                List<TypeUseLocation> locations =
+                        AnnoToTargetLocations.get(AnnotationUtils.annotationName(am));
+                if (locations == null
+                        || locations.isEmpty()
+                        || locations.contains(TypeUseLocation.ALL)) {
+                    continue;
+                }
+                boolean issueError = true;
+                switch (element.getKind()) {
+                    case CONSTRUCTOR:
+                        if (locations.contains(TypeUseLocation.CONSTRUCTOR_RESULT))
+                            issueError = false;
+                        break;
+                    case LOCAL_VARIABLE:
+                        if (locations.contains(TypeUseLocation.LOCAL_VARIABLE)) issueError = false;
+                        break;
+                    case EXCEPTION_PARAMETER:
+                        if (locations.contains(TypeUseLocation.EXCEPTION_PARAMETER))
+                            issueError = false;
+                        break;
+                    case PARAMETER:
+                        if (((VariableTree) tree).getName().contentEquals("this")) {
+                            if (locations.contains(TypeUseLocation.RECEIVER)) {
+                                issueError = false;
+                            }
+                        } else {
+                            if (locations.contains(TypeUseLocation.PARAMETER)) {
+                                issueError = false;
+                            }
+                        }
+                        break;
+                    case RESOURCE_VARIABLE:
+                        if (locations.contains(TypeUseLocation.RESOURCE_VARIABLE)) {
+                            issueError = false;
+                        }
+                        break;
+                    case FIELD:
+                        if (locations.contains(TypeUseLocation.FIELD)) {
+                            issueError = false;
+                        }
+                        break;
+                    default:
+                        throw new BugInCF("Location not matched");
+                }
+                if (issueError) {
+                    checker.reportError(
+                            tree,
+                            "type.invalid.annotations.on.location",
+                            am.toString(),
+                            element.getKind().name());
+                }
+            }
+        }
+    }
+
+    /**
+     * Validate if the annotations on the tree are at the right locations, which are specified by
+     * the meta-annotation @TargetLocations.
+     *
+     * @param tree annotations on this VariableTree will be validated
+     * @param type the type of the tree
+     * @param required if all of the TypeUseLocations in {@code required} are not present in the
+     *     specification of the annotation (@TargetLocations), issue an error.
+     */
+    protected void validateTargetLocation(
+            Tree tree, AnnotatedTypeMirror type, TypeUseLocation... required) {
+        for (AnnotationMirror am : type.getAnnotations()) {
+            List<TypeUseLocation> locations =
+                    AnnoToTargetLocations.get(AnnotationUtils.annotationName(am));
+            if (locations == null
+                    || locations.isEmpty()
+                    || locations.contains(TypeUseLocation.ALL)) {
+                continue;
+            }
+            boolean issueError = true;
+            for (TypeUseLocation req : required) {
+                if (locations.contains(req)) {
+                    issueError = false;
+                    break;
+                }
+            }
+
+            if (issueError) {
+                checker.reportError(
+                        tree,
+                        "type.invalid.annotations.on.location",
+                        am.toString(),
+                        tree.getKind().name());
+            }
+        }
     }
 
     /**
@@ -1644,7 +1781,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotatedTypeMirror var = atypeFactory.getAnnotatedTypeLhs(node.getVariable());
         AnnotatedTypeMirror iteratedType =
                 atypeFactory.getIterableElementType(node.getExpression());
-        boolean valid = validateTypeOf(node.getVariable());
+        boolean valid = validateTypeOf(node.getVariable(), false);
         if (valid) {
             commonAssignmentCheck(
                     var, iteratedType, node.getExpression(), "enhancedfor.type.incompatible");
@@ -2036,7 +2173,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 constructorName,
                 constructor.getTypeParameters());
 
-        boolean valid = validateTypeOf(node);
+        boolean valid = validateTypeOf(node, false);
 
         if (valid) {
             AnnotatedDeclaredType dt = atypeFactory.getAnnotatedType(node);
@@ -2111,7 +2248,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         if (enclosing.getKind() == Tree.Kind.METHOD) {
 
             MethodTree enclosingMethod = TreePathUtil.enclosingMethod(getCurrentPath());
-            boolean valid = validateTypeOf(enclosing);
+            boolean valid = validateTypeOf(enclosing, false);
             if (valid) {
                 ret = atypeFactory.getMethodReturnType(enclosingMethod, node);
             }
@@ -2231,7 +2368,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param switchExpressionTree a {@code SwitchExpressionTree}
      */
     public void visitSwitchExpression17(Tree switchExpressionTree) {
-        boolean valid = validateTypeOf(switchExpressionTree);
+        boolean valid = validateTypeOf(switchExpressionTree, false);
         if (valid) {
             AnnotatedTypeMirror switchType = atypeFactory.getAnnotatedType(switchExpressionTree);
             SwitchExpressionScanner<Void, Void> scanner =
@@ -2305,7 +2442,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     @Override
     public Void visitNewArray(NewArrayTree node, Void p) {
-        boolean valid = validateTypeOf(node);
+        boolean valid = validateTypeOf(node, false);
 
         if (valid && node.getType() != null) {
             AnnotatedArrayType arrayType = atypeFactory.getAnnotatedType(node);
@@ -2491,7 +2628,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     @Override
     public Void visitTypeCast(TypeCastTree node, Void p) {
         // validate "node" instead of "node.getType()" to prevent duplicate errors.
-        boolean valid = validateTypeOf(node) && validateTypeOf(node.getExpression());
+        boolean valid = validateTypeOf(node, false) && validateTypeOf(node.getExpression(), false);
         if (valid) {
             checkTypecastSafety(node);
             checkTypecastRedundancy(node);
@@ -2519,7 +2656,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         Tree patternTree = TreeUtils.instanceOfTreeGetPattern(tree);
         if (patternTree != null) {
             VariableTree variableTree = TreeUtils.bindingPatternTreeGetVariable(patternTree);
-            validateTypeOf(variableTree);
+            validateTypeOf(variableTree, false);
             if (variableTree.getModifiers() != null) {
                 AnnotatedTypeMirror variableType = atypeFactory.getAnnotatedType(variableTree);
                 AnnotatedTypeMirror expType = atypeFactory.getAnnotatedType(tree.getExpression());
@@ -2529,7 +2666,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
         } else {
             Tree refTypeTree = tree.getType();
-            validateTypeOf(refTypeTree);
+            validateTypeOf(refTypeTree, false);
             if (refTypeTree.getKind() == Tree.Kind.ANNOTATED_TYPE) {
                 AnnotatedTypeMirror refType = atypeFactory.getAnnotatedType(refTypeTree);
                 AnnotatedTypeMirror expType = atypeFactory.getAnnotatedType(tree.getExpression());
@@ -2884,7 +3021,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     : "array initializers are not expected to be null in: " + valueExp;
             checkArrayInitialization(compType, arrayTree.getInitializers());
         }
-        if (!validateTypeOf(valueExp)) {
+        if (!validateTypeOf(valueExp, false)) {
             return;
         }
         AnnotatedTypeMirror valueType = atypeFactory.getAnnotatedType(valueExp);
@@ -4554,8 +4691,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      *
      * <p>The check is shallow, as it does not descend into generic or array types (i.e. only
      * performing the validity check on the raw type or outermost array dimension). {@link
-     * BaseTypeVisitor#validateTypeOf(Tree)} would call this for each type argument or array
-     * dimension separately.
+     * BaseTypeVisitor#validateTypeOf(Tree, boolean)} would call this for each type argument or
+     * array dimension separately.
      *
      * <p>In most cases, {@code useType} simply needs to be a subtype of {@code declarationType}. If
      * a type system makes exceptions to this rule, its implementation should override this method.
@@ -4627,19 +4764,34 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      *
      * @param tree the AST type supplied by the user
      */
-    public boolean validateTypeOf(Tree tree) {
+    public boolean validateTypeOf(Tree tree, boolean validateTargetLocation) {
         AnnotatedTypeMirror type;
         // It's quite annoying that there is no TypeTree.
         switch (tree.getKind()) {
             case PRIMITIVE_TYPE:
             case PARAMETERIZED_TYPE:
-            case TYPE_PARAMETER:
             case ARRAY_TYPE:
             case UNBOUNDED_WILDCARD:
             case EXTENDS_WILDCARD:
             case SUPER_WILDCARD:
             case ANNOTATED_TYPE:
                 type = atypeFactory.getAnnotatedTypeFromTypeTree(tree);
+                break;
+            case TYPE_PARAMETER:
+                type = atypeFactory.getAnnotatedTypeFromTypeTree(tree);
+                if (!validateTargetLocation) break;
+                for (Tree t : ((TypeParameterTree) tree).getBounds()) {
+                    validateTargetLocation(
+                            t,
+                            ((AnnotatedTypeVariable) type).getUpperBound(),
+                            TypeUseLocation.UPPER_BOUND,
+                            TypeUseLocation.EXPLICIT_UPPER_BOUND);
+                }
+                validateTargetLocation(
+                        tree,
+                        ((AnnotatedTypeVariable) type).getLowerBound(),
+                        TypeUseLocation.LOWER_BOUND,
+                        TypeUseLocation.EXPLICIT_LOWER_BOUND);
                 break;
             case METHOD:
                 type = atypeFactory.getMethodReturnType((MethodTree) tree);
@@ -4648,6 +4800,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     // Note that for a constructor the AnnotatedExecutableType does
                     // not use void as return type.
                     return true;
+                }
+                if (!validateTargetLocation) break;
+                if (((MethodTree) tree).getReturnType() == null) {
+                    validateTargetLocation(tree, type, TypeUseLocation.CONSTRUCTOR_RESULT);
+                } else {
+                    validateTargetLocation(tree, type, TypeUseLocation.RETURN);
                 }
                 break;
             default:

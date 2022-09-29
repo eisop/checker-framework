@@ -13,6 +13,7 @@ import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.source.DiagMessage;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
@@ -86,7 +87,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * returns a boolean value.
      *
      * <p>This is the entry point to the type validator. Neither this method nor visit should be
-     * called directly by a visitor, only use {@link BaseTypeVisitor#validateTypeOf(Tree)}.
+     * called directly by a visitor, only use {@link BaseTypeVisitor#validateTypeOf(Tree, boolean)}.
      *
      * <p>This method is only called on top-level types, but it validates the entire type including
      * components of a compound type. Subclasses should override this only if there is special-case
@@ -675,6 +676,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
             reportInvalidBounds(type, tree);
         }
 
+        validateWildCardTargetLocation(type, tree);
         return super.visitWildcard(type, tree);
     }
 
@@ -700,5 +702,54 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         //  a bound.type.incompatible
 
         return true;
+    }
+    /**
+     * Validate if the annotations on wildcard are permitted by @TargetLocations. Report an error if
+     * the actual use of this annotation is not listed in the declared TypeUseLocations
+     * in @TargetLocation.
+     *
+     * @param type the type to check
+     * @param tree the tree of this type
+     */
+    protected void validateWildCardTargetLocation(AnnotatedWildcardType type, Tree tree) {
+        if (tree.getKind() == Tree.Kind.SUPER_WILDCARD) {
+            for (AnnotationMirror am : type.getSuperBound().getAnnotations()) {
+                List<TypeUseLocation> locations =
+                        visitor.AnnoToTargetLocations.get(AnnotationUtils.annotationName(am));
+                // @Target({ElementType.TYPE_USE})} together with no @TargetLocations(...) means
+                // that
+                // the qualifier can be written on any type use
+                if (locations == null
+                        || locations.isEmpty()
+                        || locations.contains(TypeUseLocation.EXPLICIT_LOWER_BOUND)
+                        || locations.contains(TypeUseLocation.LOWER_BOUND)
+                        || locations.contains(TypeUseLocation.ALL)) {
+                    continue;
+                }
+
+                checker.reportError(
+                        tree,
+                        "type.invalid.annotations.on.location",
+                        type.getSuperBound().getAnnotations().toString(),
+                        tree.getKind().toString());
+            }
+        } else if (tree.getKind() == Tree.Kind.EXTENDS_WILDCARD) {
+            for (AnnotationMirror am : type.getExtendsBound().getAnnotations()) {
+                List<TypeUseLocation> locations =
+                        visitor.AnnoToTargetLocations.get(AnnotationUtils.annotationName(am));
+                if (locations.isEmpty()
+                        || locations.contains(TypeUseLocation.EXPLICIT_UPPER_BOUND)
+                        || locations.contains(TypeUseLocation.UPPER_BOUND)
+                        || locations.contains(TypeUseLocation.ALL)) {
+                    continue;
+                }
+
+                checker.reportError(
+                        tree,
+                        "type.invalid.annotations.on.location",
+                        type.getExtendsBound().getAnnotations().toString(),
+                        tree.getKind().toString());
+            }
+        }
     }
 }
