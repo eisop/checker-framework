@@ -24,9 +24,9 @@ import java.lang.annotation.Target;
  * enable that. For finer-grained control, override {@code visit*} methods that visit trees in
  * BaseTypeVisitor.
  *
- * <p>This annotation does not prevent the type system from defaulting, inferring, or computing the
- * given type annotation at the given location. It only prevents users from writing an explicit
- * annotation at the given location.
+ * <p>This annotation does not prevent the type system from inferring, or computing the given type
+ * annotation at the given location. It only prevents the defaulting annotations and users from
+ * writing an explicit annotation at the given location.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)

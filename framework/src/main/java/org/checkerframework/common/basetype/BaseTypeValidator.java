@@ -737,7 +737,8 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
             for (AnnotationMirror am : type.getExtendsBound().getAnnotations()) {
                 List<TypeUseLocation> locations =
                         visitor.AnnoToTargetLocations.get(AnnotationUtils.annotationName(am));
-                if (locations.isEmpty()
+                if (locations == null
+                        || locations.isEmpty()
                         || locations.contains(TypeUseLocation.EXPLICIT_UPPER_BOUND)
                         || locations.contains(TypeUseLocation.UPPER_BOUND)
                         || locations.contains(TypeUseLocation.ALL)) {
