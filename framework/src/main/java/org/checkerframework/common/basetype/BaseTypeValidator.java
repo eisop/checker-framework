@@ -720,7 +720,6 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                 // that
                 // the qualifier can be written on any type use
                 if (locations == null
-                        || locations.isEmpty()
                         || locations.contains(TypeUseLocation.EXPLICIT_LOWER_BOUND)
                         || locations.contains(TypeUseLocation.LOWER_BOUND)
                         || locations.contains(TypeUseLocation.ALL)) {
@@ -738,7 +737,6 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                 List<TypeUseLocation> locations =
                         visitor.AnnoToTargetLocations.get(AnnotationUtils.annotationName(am));
                 if (locations == null
-                        || locations.isEmpty()
                         || locations.contains(TypeUseLocation.EXPLICIT_UPPER_BOUND)
                         || locations.contains(TypeUseLocation.UPPER_BOUND)
                         || locations.contains(TypeUseLocation.ALL)) {

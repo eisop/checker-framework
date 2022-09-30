@@ -6,6 +6,10 @@ package org.checkerframework.framework.qual;
  * <p>The order of enums is important. Defaults are applied in this order. In particular, this means
  * that OTHERWISE and ALL should be last.
  *
+ * <p>For an annotation on a variable which has element kind ENUM_CONSTANT, the annotation's
+ * type-use location is either {@code TypeUseLocation.FIELD} or {@code
+ * TypeUseLocation.CONSTRUCTOR_RESULT}.
+ *
  * @see DefaultQualifier
  * @see javax.lang.model.element.ElementKind
  */

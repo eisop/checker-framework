@@ -294,18 +294,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /** Initialize AnnoToTargetLocations, which is used for declared typeuse locations lookup. */
     protected void initAnnoToTargetLocations() {
         for (Class<? extends Annotation> qual : atypeFactory.getSupportedTypeQualifiers()) {
-            // skip qualifiers having enclosed elements
-            if (!elements.getTypeElement(qual.getCanonicalName()).getEnclosedElements().isEmpty()) {
-                continue;
-            }
-            AnnotationMirror am = AnnotationBuilder.fromClass(elements, qual);
-            TargetLocations tls =
-                    am.getAnnotationType().asElement().getAnnotation(TargetLocations.class);
+            Element elem = elements.getTypeElement(qual.getCanonicalName());
+            TargetLocations tls = elem.getAnnotation(TargetLocations.class);
             // @Target({ElementType.TYPE_USE})} together with no @TargetLocations(...) means that
             // the qualifier can be written on any type use
             // TODO: do we have to consider the scenario that @Target contains other ElementType?
             if (tls == null) {
-                AnnoToTargetLocations.put(qual.getCanonicalName(), new ArrayList<>());
+                AnnoToTargetLocations.put(qual.getCanonicalName(), null);
                 continue;
             }
             List<TypeUseLocation> locations = Arrays.asList(tls.value());
@@ -1547,23 +1542,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         if (element != null) {
             ElementKind elemKind = element.getKind();
             // TypeUseLocation.java doesn't have ENUM type use location right now.
-            if (elemKind == ElementKind.ENUM) {
-                return;
-            }
             for (AnnotationMirror am : type.getAnnotations()) {
                 List<TypeUseLocation> locations =
                         AnnoToTargetLocations.get(AnnotationUtils.annotationName(am));
-                if (locations == null
-                        || locations.isEmpty()
-                        || locations.contains(TypeUseLocation.ALL)) {
+                if (locations == null || locations.contains(TypeUseLocation.ALL)) {
                     continue;
                 }
                 boolean issueError = true;
                 switch (elemKind) {
-                    case CONSTRUCTOR:
-                        if (locations.contains(TypeUseLocation.CONSTRUCTOR_RESULT))
-                            issueError = false;
-                        break;
                     case LOCAL_VARIABLE:
                         if (locations.contains(TypeUseLocation.LOCAL_VARIABLE)) issueError = false;
                         break;
@@ -1589,6 +1575,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         break;
                     case FIELD:
                         if (locations.contains(TypeUseLocation.FIELD)) {
+                            issueError = false;
+                        }
+                        break;
+                    case ENUM_CONSTANT:
+                        if (locations.contains(TypeUseLocation.FIELD)
+                                || locations.contains(TypeUseLocation.CONSTRUCTOR_RESULT)) {
                             issueError = false;
                         }
                         break;
@@ -1620,9 +1612,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         for (AnnotationMirror am : type.getAnnotations()) {
             List<TypeUseLocation> locations =
                     AnnoToTargetLocations.get(AnnotationUtils.annotationName(am));
-            if (locations == null
-                    || locations.isEmpty()
-                    || locations.contains(TypeUseLocation.ALL)) {
+            if (locations == null || locations.contains(TypeUseLocation.ALL)) {
                 continue;
             }
             boolean issueError = true;
