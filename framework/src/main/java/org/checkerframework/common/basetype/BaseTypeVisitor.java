@@ -116,18 +116,7 @@ import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Target;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.StringJoiner;
-import java.util.Vector;
+import java.util.*;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
@@ -2015,12 +2004,29 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotatedExecutableType constructorType = fromUse.executableType;
         List<AnnotatedTypeMirror> typeargs = fromUse.typeArgs;
 
-        List<AnnotatedTypeMirror> params = constructorType.getParameterTypes();
+        List<AnnotatedTypeMirror> params =
+                new ArrayList<>(constructorType.getParameterTypes().size());
+        if (node.getClassBody() == null) {
+            if (atypeFactory.getReceiverType(node) != null) {
+                params = new ArrayList<>(constructorType.getParameterTypes().size() + 1);
+                params.add(constructorType.getReceiverType());
+                params.addAll(1, constructorType.getParameterTypes());
+            } else {
+                params = constructorType.getParameterTypes();
+            }
+        } else {
+            params = constructorType.getParameterTypes();
+        }
         List<? extends ExpressionTree> passedArguments = node.getArguments();
         // add enclosing type to passed arguments
         List<ExpressionTree> passedArgumentsWithEnclosingType = new ArrayList<>(passedArguments);
+        AnnotatedDeclaredType implicitReceiverType = atypeFactory.getImplicitReceiverType(node);
         if (node.getEnclosingExpression() != null) {
             passedArgumentsWithEnclosingType.add(0, node.getEnclosingExpression());
+        }
+        // TODO: very ugly
+        if (implicitReceiverType != null && passedArguments.size() < params.size()) {
+            params = params.subList(1, params.size());
         }
         // process Var Args
         if (constructorType.getElement().isVarArgs()) {

@@ -2060,7 +2060,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return the type of the implicit receiver. Returns null if the expression has an explicit
      *     receiver or doesn't have a receiver.
      */
-    protected @Nullable AnnotatedDeclaredType getImplicitReceiverType(ExpressionTree tree) {
+    @Nullable public AnnotatedDeclaredType getImplicitReceiverType(ExpressionTree tree) {
         assert (tree.getKind() == Tree.Kind.IDENTIFIER
                         || tree.getKind() == Tree.Kind.MEMBER_SELECT
                         || tree.getKind() == Tree.Kind.METHOD_INVOCATION
@@ -2752,12 +2752,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             con.getReturnType().replaceAnnotations(superCon.getReturnType().getAnnotations());
         } else {
             con = AnnotatedTypes.asMemberOf(types, this, type, ctor, con);
-            if (enclosingType != null) {
-                List<AnnotatedTypeMirror> p = new ArrayList<>(con.getParameterTypes().size() + 1);
-                p.add(superCon.receiverType);
-                p.addAll(1, con.getParameterTypes());
-                con.setParameterTypes(p);
-            }
         }
 
         Map<TypeVariable, AnnotatedTypeMirror> typeParamToTypeArg =
