@@ -1993,7 +1993,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      *   <li>if c is generic, passed type arguments are subtypes of c type variables
      * </ul>
      */
-    @SuppressWarnings("ModifiedButNotUsed")
     @Override
     public Void visitNewClass(NewClassTree node, Void p) {
         if (checker.shouldSkipUses(TreeUtils.constructor(node))) {
@@ -2004,43 +2003,58 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotatedExecutableType constructorType = fromUse.executableType;
         List<AnnotatedTypeMirror> typeargs = fromUse.typeArgs;
 
-        List<AnnotatedTypeMirror> params =
-                new ArrayList<>(constructorType.getParameterTypes().size());
+        // Type checking receiver type between arguments and parameters
+        List<AnnotatedTypeMirror> parameterTypes = constructorType.getParameterTypes();
+        AnnotatedTypeMirror parameterReceiverType = null;
+        if (parameterTypes.size() > 0) {
+            parameterReceiverType = parameterTypes.get(0);
+        }
+        // Empty body class can have receiver type
         if (node.getClassBody() == null) {
             if (atypeFactory.getReceiverType(node) != null) {
-                params = new ArrayList<>(constructorType.getParameterTypes().size() + 1);
-                params.add(constructorType.getReceiverType());
-                params.addAll(1, constructorType.getParameterTypes());
-            } else {
-                params = constructorType.getParameterTypes();
+                parameterReceiverType = constructorType.getReceiverType();
             }
-        } else {
-            params = constructorType.getParameterTypes();
         }
-        List<? extends ExpressionTree> passedArguments = node.getArguments();
-        // add enclosing type to passed arguments
-        List<ExpressionTree> passedArgumentsWithEnclosingType = new ArrayList<>(passedArguments);
-        AnnotatedDeclaredType implicitReceiverType = atypeFactory.getImplicitReceiverType(node);
+        AnnotatedTypeMirror argumentReceiverType = null;
         if (node.getEnclosingExpression() != null) {
-            passedArgumentsWithEnclosingType.add(0, node.getEnclosingExpression());
+            argumentReceiverType = atypeFactory.getAnnotatedType(node.getEnclosingExpression());
+        } else {
+            argumentReceiverType = atypeFactory.getImplicitReceiverType(node);
         }
-        // TODO: very ugly
-        if (implicitReceiverType != null && passedArguments.size() < params.size()) {
-            params = params.subList(1, params.size());
-        }
-        // process Var Args
-        if (constructorType.getElement().isVarArgs()) {
-            AnnotatedArrayType varargs = (AnnotatedArrayType) params.get(params.size() - 1);
-            params = new ArrayList<>(params.subList(0, params.size() - 1));
-            for (int i = passedArgumentsWithEnclosingType.size() - params.size(); i > 0; --i) {
-                params.add(varargs.getComponentType().deepCopy());
+        if (parameterReceiverType != null && argumentReceiverType != null) {
+            if (atypeFactory.types.isSameType(
+                    argumentReceiverType.getUnderlyingType(),
+                    parameterReceiverType.getUnderlyingType())) {
+                AnnotatedTypeMirror widenedValueType =
+                        atypeFactory.getWidenedType(argumentReceiverType, parameterReceiverType);
+                boolean success =
+                        atypeFactory
+                                .getTypeHierarchy()
+                                .isSubtype(widenedValueType, parameterReceiverType);
+                if (!success) {
+                    FoundRequired pair =
+                            FoundRequired.of(argumentReceiverType, parameterReceiverType);
+                    String valueTypeString = pair.found;
+                    String varTypeString = pair.required;
+                    checker.reportError(
+                            node,
+                            "argument.type.incompatible",
+                            valueTypeString,
+                            varTypeString,
+                            valueTypeString,
+                            varTypeString);
+                }
             }
         }
+
+        List<? extends ExpressionTree> passedArguments = node.getArguments();
+        List<AnnotatedTypeMirror> params =
+                AnnotatedTypes.adaptParameters(atypeFactory, constructorType, passedArguments);
+
         ExecutableElement constructor = constructorType.getElement();
         CharSequence constructorName = ElementUtils.getSimpleNameOrDescription(constructor);
 
-        // TODO: fix paramNames
-        checkArguments(params, passedArgumentsWithEnclosingType, constructorName, params);
+        checkArguments(params, passedArguments, constructorName, constructor.getParameters());
         checkVarargs(constructorType, node);
 
         List<AnnotatedTypeParameterBounds> paramBounds =
