@@ -10,6 +10,6 @@ public class Wildcards {
     NonN<?> f = new NonN<Object>();
 
     class LocalNonN<T extends Object> {}
-
+    // :: error: (argument.type.incompatible)
     LocalNonN<?> g = new LocalNonN<Object>();
 }
