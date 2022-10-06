@@ -52,6 +52,7 @@ public class JavaExprContext {
     // Non-static field initialization
 
     staticGraphClass graphField1 = new staticGraphClass();
+    // ::error: (argument.type.incompatible)
     nonstaticGraphClass graphField2 = new nonstaticGraphClass();
 
     @SuppressWarnings("assignment.type.incompatible")

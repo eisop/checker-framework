@@ -9,6 +9,7 @@ class InnerCrash {
 
     static void foo() {
         // :: error: (dereference.of.nullable)
+        // :: error: (argument.type.incompatible)
         Object o = getInnerCrash().new Inner();
     }
 }

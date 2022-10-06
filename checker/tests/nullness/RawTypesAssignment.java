@@ -18,9 +18,12 @@ public class RawTypesAssignment {
     // :: warning: [unchecked] unchecked conversion
     Map<Object, Object> notRawMapDiamondObjectObjectRaw = new HashMap();
 
+    // :: error: (argument.type.incompatible)
     RecursiveGeneric rawRecursiveGeneric = new RecursiveGeneric();
+    // :: error: (argument.type.incompatible)
     RecursiveGeneric<MyClass> notRawRecursiveGenericDiamond = new RecursiveGeneric<>();
     // :: warning: [unchecked] unchecked conversion
+    // :: error: (argument.type.incompatible)
     RecursiveGeneric<MyClass> notRawRecursiveGenericRaw = new RecursiveGeneric();
 
     class Generic<G extends @Nullable Object> {}
