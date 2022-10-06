@@ -18,7 +18,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.concurrent.locks.ReentrantLock;
 
-@SupressWarnings("argument.type.incompatible")
+@SuppressWarnings("argument.type.incompatible")
 public class ChapterExamples {
     // This code crashed when there was a bug before issue 524 was fixed.
     // An attempt to take the LUB between 'val' in the store with type 'long'

@@ -6,10 +6,11 @@
  * @compile -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Astubs=NonN.astub Wildcards.java  -Werror
  */
 
+@SuppressWarnings("argument.type.incompatible")
 public class Wildcards {
     NonN<?> f = new NonN<Object>();
 
     class LocalNonN<T extends Object> {}
-    // :: error: (argument.type.incompatible)
+
     LocalNonN<?> g = new LocalNonN<Object>();
 }
