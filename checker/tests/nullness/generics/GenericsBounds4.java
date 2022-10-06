@@ -8,9 +8,12 @@ public class GenericsBounds4 {
         }
     }
 
+    // :: error: (argument.type.incompatible)
     Collection1<? extends @Nullable Object> f1 = new Collection1<@NonNull Object>();
     // :: error: (assignment.type.incompatible)
+    // :: error: (argument.type.incompatible)
     Collection1<@Nullable ? extends @Nullable Object> f2 = new Collection1<@NonNull Object>();
+    // :: error: (argument.type.incompatible)
     Collection1<@Nullable ? extends @Nullable Object> f3 = new Collection1<@Nullable Object>();
 
     void bad() {

@@ -13,6 +13,7 @@ public class MethodTypeVars5 {
         }
     }
 
+    // :: error: (argument.type.incompatible)
     B<String> b = new B<>("Hello World");
 
     String doit1() {

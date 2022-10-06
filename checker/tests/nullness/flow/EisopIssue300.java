@@ -10,6 +10,7 @@ public class EisopIssue300 {
         }
     }
 
+    // :: error: (argument.type.incompatible)
     @Nullable Bug currentNode = new Bug();
 
     void test() {

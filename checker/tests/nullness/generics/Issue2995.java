@@ -7,6 +7,7 @@ class Issue2995 {
     interface Set<E> {}
 
     class Map<K extends @Nullable Object> {
+        // :: error: (argument.type.incompatible)
         Set<K> keySet = new KeySet();
 
         class KeySet implements Set<K> {}
