@@ -2711,10 +2711,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             viewpointAdapter.viewpointAdaptConstructor(type, ctor, con);
         }
 
-        AnnotatedExecutableType superCon = getAnnotatedType(TreeUtils.getSuperConstructor(tree));
-        constructorFromUsePreSubstitution(tree, superCon);
-        // no viewpoint adaptation needed for super invocation
-        superCon = AnnotatedTypes.asMemberOf(types, this, type, superCon.getElement(), superCon);
         if (tree.getClassBody() != null) {
             // Because the anonymous constructor can't have explicit annotations on its parameters,
             // they are copied from the super constructor invoked in the anonymous constructor. To
@@ -2723,7 +2719,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // 2. adapt it to this call site.
             // 3. copy the parameters to the anonymous constructor, `con`.
             // 4. copy annotations on the return type to `con`.
-
+            AnnotatedExecutableType superCon =
+                    getAnnotatedType(TreeUtils.getSuperConstructor(tree));
+            constructorFromUsePreSubstitution(tree, superCon);
+            // no viewpoint adaptation needed for super invocation
+            superCon =
+                    AnnotatedTypes.asMemberOf(types, this, type, superCon.getElement(), superCon);
             if (superCon.getParameterTypes().size() == con.getParameterTypes().size()) {
                 con.setParameterTypes(superCon.getParameterTypes());
             } else {

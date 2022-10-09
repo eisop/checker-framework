@@ -2014,24 +2014,26 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotatedExecutableType constructorType = fromUse.executableType;
         List<AnnotatedTypeMirror> typeargs = fromUse.typeArgs;
 
-        // Type checking receiver type between arguments and parameters
+        // Get receiver var type
         List<AnnotatedTypeMirror> parameterTypes = constructorType.getParameterTypes();
         AnnotatedTypeMirror parameterReceiverType = null;
         if (parameterTypes.size() > 0) {
             parameterReceiverType = parameterTypes.get(0);
         }
-        // Empty body class can have receiver type
+        // Empty body class can also have receiver type
         if (node.getClassBody() == null) {
             if (atypeFactory.getReceiverType(node) != null) {
                 parameterReceiverType = constructorType.getReceiverType();
             }
         }
+        // Get receiver value type
         AnnotatedTypeMirror argumentReceiverType = null;
         if (node.getEnclosingExpression() != null) {
             argumentReceiverType = atypeFactory.getAnnotatedType(node.getEnclosingExpression());
         } else {
             argumentReceiverType = atypeFactory.getImplicitReceiverType(node);
         }
+        // Type check receiver type
         if (parameterReceiverType != null && argumentReceiverType != null) {
             if (atypeFactory.types.isSameType(
                     argumentReceiverType.getUnderlyingType(),
@@ -2059,6 +2061,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         List<? extends ExpressionTree> passedArguments = node.getArguments();
+        // TODO: clean up usages of adaptParameters in this PR
         List<AnnotatedTypeMirror> params =
                 AnnotatedTypes.adaptParameters(atypeFactory, constructorType, passedArguments);
 

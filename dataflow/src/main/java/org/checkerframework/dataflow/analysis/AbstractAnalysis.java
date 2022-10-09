@@ -460,7 +460,6 @@ public abstract class AbstractAnalysis<
      * A worklist is a priority queue of blocks in which the order is given by depth-first ordering
      * to place non-loop predecessors ahead of successors.
      */
-    @SuppressWarnings("nullness:argument.type.incompatible")
     protected static class Worklist {
 
         /** Map all blocks in the CFG to their depth-first order. */
@@ -498,6 +497,7 @@ public abstract class AbstractAnalysis<
          *
          * @param direction the direction (forward or backward)
          */
+        @SuppressWarnings("nullness:argument.type.incompatible")
         public Worklist(Direction direction) {
             if (direction == Direction.FORWARD) {
                 queue = new PriorityQueue<>(new ForwardDFOComparator());
