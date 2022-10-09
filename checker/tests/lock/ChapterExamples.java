@@ -130,14 +130,17 @@ public class ChapterExamples {
         synchronized (this) { // Tests translation of '<self>' to 'this'
             // myField = new MyClass();
             myField.toString();
+            // :: error: (argument.type.incompatible)
             this.myField = new MyClass();
             this.myField.toString();
         }
         // :: error: (lock.not.held)
+        // :: error: (argument.type.incompatible)
         myField = new MyClass();
         // :: error: (lock.not.held)
         myField.toString();
         // :: error: (lock.not.held)
+        // :: error: (argument.type.incompatible)
         this.myField = new MyClass();
         // :: error: (lock.not.held)
         this.myField.toString();
@@ -149,6 +152,7 @@ public class ChapterExamples {
         // :: error: (lock.not.held)
         myField.toString();
         // :: error: (lock.not.held)
+        // :: error: (argument.type.incompatible)
         this.myField = new MyClass();
         // :: error: (lock.not.held)
         this.myField.toString();
@@ -167,6 +171,7 @@ public class ChapterExamples {
         // :: error: (lock.not.held)
         myField.toString();
         // :: error: (lock.not.held)
+        // :: error: (argument.type.incompatible)
         this.myField = new MyClass();
         // :: error: (lock.not.held)
         this.myField.toString();
