@@ -7,7 +7,6 @@ import org.junit.runners.Parameterized.Parameters;
 import java.io.File;
 import java.util.List;
 
-/** TODO */
 public class H1H2CheckerTest extends CheckerFrameworkPerDirectoryTest {
 
     /**

@@ -2742,7 +2742,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 if (TreeUtils.hasSyntheticArgument(tree)) {
                     p.add(con.getParameterTypes().get(0));
                 } else if (con.receiverType != null) {
-                    // TODO: why not superCon here as it is a anoymous class
                     p.add(superCon.receiverType);
                 } else {
                     p.add(con.paramTypes.get(0));
