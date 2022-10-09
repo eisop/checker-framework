@@ -2080,11 +2080,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return the type of the implicit receiver. Returns null if the expression has an explicit
      *     receiver or doesn't have a receiver.
      */
-<<<<<<< HEAD
     public @Nullable AnnotatedDeclaredType getImplicitReceiverType(ExpressionTree tree) {
-=======
-    @Nullable public AnnotatedDeclaredType getImplicitReceiverType(ExpressionTree tree) {
->>>>>>> 6fce61195 (draft version+1)
         assert (tree.getKind() == Tree.Kind.IDENTIFIER
                         || tree.getKind() == Tree.Kind.MEMBER_SELECT
                         || tree.getKind() == Tree.Kind.METHOD_INVOCATION
