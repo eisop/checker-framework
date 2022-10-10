@@ -15,23 +15,23 @@ import org.junit.runners.Parameterized.Parameters;
 @Category(AinferIndexAjavaTest.class)
 public class AinferIndexAjavaValidationTest extends AinferValidatePerDirectoryTest {
 
-  /**
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public AinferIndexAjavaValidationTest(List<File> testFiles) {
-    super(
-        testFiles,
-        IndexChecker.class,
-        "index",
-        "ainfer-index/annotated",
-        AinferIndexAjavaTest.class,
-        "-Anomsgtext",
-        ajavaArgFromFiles(testFiles, "index"),
-        "-Awarns");
-  }
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public AinferIndexAjavaValidationTest(List<File> testFiles) {
+        super(
+                testFiles,
+                IndexChecker.class,
+                "index",
+                "ainfer-index/annotated",
+                AinferIndexAjavaTest.class,
+                "-Anomsgtext",
+                ajavaArgFromFiles(testFiles, "index"),
+                "-Awarns");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"ainfer-index/annotated/"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"ainfer-index/annotated/"};
+    }
 }

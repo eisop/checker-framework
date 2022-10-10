@@ -222,7 +222,7 @@ allprojects {
             endWithNewline()
         }
         java {
-            googleJavaFormat()
+            googleJavaFormat().aosp()
             formatAnnotations()
         }
     }

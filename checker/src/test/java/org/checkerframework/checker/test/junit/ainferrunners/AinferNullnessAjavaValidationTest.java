@@ -15,23 +15,23 @@ import org.junit.runners.Parameterized.Parameters;
 @Category(AinferNullnessAjavaTest.class)
 public class AinferNullnessAjavaValidationTest extends AinferValidatePerDirectoryTest {
 
-  /**
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public AinferNullnessAjavaValidationTest(List<File> testFiles) {
-    super(
-        testFiles,
-        NullnessChecker.class,
-        "nullness",
-        "ainfer-nullness/annotated",
-        AinferNullnessAjavaTest.class,
-        "-Anomsgtext",
-        ajavaArgFromFiles(testFiles, "nullness"),
-        "-Awarns");
-  }
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public AinferNullnessAjavaValidationTest(List<File> testFiles) {
+        super(
+                testFiles,
+                NullnessChecker.class,
+                "nullness",
+                "ainfer-nullness/annotated",
+                AinferNullnessAjavaTest.class,
+                "-Anomsgtext",
+                ajavaArgFromFiles(testFiles, "nullness"),
+                "-Awarns");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"ainfer-nullness/annotated/"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"ainfer-nullness/annotated/"};
+    }
 }

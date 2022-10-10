@@ -14,56 +14,58 @@ import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.javacutil.TreeUtils;
 
 public class DisbarUseVisitor extends BaseTypeVisitor<DisbarUseTypeFactory> {
-  public DisbarUseVisitor(BaseTypeChecker checker) {
-    super(checker);
-  }
-
-  protected DisbarUseVisitor(BaseTypeChecker checker, DisbarUseTypeFactory typeFactory) {
-    super(checker, typeFactory);
-  }
-
-  @Override
-  protected DisbarUseTypeFactory createTypeFactory() {
-    return new DisbarUseTypeFactory(checker);
-  }
-
-  @Override
-  public Void visitMethodInvocation(MethodInvocationTree node, Void p) {
-    ExecutableElement methodElt = TreeUtils.elementFromUse(node);
-    if (methodElt != null && atypeFactory.getDeclAnnotation(methodElt, DisbarUse.class) != null) {
-      checker.reportError(node, "disbar.use");
+    public DisbarUseVisitor(BaseTypeChecker checker) {
+        super(checker);
     }
-    return super.visitMethodInvocation(node, p);
-  }
 
-  @Override
-  public Void visitNewClass(NewClassTree node, Void p) {
-    ExecutableElement consElt = TreeUtils.elementFromUse(node);
-    if (consElt != null && atypeFactory.getDeclAnnotation(consElt, DisbarUse.class) != null) {
-      checker.reportError(node, "disbar.use");
+    protected DisbarUseVisitor(BaseTypeChecker checker, DisbarUseTypeFactory typeFactory) {
+        super(checker, typeFactory);
     }
-    return super.visitNewClass(node, p);
-  }
 
-  @Override
-  public Void visitIdentifier(IdentifierTree node, Void p) {
-    MemberSelectTree enclosingMemberSel = enclosingMemberSelect();
-    ExpressionTree[] expressionTrees =
-        enclosingMemberSel == null
-            ? new ExpressionTree[] {node}
-            : new ExpressionTree[] {enclosingMemberSel, node};
+    @Override
+    protected DisbarUseTypeFactory createTypeFactory() {
+        return new DisbarUseTypeFactory(checker);
+    }
 
-    for (ExpressionTree memberSel : expressionTrees) {
-      final Element elem = TreeUtils.elementFromUse(memberSel);
-
-      // We only issue errors for variables that are fields or parameters:
-      if (elem != null && (elem.getKind().isField() || elem.getKind() == ElementKind.PARAMETER)) {
-        if (atypeFactory.getDeclAnnotation(elem, DisbarUse.class) != null) {
-          checker.reportError(memberSel, "disbar.use");
+    @Override
+    public Void visitMethodInvocation(MethodInvocationTree node, Void p) {
+        ExecutableElement methodElt = TreeUtils.elementFromUse(node);
+        if (methodElt != null
+                && atypeFactory.getDeclAnnotation(methodElt, DisbarUse.class) != null) {
+            checker.reportError(node, "disbar.use");
         }
-      }
+        return super.visitMethodInvocation(node, p);
     }
 
-    return super.visitIdentifier(node, p);
-  }
+    @Override
+    public Void visitNewClass(NewClassTree node, Void p) {
+        ExecutableElement consElt = TreeUtils.elementFromUse(node);
+        if (consElt != null && atypeFactory.getDeclAnnotation(consElt, DisbarUse.class) != null) {
+            checker.reportError(node, "disbar.use");
+        }
+        return super.visitNewClass(node, p);
+    }
+
+    @Override
+    public Void visitIdentifier(IdentifierTree node, Void p) {
+        MemberSelectTree enclosingMemberSel = enclosingMemberSelect();
+        ExpressionTree[] expressionTrees =
+                enclosingMemberSel == null
+                        ? new ExpressionTree[] {node}
+                        : new ExpressionTree[] {enclosingMemberSel, node};
+
+        for (ExpressionTree memberSel : expressionTrees) {
+            final Element elem = TreeUtils.elementFromUse(memberSel);
+
+            // We only issue errors for variables that are fields or parameters:
+            if (elem != null
+                    && (elem.getKind().isField() || elem.getKind() == ElementKind.PARAMETER)) {
+                if (atypeFactory.getDeclAnnotation(elem, DisbarUse.class) != null) {
+                    checker.reportError(memberSel, "disbar.use");
+                }
+            }
+        }
+
+        return super.visitIdentifier(node, p);
+    }
 }

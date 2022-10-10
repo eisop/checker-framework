@@ -19,22 +19,22 @@ import org.junit.runners.Parameterized.Parameters;
 @Category(AinferIndexAjavaTest.class)
 public class AinferIndexAjavaTest extends AinferGeneratePerDirectoryTest {
 
-  /**
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public AinferIndexAjavaTest(List<File> testFiles) {
-    super(
-        testFiles,
-        IndexChecker.class,
-        "ainfer-index/non-annotated",
-        "-Anomsgtext",
-        "-Ainfer=ajava",
-        // "-Aajava=tests/ainfer-index/input-annotation-files/",
-        "-Awarns");
-  }
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public AinferIndexAjavaTest(List<File> testFiles) {
+        super(
+                testFiles,
+                IndexChecker.class,
+                "ainfer-index/non-annotated",
+                "-Anomsgtext",
+                "-Ainfer=ajava",
+                // "-Aajava=tests/ainfer-index/input-annotation-files/",
+                "-Awarns");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"ainfer-index/non-annotated"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"ainfer-index/non-annotated"};
+    }
 }

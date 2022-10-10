@@ -8,19 +8,19 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for the Resource Leak Checker. */
 public class ResourceLeakNoResourceAliasesTest extends CheckerFrameworkPerDirectoryTest {
-  public ResourceLeakNoResourceAliasesTest(List<File> testFiles) {
-    super(
-        testFiles,
-        ResourceLeakChecker.class,
-        "resourceleak-noresourcealiases",
-        "-AnoResourceAliases",
-        "-nowarn",
-        "-encoding",
-        "UTF-8");
-  }
+    public ResourceLeakNoResourceAliasesTest(List<File> testFiles) {
+        super(
+                testFiles,
+                ResourceLeakChecker.class,
+                "resourceleak-noresourcealiases",
+                "-AnoResourceAliases",
+                "-nowarn",
+                "-encoding",
+                "UTF-8");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"resourceleak-noresourcealiases"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"resourceleak-noresourcealiases"};
+    }
 }

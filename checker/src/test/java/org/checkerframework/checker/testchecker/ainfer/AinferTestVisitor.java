@@ -13,27 +13,27 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
 /** Visitor for a simple type system to test whole-program inference using .jaif files. */
 public class AinferTestVisitor extends BaseTypeVisitor<AinferTestAnnotatedTypeFactory> {
 
-  public AinferTestVisitor(BaseTypeChecker checker) {
-    super(checker);
-  }
-
-  @Override
-  protected AinferTestAnnotatedTypeFactory createTypeFactory() {
-    return new AinferTestAnnotatedTypeFactory(checker);
-  }
-
-  @Override
-  public Void visitAnnotation(AnnotationTree node, Void p) {
-    Element anno = TreeInfo.symbol((JCTree) node.getAnnotationType());
-    if (anno.toString().equals(DefaultType.class.getName())) {
-      checker.reportError(node, "annotation.not.allowed.in.src", anno.toString());
+    public AinferTestVisitor(BaseTypeChecker checker) {
+        super(checker);
     }
-    return super.visitAnnotation(node, p);
-  }
 
-  @Override
-  protected void checkConstructorResult(
-      AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {
-    // Skip this check.
-  }
+    @Override
+    protected AinferTestAnnotatedTypeFactory createTypeFactory() {
+        return new AinferTestAnnotatedTypeFactory(checker);
+    }
+
+    @Override
+    public Void visitAnnotation(AnnotationTree node, Void p) {
+        Element anno = TreeInfo.symbol((JCTree) node.getAnnotationType());
+        if (anno.toString().equals(DefaultType.class.getName())) {
+            checker.reportError(node, "annotation.not.allowed.in.src", anno.toString());
+        }
+        return super.visitAnnotation(node, p);
+    }
+
+    @Override
+    protected void checkConstructorResult(
+            AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {
+        // Skip this check.
+    }
 }

@@ -16,14 +16,14 @@ import org.checkerframework.dataflow.cfg.node.LocalVariableNode;
  * @param <S> the store type used in the analysis
  */
 public interface ForwardTransferFunction<V extends AbstractValue<V>, S extends Store<S>>
-    extends TransferFunction<V, S> {
+        extends TransferFunction<V, S> {
 
-  /**
-   * Returns the initial store to be used by the org.checkerframework.dataflow analysis.
-   *
-   * @param underlyingAST an abstract syntax tree
-   * @param parameters a list of local variable nodes representing formal parameters (if any)
-   * @return the initial store
-   */
-  S initialStore(UnderlyingAST underlyingAST, List<LocalVariableNode> parameters);
+    /**
+     * Returns the initial store to be used by the org.checkerframework.dataflow analysis.
+     *
+     * @param underlyingAST an abstract syntax tree
+     * @param parameters a list of local variable nodes representing formal parameters (if any)
+     * @return the initial store
+     */
+    S initialStore(UnderlyingAST underlyingAST, List<LocalVariableNode> parameters);
 }
