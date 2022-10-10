@@ -8,59 +8,59 @@ import org.checkerframework.checker.mustcall.qual.Owning;
 
 @MustCall("close") class StaticOwningField implements Closeable {
 
-  // Instance field
+    // Instance field
 
-  private @Owning @MustCall("close") PrintStream ps_instance;
+    private @Owning @MustCall("close") PrintStream ps_instance;
 
-  @CreatesMustCallFor("this")
-  void m_instance() throws IOException {
-    ps_instance.close();
-    ps_instance = new PrintStream("filename.txt");
-  }
-
-  @EnsuresCalledMethods(value = "ps_instance", methods = "close")
-  @Override
-  public void close() {
-    ps_instance.close();
-  }
-
-  // Static field
-
-  // :: error: (required.method.not.called)
-  private static @Owning @MustCall("close") PrintStream ps_static;
-
-  // :: error: (missing.creates.mustcall.for)
-  static void m_static() throws IOException {
-    ps_static.close();
-    ps_static = new PrintStream("filename.txt");
-  }
-
-  // :: error: (required.method.not.called)
-  private static @Owning @MustCall("close") PrintStream ps_static_initialized1 =
-      newPrintStreamWithoutExceptions();
-
-  // :: error: (required.method.not.called)
-  private static @Owning @MustCall("close") PrintStream ps_static_initialized2;
-
-  static {
-    // :: error: (required.method.not.called)
-    ps_static_initialized2 = newPrintStreamWithoutExceptions();
-  }
-
-  private static final @Owning @MustCall("close") PrintStream ps_static_final_initialized1 =
-      newPrintStreamWithoutExceptions();
-
-  private static final @Owning @MustCall("close") PrintStream ps_static_final_initialized2;
-
-  static {
-    ps_static_final_initialized2 = newPrintStreamWithoutExceptions();
-  }
-
-  public static PrintStream newPrintStreamWithoutExceptions() {
-    try {
-      return new PrintStream("filename.txt");
-    } catch (Exception e) {
-      throw new Error(e);
+    @CreatesMustCallFor("this")
+    void m_instance() throws IOException {
+        ps_instance.close();
+        ps_instance = new PrintStream("filename.txt");
     }
-  }
+
+    @EnsuresCalledMethods(value = "ps_instance", methods = "close")
+    @Override
+    public void close() {
+        ps_instance.close();
+    }
+
+    // Static field
+
+    // :: error: (required.method.not.called)
+    private static @Owning @MustCall("close") PrintStream ps_static;
+
+    // :: error: (missing.creates.mustcall.for)
+    static void m_static() throws IOException {
+        ps_static.close();
+        ps_static = new PrintStream("filename.txt");
+    }
+
+    // :: error: (required.method.not.called)
+    private static @Owning @MustCall("close") PrintStream ps_static_initialized1 =
+            newPrintStreamWithoutExceptions();
+
+    // :: error: (required.method.not.called)
+    private static @Owning @MustCall("close") PrintStream ps_static_initialized2;
+
+    static {
+        // :: error: (required.method.not.called)
+        ps_static_initialized2 = newPrintStreamWithoutExceptions();
+    }
+
+    private static final @Owning @MustCall("close") PrintStream ps_static_final_initialized1 =
+            newPrintStreamWithoutExceptions();
+
+    private static final @Owning @MustCall("close") PrintStream ps_static_final_initialized2;
+
+    static {
+        ps_static_final_initialized2 = newPrintStreamWithoutExceptions();
+    }
+
+    public static PrintStream newPrintStreamWithoutExceptions() {
+        try {
+            return new PrintStream("filename.txt");
+        } catch (Exception e) {
+            throw new Error(e);
+        }
+    }
 }

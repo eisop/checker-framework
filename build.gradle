@@ -222,6 +222,15 @@ allprojects {
             endWithNewline()
         }
         java {
+            target 'checker/**/*.java',
+                'checker-qual/**/*.java',
+                'checker-util/**/*.java',
+                'dataflow/**/*.java',
+                'framework/**/*.java',
+                'framework-test/**/*.java',
+                'javacutil/**/*.java'
+            targetExclude 'dataflow/manual/examples/',
+                '**/nullness-javac-errors/*'
             googleJavaFormat().aosp()
             formatAnnotations()
         }

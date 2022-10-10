@@ -7,11 +7,13 @@ import javax.net.ssl.*;
 import org.checkerframework.checker.mustcall.qual.*;
 
 class SSLSocketFactoryTest {
-  public SSLSocket createSSLSocket(@Owning Socket socket, SSLContext sslContext)
-      throws IOException {
-    SSLSocket sslSocket =
-        (SSLSocket)
-            sslContext.getSocketFactory().createSocket(socket, null, socket.getPort(), true);
-    return sslSocket;
-  }
+    public SSLSocket createSSLSocket(@Owning Socket socket, SSLContext sslContext)
+            throws IOException {
+        SSLSocket sslSocket =
+                (SSLSocket)
+                        sslContext
+                                .getSocketFactory()
+                                .createSocket(socket, null, socket.getPort(), true);
+        return sslSocket;
+    }
 }

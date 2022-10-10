@@ -2,9 +2,8 @@
 // Test case for https://github.com/typetools/checker-framework/issues/5039
 package com.example.hello_world;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class Greeting {
     public final @Nullable String name;

@@ -12,15 +12,15 @@ import org.checkerframework.checker.mustcall.qual.*;
 import org.checkerframework.common.returnsreceiver.qual.*;
 
 class HdfsReport3 {
-  private StringBuffer nonObligationTest(int id) {
-    final StringWriter out = new StringWriter();
-    dumpTreeRecursively(new PrintWriter(out, true), new StringBuilder(), id);
-    return out.getBuffer();
-  }
+    private StringBuffer nonObligationTest(int id) {
+        final StringWriter out = new StringWriter();
+        dumpTreeRecursively(new PrintWriter(out, true), new StringBuilder(), id);
+        return out.getBuffer();
+    }
 
-  public void dumpTreeRecursively(PrintWriter out, StringBuilder prefix, int snapshotId) {}
+    public void dumpTreeRecursively(PrintWriter out, StringBuilder prefix, int snapshotId) {}
 
-  // StringBuilder doesn't implement closeable
-  private final StringBuilder sb = new StringBuilder();
-  private final Formatter formatter = new Formatter(sb);
+    // StringBuilder doesn't implement closeable
+    private final StringBuilder sb = new StringBuilder();
+    private final Formatter formatter = new Formatter(sb);
 }

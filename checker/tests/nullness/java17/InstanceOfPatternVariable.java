@@ -1,9 +1,8 @@
 // @below-java17-jdk-skip-test
 // Test case for https://github.com/typetools/checker-framework/issues/5240
 
-import org.checkerframework.checker.nullness.qual.KeyFor;
-
 import java.util.Map;
+import org.checkerframework.checker.nullness.qual.KeyFor;
 
 public class InstanceOfPatternVariable {
 

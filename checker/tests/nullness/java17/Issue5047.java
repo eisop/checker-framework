@@ -1,9 +1,8 @@
 // @below-java16-jdk-skip-test
 // Test case for issue #5047: https://tinyurl.com/cfissue/5047
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class Issue5047 {}
 

@@ -3,30 +3,30 @@
 // in
 // https://github.com/plume-lib/bcel-util/blob/master/src/main/java/org/plumelib/bcelutil/SimpleLog.java
 
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 
 public class NullTypeVarTest {
 
-  // :: warning: assignment
-  private String indentString = null;
+    // :: warning: assignment
+    private String indentString = null;
 
-  private List<String> indentStrings;
+    private List<String> indentStrings;
 
-  private final String INDENT_STR_ONE_LEVEL = "  ";
+    private final String INDENT_STR_ONE_LEVEL = "  ";
 
-  public NullTypeVarTest() {
-    indentStrings = new ArrayList<String>();
-    indentStrings.add("");
-  }
-
-  private String getIndentString(int indentLevel) {
-    if (indentString == null) {
-      for (int i = indentStrings.size(); i <= indentLevel; i++) {
-        indentStrings.add(indentStrings.get(i - 1) + INDENT_STR_ONE_LEVEL);
-      }
-      indentString = indentStrings.get(indentLevel);
+    public NullTypeVarTest() {
+        indentStrings = new ArrayList<String>();
+        indentStrings.add("");
     }
-    return indentString;
-  }
+
+    private String getIndentString(int indentLevel) {
+        if (indentString == null) {
+            for (int i = indentStrings.size(); i <= indentLevel; i++) {
+                indentStrings.add(indentStrings.get(i - 1) + INDENT_STR_ONE_LEVEL);
+            }
+            indentString = indentStrings.get(indentLevel);
+        }
+        return indentString;
+    }
 }
