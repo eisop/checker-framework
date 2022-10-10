@@ -227,6 +227,7 @@ allprojects {
                 'checker-util/**/*.java',
                 'dataflow/**/*.java',
                 'docs/examples/**/*.java',
+                'docs/tutorial/**/*.java',
                 'framework/**/*.java',
                 'framework-test/**/*.java',
                 'javacutil/**/*.java'
