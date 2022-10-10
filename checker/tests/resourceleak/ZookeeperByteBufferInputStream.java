@@ -5,9 +5,10 @@
 // regression
 // test that at least one error is still issued.
 
+import org.checkerframework.checker.mustcall.qual.MustCall;
+
 import java.io.*;
 import java.nio.ByteBuffer;
-import org.checkerframework.checker.mustcall.qual.MustCall;
 
 @MustCall({})
 // :: error: inconsistent.mustcall.subtype

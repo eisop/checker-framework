@@ -1,12 +1,15 @@
 package org.checkerframework.dataflow.cfg.node;
 
 import com.sun.source.tree.PrimitiveTypeTree;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.javacutil.TreeUtils;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
+
 import javax.lang.model.util.Types;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.javacutil.TreeUtils;
 
 /**
  * A node representing a primitive type used in an expression such as a field access.

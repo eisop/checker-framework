@@ -2,9 +2,10 @@
 // This version has been modified to expect errors, as if running under
 // -AnoResourceAliases - so @MustCallAlias annotations are ignored.
 
-import java.io.*;
 import org.checkerframework.checker.calledmethods.qual.*;
 import org.checkerframework.checker.mustcall.qual.*;
+
+import java.io.*;
 
 class MustCallAliasPassthroughLocal extends FilterInputStream {
     MustCallAliasPassthroughLocal(File f) throws Exception {

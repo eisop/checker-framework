@@ -1,8 +1,9 @@
 // A test that when a class implements autocloseable and has another must-call obligation,
 // errors are still issued about the other obligation even when it used as a resource variable.
 
-import java.io.IOException;
 import org.checkerframework.checker.mustcall.qual.InheritableMustCall;
+
+import java.io.IOException;
 
 @SuppressWarnings(
         "declaration.inconsistent.with.implements.clause") // stronger @InheritableMustCall

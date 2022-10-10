@@ -2,9 +2,10 @@
 
 // @skip-test until the bug is fixed
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 import java.util.HashMap;
 import java.util.Map;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class Issue4593 {
 

@@ -1,9 +1,10 @@
-import java.util.List;
-import java.util.function.Function;
 import org.checkerframework.checker.mustcall.qual.MustCallUnknown;
 import org.checkerframework.checker.nullness.qual.KeyForBottom;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
+
+import java.util.List;
+import java.util.function.Function;
 
 public class DuplicateError {
     void m(List<?> values) {

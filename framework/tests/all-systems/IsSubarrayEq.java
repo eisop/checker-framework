@@ -1,5 +1,6 @@
-import java.util.List;
 import org.checkerframework.common.value.qual.MinLen;
+
+import java.util.List;
 
 @SuppressWarnings("ainfertest") // only check WPI for crashes
 public class IsSubarrayEq {

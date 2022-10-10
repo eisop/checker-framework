@@ -1,12 +1,15 @@
 package org.checkerframework.dataflow.cfg.node;
 
 import com.sun.source.tree.Tree;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.javacutil.BugInCF;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
+
 import javax.lang.model.type.TypeMirror;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.javacutil.BugInCF;
 
 /** A node for a switch expression. */
 public class SwitchExpressionNode extends Node {

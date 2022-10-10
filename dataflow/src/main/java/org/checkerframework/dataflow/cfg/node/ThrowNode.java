@@ -1,12 +1,15 @@
 package org.checkerframework.dataflow.cfg.node;
 
 import com.sun.source.tree.ThrowTree;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
+
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.util.Types;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A node for exception throws:

@@ -4,8 +4,9 @@
 // This version is modified to expect that owning/notowning annotations do nothing,
 // for the -AnoLightweightOwnership flag.
 
-import java.io.*;
 import org.checkerframework.checker.mustcall.qual.*;
+
+import java.io.*;
 
 class NonOwningPolyInteraction {
     void foo(@NotOwning InputStream instream) {

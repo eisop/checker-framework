@@ -1,5 +1,14 @@
 package org.checkerframework.framework.test;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.SystemUtil;
+import org.junit.Assert;
+import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.StringsPlume;
+import org.plumelib.util.SystemPlume;
+
 import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -21,18 +30,11 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.StringJoiner;
+
 import javax.tools.Diagnostic;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.ToolProvider;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.javacutil.BugInCF;
-import org.checkerframework.javacutil.SystemUtil;
-import org.junit.Assert;
-import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.StringsPlume;
-import org.plumelib.util.SystemPlume;
 
 /** Utilities for testing. */
 public class TestUtilities {

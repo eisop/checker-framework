@@ -1,5 +1,6 @@
-import java.util.GregorianCalendar;
 import org.checkerframework.checker.testchecker.ainfer.qual.Sibling1;
+
+import java.util.GregorianCalendar;
 
 public class FieldInOtherCompilationUnit {
 

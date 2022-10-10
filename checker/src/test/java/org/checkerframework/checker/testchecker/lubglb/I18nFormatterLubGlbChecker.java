@@ -4,12 +4,6 @@ package org.checkerframework.checker.testchecker.lubglb;
 // https://github.com/typetools/checker-framework/issues/723
 // https://github.com/typetools/checker-framework/issues/756
 
-import java.lang.annotation.Annotation;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.util.Elements;
 import org.checkerframework.checker.i18nformatter.I18nFormatterAnnotatedTypeFactory;
 import org.checkerframework.checker.i18nformatter.I18nFormatterChecker;
 import org.checkerframework.checker.i18nformatter.I18nFormatterTreeUtil;
@@ -25,6 +19,14 @@ import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
+
+import java.lang.annotation.Annotation;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.util.Elements;
 
 /**
  * This class tests the implementation of GLB computation in the I18n Format String Checker (see

@@ -1,7 +1,8 @@
-import java.io.IOException;
-import java.net.Socket;
 import org.checkerframework.checker.calledmethods.qual.*;
 import org.checkerframework.checker.mustcall.qual.*;
+
+import java.io.IOException;
+import java.net.Socket;
 
 public class TryWithResourcesMultiResources {
 

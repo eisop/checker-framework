@@ -1,6 +1,7 @@
 package org.checkerframework.dataflow.cfg.node;
 
 import com.sun.source.tree.IdentifierTree;
+
 import org.checkerframework.javacutil.TreeUtils;
 
 /**

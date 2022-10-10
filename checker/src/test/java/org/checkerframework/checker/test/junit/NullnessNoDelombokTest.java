@@ -1,9 +1,7 @@
 package org.checkerframework.checker.test.junit;
 
 import com.google.common.collect.ImmutableList;
-import java.io.File;
-import java.util.Collections;
-import java.util.List;
+
 import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
 import org.checkerframework.framework.test.TestConfiguration;
 import org.checkerframework.framework.test.TestConfigurationBuilder;
@@ -11,6 +9,10 @@ import org.checkerframework.framework.test.TestUtilities;
 import org.checkerframework.framework.test.TypecheckExecutor;
 import org.checkerframework.framework.test.TypecheckResult;
 import org.junit.runners.Parameterized.Parameters;
+
+import java.io.File;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * This test suite exists to demonstrate and keep a record of the unsoundness that occurs when

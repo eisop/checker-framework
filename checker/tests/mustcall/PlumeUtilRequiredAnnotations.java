@@ -5,9 +5,10 @@
 // and https://github.com/plume-lib/plume-util/pull/126 for more details, especially
 // on why changing the default isn't feasible.
 
-import java.util.*;
 import org.checkerframework.checker.mustcall.qual.*;
 import org.checkerframework.checker.nullness.qual.Nullable;
+
+import java.util.*;
 
 class PlumeUtilRequiredAnnotations {
     // In the real version of this code, there is only one type parameter.

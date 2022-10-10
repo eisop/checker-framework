@@ -1,10 +1,11 @@
 // Simple tests of @MustCallAlias functionality on wrapper streams.
 
+import org.checkerframework.checker.calledmethods.qual.*;
+import org.checkerframework.checker.mustcall.qual.*;
+
 import java.io.*;
 import java.io.IOException;
 import java.net.*;
-import org.checkerframework.checker.calledmethods.qual.*;
-import org.checkerframework.checker.mustcall.qual.*;
 
 class MustCallAliasExamples {
 

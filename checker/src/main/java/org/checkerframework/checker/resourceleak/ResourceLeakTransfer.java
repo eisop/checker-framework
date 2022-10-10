@@ -1,7 +1,5 @@
 package org.checkerframework.checker.resourceleak;
 
-import java.util.List;
-import javax.lang.model.element.AnnotationMirror;
 import org.checkerframework.checker.calledmethods.CalledMethodsTransfer;
 import org.checkerframework.checker.mustcall.CreatesMustCallForToJavaExpression;
 import org.checkerframework.checker.mustcall.MustCallAnnotatedTypeFactory;
@@ -18,6 +16,10 @@ import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFValue;
 import org.checkerframework.javacutil.TypesUtils;
+
+import java.util.List;
+
+import javax.lang.model.element.AnnotationMirror;
 
 /** The transfer function for the resource-leak extension to the called-methods type system. */
 public class ResourceLeakTransfer extends CalledMethodsTransfer {

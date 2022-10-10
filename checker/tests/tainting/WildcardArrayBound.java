@@ -1,8 +1,9 @@
 package wildcards;
 
-import java.io.Serializable;
 import org.checkerframework.checker.tainting.qual.Tainted;
 import org.checkerframework.checker.tainting.qual.Untainted;
+
+import java.io.Serializable;
 
 public class WildcardArrayBound {
     interface MyInterface {}

@@ -1,10 +1,11 @@
 // A test case for https://github.com/typetools/checker-framework/issues/4838.
 
+import org.checkerframework.checker.calledmethods.qual.EnsuresCalledMethods;
+import org.checkerframework.checker.mustcall.qual.Owning;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
-import org.checkerframework.checker.calledmethods.qual.EnsuresCalledMethods;
-import org.checkerframework.checker.mustcall.qual.Owning;
 
 class ReplicaInputStreams implements Closeable {
 

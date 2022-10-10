@@ -1,10 +1,11 @@
 package org.checkerframework.dataflow.constantpropagation;
 
-import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.AbstractValue;
 import org.checkerframework.javacutil.BugInCF;
+
+import java.util.Objects;
 
 public class Constant implements AbstractValue<Constant> {
 

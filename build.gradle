@@ -232,6 +232,7 @@ allprojects {
             targetExclude 'dataflow/manual/examples/',
                 '**/nullness-javac-errors/*'
             googleJavaFormat().aosp()
+            importOrder('com', 'jdk', 'lib', 'lombok', 'org', 'java', 'javax')
             formatAnnotations()
         }
     }

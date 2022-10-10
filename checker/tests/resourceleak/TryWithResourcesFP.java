@@ -1,10 +1,11 @@
 // Based on a false positive reported on the BibTeX project
 
+import org.plumelib.util.EntryReader;
+import org.plumelib.util.UtilPlume;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
-import org.plumelib.util.EntryReader;
-import org.plumelib.util.UtilPlume;
 
 @SuppressWarnings("deprecation")
 public final class TryWithResourcesFP {

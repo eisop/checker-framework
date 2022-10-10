@@ -1,9 +1,10 @@
 // A simple test for the @EnsuresCalledMethodsVarArgs annotation.
 
+import org.checkerframework.checker.calledmethods.qual.*;
+
 import java.io.IOException;
 import java.net.Socket;
 import java.util.List;
-import org.checkerframework.checker.calledmethods.qual.*;
 
 class EnsuresCalledMethodsVarArgsSimple {
 

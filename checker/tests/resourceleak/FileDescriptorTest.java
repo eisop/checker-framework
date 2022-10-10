@@ -1,7 +1,8 @@
+import org.checkerframework.checker.mustcall.qual.*;
+
 import java.io.*;
 import java.io.IOException;
 import java.net.*;
-import org.checkerframework.checker.mustcall.qual.*;
 
 public class FileDescriptorTest {
     // This is the original test case. It fails because `in.close()` might throw an exception, which

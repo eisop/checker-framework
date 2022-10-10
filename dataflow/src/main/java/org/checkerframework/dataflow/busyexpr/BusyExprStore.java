@@ -1,8 +1,5 @@
 package org.checkerframework.dataflow.busyexpr;
 
-import java.util.LinkedHashSet;
-import java.util.Set;
-import java.util.StringJoiner;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.Store;
 import org.checkerframework.dataflow.cfg.node.BinaryOperationNode;
@@ -10,6 +7,10 @@ import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizer;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.javacutil.BugInCF;
+
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.StringJoiner;
 
 /** A busy expression store contains a set of busy expressions represented by nodes. */
 public class BusyExprStore implements Store<BusyExprStore> {

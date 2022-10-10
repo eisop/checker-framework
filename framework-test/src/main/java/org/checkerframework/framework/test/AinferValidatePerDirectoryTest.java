@@ -1,5 +1,7 @@
 package org.checkerframework.framework.test;
 
+import org.checkerframework.common.value.qual.StringVal;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -8,8 +10,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.stream.Collectors;
+
 import javax.annotation.processing.AbstractProcessor;
-import org.checkerframework.common.value.qual.StringVal;
 
 /**
  * A specialized variant of {@link CheckerFrameworkPerDirectoryTest} for testing the Whole Program

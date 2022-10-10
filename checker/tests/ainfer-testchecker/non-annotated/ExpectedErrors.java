@@ -1,4 +1,3 @@
-import java.lang.reflect.Field;
 import org.checkerframework.checker.testchecker.ainfer.qual.AinferBottom;
 import org.checkerframework.checker.testchecker.ainfer.qual.Parent;
 import org.checkerframework.checker.testchecker.ainfer.qual.Sibling1;
@@ -6,6 +5,8 @@ import org.checkerframework.checker.testchecker.ainfer.qual.Sibling2;
 import org.checkerframework.checker.testchecker.ainfer.qual.ToIgnore;
 import org.checkerframework.checker.testchecker.ainfer.qual.Top;
 import org.checkerframework.framework.qual.IgnoreInWholeProgramInference;
+
+import java.lang.reflect.Field;
 
 /**
  * This file contains expected errors that should exist even after the jaif type inference occurs.

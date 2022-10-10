@@ -1,6 +1,7 @@
+import org.checkerframework.checker.nullness.qual.*;
+
 import java.util.HashMap;
 import java.util.Set;
-import org.checkerframework.checker.nullness.qual.*;
 
 // There should be no warnings for the following operations
 // if the annotated JDK is loaded properly

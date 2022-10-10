@@ -1,5 +1,6 @@
-import java.util.concurrent.locks.ReentrantLock;
 import org.checkerframework.checker.lock.qual.LockingFree;
+
+import java.util.concurrent.locks.ReentrantLock;
 
 public record LockRecord(String s, ReentrantLock lock) {
     @LockingFree

@@ -1,7 +1,8 @@
 // @below-java14-jdk-skip-test
-import java.util.List;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+
+import java.util.List;
 
 public class SwitchExpressionInvariant {
     public static boolean flag = false;

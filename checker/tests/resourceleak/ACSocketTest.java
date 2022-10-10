@@ -1,3 +1,7 @@
+import org.checkerframework.checker.calledmethods.qual.*;
+import org.checkerframework.checker.mustcall.qual.*;
+import org.checkerframework.common.returnsreceiver.qual.*;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -6,10 +10,8 @@ import java.net.*;
 import java.nio.channels.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
+
 import javax.net.ssl.*;
-import org.checkerframework.checker.calledmethods.qual.*;
-import org.checkerframework.checker.mustcall.qual.*;
-import org.checkerframework.common.returnsreceiver.qual.*;
 
 public class ACSocketTest {
 

@@ -1,7 +1,8 @@
-import java.util.Date;
-import java.util.Objects;
 import org.checkerframework.checker.signedness.qual.Signed;
 import org.checkerframework.checker.signedness.qual.Unsigned;
+
+import java.util.Date;
+import java.util.Objects;
 
 public class SignednessEquals {
 

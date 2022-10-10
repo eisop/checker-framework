@@ -2,6 +2,7 @@ package org.checkerframework.framework.test;
 
 import java.io.File;
 import java.util.List;
+
 import javax.annotation.processing.AbstractProcessor;
 
 /**

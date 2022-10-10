@@ -1,5 +1,6 @@
-import java.util.concurrent.Future;
 import org.checkerframework.checker.nullness.qual.Nullable;
+
+import java.util.concurrent.Future;
 
 @SuppressWarnings("all") // Just check for crashes.
 public class Issue4829 {

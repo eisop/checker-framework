@@ -1,9 +1,7 @@
 package org.checkerframework.dataflow.expression;
 
 import com.sun.tools.javac.code.Symbol;
-import java.util.Objects;
-import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.TypeMirror;
+
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.Store;
 import org.checkerframework.dataflow.cfg.node.FieldAccessNode;
@@ -11,6 +9,11 @@ import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TypesUtils;
+
+import java.util.Objects;
+
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeMirror;
 
 /**
  * A FieldAccess represents a field access. It does not represent a class literal such as {@code

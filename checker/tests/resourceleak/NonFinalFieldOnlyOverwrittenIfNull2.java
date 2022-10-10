@@ -1,12 +1,13 @@
 // Another test that must-call close errors are not issued when overwriting a field
 // if the field is definitely null.
 
-import java.io.*;
 import org.checkerframework.checker.calledmethods.qual.EnsuresCalledMethods;
 import org.checkerframework.checker.mustcall.qual.CreatesMustCallFor;
 import org.checkerframework.checker.mustcall.qual.InheritableMustCall;
 import org.checkerframework.checker.mustcall.qual.Owning;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+
+import java.io.*;
 
 @InheritableMustCall("close")
 class NonFinalFieldOnlyOverwrittenIfNull2 {

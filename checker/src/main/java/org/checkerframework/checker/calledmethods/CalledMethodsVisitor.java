@@ -3,14 +3,7 @@ package org.checkerframework.checker.calledmethods;
 import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.StringJoiner;
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.ExecutableElement;
-import javax.tools.Diagnostic;
+
 import org.checkerframework.checker.calledmethods.builder.BuilderFrameworkSupport;
 import org.checkerframework.checker.calledmethods.qual.CalledMethods;
 import org.checkerframework.checker.calledmethods.qual.EnsuresCalledMethodsVarArgs;
@@ -20,6 +13,16 @@ import org.checkerframework.framework.source.DiagMessage;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.TreeUtils;
+
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.StringJoiner;
+
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.ExecutableElement;
+import javax.tools.Diagnostic;
 
 /**
  * This visitor implements the custom error message finalizer.invocation.invalid. It also supports

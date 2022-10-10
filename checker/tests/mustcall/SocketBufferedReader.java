@@ -1,10 +1,11 @@
 // a test for missing mustcall propagation that might have caused a false positive?
 
+import org.checkerframework.checker.mustcall.qual.*;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.net.*;
-import org.checkerframework.checker.mustcall.qual.*;
 
 class SocketBufferedReader {
     void test(String address, int port) {

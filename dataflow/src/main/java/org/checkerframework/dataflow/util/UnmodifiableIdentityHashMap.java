@@ -1,5 +1,8 @@
 package org.checkerframework.dataflow.util;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.PolyNull;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.IdentityHashMap;
@@ -8,8 +11,6 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.PolyNull;
 
 /**
  * A wrapper around an {@link IdentityHashMap} that makes it unmodifiable. All mutating operations

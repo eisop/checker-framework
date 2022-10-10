@@ -2,16 +2,7 @@ package org.checkerframework.framework.type.treeannotator;
 
 import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.Tree;
-import java.lang.annotation.Annotation;
-import java.util.ArrayList;
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.regex.Pattern;
-import javax.lang.model.element.AnnotationMirror;
+
 import org.checkerframework.framework.qual.LiteralKind;
 import org.checkerframework.framework.qual.QualifierForLiterals;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
@@ -22,6 +13,18 @@ import org.checkerframework.framework.type.typeannotator.DefaultForTypeAnnotator
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.BugInCF;
 import org.plumelib.util.StringsPlume;
+
+import java.lang.annotation.Annotation;
+import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
+
+import javax.lang.model.element.AnnotationMirror;
 
 /**
  * Adds annotations to a type based on the contents of a tree. This class applies annotations
