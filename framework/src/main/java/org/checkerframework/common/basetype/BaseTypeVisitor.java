@@ -522,6 +522,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotatedDeclaredType classType = atypeFactory.getAnnotatedType(classTree);
         atypeFactory.getDependentTypesHelper().checkClassForErrorExpressions(classTree, classType);
         validateType(classTree, classType);
+        checkRedundantAnnotations(classTree, classType);
 
         Tree ext = classTree.getExtendsClause();
         if (ext != null) {
@@ -898,6 +899,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         if (node.getReturnType() != null) {
             visitAnnotatedType(node.getModifiers().getAnnotations(), node.getReturnType());
+            checkRedundantAnnotations(node.getReturnType(), methodType.getReturnType());
         }
 
         try {
@@ -908,6 +910,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
             if (TreeUtils.isConstructor(node)) {
                 checkConstructorResult(methodType, methodElement);
+                checkRedundantAnnotations(node, methodType.getReturnType());
             }
 
             checkPurity(node);
@@ -1432,6 +1435,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
         validateTypeOf(node);
 
+        for (Tree tree : node.getBounds()) {
+            checkRedundantAnnotations(tree, atypeFactory.getAnnotatedType(tree));
+        }
         return super.visitTypeParameter(node, p);
     }
 
@@ -1498,7 +1504,26 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             // so only validate if commonAssignmentCheck wasn't called
             validateTypeOf(node);
         }
+        checkRedundantAnnotations(node, variableType);
         return super.visitVariable(node, p);
+    }
+
+    void checkRedundantAnnotations(Tree tree, AnnotatedTypeMirror type) {
+        Set<AnnotationMirror> explicitAnnos = type.getExplicitAnnotations();
+        if (explicitAnnos.isEmpty()) {
+            return;
+        }
+        if (tree == null) {
+            throw new BugInCF("just want to see if there's any possibility of null-tree"); // TODO
+        }
+
+        AnnotatedTypeMirror defaultAtms = atypeFactory.getDefaultAnnotations(tree, type);
+        for (AnnotationMirror explicitAnno : explicitAnnos) {
+            AnnotationMirror defaultAtm = defaultAtms.getAnnotationInHierarchy(explicitAnno);
+            if (AnnotationUtils.areSame(defaultAtm, explicitAnno)) {
+                checker.reportWarning(tree, "redundant.anno", defaultAtm);
+            }
+        }
     }
 
     /**
@@ -2035,11 +2060,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 node.getTypeArguments(),
                 constructorName,
                 constructor.getTypeParameters());
+        AnnotatedDeclaredType dt = atypeFactory.getAnnotatedType(node);
+        checkRedundantAnnotations(node, dt);
 
         boolean valid = validateTypeOf(node);
 
         if (valid) {
-            AnnotatedDeclaredType dt = atypeFactory.getAnnotatedType(node);
             atypeFactory.getDependentTypesHelper().checkTypeForErrorExpressions(dt, node);
             checkConstructorInvocation(dt, constructorType, node);
         }
@@ -2496,19 +2522,20 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             checkTypecastSafety(node);
             checkTypecastRedundancy(node);
         }
+        AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(node);
+
         if (atypeFactory.getDependentTypesHelper().hasDependentAnnotations()) {
-            AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(node);
             atypeFactory
                     .getDependentTypesHelper()
                     .checkTypeForErrorExpressions(type, node.getType());
         }
 
         if (node.getType().getKind() == Tree.Kind.INTERSECTION_TYPE) {
-            AnnotatedIntersectionType intersection =
-                    (AnnotatedIntersectionType) atypeFactory.getAnnotatedType(node);
+            AnnotatedIntersectionType intersection = (AnnotatedIntersectionType) type;
             checkExplicitAnnotationsOnIntersectionBounds(
                     intersection, ((IntersectionTypeTree) node.getType()).getBounds());
         }
+        checkRedundantAnnotations(node.getType(), type);
         return super.visitTypeCast(node, p);
         // return scan(node.getExpression(), p);
     }
@@ -2523,6 +2550,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             if (variableTree.getModifiers() != null) {
                 AnnotatedTypeMirror variableType = atypeFactory.getAnnotatedType(variableTree);
                 AnnotatedTypeMirror expType = atypeFactory.getAnnotatedType(tree.getExpression());
+                checkRedundantAnnotations(patternTree, variableType);
                 if (!isTypeCastSafe(variableType, expType)) {
                     checker.reportWarning(tree, "instanceof.pattern.unsafe", expType, variableTree);
                 }
@@ -2533,6 +2561,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             if (refTypeTree.getKind() == Tree.Kind.ANNOTATED_TYPE) {
                 AnnotatedTypeMirror refType = atypeFactory.getAnnotatedType(refTypeTree);
                 AnnotatedTypeMirror expType = atypeFactory.getAnnotatedType(tree.getExpression());
+                checkRedundantAnnotations(refTypeTree, refType);
                 if (atypeFactory.getTypeHierarchy().isSubtype(refType, expType)
                         && !refType.getAnnotations().equals(expType.getAnnotations())) {
                     checker.reportWarning(tree, "instanceof.unsafe", expType, refType);

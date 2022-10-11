@@ -10,6 +10,7 @@ import com.sun.source.tree.ParameterizedTypeTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.VariableTree;
+import com.sun.source.tree.WildcardTree;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -516,6 +517,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         AnnotatedTypeMirror comp = type;
         do {
             comp = ((AnnotatedArrayType) comp).getComponentType();
+            visitor.checkRedundantAnnotations(tree, comp);
         } while (comp.getKind() == TypeKind.ARRAY);
 
         if (comp.getKind() == TypeKind.DECLARED
@@ -564,6 +566,11 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                 tree.getTypeArguments(),
                 element.getSimpleName(),
                 element.getTypeParameters());
+
+        for (int i = 0; i < tree.getTypeArguments().size(); i++) {
+            visitor.checkRedundantAnnotations(
+                    tree.getTypeArguments().get(i), capturedType.getTypeArguments().get(i));
+        }
 
         @SuppressWarnings(
                 "interning:not.interned") // applyCaptureConversion returns the passed type if type
@@ -674,7 +681,12 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         if (!areBoundsValid(type.getExtendsBound(), type.getSuperBound())) {
             reportInvalidBounds(type, tree);
         }
-
+        WildcardTree wildcardTree = (WildcardTree) tree;
+        if (wildcardTree.getKind() == Tree.Kind.SUPER_WILDCARD) {
+            visitor.checkRedundantAnnotations(wildcardTree.getBound(), type.getSuperBound());
+        } else if (wildcardTree.getKind() == Tree.Kind.EXTENDS_WILDCARD) {
+            visitor.checkRedundantAnnotations(wildcardTree.getBound(), type.getExtendsBound());
+        }
         return super.visitWildcard(type, tree);
     }
 

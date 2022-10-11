@@ -1780,6 +1780,13 @@ public abstract class GenericAnnotatedTypeFactory<
         addComputedTypeAnnotations(tree, type, this.useFlow);
     }
 
+    public AnnotatedTypeMirror getDefaultAnnotations(Tree tree, AnnotatedTypeMirror type) {
+        AnnotatedTypeMirror copy = type.deepCopy();
+        copy.removeAnnotations(type.getAnnotations());
+        addComputedTypeAnnotations(tree, copy, false);
+        return copy;
+    }
+
     /**
      * Like {@link #addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)}. Overriding
      * implementations typically simply pass the boolean to calls to super.
