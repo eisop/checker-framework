@@ -1363,6 +1363,24 @@ public abstract class AnnotatedTypeMirror {
         }
 
         /**
+         * Sets the passed receiver type on this executable type.
+         *
+         * @param passedReceiverType the passed receiver type
+         */
+        /*package-private*/ void setPassedReceiverType(AnnotatedTypeMirror passedReceiverType) {
+            this.passedReceiverType = passedReceiverType;
+        }
+
+        /**
+         * Returns the passed receiver type of this executable type.
+         *
+         * @return the passed receiver type of this executable type.
+         */
+        public @Nullable AnnotatedTypeMirror getPassedReceiverType() {
+            return this.passedReceiverType;
+        }
+
+        /**
          * Sets the thrown types of this executable type.
          *
          * @param thrownTypes an unmodifiable list of thrown types to be captured by this method
