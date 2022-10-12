@@ -10,6 +10,7 @@ import org.checkerframework.framework.util.element.ElementAnnotationUtil.ErrorTy
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.CollectionUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TypeKindUtils;
 import org.plumelib.util.CollectionsPlume;
@@ -1175,11 +1176,14 @@ public abstract class AnnotatedTypeMirror {
          *
          * @param params the parameter types, excluding the receiver
          */
-        /*package-private*/ void setParameterTypes(List<? extends AnnotatedTypeMirror> params) {
-            paramTypes =
-                    params.isEmpty()
-                            ? Collections.emptyList()
-                            : Collections.unmodifiableList(new ArrayList<>(params));
+        /*package-private*/ void setParameterTypes(List<AnnotatedTypeMirror> params) {
+            if (params.isEmpty()) {
+                paramTypes = Collections.emptyList();
+            } else if (CollectionUtils.isUnmodifiableCollection(params)) {
+                paramTypes = params;
+            } else {
+                paramTypes = Collections.unmodifiableList(params);
+            }
             paramTypesComputed = true;
         }
 
@@ -1301,11 +1305,14 @@ public abstract class AnnotatedTypeMirror {
          *
          * @param thrownTypes the thrown types
          */
-        /*package-private*/ void setThrownTypes(List<? extends AnnotatedTypeMirror> thrownTypes) {
-            this.thrownTypes =
-                    thrownTypes.isEmpty()
-                            ? Collections.emptyList()
-                            : Collections.unmodifiableList(new ArrayList<>(thrownTypes));
+        /*package-private*/ void setThrownTypes(List<AnnotatedTypeMirror> thrownTypes) {
+            if (thrownTypes.isEmpty()) {
+                this.thrownTypes = Collections.emptyList();
+            } else if (CollectionUtils.isUnmodifiableCollection(thrownTypes)) {
+                this.thrownTypes = thrownTypes;
+            } else {
+                this.thrownTypes = Collections.unmodifiableList(thrownTypes);
+            }
             thrownTypesComputed = true;
         }
 
@@ -1336,10 +1343,13 @@ public abstract class AnnotatedTypeMirror {
          * @param types the type variables of this executable type
          */
         /*package-private*/ void setTypeVariables(List<AnnotatedTypeVariable> types) {
-            typeVarTypes =
-                    types.isEmpty()
-                            ? Collections.emptyList()
-                            : Collections.unmodifiableList(new ArrayList<>(types));
+            if (types.isEmpty()) {
+                typeVarTypes = Collections.emptyList();
+            } else if (CollectionUtils.isUnmodifiableCollection(types)) {
+                typeVarTypes = types;
+            } else {
+                typeVarTypes = Collections.unmodifiableList(types);
+            }
             typeVarTypesComputed = true;
         }
 
