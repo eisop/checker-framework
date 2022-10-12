@@ -1123,6 +1123,7 @@ public abstract class AnnotatedTypeMirror {
 
         protected final List<AnnotatedTypeMirror> paramTypes = new ArrayList<>();
         protected AnnotatedDeclaredType receiverType;
+        protected AnnotatedTypeMirror passedReceiverType;
         protected AnnotatedTypeMirror returnType;
         protected final List<AnnotatedTypeMirror> throwsTypes = new ArrayList<>();
         protected final List<AnnotatedTypeVariable> typeVarTypes = new ArrayList<>();
@@ -1263,6 +1264,24 @@ public abstract class AnnotatedTypeMirror {
                 receiverType = (AnnotatedDeclaredType) type;
             }
             return receiverType;
+        }
+
+        /**
+         * Sets the passed receiver type on this executable type.
+         *
+         * @param passedReceiverType the passed receiver type
+         */
+        /*package-private*/ void setPassedReceiverType(AnnotatedTypeMirror passedReceiverType) {
+            this.passedReceiverType = passedReceiverType;
+        }
+
+        /**
+         * Returns the passed receiver type of this executable type.
+         *
+         * @return the passed receiver type of this executable type.
+         */
+        public @Nullable AnnotatedTypeMirror getPassedReceiverType() {
+            return this.passedReceiverType;
         }
 
         /**

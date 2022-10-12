@@ -2783,6 +2783,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // Reset the enclosing type because it can be substituted incorrectly.
             ((AnnotatedDeclaredType) con.getReturnType()).setEnclosingType(enclosingType);
         }
+
+        // Set passed receiver type for con
+        AnnotatedTypeMirror passedReceiverType = null;
+        if (tree.getEnclosingExpression() != null) {
+            passedReceiverType = getAnnotatedType(tree.getEnclosingExpression());
+        } else {
+            passedReceiverType = getImplicitReceiverType(tree);
+        }
+        con.setPassedReceiverType(passedReceiverType);
+
         return new ParameterizedExecutableType(con, typeargs);
     }
 

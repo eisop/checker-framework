@@ -2026,13 +2026,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 parameterReceiverType = constructorType.getReceiverType();
             }
         }
-        // Get receiver value type
-        AnnotatedTypeMirror argumentReceiverType = null;
-        if (node.getEnclosingExpression() != null) {
-            argumentReceiverType = atypeFactory.getAnnotatedType(node.getEnclosingExpression());
-        } else {
-            argumentReceiverType = atypeFactory.getImplicitReceiverType(node);
-        }
+        AnnotatedTypeMirror argumentReceiverType = constructorType.getPassedReceiverType();
         // Type check receiver type
         if (parameterReceiverType != null && argumentReceiverType != null) {
             if (atypeFactory.types.isSameType(
