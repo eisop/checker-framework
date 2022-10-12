@@ -2743,6 +2743,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     p.add(con.getParameterTypes().get(0));
                 } else if (con.receiverType != null) {
                     p.add(superCon.receiverType);
+                    con.setReceiverType(superCon.getReceiverType());
                 } else {
                     p.add(con.paramTypes.get(0));
                 }
