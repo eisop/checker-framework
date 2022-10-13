@@ -2742,7 +2742,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 if (TreeUtils.hasSyntheticArgument(tree)) {
                     p.add(con.getParameterTypes().get(0));
                 } else if (con.receiverType != null) {
-                    p.add(superCon.receiverType);
+                    p.add(con.receiverType);
                     con.setReceiverType(superCon.getReceiverType());
                 } else {
                     p.add(con.paramTypes.get(0));
@@ -2793,6 +2793,36 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             passedReceiverType = getImplicitReceiverType(tree);
         }
         con.setPassedReceiverType(passedReceiverType);
+
+        DeclaredType t =
+                TypesUtils.getSuperClassOrInterface(
+                        con.getElement().getEnclosingElement().asType(), types);
+        List<? extends AnnotatedTypeMirror> params = con.getParameterTypes();
+        List<AnnotatedTypeMirror> p = new ArrayList<>(con.getParameterTypes().size());
+        p.addAll(params);
+        if (t != null && t.getEnclosingType() != null) {
+            // adaptparameters
+            if (params.size() > 0) {
+                List<? extends ExpressionTree> args = tree.getArguments();
+                if (args.isEmpty()) {
+                    p.clear();
+                    p.addAll(params.subList(1, params.size()));
+                } else {
+                    TypeMirror p0tm = params.get(0).getUnderlyingType();
+                    // Is the first parameter either equal to the enclosing type?
+                    if (types.isSameType(t.getEnclosingType(), p0tm)) {
+                        // Is the first argument the same type as the first parameter?
+                        if (!types.isSameType(TreeUtils.typeOf(args.get(0)), p0tm)) {
+                            // Remove the first parameter.
+                            p.clear();
+                            p.addAll(params.subList(1, params.size()));
+                        }
+                    }
+                }
+            }
+        }
+        con.setAdaptedParameterTypes(p);
+        handleVarargs(con, tree.getArguments());
 
         return new ParameterizedExecutableType(con, typeargs);
     }
@@ -2878,6 +2908,42 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         } else {
             return fromTypeTree(newClassTree.getIdentifier()).getAnnotations();
         }
+    }
+
+    private void handleVarargs(
+            AnnotatedExecutableType method, List<? extends ExpressionTree> args) {
+        List<AnnotatedTypeMirror> parameters = method.getAdaptedParameterTypes();
+
+        if (parameters.isEmpty()) {
+            return;
+        }
+
+        if (!method.getElement().isVarArgs()) {
+            return;
+        }
+
+        AnnotatedArrayType varargs = (AnnotatedArrayType) parameters.get(parameters.size() - 1);
+
+        if (parameters.size() == args.size()) {
+            // Check if one sent an element or an array
+            AnnotatedTypeMirror lastArg = getAnnotatedType(args.get(args.size() - 1));
+            if (lastArg.getKind() == TypeKind.NULL
+                    || (lastArg.getKind() == TypeKind.ARRAY
+                            && AnnotatedTypes.getArrayDepth(varargs)
+                                    == AnnotatedTypes.getArrayDepth(
+                                            (AnnotatedArrayType) lastArg))) {
+                method.setAdaptedParameterTypes(parameters);
+                return;
+            }
+        }
+
+        parameters = new ArrayList<>(parameters.subList(0, parameters.size() - 1));
+        for (int i = args.size() - parameters.size(); i > 0; --i) {
+            parameters.add(varargs.getComponentType().deepCopy());
+        }
+
+        method.setAdaptedParameterTypes(parameters);
+        return;
     }
 
     /**

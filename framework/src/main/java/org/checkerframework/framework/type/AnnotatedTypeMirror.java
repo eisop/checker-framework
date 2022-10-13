@@ -1122,6 +1122,7 @@ public abstract class AnnotatedTypeMirror {
         }
 
         protected final List<AnnotatedTypeMirror> paramTypes = new ArrayList<>();
+        protected List<AnnotatedTypeMirror> adaptedParamTypes = new ArrayList<>();
         protected AnnotatedDeclaredType receiverType;
         protected AnnotatedTypeMirror passedReceiverType;
         protected AnnotatedTypeMirror returnType;
@@ -1181,6 +1182,20 @@ public abstract class AnnotatedTypeMirror {
                 }
             }
             return Collections.unmodifiableList(paramTypes);
+        }
+
+        /**
+         * Sets the adapted parameter types of this executable type
+         *
+         * @param params the parameter types
+         */
+        /*package-private*/ void setAdaptedParameterTypes(List<AnnotatedTypeMirror> params) {
+            adaptedParamTypes = params;
+        }
+
+        /** Gets the adapted parameter types of this executable type */
+        public List<AnnotatedTypeMirror> getAdaptedParameterTypes() {
+            return adaptedParamTypes;
         }
 
         /**

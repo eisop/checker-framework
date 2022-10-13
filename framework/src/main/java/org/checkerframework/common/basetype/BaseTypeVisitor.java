@@ -2044,9 +2044,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         List<? extends ExpressionTree> passedArguments = node.getArguments();
-        // TODO: clean up usages of adaptParameters in this PR
-        List<AnnotatedTypeMirror> params =
-                AnnotatedTypes.adaptParameters(atypeFactory, constructorType, passedArguments);
+        List<AnnotatedTypeMirror> params = constructorType.getAdaptedParameterTypes();
 
         ExecutableElement constructor = constructorType.getElement();
         CharSequence constructorName = ElementUtils.getSimpleNameOrDescription(constructor);
