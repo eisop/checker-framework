@@ -948,7 +948,7 @@ public abstract class AnnotatedTypeMirror {
         /**
          * Sets the type arguments on this type.
          *
-         * @param ts the type arguments
+         * @param ts a list of type arguments to be captured by this method
          */
         public void setTypeArguments(List<? extends AnnotatedTypeMirror> ts) {
             if (ts == null || ts.isEmpty()) {
@@ -1174,7 +1174,8 @@ public abstract class AnnotatedTypeMirror {
         /**
          * Sets the parameter types of this executable type, excluding the receiver.
          *
-         * @param params the parameter types, excluding the receiver
+         * @param params a list of parameter types to be captured by this method, excluding the
+         *     receiver
          */
         /*package-private*/ void setParameterTypes(List<AnnotatedTypeMirror> params) {
             if (params.isEmpty()) {
@@ -1303,7 +1304,7 @@ public abstract class AnnotatedTypeMirror {
         /**
          * Sets the thrown types of this executable type.
          *
-         * @param thrownTypes the thrown types
+         * @param thrownTypes a list of thrown types to be captured by this method
          */
         /*package-private*/ void setThrownTypes(List<AnnotatedTypeMirror> thrownTypes) {
             if (thrownTypes.isEmpty()) {
@@ -1340,7 +1341,8 @@ public abstract class AnnotatedTypeMirror {
         /**
          * Sets the type variables associated with this executable type.
          *
-         * @param types the type variables of this executable type
+         * @param types a list of type variables of this executable type to be captured by this
+         *     method
          */
         /*package-private*/ void setTypeVariables(List<AnnotatedTypeVariable> types) {
             if (types.isEmpty()) {
@@ -2299,7 +2301,7 @@ public abstract class AnnotatedTypeMirror {
         /**
          * Sets the bounds.
          *
-         * @param bounds bounds to use
+         * @param bounds a list of bounds to be captured by this method
          */
         public void setBounds(List<AnnotatedTypeMirror> bounds) {
             this.bounds = bounds;
