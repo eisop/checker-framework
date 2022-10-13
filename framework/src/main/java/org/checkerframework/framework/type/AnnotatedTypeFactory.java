@@ -2916,6 +2916,42 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
     }
 
+    private void handleVarargs(
+            AnnotatedExecutableType method, List<? extends ExpressionTree> args) {
+        List<AnnotatedTypeMirror> parameters = method.getAdaptedParameterTypes();
+
+        if (parameters.isEmpty()) {
+            return;
+        }
+
+        if (!method.getElement().isVarArgs()) {
+            return;
+        }
+
+        AnnotatedArrayType varargs = (AnnotatedArrayType) parameters.get(parameters.size() - 1);
+
+        if (parameters.size() == args.size()) {
+            // Check if one sent an element or an array
+            AnnotatedTypeMirror lastArg = getAnnotatedType(args.get(args.size() - 1));
+            if (lastArg.getKind() == TypeKind.NULL
+                    || (lastArg.getKind() == TypeKind.ARRAY
+                            && AnnotatedTypes.getArrayDepth(varargs)
+                                    == AnnotatedTypes.getArrayDepth(
+                                            (AnnotatedArrayType) lastArg))) {
+                method.setAdaptedParameterTypes(parameters);
+                return;
+            }
+        }
+
+        parameters = new ArrayList<>(parameters.subList(0, parameters.size() - 1));
+        for (int i = args.size() - parameters.size(); i > 0; --i) {
+            parameters.add(varargs.getComponentType().deepCopy());
+        }
+
+        method.setAdaptedParameterTypes(parameters);
+        return;
+    }
+
     /**
      * Returns the partially-annotated explicit class type arguments of the new class tree. The
      * {@code AnnotatedTypeMirror} only include the annotations explicitly written on the explict
