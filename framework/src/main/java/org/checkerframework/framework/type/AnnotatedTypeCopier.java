@@ -199,7 +199,7 @@ public class AnnotatedTypeCopier
             for (final AnnotatedTypeMirror param : originalParameterTypes) {
                 copyParamTypes.add(visit(param, originalToCopy));
             }
-            copy.setParameterTypes(copyParamTypes);
+            copy.setParameterTypes(Collections.unmodifiableList(copyParamTypes));
         }
 
         List<? extends AnnotatedTypeMirror> originalThrownTypes = original.getThrownTypes();
@@ -208,7 +208,7 @@ public class AnnotatedTypeCopier
             for (final AnnotatedTypeMirror thrown : original.getThrownTypes()) {
                 copyThrownTypes.add(visit(thrown, originalToCopy));
             }
-            copy.setThrownTypes(copyThrownTypes);
+            copy.setThrownTypes(Collections.unmodifiableList(copyThrownTypes));
         }
 
         copy.setReturnType(visit(original.getReturnType(), originalToCopy));
@@ -227,7 +227,7 @@ public class AnnotatedTypeCopier
                 visitingExecutableTypeParam = true;
                 copyTypeVarTypes.add((AnnotatedTypeVariable) visit(typeVariable, originalToCopy));
             }
-            copy.setTypeVariables(copyTypeVarTypes);
+            copy.setTypeVariables(Collections.unmodifiableList(copyTypeVarTypes));
             visitingExecutableTypeParam = false;
         }
 

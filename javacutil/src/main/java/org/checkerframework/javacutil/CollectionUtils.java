@@ -1,23 +1,10 @@
 package org.checkerframework.javacutil;
 
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /** Utility methods related to Java Collections. */
 public class CollectionUtils {
-
-    /** The class object of "java.util.Collections$UnmodifiableCollection" */
-    private static final Class<?> unmodifiableCollectionClass;
-
-    static {
-        try {
-            unmodifiableCollectionClass =
-                    Class.forName("java.util.Collections$UnmodifiableCollection");
-        } catch (ClassNotFoundException e) {
-            throw new BugInCF(e);
-        }
-    }
 
     /**
      * Creates a LRU cache.
@@ -35,16 +22,5 @@ public class CollectionUtils {
                 return size() > size;
             }
         };
-    }
-
-    /**
-     * Determines if the passed argument is an instance of
-     * "java.util.Collections$UnmodifiableCollection".
-     *
-     * @param c the collection to check
-     * @return true if {@code c} is an instance of "java.util.Collections$UnmodifiableCollection"
-     */
-    public static boolean isUnmodifiableCollection(Collection<?> c) {
-        return unmodifiableCollectionClass.isInstance(c);
     }
 }
