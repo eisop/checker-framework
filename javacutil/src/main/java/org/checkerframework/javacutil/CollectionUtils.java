@@ -7,7 +7,7 @@ import java.util.Map;
 /** Utility methods related to Java Collections. */
 public class CollectionUtils {
 
-    // The class object of "java.util.Collections$UnmodifiableCollection"
+    /** The class object of "java.util.Collections$UnmodifiableCollection" */
     private static final Class<?> unmodifiableCollectionClass;
 
     static {
