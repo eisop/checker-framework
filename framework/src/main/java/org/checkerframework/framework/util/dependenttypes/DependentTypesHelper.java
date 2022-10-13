@@ -20,6 +20,7 @@ import org.checkerframework.dataflow.expression.FormalParameter;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.expression.JavaExpressionConverter;
 import org.checkerframework.dataflow.expression.LocalVariable;
+import org.checkerframework.dataflow.expression.MethodCall;
 import org.checkerframework.dataflow.expression.ThisReference;
 import org.checkerframework.dataflow.expression.Unknown;
 import org.checkerframework.framework.source.SourceChecker;
@@ -745,7 +746,32 @@ public class DependentTypesHelper {
                 public JavaExpression visitThisReference(ThisReference thisRef, Void unused) {
                   return null;
                 }
+
+                @Override
+                public JavaExpression visitMethodCall(MethodCall methodCall, Void unused) {
+                  // To delocalize a method call, first delocalize its receiver and its
+                  // parameters. If any of them are null - that is, represent local variables
+                  // - return null, because the method call expression shouldn't be included
+                  // in the delocalized result.
+                  JavaExpression convertedReceiver = convert(methodCall.getReceiver());
+                  if (convertedReceiver == null) {
+                    return null;
+                  }
+                  List<JavaExpression> convertedArgs =
+                      methodCall.getArguments().stream()
+                          .map(this::convert)
+                          .collect(Collectors.toList());
+                  if (convertedArgs.contains(null)) {
+                    return null;
+                  }
+                  return new MethodCall(
+                      methodCall.getType(),
+                      methodCall.getElement(),
+                      convertedReceiver,
+                      convertedArgs);
+                }
               };
+
           return jec.convert(expr);
         };
 
