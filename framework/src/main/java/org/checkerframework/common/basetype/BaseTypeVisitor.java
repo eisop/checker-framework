@@ -2387,11 +2387,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Return true if it's an upcast (from the view of the qualifiers) and it's safe.
+     * Return SAFE if the typecast is an upcast (from the view of the qualifiers).
      *
-     * @param castType castType
-     * @param exprType exprType
-     * @return Can return NOT_UPCAST, WARNING or SAFE CastSafeKind.
+     * <p>Only primary qualifiers are checked unless the command line option "checkCastElementType"
+     * is supplied.
+     *
+     * @param castType annotated type of the cast
+     * @param exprType annotated type of the casted expression
+     * @return return NOT_UPCAST, WARNING or SAFE CastSafeKind.
      */
     protected CastSafeKind isUpcast(AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
         QualifierHierarchy qualifierHierarchy = atypeFactory.getQualifierHierarchy();
@@ -2462,8 +2465,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
         }
 
-        // Return a warning in this case, as compiler will not report the unchecked warning in
-        // this case, and we cannot statically verify the subtype relation of the annotations.
+        // Check when casting the expression having type T (a type variable) to type T,
+        // as compiler will not report the unchecked warning in this case (so we should),
+        // and we cannot statically verify the subtype relation of the annotations.
+        // See CastFromTtoT.java:20 for an example.
         if (castTypeKind == TypeKind.TYPEVAR && exprType.getKind() == TypeKind.TYPEVAR) {
             TypeVariable castTV = (TypeVariable) castType.getUnderlyingType();
             TypeVariable exprTV = (TypeVariable) exprType.getUnderlyingType();
@@ -2479,6 +2484,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 Set<AnnotationMirror> exprUpper =
                         AnnotatedTypes.findEffectiveAnnotations(qualifierHierarchy, exprType);
 
+                // return SAFE only it satisfies the below condition
                 if (qualifierHierarchy.isSubtype(exprLower, castLower)
                         && qualifierHierarchy.isSubtype(exprUpper, castUpper)) {
                     return CastSafeKind.SAFE;
@@ -2494,7 +2500,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         if (result) {
             return CastSafeKind.SAFE;
         } else if (checkCastElementType) {
-            // when the flag is enabled, and it is not an upcast, return an error
+            // when the flag is enabled, and it is not an upcast, return a warning
             return CastSafeKind.WARNING;
         } else {
             return CastSafeKind.NOT_UPCAST;
@@ -2502,10 +2508,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Return true if it's a downcast (from the view of the qualifiers) and the cast is safe.
+     * Determine the typecast is downcast or not. If it is, further determine it can be statically
+     * verified or not.
      *
-     * @param castType castType
-     * @param exprType exprType
+     * @param castType annotated type of the cast
+     * @param exprType annotated type of the casted expression
      * @return Can return SAFE, NOT_DOWNCAST or WARNING.
      */
     protected CastSafeKind isSafeDowncast(
@@ -2539,8 +2546,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * If it's an incomparable cast in terms of qualifiers, return ERROR by default. Subchecker can
      * override this method to allow certain incomparable casts.
      *
-     * @param castType castType
-     * @param exprType exprType
+     * @param castType annotated type of the cast
+     * @param exprType annotated type of the casted expression
      * @return CastSafeKind.ERROR if it's an incomparable cast.
      */
     protected CastSafeKind isSafeIncomparableCast(
@@ -2549,29 +2556,26 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Returns true if the cast is safe.
-     *
-     * <p>Only primary qualifiers are checked unless the command line option "checkCastElementType"
-     * is supplied.
+     * This method returns CastSafeKind.SAFE when the typecast is an upcast or a statically
+     * verifiable downcast. Returns CastSafeKind.WARNING and ERROR for those downcasts which cannot
+     * be statically verified and all incomparable casts.
      *
      * @param castType annotated type of the cast
      * @param exprType annotated type of the casted expression
-     * @return CastSafeKind if the type cast is safe, false otherwise
+     * @return CastSafeKind.SAFE if the type cast is safe, error or warning otherwise
      */
     protected CastSafeKind isTypeCastSafe(
             AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
         CastSafeKind castResult = isUpcast(castType, exprType);
 
-        if (castResult
-                == CastSafeKind.NOT_UPCAST) { // not upcast, do downcast and incomparable cast check
+        // not upcast, do downcast and incomparable cast check
+        if (castResult == CastSafeKind.NOT_UPCAST) {
             castResult = isSafeDowncast(castType, exprType);
-
             if (castResult == CastSafeKind.NOT_DOWNCAST) { // fall to incomparable cast
                 return isSafeIncomparableCast(castType, exprType);
             } else {
                 return castResult;
             }
-
         } else {
             return castResult;
         }
