@@ -29,7 +29,7 @@ public class FlowTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
   public FlowTestAnnotatedTypeFactory(BaseTypeChecker checker) {
     super(checker, true);
-    VALUE = AnnotationBuilder.fromClass(elements, Value.class);
+    VALUE = AnnotationBuilder.fromClass(elements, ValueTypeAnno.class);
     BOTTOM = AnnotationBuilder.fromClass(elements, Bottom.class);
     TOP = AnnotationBuilder.fromClass(elements, Unqualified.class);
 
@@ -45,7 +45,8 @@ public class FlowTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
   @Override
   protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
     return new HashSet<Class<? extends Annotation>>(
-        Arrays.asList(Value.class, Odd.class, MonotonicOdd.class, Unqualified.class, Bottom.class));
+        Arrays.asList(
+            ValueTypeAnno.class, Odd.class, MonotonicOdd.class, Unqualified.class, Bottom.class));
   }
 
   @Override
@@ -53,7 +54,7 @@ public class FlowTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     return new FlowQualifierHierarchy(this.getSupportedTypeQualifiers(), elements);
   }
 
-  /** FlowQualifierHierarchy: {@code @Value(a) <: @Value(b) iff a == b} */
+  /** FlowQualifierHierarchy: {@code @ValueTypeAnno(a) <: @ValueValueTypeAnno(b) iff a == b} */
   class FlowQualifierHierarchy extends MostlyNoElementQualifierHierarchy {
     final QualifierKind VALUE_KIND;
 
