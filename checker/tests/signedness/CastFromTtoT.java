@@ -17,6 +17,7 @@ class CastFromTtoT<T extends @UnknownSignedness Object> {
 
     class Inner<T extends @UnknownSignedness Object> {
         T bar2(@Signed T p) {
+            // :: warning: (cast.unsafe)
             T x = (T) p; // without a warning(guarantee) from the compiler.
             return x;
         }
@@ -25,7 +26,6 @@ class CastFromTtoT<T extends @UnknownSignedness Object> {
         // This time, as arugment p has type T, which is the same as the casting type
         // and the compiler will not issue a warning. So we should give a warning.
         void foo2(Inner<@SignednessGlb Integer> s, @Signed Integer local) {
-            // :: warning: (cast.unsafe)
             @SignednessGlb Integer x = s.bar2(local);
         }
     }
