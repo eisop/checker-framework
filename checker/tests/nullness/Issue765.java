@@ -1,6 +1,7 @@
 // Test case for Issue 765
 // https://github.com/typetools/checker-framework/issues/765
 public class Issue765 {
+    // :: error: (argument.type.incompatible)
     Thread thread = new Thread() {};
 
     void execute() {

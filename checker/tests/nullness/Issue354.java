@@ -4,6 +4,7 @@ public class Issue354 {
 
     {
         Object o =
+                // :: error: (argument.type.incompatible)
                 new Object() {
                     @Override
                     public String toString() {

@@ -3,6 +3,7 @@ import org.checkerframework.checker.nullness.qual.*;
 
 public class ThisNodeTest {
     public ThisNodeTest() {
+        // :: error: (argument.type.incompatible)
         new Object() {
             void test() {
                 @UnderInitialization ThisNodeTest l1 = ThisNodeTest.this;

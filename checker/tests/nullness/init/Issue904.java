@@ -4,6 +4,7 @@
 public class Issue904 {
     final Object mBar;
     final Runnable mRunnable =
+            // :: error: (argument.type.incompatible)
             new Runnable() {
                 @Override
                 public void run() {

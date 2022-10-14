@@ -8,6 +8,7 @@ public class Issue3407 {
 
     Issue3407() {
         var anon =
+                // :: error: (argument.type.incompatible)
                 new Object() {
                     String bar() {
                         // :: error: (method.invocation.invalid)
