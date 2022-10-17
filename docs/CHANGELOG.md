@@ -14,6 +14,18 @@ information.
 eisop#244
 
 
+Version 3.26.1 (November 1, 2022)
+---------------------------------
+
+**User-visible changes:**
+
+The Constant Value Checker supports new annotation `@DoesNotMatchRegex`.
+
+**Implementation details:**
+
+**Closed issues:**
+
+
 Version 3.26.0-eisop1 (October 13, 2022)
 ----------------------------------------
 

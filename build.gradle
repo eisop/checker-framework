@@ -250,7 +250,8 @@ allprojects {
 
             googleJavaFormat() // .aosp()
             importOrder('com', 'jdk', 'lib', 'lombok', 'org', 'java', 'javax')
-            formatAnnotations()
+            // Remove addTypeAnnotation after the next release of Spotless.
+            formatAnnotations().addTypeAnnotation("DoesNotMatchRegex")
         }
     }
     // The Spotless plugin uses the latest version of google-java-format
