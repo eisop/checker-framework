@@ -732,7 +732,7 @@ public abstract class AnnotatedTypeMirror {
      * Returns the erasure type of the this type, according to JLS specifications.
      *
      * @see <a
-     *     href="https://docs.oracle.com/javase/specs/jls/se11/html/jls-4.html#jls-4.6">https://docs.oracle.com/javase/specs/jls/se11/html/jls-4.html#jls-4.6</a>
+     *     href="https://docs.oracle.com/javase/specs/jls/se17/html/jls-4.html#jls-4.6">https://docs.oracle.com/javase/specs/jls/se17/html/jls-4.html#jls-4.6</a>
      * @return the erasure of this AnnotatedTypeMirror, this is always a copy even if the erasure
      *     and the original type are equivalent
      */
@@ -947,7 +947,7 @@ public abstract class AnnotatedTypeMirror {
         /**
          * Sets the type arguments on this type.
          *
-         * @param ts the type arguments
+         * @param ts a list of type arguments to be captured by this method
          */
         public void setTypeArguments(List<? extends AnnotatedTypeMirror> ts) {
             if (ts == null || ts.isEmpty()) {
@@ -1121,13 +1121,28 @@ public abstract class AnnotatedTypeMirror {
             super(type, factory);
         }
 
-        protected final List<AnnotatedTypeMirror> paramTypes = new ArrayList<>();
+        /** The parameter types; an unmodifiable list. */
+        private List<AnnotatedTypeMirror> paramTypes;
+        /** Whether {@link paramTypes} has been computed. */
+        private boolean paramTypesComputed = false;
+        /** The receiver type. */
+        private AnnotatedDeclaredType receiverType;
         protected List<AnnotatedTypeMirror> adaptedParamTypes = new ArrayList<>();
-        protected AnnotatedDeclaredType receiverType;
         protected AnnotatedTypeMirror passedReceiverType;
-        protected AnnotatedTypeMirror returnType;
-        protected final List<AnnotatedTypeMirror> throwsTypes = new ArrayList<>();
-        protected final List<AnnotatedTypeVariable> typeVarTypes = new ArrayList<>();
+        /** Whether {@link receiverType} has been computed. */
+        private boolean receiverTypeComputed = false;
+        /** The return type. */
+        private AnnotatedTypeMirror returnType;
+        /** Whether {@link returnType} has been computed. */
+        private boolean returnTypeComputed = false;
+        /** The thrown types; an unmodifiable list. */
+        private List<AnnotatedTypeMirror> thrownTypes;
+        /** Whether {@link thrownTypes} has been computed. */
+        private boolean thrownTypesComputed = false;
+        /** The type variables; an unmodifiable list. */
+        private List<AnnotatedTypeVariable> typeVarTypes;
+        /** Whether {@link typeVarTypes} has been computed. */
+        private boolean typeVarTypesComputed = false;
 
         /**
          * Returns true if this type represents a varargs method.
@@ -1160,11 +1175,12 @@ public abstract class AnnotatedTypeMirror {
         /**
          * Sets the parameter types of this executable type, excluding the receiver.
          *
-         * @param params the parameter types, excluding the receiver
+         * @param params an unmodifiable list of parameter types to be captured by this method,
+         *     excluding the receiver
          */
-        /*package-private*/ void setParameterTypes(List<? extends AnnotatedTypeMirror> params) {
-            paramTypes.clear();
-            paramTypes.addAll(params);
+        /*package-private*/ void setParameterTypes(List<AnnotatedTypeMirror> params) {
+            paramTypes = params;
+            paramTypesComputed = true;
         }
 
         /**
@@ -1173,15 +1189,23 @@ public abstract class AnnotatedTypeMirror {
          * @return the parameter types of this executable type, excluding the receiver
          */
         public List<AnnotatedTypeMirror> getParameterTypes() {
-            if (paramTypes.isEmpty()
-                    && !((ExecutableType) underlyingType)
-                            .getParameterTypes()
-                            .isEmpty()) { // lazy init
-                for (TypeMirror t : ((ExecutableType) underlyingType).getParameterTypes()) {
-                    paramTypes.add(createType(t, atypeFactory, false));
+            if (!paramTypesComputed) {
+                assert paramTypes == null;
+                List<? extends TypeMirror> underlyingParameterTypes =
+                        ((ExecutableType) underlyingType).getParameterTypes();
+                if (underlyingParameterTypes.isEmpty()) {
+                    setParameterTypes(Collections.emptyList());
+                } else {
+                    List<AnnotatedTypeMirror> newParamTypes =
+                            new ArrayList<>(underlyingParameterTypes.size());
+                    for (TypeMirror t : underlyingParameterTypes) {
+                        newParamTypes.add(createType(t, atypeFactory, false));
+                    }
+                    setParameterTypes(Collections.unmodifiableList(newParamTypes));
                 }
             }
-            return Collections.unmodifiableList(paramTypes);
+            // No need to copy or wrap; it is an unmodifiable list.
+            return paramTypes;
         }
 
         /**
@@ -1205,6 +1229,7 @@ public abstract class AnnotatedTypeMirror {
          */
         /*package-private*/ void setReturnType(AnnotatedTypeMirror returnType) {
             this.returnType = returnType;
+            returnTypeComputed = true;
         }
 
         /**
@@ -1214,38 +1239,40 @@ public abstract class AnnotatedTypeMirror {
          * @return the return type of this executable type
          */
         public AnnotatedTypeMirror getReturnType() {
-            if (returnType == null
-                    && element != null
-                    && ((ExecutableType) underlyingType).getReturnType() != null) { // lazy init
-                TypeMirror aret = ((ExecutableType) underlyingType).getReturnType();
-                if (aret.getKind() == TypeKind.ERROR) {
-                    // Maybe the input is uncompilable, or maybe the type is not completed yet (see
-                    // Issue #244).
-                    throw new ErrorTypeKindException(
-                            "Problem with return type of %s.%s: %s [%s %s]",
-                            element,
-                            element.getEnclosingElement(),
-                            aret,
-                            aret.getKind(),
-                            aret.getClass());
-                }
-                if (((MethodSymbol) element).isConstructor()) {
-                    // For constructors, the underlying return type is void.
-                    // Take the type of the enclosing class instead.
-                    aret = element.getEnclosingElement().asType();
+            if (!returnTypeComputed) {
+                assert returnType == null : "returnType = " + returnType;
+                if (element != null && ((ExecutableType) underlyingType).getReturnType() != null) {
+                    TypeMirror aret = ((ExecutableType) underlyingType).getReturnType();
                     if (aret.getKind() == TypeKind.ERROR) {
+                        // Maybe the input is uncompilable, or maybe the type is not completed yet
+                        // (see Issue #244).
                         throw new ErrorTypeKindException(
-                                "Input is not compilable; problem with constructor %s return type:"
-                                        + " %s [%s %s] (enclosing element = %s [%s])",
+                                "Problem with return type of %s.%s: %s [%s %s]",
                                 element,
+                                element.getEnclosingElement(),
                                 aret,
                                 aret.getKind(),
-                                aret.getClass(),
-                                element.getEnclosingElement(),
-                                element.getEnclosingElement().getClass());
+                                aret.getClass());
                     }
+                    if (((MethodSymbol) element).isConstructor()) {
+                        // For constructors, the underlying return type is void.
+                        // Take the type of the enclosing class instead.
+                        aret = element.getEnclosingElement().asType();
+                        if (aret.getKind() == TypeKind.ERROR) {
+                            throw new ErrorTypeKindException(
+                                    "Input is not compilable; problem with constructor %s return type: %s [%s %s]"
+                                            + " (enclosing element = %s [%s])",
+                                    element,
+                                    aret,
+                                    aret.getKind(),
+                                    aret.getClass(),
+                                    element.getEnclosingElement(),
+                                    element.getEnclosingElement().getClass());
+                        }
+                    }
+                    returnType = createType(aret, atypeFactory, false);
                 }
-                returnType = createType(aret, atypeFactory, false);
+                returnTypeComputed = true;
             }
             return returnType;
         }
@@ -1257,6 +1284,7 @@ public abstract class AnnotatedTypeMirror {
          */
         /*package-private*/ void setReceiverType(AnnotatedDeclaredType receiverType) {
             this.receiverType = receiverType;
+            receiverTypeComputed = true;
         }
 
         /**
@@ -1267,16 +1295,21 @@ public abstract class AnnotatedTypeMirror {
          *     constructors of top-level classes
          */
         public @Nullable AnnotatedDeclaredType getReceiverType() {
-            if (receiverType == null && ElementUtils.hasReceiver(getElement())) {
-
-                TypeElement encl = ElementUtils.enclosingTypeElement(getElement());
-                if (getElement().getKind() == ElementKind.CONSTRUCTOR) {
-                    // Can only reach this branch if we're the constructor of a nested class
-                    encl = ElementUtils.enclosingTypeElement(encl.getEnclosingElement());
+            if (!receiverTypeComputed) {
+                assert receiverType == null;
+                Element element = getElement();
+                if (ElementUtils.hasReceiver(element)) {
+                    // Initial value of `encl`; might be updated.
+                    TypeElement encl = ElementUtils.enclosingTypeElement(element);
+                    if (element.getKind() == ElementKind.CONSTRUCTOR) {
+                        // Can only reach this branch if we're the constructor of a nested class
+                        encl = ElementUtils.enclosingTypeElement(encl.getEnclosingElement());
+                    }
+                    AnnotatedTypeMirror type = createType(encl.asType(), atypeFactory, false);
+                    assert type instanceof AnnotatedDeclaredType;
+                    receiverType = (AnnotatedDeclaredType) type;
                 }
-                AnnotatedTypeMirror type = createType(encl.asType(), atypeFactory, false);
-                assert type instanceof AnnotatedDeclaredType;
-                receiverType = (AnnotatedDeclaredType) type;
+                receiverTypeComputed = true;
             }
             return receiverType;
         }
@@ -1302,11 +1335,11 @@ public abstract class AnnotatedTypeMirror {
         /**
          * Sets the thrown types of this executable type.
          *
-         * @param thrownTypes the thrown types
+         * @param thrownTypes an unmodifiable list of thrown types to be captured by this method
          */
-        /*package-private*/ void setThrownTypes(List<? extends AnnotatedTypeMirror> thrownTypes) {
-            this.throwsTypes.clear();
-            this.throwsTypes.addAll(thrownTypes);
+        /*package-private*/ void setThrownTypes(List<AnnotatedTypeMirror> thrownTypes) {
+            this.thrownTypes = thrownTypes;
+            thrownTypesComputed = true;
         }
 
         /**
@@ -1315,23 +1348,34 @@ public abstract class AnnotatedTypeMirror {
          * @return the thrown types of this executable type
          */
         public List<AnnotatedTypeMirror> getThrownTypes() {
-            if (throwsTypes.isEmpty()
-                    && !((ExecutableType) underlyingType).getThrownTypes().isEmpty()) { // lazy init
-                for (TypeMirror t : ((ExecutableType) underlyingType).getThrownTypes()) {
-                    throwsTypes.add(createType(t, atypeFactory, false));
+            if (!thrownTypesComputed) {
+                assert thrownTypes == null;
+                List<? extends TypeMirror> underlyingThrownTypes =
+                        ((ExecutableType) underlyingType).getThrownTypes();
+                if (underlyingThrownTypes.isEmpty()) {
+                    setThrownTypes(Collections.emptyList());
+                } else {
+                    List<AnnotatedTypeMirror> newThrownTypes =
+                            new ArrayList<>(underlyingThrownTypes.size());
+                    for (TypeMirror t : underlyingThrownTypes) {
+                        newThrownTypes.add(createType(t, atypeFactory, false));
+                    }
+                    setThrownTypes(Collections.unmodifiableList(newThrownTypes));
                 }
             }
-            return Collections.unmodifiableList(throwsTypes);
+            // No need to copy or wrap; it is an unmodifiable list.
+            return thrownTypes;
         }
 
         /**
          * Sets the type variables associated with this executable type.
          *
-         * @param types the type variables of this executable type
+         * @param types an unmodifiable list of type variables of this executable type to be
+         *     captured by this method
          */
-        void setTypeVariables(List<AnnotatedTypeVariable> types) {
-            typeVarTypes.clear();
-            typeVarTypes.addAll(types);
+        /*package-private*/ void setTypeVariables(List<AnnotatedTypeVariable> types) {
+            typeVarTypes = types;
+            typeVarTypesComputed = true;
         }
 
         /**
@@ -1340,15 +1384,24 @@ public abstract class AnnotatedTypeMirror {
          * @return the type variables of this executable type, if any
          */
         public List<AnnotatedTypeVariable> getTypeVariables() {
-            if (typeVarTypes.isEmpty()
-                    && !((ExecutableType) underlyingType)
-                            .getTypeVariables()
-                            .isEmpty()) { // lazy init
-                for (TypeMirror t : ((ExecutableType) underlyingType).getTypeVariables()) {
-                    typeVarTypes.add((AnnotatedTypeVariable) createType(t, atypeFactory, true));
+            if (!typeVarTypesComputed) {
+                assert typeVarTypes == null;
+                List<? extends TypeVariable> underlyingTypeVariables =
+                        ((ExecutableType) underlyingType).getTypeVariables();
+                if (underlyingTypeVariables.isEmpty()) {
+                    setTypeVariables(Collections.emptyList());
+                } else {
+                    List<AnnotatedTypeVariable> newTypeVarTypes =
+                            new ArrayList<>(underlyingTypeVariables.size());
+                    for (TypeMirror t : underlyingTypeVariables) {
+                        newTypeVarTypes.add(
+                                (AnnotatedTypeVariable) createType(t, atypeFactory, true));
+                    }
+                    setTypeVariables(Collections.unmodifiableList(newTypeVarTypes));
                 }
             }
-            return Collections.unmodifiableList(typeVarTypes);
+            // No need to copy or wrap; it is an unmodifiable list.
+            return typeVarTypes;
         }
 
         @Override
@@ -1412,10 +1465,15 @@ public abstract class AnnotatedTypeMirror {
          * Returns the erased types corresponding to the given types.
          *
          * @param lst annotated type mirrors
-         * @return erased annotated type mirrors
+         * @return erased annotated type mirrors in an unmodifiable list
          */
-        private List<AnnotatedTypeMirror> erasureList(Iterable<? extends AnnotatedTypeMirror> lst) {
-            return CollectionsPlume.mapList(AnnotatedTypeMirror::getErased, lst);
+        private List<AnnotatedTypeMirror> erasureList(List<? extends AnnotatedTypeMirror> lst) {
+            if (lst.isEmpty()) {
+                return Collections.emptyList();
+            } else {
+                return Collections.unmodifiableList(
+                        CollectionsPlume.mapList(AnnotatedTypeMirror::getErased, lst));
+            }
         }
     }
 
@@ -2276,7 +2334,7 @@ public abstract class AnnotatedTypeMirror {
         /**
          * Sets the bounds.
          *
-         * @param bounds bounds to use
+         * @param bounds a list of bounds to be captured by this method
          */
         public void setBounds(List<AnnotatedTypeMirror> bounds) {
             this.bounds = bounds;
