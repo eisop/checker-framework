@@ -3,6 +3,7 @@ import org.checkerframework.checker.signedness.qual.*;
 import java.util.*;
 
 class CastFromTtoT<T extends @UnknownSignedness Object> {
+    @SuppressWarnings("unchecked")
     T bar(@UnknownSignedness Object p) {
         T x = (T) p;
         return x;
