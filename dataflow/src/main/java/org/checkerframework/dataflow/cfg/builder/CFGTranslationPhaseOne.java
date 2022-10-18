@@ -1461,8 +1461,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
         MethodAccessNode target = new MethodAccessNode(methodSelect, receiver);
 
-        ExecutableElement element = TreeUtils.elementFromUse(tree);
-        if (ElementUtils.isStatic(element) || receiver instanceof ThisNode) {
+        if (ElementUtils.isStatic(method) || receiver instanceof ThisNode) {
             // No NullPointerException can be thrown, use normal node
             extendWithNode(target);
         } else {
@@ -1487,7 +1486,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         MethodInvocationNode node =
                 new MethodInvocationNode(tree, target, arguments, getCurrentPath());
 
-        List<? extends TypeMirror> thrownTypes = element.getThrownTypes();
+        List<? extends TypeMirror> thrownTypes = method.getThrownTypes();
         Set<TypeMirror> thrownSet =
                 new LinkedHashSet<>(thrownTypes.size() + uncheckedExceptionTypes.size());
         // Add exceptions explicitly mentioned in the throws clause.
@@ -1498,10 +1497,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         ExtendedNode extendedNode = extendWithNodeWithExceptions(node, thrownSet);
 
         /* Check for the TerminatesExecution annotation. */
-        Element methodElement = TreeUtils.elementFromTree(tree);
         boolean terminatesExecution =
-                annotationProvider.getDeclAnnotation(methodElement, TerminatesExecution.class)
-                        != null;
+                annotationProvider.getDeclAnnotation(method, TerminatesExecution.class) != null;
         if (terminatesExecution) {
             extendedNode.setTerminatesExecution(true);
         }
@@ -1570,6 +1567,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             ea =
                     treeBuilder.buildVariableDecl(
                             types.getPrimitiveType(TypeKind.BOOLEAN), name, owner, initializer);
+            handleArtificialTree(ea);
         }
         return ea;
     }
@@ -2649,6 +2647,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         // create a synthetic variable for the value of the conditional expression
         VariableTree condExprVarTree =
                 treeBuilder.buildVariableDecl(exprType, uniqueName("condExpr"), findOwner(), null);
+        handleArtificialTree(condExprVarTree);
         VariableDeclarationNode condExprVarNode = new VariableDeclarationNode(condExprVarTree);
         condExprVarNode.setInSource(false);
         extendWithNode(condExprVarNode);
@@ -3832,7 +3831,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     @Override
     public Node visitArrayType(ArrayTypeTree tree, Void p) {
         Node result = new ArrayTypeNode(tree, types);
-        extendWithNode(new ArrayTypeNode(tree, types));
+        extendWithNode(result);
         return result;
     }
 

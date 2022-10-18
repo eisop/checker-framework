@@ -13,6 +13,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcard
 import org.checkerframework.framework.type.visitor.AnnotatedTypeVisitor;
 import org.plumelib.util.CollectionsPlume;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -186,31 +187,55 @@ public class AnnotatedTypeCopier
 
         copy.setElement(original.getElement());
 
-        if (original.receiverType != null) {
-            copy.receiverType =
-                    (AnnotatedDeclaredType) visit(original.receiverType, originalToCopy);
+        if (original.getReceiverType() != null) {
+            copy.setReceiverType(
+                    (AnnotatedDeclaredType) visit(original.getReceiverType(), originalToCopy));
         }
 
-        for (final AnnotatedTypeMirror param : original.paramTypes) {
-            copy.paramTypes.add(visit(param, originalToCopy));
+        List<? extends AnnotatedTypeMirror> originalParameterTypes = original.getParameterTypes();
+        if (originalParameterTypes.isEmpty()) {
+            copy.setParameterTypes(Collections.emptyList());
+        } else {
+            List<AnnotatedTypeMirror> copyParamTypes =
+                    new ArrayList<>(originalParameterTypes.size());
+            for (final AnnotatedTypeMirror param : originalParameterTypes) {
+                copyParamTypes.add(visit(param, originalToCopy));
+            }
+            copy.setParameterTypes(Collections.unmodifiableList(copyParamTypes));
         }
 
-        for (final AnnotatedTypeMirror thrown : original.throwsTypes) {
-            copy.throwsTypes.add(visit(thrown, originalToCopy));
+        List<? extends AnnotatedTypeMirror> originalThrownTypes = original.getThrownTypes();
+        if (originalThrownTypes.isEmpty()) {
+            copy.setThrownTypes(Collections.emptyList());
+        } else {
+            List<AnnotatedTypeMirror> copyThrownTypes = new ArrayList<>(originalThrownTypes.size());
+            for (final AnnotatedTypeMirror thrown : original.getThrownTypes()) {
+                copyThrownTypes.add(visit(thrown, originalToCopy));
+            }
+            copy.setThrownTypes(Collections.unmodifiableList(copyThrownTypes));
         }
 
-        copy.returnType = visit(original.returnType, originalToCopy);
+        copy.setReturnType(visit(original.getReturnType(), originalToCopy));
 
-        for (final AnnotatedTypeVariable typeVariable : original.typeVarTypes) {
-            // This field is needed to identify exactly when the declaration of an executable's
-            // type parameter is visited.  When subtypes of this class visit the type parameter's
-            // component types, they will likely set visitingExecutableTypeParam to false.
-            // Therefore, we set this variable on each iteration of the loop.
-            // See TypeVariableSubstitutor.Visitor.visitTypeVariable for an example of this.
-            visitingExecutableTypeParam = true;
-            copy.typeVarTypes.add((AnnotatedTypeVariable) visit(typeVariable, originalToCopy));
+        List<AnnotatedTypeVariable> originalTypeVariables = original.getTypeVariables();
+        if (originalTypeVariables.isEmpty()) {
+            copy.setTypeVariables(Collections.emptyList());
+        } else {
+            List<AnnotatedTypeVariable> copyTypeVarTypes =
+                    new ArrayList<>(originalTypeVariables.size());
+            for (final AnnotatedTypeVariable typeVariable : originalTypeVariables) {
+                // This field is needed to identify exactly when the declaration of an executable's
+                // type parameter is visited.  When subtypes of this class visit the type
+                // parameter's component types, they will likely set visitingExecutableTypeParam to
+                // false.
+                // Therefore, we set this variable on each iteration of the loop.
+                // See TypeVariableSubstitutor.Visitor.visitTypeVariable for an example of this.
+                visitingExecutableTypeParam = true;
+                copyTypeVarTypes.add((AnnotatedTypeVariable) visit(typeVariable, originalToCopy));
+            }
+            copy.setTypeVariables(Collections.unmodifiableList(copyTypeVarTypes));
+            visitingExecutableTypeParam = false;
         }
-        visitingExecutableTypeParam = false;
 
         return copy;
     }
