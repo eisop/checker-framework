@@ -2916,21 +2916,56 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
     }
 
-    private void handleVarargs(
-            AnnotatedExecutableType method, List<? extends ExpressionTree> args) {
-        List<AnnotatedTypeMirror> parameters = method.getAdaptedParameterTypes();
-
+    private void adaptParameters(AnnotatedExecutableType method, NewClassTree tree) {
+        List<AnnotatedTypeMirror> parameters = method.getParameterTypes();
         if (parameters.isEmpty()) {
             return;
         }
+        List<? extends ExpressionTree> args = tree.getArguments();
+        if (method.getElement().isVarArgs()) {
+            AnnotatedArrayType varargs = (AnnotatedArrayType) parameters.get(parameters.size() - 1);
+            method.setVarargType(varargs);
+        }
+
+        DeclaredType t =
+                TypesUtils.getSuperClassOrInterface(
+                        method.getElement().getEnclosingElement().asType(), types);
+        List<AnnotatedTypeMirror> p = new ArrayList<>(method.getParameterTypes().size());
+        p.addAll(parameters);
+        if (t != null && t.getEnclosingType() != null) {
+            if (parameters.size() > 0) {
+                if (args.isEmpty()) {
+                    p.clear();
+                    p.addAll(parameters.subList(1, parameters.size()));
+                } else {
+                    TypeMirror p0tm = parameters.get(0).getUnderlyingType();
+                    // Is the first parameter either equal to the enclosing type?
+                    if (types.isSameType(t.getEnclosingType(), p0tm)) {
+                        // Is the first argument the same type as the first parameter?
+                        if (!types.isSameType(TreeUtils.typeOf(args.get(0)), p0tm)) {
+                            // Remove the first parameter.
+                            p.clear();
+                            p.addAll(parameters.subList(1, parameters.size()));
+                        }
+                    }
+                }
+            }
+        }
+        method.setParameterTypes(Collections.unmodifiableList(p));
+        if (method.getParameterTypes().isEmpty()) {
+            return;
+        }
+
+        parameters = method.getParameterTypes();
 
         if (!method.getElement().isVarArgs()) {
             return;
         }
 
-        AnnotatedArrayType varargs = (AnnotatedArrayType) parameters.get(parameters.size() - 1);
+        AnnotatedArrayType varargs = method.getVarargType();
+        // varargs
 
-        if (parameters.size() == args.size()) {
+        if (parameters.size() == args.size() && args.size() > 0) {
             // Check if one sent an element or an array
             AnnotatedTypeMirror lastArg = getAnnotatedType(args.get(args.size() - 1));
             if (lastArg.getKind() == TypeKind.NULL
@@ -2938,7 +2973,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                             && AnnotatedTypes.getArrayDepth(varargs)
                                     == AnnotatedTypes.getArrayDepth(
                                             (AnnotatedArrayType) lastArg))) {
-                method.setAdaptedParameterTypes(parameters);
+                method.setParameterTypes(parameters);
                 return;
             }
         }
@@ -2948,7 +2983,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             parameters.add(varargs.getComponentType().deepCopy());
         }
 
-        method.setAdaptedParameterTypes(parameters);
+        method.setParameterTypes(parameters);
         return;
     }
 
