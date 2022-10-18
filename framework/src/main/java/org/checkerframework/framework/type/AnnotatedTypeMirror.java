@@ -1127,7 +1127,8 @@ public abstract class AnnotatedTypeMirror {
         private boolean paramTypesComputed = false;
         /** The receiver type. */
         private AnnotatedDeclaredType receiverType;
-        protected List<AnnotatedTypeMirror> adaptedParamTypes = new ArrayList<>();
+
+        protected AnnotatedArrayType varargType = null;
         protected AnnotatedTypeMirror passedReceiverType;
         /** Whether {@link receiverType} has been computed. */
         private boolean receiverTypeComputed = false;
@@ -1208,18 +1209,12 @@ public abstract class AnnotatedTypeMirror {
             return paramTypes;
         }
 
-        /**
-         * Sets the adapted parameter types of this executable type
-         *
-         * @param params the parameter types
-         */
-        /*package-private*/ void setAdaptedParameterTypes(List<AnnotatedTypeMirror> params) {
-            adaptedParamTypes = params;
+        public void setVarargType(AnnotatedArrayType varargs) {
+            varargType = varargs;
         }
 
-        /** Gets the adapted parameter types of this executable type */
-        public List<AnnotatedTypeMirror> getAdaptedParameterTypes() {
-            return adaptedParamTypes;
+        public AnnotatedArrayType getVarargType() {
+            return varargType;
         }
 
         /**

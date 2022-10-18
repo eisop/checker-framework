@@ -1823,7 +1823,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         int numFormals = formals.size();
         int lastArgIndex = numFormals - 1;
         // This is the varags type, an array.
-        AnnotatedArrayType lastParamAnnotatedType = (AnnotatedArrayType) formals.get(lastArgIndex);
+        AnnotatedArrayType lastParamAnnotatedType = null;
+        if (invokedMethod.getVarargType() != null) {
+            lastParamAnnotatedType = invokedMethod.getVarargType();
+        } else {
+            lastParamAnnotatedType = (AnnotatedArrayType) formals.get(lastArgIndex);
+        }
 
         AnnotatedTypeMirror wrappedVarargsType = atypeFactory.getAnnotatedTypeVarargsArray(tree);
 
@@ -2035,7 +2040,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         List<? extends ExpressionTree> passedArguments = node.getArguments();
-        List<AnnotatedTypeMirror> params = constructorType.getAdaptedParameterTypes();
+        List<AnnotatedTypeMirror> params = constructorType.getParameterTypes();
 
         ExecutableElement constructor = constructorType.getElement();
         CharSequence constructorName = ElementUtils.getSimpleNameOrDescription(constructor);
