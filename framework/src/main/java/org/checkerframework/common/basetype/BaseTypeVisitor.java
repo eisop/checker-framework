@@ -240,6 +240,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     private final boolean checkPurity;
 
+    /** True if "-AcheckRedundantAnnotations" was passed on the command line */
+    private final boolean checkRedundantAnnotations;
+
     /** The tree of the enclosing method that is currently being visited. */
     protected @Nullable MethodTree methodTree = null;
 
@@ -275,6 +278,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         */
         suggestPureMethods = checker.hasOption("suggestPureMethods"); // NO-AFU || infer;
         checkPurity = checker.hasOption("checkPurityAnnotations") || suggestPureMethods;
+        checkRedundantAnnotations = checker.hasOption("checkRedundantAnnotations");
     }
 
     /**
@@ -1495,13 +1499,24 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         return super.visitVariable(node, p);
     }
 
+    /**
+     * Issues a "redundant.anno" warning if the annotation written on the type is the same as the
+     * default annotation would be applied on the type.
+     *
+     * @param tree tree
+     * @param type get the explicit annotation on this type and compare it with the default one
+     *     would be applied on the type.
+     */
     void checkRedundantAnnotations(Tree tree, AnnotatedTypeMirror type) {
+        if (!checkRedundantAnnotations) {
+            return;
+        }
         Set<AnnotationMirror> explicitAnnos = type.getExplicitAnnotations();
         if (explicitAnnos.isEmpty()) {
             return;
         }
         if (tree == null) {
-            throw new BugInCF("just want to see if there's any possibility of null-tree"); // TODO
+            throw new BugInCF("unexpected null tree argument!");
         }
 
         AnnotatedTypeMirror defaultAtms = atypeFactory.getDefaultAnnotations(tree, type);
@@ -2047,11 +2062,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 node.getTypeArguments(),
                 constructorName,
                 constructor.getTypeParameters());
-        AnnotatedDeclaredType dt = atypeFactory.getAnnotatedType(node);
 
         boolean valid = validateTypeOf(node);
 
         if (valid) {
+            AnnotatedDeclaredType dt = atypeFactory.getAnnotatedType(node);
             atypeFactory.getDependentTypesHelper().checkTypeForErrorExpressions(dt, node);
             checkConstructorInvocation(dt, constructorType, node);
         }

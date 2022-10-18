@@ -1,4 +1,3 @@
-import org.checkerframework.checker.locationtest.qual.*;
 import org.checkerframework.checker.nullness.qual.*;
 
 import java.io.*;
@@ -32,34 +31,35 @@ Check redundant annotations on below locations
 
     enum InnerEnum {
         // expects a "redundant.anno" warning on the enum constant
-        // :: error: ("nullness.on.enum")
+        // :: error: (nullness.on.enum)
         @NonNull EXPLICIT,
         IMPLICIT,
     }
 
-    // :: warning: ("redundant.anno")
+    // :: warning: (redundant.anno)
     @NonNull Object f;
 
-    // :: warning: ("redundant.anno")
+    // :: warning: (redundant.anno)
     @NonNull Integer foo(InputStream arg) {
-        // :: warning: ("redundant.anno")
+        // :: warning: (redundant.anno)
         @Nullable Object local;
         return Integer.valueOf(1);
     }
 
     // expects a "redundant.anno" warning on the constructor
-    // :: error: ("nullness.on.constructor")
-    // :: warning: ("redundant.anno")
+    // :: error: (nullness.on.constructor)
+    // :: warning: (redundant.anno)
     @NonNull RedundantAnnotation(@NonNull Integer i) {
         f = new Object();
     }
-
+    // :: error: (nullness.on.receiver)
+    // :: warning: (redundant.anno)
     void bar(@NonNull RedundantAnnotation<T> this, InputStream arg) throws Exception {
-        // :: warning: ("redundant.anno")
+        // :: warning: (redundant.anno)
         try (@Nullable InputStream in = arg) {
 
-            // :: warning: ("redundant.anno")
-            // :: warning: ("nullness.on.exception.parameter")
+            // :: warning: (redundant.anno)
+            // :: warning: (nullness.on.exception.parameter)
         } catch (@NonNull Exception e) {
 
         }
@@ -73,7 +73,8 @@ Check redundant annotations on below locations
         // expects a "redundant.anno" warning on the typecast
         String x = (@Nullable String) obj;
 
-        // :: error: ("instanceof.nullable")
+        // expects a "redundant.anno" warning on the typecast
+        // :: error: (instanceof.nullable)
         boolean b = x instanceof @Nullable String;
 
         // expects a "redundant.anno" warning on the component type

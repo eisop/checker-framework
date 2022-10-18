@@ -1776,6 +1776,14 @@ public abstract class GenericAnnotatedTypeFactory<
         addComputedTypeAnnotations(tree, type, this.useFlow);
     }
 
+    /**
+     * This method removes all primary annotations on the type and re-calculate the default
+     * annotation would be applied on the new type with useflow disabled.
+     *
+     * @param tree tree
+     * @param type type
+     * @return the annotated type mirror with default annotations
+     */
     public AnnotatedTypeMirror getDefaultAnnotations(Tree tree, AnnotatedTypeMirror type) {
         AnnotatedTypeMirror copy = type.deepCopy();
         copy.removeAnnotations(type.getAnnotations());
