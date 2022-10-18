@@ -2883,12 +2883,19 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
     }
 
-    private void adaptParameters(AnnotatedExecutableType method, NewClassTree tree) {
+    private void adaptParameters(AnnotatedExecutableType method, ExpressionTree tree) {
         List<AnnotatedTypeMirror> parameters = method.getParameterTypes();
         if (parameters.isEmpty()) {
             return;
         }
-        List<? extends ExpressionTree> args = tree.getArguments();
+        List<? extends ExpressionTree> args = null;
+        if (tree.getKind() == Tree.Kind.METHOD_INVOCATION) {
+            args = ((MethodInvocationTree) tree).getArguments();
+        } else if (tree.getKind() == Tree.Kind.NEW_CLASS) {
+            args = ((NewClassTree) tree).getArguments();
+        } else {
+            return;
+        }
         if (method.getElement().isVarArgs()) {
             AnnotatedArrayType varargs = (AnnotatedArrayType) parameters.get(parameters.size() - 1);
             method.setVarargType(varargs);
