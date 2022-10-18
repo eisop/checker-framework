@@ -516,7 +516,6 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         AnnotatedTypeMirror comp = type;
         do {
             comp = ((AnnotatedArrayType) comp).getComponentType();
-            visitor.checkRedundantAnnotations(tree, comp);
         } while (comp.getKind() == TypeKind.ARRAY);
 
         if (comp.getKind() == TypeKind.DECLARED
@@ -565,11 +564,6 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                 tree.getTypeArguments(),
                 element.getSimpleName(),
                 element.getTypeParameters());
-
-        for (int i = 0; i < tree.getTypeArguments().size(); i++) {
-            visitor.checkRedundantAnnotations(
-                    tree.getTypeArguments().get(i), capturedType.getTypeArguments().get(i));
-        }
 
         @SuppressWarnings(
                 "interning:not.interned") // applyCaptureConversion returns the passed type if type
@@ -679,14 +673,6 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
 
         if (!areBoundsValid(type.getExtendsBound(), type.getSuperBound())) {
             reportInvalidBounds(type, tree);
-        }
-        AnnotatedTypeMirror superATM = type.getSuperBound();
-        AnnotatedTypeMirror extendsATM = type.getExtendsBound();
-        if (!(superATM instanceof AnnotatedTypeMirror.AnnotatedNullType)) {
-            visitor.checkRedundantAnnotations(tree, superATM);
-        }
-        if (!(extendsATM instanceof AnnotatedTypeMirror.AnnotatedNullType)) {
-            visitor.checkRedundantAnnotations(tree, extendsATM);
         }
         return super.visitWildcard(type, tree);
     }

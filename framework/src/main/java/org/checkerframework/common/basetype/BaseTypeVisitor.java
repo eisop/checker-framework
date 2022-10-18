@@ -516,7 +516,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotatedDeclaredType classType = atypeFactory.getAnnotatedType(classTree);
         atypeFactory.getDependentTypesHelper().checkClassForErrorExpressions(classTree, classType);
         validateType(classTree, classType);
-        checkRedundantAnnotations(classTree, classType);
 
         Tree ext = classTree.getExtendsClause();
         if (ext != null) {
@@ -1426,9 +1425,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
         validateTypeOf(node);
 
-        for (Tree tree : node.getBounds()) {
-            checkRedundantAnnotations(tree, atypeFactory.getAnnotatedType(tree));
-        }
         return super.visitTypeParameter(node, p);
     }
 
@@ -2052,7 +2048,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 constructorName,
                 constructor.getTypeParameters());
         AnnotatedDeclaredType dt = atypeFactory.getAnnotatedType(node);
-        checkRedundantAnnotations(node, dt);
 
         boolean valid = validateTypeOf(node);
 
@@ -2526,9 +2521,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             checkExplicitAnnotationsOnIntersectionBounds(
                     intersection, ((IntersectionTypeTree) node.getType()).getBounds());
         }
-        checkRedundantAnnotations(node.getType(), type);
         return super.visitTypeCast(node, p);
-        // return scan(node.getExpression(), p);
     }
 
     @Override
@@ -2541,7 +2534,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             if (variableTree.getModifiers() != null) {
                 AnnotatedTypeMirror variableType = atypeFactory.getAnnotatedType(variableTree);
                 AnnotatedTypeMirror expType = atypeFactory.getAnnotatedType(tree.getExpression());
-                checkRedundantAnnotations(patternTree, variableType);
                 if (!isTypeCastSafe(variableType, expType)) {
                     checker.reportWarning(tree, "instanceof.pattern.unsafe", expType, variableTree);
                 }
@@ -2552,7 +2544,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             if (refTypeTree.getKind() == Tree.Kind.ANNOTATED_TYPE) {
                 AnnotatedTypeMirror refType = atypeFactory.getAnnotatedType(refTypeTree);
                 AnnotatedTypeMirror expType = atypeFactory.getAnnotatedType(tree.getExpression());
-                checkRedundantAnnotations(refTypeTree, refType);
                 if (atypeFactory.getTypeHierarchy().isSubtype(refType, expType)
                         && !refType.getAnnotations().equals(expType.getAnnotations())) {
                     checker.reportWarning(tree, "instanceof.unsafe", expType, refType);

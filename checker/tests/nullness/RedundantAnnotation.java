@@ -15,8 +15,8 @@ Check redundant annotations on below locations
 3. Parameter (includes Receiver Parameter)         +
 4. Exception Parameter                             +
 5. Resource Variable                               +
-6. Enum Constant                                   - (cannot get explicit annotations here)
-7. Return Type                                     +
+6. Return Type                                     +
+7. Enum Constant                                   - (cannot get explicit annotations here)
 8. Constructor Result                              - (cannot get explicit annotations here)
 9. Wildcard upper bound and lower bound            - (cannot get explicit annotations here)
 10. Type Parameter upper bound and lower bound     - (cannot get explicit annotations here)
