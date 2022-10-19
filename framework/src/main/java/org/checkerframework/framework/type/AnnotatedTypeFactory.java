@@ -2876,6 +2876,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
     }
 
+    /**
+     * Set the adapted parameters for a newClassTree or a methodInvocationTree.
+     *
+     * @param method a AnnotatedExecutableType
+     * @param tree a newClassTree or a methodInvocationTree
+     */
     private void adaptParameters(AnnotatedExecutableType method, ExpressionTree tree) {
         List<AnnotatedTypeMirror> parameters = method.getParameterTypes();
         if (parameters.isEmpty()) {

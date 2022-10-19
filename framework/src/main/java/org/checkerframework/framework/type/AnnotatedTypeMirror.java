@@ -1127,8 +1127,8 @@ public abstract class AnnotatedTypeMirror {
         private boolean paramTypesComputed = false;
         /** The receiver type. */
         private AnnotatedDeclaredType receiverType;
-
-        protected AnnotatedArrayType varargType = null;
+        /** The varargs type. */
+        private AnnotatedArrayType varargType = null;
         /** Whether {@link receiverType} has been computed. */
         private boolean receiverTypeComputed = false;
         /** The return type. */
@@ -1208,10 +1208,20 @@ public abstract class AnnotatedTypeMirror {
             return paramTypes;
         }
 
+        /**
+         * Sets the varargs types of this executable type.
+         *
+         * @param varargs an AnnotatedArrayType of varargs
+         */
         public void setVarargType(AnnotatedArrayType varargs) {
             varargType = varargs;
         }
 
+        /**
+         * Returns the varargs types of this executable type.
+         *
+         * @return the varargs type of this executable type
+         */
         public AnnotatedArrayType getVarargType() {
             return varargType;
         }
