@@ -557,6 +557,12 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /** List of upstream checker names. Includes the current checker. */
     protected List<@FullyQualifiedName String> upstreamCheckerNames;
 
+    /**
+     * Default constructor.
+     */
+    SourceChecker() {
+    }
+
     @Override
     public final synchronized void init(ProcessingEnvironment env) {
         ProcessingEnvironment unwrappedEnv = unwrapProcessingEnvironment(env);
