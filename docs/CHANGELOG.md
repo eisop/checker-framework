@@ -3,6 +3,10 @@ Version 3.26.0-eisop2 (October ?, 2022)
 
 **User-visible changes:**
 
+The new command-line argument `AcheckRedundantAnnotations` helps to reduce redundant annotations.
+When supplying this flag, program will issue a warning if the explicitly written annotation
+on a type is the same as the default annotation would be applied on this type.
+
 **Implementation details:**
 
 **Closed issues:**

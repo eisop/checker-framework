@@ -180,6 +180,11 @@ import javax.tools.Diagnostic.Kind;
     // See Issue 979.
     "conservativeUninferredTypeArguments",
 
+    // Issues a "redundant.anno" warning if the annotation written on the type is the same as
+    // the default annotation would be applied on the type. When not supplying this flag, this
+    // option is disabled.
+    "checkRedundantAnnotations",
+
     // Whether to ignore all subtype tests for type arguments that
     // were inferred for a raw type. Defaults to true.
     // org.checkerframework.framework.type.TypeHierarchy.isSubtypeTypeArguments
@@ -417,11 +422,6 @@ import javax.tools.Diagnostic.Kind;
     // Also checks that annotations can be inserted. For each Java file, clears all annotations and
     // reinserts them, then checks if the original and modified ASTs are equivalent.
     "ajavaChecks",
-
-    // Issues a "redundant.anno" warning if the annotation written on the type is the same as
-    // the default annotation would be applied on the type. When not supplying this flag, this
-    // option is disabled.
-    "checkRedundantAnnotations",
 })
 public abstract class SourceChecker extends AbstractTypeProcessor implements OptionConfiguration {
 
