@@ -2334,6 +2334,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             addDefaultAnnotations(wildcard);
         }
 
+        adaptParameters(result.executableType, tree);
         return result;
     }
 

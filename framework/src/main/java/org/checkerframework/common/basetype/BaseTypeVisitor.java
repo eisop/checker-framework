@@ -1698,9 +1698,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     node.getTypeArguments(),
                     methodName,
                     invokedMethod.getTypeVariables());
-            List<AnnotatedTypeMirror> params =
-                    AnnotatedTypes.adaptParameters(
-                            atypeFactory, invokedMethod, node.getArguments());
+            List<AnnotatedTypeMirror> params = invokedMethod.getParameterTypes();
             checkArguments(params, node.getArguments(), methodName, method.getParameters());
             checkVarargs(invokedMethod, node);
 

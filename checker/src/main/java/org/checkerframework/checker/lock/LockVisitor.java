@@ -37,7 +37,6 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.QualifierHierarchy;
-import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
 import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesError;
@@ -637,8 +636,7 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
         ParameterizedExecutableType mType = atypeFactory.methodFromUse(node);
         AnnotatedExecutableType invokedMethod = mType.executableType;
 
-        List<AnnotatedTypeMirror> paramTypes =
-                AnnotatedTypes.adaptParameters(atypeFactory, invokedMethod, node.getArguments());
+        List<AnnotatedTypeMirror> paramTypes = invokedMethod.getParameterTypes();
 
         // Index on @GuardSatisfied at each location. -1 when no @GuardSatisfied annotation was
         // present.
