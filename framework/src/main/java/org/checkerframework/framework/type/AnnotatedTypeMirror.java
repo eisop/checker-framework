@@ -1129,7 +1129,6 @@ public abstract class AnnotatedTypeMirror {
         private AnnotatedDeclaredType receiverType;
 
         protected AnnotatedArrayType varargType = null;
-        protected AnnotatedTypeMirror passedReceiverType;
         /** Whether {@link receiverType} has been computed. */
         private boolean receiverTypeComputed = false;
         /** The return type. */
@@ -1307,24 +1306,6 @@ public abstract class AnnotatedTypeMirror {
                 receiverTypeComputed = true;
             }
             return receiverType;
-        }
-
-        /**
-         * Sets the passed receiver type on this executable type.
-         *
-         * @param passedReceiverType the passed receiver type
-         */
-        /*package-private*/ void setPassedReceiverType(AnnotatedTypeMirror passedReceiverType) {
-            this.passedReceiverType = passedReceiverType;
-        }
-
-        /**
-         * Returns the passed receiver type of this executable type.
-         *
-         * @return the passed receiver type of this executable type.
-         */
-        public @Nullable AnnotatedTypeMirror getPassedReceiverType() {
-            return this.passedReceiverType;
         }
 
         /**
