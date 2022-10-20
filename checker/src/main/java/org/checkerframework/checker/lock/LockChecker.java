@@ -21,10 +21,10 @@ import javax.annotation.processing.SupportedOptions;
 // is a call to .lock() in a method?
 // Or is this a common pattern to lock in one method and unlock in a different one?
 
-@SupportedOptions({"conservativeReceiverInitialization"})
 /**
  * The Lock Checker.
  *
  * @checker_framework.manual #lock-checker Lock Checker
  */
+@SupportedOptions({"conservativeReceiverInitialization"})
 public class LockChecker extends BaseTypeChecker {}
