@@ -11,7 +11,6 @@ public class InnerHasQualifierParameter {
 
     public void test() {
         TestInterface test =
-                // :: error: (argument.type.incompatible)
                 new TestInterface() {
                     public void testMethod() {}
                 };

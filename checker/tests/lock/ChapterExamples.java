@@ -130,37 +130,31 @@ public class ChapterExamples {
         synchronized (this) { // Tests translation of '<self>' to 'this'
             // myField = new MyClass();
             myField.toString();
-            // :: error: (argument.type.incompatible)
             this.myField = new MyClass();
             this.myField.toString();
         }
         // :: error: (lock.not.held)
-        // :: error: (argument.type.incompatible)
         myField = new MyClass();
         // :: error: (lock.not.held)
         myField.toString();
         // :: error: (lock.not.held)
-        // :: error: (argument.type.incompatible)
         this.myField = new MyClass();
         // :: error: (lock.not.held)
         this.myField.toString();
     }
 
     void guardedByThisOnReceiver(@GuardedBy("this") ChapterExamples this) {
-        // :: error: (lock.not.held) :: error: (argument.type.incompatible)
+        // :: error: (lock.not.held)
         myField = new MyClass();
         // :: error: (lock.not.held)
         myField.toString();
         // :: error: (lock.not.held)
-        // :: error: (argument.type.incompatible)
         this.myField = new MyClass();
         // :: error: (lock.not.held)
         this.myField.toString();
         synchronized (this) {
-            // :: error: (argument.type.incompatible)
             myField = new MyClass();
             myField.toString();
-            // :: error: (argument.type.incompatible)
             this.myField = new MyClass();
             this.myField.toString();
         }
@@ -168,12 +162,11 @@ public class ChapterExamples {
 
     void testDereferenceOfReceiverAndParameter(
             @GuardedBy("lock") ChapterExamples this, @GuardedBy("lock") MyClass m) {
-        // :: error: (lock.not.held) :: error: (argument.type.incompatible)
+        // :: error: (lock.not.held)
         myField = new MyClass();
         // :: error: (lock.not.held)
         myField.toString();
         // :: error: (lock.not.held)
-        // :: error: (argument.type.incompatible)
         this.myField = new MyClass();
         // :: error: (lock.not.held)
         this.myField.toString();
@@ -188,10 +181,8 @@ public class ChapterExamples {
         // to make sure this scenario issues a warning.
         // :: error: (lock.not.held)
         synchronized (lock) {
-            // :: error: (argument.type.incompatible)
             myField = new MyClass();
             myField.toString();
-            // :: error: (argument.type.incompatible)
             this.myField = new MyClass();
             this.myField.toString();
             m.field = new Object();
