@@ -67,7 +67,6 @@ public class LambdaInit {
 
     // Test for https://github.com/typetools/checker-framework/issues/5194 .
     Object o =
-            // :: error: (argument.type.incompatible)
             new Object() {
                 @Override
                 public String toString() {

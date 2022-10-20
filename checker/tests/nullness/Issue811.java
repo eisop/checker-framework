@@ -18,7 +18,6 @@ public class Issue811 {
     public Issue811(@NonNull T t) {
         tField = t;
         uField =
-                // :: error: (argument.type.incompatible)
                 new U() {
                     @Override
                     public void method() {

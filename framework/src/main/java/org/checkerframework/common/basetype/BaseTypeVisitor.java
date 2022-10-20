@@ -1821,6 +1821,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         int numFormals = formals.size();
         int lastArgIndex = numFormals - 1;
         // This is the varags type, an array.
+        // TODO: remove the if block
         AnnotatedArrayType lastParamAnnotatedType = null;
         if (invokedMethod.getVarargType() != null) {
             lastParamAnnotatedType = invokedMethod.getVarargType();
@@ -2016,7 +2017,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         } else {
             argumentReceiverType = atypeFactory.getImplicitReceiverType(node);
         }
-        if (parameterReceiverType != null && argumentReceiverType != null) {
+        if (!checker.hasOption("conservativeReceiverInitialization")
+                && parameterReceiverType != null
+                && argumentReceiverType != null) {
             if (atypeFactory.types.isSameType(
                     argumentReceiverType.getUnderlyingType(),
                     parameterReceiverType.getUnderlyingType())) {

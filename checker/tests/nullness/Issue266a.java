@@ -9,7 +9,6 @@ public class Issue266a {
     public Issue266a() {
         mBar = "test";
         Runnable runnable =
-                // :: error: (argument.type.incompatible)
                 new Runnable() {
                     @Override
                     public void run() {

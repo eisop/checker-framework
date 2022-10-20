@@ -4,7 +4,6 @@ class Issue4923 {
     }
 
     final Go go =
-            // :: error: (argument.type.incompatible)
             new Go() {
                 @Override
                 public void go() {

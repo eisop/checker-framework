@@ -29,7 +29,6 @@ public class GenericsBounds5 {
     }
 
     // :: error: (assignment.type.incompatible)
-    // :: error: (argument.type.incompatible)
     Collection1<@Nullable ? extends @Nullable Integer> f = new Collection1<@NonNull Integer>();
 
     void bad(Collection1<@NonNull Integer> nnarg) {

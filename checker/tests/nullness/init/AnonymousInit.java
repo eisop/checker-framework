@@ -2,7 +2,6 @@
 // classes work.
 public class AnonymousInit {
     Object o1 =
-            // :: error: (argument.type.incompatible)
             new Object() {
                 // :: error: (initialization.field.uninitialized)
                 Object s;
@@ -12,7 +11,6 @@ public class AnonymousInit {
                 }
             };
     Object o2 =
-            // :: error: (argument.type.incompatible)
             new Object() {
                 Object s = "hi";
 
