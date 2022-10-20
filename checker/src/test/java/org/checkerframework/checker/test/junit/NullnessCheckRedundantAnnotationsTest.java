@@ -6,15 +6,15 @@ import org.junit.runners.Parameterized.Parameters;
 import java.io.File;
 import java.util.List;
 
-/** JUnit tests for the Nullness checker when checkCastElementType is used. */
-public class NullnessCheckRedundantAnnotations extends CheckerFrameworkPerDirectoryTest {
+/** JUnit tests for the Nullness checker when AcheckRedundantAnnotations is used. */
+public class NullnessCheckRedundantAnnotationsTest extends CheckerFrameworkPerDirectoryTest {
 
     /**
-     * Create a NullnessCheckCastElementTypeTest.
+     * Create a NullnessCheckRedundantAnnotationsTest.
      *
      * @param testFiles the files containing test code, which will be type-checked
      */
-    public NullnessCheckRedundantAnnotations(List<File> testFiles) {
+    public NullnessCheckRedundantAnnotationsTest(List<File> testFiles) {
         super(
                 testFiles,
                 org.checkerframework.checker.nullness.NullnessChecker.class,
