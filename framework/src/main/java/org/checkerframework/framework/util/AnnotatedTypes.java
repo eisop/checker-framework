@@ -1004,6 +1004,11 @@ public class AnnotatedTypes {
             return parameters;
         }
 
+        if (method.getElement().isVarArgs()) {
+            AnnotatedArrayType varargs = (AnnotatedArrayType) parameters.get(parameters.size() - 1);
+            method.setVarargType(varargs);
+        }
+
         // Handle anonymous constructors that extend a class with an enclosing type.
         if (method.getElement().getKind() == ElementKind.CONSTRUCTOR
                 && method.getElement().getEnclosingElement().getSimpleName().contentEquals("")) {

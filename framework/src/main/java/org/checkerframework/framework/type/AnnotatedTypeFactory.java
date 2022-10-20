@@ -2334,7 +2334,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             addDefaultAnnotations(wildcard);
         }
 
-        adaptParameters(result.executableType, tree);
+        List<AnnotatedTypeMirror> parameters =
+                AnnotatedTypes.adaptParameters(this, result.executableType, tree.getArguments());
+        result.executableType.setParameterTypes(parameters);
         return result;
     }
 
@@ -2789,7 +2791,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             ((AnnotatedDeclaredType) con.getReturnType()).setEnclosingType(enclosingType);
         }
 
-        adaptParameters(con, tree);
+        List<AnnotatedTypeMirror> parameters =
+                AnnotatedTypes.adaptParameters(this, con, tree.getArguments());
+        con.setParameterTypes(parameters);
         return new ParameterizedExecutableType(con, typeargs);
     }
 
@@ -2876,89 +2880,90 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
     }
 
-    /**
-     * Set the adapted parameters for a newClassTree or a methodInvocationTree.
-     *
-     * @param method a AnnotatedExecutableType
-     * @param tree a newClassTree or a methodInvocationTree
-     */
-    private void adaptParameters(AnnotatedExecutableType method, ExpressionTree tree) {
-        List<AnnotatedTypeMirror> parameters = method.getParameterTypes();
-        if (parameters.isEmpty()) {
-            return;
-        }
-        List<? extends ExpressionTree> args = null;
-        if (tree.getKind() == Tree.Kind.METHOD_INVOCATION) {
-            args = ((MethodInvocationTree) tree).getArguments();
-        } else if (tree.getKind() == Tree.Kind.NEW_CLASS) {
-            args = ((NewClassTree) tree).getArguments();
-        } else {
-            return;
-        }
-        if (method.getElement().isVarArgs()) {
-            AnnotatedArrayType varargs = (AnnotatedArrayType) parameters.get(parameters.size() - 1);
-            method.setVarargType(varargs);
-        }
-
-        DeclaredType t =
-                TypesUtils.getSuperClassOrInterface(
-                        method.getElement().getEnclosingElement().asType(), types);
-        List<AnnotatedTypeMirror> p = new ArrayList<>(method.getParameterTypes().size());
-        p.addAll(parameters);
-        if (t != null && t.getEnclosingType() != null) {
-            if (parameters.size() > 0) {
-                if (args.isEmpty()) {
-                    p.clear();
-                    p.addAll(parameters.subList(1, parameters.size()));
-                } else {
-                    TypeMirror p0tm = parameters.get(0).getUnderlyingType();
-                    // Is the first parameter either equal to the enclosing type?
-                    if (types.isSameType(t.getEnclosingType(), p0tm)) {
-                        // Is the first argument the same type as the first parameter?
-                        if (!types.isSameType(TreeUtils.typeOf(args.get(0)), p0tm)) {
-                            // Remove the first parameter.
-                            p.clear();
-                            p.addAll(parameters.subList(1, parameters.size()));
-                        }
-                    }
-                }
-            }
-        }
-        method.setParameterTypes(Collections.unmodifiableList(p));
-        if (method.getParameterTypes().isEmpty()) {
-            return;
-        }
-
-        parameters = method.getParameterTypes();
-
-        if (!method.getElement().isVarArgs()) {
-            return;
-        }
-
-        AnnotatedArrayType varargs = method.getVarargType();
-        // varargs
-
-        if (parameters.size() == args.size() && args.size() > 0) {
-            // Check if one sent an element or an array
-            AnnotatedTypeMirror lastArg = getAnnotatedType(args.get(args.size() - 1));
-            if (lastArg.getKind() == TypeKind.NULL
-                    || (lastArg.getKind() == TypeKind.ARRAY
-                            && AnnotatedTypes.getArrayDepth(varargs)
-                                    == AnnotatedTypes.getArrayDepth(
-                                            (AnnotatedArrayType) lastArg))) {
-                method.setParameterTypes(parameters);
-                return;
-            }
-        }
-
-        parameters = new ArrayList<>(parameters.subList(0, parameters.size() - 1));
-        for (int i = args.size() - parameters.size(); i > 0; --i) {
-            parameters.add(varargs.getComponentType().deepCopy());
-        }
-
-        method.setParameterTypes(parameters);
-        return;
-    }
+    //    /**
+    //     * Set the adapted parameters for a newClassTree or a methodInvocationTree.
+    //     *
+    //     * @param method a AnnotatedExecutableType
+    //     * @param tree a newClassTree or a methodInvocationTree
+    //     */
+    //    private void adaptParameters(AnnotatedExecutableType method, ExpressionTree tree) {
+    //        List<AnnotatedTypeMirror> parameters = method.getParameterTypes();
+    //        if (parameters.isEmpty()) {
+    //            return;
+    //        }
+    //        List<? extends ExpressionTree> args = null;
+    //        if (tree.getKind() == Tree.Kind.METHOD_INVOCATION) {
+    //            args = ((MethodInvocationTree) tree).getArguments();
+    //        } else if (tree.getKind() == Tree.Kind.NEW_CLASS) {
+    //            args = ((NewClassTree) tree).getArguments();
+    //        } else {
+    //            return;
+    //        }
+    //        if (method.getElement().isVarArgs()) {
+    //            AnnotatedArrayType varargs = (AnnotatedArrayType) parameters.get(parameters.size()
+    // - 1);
+    //            method.setVarargType(varargs);
+    //        }
+    //
+    //        DeclaredType t =
+    //                TypesUtils.getSuperClassOrInterface(
+    //                        method.getElement().getEnclosingElement().asType(), types);
+    //        List<AnnotatedTypeMirror> p = new ArrayList<>(method.getParameterTypes().size());
+    //        p.addAll(parameters);
+    //        if (t != null && t.getEnclosingType() != null) {
+    //            if (parameters.size() > 0) {
+    //                if (args.isEmpty()) {
+    //                    p.clear();
+    //                    p.addAll(parameters.subList(1, parameters.size()));
+    //                } else {
+    //                    TypeMirror p0tm = parameters.get(0).getUnderlyingType();
+    //                    // Is the first parameter either equal to the enclosing type?
+    //                    if (types.isSameType(t.getEnclosingType(), p0tm)) {
+    //                        // Is the first argument the same type as the first parameter?
+    //                        if (!types.isSameType(TreeUtils.typeOf(args.get(0)), p0tm)) {
+    //                            // Remove the first parameter.
+    //                            p.clear();
+    //                            p.addAll(parameters.subList(1, parameters.size()));
+    //                        }
+    //                    }
+    //                }
+    //            }
+    //        }
+    //        method.setParameterTypes(Collections.unmodifiableList(p));
+    //        if (method.getParameterTypes().isEmpty()) {
+    //            return;
+    //        }
+    //
+    //        parameters = method.getParameterTypes();
+    //
+    //        if (!method.getElement().isVarArgs()) {
+    //            return;
+    //        }
+    //
+    //        AnnotatedArrayType varargs = method.getVarargType();
+    //        // varargs
+    //
+    //        if (parameters.size() == args.size() && args.size() > 0) {
+    //            // Check if one sent an element or an array
+    //            AnnotatedTypeMirror lastArg = getAnnotatedType(args.get(args.size() - 1));
+    //            if (lastArg.getKind() == TypeKind.NULL
+    //                    || (lastArg.getKind() == TypeKind.ARRAY
+    //                            && AnnotatedTypes.getArrayDepth(varargs)
+    //                                    == AnnotatedTypes.getArrayDepth(
+    //                                            (AnnotatedArrayType) lastArg))) {
+    //                method.setParameterTypes(parameters);
+    //                return;
+    //            }
+    //        }
+    //
+    //        parameters = new ArrayList<>(parameters.subList(0, parameters.size() - 1));
+    //        for (int i = args.size() - parameters.size(); i > 0; --i) {
+    //            parameters.add(varargs.getComponentType().deepCopy());
+    //        }
+    //
+    //        method.setParameterTypes(parameters);
+    //        return;
+    //    }
 
     /**
      * Returns the partially-annotated explicit class type arguments of the new class tree. The

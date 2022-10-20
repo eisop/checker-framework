@@ -84,7 +84,6 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
     private boolean hasInvokedTypeProcessingOver = false;
 
     /** The TaskListener registered for completion of attribution. */
-    @SuppressWarnings("nullness:argument.type.incompatible")
     private final AttributionTaskListener listener = new AttributionTaskListener();
 
     /** Constructor for subclasses to call. */

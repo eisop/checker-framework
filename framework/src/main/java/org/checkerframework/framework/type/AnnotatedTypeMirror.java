@@ -1213,7 +1213,8 @@ public abstract class AnnotatedTypeMirror {
          *
          * @param varargs an AnnotatedArrayType of varargs
          */
-        /*package-private*/ void setVarargType(AnnotatedArrayType varargs) {
+        /*package-private*/
+        public void setVarargType(AnnotatedArrayType varargs) {
             varargType = varargs;
         }
 
