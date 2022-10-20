@@ -20,5 +20,5 @@ if [ "$TRAVIS" = "true" ] ; then
   # Travis kills a job if it runs 10 minutes without output
   time make JAVACHECK_EXTRA_ARGS='-Afilenames -AconservativeReceiverInitialization=true' -C java typecheck
 else
-  time make JAVACHECK_EXTRA_ARGS='-AconservativeReceiverInitialization=true' C java typecheck
+  time make JAVACHECK_EXTRA_ARGS='-AconservativeReceiverInitialization=true' -C java typecheck
 fi
