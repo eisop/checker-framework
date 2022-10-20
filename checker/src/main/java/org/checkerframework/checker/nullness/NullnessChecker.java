@@ -38,7 +38,8 @@ import javax.annotation.processing.SupportedOptions;
 @SupportedOptions({
     "assumeKeyFor",
     "jspecifyNullMarkedAlias",
-    "conservativeArgumentNullnessAfterInvocation"
+    "conservativeArgumentNullnessAfterInvocation",
+    "conservativeReceiverInitialization"
 })
 @StubFiles({"junit-assertions.astub"})
 public class NullnessChecker extends InitializationChecker {
