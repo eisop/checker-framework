@@ -2017,7 +2017,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         } else {
             argumentReceiverType = atypeFactory.getImplicitReceiverType(node);
         }
-        if (!checker.hasOption("conservativeReceiverInitialization")
+        if (checker.hasOption("conservativeInnerClassReceiverCheck")
                 && parameterReceiverType != null
                 && argumentReceiverType != null) {
             if (atypeFactory.types.isSameType(

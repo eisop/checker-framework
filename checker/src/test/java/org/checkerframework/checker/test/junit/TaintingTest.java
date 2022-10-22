@@ -15,11 +15,7 @@ public class TaintingTest extends CheckerFrameworkPerDirectoryTest {
      * @param testFiles the files containing test code, which will be type-checked
      */
     public TaintingTest(List<File> testFiles) {
-        super(
-                testFiles,
-                TaintingChecker.class,
-                "tainting",
-                "-AconservativeReceiverInitialization=true");
+        super(testFiles, TaintingChecker.class, "tainting");
     }
 
     @Parameters

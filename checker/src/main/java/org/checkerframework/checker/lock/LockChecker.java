@@ -2,8 +2,6 @@ package org.checkerframework.checker.lock;
 
 import org.checkerframework.common.basetype.BaseTypeChecker;
 
-import javax.annotation.processing.SupportedOptions;
-
 // TODO: Here is a list of nice-to-have features/tests but not critical to release the Lock Checker:
 
 // Add a warning if a user annotates a static field with @GuardedBy("this") instead of
@@ -26,5 +24,4 @@ import javax.annotation.processing.SupportedOptions;
  *
  * @checker_framework.manual #lock-checker Lock Checker
  */
-@SupportedOptions({"conservativeReceiverInitialization"})
 public class LockChecker extends BaseTypeChecker {}
