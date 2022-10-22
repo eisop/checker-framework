@@ -141,7 +141,6 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
 
                 // If the method accepts varargs, we handle the vararg parameter after this
                 // for-loop.
-                //                int loopBound = isVarargs ? parametersCount - 1 : parametersCount;
                 for (int i = 0; i < parametersCount; i++) {
                     @SuppressWarnings("interning") // Tree must be exactly the same.
                     boolean foundArgument = methodInvocationTree.getArguments().get(i) == tree;

@@ -2335,7 +2335,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         List<AnnotatedTypeMirror> parameters =
-                AnnotatedTypes.adaptParameters(this, result.executableType, tree.getArguments());
+                adaptParameters(this, result.executableType, tree.getArguments());
         result.executableType.setParameterTypes(parameters);
         return result;
     }
@@ -2791,8 +2791,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             ((AnnotatedDeclaredType) con.getReturnType()).setEnclosingType(enclosingType);
         }
 
-        List<AnnotatedTypeMirror> parameters =
-                AnnotatedTypes.adaptParameters(this, con, tree.getArguments());
+        List<AnnotatedTypeMirror> parameters = adaptParameters(this, con, tree.getArguments());
         con.setParameterTypes(parameters);
         return new ParameterizedExecutableType(con, typeargs);
     }
@@ -2851,6 +2850,89 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             type.setEnclosingType(enclosingType);
         }
         return type;
+    }
+
+    /**
+     * Returns the method parameters for the invoked method (or constructor), with the same number
+     * of arguments as passed to the invocation tree.
+     *
+     * <p>This expands the parameters if the call uses varargs or contracts the parameters if the
+     * call is to an anonymous class that extends a class with an enclosing type. If the call is
+     * neither of these, then the parameters are returned unchanged.
+     *
+     * @param atypeFactory the type factory to use for fetching annotated types
+     * @param method the method or constructor's type
+     * @param args the arguments to the method or constructor invocation
+     * @return a list of the types that the invocation arguments need to be subtype of; has the same
+     *     length as {@code args}
+     */
+    public static List<AnnotatedTypeMirror> adaptParameters(
+            AnnotatedTypeFactory atypeFactory,
+            AnnotatedExecutableType method,
+            List<? extends ExpressionTree> args) {
+        List<AnnotatedTypeMirror> parameters = method.getParameterTypes();
+
+        if (parameters.isEmpty()) {
+            return parameters;
+        }
+
+        if (method.getElement().isVarArgs()) {
+            AnnotatedArrayType varargs = (AnnotatedArrayType) parameters.get(parameters.size() - 1);
+            method.setVarargType(varargs);
+        }
+
+        // Handle anonymous constructors that extend a class with an enclosing type.
+        if (method.getElement().getKind() == ElementKind.CONSTRUCTOR
+                && method.getElement().getEnclosingElement().getSimpleName().contentEquals("")) {
+            DeclaredType t =
+                    TypesUtils.getSuperClassOrInterface(
+                            method.getElement().getEnclosingElement().asType(), atypeFactory.types);
+            if (t.getEnclosingType() != null) {
+                if (args.isEmpty()) {
+                    // TODO: ugly hack to attempt to fix mismatch
+                    parameters = parameters.subList(1, parameters.size());
+                } else {
+                    TypeMirror p0tm = parameters.get(0).getUnderlyingType();
+                    // Is the first parameter either equal to the enclosing type?
+                    if (atypeFactory.types.isSameType(t.getEnclosingType(), p0tm)) {
+                        // Is the first argument the same type as the first parameter?
+                        if (!atypeFactory.types.isSameType(TreeUtils.typeOf(args.get(0)), p0tm)) {
+                            // Remove the first parameter.
+                            parameters = parameters.subList(1, parameters.size());
+                        }
+                    }
+                }
+                if (parameters.isEmpty()) {
+                    return parameters;
+                }
+            }
+        }
+
+        // Handle vararg methods.
+        if (!method.getElement().isVarArgs()) {
+            return parameters;
+        }
+
+        AnnotatedArrayType varargs = (AnnotatedArrayType) parameters.get(parameters.size() - 1);
+
+        if (parameters.size() == args.size()) {
+            // Check if one sent an element or an array
+            AnnotatedTypeMirror lastArg = atypeFactory.getAnnotatedType(args.get(args.size() - 1));
+            if (lastArg.getKind() == TypeKind.NULL
+                    || (lastArg.getKind() == TypeKind.ARRAY
+                            && AnnotatedTypes.getArrayDepth(varargs)
+                                    == AnnotatedTypes.getArrayDepth(
+                                            (AnnotatedArrayType) lastArg))) {
+                return parameters;
+            }
+        }
+
+        parameters = new ArrayList<>(parameters.subList(0, parameters.size() - 1));
+        for (int i = args.size() - parameters.size(); i > 0; --i) {
+            parameters.add(varargs.getComponentType().deepCopy());
+        }
+
+        return parameters;
     }
 
     /**

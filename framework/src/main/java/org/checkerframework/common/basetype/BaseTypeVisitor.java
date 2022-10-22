@@ -1817,17 +1817,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return;
         }
 
-        List<AnnotatedTypeMirror> formals = invokedMethod.getParameterTypes();
-        int numFormals = formals.size();
-        int lastArgIndex = numFormals - 1;
         // This is the varags type, an array.
-        // TODO: remove the if block
-        AnnotatedArrayType lastParamAnnotatedType = null;
-        if (invokedMethod.getVarargType() != null) {
-            lastParamAnnotatedType = invokedMethod.getVarargType();
-        } else {
-            lastParamAnnotatedType = (AnnotatedArrayType) formals.get(lastArgIndex);
-        }
+        AnnotatedArrayType lastParamAnnotatedType = invokedMethod.getVarargType();
 
         AnnotatedTypeMirror wrappedVarargsType = atypeFactory.getAnnotatedTypeVarargsArray(tree);
 

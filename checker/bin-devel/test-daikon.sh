@@ -15,7 +15,6 @@ source "$SCRIPTDIR"/build.sh
 "$SCRIPTDIR/.plume-scripts/git-clone-related" codespecs daikon
 cd ../daikon
 # Add flag to nullness checker
-sed -i "s/JAVAC_NULLNESS_ARGS = -processor org.checkerframework.checker.nullness.NullnessChecker -implicit:class -Xlint:-processing -AskipDefs='${ALLSYSTEMS_SKIPDEFS}/JAVAC_NULLNESS_ARGS = -processor org.checkerframework.checker.nullness.NullnessChecker -implicit:class -Xlint:-processing -AskipDefs='${ALLSYSTEMS_SKIPDEFS}' -AconservativeReceiverInitialization=true/g" java/Makefile
 git log | head -n 5
 make compile
 if [ "$TRAVIS" = "true" ] ; then

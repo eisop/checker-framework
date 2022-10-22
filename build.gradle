@@ -843,7 +843,7 @@ subprojects {
         // TODO: Incrementally add @AnnotatedFor on more classes.
         createCheckTypeTask(project.name, 'Nullness',
             'org.checkerframework.checker.nullness.NullnessChecker',
-            ['-AskipUses=com.sun.*', '-AconservativeArgumentNullnessAfterInvocation=true', '-AconservativeReceiverInitialization=true'])
+            ['-AskipUses=com.sun.*', '-AconservativeArgumentNullnessAfterInvocation=true'])
 
 
         // Add jtregTests to framework and checker modules
