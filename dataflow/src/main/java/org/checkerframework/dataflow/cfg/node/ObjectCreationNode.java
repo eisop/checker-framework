@@ -164,7 +164,7 @@ public class ObjectCreationNode extends Node {
                 || (receiver == null && other.getReceiver() != null)
                 || (receiver != null
                         && other.getReceiver() != null
-                        && receiver.equals(other.getReceiver()))) {
+                        && !receiver.equals(other.getReceiver()))) {
             return false;
         }
 
