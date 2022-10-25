@@ -5687,6 +5687,18 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
   */
 
   /* NO-AFU
+   * Returns whether whole-program inference should infer types for receiver expressions. For some
+   * type systems, such as nullness, it doesn't make sense for WPI to do inference on receivers.
+   *
+   * @return true if WPI should infer types for method receiver parameters, false otherwise
+   */
+  /* NO-AFU
+  public boolean wpiShouldInferTypesForReceivers() {
+    return true;
+  }
+  */
+
+  /* NO-AFU
    * Side-effects the method or constructor annotations to make any desired changes before writing
    * to an annotation file.
    *
