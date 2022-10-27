@@ -779,7 +779,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         return messagesProperties;
     }
 
-    /** Get the shared TreePathCacher instance. */
+    /**
+     * Get the shared TreePathCacher instance.
+     *
+     * @return the shared TreePathCacher instance.
+     */
     public TreePathCacher getTreePathCacher() {
         if (treePathCacher == null) {
             // In case it wasn't already set in instantiateSubcheckers.
