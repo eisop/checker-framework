@@ -24,6 +24,7 @@ import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.formatter.qual.FormatMethod;
 import org.checkerframework.checker.interning.qual.InternedDistinct;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.checker.signature.qual.CanonicalName;
 import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
@@ -1208,7 +1209,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @param source the original source position information; may be an Element, a Tree, or null
      * @return a source that may have more precise position information
      */
-    private Object getSourceWithPrecisePosition(@Nullable Object source) {
+    private @PolyNull Object getSourceWithPrecisePosition(@PolyNull Object source) {
         if (!(source instanceof JCTree)) {
             return source;
         }
