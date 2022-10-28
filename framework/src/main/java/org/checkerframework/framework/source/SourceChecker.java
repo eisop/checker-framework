@@ -2154,7 +2154,6 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *     otherwise
      */
     public boolean shouldSuppressWarnings(Tree tree, String errKey) {
-
         Collection<String> prefixes = getSuppressWarningsPrefixes();
         if (prefixes.isEmpty()
                 || (prefixes.contains(SUPPRESS_ALL_PREFIX) && prefixes.size() == 1)) {
@@ -2170,9 +2169,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return true;
         }
 
-        // trees.getPath might be slow, but this is only used in error reporting
         @Nullable TreePath path = getTreePathCacher().getPath(currentRoot, tree);
-
         return shouldSuppressWarnings(path, errKey);
     }
 
@@ -2939,6 +2936,6 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return path to the current compilation unit
      */
     public TreePath getPathToCompilationUnit() {
-        return TreePath.getPath(currentRoot, currentRoot);
+        return getTreePathCacher().getPath(currentRoot, currentRoot);
     }
 }
