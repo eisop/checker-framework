@@ -24,6 +24,6 @@ public class NullnessWarnRedundantAnnotationsTest extends CheckerFrameworkPerDir
 
     @Parameters
     public static String[] getTestDirs() {
-        return new String[] {"nullness-warnRedundantAnnotations"};
+        return new String[] {"nullness-warnredundantannotations"};
     }
 }
