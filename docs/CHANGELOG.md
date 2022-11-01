@@ -1,5 +1,5 @@
-Version 3.26.0-eisop2 (October ?, 2022)
----------------------------------------
+Version 3.27.0-eisop1 (November 4, 2022)
+----------------------------------------
 
 **User-visible changes:**
 
@@ -14,16 +14,16 @@ information.
 eisop#244
 
 
-Version 3.26.1 (November 1, 2022)
+Version 3.27.0 (November 1, 2022)
 ---------------------------------
 
 **User-visible changes:**
 
 The Constant Value Checker supports new annotation `@DoesNotMatchRegex`.
 
-**Implementation details:**
-
 **Closed issues:**
+
+#5238, #5360, #5362, #5387.
 
 
 Version 3.26.0-eisop1 (October 13, 2022)
