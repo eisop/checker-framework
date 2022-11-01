@@ -2365,7 +2365,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             } else if (castResult == CastSafeKind.ERROR) {
                 checker.reportError(
                         typeCastTree,
-                        "cast.incompatible",
+                        "cast.incomparable",
                         exprType.toString(true),
                         castType.toString(true));
             }

@@ -4,19 +4,19 @@ public class Overflows {
 
     static void bytes() {
         byte max = Byte.MAX_VALUE;
-        // :: error: (cast.incompatible)
+        // :: error: (cast.incomparable)
         @IntVal(-128) byte maxPlus1 = (byte) (max + 1);
     }
 
     static void chars() {
         char max = Character.MAX_VALUE;
-        // :: error: (cast.incompatible)
+        // :: error: (cast.incomparable)
         @IntVal(0) char maxPlus1 = (char) (max + 1);
     }
 
     static void shorts() {
         short max = Short.MAX_VALUE;
-        // :: error: (cast.incompatible)
+        // :: error: (cast.incomparable)
         @IntVal(-32768) short maxPlus1 = (short) (max + 1);
     }
 

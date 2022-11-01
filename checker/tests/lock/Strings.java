@@ -13,9 +13,9 @@ public class Strings {
             @GuardSatisfied Object o3,
             @GuardedByBottom Object o4) {
         String s1 = (String) o1;
-        // :: error: (cast.incompatible)
+        // :: error: (cast.incomparable)
         String s2 = (String) o2;
-        // :: error: (cast.incompatible)
+        // :: error: (cast.incomparable)
         String s3 = (String) o3;
         String s4 = (String) o4; // OK
     }
