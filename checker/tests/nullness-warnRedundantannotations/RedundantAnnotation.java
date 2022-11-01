@@ -84,6 +84,8 @@ Check for redundant annotations in the following locations
         boolean b = x instanceof @Nullable String;
 
         // TODO :: warning: (redundant.anno) on the component type
-        @NonNull String[] strs = new String[10];
+        @NonNull String[] strs;
+        // TODO :: warning: (redundant.anno) on the component type
+        strs = new @NonNull String[10];
     }
 }
