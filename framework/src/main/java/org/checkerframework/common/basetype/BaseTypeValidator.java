@@ -674,6 +674,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         if (!areBoundsValid(type.getExtendsBound(), type.getSuperBound())) {
             reportInvalidBounds(type, tree);
         }
+
         return super.visitWildcard(type, tree);
     }
 

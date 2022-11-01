@@ -657,6 +657,10 @@ Type-checking modes:  enable/disable functionality
 \begin{itemize}
 \item \<-Alint>
   Enable or disable optional checks; see Section~\ref{lint-options}.
+\item \<-AwarnRedundantAnnotations>
+  This flag warns about redundant annotations.
+  A warning is issued if the explicitly written annotation
+  on a type is the same as the default annotation for this type and location.
 \item \<-AsuggestPureMethods>
   Suggest methods that could be marked
   \refqualclass{dataflow/qual}{SideEffectFree},
@@ -721,10 +725,6 @@ Type-checking modes:  enable/disable functionality
   JDK, but could also be useful when the warning/note is redundant for a
   user.
   See comments for \<-ApermitUnsupportedJdkVersion> option above.
-\item \<-AcheckRedundantAnnotations>
-  Supplying this flag helps to reduce redundant annotations,
-  program will issue a warning if the explicitly written annotation
-  on a type is the same as the default annotation would be applied on this type.
 
 \end{itemize}
 

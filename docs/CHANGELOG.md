@@ -3,7 +3,7 @@ Version 3.26.0-eisop2 (October ?, 2022)
 
 **User-visible changes:**
 
-The new command-line argument `-AcheckRedundantAnnotations` warns about redundant annotations.
+The new command-line argument `-AwarnRedundantAnnotations` warns about redundant annotations.
 With this flag, a warning is issued if an explicitly written annotation on a type is the same as the default
 annotation for this type and location.
 

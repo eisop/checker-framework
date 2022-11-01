@@ -240,8 +240,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     private final boolean checkPurity;
 
-    /** True if "-AcheckRedundantAnnotations" was passed on the command line */
-    private final boolean checkRedundantAnnotations;
+    /** True if "-AwarnRedundantAnnotations" was passed on the command line */
+    private final boolean warnRedundantAnnotations;
 
     /** The tree of the enclosing method that is currently being visited. */
     protected @Nullable MethodTree methodTree = null;
@@ -278,7 +278,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         */
         suggestPureMethods = checker.hasOption("suggestPureMethods"); // NO-AFU || infer;
         checkPurity = checker.hasOption("checkPurityAnnotations") || suggestPureMethods;
-        checkRedundantAnnotations = checker.hasOption("checkRedundantAnnotations");
+        warnRedundantAnnotations = checker.hasOption("warnRedundantAnnotations");
     }
 
     /**
@@ -896,7 +896,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         if (node.getReturnType() != null) {
             visitAnnotatedType(node.getModifiers().getAnnotations(), node.getReturnType());
-            checkRedundantAnnotations(node.getReturnType(), methodType.getReturnType());
+            warnRedundantAnnotations(node.getReturnType(), methodType.getReturnType());
         }
 
         try {
@@ -907,7 +907,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
             if (TreeUtils.isConstructor(node)) {
                 checkConstructorResult(methodType, methodElement);
-                checkRedundantAnnotations(node, methodType.getReturnType());
+                warnRedundantAnnotations(node, methodType.getReturnType());
             }
 
             checkPurity(node);
@@ -1495,20 +1495,20 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             // so only validate if commonAssignmentCheck wasn't called
             validateTypeOf(node);
         }
-        checkRedundantAnnotations(node, variableType);
+        warnRedundantAnnotations(node, variableType);
         return super.visitVariable(node, p);
     }
 
     /**
      * Issues a "redundant.anno" warning if the annotation written on the type is the same as the
-     * default annotation would be applied on the type.
+     * default annotation for this type and location.
      *
      * @param tree tree
-     * @param type get the explicit annotation on this type and compare it with the default one
-     *     would be applied on the type.
+     * @param type get the explicit annotation on this type and compare it with the default one for
+     *     this type and location.
      */
-    void checkRedundantAnnotations(Tree tree, AnnotatedTypeMirror type) {
-        if (!checkRedundantAnnotations) {
+    void warnRedundantAnnotations(Tree tree, AnnotatedTypeMirror type) {
+        if (!warnRedundantAnnotations) {
             return;
         }
         Set<AnnotationMirror> explicitAnnos = type.getExplicitAnnotations();

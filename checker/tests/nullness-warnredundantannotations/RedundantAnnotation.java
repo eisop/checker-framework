@@ -31,7 +31,7 @@ Check for redundant annotations in the following locations
         T extends @Nullable Object> {
 
     enum InnerEnum {
-        // expects a "redundant.anno" warning on the enum constant
+        // TODO :: warning: (redundant.anno)
         // :: error: (nullness.on.enum)
         @NonNull EXPLICIT,
         IMPLICIT,
@@ -47,12 +47,15 @@ Check for redundant annotations in the following locations
         return Integer.valueOf(1);
     }
 
-    // expects a "redundant.anno" warning on the constructor
-    // :: error: (nullness.on.constructor)
     // :: warning: (redundant.anno)
-    @NonNull RedundantAnnotation(@NonNull Integer i) {
+    void foo2(@NonNull Integer i) {}
+
+    // TODO :: warning: (redundant.anno)
+    // :: error: (nullness.on.constructor)
+    @NonNull RedundantAnnotation() {
         f = new Object();
     }
+
     // :: error: (nullness.on.receiver)
     // :: warning: (redundant.anno)
     void bar(@NonNull RedundantAnnotation<T> this, InputStream arg) throws Exception {
@@ -65,20 +68,22 @@ Check for redundant annotations in the following locations
 
         }
 
-        // expects a "redundant.anno" warning on the upper bound
-        List<? extends @Nullable Object> l;
-        // expects a "redundant.anno" warning on the lower bound
-        List<? super @Nullable Object> l2;
+        // TODO :: warning: (redundant.anno) warning on the upper bound
+        List<? extends @NonNull Object> l;
+
+        // TODO :: warning: (redundant.anno) warning on the lower bound
+        // :: error: (type.invalid.super.wildcard)
+        List<? super @NonNull Object> l2;
 
         Object obj = null;
-        // expects a "redundant.anno" warning on the typecast
+        // TODO :: warning: (redundant.anno) for the typecast
         String x = (@Nullable String) obj;
 
-        // expects a "redundant.anno" warning on the typecast
+        // TODO :: warning: (redundant.anno) for the instanceof
         // :: error: (instanceof.nullable)
         boolean b = x instanceof @Nullable String;
 
-        // expects a "redundant.anno" warning on the component type
-        @Nullable String[] strs = new String[10];
+        // TODO :: warning: (redundant.anno) on the component type
+        @NonNull String[] strs = new String[10];
     }
 }

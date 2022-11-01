@@ -6,24 +6,24 @@ import org.junit.runners.Parameterized.Parameters;
 import java.io.File;
 import java.util.List;
 
-/** JUnit tests for the Nullness checker when AcheckRedundantAnnotations is used. */
-public class NullnessCheckRedundantAnnotationsTest extends CheckerFrameworkPerDirectoryTest {
+/** JUnit tests for the Nullness checker when AwarnRedundantAnnotations is used. */
+public class NullnessWarnRedundantAnnotationsTest extends CheckerFrameworkPerDirectoryTest {
 
     /**
-     * Create a NullnessCheckRedundantAnnotationsTest.
+     * Create a NullnessWarnRedundantAnnotationsTest.
      *
      * @param testFiles the files containing test code, which will be type-checked
      */
-    public NullnessCheckRedundantAnnotationsTest(List<File> testFiles) {
+    public NullnessWarnRedundantAnnotationsTest(List<File> testFiles) {
         super(
                 testFiles,
                 org.checkerframework.checker.nullness.NullnessChecker.class,
                 "nullness",
-                "-AcheckRedundantAnnotations");
+                "-AwarnRedundantAnnotations");
     }
 
     @Parameters
     public static String[] getTestDirs() {
-        return new String[] {"nullness-checkredundantannotations"};
+        return new String[] {"nullness-warnRedundantAnnotations"};
     }
 }
