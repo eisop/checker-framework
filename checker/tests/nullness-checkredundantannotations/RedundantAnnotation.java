@@ -1,13 +1,13 @@
 import org.checkerframework.checker.nullness.qual.*;
 
-import java.io.*;
+import java.io.InputStream;
 import java.util.List;
 
 /*
-Check redundant annotations on below locations
-(+ means that now CF reports an expected warning on this location
- - means that CF doesn't report an expected warning on this location, mostly because compiler
- doesn't store all explicit annotations in underlying typemirrors)
+Check for redundant annotations in the following locations
+(+ means that CF correctly reports an expected warning in this location,
+ - means that CF doesn't report an expected warning in this location, mostly because the compiler
+ doesn't store all explicit annotations in the underlying TypeMirrors):
 
 1. Field                                           +
 2. Local Variable                                  +
@@ -27,7 +27,8 @@ Check redundant annotations on below locations
 */
 
 @NonNull class RedundantAnnotation<
-        T extends @Nullable Object> { // expects a "redundant.anno" warning on the extends
+        // TODO :: warning: (redundant.anno)
+        T extends @Nullable Object> {
 
     enum InnerEnum {
         // expects a "redundant.anno" warning on the enum constant
