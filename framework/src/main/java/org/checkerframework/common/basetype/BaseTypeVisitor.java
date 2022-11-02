@@ -907,7 +907,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
             if (TreeUtils.isConstructor(node)) {
                 checkConstructorResult(methodType, methodElement);
-                warnRedundantAnnotations(node, methodType.getReturnType());
             }
 
             checkPurity(node);
@@ -1503,7 +1502,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * Issues a "redundant.anno" warning if the annotation written on the type is the same as the
      * default annotation for this type and location.
      *
-     * @param tree tree
+     * @param tree an AST node
      * @param type get the explicit annotation on this type and compare it with the default one for
      *     this type and location.
      */

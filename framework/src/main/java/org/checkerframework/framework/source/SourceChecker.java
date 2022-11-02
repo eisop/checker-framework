@@ -186,8 +186,7 @@ import javax.tools.Diagnostic.Kind;
     "conservativeUninferredTypeArguments",
 
     // Issues a "redundant.anno" warning if the annotation explicitly written on the type is
-    // the same as the default annotation for this type and location. Without this flag, this
-    // option is disabled.
+    // the same as the default annotation for this type and location.
     "warnRedundantAnnotations",
 
     // Whether to ignore all subtype tests for type arguments that

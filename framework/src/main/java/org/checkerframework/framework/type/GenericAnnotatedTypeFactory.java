@@ -1778,7 +1778,7 @@ public abstract class GenericAnnotatedTypeFactory<
 
     /**
      * This method removes all primary annotations on the type and re-calculate the default
-     * annotation would be applied on the new type with useflow disabled.
+     * annotation would be applied on the new type with useflow turned off.
      *
      * @param tree tree
      * @param type type
