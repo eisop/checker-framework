@@ -2465,10 +2465,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
         }
 
-        // Check when casting the expression having type T (a type variable) to type T,
-        // as compiler will not report the unchecked warning in this case (so we should),
-        // and we cannot statically verify the subtype relation of the annotations.
-        // See CastFromTtoT.java:20 for an example.
+        // Check when casting the expression having type T (a type variable) to type T.
+        // As the compiler will not report the unchecked warning in this case, so we should
+        // do the check for our type system when the subtype relation of the instantiations of the
+        // two T cannot be statically verified.
+        // See CastFromTtoT.java:22 for an example.
         if (castTypeKind == TypeKind.TYPEVAR && exprType.getKind() == TypeKind.TYPEVAR) {
             TypeVariable castTV = (TypeVariable) castType.getUnderlyingType();
             TypeVariable exprTV = (TypeVariable) exprType.getUnderlyingType();

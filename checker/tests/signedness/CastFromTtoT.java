@@ -18,8 +18,10 @@ class CastFromTtoT<T extends @UnknownSignedness Object> {
 
     class Inner<T extends @UnknownSignedness Object> {
         T bar2(@Signed T p) {
+            // without a warning from the compiler. The T in the casting expression may have
+            // different signedness annotation with the arugment p.
             // :: warning: (cast.unsafe)
-            T x = (T) p; // without a warning(guarantee) from the compiler.
+            T x = (T) p;
             return x;
         }
 
