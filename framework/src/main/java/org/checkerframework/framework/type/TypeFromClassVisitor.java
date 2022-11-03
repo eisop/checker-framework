@@ -13,13 +13,13 @@ import javax.lang.model.element.TypeElement;
  */
 class TypeFromClassVisitor extends TypeFromTreeVisitor {
 
-    @Override
-    public AnnotatedTypeMirror visitClass(ClassTree node, AnnotatedTypeFactory f) {
-        TypeElement elt = TreeUtils.elementFromDeclaration(node);
-        AnnotatedTypeMirror result = f.toAnnotatedType(elt.asType(), true);
+  @Override
+  public AnnotatedTypeMirror visitClass(ClassTree node, AnnotatedTypeFactory f) {
+    TypeElement elt = TreeUtils.elementFromDeclaration(node);
+    AnnotatedTypeMirror result = f.toAnnotatedType(elt.asType(), true);
 
-        ElementAnnotationApplier.apply(result, elt, f);
+    ElementAnnotationApplier.apply(result, elt, f);
 
-        return result;
-    }
+    return result;
+  }
 }

@@ -248,7 +248,7 @@ allprojects {
                 targetExclude stdExclude, '**/java17/', '**/*record*/'
             }
 
-            googleJavaFormat().aosp()
+            googleJavaFormat() // .aosp()
             importOrder('com', 'jdk', 'lib', 'lombok', 'org', 'java', 'javax')
             formatAnnotations()
         }

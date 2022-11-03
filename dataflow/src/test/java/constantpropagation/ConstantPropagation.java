@@ -9,21 +9,21 @@ import org.checkerframework.dataflow.constantpropagation.ConstantPropagationTran
 
 public class ConstantPropagation {
 
-    /**
-     * The main method expects to be run in dataflow/tests/constant-propagation directory.
-     *
-     * @param args not used
-     */
-    public static void main(String[] args) {
+  /**
+   * The main method expects to be run in dataflow/tests/constant-propagation directory.
+   *
+   * @param args not used
+   */
+  public static void main(String[] args) {
 
-        String inputFile = "Test.java";
-        String method = "test";
-        String clas = "Test";
-        String outputFile = "Out.txt";
+    String inputFile = "Test.java";
+    String method = "test";
+    String clas = "Test";
+    String outputFile = "Out.txt";
 
-        ConstantPropagationTransfer transfer = new ConstantPropagationTransfer();
-        ForwardAnalysis<Constant, ConstantPropagationStore, ConstantPropagationTransfer>
-                forwardAnalysis = new ForwardAnalysisImpl<>(transfer);
-        CFGVisualizeLauncher.writeStringOfCFG(inputFile, method, clas, outputFile, forwardAnalysis);
-    }
+    ConstantPropagationTransfer transfer = new ConstantPropagationTransfer();
+    ForwardAnalysis<Constant, ConstantPropagationStore, ConstantPropagationTransfer>
+        forwardAnalysis = new ForwardAnalysisImpl<>(transfer);
+    CFGVisualizeLauncher.writeStringOfCFG(inputFile, method, clas, outputFile, forwardAnalysis);
+  }
 }

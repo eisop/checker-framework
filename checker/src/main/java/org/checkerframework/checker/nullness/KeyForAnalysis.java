@@ -12,33 +12,33 @@ import javax.lang.model.type.TypeMirror;
 /** Boilerplate code to glue together all the parts the KeyFor dataflow classes. */
 public class KeyForAnalysis extends CFAbstractAnalysis<KeyForValue, KeyForStore, KeyForTransfer> {
 
-    /**
-     * Creates a new {@code KeyForAnalysis}.
-     *
-     * @param checker the checker
-     * @param factory the factory
-     */
-    public KeyForAnalysis(BaseTypeChecker checker, KeyForAnnotatedTypeFactory factory) {
-        super(checker, factory);
-    }
+  /**
+   * Creates a new {@code KeyForAnalysis}.
+   *
+   * @param checker the checker
+   * @param factory the factory
+   */
+  public KeyForAnalysis(BaseTypeChecker checker, KeyForAnnotatedTypeFactory factory) {
+    super(checker, factory);
+  }
 
-    @Override
-    public KeyForStore createEmptyStore(boolean sequentialSemantics) {
-        return new KeyForStore(this, sequentialSemantics);
-    }
+  @Override
+  public KeyForStore createEmptyStore(boolean sequentialSemantics) {
+    return new KeyForStore(this, sequentialSemantics);
+  }
 
-    @Override
-    public KeyForStore createCopiedStore(KeyForStore store) {
-        return new KeyForStore(store);
-    }
+  @Override
+  public KeyForStore createCopiedStore(KeyForStore store) {
+    return new KeyForStore(store);
+  }
 
-    @Override
-    public KeyForValue createAbstractValue(
-            Set<AnnotationMirror> annotations, TypeMirror underlyingType) {
+  @Override
+  public KeyForValue createAbstractValue(
+      Set<AnnotationMirror> annotations, TypeMirror underlyingType) {
 
-        if (!CFAbstractValue.validateSet(annotations, underlyingType, qualifierHierarchy)) {
-            return null;
-        }
-        return new KeyForValue(this, annotations, underlyingType);
+    if (!CFAbstractValue.validateSet(annotations, underlyingType, qualifierHierarchy)) {
+      return null;
     }
+    return new KeyForValue(this, annotations, underlyingType);
+  }
 }
