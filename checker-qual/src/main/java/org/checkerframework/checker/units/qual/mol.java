@@ -19,5 +19,5 @@ import java.lang.annotation.Target;
 @SubtypeOf(Substance.class)
 @SuppressWarnings("checkstyle:typename")
 public @interface mol {
-  Prefix value() default Prefix.one;
+    Prefix value() default Prefix.one;
 }

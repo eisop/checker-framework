@@ -9,19 +9,19 @@ import java.util.List;
 
 /** Tests for the Resource Leak Checker. */
 public class ResourceLeakNoLightweightOwnershipTest extends CheckerFrameworkPerDirectoryTest {
-  public ResourceLeakNoLightweightOwnershipTest(List<File> testFiles) {
-    super(
-        testFiles,
-        ResourceLeakChecker.class,
-        "resourceleak-nolightweightownership",
-        "-AnoLightweightOwnership",
-        "-nowarn",
-        "-encoding",
-        "UTF-8");
-  }
+    public ResourceLeakNoLightweightOwnershipTest(List<File> testFiles) {
+        super(
+                testFiles,
+                ResourceLeakChecker.class,
+                "resourceleak-nolightweightownership",
+                "-AnoLightweightOwnership",
+                "-nowarn",
+                "-encoding",
+                "UTF-8");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"resourceleak-nolightweightownership"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"resourceleak-nolightweightownership"};
+    }
 }

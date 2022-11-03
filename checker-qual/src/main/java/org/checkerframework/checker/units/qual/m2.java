@@ -19,6 +19,6 @@ import java.lang.annotation.Target;
 @SubtypeOf(Area.class)
 @SuppressWarnings("checkstyle:typename")
 public @interface m2 {
-  // does this make sense? Is it multiple of (m^2)? Or (multiple of m)^2?
-  Prefix value() default Prefix.one;
+    // does this make sense? Is it multiple of (m^2)? Or (multiple of m)^2?
+    Prefix value() default Prefix.one;
 }

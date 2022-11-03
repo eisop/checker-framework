@@ -22,35 +22,35 @@ import javax.lang.model.type.TypeVariable;
  * </ul>
  */
 public class InferredValue {
-  /**
-   * Indicates that a corresponding target was inferred to be the field "type" in all hierarchies.
-   */
-  public static class InferredType extends InferredValue {
-    public final AnnotatedTypeMirror type;
+    /**
+     * Indicates that a corresponding target was inferred to be the field "type" in all hierarchies.
+     */
+    public static class InferredType extends InferredValue {
+        public final AnnotatedTypeMirror type;
 
-    public InferredType(final AnnotatedTypeMirror type) {
-      this.type = type;
+        public InferredType(final AnnotatedTypeMirror type) {
+            this.type = type;
+        }
     }
-  }
-
-  /**
-   * Indicates that a corresponding target was inferred to be the field "target" in the hierarchies
-   * not overridden by additionalAnnotations.
-   */
-  public static class InferredTarget extends InferredValue {
-    public final TypeVariable target;
 
     /**
-     * Indicates that the inferred type should have these primary annotations and the remainder
-     * should come from the annotations inferred for target.
+     * Indicates that a corresponding target was inferred to be the field "target" in the
+     * hierarchies not overridden by additionalAnnotations.
      */
-    public final AnnotationMirrorSet additionalAnnotations;
+    public static class InferredTarget extends InferredValue {
+        public final TypeVariable target;
 
-    public InferredTarget(
-        final TypeVariable target,
-        final Collection<? extends AnnotationMirror> additionalAnnotations) {
-      this.target = target;
-      this.additionalAnnotations = new AnnotationMirrorSet(additionalAnnotations);
+        /**
+         * Indicates that the inferred type should have these primary annotations and the remainder
+         * should come from the annotations inferred for target.
+         */
+        public final AnnotationMirrorSet additionalAnnotations;
+
+        public InferredTarget(
+                final TypeVariable target,
+                final Collection<? extends AnnotationMirror> additionalAnnotations) {
+            this.target = target;
+            this.additionalAnnotations = new AnnotationMirrorSet(additionalAnnotations);
+        }
     }
-  }
 }

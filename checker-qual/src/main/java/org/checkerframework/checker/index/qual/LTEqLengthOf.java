@@ -28,7 +28,7 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @SubtypeOf(UpperBoundUnknown.class)
 public @interface LTEqLengthOf {
-  /** Sequences, each of which is at least as long as the annotated expression's value. */
-  @JavaExpression
-  public String[] value();
+    /** Sequences, each of which is at least as long as the annotated expression's value. */
+    @JavaExpression
+    public String[] value();
 }

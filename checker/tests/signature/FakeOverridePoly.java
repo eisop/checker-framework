@@ -6,7 +6,7 @@ import javax.lang.model.element.Name;
 
 public class FakeOverridePoly {
 
-  void m(@CanonicalName Name n) {
-    @CanonicalName String s = n.toString();
-  }
+    void m(@CanonicalName Name n) {
+        @CanonicalName String s = n.toString();
+    }
 }

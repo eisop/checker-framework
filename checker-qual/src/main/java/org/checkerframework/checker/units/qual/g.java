@@ -19,5 +19,5 @@ import java.lang.annotation.Target;
 @SubtypeOf(Mass.class)
 @SuppressWarnings("checkstyle:typename")
 public @interface g {
-  Prefix value() default Prefix.one;
+    Prefix value() default Prefix.one;
 }

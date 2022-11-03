@@ -9,27 +9,27 @@ import java.util.List;
 
 public class DisbarUseTest extends CheckerFrameworkPerDirectoryTest {
 
-  /**
-   * Create a DisbarUseTest.
-   *
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public DisbarUseTest(List<File> testFiles) {
-    super(
-        testFiles,
-        DisbarUseChecker.class,
-        "disbaruse-records",
-        "-Astubs=tests/disbaruse-records",
-        "-AstubWarnIfNotFound");
-  }
-
-  @Parameters
-  public static String[] getTestDirs() {
-    // Check for JDK 16+ without using a library:
-    if (System.getProperty("java.version").matches("^(1[6-9]|[2-9][0-9])(\\..*)?")) {
-      return new String[] {"disbaruse-records"};
-    } else {
-      return new String[] {};
+    /**
+     * Create a DisbarUseTest.
+     *
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public DisbarUseTest(List<File> testFiles) {
+        super(
+                testFiles,
+                DisbarUseChecker.class,
+                "disbaruse-records",
+                "-Astubs=tests/disbaruse-records",
+                "-AstubWarnIfNotFound");
     }
-  }
+
+    @Parameters
+    public static String[] getTestDirs() {
+        // Check for JDK 16+ without using a library:
+        if (System.getProperty("java.version").matches("^(1[6-9]|[2-9][0-9])(\\..*)?")) {
+            return new String[] {"disbaruse-records"};
+        } else {
+            return new String[] {};
+        }
+    }
 }

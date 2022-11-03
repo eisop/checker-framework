@@ -9,6 +9,6 @@ import java.lang.annotation.Target;
 @SubtypeOf({FETop.class})
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 public @interface FlowExp {
-  @JavaExpression
-  String[] value() default {};
+    @JavaExpression
+    String[] value() default {};
 }

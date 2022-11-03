@@ -22,6 +22,6 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE_PARAMETER, ElementType.TYPE_USE})
 @SubtypeOf({UnknownVal.class})
 public @interface DoubleVal {
-  /** The values that the expression might evaluate to. */
-  double[] value();
+    /** The values that the expression might evaluate to. */
+    double[] value();
 }

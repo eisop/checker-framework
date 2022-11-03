@@ -19,21 +19,21 @@ import java.util.List;
 @Category(AinferTestCheckerStubsTest.class)
 public class AinferTestCheckerStubsTest extends AinferGeneratePerDirectoryTest {
 
-  /**
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public AinferTestCheckerStubsTest(List<File> testFiles) {
-    super(
-        testFiles,
-        AinferTestChecker.class,
-        "ainfer-testchecker/non-annotated",
-        "-Ainfer=stubs",
-        "-Astubs=tests/ainfer-testchecker/input-annotation-files/ExistingPurityAnnotations-org.checkerframework.checker.testchecker.ainfer.AinferTestChecker.astub",
-        "-Awarns");
-  }
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public AinferTestCheckerStubsTest(List<File> testFiles) {
+        super(
+                testFiles,
+                AinferTestChecker.class,
+                "ainfer-testchecker/non-annotated",
+                "-Ainfer=stubs",
+                "-Astubs=tests/ainfer-testchecker/input-annotation-files/ExistingPurityAnnotations-org.checkerframework.checker.testchecker.ainfer.AinferTestChecker.astub",
+                "-Awarns");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"ainfer-testchecker/non-annotated"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"ainfer-testchecker/non-annotated"};
+    }
 }

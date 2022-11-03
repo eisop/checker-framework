@@ -14,10 +14,10 @@ import java.lang.annotation.Target;
 @SubtypeOf({})
 @DefaultQualifierInHierarchy
 public @interface TestAccumulation {
-  /**
-   * Accumulated strings.
-   *
-   * @return the strings
-   */
-  public String[] value() default {};
+    /**
+     * Accumulated strings.
+     *
+     * @return the strings
+     */
+    public String[] value() default {};
 }

@@ -7,24 +7,24 @@ import java.io.*;
 
 public @InheritableMustCall("shutdown") class MustCallAliasOwningField {
 
-  private final @Owning BufferedInputStream input;
+    private final @Owning BufferedInputStream input;
 
-  public MustCallAliasOwningField(@Owning BufferedInputStream input, boolean b) {
-    this.input = input;
-    if (b) {
-      DataInputStream d = new DataInputStream(input);
-      authenticate(d);
+    public MustCallAliasOwningField(@Owning BufferedInputStream input, boolean b) {
+        this.input = input;
+        if (b) {
+            DataInputStream d = new DataInputStream(input);
+            authenticate(d);
+        }
     }
-  }
 
-  @EnsuresCalledMethods(value = "this.input", methods = "close")
-  public void shutdown() throws IOException {
-    input.close();
-  }
+    @EnsuresCalledMethods(value = "this.input", methods = "close")
+    public void shutdown() throws IOException {
+        input.close();
+    }
 
-  public static void authenticate(InputStream is) {}
+    public static void authenticate(InputStream is) {}
 
-  public void wrapField() {
-    DataInputStream dis = new DataInputStream(input);
-  }
+    public void wrapField() {
+        DataInputStream dis = new DataInputStream(input);
+    }
 }

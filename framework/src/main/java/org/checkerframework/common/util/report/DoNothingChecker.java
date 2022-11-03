@@ -13,8 +13,8 @@ import javax.lang.model.element.TypeElement;
  */
 public class DoNothingChecker extends AbstractProcessor {
 
-  @Override
-  public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    return false;
-  }
+    @Override
+    public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        return false;
+    }
 }

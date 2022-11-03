@@ -11,8 +11,8 @@ import java.util.Collection;
 /** An aggregate checker where one of the checkers is a compound checker. */
 public class AggregateOfCompoundChecker extends AggregateChecker {
 
-  @Override
-  protected Collection<Class<? extends SourceChecker>> getSupportedCheckers() {
-    return Arrays.asList(ValueChecker.class, CompoundChecker.class);
-  }
+    @Override
+    protected Collection<Class<? extends SourceChecker>> getSupportedCheckers() {
+        return Arrays.asList(ValueChecker.class, CompoundChecker.class);
+    }
 }

@@ -18,10 +18,10 @@ import java.lang.annotation.Target;
 @SubtypeOf({})
 @DefaultQualifierInHierarchy
 public @interface InitializedFields {
-  /**
-   * Fields that have been initialized.
-   *
-   * @return the initialized fields
-   */
-  public String[] value() default {};
+    /**
+     * Fields that have been initialized.
+     *
+     * @return the initialized fields
+     */
+    public String[] value() default {};
 }

@@ -9,19 +9,19 @@ import java.util.List;
 
 /** Tests for the Resource Leak Checker. */
 public class ResourceLeakPermitInitializationLeak extends CheckerFrameworkPerDirectoryTest {
-  public ResourceLeakPermitInitializationLeak(List<File> testFiles) {
-    super(
-        testFiles,
-        ResourceLeakChecker.class,
-        "resourceleak-permitinitializationleak",
-        "-ApermitInitializationLeak",
-        "-AwarnUnneededSuppressions",
-        "-encoding",
-        "UTF-8");
-  }
+    public ResourceLeakPermitInitializationLeak(List<File> testFiles) {
+        super(
+                testFiles,
+                ResourceLeakChecker.class,
+                "resourceleak-permitinitializationleak",
+                "-ApermitInitializationLeak",
+                "-AwarnUnneededSuppressions",
+                "-encoding",
+                "UTF-8");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"resourceleak-permitinitializationleak"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"resourceleak-permitinitializationleak"};
+    }
 }

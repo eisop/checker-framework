@@ -9,17 +9,17 @@ import java.util.List;
 /** JUnit tests for the Index Checker. */
 public class IndexTest extends CheckerFrameworkPerDirectoryTest {
 
-  /**
-   * Create an IndexTest.
-   *
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public IndexTest(List<File> testFiles) {
-    super(testFiles, org.checkerframework.checker.index.IndexChecker.class, "index");
-  }
+    /**
+     * Create an IndexTest.
+     *
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public IndexTest(List<File> testFiles) {
+        super(testFiles, org.checkerframework.checker.index.IndexChecker.class, "index");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"index", "all-systems"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"index", "all-systems"};
+    }
 }

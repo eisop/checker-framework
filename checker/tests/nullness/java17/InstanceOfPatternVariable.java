@@ -7,11 +7,11 @@ import java.util.Map;
 
 public class InstanceOfPatternVariable {
 
-  public void doSomething(final Object x) {
-    if (x instanceof Map<?, ?> m) {
-      // final var ct = (ClassOrInterfaceType) type;
+    public void doSomething(final Object x) {
+        if (x instanceof Map<?, ?> m) {
+            // final var ct = (ClassOrInterfaceType) type;
 
-      @KeyFor("m") Object y = m.keySet().iterator().next();
+            @KeyFor("m") Object y = m.keySet().iterator().next();
+        }
     }
-  }
 }

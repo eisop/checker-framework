@@ -24,6 +24,6 @@ import java.lang.annotation.Target;
 @SubtypeOf({})
 @DefaultQualifierInHierarchy
 @DefaultFor(
-    value = {TypeUseLocation.UPPER_BOUND, TypeUseLocation.LOWER_BOUND},
-    types = Void.class)
+        value = {TypeUseLocation.UPPER_BOUND, TypeUseLocation.LOWER_BOUND},
+        types = Void.class)
 public @interface MaybeAliased {}

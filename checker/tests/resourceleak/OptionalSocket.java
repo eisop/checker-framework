@@ -11,16 +11,16 @@ import java.net.*;
 import java.util.*;
 
 class OptionalSocket {
-  void test_close_get_null(@Owning Optional<Socket> sock) throws IOException {
-    // TODO can't pass this
-    if (sock.get() != null) {
-      // TODO can't pass this
-      sock.get().close();
+    void test_close_get_null(@Owning Optional<Socket> sock) throws IOException {
+        // TODO can't pass this
+        if (sock.get() != null) {
+            // TODO can't pass this
+            sock.get().close();
+        }
     }
-  }
 
-  void test_close_get(@Owning Optional<Socket> sock) throws IOException {
-    // TODO can't pass this
-    sock.get().close();
-  }
+    void test_close_get(@Owning Optional<Socket> sock) throws IOException {
+        // TODO can't pass this
+        sock.get().close();
+    }
 }

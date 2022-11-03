@@ -12,23 +12,23 @@ import java.util.List;
 /** Test case for Called Methods Checker's AutoValue support. */
 public class CalledMethodsAutoValueTest extends CheckerFrameworkPerDirectoryTest {
 
-  public CalledMethodsAutoValueTest(List<File> testFiles) {
-    super(
-        testFiles,
-        Arrays.asList(
-            "com.google.auto.value.extension.memoized.processor.MemoizedValidator",
-            "com.google.auto.value.processor.AutoAnnotationProcessor",
-            "com.google.auto.value.processor.AutoOneOfProcessor",
-            "com.google.auto.value.processor.AutoValueBuilderProcessor",
-            "com.google.auto.value.processor.AutoValueProcessor",
-            CalledMethodsChecker.class.getName()),
-        "calledmethods-autovalue",
-        Collections.emptyList(),
-        "-nowarn");
-  }
+    public CalledMethodsAutoValueTest(List<File> testFiles) {
+        super(
+                testFiles,
+                Arrays.asList(
+                        "com.google.auto.value.extension.memoized.processor.MemoizedValidator",
+                        "com.google.auto.value.processor.AutoAnnotationProcessor",
+                        "com.google.auto.value.processor.AutoOneOfProcessor",
+                        "com.google.auto.value.processor.AutoValueBuilderProcessor",
+                        "com.google.auto.value.processor.AutoValueProcessor",
+                        CalledMethodsChecker.class.getName()),
+                "calledmethods-autovalue",
+                Collections.emptyList(),
+                "-nowarn");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"calledmethods-autovalue"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"calledmethods-autovalue"};
+    }
 }

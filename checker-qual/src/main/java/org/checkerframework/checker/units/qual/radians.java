@@ -19,5 +19,5 @@ import java.lang.annotation.Target;
 @SubtypeOf(Angle.class)
 @SuppressWarnings("checkstyle:typename")
 public @interface radians {
-  Prefix value() default Prefix.one;
+    Prefix value() default Prefix.one;
 }
