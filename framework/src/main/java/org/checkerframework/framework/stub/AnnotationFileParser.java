@@ -3149,6 +3149,15 @@ public class AnnotationFileParser {
      */
     private class AjavaAnnotationCollectorVisitor extends DefaultJointVisitor {
         @Override
+        public Void visitCompilationUnit(CompilationUnitTree javacTree, Node javaParserNode) {
+            CompilationUnit node = castNode(CompilationUnit.class, javaParserNode, javacTree);
+            processCompilationUnit(javacTree, node);
+            visitOptional(javacTree.getPackage(), node.getPackageDeclaration());
+            visitLists(javacTree.getTypeDecls(), node.getTypes());
+            return null;
+        }
+
+        @Override
         public Void visitClass(ClassTree javacTree, Node javaParserNode) {
             List<AnnotatedTypeVariable> typeDeclTypeParameters = null;
             boolean shouldProcessTypeDecl =
