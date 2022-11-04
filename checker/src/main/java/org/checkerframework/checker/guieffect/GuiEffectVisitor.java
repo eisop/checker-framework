@@ -405,8 +405,6 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
                     "Visiting method " + methElt + " of " + methElt.getEnclosingElement());
         }
 
-        // Check for conflicting (multiple) annotations
-        assert (methElt != null);
         // TypeMirror scratch = methElt.getReturnType();
         AnnotationMirror targetUIP = atypeFactory.getDeclAnnotation(methElt, UIEffect.class);
         AnnotationMirror targetSafeP = atypeFactory.getDeclAnnotation(methElt, SafeEffect.class);

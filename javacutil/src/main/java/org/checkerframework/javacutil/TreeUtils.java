@@ -365,8 +365,11 @@ public final class TreeUtils {
      * @param tree class declaration
      * @return the element for the given class
      */
-    public static @Nullable TypeElement elementFromDeclaration(ClassTree tree) {
+    public static TypeElement elementFromDeclaration(ClassTree tree) {
         TypeElement result = (TypeElement) TreeInfo.symbolFor((JCTree) tree);
+        if (result == null) {
+            throw new BugInCF("null element for class tree %s", tree);
+        }
         return result;
     }
 
@@ -539,14 +542,15 @@ public final class TreeUtils {
     /**
      * Returns the ExecutableElement for the given method declaration.
      *
-     * <p>The result can be null, when {@code tree} is a method in an anonymous class.
-     *
      * @param tree a method declaration
-     * @return the element for the given method, or null (e.g. for a method in an anonymous class)
+     * @return the element for the given method
      */
-    public static @Nullable ExecutableElement elementFromDeclaration(MethodTree tree) {
-        ExecutableElement elt = (ExecutableElement) TreeInfo.symbolFor((JCTree) tree);
-        return elt;
+    public static ExecutableElement elementFromDeclaration(MethodTree tree) {
+        ExecutableElement result = (ExecutableElement) TreeInfo.symbolFor((JCTree) tree);
+        if (result == null) {
+            throw new BugInCF("null element for method tree %s", tree);
+        }
+        return result;
     }
 
     /**
@@ -627,10 +631,11 @@ public final class TreeUtils {
      * @param tree the variable
      * @return the element for the given variable
      */
-    public static @Nullable VariableElement elementFromDeclaration(VariableTree tree) {
+    public static VariableElement elementFromDeclaration(VariableTree tree) {
         VariableElement result = (VariableElement) TreeInfo.symbolFor((JCTree) tree);
-        // `result` can be null, for example for this variable declaration:
-        //   PureFunc f1 = TestPure1::myPureMethod;
+        if (result == null) {
+            throw new BugInCF("null element for variable tree %s", tree);
+        }
         return result;
     }
 
@@ -927,9 +932,6 @@ public final class TreeUtils {
      */
     public static boolean hasExplicitConstructor(ClassTree tree) {
         TypeElement elem = TreeUtils.elementFromDeclaration(tree);
-        if (elem == null) {
-            return false;
-        }
         for (ExecutableElement constructorElt :
                 ElementFilter.constructorsIn(elem.getEnclosedElements())) {
             if (!isSynthetic(constructorElt)) {
@@ -961,7 +963,7 @@ public final class TreeUtils {
      */
     public static boolean isSynthetic(MethodTree tree) {
         ExecutableElement ee = TreeUtils.elementFromDeclaration(tree);
-        return ee != null && isSynthetic(ee);
+        return isSynthetic(ee);
     }
 
     /**
@@ -1766,7 +1768,7 @@ public final class TreeUtils {
     public static boolean isLocalVariable(Tree tree) {
         if (tree.getKind() == Tree.Kind.VARIABLE) {
             VariableElement varElt = elementFromDeclaration((VariableTree) tree);
-            return varElt != null && ElementUtils.isLocalVariable(varElt);
+            return ElementUtils.isLocalVariable(varElt);
         } else if (tree.getKind() == Tree.Kind.IDENTIFIER) {
             ExpressionTree etree = (ExpressionTree) tree;
             assert isUseOfElement(etree) : "@AssumeAssertion(nullness): tree kind";
