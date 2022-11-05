@@ -12,8 +12,8 @@ public class RedundantAnnoWithDefaultQualifier {
     @Nullable Integer foo() {
         return 5;
     }
-    
+
     void bar(String p) {}
-    
+
     void baz(@NonNull String p) {}
 }
