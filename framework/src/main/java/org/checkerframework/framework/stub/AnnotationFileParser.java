@@ -3149,6 +3149,9 @@ public class AnnotationFileParser {
      */
     private class AjavaAnnotationCollectorVisitor extends DefaultJointVisitor {
 
+        /** Default constructor. */
+        private AjavaAnnotationCollectorVisitor() {}
+
         // This method overrides super.visitCompilationUnit() to prevent parsing import
         // statements. Requiring imports in both ajava file and the source file to be
         // exactly same is error-prone and unnecessary.
