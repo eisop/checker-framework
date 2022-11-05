@@ -17,7 +17,7 @@ from `TreeUtils` to the more appropriate `ElementUtils`.
 
 **Closed issues:**
 
-eisop#244
+eisop#244, eisop#360.
 
 
 Version 3.27.0 (November 1, 2022)
