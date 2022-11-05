@@ -3148,6 +3148,22 @@ public class AnnotationFileParser {
      * #processField}.
      */
     private class AjavaAnnotationCollectorVisitor extends DefaultJointVisitor {
+
+        /** Default constructor. */
+        private AjavaAnnotationCollectorVisitor() {}
+
+        // This method overrides super.visitCompilationUnit() to prevent parsing import
+        // statements. Requiring imports in both ajava file and the source file to be
+        // exactly same is error-prone and unnecessary.
+        @Override
+        public Void visitCompilationUnit(CompilationUnitTree javacTree, Node javaParserNode) {
+            CompilationUnit node = castNode(CompilationUnit.class, javaParserNode, javacTree);
+            processCompilationUnit(javacTree, node);
+            visitOptional(javacTree.getPackage(), node.getPackageDeclaration());
+            visitLists(javacTree.getTypeDecls(), node.getTypes());
+            return null;
+        }
+
         @Override
         public Void visitClass(ClassTree javacTree, Node javaParserNode) {
             List<AnnotatedTypeVariable> typeDeclTypeParameters = null;
@@ -3186,17 +3202,14 @@ public class AnnotationFileParser {
 
         @Override
         public Void visitVariable(VariableTree javacTree, Node javaParserNode) {
-            if (TreeUtils.elementFromDeclaration(javacTree) != null) {
-                VariableElement elt = TreeUtils.elementFromDeclaration(javacTree);
-                if (elt != null) {
-                    if (elt.getKind() == ElementKind.FIELD) {
-                        processField((FieldDeclaration) javaParserNode.getParentNode().get(), elt);
-                    }
+            TreeUtils.elementFromDeclaration(javacTree);
+            VariableElement elt = TreeUtils.elementFromDeclaration(javacTree);
+            if (elt.getKind() == ElementKind.FIELD) {
+                processField((FieldDeclaration) javaParserNode.getParentNode().get(), elt);
+            }
 
-                    if (elt.getKind() == ElementKind.ENUM_CONSTANT) {
-                        processEnumConstant((EnumConstantDeclaration) javaParserNode, elt);
-                    }
-                }
+            if (elt.getKind() == ElementKind.ENUM_CONSTANT) {
+                processEnumConstant((EnumConstantDeclaration) javaParserNode, elt);
             }
 
             super.visitVariable(javacTree, javaParserNode);
@@ -3207,7 +3220,7 @@ public class AnnotationFileParser {
         public Void visitMethod(MethodTree javacTree, Node javaParserNode) {
             List<AnnotatedTypeVariable> variablesToClear = null;
             Element elt = TreeUtils.elementFromDeclaration(javacTree);
-            if (elt != null && javaParserNode instanceof CallableDeclaration<?>) {
+            if (javaParserNode instanceof CallableDeclaration<?>) {
                 variablesToClear =
                         processCallableDeclaration(
                                 (CallableDeclaration<?>) javaParserNode, (ExecutableElement) elt);
