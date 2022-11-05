@@ -10,7 +10,7 @@ public class RedundantAnnoWithDefaultQualifier {
 
     // :: warning: (redundant.anno)
     @Nullable Integer foo() {
-        return i;
+        return 5;
     }
     
     void bar(String p) {}
