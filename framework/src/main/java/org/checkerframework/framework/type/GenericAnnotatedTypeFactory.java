@@ -1777,8 +1777,8 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * Removes all primary annotations on a copy of the type and calculates the default
-     * annotations that apply to the copied type, without type refinements.
+     * Removes all primary annotations on a copy of the type and calculates the default annotations
+     * that apply to the copied type, without type refinements.
      *
      * @param tree tree where the type is used
      * @param type type to determine the defaulted version for
