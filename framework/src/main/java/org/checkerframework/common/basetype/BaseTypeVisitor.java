@@ -1506,7 +1506,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param type get the explicit annotation on this type and compare it with the default one for
      *     this type and location.
      */
-    void warnRedundantAnnotations(Tree tree, AnnotatedTypeMirror type) {
+    protected void warnRedundantAnnotations(Tree tree, AnnotatedTypeMirror type) {
         if (!warnRedundantAnnotations) {
             return;
         }

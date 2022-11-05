@@ -1777,11 +1777,11 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * This method removes all primary annotations on the type and re-calculate the default
-     * annotation would be applied on the new type with useflow turned off.
+     * Removes all primary annotations on a copy of the type and calculates the default
+     * annotations that apply to the copied type, without type refinements.
      *
-     * @param tree tree
-     * @param type type
+     * @param tree tree where the type is used
+     * @param type type to determine the defaulted version for
      * @return the annotated type mirror with default annotations
      */
     public AnnotatedTypeMirror getDefaultAnnotations(Tree tree, AnnotatedTypeMirror type) {
