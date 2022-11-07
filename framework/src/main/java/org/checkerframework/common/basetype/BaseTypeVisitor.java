@@ -1629,7 +1629,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
     }
 
-    /** Issues a "redundant.anno" warning if the annotation written on the type is the same as the
+    /**
+     * Issues a "redundant.anno" warning if the annotation written on the type is the same as the
      * default annotation for this type and location.
      *
      * @param tree an AST node
