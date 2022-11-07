@@ -241,12 +241,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * command line.
      */
     private final boolean checkPurity;
-    /**
-     * True if purity annotations should be inferred. Should be set to false if both the Lock
-     * Checker (or some other checker that overrides {@link CFAbstractStore#isSideEffectFree} in a
-     * non-standard way) and some other checker is being run.
-     */
-    protected boolean inferPurity = true;
+
+    /** True if "-AwarnRedundantAnnotations" was passed on the command line */
+    private final boolean warnRedundantAnnotations;
 
     /** The tree of the enclosing method that is currently being visited. */
     protected @Nullable MethodTree methodTree = null;
@@ -288,6 +285,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         */
         suggestPureMethods = checker.hasOption("suggestPureMethods"); // NO-AFU || infer;
         checkPurity = checker.hasOption("checkPurityAnnotations") || suggestPureMethods;
+        warnRedundantAnnotations = checker.hasOption("warnRedundantAnnotations");
         initAnnoToTargetLocations();
     }
 
@@ -923,6 +921,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         if (node.getReturnType() != null) {
             visitAnnotatedType(node.getModifiers().getAnnotations(), node.getReturnType());
+            warnRedundantAnnotations(node.getReturnType(), methodType.getReturnType());
         }
 
         try {
@@ -1058,35 +1057,18 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             // Issue a warning if the method is pure, but not annotated as such.
             EnumSet<Pure.Kind> additionalKinds = r.getKinds().clone();
             /* NO-AFU
-                   if (!(infer && inferPurity)) {
-                       // During WPI, propagate all purity kinds, even those that are already
-                       // present (because they were inferred in a previous WPI round).
+            if (!infer) {
+              // During WPI, propagate all purity kinds, even those that are already
+              // present (because they were inferred in a previous WPI round).
             */
             additionalKinds.removeAll(kinds);
             /* NO-AFU
-                   }
+            }
             */
             if (TreeUtils.isConstructor(node)) {
                 additionalKinds.remove(Pure.Kind.DETERMINISTIC);
             }
             if (!additionalKinds.isEmpty()) {
-                /* NO-AFU
-                              if (infer) {
-                                  if (inferPurity) {
-                                      WholeProgramInference wpi = atypeFactory.getWholeProgramInference();
-                                      ExecutableElement methodElt = TreeUtils.elementFromDeclaration(node);
-                                      if (additionalKinds.size() == 2) {
-                                          wpi.addMethodDeclarationAnnotation(methodElt, PURE);
-                                      } else if (additionalKinds.contains(Pure.Kind.SIDE_EFFECT_FREE)) {
-                                          wpi.addMethodDeclarationAnnotation(methodElt, SIDE_EFFECT_FREE);
-                                      } else if (additionalKinds.contains(Pure.Kind.DETERMINISTIC)) {
-                                          wpi.addMethodDeclarationAnnotation(methodElt, DETERMINISTIC);
-                                      } else {
-                                          throw new BugInCF("Unexpected purity kind in " + additionalKinds);
-                                      }
-                                  }
-                              } else {
-                */
                 if (additionalKinds.size() == 2) {
                     checker.reportWarning(node, "purity.more.pure", node.getName());
                 } else if (additionalKinds.contains(Pure.Kind.SIDE_EFFECT_FREE)) {
@@ -1096,7 +1078,21 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 } else {
                     throw new BugInCF("Unexpected purity kind in " + additionalKinds);
                 }
-                // NO-AFU }
+                /* NO-AFU
+                if (infer) {
+                  WholeProgramInference wpi = atypeFactory.getWholeProgramInference();
+                  ExecutableElement methodElt = TreeUtils.elementFromDeclaration(node);
+                  if (additionalKinds.size() == 2) {
+                    wpi.addMethodDeclarationAnnotation(methodElt, PURE);
+                  } else if (additionalKinds.contains(Pure.Kind.SIDE_EFFECT_FREE)) {
+                    wpi.addMethodDeclarationAnnotation(methodElt, SIDE_EFFECT_FREE);
+                  } else if (additionalKinds.contains(Pure.Kind.DETERMINISTIC)) {
+                    wpi.addMethodDeclarationAnnotation(methodElt, DETERMINISTIC);
+                  } else {
+                    throw new BugInCF("Unexpected purity kind in " + additionalKinds);
+                  }
+                }
+                */
             }
         }
     }
@@ -1523,7 +1519,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             validateTypeOf(node, false);
         }
         validateVariablesTargetLocation(node, variableType);
-
+        warnRedundantAnnotations(node, variableType);
         return super.visitVariable(node, p);
     }
 
@@ -1629,6 +1625,34 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         "type.invalid.annotations.on.location",
                         am.toString(),
                         tree.getKind().name());
+            }
+        }
+    }
+
+    /** Issues a "redundant.anno" warning if the annotation written on the type is the same as the
+     * default annotation for this type and location.
+     *
+     * @param tree an AST node
+     * @param type get the explicit annotation on this type and compare it with the default one for
+     *     this type and location.
+     */
+    protected void warnRedundantAnnotations(Tree tree, AnnotatedTypeMirror type) {
+        if (!warnRedundantAnnotations) {
+            return;
+        }
+        Set<AnnotationMirror> explicitAnnos = type.getExplicitAnnotations();
+        if (explicitAnnos.isEmpty()) {
+            return;
+        }
+        if (tree == null) {
+            throw new BugInCF("unexpected null tree argument!");
+        }
+
+        AnnotatedTypeMirror defaultAtms = atypeFactory.getDefaultAnnotations(tree, type);
+        for (AnnotationMirror explicitAnno : explicitAnnos) {
+            AnnotationMirror defaultAtm = defaultAtms.getAnnotationInHierarchy(explicitAnno);
+            if (AnnotationUtils.areSame(defaultAtm, explicitAnno)) {
+                checker.reportWarning(tree, "redundant.anno", defaultAtm);
             }
         }
     }
@@ -2138,7 +2162,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     @Override
     public Void visitNewClass(NewClassTree node, Void p) {
-        if (checker.shouldSkipUses(TreeUtils.constructor(node))) {
+        if (checker.shouldSkipUses(TreeUtils.elementFromUse(node))) {
             return super.visitNewClass(node, p);
         }
 
@@ -2628,21 +2652,20 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             checkTypecastSafety(node);
             checkTypecastRedundancy(node);
         }
+        AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(node);
+
         if (atypeFactory.getDependentTypesHelper().hasDependentAnnotations()) {
-            AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(node);
             atypeFactory
                     .getDependentTypesHelper()
                     .checkTypeForErrorExpressions(type, node.getType());
         }
 
         if (node.getType().getKind() == Tree.Kind.INTERSECTION_TYPE) {
-            AnnotatedIntersectionType intersection =
-                    (AnnotatedIntersectionType) atypeFactory.getAnnotatedType(node);
+            AnnotatedIntersectionType intersection = (AnnotatedIntersectionType) type;
             checkExplicitAnnotationsOnIntersectionBounds(
                     intersection, ((IntersectionTypeTree) node.getType()).getBounds());
         }
         return super.visitTypeCast(node, p);
-        // return scan(node.getExpression(), p);
     }
 
     @Override
@@ -3762,7 +3785,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         // ========= Overriding Executable =========
         // The ::method element, see JLS 15.13.1 Compile-Time Declaration of a Method Reference
         ExecutableElement compileTimeDeclaration =
-                (ExecutableElement) TreeUtils.elementFromTree(memberReferenceTree);
+                (ExecutableElement) TreeUtils.elementFromUse(memberReferenceTree);
 
         if (enclosingType.getKind() == TypeKind.DECLARED
                 && ((AnnotatedDeclaredType) enclosingType).isUnderlyingTypeRaw()) {
@@ -4210,7 +4233,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             List<AnnotatedTypeMirror> overriddenParams = overridden.getParameterTypes();
 
             // Fix up method reference parameters.
-            // See https://docs.oracle.com/javase/specs/jls/se11/html/jls-15.html#jls-15.13.1
+            // See https://docs.oracle.com/javase/specs/jls/se17/html/jls-15.html#jls-15.13.1
             if (isMethodReference) {
                 // The functional interface of an unbound member reference has an extra parameter
                 // (the receiver).

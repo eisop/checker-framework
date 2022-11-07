@@ -11,7 +11,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
 
-import javax.lang.model.element.Element;
+import javax.lang.model.element.VariableElement;
 
 /**
  * A node for a local variable or a parameter:
@@ -57,12 +57,17 @@ public class LocalVariableNode extends Node {
         this.receiver = receiver;
     }
 
-    public Element getElement() {
-        Element el;
+    /**
+     * Returns the element associated with this local variable.
+     *
+     * @return the element associated with this local variable
+     */
+    public VariableElement getElement() {
+        VariableElement el;
         if (tree instanceof IdentifierTree) {
             IdentifierTree itree = (IdentifierTree) tree;
             assert TreeUtils.isUseOfElement(itree) : "@AssumeAssertion(nullness): tree kind";
-            el = TreeUtils.elementFromUse(itree);
+            el = TreeUtils.variableElementFromUse(itree);
         } else {
             assert tree instanceof VariableTree;
             el = TreeUtils.elementFromDeclaration((VariableTree) tree);
