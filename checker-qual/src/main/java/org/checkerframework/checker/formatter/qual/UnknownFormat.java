@@ -18,8 +18,8 @@ import java.lang.annotation.Target;
  * <p>A type annotation indicating that the run-time value might or might not be a valid format
  * string.
  *
- * <p>This annotation may not be written in source code; it is an implementation detail of the
- * checker.
+ * <p>This annotation may not be explicitly written in source code; it is an implementation detail
+ * of the checker.
  *
  * @checker_framework.manual #formatter-checker Format String Checker
  */
@@ -29,5 +29,10 @@ import java.lang.annotation.Target;
 @InvisibleQualifier
 @SubtypeOf({})
 @DefaultQualifierInHierarchy
-@TargetLocations({TypeUseLocation.EXPLICIT_LOWER_BOUND, TypeUseLocation.EXPLICIT_UPPER_BOUND})
+@TargetLocations({  TypeUseLocation.EXPLICIT_LOWER_BOUND,
+                    TypeUseLocation.EXPLICIT_UPPER_BOUND,
+                    TypeUseLocation.FIELD,
+                    TypeUseLocation.RETURN,
+                    TypeUseLocation.PARAMETER,
+                    TypeUseLocation.LOCAL_VARIABLE})
 public @interface UnknownFormat {}
