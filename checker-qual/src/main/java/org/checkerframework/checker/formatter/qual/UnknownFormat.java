@@ -29,10 +29,5 @@ import java.lang.annotation.Target;
 @InvisibleQualifier
 @SubtypeOf({})
 @DefaultQualifierInHierarchy
-@TargetLocations({  TypeUseLocation.EXPLICIT_LOWER_BOUND,
-                    TypeUseLocation.EXPLICIT_UPPER_BOUND,
-                    TypeUseLocation.FIELD,
-                    TypeUseLocation.RETURN,
-                    TypeUseLocation.PARAMETER,
-                    TypeUseLocation.LOCAL_VARIABLE})
+@TargetLocations({TypeUseLocation.ALL})
 public @interface UnknownFormat {}
