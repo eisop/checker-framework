@@ -253,7 +253,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * in @TargetLocations
      */
     protected final HashMap<String, List<TypeUseLocation>> AnnoToTargetLocations = new HashMap<>();
+
     /**
+     * Constructor for creating a BaseTypeVisitor.
+     *
      * @param checker the type-checker associated with this visitor (for callbacks to {@link
      *     TypeHierarchy#isSubtype})
      */
@@ -262,6 +265,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
+     * Constructor for creating a BaseTypeVisitor.
+     *
      * @param checker the type-checker associated with this visitor
      * @param typeFactory the type factory, or null. If null, this calls {@link #createTypeFactory}.
      */
