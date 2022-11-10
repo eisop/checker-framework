@@ -27,7 +27,9 @@ import java.lang.annotation.Target;
     TypeUseLocation.EXPLICIT_UPPER_BOUND,
     TypeUseLocation.PARAMETER,
     TypeUseLocation.FIELD,
-    TypeUseLocation.LOCAL_VARIABLE
+    TypeUseLocation.LOCAL_VARIABLE,
+    TypeUseLocation.RETURN,
+    TypeUseLocation.CONSTRUCTOR_RESULT
 })
 @SubtypeOf({NewObject.class})
 public @interface GuardedByBottom {}

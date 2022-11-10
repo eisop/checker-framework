@@ -33,7 +33,16 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE_USE)
-@TargetLocations({TypeUseLocation.RECEIVER, TypeUseLocation.PARAMETER, TypeUseLocation.RETURN})
+@TargetLocations({
+    TypeUseLocation.RECEIVER,
+    TypeUseLocation.PARAMETER,
+    TypeUseLocation.RETURN,
+    TypeUseLocation.FIELD,
+    TypeUseLocation.LOCAL_VARIABLE,
+    TypeUseLocation.UPPER_BOUND,
+    TypeUseLocation.LOWER_BOUND,
+    TypeUseLocation.CONSTRUCTOR_RESULT
+})
 @SubtypeOf(GuardedByUnknown.class) // TODO: Should @GuardSatisfied be in its own hierarchy?
 public @interface GuardSatisfied {
     /**
