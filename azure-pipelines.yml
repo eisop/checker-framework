@@ -210,6 +210,7 @@ jobs:
   - bash: ./checker/bin-devel/test-cftests-inference.sh
     displayName: test-cftests-inference.sh
 
+# Unlimited fetchDepth for misc_jobs, because of need to make contributors.tex
 - job: misc_jdk8
   dependsOn:
    - canary_jobs
@@ -219,7 +220,6 @@ jobs:
   container: mdernst/cf-ubuntu-jdk8-plus:latest
   steps:
   - checkout: self
-    fetchDepth: 1000
   - bash: ./checker/bin-devel/test-misc.sh
     displayName: test-misc.sh
 - job: misc_jdk11
@@ -231,7 +231,6 @@ jobs:
   container: mdernst/cf-ubuntu-jdk11-plus:latest
   steps:
   - checkout: self
-    fetchDepth: 1000
   - bash: ./checker/bin-devel/test-misc.sh
     displayName: test-misc.sh
 - job: misc_jdk17
@@ -240,7 +239,6 @@ jobs:
   container: wmdietl/cf-ubuntu-jdk-latest-plus:latest
   steps:
   - checkout: self
-    fetchDepth: 1000
   - bash: ./checker/bin-devel/test-misc.sh
     displayName: test-misc.sh
 - job: misc_jdk18
@@ -251,7 +249,6 @@ jobs:
   container: mdernst/cf-ubuntu-jdk18-plus:latest
   steps:
   - checkout: self
-    fetchDepth: 1000
   - bash: ./checker/bin-devel/test-misc.sh
     displayName: test-misc.sh
 
