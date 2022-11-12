@@ -729,7 +729,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                         tree,
                         "type.invalid.annotations.on.location",
                         type.getSuperBound().getAnnotations().toString(),
-                        tree.getKind().toString());
+                        "SUPER_WILDCARD");
             }
         } else if (tree.getKind() == Tree.Kind.EXTENDS_WILDCARD) {
             for (AnnotationMirror am : type.getExtendsBound().getAnnotations()) {
@@ -746,7 +746,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                         tree,
                         "type.invalid.annotations.on.location",
                         type.getExtendsBound().getAnnotations().toString(),
-                        tree.getKind().toString());
+                        "EXTENDS_WILDCARD");
             }
         }
     }

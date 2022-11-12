@@ -10,6 +10,9 @@ package org.checkerframework.framework.qual;
  * type-use location is either {@code TypeUseLocation.FIELD} or {@code
  * TypeUseLocation.CONSTRUCTOR_RESULT}.
  *
+ * <p>Note: The use locations listed here are not complete, for more details see <a href=
+ * "https://github.com/eisop/checker-framework/issues/340"> eisop-cf-issue340</a>
+ *
  * @see DefaultQualifier
  * @see javax.lang.model.element.ElementKind
  */

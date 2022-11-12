@@ -1610,6 +1610,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     protected void validateTargetLocation(
             Tree tree, AnnotatedTypeMirror type, TypeUseLocation... required) {
+        if (required.length == 0) {
+            return;
+        }
         for (AnnotationMirror am : type.getAnnotations()) {
             List<TypeUseLocation> locations =
                     AnnoToTargetLocations.get(AnnotationUtils.annotationName(am));
@@ -1629,7 +1632,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         tree,
                         "type.invalid.annotations.on.location",
                         am.toString(),
-                        tree.getKind().name());
+                        required[0].toString());
             }
         }
     }
