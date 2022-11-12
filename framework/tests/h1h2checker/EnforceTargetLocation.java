@@ -16,9 +16,9 @@ public class EnforceTargetLocation<T extends @H2S1 Object> {
         return o;
     }
 
-    // :: error: (type.invalid.annotations.on.location)
     @H2OnlyOnLB
-    Object incorrectUse() {
+    // :: error: (type.invalid.annotations.on.location)
+    Object incorrect() {
         // :: warning: (cast.unsafe.constructor.invocation)
         // :: error: (type.invalid.annotations.on.location)
         @H2OnlyOnLB Object o = new @H2OnlyOnLB Object();
