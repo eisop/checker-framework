@@ -33,7 +33,6 @@ public class ObjectCreationNode extends Node {
     protected final Node constructor;
 
     /** The arguments of the object creation. */
-    // TODO: explain the optional receiver
     protected final List<Node> arguments;
 
     /** Class body for anonymous classes, otherwise null. */
@@ -124,6 +123,10 @@ public class ObjectCreationNode extends Node {
         return visitor.visitObjectCreation(this, p);
     }
 
+    /**
+     * If the object is from an inner class, the first argument is its receiver, which is shown in
+     * this function.
+     */
     @Override
     @SideEffectFree
     public String toString() {
