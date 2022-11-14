@@ -1268,7 +1268,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
         int numActuals = actualExprs.size();
         int lastArgIndex = numFormals - 1;
-        // For an inner class constructor, add the receiver as the first arguments
+        // For an inner class constructor, add the receiver as the first argument
         // explicitly.
         if (expressionTypeReceiver != null) {
             convertedNodes.add(expressionTypeReceiver);
