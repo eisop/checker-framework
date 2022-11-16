@@ -19,5 +19,5 @@ import java.lang.annotation.Target;
 @SubtypeOf({CalledMethods.class, CalledMethodsPredicate.class})
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-@TargetLocations({TypeUseLocation.ALL})
+@TargetLocations({TypeUseLocation.LOWER_BOUND, TypeUseLocation.UPPER_BOUND})
 public @interface CalledMethodsBottom {}

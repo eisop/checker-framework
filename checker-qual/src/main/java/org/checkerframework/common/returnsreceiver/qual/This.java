@@ -44,11 +44,5 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @PolymorphicQualifier
-@TargetLocations({
-    TypeUseLocation.RECEIVER,
-    TypeUseLocation.PARAMETER,
-    TypeUseLocation.LOCAL_VARIABLE,
-    TypeUseLocation.FIELD,
-    TypeUseLocation.RETURN
-})
+@TargetLocations({TypeUseLocation.RECEIVER, TypeUseLocation.RETURN})
 public @interface This {}

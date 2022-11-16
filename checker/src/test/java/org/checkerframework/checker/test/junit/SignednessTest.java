@@ -17,7 +17,8 @@ public class SignednessTest extends CheckerFrameworkPerDirectoryTest {
         super(
                 testFiles,
                 org.checkerframework.checker.signedness.SignednessChecker.class,
-                "signedness");
+                "signedness",
+                "-noEnforceTargetLocations");
     }
 
     @Parameters

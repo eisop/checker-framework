@@ -323,6 +323,8 @@ import javax.tools.Diagnostic.Kind;
     // Also see "permitUnsupportedJdkVersion" option.
     "noJreVersionCheck",
 
+    // Do not validate meta-annotation @TargetLocations
+    "noEnforceTargetLocations",
     /// Format of messages
 
     // Output detailed message in simple-to-parse format, useful

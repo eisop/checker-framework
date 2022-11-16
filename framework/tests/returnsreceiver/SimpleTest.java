@@ -32,17 +32,17 @@ public class SimpleTest {
         return x;
     }
 
-    // :: error: type.invalid.this.location
+    // :: error: type.invalid.annotations.on.location
     @This SimpleTest thisOnParam(@This SimpleTest x) {
         return x;
     }
 
     void thisOnLocal() {
-        // :: error: type.invalid.this.location
+        // :: error: type.invalid.annotations.on.location
         // :: error: assignment.type.incompatible
         @This SimpleTest x = new SimpleTest();
 
-        // :: error: type.invalid.this.location
+        // :: error: type.invalid.annotations.on.location
         // :: error: type.argument.type.incompatible
         java.util.List<@This String> l = null;
     }
@@ -50,7 +50,7 @@ public class SimpleTest {
     // can write @This on receiver
     void thisOnReceiver(@This SimpleTest this) {}
 
-    // :: error: type.invalid.this.location :: error: invalid.polymorphic.qualifier.use
+    // :: error: type.invalid.annotations.on.location :: error: invalid.polymorphic.qualifier.use
     @This Object f;
 
     interface I {

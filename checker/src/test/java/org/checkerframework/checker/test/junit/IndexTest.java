@@ -15,7 +15,11 @@ public class IndexTest extends CheckerFrameworkPerDirectoryTest {
      * @param testFiles the files containing test code, which will be type-checked
      */
     public IndexTest(List<File> testFiles) {
-        super(testFiles, org.checkerframework.checker.index.IndexChecker.class, "index");
+        super(
+                testFiles,
+                org.checkerframework.checker.index.IndexChecker.class,
+                "index",
+                "-noEnforceTargetLocations");
     }
 
     @Parameters

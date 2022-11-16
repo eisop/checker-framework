@@ -245,6 +245,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /** True if "-AwarnRedundantAnnotations" was passed on the command line */
     private final boolean warnRedundantAnnotations;
 
+    /** True if "noEnforceTargetLocation" was passed on the command line */
+    protected final boolean noEnforceTargetLocations;
+
     /** The tree of the enclosing method that is currently being visited. */
     protected @Nullable MethodTree methodTree = null;
 
@@ -291,6 +294,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         suggestPureMethods = checker.hasOption("suggestPureMethods"); // NO-AFU || infer;
         checkPurity = checker.hasOption("checkPurityAnnotations") || suggestPureMethods;
         warnRedundantAnnotations = checker.hasOption("warnRedundantAnnotations");
+        noEnforceTargetLocations = checker.hasOption("noEnforceTargetLocations");
         initAnnoToTargetLocations();
     }
 
@@ -1538,6 +1542,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param type the type of the tree
      */
     protected void validateVariablesTargetLocation(Tree tree, AnnotatedTypeMirror type) {
+        if (noEnforceTargetLocations) return;
         Element element = TreeUtils.elementFromTree(tree);
 
         if (element != null) {
@@ -1610,7 +1615,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     protected void validateTargetLocation(
             Tree tree, AnnotatedTypeMirror type, TypeUseLocation... required) {
-        if (required.length == 0) {
+        if (noEnforceTargetLocations || required.length == 0) {
             return;
         }
         for (AnnotationMirror am : type.getAnnotations()) {

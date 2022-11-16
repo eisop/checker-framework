@@ -712,42 +712,44 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * @param tree the tree of this type
      */
     protected void validateWildCardTargetLocation(AnnotatedWildcardType type, Tree tree) {
-        if (tree.getKind() == Tree.Kind.SUPER_WILDCARD) {
-            for (AnnotationMirror am : type.getSuperBound().getAnnotations()) {
-                List<TypeUseLocation> locations =
-                        visitor.AnnoToTargetLocations.get(AnnotationUtils.annotationName(am));
-                // @Target({ElementType.TYPE_USE})} together with no @TargetLocations(...) means
-                // that the qualifier can be written on any type use
-                if (locations == null
-                        || locations.contains(TypeUseLocation.EXPLICIT_LOWER_BOUND)
-                        || locations.contains(TypeUseLocation.LOWER_BOUND)
-                        || locations.contains(TypeUseLocation.ALL)) {
-                    continue;
-                }
+        if (visitor.noEnforceTargetLocations) return;
 
-                checker.reportError(
-                        tree,
-                        "type.invalid.annotations.on.location",
-                        type.getSuperBound().getAnnotations().toString(),
-                        "SUPER_WILDCARD");
+        for (AnnotationMirror am : type.getSuperBound().getAnnotations()) {
+            List<TypeUseLocation> locations =
+                    visitor.AnnoToTargetLocations.get(AnnotationUtils.annotationName(am));
+            // @Target({ElementType.TYPE_USE})} together with no @TargetLocations(...) means
+            // that the qualifier can be written on any type use
+            if (locations == null
+                    || locations.contains(TypeUseLocation.EXPLICIT_LOWER_BOUND)
+                    || locations.contains(TypeUseLocation.IMPLICIT_LOWER_BOUND)
+                    || locations.contains(TypeUseLocation.LOWER_BOUND)
+                    || locations.contains(TypeUseLocation.ALL)) {
+                continue;
             }
-        } else if (tree.getKind() == Tree.Kind.EXTENDS_WILDCARD) {
-            for (AnnotationMirror am : type.getExtendsBound().getAnnotations()) {
-                List<TypeUseLocation> locations =
-                        visitor.AnnoToTargetLocations.get(AnnotationUtils.annotationName(am));
-                if (locations == null
-                        || locations.contains(TypeUseLocation.EXPLICIT_UPPER_BOUND)
-                        || locations.contains(TypeUseLocation.UPPER_BOUND)
-                        || locations.contains(TypeUseLocation.ALL)) {
-                    continue;
-                }
 
-                checker.reportError(
-                        tree,
-                        "type.invalid.annotations.on.location",
-                        type.getExtendsBound().getAnnotations().toString(),
-                        "EXTENDS_WILDCARD");
+            checker.reportError(
+                    tree,
+                    "type.invalid.annotations.on.location",
+                    type.getSuperBound().getAnnotations().toString(),
+                    "SUPER_WILDCARD");
+        }
+
+        for (AnnotationMirror am : type.getExtendsBound().getAnnotations()) {
+            List<TypeUseLocation> locations =
+                    visitor.AnnoToTargetLocations.get(AnnotationUtils.annotationName(am));
+            if (locations == null
+                    || locations.contains(TypeUseLocation.EXPLICIT_UPPER_BOUND)
+                    || locations.contains(TypeUseLocation.IMPLICIT_UPPER_BOUND)
+                    || locations.contains(TypeUseLocation.UPPER_BOUND)
+                    || locations.contains(TypeUseLocation.ALL)) {
+                continue;
             }
+
+            checker.reportError(
+                    tree,
+                    "type.invalid.annotations.on.location",
+                    type.getExtendsBound().getAnnotations().toString(),
+                    "EXTENDS_WILDCARD");
         }
     }
 }

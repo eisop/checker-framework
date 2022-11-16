@@ -20,7 +20,8 @@ public class ReturnsReceiverTest extends CheckerFrameworkPerDirectoryTest {
                 ReturnsReceiverChecker.class,
                 "returnsreceiver",
                 "-Astubs=stubs/",
-                "-nowarn");
+                "-nowarn",
+                "-noEnforceTargetLocations");
     }
 
     @Parameters

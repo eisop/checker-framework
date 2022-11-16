@@ -14,7 +14,11 @@ public class I18nTest extends CheckerFrameworkPerDirectoryTest {
      * @param testFiles the files containing test code, which will be type-checked
      */
     public I18nTest(List<File> testFiles) {
-        super(testFiles, org.checkerframework.checker.i18n.I18nChecker.class, "i18n");
+        super(
+                testFiles,
+                org.checkerframework.checker.i18n.I18nChecker.class,
+                "i18n",
+                "-noEnforceTargetLocations");
     }
 
     @Parameters

@@ -22,12 +22,8 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @TargetLocations({
-    TypeUseLocation.EXPLICIT_LOWER_BOUND,
-    TypeUseLocation.EXPLICIT_UPPER_BOUND,
-    TypeUseLocation.PARAMETER,
-    TypeUseLocation.LOCAL_VARIABLE,
-    TypeUseLocation.FIELD,
-    TypeUseLocation.RETURN
+    TypeUseLocation.LOWER_BOUND,
+    TypeUseLocation.UPPER_BOUND,
 })
 @SubtypeOf({SignedPositiveFromUnsigned.class})
 public @interface SignednessBottom {}

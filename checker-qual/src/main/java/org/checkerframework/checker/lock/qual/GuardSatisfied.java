@@ -39,8 +39,6 @@ import java.lang.annotation.Target;
     TypeUseLocation.RETURN,
     TypeUseLocation.FIELD,
     TypeUseLocation.LOCAL_VARIABLE,
-    TypeUseLocation.UPPER_BOUND,
-    TypeUseLocation.LOWER_BOUND,
     TypeUseLocation.CONSTRUCTOR_RESULT
 })
 @SubtypeOf(GuardedByUnknown.class) // TODO: Should @GuardSatisfied be in its own hierarchy?
