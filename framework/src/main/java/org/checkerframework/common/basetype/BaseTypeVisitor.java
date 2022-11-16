@@ -4814,6 +4814,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 type = atypeFactory.getAnnotatedTypeFromTypeTree(tree);
                 if (!validateTargetLocation) break;
                 validateTargetLocation(tree, type, TypeUseLocation.THROWS);
+                break;
             case TYPE_PARAMETER:
                 type = atypeFactory.getAnnotatedTypeFromTypeTree(tree);
                 if (!validateTargetLocation) break;
