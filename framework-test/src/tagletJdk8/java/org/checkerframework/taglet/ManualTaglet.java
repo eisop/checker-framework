@@ -3,20 +3,11 @@
 
 package org.checkerframework.taglet;
 
-import com.sun.source.doctree.DocTree;
-import com.sun.source.doctree.TextTree;
-import com.sun.source.doctree.UnknownBlockTagTree;
-import com.sun.source.doctree.UnknownInlineTagTree;
-import com.sun.source.util.SimpleDocTreeVisitor;
+import com.sun.javadoc.Tag;
+import com.sun.tools.doclets.Taglet;
 
-import jdk.javadoc.doclet.Taglet;
-
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.StringJoiner;
-
-import javax.lang.model.element.Element;
 
 /**
  * A taglet for processing the {@code @checker_framework.manual} javadoc block tag, which inserts
@@ -33,18 +24,39 @@ import javax.lang.model.element.Element;
  */
 public class ManualTaglet implements Taglet {
 
-  private static final String NAME = "checker_framework.manual";
-
   @Override
   public String getName() {
-    return NAME;
+    return "checker_framework.manual";
   }
 
-  private final EnumSet<Location> allowedSet = EnumSet.allOf(Location.class);
+  @Override
+  public boolean inConstructor() {
+    return true;
+  }
 
   @Override
-  public Set<Taglet.Location> getAllowedLocations() {
-    return allowedSet;
+  public boolean inField() {
+    return true;
+  }
+
+  @Override
+  public boolean inMethod() {
+    return true;
+  }
+
+  @Override
+  public boolean inOverview() {
+    return true;
+  }
+
+  @Override
+  public boolean inPackage() {
+    return true;
+  }
+
+  @Override
+  public boolean inType() {
+    return true;
   }
 
   @Override
@@ -83,46 +95,32 @@ public class ManualTaglet implements Taglet {
   }
 
   @Override
-  public String toString(List<? extends DocTree> tags, Element element) {
-    if (tags.isEmpty()) {
+  public String toString(Tag tag) {
+    String[] split = tag.text().split(" ", 2);
+    return formatHeader(formatLink(split));
+  }
+
+  @Override
+  public String toString(Tag[] tags) {
+    if (tags.length == 0) {
       return "";
     }
     StringJoiner sb = new StringJoiner(", ");
-    for (DocTree t : tags) {
-      String text = getText(t);
+    for (Tag t : tags) {
+      String text = t.text();
       String[] split = text.split(" ", 2);
       sb.add(formatLink(split));
     }
     return formatHeader(sb.toString());
   }
 
-  static String getText(DocTree dt) {
-    return new SimpleDocTreeVisitor<String, Void>() {
-      @Override
-      public String visitUnknownBlockTag(UnknownBlockTagTree node, Void p) {
-        for (DocTree dt : node.getContent()) {
-          return dt.accept(this, null);
-        }
-        return "";
-      }
-
-      @Override
-      public String visitUnknownInlineTag(UnknownInlineTagTree node, Void p) {
-        for (DocTree dt : node.getContent()) {
-          return dt.accept(this, null);
-        }
-        return "";
-      }
-
-      @Override
-      public String visitText(TextTree node, Void p) {
-        return node.getBody();
-      }
-
-      @Override
-      protected String defaultAction(DocTree node, Void p) {
-        return "";
-      }
-    }.visit(dt, null);
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  public static void register(Map tagletMap) {
+    ManualTaglet tag = new ManualTaglet();
+    Taglet t = (Taglet) tagletMap.get(tag.getName());
+    if (t != null) {
+      tagletMap.remove(tag.getName());
+    }
+    tagletMap.put(tag.getName(), tag);
   }
 }
