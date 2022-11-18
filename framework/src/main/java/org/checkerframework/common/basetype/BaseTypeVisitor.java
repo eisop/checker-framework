@@ -946,11 +946,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             checkPurity(node);
 
             // Passing the whole method/constructor validates the return type
-            validateTypeOf(node, true);
+            validateTypeOf(node);
 
             // Validate types in throws clauses
             for (ExpressionTree thr : node.getThrows()) {
-                validateTypeOf(thr, false);
+                validateTypeOf(thr);
             }
 
             atypeFactory.getDependentTypesHelper().checkMethodForErrorExpressions(node, methodType);
@@ -1459,7 +1459,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     (AnnotatedIntersectionType) type.getUpperBound();
             checkExplicitAnnotationsOnIntersectionBounds(intersection, node.getBounds());
         }
-        validateTypeOf(node, true);
+        validateTypeOf(node);
 
         return super.visitTypeParameter(node, p);
     }
@@ -1525,7 +1525,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         } else {
             // commonAssignmentCheck validates the type of node,
             // so only validate if commonAssignmentCheck wasn't called
-            validateTypeOf(node, false);
+            validateTypeOf(node);
         }
         validateVariablesTargetLocation(node, variableType);
         warnRedundantAnnotations(node, variableType);
@@ -1814,7 +1814,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotatedTypeMirror var = atypeFactory.getAnnotatedTypeLhs(node.getVariable());
         AnnotatedTypeMirror iteratedType =
                 atypeFactory.getIterableElementType(node.getExpression());
-        boolean valid = validateTypeOf(node.getVariable(), false);
+        boolean valid = validateTypeOf(node.getVariable());
         if (valid) {
             commonAssignmentCheck(
                     var, iteratedType, node.getExpression(), "enhancedfor.type.incompatible");
@@ -2206,7 +2206,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 constructorName,
                 constructor.getTypeParameters());
 
-        boolean valid = validateTypeOf(node, false);
+        boolean valid = validateTypeOf(node);
 
         if (valid) {
             AnnotatedDeclaredType dt = atypeFactory.getAnnotatedType(node);
@@ -2281,7 +2281,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         if (enclosing.getKind() == Tree.Kind.METHOD) {
 
             MethodTree enclosingMethod = TreePathUtil.enclosingMethod(getCurrentPath());
-            boolean valid = validateTypeOf(enclosing, false);
+            boolean valid = validateTypeOf(enclosing);
             if (valid) {
                 ret = atypeFactory.getMethodReturnType(enclosingMethod, node);
             }
@@ -2401,7 +2401,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param switchExpressionTree a {@code SwitchExpressionTree}
      */
     public void visitSwitchExpression17(Tree switchExpressionTree) {
-        boolean valid = validateTypeOf(switchExpressionTree, false);
+        boolean valid = validateTypeOf(switchExpressionTree);
         if (valid) {
             AnnotatedTypeMirror switchType = atypeFactory.getAnnotatedType(switchExpressionTree);
             SwitchExpressionScanner<Void, Void> scanner =
@@ -2475,7 +2475,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     @Override
     public Void visitNewArray(NewArrayTree node, Void p) {
-        boolean valid = validateTypeOf(node, false);
+        boolean valid = validateTypeOf(node);
 
         if (valid && node.getType() != null) {
             AnnotatedArrayType arrayType = atypeFactory.getAnnotatedType(node);
@@ -2661,7 +2661,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     @Override
     public Void visitTypeCast(TypeCastTree node, Void p) {
         // validate "node" instead of "node.getType()" to prevent duplicate errors.
-        boolean valid = validateTypeOf(node, false) && validateTypeOf(node.getExpression(), false);
+        boolean valid = validateTypeOf(node) && validateTypeOf(node.getExpression());
         if (valid) {
             checkTypecastSafety(node);
             checkTypecastRedundancy(node);
@@ -2688,7 +2688,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         Tree patternTree = TreeUtils.instanceOfTreeGetPattern(tree);
         if (patternTree != null) {
             VariableTree variableTree = TreeUtils.bindingPatternTreeGetVariable(patternTree);
-            validateTypeOf(variableTree, false);
+            validateTypeOf(variableTree);
             if (variableTree.getModifiers() != null) {
                 AnnotatedTypeMirror variableType = atypeFactory.getAnnotatedType(variableTree);
                 AnnotatedTypeMirror expType = atypeFactory.getAnnotatedType(tree.getExpression());
@@ -2698,7 +2698,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
         } else {
             Tree refTypeTree = tree.getType();
-            validateTypeOf(refTypeTree, false);
+            validateTypeOf(refTypeTree);
             if (refTypeTree.getKind() == Tree.Kind.ANNOTATED_TYPE) {
                 AnnotatedTypeMirror refType = atypeFactory.getAnnotatedType(refTypeTree);
                 AnnotatedTypeMirror expType = atypeFactory.getAnnotatedType(tree.getExpression());
@@ -3053,7 +3053,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     : "array initializers are not expected to be null in: " + valueExp;
             checkArrayInitialization(compType, arrayTree.getInitializers());
         }
-        if (!validateTypeOf(valueExp, false)) {
+        if (!validateTypeOf(valueExp)) {
             return;
         }
         AnnotatedTypeMirror valueType = atypeFactory.getAnnotatedType(valueExp);
@@ -4723,8 +4723,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      *
      * <p>The check is shallow, as it does not descend into generic or array types (i.e. only
      * performing the validity check on the raw type or outermost array dimension). {@link
-     * BaseTypeVisitor#validateTypeOf(Tree, boolean)} would call this for each type argument or
-     * array dimension separately.
+     * BaseTypeVisitor#validateTypeOf(Tree)} would call this for each type argument or array
+     * dimension separately.
      *
      * <p>In most cases, {@code useType} simply needs to be a subtype of {@code declarationType}. If
      * a type system makes exceptions to this rule, its implementation should override this method.
@@ -4795,10 +4795,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * check the return type.
      *
      * @param tree the AST type supplied by the user
-     * @param validateTargetLocation if true, validate the target location of annotations
      * @return true if the type is valid
      */
-    public boolean validateTypeOf(Tree tree, boolean validateTargetLocation) {
+    public boolean validateTypeOf(Tree tree) {
         AnnotatedTypeMirror type;
         // It's quite annoying that there is no TypeTree.
         switch (tree.getKind()) {
@@ -4808,16 +4807,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             case UNBOUNDED_WILDCARD:
             case EXTENDS_WILDCARD:
             case SUPER_WILDCARD:
-                type = atypeFactory.getAnnotatedTypeFromTypeTree(tree);
-                break;
             case ANNOTATED_TYPE:
                 type = atypeFactory.getAnnotatedTypeFromTypeTree(tree);
-                if (!validateTargetLocation) break;
-                validateTargetLocation(tree, type, TypeUseLocation.THROWS);
                 break;
             case TYPE_PARAMETER:
                 type = atypeFactory.getAnnotatedTypeFromTypeTree(tree);
-                if (!validateTargetLocation) break;
                 for (Tree t : ((TypeParameterTree) tree).getBounds()) {
                     validateTargetLocation(
                             t,
@@ -4839,7 +4833,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     // not use void as return type.
                     return true;
                 }
-                if (!validateTargetLocation) break;
                 if (((MethodTree) tree).getReturnType() == null) {
                     validateTargetLocation(tree, type, TypeUseLocation.CONSTRUCTOR_RESULT);
                 } else {

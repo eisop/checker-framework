@@ -87,7 +87,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * returns a boolean value.
      *
      * <p>This is the entry point to the type validator. Neither this method nor visit should be
-     * called directly by a visitor, only use {@link BaseTypeVisitor#validateTypeOf(Tree, boolean)}.
+     * called directly by a visitor, only use {@link BaseTypeVisitor#validateTypeOf(Tree)}.
      *
      * <p>This method is only called on top-level types, but it validates the entire type including
      * components of a compound type. Subclasses should override this only if there is special-case

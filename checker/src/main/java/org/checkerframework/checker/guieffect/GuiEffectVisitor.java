@@ -544,7 +544,7 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
                     AnnotatedTypeMirror ret = null;
                     if (enclosing.getKind() == Tree.Kind.METHOD) {
                         MethodTree enclosingMethod = (MethodTree) enclosing;
-                        boolean valid = validateTypeOf(enclosing, false);
+                        boolean valid = validateTypeOf(enclosing);
                         if (valid) {
                             ret = atypeFactory.getMethodReturnType(enclosingMethod, returnTree);
                         }
