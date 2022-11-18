@@ -25,7 +25,8 @@ import java.lang.annotation.Target;
 @TargetLocations({
     TypeUseLocation.LOWER_BOUND,
     TypeUseLocation.UPPER_BOUND,
-    TypeUseLocation.CONSTRUCTOR_RESULT
+    TypeUseLocation.CONSTRUCTOR_RESULT,
+    TypeUseLocation.RETURN
 })
 @SubtypeOf({GuardedBy.class, GuardSatisfied.class})
 @DefaultFor(TypeUseLocation.CONSTRUCTOR_RESULT)

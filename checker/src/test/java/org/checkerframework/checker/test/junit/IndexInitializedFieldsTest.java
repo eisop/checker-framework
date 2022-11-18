@@ -24,7 +24,8 @@ public class IndexInitializedFieldsTest extends CheckerFrameworkPerDirectoryTest
                         "org.checkerframework.common.initializedfields.InitializedFieldsChecker"),
                 "index-initializedfields",
                 Collections.emptyList(),
-                "-Aajava=tests/index-initializedfields/input-annotation-files/");
+                "-Aajava=tests/index-initializedfields/input-annotation-files/",
+                "-AnoEnforceTargetLocations");
     }
 
     @Parameters

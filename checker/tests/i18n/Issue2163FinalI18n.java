@@ -33,12 +33,14 @@ import org.checkerframework.checker.i18n.qual.*;
 }
 
 @LocalizableKeyBottom class Issue2163FinalCA {
+    // :: error: (type.invalid.annotations.on.use)
     @UnknownLocalizableKey Issue2163FinalCA() {}
 }
 
 @LocalizableKeyBottom class Issue2163FinalCB {
     // :: warning: (inconsistent.constructor.type)
-    // error: (super.invocation.invalid)
+    // :: error: (super.invocation.invalid)
+    // :: error: (type.invalid.annotations.on.use)
     @LocalizableKey Issue2163FinalCB() {}
 }
 

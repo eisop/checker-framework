@@ -245,7 +245,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /** True if "-AwarnRedundantAnnotations" was passed on the command line */
     private final boolean warnRedundantAnnotations;
 
-    /** True if "noEnforceTargetLocation" was passed on the command line */
+    /** True if "-AnoEnforceTargetLocation" was passed on the command line */
     protected final boolean noEnforceTargetLocations;
 
     /** The tree of the enclosing method that is currently being visited. */

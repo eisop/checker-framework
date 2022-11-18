@@ -108,6 +108,7 @@ public class InferTypeArgsPolyChecker<OUTER_SCOPE_TV> {
     }
 
     void contextF(
+            // :: error: (type.invalid.annotations.on.location)
             List<@H1Bot @H2Bot ? extends @H1Top @H2S1 String> l1,
             List<? super @H1S1 @H2S2 String> l2,
             List<@H1S1 @H2S2 ? extends @H1Top @H2Top String> l3) {
