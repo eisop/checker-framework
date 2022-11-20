@@ -245,8 +245,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /** True if "-AwarnRedundantAnnotations" was passed on the command line */
     private final boolean warnRedundantAnnotations;
 
-    /** True if "-AnoEnforceTargetLocation" was passed on the command line */
-    protected final boolean noEnforceTargetLocations;
+    /** True if "-AignoreTargetLocation" was passed on the command line */
+    protected final boolean ignoreTargetLocation;
 
     /** The tree of the enclosing method that is currently being visited. */
     protected @Nullable MethodTree methodTree = null;
@@ -294,7 +294,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         suggestPureMethods = checker.hasOption("suggestPureMethods"); // NO-AFU || infer;
         checkPurity = checker.hasOption("checkPurityAnnotations") || suggestPureMethods;
         warnRedundantAnnotations = checker.hasOption("warnRedundantAnnotations");
-        noEnforceTargetLocations = checker.hasOption("noEnforceTargetLocations");
+        ignoreTargetLocation = checker.hasOption("ignoreTargetLocation");
         initAnnoToTargetLocations();
     }
 
@@ -1542,7 +1542,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param type the type of the tree
      */
     protected void validateVariablesTargetLocation(Tree tree, AnnotatedTypeMirror type) {
-        if (noEnforceTargetLocations) return;
+        if (ignoreTargetLocation) return;
         Element element = TreeUtils.elementFromTree(tree);
 
         if (element != null) {
@@ -1615,7 +1615,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     protected void validateTargetLocation(
             Tree tree, AnnotatedTypeMirror type, TypeUseLocation... required) {
-        if (noEnforceTargetLocations || required.length == 0) {
+        if (ignoreTargetLocation || required.length == 0) {
             return;
         }
         for (AnnotationMirror am : type.getAnnotations()) {

@@ -324,7 +324,7 @@ import javax.tools.Diagnostic.Kind;
     "noJreVersionCheck",
 
     // Do not validate meta-annotation @TargetLocations
-    "noEnforceTargetLocations",
+    "ignoreTargetLocation",
     /// Format of messages
 
     // Output detailed message in simple-to-parse format, useful

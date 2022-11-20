@@ -3,10 +3,16 @@ Version 3.27.0-eisop2 (November ?, 2022)
 
 **User-visible changes:**
 
+The new command-line argument `-AignoreTargetLocation` disables validating the target locations
+of qualifiers. By default, if a qualifier is declared with the meta-annotation
+@TargetLocations({TypeUseLocation...}), the qualifier should only be applied on these type use
+locations. With this flag, the checker ignores the meta-annotation and allow the qualifier to be
+applied on everywhere.
+
 **Implementation details:**
 
 **Closed issues:**
-
+typetools#1919
 
 Version 3.27.0-eisop1 (November 6, 2022)
 ----------------------------------------
