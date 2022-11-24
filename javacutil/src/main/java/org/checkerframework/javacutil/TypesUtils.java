@@ -409,6 +409,7 @@ public final class TypesUtils {
     /**
      * Returns true iff the argument is a primitive type.
      *
+     * @param type a type
      * @return whether the argument is a primitive type
      */
     public static boolean isPrimitive(TypeMirror type) {
