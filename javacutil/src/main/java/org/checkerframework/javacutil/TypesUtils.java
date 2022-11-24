@@ -355,6 +355,12 @@ public final class TypesUtils {
                 && getQualifiedName((DeclaredType) type).contentEquals(qualifiedName);
     }
 
+    /**
+     * Check if the {@code type} represents a boxed primitive type.
+     *
+     * @param type the type to check
+     * @return true iff type represents a boxed primitive type
+     */
     public static boolean isBoxedPrimitive(TypeMirror type) {
         return TypeKindUtils.boxedToTypeKind(type) != null;
     }
