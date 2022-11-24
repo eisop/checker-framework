@@ -384,8 +384,7 @@ public final class TypesUtils {
     public static boolean isImmutableTypeInJdk(TypeMirror type) {
         return isPrimitive(type)
                 || (type.getKind() == TypeKind.DECLARED
-                        && ImmutableTypes.isImmutable(
-                                getQualifiedName((DeclaredType) type).toString()));
+                        && ImmutableTypes.isImmutable(getQualifiedName((DeclaredType) type)));
     }
 
     /**

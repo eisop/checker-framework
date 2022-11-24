@@ -82,14 +82,12 @@ import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
-import org.checkerframework.javacutil.TypeAnnotationUtils;
 import org.checkerframework.javacutil.TypeKindUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
 import org.checkerframework.javacutil.trees.DetachedVarSymbol;
 import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.ImmutableTypes;
 import org.plumelib.util.StringsPlume;
 
 import java.io.BufferedReader;
@@ -5921,10 +5919,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return true if the type is immutable
      */
     public boolean isImmutable(TypeMirror type) {
-        if (type.getKind().isPrimitive()) {
-            return true;
-        }
-        return ImmutableTypes.isImmutable(TypeAnnotationUtils.unannotatedType(type).toString());
+        return TypesUtils.isImmutableTypeInJdk(type);
     }
 
     @Override
