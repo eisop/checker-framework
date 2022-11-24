@@ -14,6 +14,7 @@ import javax.lang.model.type.TypeMirror;
 /** A utility class that helps with {@link TypeKind}s. */
 public final class TypeKindUtils {
 
+    /** Map of a boxed primitive type's fully-qualified name to its primitive {@link TypeKind}. */
     private static final Map<@FullyQualifiedName String, TypeKind> boxedToPrimitiveType;
 
     static {
@@ -108,6 +109,13 @@ public final class TypeKindUtils {
         return boxedToTypeKind(type);
     }
 
+    /**
+     * Given a boxed primitive type, return the corresponding primitive type kind. Otherwise, return
+     * null.
+     *
+     * @param type a boxed primitive type
+     * @return a primitive type kind, or null
+     */
     public static @Nullable TypeKind boxedToTypeKind(TypeMirror type) {
         if (type.getKind() != TypeKind.DECLARED) {
             return null;
