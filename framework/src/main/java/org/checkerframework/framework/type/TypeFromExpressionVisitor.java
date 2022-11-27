@@ -177,7 +177,8 @@ class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
     // Switch expressions first appeared in 12, standard in 14, so don't use 17.
     @Override
     public AnnotatedTypeMirror defaultAction(Tree tree, AnnotatedTypeFactory f) {
-        if (tree.getKind().name().equals("SWITCH_EXPRESSION")) {
+        double version = Double.parseDouble(System.getProperty("java.specification.version"));
+        if (version >= 14 && tree.getKind().name().equals("SWITCH_EXPRESSION")) {
             return visitSwitchExpressionTree17(tree, f);
         }
         return super.defaultAction(tree, f);

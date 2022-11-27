@@ -79,7 +79,8 @@ public abstract class TreeScannerWithDefaults extends TreeScanner<Void, Void> {
     @Override
     public Void scan(Tree tree, Void unused) {
         if (tree != null) {
-            if (tree.getKind().name().equals("SWITCH_EXPRESSION")) {
+            double version = Double.parseDouble(System.getProperty("java.specification.version"));
+            if (version >= 14 && tree.getKind().name().equals("SWITCH_EXPRESSION")) {
                 visitSwitchExpression17(tree, unused);
                 return null;
             } else if (tree.getKind().name().equals("YIELD")) {

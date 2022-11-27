@@ -543,18 +543,16 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             path = new TreePath(path, tree);
         }
         try {
-            // Must use String comparison to support compiling on JDK 11 and earlier.
-            //     Features added between JDK 12 and JDK 17 inclusive.
-            switch (tree.getKind().name()) {
-                case "BINDING_PATTERN":
-                    return visitBindingPattern17(path.getLeaf(), p);
-                case "SWITCH_EXPRESSION":
-                    return visitSwitchExpression17(tree, p);
-                case "YIELD":
-                    return visitYield17(tree, p);
-                default:
-                    return tree.accept(this, p);
+            double version = Double.parseDouble(System.getProperty("java.specification.version"));
+            if (tree.getKind().name().equals("BINDING_PATTERN")) {
+                return visitBindingPattern17(path.getLeaf(), p);
+            } else if (version >= 14 && tree.getKind().name().equals("SWITCH_EXPRESSION")) {
+                return visitSwitchExpression17(tree, p);
+            }  else if (tree.getKind().name().equals("YIELD")) {
+                return visitYield17(tree, p);
             }
+
+            return tree.accept(this, p);
         } finally {
             path = prev;
         }

@@ -35,9 +35,9 @@ public class SwitchExpressionNode extends Node {
     public SwitchExpressionNode(
             TypeMirror type, Tree switchExpressionTree, LocalVariableNode switchExpressionVar) {
         super(type);
-
+        double version = Double.parseDouble(System.getProperty("java.specification.version"));
         // TODO: use JCP to add version-specific behavior
-        if (!switchExpressionTree.getKind().name().equals("SWITCH_EXPRESSION")) {
+        if (version >= 14 && !switchExpressionTree.getKind().name().equals("SWITCH_EXPRESSION")) {
             throw new BugInCF(
                     "switchExpressionTree is not a SwitchExpressionTree found tree with kind %s"
                             + " instead.",
