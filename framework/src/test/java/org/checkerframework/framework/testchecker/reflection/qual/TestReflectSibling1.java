@@ -9,8 +9,8 @@ import java.lang.annotation.Target;
  * Toy type system for testing reflection resolution. Uses
  * org.checkerframework.common.subtyping.qual.Bottom as bottom.
  *
- * @see Top, Sibling2
+ * @see TestReflectTop, TestReflectSibling2
  */
-@SubtypeOf(Top.class)
+@SubtypeOf(TestReflectTop.class)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-public @interface Sibling1 {}
+public @interface TestReflectSibling1 {}

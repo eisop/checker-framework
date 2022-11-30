@@ -14,4 +14,4 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @DefaultQualifierInHierarchy
 @SubtypeOf({})
-public @interface A {}
+public @interface LubglbA {}

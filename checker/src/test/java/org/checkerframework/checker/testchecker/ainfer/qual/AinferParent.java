@@ -8,8 +8,8 @@ import java.lang.annotation.Target;
 /**
  * Toy type system for testing field inference.
  *
- * @see Sibling1, Sibling2, Parent
+ * @see AinferSibling1, AinferSibling2, AinferParent
  */
-@SubtypeOf(Parent.class)
+@SubtypeOf({AinferDefaultType.class})
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-public @interface Sibling2 {}
+public @interface AinferParent {}
