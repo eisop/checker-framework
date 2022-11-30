@@ -150,14 +150,18 @@ public class NullnessAnnotatedTypeFactory
                     "com.sun.istack.internal.NotNull",
                     // https://github.com/pingidentity/ldapsdk/blob/master/src/com/unboundid/util/NotNull.java
                     "com.unboundid.util.NotNull",
-                    // http://findbugs.sourceforge.net/api/edu/umd/cs/findbugs/annotations/NonNull.html
+                    // https://findbugs.sourceforge.net/api/edu/umd/cs/findbugs/annotations/NonNull.html
                     "edu.umd.cs.findbugs.annotations.NonNull",
                     // https://github.com/micrometer-metrics/micrometer/blob/main/micrometer-core/src/main/java/io/micrometer/core/lang/NonNull.java
                     "io.micrometer.core.lang.NonNull",
+                    // https://github.com/micronaut-projects/micronaut-core/blob/master/core/src/main/java/io/micronaut/core/annotation/NonNull.java
+                    "io.micronaut.core.annotation.NonNull",
                     // https://github.com/ReactiveX/RxJava/blob/2.x/src/main/java/io/reactivex/annotations/NonNull.java
                     "io.reactivex.annotations.NonNull",
                     // https://github.com/ReactiveX/RxJava/blob/3.x/src/main/java/io/reactivex/rxjava3/annotations/NonNull.java
                     "io.reactivex.rxjava3.annotations.NonNull",
+                    // https://github.com/jakartaee/common-annotations-api/blob/master/api/src/main/java/jakarta/annotation/Nonnull.java
+                    "jakarta.annotation.Nonnull",
                     // https://jcp.org/en/jsr/detail?id=305; no documentation at
                     // https://www.javadoc.io/doc/com.google.code.findbugs/jsr305/3.0.1/javax/annotation/Nonnull.html
                     "javax.annotation.Nonnull",
@@ -167,6 +171,10 @@ public class NullnessAnnotatedTypeFactory
                     "libcore.util.NonNull",
                     // https://github.com/projectlombok/lombok/blob/master/src/core/lombok/NonNull.java
                     "lombok.NonNull",
+                    // https://github.com/raphw/byte-buddy/blob/master/byte-buddy-agent/src/main/java/net/bytebuddy/agent/utility/nullability/NeverNull.java
+                    "net.bytebuddy.agent.utility.nullability.NeverNull",
+                    // https://github.com/raphw/byte-buddy/blob/master/byte-buddy-dep/src/main/java/net/bytebuddy/utility/nullability/NeverNull.java
+                    "net.bytebuddy.utility.nullability.NeverNull",
                     // https://github.com/antlr/antlr4/blob/master/runtime/Java/src/org/antlr/v4/runtime/misc/NotNull.java
                     "org.antlr.v4.runtime.misc.NotNull",
                     // https://search.maven.org/artifact/org.checkerframework/checker-compat-qual/2.5.5/jar
@@ -186,6 +194,9 @@ public class NullnessAnnotatedTypeFactory
                     "org.jetbrains.annotations.NotNull",
                     // http://svn.code.sf.net/p/jmlspecs/code/JMLAnnotations/trunk/src/org/jmlspecs/annotation/NonNull.java
                     "org.jmlspecs.annotation.NonNull",
+                    // https://github.com/jspecify/jspecify/blob/main/src/main/java/org/jspecify/annotations/NonNull.java
+                    "org.jspecify.annotations.NonNull",
+                    // 2022-11-17: Deprecated old package location, remove after some grace period
                     // https://github.com/jspecify/jspecify/tree/main/src/main/java/org/jspecify/nullness
                     "org.jspecify.nullness.NonNull",
                     // http://bits.netbeans.org/dev/javadoc/org-netbeans-api-annotations-common/org/netbeans/api/annotations/common/NonNull.html
@@ -245,20 +256,26 @@ public class NullnessAnnotatedTypeFactory
                     "com.sun.istack.internal.Nullable",
                     // https://github.com/pingidentity/ldapsdk/blob/master/src/com/unboundid/util/Nullable.java
                     "com.unboundid.util.Nullable",
-                    // http://findbugs.sourceforge.net/api/edu/umd/cs/findbugs/annotations/CheckForNull.html
+                    // https://findbugs.sourceforge.net/api/edu/umd/cs/findbugs/annotations/CheckForNull.html
                     "edu.umd.cs.findbugs.annotations.CheckForNull",
-                    // http://findbugs.sourceforge.net/api/edu/umd/cs/findbugs/annotations/Nullable.html
+                    // https://findbugs.sourceforge.net/api/edu/umd/cs/findbugs/annotations/Nullable.html
                     "edu.umd.cs.findbugs.annotations.Nullable",
-                    // http://findbugs.sourceforge.net/api/edu/umd/cs/findbugs/annotations/PossiblyNull.html
+                    // https://findbugs.sourceforge.net/api/edu/umd/cs/findbugs/annotations/PossiblyNull.html
                     "edu.umd.cs.findbugs.annotations.PossiblyNull",
-                    // http://findbugs.sourceforge.net/api/edu/umd/cs/findbugs/annotations/UnknownNullness.html
+                    // https://findbugs.sourceforge.net/api/edu/umd/cs/findbugs/annotations/UnknownNullness.html
                     "edu.umd.cs.findbugs.annotations.UnknownNullness",
                     // https://github.com/micrometer-metrics/micrometer/blob/main/micrometer-core/src/main/java/io/micrometer/core/lang/Nullable.java
                     "io.micrometer.core.lang.Nullable",
+                    // https://github.com/micronaut-projects/micronaut-core/blob/master/core/src/main/java/io/micronaut/core/annotation/Nullable.java
+                    "io.micronaut.core.annotation.Nullable",
                     // https://github.com/ReactiveX/RxJava/blob/2.x/src/main/java/io/reactivex/annotations/Nullable.java
                     "io.reactivex.annotations.Nullable",
                     // https://github.com/ReactiveX/RxJava/blob/3.x/src/main/java/io/reactivex/rxjava3/annotations/Nullable.java
                     "io.reactivex.rxjava3.annotations.Nullable",
+                    // https://github.com/eclipse-vertx/vertx-codegen/blob/master/src/main/java/io/vertx/codegen/annotations/Nullable.java
+                    "io.vertx.codegen.annotations.Nullable",
+                    // https://github.com/jakartaee/common-annotations-api/blob/master/api/src/main/java/jakarta/annotation/Nullable.java
+                    "jakarta.annotation.Nullable",
                     // https://jcp.org/en/jsr/detail?id=305; no documentation at
                     // https://www.javadoc.io/doc/com.google.code.findbugs/jsr305/3.0.1/javax/annotation/Nullable.html
                     "javax.annotation.CheckForNull",
@@ -267,6 +284,18 @@ public class NullnessAnnotatedTypeFactory
                     "junitparams.converters.Nullable",
                     // https://android.googlesource.com/platform/libcore/+/master/luni/src/main/java/libcore/util/Nullable.java
                     "libcore.util.Nullable",
+                    // https://github.com/raphw/byte-buddy/blob/master/byte-buddy-agent/src/main/java/net/bytebuddy/agent/utility/nullability/AlwaysNull.java
+                    "net.bytebuddy.agent.utility.nullability.AlwaysNull",
+                    // https://github.com/raphw/byte-buddy/blob/master/byte-buddy-agent/src/main/java/net/bytebuddy/agent/utility/nullability/MaybeNull.java
+                    "net.bytebuddy.agent.utility.nullability.MaybeNull",
+                    // https://github.com/raphw/byte-buddy/blob/master/byte-buddy-agent/src/main/java/net/bytebuddy/agent/utility/nullability/UnknownNull.java
+                    "net.bytebuddy.agent.utility.nullability.UnknownNull",
+                    // https://github.com/raphw/byte-buddy/blob/master/byte-buddy-dep/src/main/java/net/bytebuddy/utility/nullability/AlwaysNull.java
+                    "net.bytebuddy.utility.nullability.AlwaysNull",
+                    // https://github.com/raphw/byte-buddy/blob/master/byte-buddy-dep/src/main/java/net/bytebuddy/utility/nullability/MaybeNull.java
+                    "net.bytebuddy.utility.nullability.MaybeNull",
+                    // https://github.com/raphw/byte-buddy/blob/master/byte-buddy-dep/src/main/java/net/bytebuddy/utility/nullability/UnknownNull.java
+                    "net.bytebuddy.utility.nullability.UnknownNull",
                     // https://github.com/apache/avro/blob/master/lang/java/avro/src/main/java/org/apache/avro/reflect/Nullable.java
                     // "org.apache.avro.reflect.Nullable",
                     "org.apa".toString() + "che.avro.reflect.Nullable",
@@ -293,6 +322,9 @@ public class NullnessAnnotatedTypeFactory
                     "org.jetbrains.annotations.UnknownNullability",
                     // http://svn.code.sf.net/p/jmlspecs/code/JMLAnnotations/trunk/src/org/jmlspecs/annotation/Nullable.java
                     "org.jmlspecs.annotation.Nullable",
+                    // https://github.com/jspecify/jspecify/blob/main/src/main/java/org/jspecify/annotations/Nullable.java
+                    "org.jspecify.annotations.Nullable",
+                    // 2022-11-17: Deprecated old package location, remove after some grace period
                     // https://github.com/jspecify/jspecify/tree/main/src/main/java/org/jspecify/nullness
                     "org.jspecify.nullness.Nullable",
                     "org.jspecify.nullness.NullnessUnspecified",
@@ -358,7 +390,12 @@ public class NullnessAnnotatedTypeFactory
                                     new TypeUseLocation[] {TypeUseLocation.UPPER_BOUND})
                             .setValue("applyToSubpackages", false)
                             .build();
+            addAliasedDeclAnnotation(
+                    "org.jspecify.annotations.NullMarked",
+                    DefaultQualifier.class.getCanonicalName(),
+                    nullMarkedDefaultQual);
 
+            // 2022-11-17: Deprecated old package location, remove after some grace period
             addAliasedDeclAnnotation(
                     "org.jspecify.nullness.NullMarked",
                     DefaultQualifier.class.getCanonicalName(),
@@ -948,6 +985,14 @@ public class NullnessAnnotatedTypeFactory
         if (rhsATM.hasAnnotation(MonotonicNonNull.class)) {
             rhsATM.replaceAnnotation(NULLABLE);
         }
+    }
+
+    @Override
+    public boolean wpiShouldInferTypesForReceivers() {
+      // All receivers must be non-null, or the dereference involved in
+      // the method call would fail (and cause an NPE). So, WPI should not
+      // infer non-null or nullable annotations on method receiver parameters.
+      return false;
     }
 
     // This implementation overrides the superclass implementation to:

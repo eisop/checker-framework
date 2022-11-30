@@ -1777,6 +1777,21 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
+     * Removes all primary annotations on a copy of the type and calculates the default annotations
+     * that apply to the copied type, without type refinements.
+     *
+     * @param tree tree where the type is used
+     * @param type type to determine the defaulted version for
+     * @return the annotated type mirror with default annotations
+     */
+    public AnnotatedTypeMirror getDefaultAnnotations(Tree tree, AnnotatedTypeMirror type) {
+        AnnotatedTypeMirror copy = type.deepCopy();
+        copy.removeAnnotations(type.getAnnotations());
+        addComputedTypeAnnotations(tree, copy, false);
+        return copy;
+    }
+
+    /**
      * Like {@link #addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)}. Overriding
      * implementations typically simply pass the boolean to calls to super.
      *
@@ -1881,9 +1896,7 @@ public abstract class GenericAnnotatedTypeFactory<
             throw new BugInCF(
                     "GenericAnnotatedTypeFactory.getInferredValueFor called with null tree");
         }
-        if (stubTypes.isParsing()
-                || ajavaTypes.isParsing()
-                || (currentFileAjavaTypes != null && currentFileAjavaTypes.isParsing())) {
+        if (!analysis.isRunning() && flowResult == null) {
             // When parsing stub or ajava files, the analysis is not running (it has not yet
             // started), and flowResult is null (no analysis has occurred). Instead of attempting to
             // find a non-existent inferred type, return null.

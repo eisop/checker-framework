@@ -419,7 +419,10 @@ public class WholeProgramInferenceJavaParserStorage
             }
         }
 
-        if (newATM.getKind() == TypeKind.ARRAY) {
+        // Need to check both newATM and curATM, because one might be a declared type
+        // even if the other is an array: it is permitted to assign e.g., a String[]
+        // to a location with static type Object **and vice-versa** (if a cast is used).
+        if (newATM.getKind() == TypeKind.ARRAY && curATM.getKind() == TypeKind.ARRAY) {
             AnnotatedArrayType newAAT = (AnnotatedArrayType) newATM;
             AnnotatedArrayType oldAAT = (AnnotatedArrayType) curATM;
             AnnotatedArrayType aatToUpdate = (AnnotatedArrayType) typeToUpdate;
@@ -537,50 +540,7 @@ public class WholeProgramInferenceJavaParserStorage
                             NewClassTree javacTree, ObjectCreationExpr javaParserNode) {
                         ClassTree body = javacTree.getClassBody();
                         if (body != null) {
-                            // elementFromTree returns null instead of crashing when no element
-                            // exists for
-                            // the class tree, which can happen for certain kinds of anonymous
-                            // classes, such as
-                            // Ordering$1 in PolyCollectorTypeVar.java in the all-systems test
-                            // suite.
-                            // addClass(ClassTree) in the then branch just below assumes that such
-                            // an element
-                            // exists.
-                            Element classElt = TreeUtils.elementFromDeclaration(body);
-                            if (classElt != null) {
-                                addClass(body);
-                            } else {
-                                // If such an element does not exist, compute the name of the class,
-                                // instead.
-                                // This method of computing the name is not 100% guaranteed to be
-                                // reliable,
-                                // but it should be sufficient for WPI's purposes here: if the wrong
-                                // name
-                                // is computed, the worst outcome is a false positive because WPI
-                                // inferred an
-                                // untrue annotation.
-                                @BinaryName String className;
-                                if ("".contentEquals(body.getSimpleName())) {
-                                    @SuppressWarnings(
-                                            "signature:assignment") // computed from string
-                                    // concatenation
-                                    @BinaryName String computedName =
-                                            javaParserClass.getFullyQualifiedName().get()
-                                                    + "$"
-                                                    + ++innerClassCount;
-                                    className = computedName;
-                                } else {
-                                    @SuppressWarnings(
-                                            "signature:assignment") // computed from string
-                                    // concatenation
-                                    @BinaryName String computedName =
-                                            javaParserClass.getFullyQualifiedName().get()
-                                                    + "$"
-                                                    + body.getSimpleName().toString();
-                                    className = computedName;
-                                }
-                                addClass(body, className);
-                            }
+                            addClass(body);
                         }
                     }
 
@@ -649,14 +609,6 @@ public class WholeProgramInferenceJavaParserStorage
                     private void addCallableDeclaration(
                             MethodTree javacTree, CallableDeclaration<?> javaParserNode) {
                         ExecutableElement element = TreeUtils.elementFromDeclaration(javacTree);
-                        if (element == null) {
-                            // element can be null if there is no element corresponding to the
-                            // method,
-                            // which happens for certain kinds of anonymous classes, such as
-                            // Ordering$1 in
-                            // PolyCollectorTypeVar.java in the all-systems test suite.
-                            return;
-                        }
                         String className = ElementUtils.getEnclosingClassName(element);
                         ClassOrInterfaceAnnos enclosingClass = classToAnnos.get(className);
                         String executableSignature = JVMNames.getJVMMethodSignature(javacTree);
@@ -697,13 +649,6 @@ public class WholeProgramInferenceJavaParserStorage
                     @Override
                     public void processVariable(
                             VariableTree javacTree, VariableDeclarator javaParserNode) {
-                        // This seems to occur when javacTree is a local variable in the second
-                        // class located in a source file. If this check returns false, then the
-                        // below call to TreeUtils.elementFromDeclaration causes a crash.
-                        if (TreeUtils.elementFromDeclaration(javacTree) == null) {
-                            return;
-                        }
-
                         VariableElement elt = TreeUtils.elementFromDeclaration(javacTree);
                         if (!elt.getKind().isField()) {
                             return;
