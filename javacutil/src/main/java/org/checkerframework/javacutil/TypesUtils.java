@@ -328,8 +328,7 @@ public final class TypesUtils {
      * @return true iff type represents a boolean type
      */
     public static boolean isBooleanType(TypeMirror type) {
-        TypeKind kind = TypeKindUtils.primitiveOrBoxedToTypeKind(type);
-        return kind == TypeKind.BOOLEAN;
+        return type.getKind() == TypeKind.BOOLEAN || isDeclaredOfName(type, "java.lang.Boolean");
     }
 
     /**
@@ -340,8 +339,7 @@ public final class TypesUtils {
      * @return true iff type represents a character type
      */
     public static boolean isCharType(TypeMirror type) {
-        TypeKind kind = TypeKindUtils.primitiveOrBoxedToTypeKind(type);
-        return kind == TypeKind.CHAR;
+        return type.getKind() == TypeKind.CHAR || isDeclaredOfName(type, "java.lang.Character");
     }
 
     /**
