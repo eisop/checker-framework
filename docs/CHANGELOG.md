@@ -23,6 +23,8 @@ Renamed `TreeUtils.isEnumSuper` to `isEnumSuperCall`.
 
 **Closed issues:**
 
+#5390, #5399, #5390.
+
 
 Version 3.27.0-eisop1 (November 6, 2022)
 ----------------------------------------
