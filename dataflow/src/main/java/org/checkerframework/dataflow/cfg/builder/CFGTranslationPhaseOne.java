@@ -1447,7 +1447,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     }
 
     List<Node> arguments;
-    if (TreeUtils.isEnumSuper(tree)) {
+    if (TreeUtils.isEnumSuperCall(tree)) {
       // Don't convert arguments for enum super calls.  The AST contains no actual arguments,
       // while the method element expects two arguments, leading to an exception in
       // convertCallArguments.
