@@ -1,4 +1,4 @@
-Version 3.28.0-eisop2 (December ?, 2022)
+Version 3.30.0-eisop1 (February ?, 2023)
 ----------------------------------------
 
 **User-visible changes:**
@@ -7,6 +7,16 @@ Version 3.28.0-eisop2 (December ?, 2022)
 
 A `VariableDeclarationNode` is now correctly added to the CFG for the binding variable
 in a `BindingPatternTree`.
+
+**Closed issues:**
+
+
+Version 3.28.1 (January 3, 2022)
+---------------------------------
+
+**User-visible changes:**
+
+**Implementation details:**
 
 **Closed issues:**
 
@@ -21,6 +31,8 @@ Support JSpecify annotations in the `org.jspecify.annotations` package.
 **Implementation details:**
 
 Remove duplicate code in `AnnotatedTypeFactory` and `javacutil`.
+
+**Closed issues:**
 
 
 Version 3.28.0 (December 1, 2022)
