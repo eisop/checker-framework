@@ -26,7 +26,7 @@ public class ObjectCreationNode extends Node {
     /** The tree for the object creation. */
     protected final NewClassTree tree;
 
-    /** The receiver of the object creation. */
+    /** The receiver of the object creation or null. */
     protected final @Nullable Node receiver;
 
     /** The constructor node of the object creation. */
