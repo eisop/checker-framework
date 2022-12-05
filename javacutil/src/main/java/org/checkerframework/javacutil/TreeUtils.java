@@ -145,6 +145,11 @@ public final class TreeUtils {
   /** The set of tree kinds that can be categorized as binary comparison. */
   private static final Set<Tree.Kind> BINARY_COMPARISON_TREE_KINDS;
 
+  /** The {@code CaseTree.getKind()} method. Null on JDK 11 and lower. */
+  private static @Nullable Method caseGetCaseKind = null;
+  /** The {@code CaseTree.CaseKind.RULE} enum value. Null on JDK 11 and lower. */
+  private static @Nullable Enum<?> caseKindRule = null;
+
   static {
     final SourceVersion latestSource = SourceVersion.latest();
     SourceVersion java12;
@@ -182,6 +187,24 @@ public final class TreeUtils {
         Class<?> switchExpressionClass = Class.forName("com.sun.source.tree.SwitchExpressionTree");
         SWITCHEXPRTREE_GETEXPRESSION = switchExpressionClass.getMethod("getExpression");
         SWITCHEXPRTREE_GETCASES = switchExpressionClass.getMethod("getCases");
+
+        caseGetCaseKind = CaseTree.class.getDeclaredMethod("getCaseKind");
+        for (Class<?> nested : CaseTree.class.getDeclaredClasses()) {
+          if (nested.isEnum() && nested.getSimpleName().equals("CaseKind")) {
+            @SuppressWarnings({
+              "nullness:assignment",
+              "mustcall:assignment"
+            }) // capture problem; fix later
+            Object @NonNull [] enumConstants = nested.getEnumConstants();
+            for (Object enumConstant : enumConstants) {
+              if (enumConstant.toString().equals("RULE")) {
+                caseKindRule = (Enum<?>) enumConstant;
+                break;
+              }
+            }
+          }
+        }
+        assert caseKindRule != null;
       } else {
         CASETREE_GETEXPRESSION = CaseTree.class.getDeclaredMethod("getExpression");
         CASETREE_GETEXPRESSIONS = null;
@@ -2144,6 +2167,28 @@ public final class TreeUtils {
    */
   public static boolean isDefaultCaseTree(CaseTree caseTree) {
     return caseTreeGetExpressions(caseTree).isEmpty();
+  }
+
+  /**
+   * Returns true if this is a case rule (as opposed to a case statement).
+   *
+   * @param caseTree a case tree
+   * @return true if {@code caseTree} is a case rule
+   */
+  public static boolean isCaseRule(CaseTree caseTree) {
+    if (SystemUtil.jreVersion < 12) {
+      return false;
+    }
+    // Code for JDK 12 and later.
+    try {
+      @SuppressWarnings({"unchecked", "nullness"}) // reflective call
+      @NonNull Enum<?> caseKind = (Enum<?>) caseGetCaseKind.invoke(caseTree);
+      @SuppressWarnings("interning:not.interned") // bug in interning defaulting
+      boolean result = caseKind == caseKindRule;
+      return result;
+    } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+      throw new BugInCF("cannot find and/or call method CaseTree.getKind()", e);
+    }
   }
 
   /**

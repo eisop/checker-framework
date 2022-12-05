@@ -384,10 +384,10 @@ public class ExpectedTreesVisitor extends TreeScannerWithDefaults {
   @Override
   public Void visitVariable(VariableTree tree, Void p) {
     // Javac expands the keyword "var" in a variable declaration to its inferred type.
-    // JavaParser has a special "var" construct, so they won't match. If a javac type was
-    // generated this way, then it won't have a position in source code so in that case we don't
-    // add it.
-    if (((JCExpression) tree.getType()).pos == Position.NOPOS) {
+    // JavaParser has a special "var" construct, so they won't match. If a javac type was generated
+    // this way, then it won't have a position in source code so in that case we don't add it.
+    JCExpression type = (JCExpression) tree.getType();
+    if (type != null && type.pos == Position.NOPOS) {
       return null;
     }
 
