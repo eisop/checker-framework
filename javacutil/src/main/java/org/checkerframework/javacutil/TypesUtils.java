@@ -14,17 +14,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.BinaryName;
 import org.checkerframework.checker.signature.qual.CanonicalNameOrEmpty;
 import org.checkerframework.checker.signature.qual.DotSeparatedIdentifiers;
-import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.ImmutableTypes;
 import org.plumelib.util.StringsPlume;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.StringJoiner;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -138,8 +134,7 @@ public final class TypesUtils {
                 // BUG: need to compute a @ClassGetName, but this code computes a
                 // @CanonicalNameOrEmpty.  They are different for inner classes.
                 @SuppressWarnings("signature") // https://tinyurl.com/cfissue/658 for Names.toString
-                @DotSeparatedIdentifiers String typeString =
-                        TypesUtils.getQualifiedName((DeclaredType) typeMirror).toString();
+                @DotSeparatedIdentifiers String typeString = TypesUtils.getQualifiedName((DeclaredType) typeMirror);
                 if (typeString.equals("<nulltype>")) {
                     return void.class;
                 }
@@ -333,7 +328,7 @@ public final class TypesUtils {
      * @return true iff type represents a boolean type
      */
     public static boolean isBooleanType(TypeMirror type) {
-        return isDeclaredOfName(type, "java.lang.Boolean") || type.getKind() == TypeKind.BOOLEAN;
+        return type.getKind() == TypeKind.BOOLEAN || isDeclaredOfName(type, "java.lang.Boolean");
     }
 
     /**
@@ -344,7 +339,7 @@ public final class TypesUtils {
      * @return true iff type represents a character type
      */
     public static boolean isCharType(TypeMirror type) {
-        return isDeclaredOfName(type, "java.lang.Character") || type.getKind() == TypeKind.CHAR;
+        return type.getKind() == TypeKind.CHAR || isDeclaredOfName(type, "java.lang.Character");
     }
 
     /**
@@ -358,21 +353,14 @@ public final class TypesUtils {
                 && getQualifiedName((DeclaredType) type).contentEquals(qualifiedName);
     }
 
+    /**
+     * Check if the {@code type} represents a boxed primitive type.
+     *
+     * @param type the type to check
+     * @return true iff type represents a boxed primitive type
+     */
     public static boolean isBoxedPrimitive(TypeMirror type) {
-        if (type.getKind() != TypeKind.DECLARED) {
-            return false;
-        }
-
-        String qualifiedName = getQualifiedName((DeclaredType) type).toString();
-
-        return (qualifiedName.equals("java.lang.Boolean")
-                || qualifiedName.equals("java.lang.Byte")
-                || qualifiedName.equals("java.lang.Character")
-                || qualifiedName.equals("java.lang.Short")
-                || qualifiedName.equals("java.lang.Integer")
-                || qualifiedName.equals("java.lang.Long")
-                || qualifiedName.equals("java.lang.Double")
-                || qualifiedName.equals("java.lang.Float"));
+        return TypeKindUtils.boxedToTypeKind(type) != null;
     }
 
     /**
@@ -384,8 +372,7 @@ public final class TypesUtils {
     public static boolean isImmutableTypeInJdk(TypeMirror type) {
         return isPrimitive(type)
                 || (type.getKind() == TypeKind.DECLARED
-                        && ImmutableTypes.isImmutable(
-                                getQualifiedName((DeclaredType) type).toString()));
+                        && ImmutableTypes.isImmutable(getQualifiedName((DeclaredType) type)));
     }
 
     /**
@@ -420,22 +407,11 @@ public final class TypesUtils {
     /**
      * Returns true iff the argument is a primitive type.
      *
+     * @param type a type
      * @return whether the argument is a primitive type
      */
     public static boolean isPrimitive(TypeMirror type) {
-        switch (type.getKind()) {
-            case BOOLEAN:
-            case BYTE:
-            case CHAR:
-            case DOUBLE:
-            case FLOAT:
-            case INT:
-            case LONG:
-            case SHORT:
-                return true;
-            default:
-                return false;
-        }
+        return type.getKind().isPrimitive();
     }
 
     /**
@@ -445,31 +421,7 @@ public final class TypesUtils {
      * @return true if the argument is a primitive type or a boxed primitive type
      */
     public static boolean isPrimitiveOrBoxed(TypeMirror type) {
-        switch (type.getKind()) {
-            case BOOLEAN:
-            case BYTE:
-            case CHAR:
-            case DOUBLE:
-            case FLOAT:
-            case INT:
-            case LONG:
-            case SHORT:
-                return true;
-
-            case DECLARED:
-                String qualifiedName = getQualifiedName((DeclaredType) type).toString();
-                return (qualifiedName.equals("java.lang.Boolean")
-                        || qualifiedName.equals("java.lang.Byte")
-                        || qualifiedName.equals("java.lang.Character")
-                        || qualifiedName.equals("java.lang.Short")
-                        || qualifiedName.equals("java.lang.Integer")
-                        || qualifiedName.equals("java.lang.Long")
-                        || qualifiedName.equals("java.lang.Double")
-                        || qualifiedName.equals("java.lang.Float"));
-
-            default:
-                return false;
-        }
+        return isPrimitive(type) || isBoxedPrimitive(type);
     }
 
     /**
@@ -482,18 +434,6 @@ public final class TypesUtils {
         return TypeKindUtils.isNumeric(type.getKind());
     }
 
-    /** The fully-qualified names of the numeric boxed types. */
-    static final Set<@FullyQualifiedName String> numericBoxedTypes =
-            new HashSet<>(
-                    Arrays.asList(
-                            "java.lang.Byte",
-                            "java.lang.Character",
-                            "java.lang.Short",
-                            "java.lang.Integer",
-                            "java.lang.Long",
-                            "java.lang.Double",
-                            "java.lang.Float"));
-
     /**
      * Returns true iff the argument is a boxed numeric type.
      *
@@ -501,8 +441,8 @@ public final class TypesUtils {
      * @return true if the argument is a boxed numeric type
      */
     public static boolean isNumericBoxed(TypeMirror type) {
-        return type.getKind() == TypeKind.DECLARED
-                && numericBoxedTypes.contains(getQualifiedName((DeclaredType) type).toString());
+        TypeKind boxedPrimitiveKind = TypeKindUtils.boxedToTypeKind(type);
+        return boxedPrimitiveKind != null && TypeKindUtils.isNumeric(boxedPrimitiveKind);
     }
 
     /**
@@ -512,16 +452,7 @@ public final class TypesUtils {
      * @return whether the argument is an integral primitive type
      */
     public static boolean isIntegralPrimitive(TypeMirror type) {
-        switch (type.getKind()) {
-            case BYTE:
-            case CHAR:
-            case INT:
-            case LONG:
-            case SHORT:
-                return true;
-            default:
-                return false;
-        }
+        return TypeKindUtils.isIntegral(type.getKind());
     }
 
     /**
@@ -544,32 +475,8 @@ public final class TypesUtils {
      * @return true if {@code declaredType} is a box of {@code primitiveType}
      */
     public static boolean isBoxOf(TypeMirror declaredType, TypeMirror primitiveType) {
-        if (declaredType.getKind() != TypeKind.DECLARED) {
-            return false;
-        }
-
-        final String qualifiedName = getQualifiedName((DeclaredType) declaredType).toString();
-        switch (primitiveType.getKind()) {
-            case BOOLEAN:
-                return qualifiedName.equals("java.lang.Boolean");
-            case BYTE:
-                return qualifiedName.equals("java.lang.Byte");
-            case CHAR:
-                return qualifiedName.equals("java.lang.Character");
-            case DOUBLE:
-                return qualifiedName.equals("java.lang.Double");
-            case FLOAT:
-                return qualifiedName.equals("java.lang.Float");
-            case INT:
-                return qualifiedName.equals("java.lang.Integer");
-            case LONG:
-                return qualifiedName.equals("java.lang.Long");
-            case SHORT:
-                return qualifiedName.equals("java.lang.Short");
-
-            default:
-                return false;
-        }
+        TypeKind boxedPrimitiveKind = TypeKindUtils.boxedToTypeKind(declaredType);
+        return boxedPrimitiveKind == primitiveType.getKind();
     }
 
     /**
@@ -579,12 +486,8 @@ public final class TypesUtils {
      * @return whether the argument is a boxed floating point type
      */
     public static boolean isBoxedFloating(TypeMirror type) {
-        if (type.getKind() != TypeKind.DECLARED) {
-            return false;
-        }
-
-        String qualifiedName = getQualifiedName((DeclaredType) type).toString();
-        return qualifiedName.equals("java.lang.Double") || qualifiedName.equals("java.lang.Float");
+        TypeKind boxedPrimitiveKind = TypeKindUtils.boxedToTypeKind(type);
+        return boxedPrimitiveKind != null && TypeKindUtils.isFloatingPoint(boxedPrimitiveKind);
     }
 
     /**
@@ -594,13 +497,7 @@ public final class TypesUtils {
      * @return whether the argument is a primitive floating point type
      */
     public static boolean isFloatingPrimitive(TypeMirror type) {
-        switch (type.getKind()) {
-            case DOUBLE:
-            case FLOAT:
-                return true;
-            default:
-                return false;
-        }
+        return TypeKindUtils.isFloatingPoint(type.getKind());
     }
 
     /**
