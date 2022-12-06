@@ -1291,12 +1291,13 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         int lastArgIndex = numFormals - 1;
         // For an inner class constructor, add the receiver as the first arguments
         // explicitly.
-        if (expressionTypeReceiver != null) {
-            convertedNodes.add(expressionTypeReceiver);
+        if (enclosingTypeReceiverNode != null) {
+            convertedNodes.add(enclosingTypeReceiverNode);
         }
         if (method.isVarArgs()) {
             // Create a new array argument if the actuals outnumber the formals, or if the last
             // actual is not assignable to the last formal.
+            int lastArgIndex = numFormals - 1;
             TypeMirror lastParamType = formals.get(lastArgIndex);
             if (numActuals == numFormals
                     && types.isAssignable(
