@@ -1245,7 +1245,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * a list of {@link Node}s representing the arguments converted for a call of the method. This
      * method applies to both method invocations and constructor calls.
      *
-     * @param expressionTypeReceiver a Node representing the receiver of an inner class instantiation, or null
+     * @param enclosingTypeReceiverNode a Node representing the receiver of an inner class
+     *     instantiation, or null
      * @param method an ExecutableElement representing a method to be called
      * @param methodType an ExecutableType representing the type of the method call
      * @param actualExprs a List of argument expressions to a call
@@ -1253,7 +1254,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      *     to this method
      */
     protected List<Node> convertCallArguments(
-            @Nullable Node expressionTypeReceiver,
+            @Nullable Node enclosingTypeReceiverNode,
             ExecutableElement method,
             ExecutableType methodType,
             List<? extends ExpressionTree> actualExprs) {
@@ -1267,15 +1268,15 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         ArrayList<Node> convertedNodes = new ArrayList<>(numFormals);
 
         int numActuals = actualExprs.size();
-        int lastArgIndex = numFormals - 1;
         // For an inner class constructor, add the receiver as the first argument
         // explicitly.
-        if (expressionTypeReceiver != null) {
-            convertedNodes.add(expressionTypeReceiver);
+        if (enclosingTypeReceiverNode != null) {
+            convertedNodes.add(enclosingTypeReceiverNode);
         }
         if (method.isVarArgs()) {
             // Create a new array argument if the actuals outnumber the formals, or if the last
             // actual is not assignable to the last formal.
+            int lastArgIndex = numFormals - 1;
             TypeMirror lastParamType = formals.get(lastArgIndex);
             if (numActuals == numFormals
                     && types.isAssignable(
@@ -1294,11 +1295,13 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             } else {
                 assert lastParamType instanceof ArrayType
                         : "variable argument formal must be an array";
-                if (expressionTypeReceiver != null) {
-                    lastArgIndex = lastArgIndex - 1;
-                    // Apply method invocation conversion to lastArgIndex arguments and use the
-                    // remaining ones to initialize an array.
+                // already added enclosingTypeReceiverNode into convertedNodes
+                // TODO: check whether it is the last element of formals
+                if (enclosingTypeReceiverNode != null) {
+                    --lastArgIndex;
                 }
+                // Apply method invocation conversion to lastArgIndex arguments and use the
+                // remaining ones to initialize an array.
                 for (int i = 0; i < lastArgIndex; i++) {
                     Node actualVal = scan(actualExprs.get(i), null);
                     convertedNodes.add(methodInvocationConvert(actualVal, formals.get(i)));

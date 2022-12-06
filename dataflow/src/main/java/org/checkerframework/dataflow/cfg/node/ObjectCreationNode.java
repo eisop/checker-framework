@@ -27,7 +27,7 @@ public class ObjectCreationNode extends Node {
     protected final NewClassTree tree;
 
     /** The receiver of the object creation or null. */
-    protected final @Nullable Node receiver;
+    protected final @Nullable Node enclosingExpr;
 
     /** The constructor node of the object creation. */
     protected final Node constructor;
@@ -42,20 +42,20 @@ public class ObjectCreationNode extends Node {
      * Constructs a {@link ObjectCreationNode}.
      *
      * @param tree the NewClassTree
-     * @param receiver the enclosingType receiver if exists
+     * @param enclosingExpr the enclosingType Node if exists
      * @param constructor the constructor node
      * @param arguments the passed arguments
      * @param classbody the ClassDeclarationNode
      */
     public ObjectCreationNode(
             NewClassTree tree,
-            @Nullable Node receiver,
+            @Nullable Node enclosingExpr,
             Node constructor,
             List<Node> arguments,
             @Nullable ClassDeclarationNode classbody) {
         super(TreeUtils.typeOf(tree));
         this.tree = tree;
-        this.receiver = receiver;
+        this.enclosingExpr = enclosingExpr;
         this.constructor = constructor;
         this.arguments = arguments;
         this.classbody = classbody;
@@ -98,8 +98,8 @@ public class ObjectCreationNode extends Node {
      * @return the enclosing type receiver
      */
     @Pure
-    public @Nullable Node getReceiver() {
-        return receiver;
+    public @Nullable Node getEnclosingExpr() {
+        return enclosingExpr;
     }
 
     /**
@@ -133,8 +133,8 @@ public class ObjectCreationNode extends Node {
         StringBuilder sb = new StringBuilder();
         List<Node> argumentsDeepCopy = new ArrayList<Node>();
         int startingIndex = 0;
-        if (receiver != null) {
-            sb.append(receiver + ".");
+        if (enclosingExpr != null) {
+            sb.append(enclosingExpr + ".");
             // Remove the first argument if there is a receiver
             startingIndex = 1;
         }
@@ -163,36 +163,27 @@ public class ObjectCreationNode extends Node {
         if (constructor == null && other.getConstructor() != null) {
             return false;
         }
-        if ((receiver != null && other.getReceiver() == null)
-                || (receiver == null && other.getReceiver() != null)
-                || (receiver != null
-                        && other.getReceiver() != null
-                        && !receiver.equals(other.getReceiver()))) {
+        if (enclosingExpr == null && other.getEnclosingExpr() != null) {
             return false;
         }
 
         return getConstructor().equals(other.getConstructor())
-                && getArguments().equals(other.getArguments());
+                && getArguments().equals(other.getArguments())
+                && getEnclosingExpr().equals(other.getEnclosingExpr());
     }
 
     @Override
     @SideEffectFree
     public int hashCode() {
-        int result;
-        if (receiver != null) {
-            result = Objects.hash(receiver, constructor, arguments);
-        } else {
-            result = Objects.hash(constructor, arguments);
-        }
-        return result;
+        return Objects.hash(enclosingExpr, constructor, arguments);
     }
 
     @Override
     @Pure
     public Collection<Node> getOperands() {
         ArrayList<Node> list = new ArrayList<>(1 + arguments.size());
-        if (receiver != null) {
-            list.add(receiver);
+        if (enclosingExpr != null) {
+            list.add(enclosingExpr);
         }
         list.add(constructor);
         list.addAll(arguments);
