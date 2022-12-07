@@ -1128,7 +1128,7 @@ public abstract class AnnotatedTypeMirror {
         /** The receiver type. */
         private AnnotatedDeclaredType receiverType;
         /**
-         * The varargs type, which is the last parameter of {@link paramTypes} before it is adapted.
+         * The varargs type, which is the last parameter of {@link paramTypes} before it is removed.
          */
         private AnnotatedArrayType varargType = null;
         /** Whether {@link receiverType} has been computed. */

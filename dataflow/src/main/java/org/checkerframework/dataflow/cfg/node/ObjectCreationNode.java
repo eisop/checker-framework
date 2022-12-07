@@ -160,16 +160,16 @@ public class ObjectCreationNode extends Node {
             return false;
         }
         ObjectCreationNode other = (ObjectCreationNode) obj;
+        // TODO: make sure for all ObjectCreationNode there is no empty constructor.
         if (constructor == null && other.getConstructor() != null) {
-            return false;
-        }
-        if (enclosingExpr == null && other.getEnclosingExpr() != null) {
             return false;
         }
 
         return getConstructor().equals(other.getConstructor())
                 && getArguments().equals(other.getArguments())
-                && getEnclosingExpr().equals(other.getEnclosingExpr());
+                && (getEnclosingExpr() == null
+                        ? getEnclosingExpr() == other.getEnclosingExpr()
+                        : getEnclosingExpr().equals(other.getEnclosingExpr()));
     }
 
     @Override
