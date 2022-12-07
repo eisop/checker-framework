@@ -4,5 +4,5 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 
 import javax.annotation.processing.SupportedOptions;
 
-@SupportedOptions("conservativeInnerClassReceiverCheck")
+@SupportedOptions("conservativeInnerClassEnclosingExprCheck")
 public class H1H2Checker extends BaseTypeChecker {}

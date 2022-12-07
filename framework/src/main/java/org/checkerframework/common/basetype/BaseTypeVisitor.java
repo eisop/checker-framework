@@ -2036,7 +2036,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         List<AnnotatedTypeMirror> typeargs = fromUse.typeArgs;
 
         // Type check inner class enclosing expr type
-        if (checker.hasOption("conservativeInnerClassReceiverCheck")) {
+        if (checker.hasOption("conservativeInnerClassEnclosingExprCheck")) {
             AnnotatedTypeMirror parameterReceiverType = constructorType.getReceiverType();
             AnnotatedTypeMirror argumentReceiverType;
             if (node.getEnclosingExpression() != null) {
