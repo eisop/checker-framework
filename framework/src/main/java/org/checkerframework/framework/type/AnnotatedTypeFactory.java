@@ -2860,16 +2860,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * call is to an anonymous class that extends a class with an enclosing type. If the call is
      * neither of these, then the parameters are returned unchanged.
      *
-     * @param atypeFactory the type factory to use for fetching annotated types
      * @param method the method or constructor's type
      * @param args the arguments to the method or constructor invocation
      * @return a list of the types that the invocation arguments need to be subtype of; has the same
      *     length as {@code args}
      */
-    public static List<AnnotatedTypeMirror> adaptParameters(
-            AnnotatedTypeFactory atypeFactory,
-            AnnotatedExecutableType method,
-            List<? extends ExpressionTree> args) {
+    public List<AnnotatedTypeMirror> adaptParameters(
+            AnnotatedExecutableType method, List<? extends ExpressionTree> args) {
         List<AnnotatedTypeMirror> parameters = method.getParameterTypes();
 
         if (parameters.isEmpty()) {
@@ -2886,7 +2883,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 && method.getElement().getEnclosingElement().getSimpleName().contentEquals("")) {
             DeclaredType t =
                     TypesUtils.getSuperClassOrInterface(
-                            method.getElement().getEnclosingElement().asType(), atypeFactory.types);
+                            method.getElement().getEnclosingElement().asType(), types);
             if (t.getEnclosingType() != null) {
                 if (args.isEmpty()) {
                     // TODO: ugly hack to attempt to fix mismatch
@@ -2894,9 +2891,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 } else {
                     TypeMirror p0tm = parameters.get(0).getUnderlyingType();
                     // Is the first parameter either equal to the enclosing type?
-                    if (atypeFactory.types.isSameType(t.getEnclosingType(), p0tm)) {
+                    if (types.isSameType(t.getEnclosingType(), p0tm)) {
                         // Is the first argument the same type as the first parameter?
-                        if (!atypeFactory.types.isSameType(TreeUtils.typeOf(args.get(0)), p0tm)) {
+                        if (!types.isSameType(TreeUtils.typeOf(args.get(0)), p0tm)) {
                             // Remove the first parameter.
                             parameters = parameters.subList(1, parameters.size());
                         }
@@ -2917,7 +2914,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         if (parameters.size() == args.size()) {
             // Check if one sent an element or an array
-            AnnotatedTypeMirror lastArg = atypeFactory.getAnnotatedType(args.get(args.size() - 1));
+            AnnotatedTypeMirror lastArg = getAnnotatedType(args.get(args.size() - 1));
             if (lastArg.getKind() == TypeKind.NULL
                     || (lastArg.getKind() == TypeKind.ARRAY
                             && AnnotatedTypes.getArrayDepth(varargs)

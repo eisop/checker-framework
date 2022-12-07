@@ -975,7 +975,7 @@ public class AnnotatedTypes {
             AnnotatedTypeFactory atypeFactory,
             AnnotatedExecutableType method,
             List<? extends ExpressionTree> args) {
-        return AnnotatedTypeFactory.adaptParameters(atypeFactory, method, args);
+        return atypeFactory.adaptParameters(method, args);
     }
 
     /**

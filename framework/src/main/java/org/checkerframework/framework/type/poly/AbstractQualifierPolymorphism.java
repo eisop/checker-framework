@@ -194,7 +194,7 @@ public abstract class AbstractQualifierPolymorphism implements QualifierPolymorp
             return;
         }
         List<AnnotatedTypeMirror> parameters =
-                AnnotatedTypeFactory.adaptParameters(atypeFactory, type, tree.getArguments());
+                atypeFactory.adaptParameters(type, tree.getArguments());
         List<AnnotatedTypeMirror> arguments =
                 CollectionsPlume.mapList(atypeFactory::getAnnotatedType, tree.getArguments());
 
