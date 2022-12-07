@@ -3,10 +3,18 @@ Version 3.27.0-eisop2 (November ?, 2022)
 
 **User-visible changes:**
 
+The new command-line argument `-AconservativeInnerClassEnclosingExprCheck` can enable the
+type checking for enclosing expression type of inner class.
+
 **Implementation details:**
+
+Type checked the actual enclosing type of inner class with its declared constructor receiver type.
+
+Cleaned up unnecessary usages of `AnnotatedTypes.adaptParameters()`
 
 **Closed issues:**
 
+eisop#314
 
 Version 3.27.0-eisop1 (November 6, 2022)
 ----------------------------------------

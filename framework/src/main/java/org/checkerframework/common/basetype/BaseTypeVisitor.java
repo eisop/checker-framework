@@ -243,6 +243,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /** True if "-AwarnRedundantAnnotations" was passed on the command line */
     private final boolean warnRedundantAnnotations;
 
+    /** True if "-AconservativeInnerClassEnclosingExprCheck" was passed on the command line */
+    private final boolean conservativeInnerClassEnclosingExprCheck;
+
     /** The tree of the enclosing method that is currently being visited. */
     protected @Nullable MethodTree methodTree = null;
 
@@ -279,6 +282,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         suggestPureMethods = checker.hasOption("suggestPureMethods"); // NO-AFU || infer;
         checkPurity = checker.hasOption("checkPurityAnnotations") || suggestPureMethods;
         warnRedundantAnnotations = checker.hasOption("warnRedundantAnnotations");
+        conservativeInnerClassEnclosingExprCheck =
+                checker.hasOption("conservativeInnerClassEnclosingExprCheck");
     }
 
     /**
@@ -2036,7 +2041,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         List<AnnotatedTypeMirror> typeargs = fromUse.typeArgs;
 
         // Type check inner class enclosing expr type
-        if (checker.hasOption("conservativeInnerClassEnclosingExprCheck")) {
+        if (conservativeInnerClassEnclosingExprCheck) {
             AnnotatedTypeMirror parameterReceiverType = constructorType.getReceiverType();
             AnnotatedTypeMirror argumentReceiverType;
             if (node.getEnclosingExpression() != null) {

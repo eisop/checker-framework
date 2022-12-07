@@ -124,8 +124,8 @@ public class ObjectCreationNode extends Node {
     }
 
     /**
-     * If the object is from an inner class, the first argument is its receiver, which is shown in
-     * this function.
+     * If the object is from an inner class, to make it clear, add enclosingExpr as its first
+     * argument explicitly.
      */
     @Override
     @SideEffectFree
