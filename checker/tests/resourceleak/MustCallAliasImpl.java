@@ -8,17 +8,17 @@ import java.io.*;
 
 public class MustCallAliasImpl implements Closeable {
 
-  final @Owning Closeable foo;
+    final @Owning Closeable foo;
 
-  public @MustCallAlias MustCallAliasImpl(@MustCallAlias Closeable foo) {
-    this.foo = foo;
-  }
+    public @MustCallAlias MustCallAliasImpl(@MustCallAlias Closeable foo) {
+        this.foo = foo;
+    }
 
-  @Override
-  @EnsuresCalledMethods(
-      value = {"this.foo"},
-      methods = {"close"})
-  public void close() throws IOException {
-    this.foo.close();
-  }
+    @Override
+    @EnsuresCalledMethods(
+            value = {"this.foo"},
+            methods = {"close"})
+    public void close() throws IOException {
+        this.foo.close();
+    }
 }

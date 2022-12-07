@@ -10,20 +10,20 @@ import java.util.List;
 /** Tests for the {@code -AsuggestPureMethods} command-line argument. */
 public class PuritySuggestionsTest extends CheckerFrameworkPerDirectoryTest {
 
-  /**
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public PuritySuggestionsTest(List<File> testFiles) {
-    super(
-        testFiles,
-        FlowTestChecker.class,
-        "flow",
-        "-AsuggestPureMethods",
-        "-AcheckPurityAnnotations");
-  }
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public PuritySuggestionsTest(List<File> testFiles) {
+        super(
+                testFiles,
+                FlowTestChecker.class,
+                "flow",
+                "-AsuggestPureMethods",
+                "-AcheckPurityAnnotations");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"purity-suggestions"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"purity-suggestions"};
+    }
 }

@@ -12,11 +12,11 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @SubtypeOf({TestAccumulation.class})
 public @interface TestAccumulationPredicate {
-  /**
-   * A boolean expression indicating which values have been accumulated.
-   *
-   * @return a boolean expression indicating which values have been accumulated
-   * @checker_framework.manual #accumulation-qualifiers
-   */
-  String value();
+    /**
+     * A boolean expression indicating which values have been accumulated.
+     *
+     * @return a boolean expression indicating which values have been accumulated
+     * @checker_framework.manual #accumulation-qualifiers
+     */
+    String value();
 }

@@ -10,13 +10,13 @@ import java.util.EnumSet;
  */
 public class TestAccumulationNoReturnsReceiverChecker extends AccumulationChecker {
 
-  /**
-   * Get the alias analyses that this checker should employ.
-   *
-   * @return the alias analyses
-   */
-  @Override
-  protected EnumSet<AliasAnalysis> createAliasAnalyses() {
-    return EnumSet.noneOf(AliasAnalysis.class);
-  }
+    /**
+     * Get the alias analyses that this checker should employ.
+     *
+     * @return the alias analyses
+     */
+    @Override
+    protected EnumSet<AliasAnalysis> createAliasAnalyses() {
+        return EnumSet.noneOf(AliasAnalysis.class);
+    }
 }

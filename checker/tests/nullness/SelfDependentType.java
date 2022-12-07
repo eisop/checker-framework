@@ -9,145 +9,145 @@ import java.util.List;
 
 public class SelfDependentType {
 
-  public void copy1(
-      HashMap<String, List<@KeyFor("#1") String>> a,
-      HashMap<String, List<@KeyFor("#2") String>> b) {
-    a = b;
-  }
-
-  public void copy2() {
-    HashMap<String, List<@KeyFor("a") String>> a = null;
-    HashMap<String, List<@KeyFor("b") String>> b = null;
-    a = b;
-  }
-
-  class SdtGraph1<T> {
-
-    HashMap<T, List<@KeyFor("childMap") T>> childMap;
-
-    // :: error: (expression.parameter.name)
-    public SdtGraph1(HashMap<T, List<@KeyFor("childMap") T>> childMap) {
-      this.childMap = childMap;
+    public void copy1(
+            HashMap<String, List<@KeyFor("#1") String>> a,
+            HashMap<String, List<@KeyFor("#2") String>> b) {
+        a = b;
     }
-  }
 
-  class SdtGraph2<T> {
-
-    HashMap<T, List<@KeyFor("this.childMap") T>> childMap;
-
-    // :: error: (expression.parameter.name)
-    public SdtGraph2(HashMap<T, List<@KeyFor("childMap") T>> childMap) {
-      this.childMap = childMap;
+    public void copy2() {
+        HashMap<String, List<@KeyFor("a") String>> a = null;
+        HashMap<String, List<@KeyFor("b") String>> b = null;
+        a = b;
     }
-  }
 
-  class SdtGraph3<T> {
+    class SdtGraph1<T> {
 
-    HashMap<T, List<@KeyFor("childMap") T>> childMap;
+        HashMap<T, List<@KeyFor("childMap") T>> childMap;
 
-    public SdtGraph3(HashMap<T, List<@KeyFor("#1") T>> childMap) {
-      this.childMap = childMap;
+        // :: error: (expression.parameter.name)
+        public SdtGraph1(HashMap<T, List<@KeyFor("childMap") T>> childMap) {
+            this.childMap = childMap;
+        }
     }
-  }
 
-  class SdtGraph4<T> {
+    class SdtGraph2<T> {
 
-    HashMap<T, List<@KeyFor("this.childMap") T>> childMap;
+        HashMap<T, List<@KeyFor("this.childMap") T>> childMap;
 
-    public SdtGraph4(HashMap<T, List<@KeyFor("#1") T>> childMap) {
-      this.childMap = childMap;
+        // :: error: (expression.parameter.name)
+        public SdtGraph2(HashMap<T, List<@KeyFor("childMap") T>> childMap) {
+            this.childMap = childMap;
+        }
     }
-  }
 
-  class SdtGraph5<T> {
+    class SdtGraph3<T> {
 
-    HashMap<T, List<@KeyFor("childMap") T>> childMap;
+        HashMap<T, List<@KeyFor("childMap") T>> childMap;
 
-    public SdtGraph5(HashMap<T, List<@KeyFor("this.childMap") T>> childMap) {
-      this.childMap = childMap;
+        public SdtGraph3(HashMap<T, List<@KeyFor("#1") T>> childMap) {
+            this.childMap = childMap;
+        }
     }
-  }
 
-  class SdtGraph6<T> {
+    class SdtGraph4<T> {
 
-    HashMap<T, List<@KeyFor("this.childMap") T>> childMap;
+        HashMap<T, List<@KeyFor("this.childMap") T>> childMap;
 
-    public SdtGraph6(HashMap<T, List<@KeyFor("this.childMap") T>> childMap) {
-      this.childMap = childMap;
+        public SdtGraph4(HashMap<T, List<@KeyFor("#1") T>> childMap) {
+            this.childMap = childMap;
+        }
     }
-  }
 
-  class SdtGraph11<T> {
+    class SdtGraph5<T> {
 
-    HashMap<T, List<@KeyFor("childMapField") T>> childMapField;
+        HashMap<T, List<@KeyFor("childMap") T>> childMap;
 
-    // :: error: (expression.parameter.name)
-    public SdtGraph11(HashMap<T, List<@KeyFor("childMap") T>> childMap) {
-      this.childMapField = childMap;
+        public SdtGraph5(HashMap<T, List<@KeyFor("this.childMap") T>> childMap) {
+            this.childMap = childMap;
+        }
     }
-  }
 
-  class SdtGraph12<T> {
+    class SdtGraph6<T> {
 
-    HashMap<T, List<@KeyFor("this.childMapField") T>> childMapField;
+        HashMap<T, List<@KeyFor("this.childMap") T>> childMap;
 
-    // :: error: (expression.parameter.name)
-    public SdtGraph12(HashMap<T, List<@KeyFor("childMap") T>> childMap) {
-      this.childMapField = childMap;
+        public SdtGraph6(HashMap<T, List<@KeyFor("this.childMap") T>> childMap) {
+            this.childMap = childMap;
+        }
     }
-  }
 
-  class SdtGraph13<T> {
+    class SdtGraph11<T> {
 
-    HashMap<T, List<@KeyFor("childMapField") T>> childMapField;
+        HashMap<T, List<@KeyFor("childMapField") T>> childMapField;
 
-    public SdtGraph13(HashMap<T, List<@KeyFor("#1") T>> childMap) {
-      this.childMapField = childMap;
+        // :: error: (expression.parameter.name)
+        public SdtGraph11(HashMap<T, List<@KeyFor("childMap") T>> childMap) {
+            this.childMapField = childMap;
+        }
     }
-  }
 
-  class SdtGraph14<T> {
+    class SdtGraph12<T> {
 
-    HashMap<T, List<@KeyFor("this.childMapField") T>> childMapField;
+        HashMap<T, List<@KeyFor("this.childMapField") T>> childMapField;
 
-    public SdtGraph14(HashMap<T, List<@KeyFor("#1") T>> childMap) {
-      this.childMapField = childMap;
+        // :: error: (expression.parameter.name)
+        public SdtGraph12(HashMap<T, List<@KeyFor("childMap") T>> childMap) {
+            this.childMapField = childMap;
+        }
     }
-  }
 
-  class SdtGraph15<T> {
+    class SdtGraph13<T> {
 
-    HashMap<T, List<@KeyFor("childMapField") T>> childMapField;
+        HashMap<T, List<@KeyFor("childMapField") T>> childMapField;
 
-    public SdtGraph15(HashMap<T, List<@KeyFor("childMapField") T>> childMap) {
-      this.childMapField = childMap;
+        public SdtGraph13(HashMap<T, List<@KeyFor("#1") T>> childMap) {
+            this.childMapField = childMap;
+        }
     }
-  }
 
-  class SdtGraph16<T> {
+    class SdtGraph14<T> {
 
-    HashMap<T, List<@KeyFor("this.childMapField") T>> childMapField;
+        HashMap<T, List<@KeyFor("this.childMapField") T>> childMapField;
 
-    public SdtGraph16(HashMap<T, List<@KeyFor("this.childMapField") T>> childMap) {
-      this.childMapField = childMap;
+        public SdtGraph14(HashMap<T, List<@KeyFor("#1") T>> childMap) {
+            this.childMapField = childMap;
+        }
     }
-  }
 
-  class SdtGraph17<T> {
+    class SdtGraph15<T> {
 
-    HashMap<T, List<@KeyFor("childMapField") T>> childMapField;
+        HashMap<T, List<@KeyFor("childMapField") T>> childMapField;
 
-    public SdtGraph17(HashMap<T, List<@KeyFor("this.childMapField") T>> childMap) {
-      this.childMapField = childMap;
+        public SdtGraph15(HashMap<T, List<@KeyFor("childMapField") T>> childMap) {
+            this.childMapField = childMap;
+        }
     }
-  }
 
-  class SdtGraph18<T> {
+    class SdtGraph16<T> {
 
-    HashMap<T, List<@KeyFor("this.childMapField") T>> childMapField;
+        HashMap<T, List<@KeyFor("this.childMapField") T>> childMapField;
 
-    public SdtGraph18(HashMap<T, List<@KeyFor("childMapField") T>> childMap) {
-      this.childMapField = childMap;
+        public SdtGraph16(HashMap<T, List<@KeyFor("this.childMapField") T>> childMap) {
+            this.childMapField = childMap;
+        }
     }
-  }
+
+    class SdtGraph17<T> {
+
+        HashMap<T, List<@KeyFor("childMapField") T>> childMapField;
+
+        public SdtGraph17(HashMap<T, List<@KeyFor("this.childMapField") T>> childMap) {
+            this.childMapField = childMap;
+        }
+    }
+
+    class SdtGraph18<T> {
+
+        HashMap<T, List<@KeyFor("this.childMapField") T>> childMapField;
+
+        public SdtGraph18(HashMap<T, List<@KeyFor("childMapField") T>> childMap) {
+            this.childMapField = childMap;
+        }
+    }
 }

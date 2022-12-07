@@ -5,19 +5,19 @@ import org.checkerframework.checker.mustcall.qual.*;
 import java.io.*;
 
 class MustCallAliasLayeredStreams {
-  InputStream cache;
+    InputStream cache;
 
-  public InputStream createInputStream(String filename) throws FileNotFoundException {
-    if (cache == null) {
-      // The real version of this uses a mix of JDK and custom streams, so it makes more
-      // sense...
-      // TODO we shouldn't report a warning here and the code is okay because the cache is
-      // non-owning, and the caller of createInputStream is the owner of all of these streams.
-      cache =
-          new DataInputStream(
-              // :: error: required.method.not.called
-              new BufferedInputStream(new FileInputStream(new File(filename))));
+    public InputStream createInputStream(String filename) throws FileNotFoundException {
+        if (cache == null) {
+            // The real version of this uses a mix of JDK and custom streams, so it makes more
+            // sense...
+            // TODO we shouldn't report a warning here and the code is okay because the cache is
+            // non-owning, and the caller of createInputStream is the owner of all of these streams.
+            cache =
+                    new DataInputStream(
+                            // :: error: required.method.not.called
+                            new BufferedInputStream(new FileInputStream(new File(filename))));
+        }
+        return cache;
     }
-    return cache;
-  }
 }

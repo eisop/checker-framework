@@ -9,10 +9,10 @@ import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 
 public class MethodOverrides3 extends PrintWriter {
-  public MethodOverrides3(File file) throws FileNotFoundException {
-    super(file);
-  }
+    public MethodOverrides3(File file) throws FileNotFoundException {
+        super(file);
+    }
 
-  @Override
-  public void write(char[] buf, @IndexFor("#1") int off, @IndexOrHigh("#1") int len) {}
+    @Override
+    public void write(char[] buf, @IndexFor("#1") int off, @IndexOrHigh("#1") int len) {}
 }

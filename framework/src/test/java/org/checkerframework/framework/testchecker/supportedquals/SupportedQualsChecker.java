@@ -17,26 +17,26 @@ import java.util.Set;
  * is overridden.
  */
 public class SupportedQualsChecker extends BaseTypeChecker {
-  @Override
-  protected BaseTypeVisitor<?> createSourceVisitor() {
-    return new BaseTypeVisitor<SupportedQualsAnnotatedTypeFactory>(this) {
-      @Override
-      protected SupportedQualsAnnotatedTypeFactory createTypeFactory() {
-        return new SupportedQualsAnnotatedTypeFactory(checker);
-      }
-    };
-  }
-
-  class SupportedQualsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
-    public SupportedQualsAnnotatedTypeFactory(BaseTypeChecker checker) {
-      super(checker);
-      postInit();
-    }
-
     @Override
-    protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
-      return new HashSet<Class<? extends Annotation>>(
-          Arrays.asList(Qualifier.class, BottomQualifier.class));
+    protected BaseTypeVisitor<?> createSourceVisitor() {
+        return new BaseTypeVisitor<SupportedQualsAnnotatedTypeFactory>(this) {
+            @Override
+            protected SupportedQualsAnnotatedTypeFactory createTypeFactory() {
+                return new SupportedQualsAnnotatedTypeFactory(checker);
+            }
+        };
     }
-  }
+
+    class SupportedQualsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
+        public SupportedQualsAnnotatedTypeFactory(BaseTypeChecker checker) {
+            super(checker);
+            postInit();
+        }
+
+        @Override
+        protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
+            return new HashSet<Class<? extends Annotation>>(
+                    Arrays.asList(Qualifier.class, BottomQualifier.class));
+        }
+    }
 }

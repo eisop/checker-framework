@@ -20,5 +20,5 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @SubtypeOf(FenumTop.class)
 public @interface Fenum {
-  String value();
+    String value();
 }

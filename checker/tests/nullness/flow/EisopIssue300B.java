@@ -4,20 +4,20 @@
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class EisopIssue300B {
-  @Nullable Object f = "";
+    @Nullable Object f = "";
 
-  void m(Object o) {
-    f = null;
-  }
-
-  public static void main(String[] args) {
-    EisopIssue300B r = new EisopIssue300B();
-    if (r.f == null) {
-      return;
+    void m(Object o) {
+        f = null;
     }
 
-    r.m(r.f);
-    // :: error: (dereference.of.nullable)
-    r.f.toString();
-  }
+    public static void main(String[] args) {
+        EisopIssue300B r = new EisopIssue300B();
+        if (r.f == null) {
+            return;
+        }
+
+        r.m(r.f);
+        // :: error: (dereference.of.nullable)
+        r.f.toString();
+    }
 }

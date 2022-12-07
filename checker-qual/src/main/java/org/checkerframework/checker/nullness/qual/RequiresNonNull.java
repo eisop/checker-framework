@@ -66,32 +66,32 @@ import java.lang.annotation.Target;
 @Repeatable(RequiresNonNull.List.class)
 @PreconditionAnnotation(qualifier = NonNull.class)
 public @interface RequiresNonNull {
-  /**
-   * The Java expressions that need to be {@link
-   * org.checkerframework.checker.nullness.qual.NonNull}.
-   *
-   * @return the Java expressions that need to be {@link
-   *     org.checkerframework.checker.nullness.qual.NonNull}
-   * @checker_framework.manual #java-expressions-as-arguments Syntax of Java expressions
-   */
-  String[] value();
-
-  /**
-   * A wrapper annotation that makes the {@link RequiresNonNull} annotation repeatable.
-   *
-   * <p>Programmers generally do not need to write this. It is created by Java when a programmer
-   * writes more than one {@link RequiresNonNull} annotation at the same location.
-   */
-  @Documented
-  @Retention(RetentionPolicy.RUNTIME)
-  @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
-  @PreconditionAnnotation(qualifier = NonNull.class)
-  public static @interface List {
     /**
-     * Returns the repeatable annotations.
+     * The Java expressions that need to be {@link
+     * org.checkerframework.checker.nullness.qual.NonNull}.
      *
-     * @return the repeatable annotations
+     * @return the Java expressions that need to be {@link
+     *     org.checkerframework.checker.nullness.qual.NonNull}
+     * @checker_framework.manual #java-expressions-as-arguments Syntax of Java expressions
      */
-    RequiresNonNull[] value();
-  }
+    String[] value();
+
+    /**
+     * A wrapper annotation that makes the {@link RequiresNonNull} annotation repeatable.
+     *
+     * <p>Programmers generally do not need to write this. It is created by Java when a programmer
+     * writes more than one {@link RequiresNonNull} annotation at the same location.
+     */
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
+    @PreconditionAnnotation(qualifier = NonNull.class)
+    public static @interface List {
+        /**
+         * Returns the repeatable annotations.
+         *
+         * @return the repeatable annotations
+         */
+        RequiresNonNull[] value();
+    }
 }

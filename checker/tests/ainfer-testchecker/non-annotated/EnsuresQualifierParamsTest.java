@@ -6,179 +6,179 @@ import org.checkerframework.framework.qual.EnsuresQualifier;
 
 class EnsuresQualifierParamsTest {
 
-  // these methods are used to infer types
+    // these methods are used to infer types
 
-  @SuppressWarnings("contracts.postcondition") // establish ground truth
-  @EnsuresQualifier(expression = "#1", qualifier = AinferParent.class)
-  void becomeParent(Object arg) {}
+    @SuppressWarnings("contracts.postcondition") // establish ground truth
+    @EnsuresQualifier(expression = "#1", qualifier = AinferParent.class)
+    void becomeParent(Object arg) {}
 
-  @SuppressWarnings("contracts.postcondition") // establish ground truth
-  @EnsuresQualifier(expression = "#1", qualifier = AinferSibling1.class)
-  void becomeAinferSibling1(Object arg) {}
+    @SuppressWarnings("contracts.postcondition") // establish ground truth
+    @EnsuresQualifier(expression = "#1", qualifier = AinferSibling1.class)
+    void becomeAinferSibling1(Object arg) {}
 
-  @SuppressWarnings("contracts.postcondition") // establish ground truth
-  @EnsuresQualifier(expression = "#1", qualifier = AinferSibling2.class)
-  void becomeAinferSibling2(Object arg) {}
+    @SuppressWarnings("contracts.postcondition") // establish ground truth
+    @EnsuresQualifier(expression = "#1", qualifier = AinferSibling2.class)
+    void becomeAinferSibling2(Object arg) {}
 
-  @SuppressWarnings("contracts.postcondition") // establish ground truth
-  @EnsuresQualifier(expression = "#1", qualifier = AinferBottom.class)
-  void becomeBottom(Object arg) {}
+    @SuppressWarnings("contracts.postcondition") // establish ground truth
+    @EnsuresQualifier(expression = "#1", qualifier = AinferBottom.class)
+    void becomeBottom(Object arg) {}
 
-  // these methods should have types inferred for them
+    // these methods should have types inferred for them
 
-  void argIsParent(Object arg) {
-    becomeParent(arg);
-  }
-
-  void argIsParent_2(Object arg, boolean b) {
-    if (b) {
-      becomeAinferSibling1(arg);
-    } else {
-      becomeAinferSibling2(arg);
+    void argIsParent(Object arg) {
+        becomeParent(arg);
     }
-  }
 
-  void argIsAinferSibling2(Object arg) {
-    becomeAinferSibling2(arg);
-  }
-
-  void argIsAinferSibling2_2(Object arg, boolean b) {
-    if (b) {
-      becomeAinferSibling2(arg);
-    } else {
-      becomeBottom(arg);
+    void argIsParent_2(Object arg, boolean b) {
+        if (b) {
+            becomeAinferSibling1(arg);
+        } else {
+            becomeAinferSibling2(arg);
+        }
     }
-  }
 
-  void thisIsParent() {
-    becomeParent(this);
-  }
-
-  void thisIsParent_2(boolean b) {
-    if (b) {
-      becomeAinferSibling1(this);
-    } else {
-      becomeAinferSibling2(this);
+    void argIsAinferSibling2(Object arg) {
+        becomeAinferSibling2(arg);
     }
-  }
 
-  void thisIsParent_2_2(boolean b) {
-    if (b) {
-      becomeAinferSibling2(this);
-    } else {
-      becomeAinferSibling1(this);
+    void argIsAinferSibling2_2(Object arg, boolean b) {
+        if (b) {
+            becomeAinferSibling2(arg);
+        } else {
+            becomeBottom(arg);
+        }
     }
-  }
 
-  void thisIsParent_3(boolean b) {
-    if (b) {
-      becomeAinferSibling1(this);
-    } else {
-      becomeAinferSibling2(this);
+    void thisIsParent() {
+        becomeParent(this);
     }
-    noEnsures();
-  }
 
-  void thisIsEmpty(boolean b) {
-    if (b) {
-      // do nothing
-      this.noEnsures();
-    } else {
-      becomeAinferSibling1(this);
+    void thisIsParent_2(boolean b) {
+        if (b) {
+            becomeAinferSibling1(this);
+        } else {
+            becomeAinferSibling2(this);
+        }
     }
-  }
 
-  void thisIsAinferSibling2() {
-    becomeAinferSibling2(this);
-  }
-
-  void thisIsAinferSibling2_2(boolean b) {
-    if (b) {
-      becomeAinferSibling2(this);
-    } else {
-      becomeBottom(this);
+    void thisIsParent_2_2(boolean b) {
+        if (b) {
+            becomeAinferSibling2(this);
+        } else {
+            becomeAinferSibling1(this);
+        }
     }
-  }
 
-  void thisIsAinferSibling2_2_2(boolean b) {
-    if (b) {
-      becomeBottom(this);
-    } else {
-      becomeAinferSibling2(this);
+    void thisIsParent_3(boolean b) {
+        if (b) {
+            becomeAinferSibling1(this);
+        } else {
+            becomeAinferSibling2(this);
+        }
+        noEnsures();
     }
-  }
 
-  void noEnsures() {}
+    void thisIsEmpty(boolean b) {
+        if (b) {
+            // do nothing
+            this.noEnsures();
+        } else {
+            becomeAinferSibling1(this);
+        }
+    }
 
-  void client1(Object arg) {
-    argIsParent(arg);
-    // :: warning: (assignment.type.incompatible)
-    @AinferParent Object p = arg;
-  }
+    void thisIsAinferSibling2() {
+        becomeAinferSibling2(this);
+    }
 
-  void client2(Object arg) {
-    argIsParent_2(arg, true);
-    // :: warning: (assignment.type.incompatible)
-    @AinferParent Object p = arg;
-  }
+    void thisIsAinferSibling2_2(boolean b) {
+        if (b) {
+            becomeAinferSibling2(this);
+        } else {
+            becomeBottom(this);
+        }
+    }
 
-  void client3(Object arg) {
-    argIsAinferSibling2(arg);
-    // :: warning: (assignment.type.incompatible)
-    @AinferSibling2 Object x = arg;
-  }
+    void thisIsAinferSibling2_2_2(boolean b) {
+        if (b) {
+            becomeBottom(this);
+        } else {
+            becomeAinferSibling2(this);
+        }
+    }
 
-  void client4(Object arg) {
-    argIsAinferSibling2_2(arg, true);
-    // :: warning: (assignment.type.incompatible)
-    @AinferSibling2 Object x = arg;
-  }
+    void noEnsures() {}
 
-  void clientThis1() {
-    thisIsParent();
-    // :: warning: (assignment.type.incompatible)
-    @AinferParent Object o = this;
-  }
+    void client1(Object arg) {
+        argIsParent(arg);
+        // :: warning: (assignment.type.incompatible)
+        @AinferParent Object p = arg;
+    }
 
-  void clientThis2() {
-    thisIsParent_2(true);
-    // :: warning: (assignment.type.incompatible)
-    @AinferParent Object o = this;
-  }
+    void client2(Object arg) {
+        argIsParent_2(arg, true);
+        // :: warning: (assignment.type.incompatible)
+        @AinferParent Object p = arg;
+    }
 
-  void clientThis2_2() {
-    thisIsParent_2(false);
-    // :: warning: (assignment.type.incompatible)
-    @AinferParent Object o = this;
-  }
+    void client3(Object arg) {
+        argIsAinferSibling2(arg);
+        // :: warning: (assignment.type.incompatible)
+        @AinferSibling2 Object x = arg;
+    }
 
-  void clientThis2_3() {
-    thisIsParent_3(false);
-    // :: warning: (assignment.type.incompatible)
-    @AinferParent Object o = this;
-  }
+    void client4(Object arg) {
+        argIsAinferSibling2_2(arg, true);
+        // :: warning: (assignment.type.incompatible)
+        @AinferSibling2 Object x = arg;
+    }
 
-  void clientThis3() {
-    thisIsAinferSibling2();
-    // :: warning: (assignment.type.incompatible)
-    @AinferSibling2 Object o = this;
-  }
+    void clientThis1() {
+        thisIsParent();
+        // :: warning: (assignment.type.incompatible)
+        @AinferParent Object o = this;
+    }
 
-  void clientThis4() {
-    thisIsAinferSibling2_2(true);
-    // :: warning: (assignment.type.incompatible)
-    @AinferSibling2 Object o = this;
-  }
+    void clientThis2() {
+        thisIsParent_2(true);
+        // :: warning: (assignment.type.incompatible)
+        @AinferParent Object o = this;
+    }
 
-  void clientThis5() {
-    thisIsAinferSibling2_2_2(true);
-    // :: warning: (assignment.type.incompatible)
-    @AinferSibling2 Object o = this;
-  }
+    void clientThis2_2() {
+        thisIsParent_2(false);
+        // :: warning: (assignment.type.incompatible)
+        @AinferParent Object o = this;
+    }
 
-  void clientThis6() {
-    thisIsParent_2_2(true);
-    // :: warning: (assignment.type.incompatible)
-    @AinferParent Object o = this;
-  }
+    void clientThis2_3() {
+        thisIsParent_3(false);
+        // :: warning: (assignment.type.incompatible)
+        @AinferParent Object o = this;
+    }
+
+    void clientThis3() {
+        thisIsAinferSibling2();
+        // :: warning: (assignment.type.incompatible)
+        @AinferSibling2 Object o = this;
+    }
+
+    void clientThis4() {
+        thisIsAinferSibling2_2(true);
+        // :: warning: (assignment.type.incompatible)
+        @AinferSibling2 Object o = this;
+    }
+
+    void clientThis5() {
+        thisIsAinferSibling2_2_2(true);
+        // :: warning: (assignment.type.incompatible)
+        @AinferSibling2 Object o = this;
+    }
+
+    void clientThis6() {
+        thisIsParent_2_2(true);
+        // :: warning: (assignment.type.incompatible)
+        @AinferParent Object o = this;
+    }
 }

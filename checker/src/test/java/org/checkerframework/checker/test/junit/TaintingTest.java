@@ -9,17 +9,17 @@ import java.util.List;
 
 public class TaintingTest extends CheckerFrameworkPerDirectoryTest {
 
-  /**
-   * Create a TaintingTest.
-   *
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public TaintingTest(List<File> testFiles) {
-    super(testFiles, TaintingChecker.class, "tainting");
-  }
+    /**
+     * Create a TaintingTest.
+     *
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public TaintingTest(List<File> testFiles) {
+        super(testFiles, TaintingChecker.class, "tainting");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"tainting", "all-systems"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"tainting", "all-systems"};
+    }
 }

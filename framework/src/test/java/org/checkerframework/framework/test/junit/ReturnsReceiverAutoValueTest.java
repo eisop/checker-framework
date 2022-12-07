@@ -13,23 +13,23 @@ import java.util.List;
 /** tests the returns receiver checker's AutoValue integration. */
 public class ReturnsReceiverAutoValueTest extends CheckerFrameworkPerDirectoryTest {
 
-  public ReturnsReceiverAutoValueTest(List<File> testFiles) {
-    super(
-        testFiles,
-        ImmutableList.of(
-            "com.google.auto.value.extension.memoized.processor.MemoizedValidator",
-            "com.google.auto.value.processor.AutoAnnotationProcessor",
-            "com.google.auto.value.processor.AutoOneOfProcessor",
-            "com.google.auto.value.processor.AutoValueBuilderProcessor",
-            "com.google.auto.value.processor.AutoValueProcessor",
-            ReturnsReceiverChecker.class.getName()),
-        "basic",
-        Collections.emptyList(),
-        "-nowarn");
-  }
+    public ReturnsReceiverAutoValueTest(List<File> testFiles) {
+        super(
+                testFiles,
+                ImmutableList.of(
+                        "com.google.auto.value.extension.memoized.processor.MemoizedValidator",
+                        "com.google.auto.value.processor.AutoAnnotationProcessor",
+                        "com.google.auto.value.processor.AutoOneOfProcessor",
+                        "com.google.auto.value.processor.AutoValueBuilderProcessor",
+                        "com.google.auto.value.processor.AutoValueProcessor",
+                        ReturnsReceiverChecker.class.getName()),
+                "basic",
+                Collections.emptyList(),
+                "-nowarn");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"returnsreceiverautovalue"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"returnsreceiverautovalue"};
+    }
 }

@@ -13,15 +13,15 @@ import java.util.List;
 class TFPR880Test implements Serializable {}
 
 class TFPR880Use {
-  void foo() {
-    TFPR880Test other = null;
-  }
+    void foo() {
+        TFPR880Test other = null;
+    }
 }
 
 abstract class TFPR880TestSub extends TFPR880Test implements List<@NonNull String> {}
 
 class TFPR880SubUse {
-  void foo() {
-    TFPR880TestSub other = null;
-  }
+    void foo() {
+        TFPR880TestSub other = null;
+    }
 }

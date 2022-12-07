@@ -10,12 +10,12 @@ import java.io.File;
 // See framework/tests/framework/README for why this is a CFPerFileTest.
 public class FrameworkTest extends CheckerFrameworkPerFileTest {
 
-  public FrameworkTest(File testFile) {
-    super(testFile, EvenOddChecker.class, "framework");
-  }
+    public FrameworkTest(File testFile) {
+        super(testFile, EvenOddChecker.class, "framework");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"framework", "all-systems"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"framework", "all-systems"};
+    }
 }

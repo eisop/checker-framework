@@ -18,26 +18,26 @@ import java.util.List;
  * @param <S> the store type used in the analysis
  */
 public interface BackwardTransferFunction<V extends AbstractValue<V>, S extends Store<S>>
-    extends TransferFunction<V, S> {
+        extends TransferFunction<V, S> {
 
-  /**
-   * Returns the initial store that should be used at the normal exit block.
-   *
-   * @param underlyingAST the underlying AST of the given control flow graph
-   * @param returnNodes the return nodes of the given control flow graph (an empty list if the
-   *     underlying AST is not a method)
-   * @return the initial store that should be used at the normal exit block
-   */
-  @SideEffectFree
-  S initialNormalExitStore(UnderlyingAST underlyingAST, List<ReturnNode> returnNodes);
+    /**
+     * Returns the initial store that should be used at the normal exit block.
+     *
+     * @param underlyingAST the underlying AST of the given control flow graph
+     * @param returnNodes the return nodes of the given control flow graph (an empty list if the
+     *     underlying AST is not a method)
+     * @return the initial store that should be used at the normal exit block
+     */
+    @SideEffectFree
+    S initialNormalExitStore(UnderlyingAST underlyingAST, List<ReturnNode> returnNodes);
 
-  /**
-   * Returns the initial store that should be used at the exceptional exit block or given the
-   * underlying AST of a control flow graph.
-   *
-   * @param underlyingAST the underlying AST of the given control flow graph
-   * @return the initial store that should be used at the exceptional exit block
-   */
-  @SideEffectFree
-  S initialExceptionalExitStore(UnderlyingAST underlyingAST);
+    /**
+     * Returns the initial store that should be used at the exceptional exit block or given the
+     * underlying AST of a control flow graph.
+     *
+     * @param underlyingAST the underlying AST of the given control flow graph
+     * @return the initial store that should be used at the exceptional exit block
+     */
+    @SideEffectFree
+    S initialExceptionalExitStore(UnderlyingAST underlyingAST);
 }

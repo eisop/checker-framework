@@ -19,5 +19,5 @@ import java.lang.annotation.Target;
 @SubtypeOf(Luminance.class)
 @SuppressWarnings("checkstyle:typename")
 public @interface cd {
-  Prefix value() default Prefix.one;
+    Prefix value() default Prefix.one;
 }

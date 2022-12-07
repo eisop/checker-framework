@@ -9,41 +9,41 @@ import java.io.Closeable;
 // :: error: (inconsistent.mustcall.subtype)
 public class OwningMustCallNothing implements Closeable {
 
-  protected @Owning AnnotationClassLoader loader;
+    protected @Owning AnnotationClassLoader loader;
 
-  @CreatesMustCallFor("this")
-  private final void loadTypeAnnotationsFromQualDir() {
-    if (loader != null) {
-      loader.close();
+    @CreatesMustCallFor("this")
+    private final void loadTypeAnnotationsFromQualDir() {
+        if (loader != null) {
+            loader.close();
+        }
+        loader = createAnnotationClassLoader();
     }
-    loader = createAnnotationClassLoader();
-  }
 
-  AnnotationClassLoader createAnnotationClassLoader() {
-    return null;
-  }
+    AnnotationClassLoader createAnnotationClassLoader() {
+        return null;
+    }
 
-  public void close() {}
+    public void close() {}
 }
 
 // :: error: (inconsistent.mustcall.subtype)
 @MustCall({}) class OwningMustCallNothing2 implements Closeable {
 
-  protected @Owning AnnotationClassLoader loader;
+    protected @Owning AnnotationClassLoader loader;
 
-  @CreatesMustCallFor("this")
-  private final void loadTypeAnnotationsFromQualDir() {
-    if (loader != null) {
-      loader.close();
+    @CreatesMustCallFor("this")
+    private final void loadTypeAnnotationsFromQualDir() {
+        if (loader != null) {
+            loader.close();
+        }
+        loader = createAnnotationClassLoader();
     }
-    loader = createAnnotationClassLoader();
-  }
 
-  AnnotationClassLoader createAnnotationClassLoader() {
-    return null;
-  }
+    AnnotationClassLoader createAnnotationClassLoader() {
+        return null;
+    }
 
-  public void close() {}
+    public void close() {}
 }
 
 @InheritableMustCall("close")
@@ -63,5 +63,5 @@ class SubclassMustCallClose3 extends OwningMustCallNothing2 {}
 @InheritableMustCall({}) // Don't check whether AnnotationClassLoaders are closed.
 // :: error: (inconsistent.mustcall.subtype)
 class AnnotationClassLoader implements Closeable {
-  public void close() {}
+    public void close() {}
 }

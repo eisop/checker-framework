@@ -5,22 +5,22 @@ import java.util.function.Function;
 @SuppressWarnings("all") // Just check for crashes.
 public class Issue4890 {
 
-  class R<P extends PK, E extends N<P>, K> {}
+    class R<P extends PK, E extends N<P>, K> {}
 
-  interface PK {}
+    interface PK {}
 
-  interface N<K extends PK> {}
+    interface N<K extends PK> {}
 
-  interface Q<K extends S<P>, P extends @NonNull Object> extends N<K> {}
+    interface Q<K extends S<P>, P extends @NonNull Object> extends N<K> {}
 
-  interface S<P> extends PhysicalPK {}
+    interface S<P> extends PhysicalPK {}
 
-  interface PhysicalPK extends PK {}
+    interface PhysicalPK extends PK {}
 
-  interface I<T, R> extends Function<T, R> {}
+    interface I<T, R> extends Function<T, R> {}
 
-  class T {
+    class T {
 
-    I<String, R<? extends S<Integer>, ? extends Q<?, Integer>, ?>> reader;
-  }
+        I<String, R<? extends S<Integer>, ? extends Q<?, Integer>, ?>> reader;
+    }
 }

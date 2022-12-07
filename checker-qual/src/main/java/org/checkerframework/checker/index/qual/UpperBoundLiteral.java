@@ -22,10 +22,10 @@ import java.lang.annotation.Target;
 @SubtypeOf(LTEqLengthOf.class)
 public @interface UpperBoundLiteral {
 
-  /**
-   * Returns the value of the literal.
-   *
-   * @return the value of the literal
-   */
-  int value();
+    /**
+     * Returns the value of the literal.
+     *
+     * @return the value of the literal
+     */
+    int value();
 }

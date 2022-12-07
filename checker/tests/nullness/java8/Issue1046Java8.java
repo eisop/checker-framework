@@ -8,30 +8,30 @@ import java.util.List;
 import java.util.function.Function;
 
 public class Issue1046Java8 {
-  interface EnumMarker {}
+    interface EnumMarker {}
 
-  enum MyEnum implements EnumMarker {
-    A,
-    B;
-  }
-
-  static class NS2Lists {
-    @SuppressWarnings("nullness")
-    static <F, T> List<T> transform(List<F> p, Function<? super F, ? extends T> q) {
-      return null;
+    enum MyEnum implements EnumMarker {
+        A,
+        B;
     }
 
-    static <F, T> List<F> transform2(List<F> p, Function<? super F, ? extends T> q) {
-      return p;
-    }
-  }
+    static class NS2Lists {
+        @SuppressWarnings("nullness")
+        static <F, T> List<T> transform(List<F> p, Function<? super F, ? extends T> q) {
+            return null;
+        }
 
-  abstract class NotSubtype2 {
-    void test(List<MyEnum> p) {
-      NS2Lists.transform2(p, foo());
-      NS2Lists.transform(p, foo());
+        static <F, T> List<F> transform2(List<F> p, Function<? super F, ? extends T> q) {
+            return p;
+        }
     }
 
-    abstract Function<? super @UnknownKeyFor EnumMarker, Number> foo();
-  }
+    abstract class NotSubtype2 {
+        void test(List<MyEnum> p) {
+            NS2Lists.transform2(p, foo());
+            NS2Lists.transform(p, foo());
+        }
+
+        abstract Function<? super @UnknownKeyFor EnumMarker, Number> foo();
+    }
 }

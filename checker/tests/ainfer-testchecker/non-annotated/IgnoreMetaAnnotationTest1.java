@@ -3,20 +3,20 @@ import org.checkerframework.checker.testchecker.ainfer.qual.AinferSibling1;
 // See ExpectedErrors#IgnoreMetaAnnotationTest2
 public class IgnoreMetaAnnotationTest1 {
 
-  int field2;
+    int field2;
 
-  void foo() {
-    field2 = getAinferSibling1();
-  }
+    void foo() {
+        field2 = getAinferSibling1();
+    }
 
-  void test() {
-    // :: warning: (argument.type.incompatible)
-    expectsAinferSibling1(field2);
-  }
+    void test() {
+        // :: warning: (argument.type.incompatible)
+        expectsAinferSibling1(field2);
+    }
 
-  void expectsAinferSibling1(@AinferSibling1 int t) {}
+    void expectsAinferSibling1(@AinferSibling1 int t) {}
 
-  static @AinferSibling1 int getAinferSibling1() {
-    return 0;
-  }
+    static @AinferSibling1 int getAinferSibling1() {
+        return 0;
+    }
 }
