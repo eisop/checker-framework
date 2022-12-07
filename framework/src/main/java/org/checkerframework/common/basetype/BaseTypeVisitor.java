@@ -104,6 +104,7 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.SwitchExpressionScanner;
+import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.SwitchExpressionScanner.FunctionalSwitchExpressionScanner;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
@@ -352,12 +353,15 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         if (tree != null && getCurrentPath() != null) {
             this.atypeFactory.setVisitorTreePath(new TreePath(getCurrentPath(), tree));
         }
-        double version = Double.parseDouble(System.getProperty("java.specification.version"));
         // TODO: use JCP to add version-specific behavior
+        @SuppressWarnings(
+            "deprecation")
+        int version = SystemUtil.getJreVersion();
         if (tree != null && version >= 14 && tree.getKind().name().equals("SWITCH_EXPRESSION")) {
             visitSwitchExpression17(tree);
             return null;
         }
+
         return super.scan(tree, p);
     }
 

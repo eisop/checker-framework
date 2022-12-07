@@ -4,6 +4,7 @@ import com.sun.source.tree.Tree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.SystemUtil;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -35,14 +36,20 @@ public class SwitchExpressionNode extends Node {
     public SwitchExpressionNode(
             TypeMirror type, Tree switchExpressionTree, LocalVariableNode switchExpressionVar) {
         super(type);
-        double version = Double.parseDouble(System.getProperty("java.specification.version"));
+        // double version = Double.parseDouble(System.getProperty("java.specification.version"));
         // TODO: use JCP to add version-specific behavior
+        @SuppressWarnings(
+            "deprecation")
+        int version = SystemUtil.getJreVersion();
+        // #if currentJava >= 14
+
         if (version >= 14 && !switchExpressionTree.getKind().name().equals("SWITCH_EXPRESSION")) {
             throw new BugInCF(
                     "switchExpressionTree is not a SwitchExpressionTree found tree with kind %s"
                             + " instead.",
                     switchExpressionTree.getKind());
         }
+        // #endif
 
         this.switchExpressionTree = switchExpressionTree;
         this.switchExpressionVar = switchExpressionVar;

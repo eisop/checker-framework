@@ -96,7 +96,6 @@ import javax.lang.model.util.ElementFilter;
  * @see TreePathUtil
  */
 // TODO: use JCP to add version-specific behavior
-// not sure
 public final class TreeUtils {
 
     // Class cannot be instantiated.

@@ -1,5 +1,7 @@
 package org.checkerframework.framework.ajava;
 
+import org.checkerframework.javacutil.SystemUtil;
+
 import com.sun.source.tree.AnnotatedTypeTree;
 import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.ArrayAccessTree;
@@ -78,12 +80,15 @@ public abstract class TreeScannerWithDefaults extends TreeScanner<Void, Void> {
     // TODO: use JCP to add version-specific behavior
     @Override
     public Void scan(Tree tree, Void unused) {
-        if (tree != null) {
-            double version = Double.parseDouble(System.getProperty("java.specification.version"));
-            if (version >= 14 && tree.getKind().name().equals("SWITCH_EXPRESSION")) {
+        @SuppressWarnings(
+            "deprecation")
+        int version = SystemUtil.getJreVersion();
+        if (tree != null && version >= 14) {
+            if (tree.getKind().name().equals("SWITCH_EXPRESSION")) {
                 visitSwitchExpression17(tree, unused);
                 return null;
-            } else if (tree.getKind().name().equals("YIELD")) {
+            }
+            else if (tree.getKind().name().equals("YIELD")) {
                 visitYield17(tree, unused);
                 return null;
             } else if (tree.getKind().name().equals("BINDING_PATTERN")) {

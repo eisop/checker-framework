@@ -140,6 +140,7 @@ import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.Pair;
+import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeAnnotationUtils;
@@ -543,13 +544,18 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             path = new TreePath(path, tree);
         }
         try {
-            double version = Double.parseDouble(System.getProperty("java.specification.version"));
-            if (tree.getKind().name().equals("BINDING_PATTERN")) {
-                return visitBindingPattern17(path.getLeaf(), p);
-            } else if (version >= 14 && tree.getKind().name().equals("SWITCH_EXPRESSION")) {
-                return visitSwitchExpression17(tree, p);
-            }  else if (tree.getKind().name().equals("YIELD")) {
-                return visitYield17(tree, p);
+            @SuppressWarnings(
+            "deprecation")
+            int version = SystemUtil.getJreVersion();
+            if (version >= 14) {
+                if (tree.getKind().name().equals("BINDING_PATTERN")) {
+                    return visitBindingPattern17(path.getLeaf(), p);
+                } else if (tree.getKind().name().equals("SWITCH_EXPRESSION")) {
+                    return visitSwitchExpression17(tree, p);
+                }
+                else if (tree.getKind().name().equals("YIELD")) {
+                    return visitYield17(tree, p);
+                }
             }
 
             return tree.accept(this, p);

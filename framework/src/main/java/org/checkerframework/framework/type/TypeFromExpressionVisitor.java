@@ -35,6 +35,7 @@ import org.checkerframework.framework.util.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.SwitchExpressionScanner;
+import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.SwitchExpressionScanner.FunctionalSwitchExpressionScanner;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
@@ -178,9 +179,13 @@ class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
     @Override
     public AnnotatedTypeMirror defaultAction(Tree tree, AnnotatedTypeFactory f) {
         double version = Double.parseDouble(System.getProperty("java.specification.version"));
+        @SuppressWarnings(
+            "deprecation")
+        int version = SystemUtil.getJreVersion();
         if (version >= 14 && tree.getKind().name().equals("SWITCH_EXPRESSION")) {
             return visitSwitchExpressionTree17(tree, f);
         }
+
         return super.defaultAction(tree, f);
     }
 
