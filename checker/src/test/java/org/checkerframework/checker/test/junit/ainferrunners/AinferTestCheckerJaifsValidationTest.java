@@ -14,22 +14,22 @@ import java.util.List;
  */
 @Category(AinferTestCheckerJaifsTest.class)
 public class AinferTestCheckerJaifsValidationTest extends AinferValidatePerDirectoryTest {
-    /**
-     * @param testFiles the files containing test code, which will be type-checked
-     */
-    public AinferTestCheckerJaifsValidationTest(List<File> testFiles) {
-        super(
-                testFiles,
-                AinferTestChecker.class,
-                "testchecker",
-                "ainfer-testchecker/non-annotated",
-                AinferTestCheckerJaifsTest.class,
-                "-Awarns",
-                "-AskipDefs=TestPure");
-    }
+  /**
+   * @param testFiles the files containing test code, which will be type-checked
+   */
+  public AinferTestCheckerJaifsValidationTest(List<File> testFiles) {
+    super(
+        testFiles,
+        AinferTestChecker.class,
+        "testchecker",
+        "ainfer-testchecker/non-annotated",
+        AinferTestCheckerJaifsTest.class,
+        "-Awarns",
+        "-AskipDefs=TestPure");
+  }
 
-    @Parameters
-    public static String[] getTestDirs() {
-        return new String[] {"ainfer-testchecker/annotated/"};
-    }
+  @Parameters
+  public static String[] getTestDirs() {
+    return new String[] {"ainfer-testchecker/annotated/"};
+  }
 }
