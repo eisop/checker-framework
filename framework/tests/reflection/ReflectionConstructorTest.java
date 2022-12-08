@@ -1,25 +1,28 @@
-import org.checkerframework.framework.testchecker.reflection.qual.Sibling1;
-import org.checkerframework.framework.testchecker.reflection.qual.Sibling2;
-import org.checkerframework.framework.testchecker.reflection.qual.Top;
+import org.checkerframework.framework.testchecker.reflection.qual.TestReflectSibling1;
+import org.checkerframework.framework.testchecker.reflection.qual.TestReflectSibling2;
+import org.checkerframework.framework.testchecker.reflection.qual.TestReflectTop;
 
 import java.lang.reflect.Constructor;
 
 public class ReflectionConstructorTest {
-    @Sibling1 int sibling1;
-    @Sibling2 int sibling2;
+    @TestReflectSibling1 int sibling1;
+    @TestReflectSibling2 int sibling2;
 
     // :: error: (super.invocation.invalid) :: warning: (inconsistent.constructor.type)
-    public @Sibling1 ReflectionConstructorTest(@Sibling1 int a) {}
+    public @TestReflectSibling1 ReflectionConstructorTest(@TestReflectSibling1 int a) {}
 
-    // :: error: (super.invocation.invalid) :: warning: (inconsistent.constructor.type)
-    public @Sibling2 ReflectionConstructorTest(@Sibling2 int a, @Sibling2 int b) {}
+    // :: warning: (inconsistent.constructor.type)
+    public @TestReflectSibling2 ReflectionConstructorTest(
+            @TestReflectSibling2 int a, @TestReflectSibling2 int b)
+                // :: error: (super.invocation.invalid)
+            {}
 
     public void pass1() {
         try {
             Class<?> c = Class.forName("ReflectionConstructorTest");
             Constructor<?> init = c.getConstructor(new Class<?>[] {Integer.class});
-            @Sibling1 int i = sibling1;
-            @Sibling1 Object o = init.newInstance(i);
+            @TestReflectSibling1 int i = sibling1;
+            @TestReflectSibling1 Object o = init.newInstance(i);
         } catch (Exception ignore) {
         }
     }
@@ -28,9 +31,9 @@ public class ReflectionConstructorTest {
         try {
             Class<?> c = Class.forName("ReflectionConstructorTest");
             Constructor<?> init = c.getConstructor(new Class<?>[] {Integer.class, Integer.class});
-            @Sibling2 int a = sibling2;
+            @TestReflectSibling2 int a = sibling2;
             int b = a;
-            @Top Object inst = init.newInstance(a, b);
+            @TestReflectTop Object inst = init.newInstance(a, b);
         } catch (Exception ignore) {
         }
     }
@@ -50,7 +53,7 @@ public class ReflectionConstructorTest {
             Class<?> c = ReflectionConstructorTest.class;
             Constructor<?> init = c.getConstructor(new Class<?>[] {Integer.class});
             // :: error: (argument.type.incompatible) :: error: (assignment.type.incompatible)
-            @Sibling1 Object o = init.newInstance(new Object[] {sibling2});
+            @TestReflectSibling1 Object o = init.newInstance(new Object[] {sibling2});
         } catch (Exception ignore) {
         }
     }
@@ -59,10 +62,10 @@ public class ReflectionConstructorTest {
         try {
             Class<?> c = Class.forName("ReflectionConstructorTest");
             Constructor<?> init = c.getConstructor(new Class<?>[] {Integer.class, Integer.class});
-            @Sibling2 int a = sibling2;
-            @Sibling1 int b = sibling1;
+            @TestReflectSibling2 int a = sibling2;
+            @TestReflectSibling1 int b = sibling1;
             // :: error: (argument.type.incompatible)
-            @Sibling2 Object inst = init.newInstance(a, b);
+            @TestReflectSibling2 Object inst = init.newInstance(a, b);
         } catch (Exception ignore) {
         }
     }

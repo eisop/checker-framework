@@ -2,8 +2,6 @@ package org.checkerframework.framework.stub;
 
 import com.sun.source.tree.CompilationUnitTree;
 
-import io.github.classgraph.ClassGraph;
-
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.CanonicalNameOrEmpty;
 import org.checkerframework.common.basetype.BaseTypeChecker;
@@ -56,6 +54,8 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic.Kind;
+
+import io.github.classgraph.ClassGraph;
 
 /**
  * Holds information about types parsed from annotation files (stub files or ajava files). When

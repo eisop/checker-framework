@@ -3076,7 +3076,7 @@ public class AnnotationFileParser {
      */
     private void stubWarnNotFound(
             NodeWithRange<?> astNode, String warning, boolean warnIfNotFound) {
-        if ((fileType.isCommandLine() || warnIfNotFound) || debugAnnotationFileParser) {
+        if (warnIfNotFound || debugAnnotationFileParser) {
             warn(astNode, warning);
         }
     }

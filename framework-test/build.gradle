@@ -1,12 +1,8 @@
 import org.gradle.internal.jvm.Jvm
 
 sourceSets {
-    // Similar test in ../build.gradle
-    if (isJava8) {
-        taglet
-    } else {
-        tagletJdk11
-    }
+    taglet
+    tagletJdk8
 }
 
 dependencies {
@@ -17,7 +13,7 @@ dependencies {
     implementation "org.plumelib:plume-util:${plumeUtilVersion}"
 
     if (Jvm.current().toolsJar) {
-        tagletImplementation files(Jvm.current().toolsJar)
+        tagletJdk8Implementation files(Jvm.current().toolsJar)
     }
 }
 
