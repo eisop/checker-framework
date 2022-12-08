@@ -2334,7 +2334,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         // Adapt parameters, let parameters and args be same size for later checking
         List<AnnotatedTypeMirror> parameters =
-                adaptParameters(this, result.executableType, tree.getArguments());
+                adaptParameters(result.executableType, tree.getArguments());
         result.executableType.setParameterTypes(parameters);
         return result;
     }
@@ -2791,7 +2791,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         // Adapt parameters, let parameters and args be same size for later checking
-        List<AnnotatedTypeMirror> parameters = adaptParameters(this, con, tree.getArguments());
+        List<AnnotatedTypeMirror> parameters = adaptParameters(con, tree.getArguments());
         con.setParameterTypes(parameters);
         return new ParameterizedExecutableType(con, typeargs);
     }
