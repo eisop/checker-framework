@@ -68,8 +68,7 @@ public abstract class SwitchExpressionScanner<R, P> extends TreeScanner<R, P> {
      */
     public R scanSwitchExpression(Tree switchExpression, P p) {
         // TODO: use JCP to add version-specific behavior
-        double version = Double.parseDouble(System.getProperty("java.specification.version"));
-        assert version >= 14 && switchExpression.getKind().name().equals("SWITCH_EXPRESSION");
+        assert SystemUtil.jreVersion >= 14 && switchExpression.getKind().name().equals("SWITCH_EXPRESSION");
         List<? extends CaseTree> caseTrees =
                 TreeUtils.switchExpressionTreeGetCases(switchExpression);
         R result = null;
@@ -126,11 +125,7 @@ public abstract class SwitchExpressionScanner<R, P> extends TreeScanner<R, P> {
             if (tree == null) {
                 return null;
             }
-            @SuppressWarnings(
-                "deprecation")
-            int version = SystemUtil.getJreVersion();
-
-            if (version >= 14) {
+            if (SystemUtil.jreVersion >= 14) {
                 if (tree.getKind().name().equals("SWITCH_EXPRESSION")) {
                     // Don't scan nested switch expressions.
                     return null;
@@ -139,7 +134,6 @@ public abstract class SwitchExpressionScanner<R, P> extends TreeScanner<R, P> {
                     return visitSwitchResultExpression(value, p);
                 }
             }
-
             return super.scan(tree, p );
         }
 

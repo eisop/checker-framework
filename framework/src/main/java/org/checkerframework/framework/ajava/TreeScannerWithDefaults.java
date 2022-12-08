@@ -80,15 +80,11 @@ public abstract class TreeScannerWithDefaults extends TreeScanner<Void, Void> {
     // TODO: use JCP to add version-specific behavior
     @Override
     public Void scan(Tree tree, Void unused) {
-        @SuppressWarnings(
-            "deprecation")
-        int version = SystemUtil.getJreVersion();
-        if (tree != null && version >= 14) {
+        if (tree != null && SystemUtil.jreVersion >= 14) {
             if (tree.getKind().name().equals("SWITCH_EXPRESSION")) {
                 visitSwitchExpression17(tree, unused);
                 return null;
-            }
-            else if (tree.getKind().name().equals("YIELD")) {
+            } else if (tree.getKind().name().equals("YIELD")) {
                 visitYield17(tree, unused);
                 return null;
             } else if (tree.getKind().name().equals("BINDING_PATTERN")) {

@@ -354,14 +354,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             this.atypeFactory.setVisitorTreePath(new TreePath(getCurrentPath(), tree));
         }
         // TODO: use JCP to add version-specific behavior
-        @SuppressWarnings(
-            "deprecation")
-        int version = SystemUtil.getJreVersion();
-        if (tree != null && version >= 14 && tree.getKind().name().equals("SWITCH_EXPRESSION")) {
+        if (tree != null && SystemUtil.jreVersion >= 14 && tree.getKind().name().equals("SWITCH_EXPRESSION")) {
             visitSwitchExpression17(tree);
             return null;
         }
-
         return super.scan(tree, p);
     }
 
