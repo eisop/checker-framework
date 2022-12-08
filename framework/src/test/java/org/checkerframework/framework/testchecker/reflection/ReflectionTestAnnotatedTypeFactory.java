@@ -3,7 +3,7 @@ package org.checkerframework.framework.testchecker.reflection;
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.qual.LiteralKind;
-import org.checkerframework.framework.testchecker.reflection.qual.ReflectBottom;
+import org.checkerframework.framework.testchecker.reflection.qual.TestReflectBottom;
 import org.checkerframework.framework.type.treeannotator.ListTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.LiteralTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.PropagationTreeAnnotator;
@@ -25,7 +25,7 @@ public final class ReflectionTestAnnotatedTypeFactory extends BaseAnnotatedTypeF
     @Override
     public TreeAnnotator createTreeAnnotator() {
         LiteralTreeAnnotator literalTreeAnnotator = new LiteralTreeAnnotator(this);
-        AnnotationMirror bottom = AnnotationBuilder.fromClass(elements, ReflectBottom.class);
+        AnnotationMirror bottom = AnnotationBuilder.fromClass(elements, TestReflectBottom.class);
         literalTreeAnnotator.addLiteralKind(LiteralKind.INT, bottom);
         literalTreeAnnotator.addStandardLiteralQualifiers();
 

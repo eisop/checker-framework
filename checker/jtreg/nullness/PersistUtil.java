@@ -52,8 +52,6 @@ public class PersistUtil {
         int rc =
                 com.sun.tools.javac.Main.compile(
                         new String[] {
-                            "-source",
-                            "1.8",
                             "-AnoJreVersionCheck",
                             "-g",
                             "-processor",
