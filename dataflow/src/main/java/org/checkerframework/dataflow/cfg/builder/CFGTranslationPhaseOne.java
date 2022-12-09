@@ -1302,7 +1302,6 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 assert lastParamType instanceof ArrayType
                         : "variable argument formal must be an array";
                 // already added enclosingTypeReceiverNode into convertedNodes
-                // TODO: check whether it is the last element of formals
                 if (enclosingTypeReceiverNode != null) {
                     --lastArgIndex;
                 }
@@ -3407,9 +3406,9 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         // see JLS 15.9
 
         Tree enclosingExpr = tree.getEnclosingExpression();
-        Node receiver = null;
+        Node enclosingExprNode = null;
         if (enclosingExpr != null) {
-            receiver = scan(enclosingExpr, p);
+            enclosingExprNode = scan(enclosingExpr, p);
         }
 
         // Convert constructor arguments
@@ -3419,7 +3418,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
         List<Node> arguments =
                 convertCallArguments(
-                        receiver, constructor, TreeUtils.typeFromUse(tree), actualExprs);
+                        enclosingExprNode, constructor, TreeUtils.typeFromUse(tree), actualExprs);
         // TODO: for anonymous classes, don't use the identifier alone.
         // See Issue 890.
         Node constructorNode = scan(tree.getIdentifier(), p);
@@ -3428,7 +3427,9 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         // Note that getClassBody() and therefore classbody can be null.
         ClassDeclarationNode classbody = (ClassDeclarationNode) scan(tree.getClassBody(), p);
 
-        Node node = new ObjectCreationNode(tree, receiver, constructorNode, arguments, classbody);
+        Node node =
+                new ObjectCreationNode(
+                        tree, enclosingExprNode, constructorNode, arguments, classbody);
 
         List<? extends TypeMirror> thrownTypes = constructor.getThrownTypes();
         Set<TypeMirror> thrownSet =

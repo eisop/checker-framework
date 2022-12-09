@@ -27,9 +27,10 @@ public class ObjectCreationNode extends Node {
     protected final NewClassTree tree;
 
     /** The receiver of the object creation or null. */
-    protected final @Nullable Node enclosingExpr;
+    protected final @Nullable Node enclosingExpression;
 
     /** The constructor node of the object creation. */
+    // TODO: Change its name to identifier in a separate pr
     protected final Node constructor;
 
     /** The arguments of the object creation. */
@@ -55,7 +56,7 @@ public class ObjectCreationNode extends Node {
             @Nullable ClassDeclarationNode classbody) {
         super(TreeUtils.typeOf(tree));
         this.tree = tree;
-        this.enclosingExpr = enclosingExpr;
+        this.enclosingExpression = enclosingExpr;
         this.constructor = constructor;
         this.arguments = arguments;
         this.classbody = classbody;
@@ -98,8 +99,8 @@ public class ObjectCreationNode extends Node {
      * @return the enclosing type receiver
      */
     @Pure
-    public @Nullable Node getEnclosingExpr() {
-        return enclosingExpr;
+    public @Nullable Node getEnclosingExpression() {
+        return enclosingExpression;
     }
 
     /**
@@ -133,8 +134,8 @@ public class ObjectCreationNode extends Node {
         StringBuilder sb = new StringBuilder();
         List<Node> argumentsDeepCopy = new ArrayList<Node>();
         int startingIndex = 0;
-        if (enclosingExpr != null) {
-            sb.append(enclosingExpr + ".");
+        if (enclosingExpression != null) {
+            sb.append(enclosingExpression + ".");
             // Remove the first argument if there is a receiver
             startingIndex = 1;
         }
@@ -160,30 +161,30 @@ public class ObjectCreationNode extends Node {
             return false;
         }
         ObjectCreationNode other = (ObjectCreationNode) obj;
-        // TODO: make sure for all ObjectCreationNode there is no empty constructor.
+        // TODO: maybe it is easier to just compare the new class tree.
         if (constructor == null && other.getConstructor() != null) {
             return false;
         }
 
         return getConstructor().equals(other.getConstructor())
                 && getArguments().equals(other.getArguments())
-                && (getEnclosingExpr() == null
-                        ? getEnclosingExpr() == other.getEnclosingExpr()
-                        : getEnclosingExpr().equals(other.getEnclosingExpr()));
+                && (getEnclosingExpression() == null
+                        ? null == other.getEnclosingExpression()
+                        : getEnclosingExpression().equals(other.getEnclosingExpression()));
     }
 
     @Override
     @SideEffectFree
     public int hashCode() {
-        return Objects.hash(enclosingExpr, constructor, arguments);
+        return Objects.hash(enclosingExpression, constructor, arguments);
     }
 
     @Override
     @Pure
     public Collection<Node> getOperands() {
         ArrayList<Node> list = new ArrayList<>(1 + arguments.size());
-        if (enclosingExpr != null) {
-            list.add(enclosingExpr);
+        if (enclosingExpression != null) {
+            list.add(enclosingExpression);
         }
         list.add(constructor);
         list.addAll(arguments);
