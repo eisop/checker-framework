@@ -1,7 +1,5 @@
 package org.checkerframework.framework.ajava;
 
-import org.checkerframework.javacutil.SystemUtil;
-
 import com.sun.source.tree.AnnotatedTypeTree;
 import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.ArrayAccessTree;
@@ -63,6 +61,8 @@ import com.sun.source.tree.VariableTree;
 import com.sun.source.tree.WhileLoopTree;
 import com.sun.source.tree.WildcardTree;
 import com.sun.source.util.TreeScanner;
+
+import org.checkerframework.javacutil.SystemUtil;
 
 /**
  * A visitor that performs some default action on a tree and then all of its children. To use this
