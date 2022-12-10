@@ -103,7 +103,7 @@ def testDataflowAnalysis(taskName, dirName, className, diff) {
                         "--add-opens", "jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
                         "--add-opens", "jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
                         "--add-opens", "jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
-                        "--add-opens", "jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
+                        "--add-opens", "jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
                     ]
                 }
 

@@ -4,7 +4,7 @@ import com.sun.source.tree.AnnotationTree;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeInfo;
 
-import org.checkerframework.checker.testchecker.ainfer.qual.DefaultType;
+import org.checkerframework.checker.testchecker.ainfer.qual.AinferDefaultType;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
@@ -27,7 +27,7 @@ public class AinferTestVisitor extends BaseTypeVisitor<AinferTestAnnotatedTypeFa
     @Override
     public Void visitAnnotation(AnnotationTree node, Void p) {
         Element anno = TreeInfo.symbol((JCTree) node.getAnnotationType());
-        if (anno.toString().equals(DefaultType.class.getName())) {
+        if (anno.toString().equals(AinferDefaultType.class.getName())) {
             checker.reportError(node, "annotation.not.allowed.in.src", anno.toString());
         }
         return super.visitAnnotation(node, p);

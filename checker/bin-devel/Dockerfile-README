@@ -59,12 +59,12 @@ export PROJECT=cf
 create_upload_docker_image
 
 export OS=ubuntu
-export JDKVER=jdk-latest
+export JDKVER=jdk19
 export PROJECT=cf
 create_upload_docker_image
 
 export OS=ubuntu
-export JDKVER=jdk-latest-plus
+export JDKVER=jdk19-plus
 export PROJECT=cf
 create_upload_docker_image
 

@@ -78,9 +78,9 @@ fi
 
 ## Compile
 
-# Downloading the gradle wrapper sometimes fails.
-# If so, the next command gives another chance to try the download.
-(./gradlew help || sleep 10) > /dev/null 2>&1
+# Download dependencies, trying a second time if there is a failure.
+(./gradlew --write-verification-metadata sha256 help --dry-run ||
+     (sleep 60 && ./gradlew --write-verification-metadata sha256 help --dry-run))
 
 echo "running \"./gradlew fastAssemble\" for checker-framework"
 ./gradlew fastAssemble --console=plain --warning-mode=all -s -Dorg.gradle.internal.http.socketTimeout=60000 -Dorg.gradle.internal.http.connectionTimeout=60000
