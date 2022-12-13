@@ -26,11 +26,11 @@ public class ObjectCreationNode extends Node {
     /** The tree for the object creation. */
     protected final NewClassTree tree;
 
-    /** The receiver of the object creation or null. */
+    /** The enclosing expression of the object creation or null. */
     protected final @Nullable Node enclosingExpression;
 
+    // TODO: See issue 376
     /** The constructor node of the object creation. */
-    // TODO: Change its name to identifier in a separate pr
     protected final Node constructor;
 
     /** The arguments of the object creation. */
@@ -43,7 +43,7 @@ public class ObjectCreationNode extends Node {
      * Constructs a {@link ObjectCreationNode}.
      *
      * @param tree the NewClassTree
-     * @param enclosingExpr the enclosingType Node if exists
+     * @param enclosingExpr the enclosing expression Node if it exists, or null
      * @param constructor the constructor node
      * @param arguments the passed arguments
      * @param classbody the ClassDeclarationNode
@@ -94,9 +94,10 @@ public class ObjectCreationNode extends Node {
     }
 
     /**
-     * Returns the receiver, the receiver only exists if the object creation is from an inner class
+     * Returns the enclosing expression node, which only exists if the object creation is from an
+     * inner class
      *
-     * @return the enclosing type receiver
+     * @return the enclosing type expression node
      */
     @Pure
     public @Nullable Node getEnclosingExpression() {
@@ -134,9 +135,9 @@ public class ObjectCreationNode extends Node {
         StringBuilder sb = new StringBuilder();
         List<Node> argumentsDeepCopy = new ArrayList<Node>();
         int startingIndex = 0;
+        // To make it clear, set the first argument to enclosing expression explicitly.
         if (enclosingExpression != null) {
             sb.append(enclosingExpression + ".");
-            // Remove the first argument if there is a receiver
             startingIndex = 1;
         }
         for (int i = startingIndex; i < arguments.size(); i++) {

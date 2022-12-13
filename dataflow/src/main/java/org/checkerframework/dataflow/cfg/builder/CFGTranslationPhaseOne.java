@@ -1274,11 +1274,6 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         ArrayList<Node> convertedNodes = new ArrayList<>(numFormals);
 
         int numActuals = actualExprs.size();
-        // For an inner class constructor, add the receiver as the first argument
-        // explicitly.
-        if (enclosingTypeReceiverNode != null) {
-            convertedNodes.add(enclosingTypeReceiverNode);
-        }
         if (method.isVarArgs()) {
             // Create a new array argument if the actuals outnumber the formals, or if the last
             // actual is not assignable to the last formal.
@@ -1301,16 +1296,13 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             } else {
                 assert lastParamType instanceof ArrayType
                         : "variable argument formal must be an array";
-                // already added enclosingTypeReceiverNode into convertedNodes
-                if (enclosingTypeReceiverNode != null) {
-                    --lastArgIndex;
-                }
                 // Apply method invocation conversion to lastArgIndex arguments and use the
                 // remaining ones to initialize an array.
                 for (int i = 0; i < lastArgIndex; i++) {
                     Node actualVal = scan(actualExprs.get(i), null);
                     convertedNodes.add(methodInvocationConvert(actualVal, formals.get(i)));
                 }
+
                 // NOTE: When the last parameter is a type variable vararg and the compiler
                 // cannot find a specific type use to substitute for it, the compiler will
                 // create an unbounded component type instead. For example,
@@ -3406,10 +3398,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         // see JLS 15.9
 
         Tree enclosingExpr = tree.getEnclosingExpression();
-        Node enclosingExprNode = null;
-        if (enclosingExpr != null) {
-            enclosingExprNode = scan(enclosingExpr, p);
-        }
+        Node enclosingExprNode = enclosingExpr != null ? scan(enclosingExpr, p) : null;
 
         // Convert constructor arguments
         ExecutableElement constructor = TreeUtils.elementFromUse(tree);
