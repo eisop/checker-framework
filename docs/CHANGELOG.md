@@ -5,7 +5,7 @@ Version 3.28.0-eisop2 (December ?, 2022)
 
 **Implementation details:**
 
-A `VariableDeclarationNode` will be added to the CFG for the binding variable
+A `VariableDeclarationNode` is now correctly added to the CFG for the binding variable
 in a `BindingPatternTree`.
 
 **Closed issues:**
