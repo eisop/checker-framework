@@ -174,7 +174,9 @@ jobs:
     displayName: test-cftests-inference.sh
 - job: inference_tests_jdk17
   dependsOn:
-   - canary_jobs
+## Improve parallelism by depending only on typecheck, not canary, jobs
+#   - canary_jobs
+   - typecheck_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk-latest:latest
