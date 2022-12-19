@@ -18,8 +18,6 @@ import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Position;
 
-import io.github.classgraph.ClassGraph;
-
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.formatter.qual.FormatMethod;
 import org.checkerframework.checker.interning.qual.InternedDistinct;
@@ -91,6 +89,8 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import javax.tools.Diagnostic.Kind;
+
+import io.github.classgraph.ClassGraph;
 
 /**
  * An abstract annotation processor designed for implementing a source-file checker as an annotation
@@ -586,10 +586,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 && jreVersion != 8
                 && jreVersion != 11
                 && jreVersion != 17
-                && jreVersion != 18) {
+                && jreVersion != 19) {
             message(
                     (hasOption("permitUnsupportedJdkVersion") ? Kind.NOTE : Kind.WARNING),
-                    "The Checker Framework is tested with JDK 8, 11, 17, and 18."
+                    "The Checker Framework is tested with JDK 8, 11, 17, and 19."
                             + " You are using version %d.",
                     jreVersion);
         }

@@ -1,4 +1,4 @@
-Version 3.27.0-eisop2 (November ?, 2022)
+Version 3.28.0-eisop2 (December ?, 2022)
 ----------------------------------------
 
 **User-visible changes:**
@@ -11,8 +11,41 @@ applied on everywhere.
 
 **Implementation details:**
 
+A `VariableDeclarationNode` is now correctly added to the CFG for the binding variable
+in a `BindingPatternTree`.
+
 **Closed issues:**
 typetools#1919
+
+Version 3.28.0-eisop1 (December 7, 2022)
+----------------------------------------
+
+**User-visible changes:**
+
+Support JSpecify annotations in the `org.jspecify.annotations` package.
+
+**Implementation details:**
+
+Remove duplicate code in `AnnotatedTypeFactory` and `javacutil`.
+
+
+Version 3.28.0 (December 1, 2022)
+---------------------------------
+
+**User-visible changes:**
+
+The Checker Framework runs under JDK 19 -- that is, it runs on a version 19 JVM.
+
+**Implementation details:**
+
+Renamed `TryFinallyScopeCell` to `LabelCell`.
+
+Renamed `TreeUtils.isEnumSuper` to `isEnumSuperCall`.
+
+**Closed issues:**
+
+#5390, #5399, #5390.
+
 
 Version 3.27.0-eisop1 (November 6, 2022)
 ----------------------------------------

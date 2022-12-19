@@ -2,6 +2,7 @@ package org.checkerframework.common.value;
 
 import com.sun.source.tree.Tree;
 
+import org.checkerframework.checker.mustcall.qual.MustCallUnknown;
 import org.checkerframework.common.value.qual.IntRange;
 import org.checkerframework.common.value.qual.IntVal;
 import org.checkerframework.common.value.qual.StringVal;
@@ -147,7 +148,14 @@ public class ValueCheckerUtils {
         return values;
     }
 
-    private static List<?> convertToStringVal(List<?> origValues) {
+    /**
+     * Converts a list of objects to a list of their string representations.
+     *
+     * @param origValues the objects to format
+     * @return a list of the formatted objects
+     */
+    @SuppressWarnings("mustcall:methodref.receiver") // generics; #979 ?
+    private static List<?> convertToStringVal(List<? extends @MustCallUnknown Object> origValues) {
         if (origValues == null) {
             return null;
         }

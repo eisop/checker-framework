@@ -16,7 +16,7 @@ To update EISOP with changes in a different Checker Framework fork, follow these
 
 1. Look up the commit IDs for the range you want to include, e.g. previous and current releases.
 
-1. Fetch the new release into a different branch `git fetch typetools toID:typetools-3.18.0-release1.
+1. Fetch the new release into a different branch `git fetch typetools toID:typetools-3.18.0-release`.
 
 1. Do `git cherry-pick fromID..toID`.
 
