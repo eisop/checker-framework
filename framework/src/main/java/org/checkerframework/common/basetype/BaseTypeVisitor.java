@@ -1538,8 +1538,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /**
      * Validate if the annotations on the VariableTree are at the right locations, which is
      * specified by the meta-annotation @TargetLocations. The difference of this method between
-     * {@link BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation...)}
-     * is that this one is only used in {@link BaseTypeVisitor#visitVariable(VariableTree, Void)}
+     * {@link BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)} is
+     * that this one is only used in {@link BaseTypeVisitor#visitVariable(VariableTree, Void)}
      *
      * @param tree annotations on this VariableTree will be validated
      * @param type the type of the tree
