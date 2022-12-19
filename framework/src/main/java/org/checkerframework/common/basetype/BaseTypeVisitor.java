@@ -300,18 +300,18 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     /** Initialize AnnoToTargetLocations, which is used for declared typeuse locations lookup. */
     protected void initAnnoToTargetLocations() {
-        for (Class<? extends Annotation> qual : atypeFactory.getSupportedTypeQualifiers()) {
-            Element elem = elements.getTypeElement(qual.getCanonicalName());
+        for (String qual : atypeFactory.getSupportedTypeQualifierNames()) {
+            Element elem = elements.getTypeElement(qual);
             TargetLocations tls = elem.getAnnotation(TargetLocations.class);
             // @Target({ElementType.TYPE_USE})} together with no @TargetLocations(...) means that
             // the qualifier can be written on any type use
             // TODO: do we have to consider the scenario that @Target contains other ElementType?
             if (tls == null) {
-                AnnoToTargetLocations.put(qual.getCanonicalName(), null);
+                AnnoToTargetLocations.put(qual, null);
                 continue;
             }
             List<TypeUseLocation> locations = Arrays.asList(tls.value());
-            AnnoToTargetLocations.put(qual.getCanonicalName(), locations);
+            AnnoToTargetLocations.put(qual, locations);
         }
     }
 
@@ -1614,8 +1614,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      *     specification of the annotation (@TargetLocations), issue an error.
      */
     protected void validateTargetLocation(
-            Tree tree, AnnotatedTypeMirror type, TypeUseLocation... required) {
-        if (ignoreTargetLocation || required.length == 0) {
+            Tree tree, AnnotatedTypeMirror type, TypeUseLocation required) {
+        if (ignoreTargetLocation) {
             return;
         }
         for (AnnotationMirror am : type.getAnnotations()) {
@@ -1624,22 +1624,25 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             if (locations == null || locations.contains(TypeUseLocation.ALL)) {
                 continue;
             }
-            boolean issueError = true;
-            for (TypeUseLocation req : required) {
-                if (locations.contains(req)) {
-                    issueError = false;
-                    break;
-                }
-            }
+            boolean issueError = !locations.contains(required);
 
             if (issueError) {
                 checker.reportError(
                         tree,
                         "type.invalid.annotations.on.location",
                         am.toString(),
-                        required[0].toString());
+                        required.toString());
             }
         }
+    }
+
+    /**
+     * Getter method for field ignoreTargetLocation.
+     *
+     * @return ignoreTargetLocation
+     */
+    public boolean getIgnoreTargetLocation() {
+        return ignoreTargetLocation;
     }
 
     /**
@@ -4816,14 +4819,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     validateTargetLocation(
                             t,
                             ((AnnotatedTypeVariable) type).getUpperBound(),
-                            TypeUseLocation.UPPER_BOUND,
-                            TypeUseLocation.EXPLICIT_UPPER_BOUND);
+                            TypeUseLocation.UPPER_BOUND);
                 }
                 validateTargetLocation(
                         tree,
                         ((AnnotatedTypeVariable) type).getLowerBound(),
-                        TypeUseLocation.LOWER_BOUND,
-                        TypeUseLocation.EXPLICIT_LOWER_BOUND);
+                        TypeUseLocation.LOWER_BOUND);
                 break;
             case METHOD:
                 type = atypeFactory.getMethodReturnType((MethodTree) tree);
