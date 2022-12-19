@@ -26,6 +26,10 @@ import java.lang.annotation.Target;
  * <p>This meta-annotation prevents the type system from inferring, or computing the given type
  * annotation at the given location. It also prevents users from writing an explicit annotation at
  * the given location.
+ *
+ * <p>Because the meta-annotation avoids given annotations implicitly and explicitly applying on
+ * certain locations, supply LOWER_BOUND (UPPER_BOUND) rather than EXPLICIT_LOWER_BOUND
+ * (EXPLICIT_UPPER_BOUND) as the value of TargetLocations.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
