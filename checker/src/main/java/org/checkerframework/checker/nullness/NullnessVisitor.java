@@ -390,7 +390,6 @@ public class NullnessVisitor
     // enabled.
 
     boolean doVisitAssert;
-
     if (checker.hasOption("assumeAssertionsAreEnabled")
         || CFCFGBuilder.assumeAssertionsActivatedForAssertTree(checker, node)) {
       doVisitAssert = true;
