@@ -281,6 +281,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     warnRedundantAnnotations = checker.hasOption("warnRedundantAnnotations");
   }
 
+  /** An array containing just {@code BaseTypeChecker.class}. */
+  private static Class<?>[] baseTypeCheckerClassArray = new Class<?>[] {BaseTypeChecker.class};
+
   /**
    * Constructs an instance of the appropriate type factory for the implemented type system.
    *
@@ -301,12 +304,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
   protected Factory createTypeFactory() {
     // Try to reflectively load the type factory.
     Class<?> checkerClass = checker.getClass();
+    Object[] checkerArray = new Object[] {checker};
     while (checkerClass != BaseTypeChecker.class) {
       AnnotatedTypeFactory result =
           BaseTypeChecker.invokeConstructorFor(
               BaseTypeChecker.getRelatedClassName(checkerClass, "AnnotatedTypeFactory"),
-              new Class<?>[] {BaseTypeChecker.class},
-              new Object[] {checker});
+              baseTypeCheckerClassArray,
+              checkerArray);
       if (result != null) {
         return (Factory) result;
       }

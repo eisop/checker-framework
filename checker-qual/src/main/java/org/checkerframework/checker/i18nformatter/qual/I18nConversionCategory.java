@@ -103,6 +103,10 @@ public enum I18nConversionCategory {
     return intersect(a, b) == a;
   }
 
+  /** Conversion categories that need to be considered by {@link #intersect}. */
+  private static I18nConversionCategory[] conversionCategoriesForIntersect =
+      new I18nConversionCategory[] {DATE, NUMBER};
+
   /**
    * Returns the intersection of the two given I18nConversionCategories.
    *
@@ -138,9 +142,9 @@ public enum I18nConversionCategory {
     // GENERAL
     Set<Class<?>> bs = arrayToSet(b.types);
     as.retainAll(bs); // intersection
-    for (I18nConversionCategory v : new I18nConversionCategory[] {DATE, NUMBER}) {
-      @SuppressWarnings("nullness:argument.type.incompatible") // in those values, `types` field is
-      // non-null
+    for (I18nConversionCategory v : conversionCategoriesForIntersect) {
+      @SuppressWarnings(
+          "nullness:argument.type.incompatible") // in those values, `types` field is non-null
       Set<Class<?>> vs = arrayToSet(v.types);
       if (vs.equals(as)) {
         return v;
