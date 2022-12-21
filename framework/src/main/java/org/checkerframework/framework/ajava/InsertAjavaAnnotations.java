@@ -58,7 +58,7 @@ import javax.tools.ToolProvider;
 /** This program inserts annotations from an ajava file into a Java file. See {@link #main}. */
 public class InsertAjavaAnnotations {
   /** Element utilities. */
-  private Elements elements;
+  private final Elements elements;
 
   /**
    * Constructs an {@code InsertAjavaAnnotations} using the given {@code Elements} instance.

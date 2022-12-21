@@ -47,6 +47,7 @@ import com.sun.tools.javac.tree.TreeInfo;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.interning.qual.FindDistinct;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.TransferResult;
 import org.checkerframework.dataflow.cfg.node.BooleanLiteralNode;
@@ -2642,8 +2643,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
   // **********************************************************************
 
   /** Cache to avoid calling {@link #getExceptionParameterLowerBoundAnnotations} more than once. */
-  private Set<? extends AnnotationMirror> getExceptionParameterLowerBoundAnnotationsCache = null;
-  /** The same as {@link #getExceptionParameterLowerBoundAnnotations}, but uses a cache. */
+  private @MonotonicNonNull Set<? extends AnnotationMirror>
+      getExceptionParameterLowerBoundAnnotationsCache;
+  /**
+   * Returns a set of AnnotationMirrors that is a lower bound for exception parameters. The same as
+   * {@link #getExceptionParameterLowerBoundAnnotations}, but uses a cache.
+   *
+   * @return a set of AnnotationMirrors that is a lower bound for exception parameters
+   */
   private Set<? extends AnnotationMirror> getExceptionParameterLowerBoundAnnotationsCached() {
     if (getExceptionParameterLowerBoundAnnotationsCache == null) {
       getExceptionParameterLowerBoundAnnotationsCache =
@@ -3049,7 +3056,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
    * A scanner that indicates whether any (sub-)types have the same toString but different verbose
    * toString. If so, the Checker Framework prints types verbosely.
    */
-  private static SimpleAnnotatedTypeScanner<Boolean, Map<String, String>>
+  private static final SimpleAnnotatedTypeScanner<Boolean, Map<String, String>>
       checkContainsSameToString =
           new SimpleAnnotatedTypeScanner<>(
               (AnnotatedTypeMirror type, Map<String, String> map) -> {

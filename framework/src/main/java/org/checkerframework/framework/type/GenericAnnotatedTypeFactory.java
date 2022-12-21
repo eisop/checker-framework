@@ -17,6 +17,7 @@ import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.formatter.qual.FormatMethod;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.dataflow.analysis.Analysis;
@@ -142,7 +143,7 @@ public abstract class GenericAnnotatedTypeFactory<
     extends AnnotatedTypeFactory {
 
   /** To cache the supported monotonic type qualifiers. */
-  private Set<Class<? extends Annotation>> supportedMonotonicQuals;
+  private @MonotonicNonNull Set<Class<? extends Annotation>> supportedMonotonicQuals;
 
   /** to annotate types based on the given tree */
   protected TypeAnnotator typeAnnotator;
@@ -235,7 +236,7 @@ public abstract class GenericAnnotatedTypeFactory<
    *
    * @see GenericAnnotatedTypeFactory#applyLocalVariableQualifierParameterDefaults
    */
-  private final Set<VariableElement> variablesUnderInitialization;
+  private final Set<VariableElement> variablesUnderInitialization = new HashSet<>();
 
   /**
    * Caches types of initializers for local variables with a qualifier parameter, so that they
@@ -329,8 +330,6 @@ public abstract class GenericAnnotatedTypeFactory<
     this.shouldDefaultTypeVarLocals = useFlow;
     this.useFlow = useFlow;
 
-    this.variablesUnderInitialization = new HashSet<>();
-    this.scannedClasses = new HashMap<>();
     this.flowResult = null;
     this.regularExitStores = new IdentityHashMap<>();
     this.exceptionalExitStores = new IdentityHashMap<>();
@@ -1046,7 +1045,7 @@ public abstract class GenericAnnotatedTypeFactory<
   }
 
   /** Map from ClassTree to their dataflow analysis state. */
-  protected final Map<ClassTree, ScanState> scannedClasses;
+  protected final Map<ClassTree, ScanState> scannedClasses = new HashMap<>();
 
   /**
    * The result of the flow analysis. Invariant:
