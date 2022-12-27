@@ -68,6 +68,8 @@ dependencies {
     testImplementation 'com.amazonaws:aws-java-sdk-kms'
     // The AWS SDK is used for testing the Called Methods Checker.
     testImplementation platform('com.amazonaws:aws-java-sdk-bom:1.12.293')
+    // For the Resource Leak Checker's support for JavaEE.
+    testImplementation 'javax.servlet:javax.servlet-api:3.1.0'
 
     // Required for checker/tests/index-initializedfields/RequireJavadoc.java
     if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
