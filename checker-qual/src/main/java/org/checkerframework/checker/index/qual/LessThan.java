@@ -25,7 +25,7 @@ import java.lang.annotation.Target;
  *   <li>{@code @LessThan({"a", "b"})} is not related to {@code @LessThan({"a", "c"})}.
  * </ul>
  *
- * @checker_framework.manual #index-inequalities Index Chceker Inequalities
+ * @checker_framework.manual #index-inequalities Index Checker Inequalities
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
