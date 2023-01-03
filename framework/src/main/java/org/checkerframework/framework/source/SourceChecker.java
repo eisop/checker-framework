@@ -449,10 +449,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
    * Maps error keys to localized/custom error messages. Do not use directly; call {@link
    * #fullMessageOf} or {@link #processArg}.
    */
-  protected Properties messagesProperties;
+  protected @MonotonicNonNull Properties messagesProperties;
 
   /** Used to report error messages and warnings via the compiler. */
-  protected Messager messager;
+  protected @MonotonicNonNull Messager messager;
 
   /** Element utilities. */
   protected Elements elements;
@@ -479,7 +479,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
    * SuppressWarnings strings supplied via the -AsuppressWarnings option. Do not use directly, call
    * {@link #getSuppressWarningsStringsFromOption()}.
    */
-  private String @Nullable [] suppressWarningsStringsFromOption;
+  private String @MonotonicNonNull [] suppressWarningsStringsFromOption;
 
   /**
    * If true, use the "allcheckers:" warning string prefix.
@@ -541,7 +541,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
    * <p>Both the simple and the canonical name of the checker can be used. Superclasses of the
    * current checker are also considered.
    */
-  private Map<String, String> activeOptions;
+  private @MonotonicNonNull Map<String, String> activeOptions;
 
   /**
    * The string that separates the checker name from the option name in a "-A" command-line
@@ -559,7 +559,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
   protected @Nullable SourceChecker parentChecker;
 
   /** List of upstream checker names. Includes the current checker. */
-  protected List<@FullyQualifiedName String> upstreamCheckerNames;
+  protected @MonotonicNonNull List<@FullyQualifiedName String> upstreamCheckerNames;
 
   /**
    * TreePathCacher to share between instances. Initialized in getTreePathCacher (which is also

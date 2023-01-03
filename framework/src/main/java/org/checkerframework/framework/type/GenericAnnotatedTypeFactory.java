@@ -166,7 +166,7 @@ public abstract class GenericAnnotatedTypeFactory<
   /** To handle dependent type annotations and contract expressions. */
   protected DependentTypesHelper dependentTypesHelper;
 
-  /** to handle method pre- and postconditions */
+  /** To handle method pre- and postconditions. */
   protected final ContractsFromMethod contractsUtils;
 
   /**
@@ -189,7 +189,7 @@ public abstract class GenericAnnotatedTypeFactory<
 
   // Flow related fields
 
-  /** Should use flow by default. */
+  /** Should flow be used by default? */
   protected static boolean flowByDefault = true;
 
   /**
@@ -300,7 +300,7 @@ public abstract class GenericAnnotatedTypeFactory<
    *
    * <p>The initial capacity of the map is set by {@link #getCacheSize()}.
    */
-  protected @Nullable Map<Tree, ControlFlowGraph> subcheckerSharedCFG;
+  protected @MonotonicNonNull Map<Tree, ControlFlowGraph> subcheckerSharedCFG;
 
   /**
    * If true, {@link #setRoot(CompilationUnitTree)} should clear the {@link #subcheckerSharedCFG}
@@ -360,10 +360,10 @@ public abstract class GenericAnnotatedTypeFactory<
       Elements elements = getElementUtils();
       Class<?>[] classes = relevantJavaTypesAnno.value();
       this.relevantJavaTypes = new HashSet<>(CollectionsPlume.mapCapacity(classes.length));
-      boolean calcArraysAreRelevant = false;
+      boolean arraysAreRelevantTemp = false;
       for (Class<?> clazz : classes) {
         if (clazz == Object[].class) {
-          calcArraysAreRelevant = true;
+          arraysAreRelevantTemp = true;
         } else if (clazz.isArray()) {
           throw new TypeSystemError(
               "Don't use arrays other than Object[] in @RelevantJavaTypes on "
@@ -373,7 +373,7 @@ public abstract class GenericAnnotatedTypeFactory<
           relevantJavaTypes.add(types.erasure(relevantType));
         }
       }
-      this.arraysAreRelevant = calcArraysAreRelevant;
+      this.arraysAreRelevant = arraysAreRelevantTemp;
     }
 
     contractsUtils = createContractsFromMethod();
@@ -1057,7 +1057,7 @@ public abstract class GenericAnnotatedTypeFactory<
    * Note that flowResult contains analysis results for Trees from multiple classes which are
    * produced by multiple calls to performFlowAnalysis.
    */
-  protected AnalysisResult<Value, Store> flowResult;
+  protected @MonotonicNonNull AnalysisResult<Value, Store> flowResult;
 
   /**
    * A mapping from methods (or other code blocks) to their regular exit store (used to check
