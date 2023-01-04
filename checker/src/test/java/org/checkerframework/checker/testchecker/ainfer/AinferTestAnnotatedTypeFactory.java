@@ -1,5 +1,8 @@
 package org.checkerframework.checker.testchecker.ainfer;
 
+import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.MethodTree;
+
 import org.checkerframework.checker.testchecker.ainfer.qual.AinferBottom;
 import org.checkerframework.checker.testchecker.ainfer.qual.AinferDefaultType;
 import org.checkerframework.checker.testchecker.ainfer.qual.AinferImplicitAnno;
@@ -8,9 +11,13 @@ import org.checkerframework.checker.testchecker.ainfer.qual.AinferSibling1;
 import org.checkerframework.checker.testchecker.ainfer.qual.AinferSibling2;
 import org.checkerframework.checker.testchecker.ainfer.qual.AinferSiblingWithFields;
 import org.checkerframework.checker.testchecker.ainfer.qual.AinferTop;
+import org.checkerframework.checker.testchecker.ainfer.qual.AinferTreatAsSibling1;
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
+import org.checkerframework.common.wholeprograminference.WholeProgramInference;
 import org.checkerframework.framework.qual.LiteralKind;
+import org.checkerframework.framework.type.AnnotatedTypeFactory;
+import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.MostlyNoElementQualifierHierarchy;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.treeannotator.ListTreeAnnotator;
@@ -33,6 +40,8 @@ import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.util.Elements;
 
 /**
@@ -49,6 +58,12 @@ public class AinferTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
   private final AnnotationMirror IMPLICIT_ANNO =
       new AnnotationBuilder(processingEnv, AinferImplicitAnno.class).build();
 
+  private final AnnotationMirror SIBLING1 =
+      new AnnotationBuilder(processingEnv, AinferSibling1.class).build();
+
+  private final AnnotationMirror TREAT_AS_SIBLING1 =
+      new AnnotationBuilder(processingEnv, AinferTreatAsSibling1.class).build();
+
   /** The AinferSiblingWithFields.value field/element. */
   private final ExecutableElement siblingWithFieldsValueElement =
       TreeUtils.getMethod(AinferSiblingWithFields.class, "value", 0, processingEnv);
@@ -58,6 +73,9 @@ public class AinferTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
   public AinferTestAnnotatedTypeFactory(BaseTypeChecker checker) {
     super(checker);
+    // Support a declaration annotation that can be written on parameters, to test that the
+    // WPI feature allowing inference of declaration annotations on parameters works as intended.
+    addAliasedTypeAnnotation(AinferTreatAsSibling1.class, SIBLING1);
     postInit();
   }
 
@@ -81,7 +99,47 @@ public class AinferTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     literalTreeAnnotator.addLiteralKind(LiteralKind.INT, BOTTOM);
     literalTreeAnnotator.addStandardLiteralQualifiers();
 
-    return new ListTreeAnnotator(new PropagationTreeAnnotator(this), literalTreeAnnotator);
+    return new ListTreeAnnotator(
+        new PropagationTreeAnnotator(this),
+        literalTreeAnnotator,
+        new AinferTestTreeAnnotator(this));
+  }
+
+  protected class AinferTestTreeAnnotator extends TreeAnnotator {
+
+    /**
+     * Create a new AinferTestTreeAnnotator.
+     *
+     * @param atypeFactory the type factory
+     */
+    protected AinferTestTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+      super(atypeFactory);
+    }
+
+    @Override
+    public Void visitClass(ClassTree classTree, AnnotatedTypeMirror type) {
+      WholeProgramInference wpi = atypeFactory.getWholeProgramInference();
+      TypeElement classElt = TreeUtils.elementFromDeclaration(classTree);
+      if (wpi != null && classElt.getSimpleName().contentEquals("IShouldBeSibling1")) {
+        wpi.addClassDeclarationAnnotation(classElt, SIBLING1);
+      }
+      return super.visitClass(classTree, type);
+    }
+
+    @Override
+    public Void visitMethod(MethodTree methodTree, AnnotatedTypeMirror type) {
+      WholeProgramInference wpi = atypeFactory.getWholeProgramInference();
+      if (wpi != null) {
+        ExecutableElement execElt = TreeUtils.elementFromDeclaration(methodTree);
+        for (int i = 0; i < execElt.getParameters().size(); ++i) {
+          VariableElement param = execElt.getParameters().get(i);
+          if (param.getSimpleName().contentEquals("iShouldBeTreatedAsSibling1")) {
+            wpi.addDeclarationAnnotationToFormalParameter(execElt, i, TREAT_AS_SIBLING1);
+          }
+        }
+      }
+      return super.visitMethod(methodTree, type);
+    }
   }
 
   @Override
@@ -92,7 +150,7 @@ public class AinferTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
   /**
    * Using a MultiGraphQualifierHierarchy to enable tests with Annotations that contain fields.
    *
-   * @see AinferSiblingWithFields.
+   * @see AinferSiblingWithFields
    */
   protected class AinferTestQualifierHierarchy extends MostlyNoElementQualifierHierarchy {
 
