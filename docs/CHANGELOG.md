@@ -11,6 +11,16 @@ in a `BindingPatternTree`.
 **Closed issues:**
 
 
+Version 3.29.1 (February 1, 2023)
+--------------------------------
+
+**User-visible changes:**
+
+**Implementation details:**
+
+**Closed issues:**
+
+
 Version 3.29.0 (January 5, 2023)
 --------------------------------
 
