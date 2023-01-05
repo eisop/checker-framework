@@ -11,7 +11,7 @@ in a `BindingPatternTree`.
 **Closed issues:**
 
 
-Version 3.28.1 (January 3, 2022)
+Version 3.29.0 (January 4, 2023)
 ---------------------------------
 
 **User-visible changes:**
@@ -25,9 +25,9 @@ pointer exceptions within nullness assertion methods like `Objects.requireNonNul
 Pass `-Astubs=sometimes-nullable.astub` to unsoundly permit passing null to
 calls if null is sometimes but not always permitted.
 
-**Implementation details:**
-
 **Closed issues:**
+
+#5412, #5431, #5435, #5438, #5447, #5450, #5453, #5471, #5472, #5487.
 
 
 Version 3.28.0-eisop1 (December 7, 2022)
