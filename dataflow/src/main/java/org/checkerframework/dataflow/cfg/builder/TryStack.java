@@ -1,6 +1,6 @@
 package org.checkerframework.dataflow.cfg.builder;
 
-import org.checkerframework.dataflow.util.MostlySingleton;
+import org.plumelib.util.MostlySingletonSet;
 
 import java.util.ArrayDeque;
 import java.util.Set;
@@ -52,7 +52,7 @@ import javax.lang.model.type.TypeMirror;
    */
   public Set<Label> possibleLabels(TypeMirror thrown) {
     // Work up from the innermost frame until the exception is known to be caught.
-    Set<Label> labels = new MostlySingleton<>();
+    Set<Label> labels = new MostlySingletonSet<>();
     for (TryFrame frame : frames) {
       if (frame.possibleLabels(thrown, labels)) {
         return labels;

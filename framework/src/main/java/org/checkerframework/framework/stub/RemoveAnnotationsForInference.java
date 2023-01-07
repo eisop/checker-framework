@@ -28,6 +28,7 @@ import com.google.common.reflect.ClassPath;
 import org.checkerframework.framework.util.JavaParserUtil;
 import org.checkerframework.javacutil.BugInCF;
 import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.StringsPlume;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
@@ -223,25 +224,11 @@ public class RemoveAnnotationsForInference {
    * @param newLine the new line for index {@code lineno}
    */
   static void replaceLine(List<String> lines, int lineno, String newLine) {
-    if (isBlank(newLine)) {
+    if (StringsPlume.isBlank(newLine)) {
       lines.remove(lineno);
     } else {
       lines.set(lineno, newLine);
     }
-  }
-
-  // TODO: When plume-util 1.6.2 is released, use the version of `isBlank()` in StringsPlume.
-
-  /**
-   * Returns true if the string contains only white space codepoints, otherwise false.
-   *
-   * <p>In Java 11, use {@code String.isBlank()} instead.
-   *
-   * @param s a string
-   * @return true if the string contains only white space codepoints, otherwise false
-   */
-  static boolean isBlank(String s) {
-    return s.chars().allMatch(Character::isWhitespace);
   }
 
   /**
