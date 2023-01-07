@@ -28,19 +28,19 @@ public class PhaseOneResult {
    * Maps from AST {@link Tree}s to sets of {@link Node}s. Every Tree that produces a value will
    * have at least one corresponding Node. Trees that undergo conversions, such as boxing or
    * unboxing, can map to two distinct Nodes. The Node for the pre-conversion value is stored in the
-   * treeLookupMap, while the Node for the post-conversion value is stored in the
-   * convertedTreeLookupMap.
+   * treeToCfgNodes, while the Node for the post-conversion value is stored in the
+   * treeToConvertedCfgNodes.
    */
-  /*package-private*/ final IdentityHashMap<Tree, Set<Node>> treeLookupMap;
+  /* package-private */ final IdentityHashMap<Tree, Set<Node>> treeToCfgNodes;
 
   /** Map from AST {@link Tree}s to post-conversion sets of {@link Node}s. */
-  /*package-private*/ final IdentityHashMap<Tree, Set<Node>> convertedTreeLookupMap;
+  /* package-private */ final IdentityHashMap<Tree, Set<Node>> treeToConvertedCfgNodes;
 
   /**
    * Map from postfix increment or decrement trees that are AST {@link UnaryTree}s to the synthetic
    * tree that is {@code v + 1} or {@code v - 1}.
    */
-  /*package-private*/ final IdentityHashMap<UnaryTree, BinaryTree> postfixLookupMap;
+  /* package-private */ final IdentityHashMap<UnaryTree, BinaryTree> postfixTreeToCfgNodes;
 
   /** The list of extended nodes. */
   /*package-private*/ final ArrayList<ExtendedNode> nodeList;
@@ -77,9 +77,9 @@ public class PhaseOneResult {
 
   public PhaseOneResult(
       UnderlyingAST underlyingAST,
-      IdentityHashMap<Tree, Set<Node>> treeLookupMap,
-      IdentityHashMap<Tree, Set<Node>> convertedTreeLookupMap,
-      IdentityHashMap<UnaryTree, BinaryTree> postfixLookupMap,
+      IdentityHashMap<Tree, Set<Node>> treeToCfgNodes,
+      IdentityHashMap<Tree, Set<Node>> treeToConvertedCfgNodes,
+      IdentityHashMap<UnaryTree, BinaryTree> postfixTreeToCfgNodes,
       ArrayList<ExtendedNode> nodeList,
       Map<Label, Integer> bindings,
       Set<Integer> leaders,
@@ -89,9 +89,9 @@ public class PhaseOneResult {
       List<ClassTree> declaredClasses,
       List<LambdaExpressionTree> declaredLambdas) {
     this.underlyingAST = underlyingAST;
-    this.treeLookupMap = treeLookupMap;
-    this.convertedTreeLookupMap = convertedTreeLookupMap;
-    this.postfixLookupMap = postfixLookupMap;
+    this.treeToCfgNodes = treeToCfgNodes;
+    this.treeToConvertedCfgNodes = treeToConvertedCfgNodes;
+    this.postfixTreeToCfgNodes = postfixTreeToCfgNodes;
     this.nodeList = nodeList;
     this.bindings = bindings;
     this.leaders = leaders;
@@ -164,9 +164,9 @@ public class PhaseOneResult {
     StringJoiner result =
         new StringJoiner(
             String.format("%n  "), String.format("PhaseOneResult{%n  "), String.format("%n  }"));
-    result.add("treeLookupMap=" + mapToString(treeLookupMap));
-    result.add("convertedTreeLookupMap=" + mapToString(convertedTreeLookupMap));
-    result.add("postfixLookupMap=" + mapToString(postfixLookupMap));
+    result.add("treeToCfgNodes=" + mapToString(treeToCfgNodes));
+    result.add("treeToConvertedCfgNodes=" + mapToString(treeToConvertedCfgNodes));
+    result.add("postfixTreeToCfgNodes=" + mapToString(postfixTreeToCfgNodes));
     result.add("underlyingAST=" + underlyingAST);
     result.add("bindings=" + bindings);
     result.add("nodeList=" + CFGBuilder.extendedNodeCollectionToStringDebug(nodeList));
