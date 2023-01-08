@@ -11,7 +11,7 @@ import org.checkerframework.dataflow.cfg.block.SpecialBlock.SpecialBlockType;
 import org.checkerframework.dataflow.cfg.block.SpecialBlockImpl;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.javacutil.BugInCF;
-import org.plumelib.util.MostlySingletonSet;
+import org.plumelib.util.ArraySet;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -49,7 +49,7 @@ public class CFGTranslationPhaseTwo {
     SpecialBlockImpl exceptionalExitBlock = new SpecialBlockImpl(SpecialBlockType.EXCEPTIONAL_EXIT);
 
     // record missing edges that will be added later
-    Set<MissingEdge> missingEdges = new MostlySingletonSet<>();
+    Set<MissingEdge> missingEdges = new ArraySet<>(1);
 
     // missing exceptional edges
     Set<MissingEdge> missingExceptionalEdges = new LinkedHashSet<>();
