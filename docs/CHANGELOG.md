@@ -12,6 +12,10 @@ Type checked the actual enclosing type of inner class with its declared construc
 
 Cleaned up unnecessary usages of `AnnotatedTypes.adaptParameters()`
 
+A `VariableDeclarationNode` is now correctly added to the CFG for the binding variable
+in a `BindingPatternTree`.
+
+
 **Closed issues:**
 
 eisop#314
