@@ -24,11 +24,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcard
 import org.checkerframework.framework.type.AsSuperVisitor;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.SyntheticArrays;
-import org.checkerframework.javacutil.AnnotationUtils;
-import org.checkerframework.javacutil.BugInCF;
-import org.checkerframework.javacutil.ElementUtils;
-import org.checkerframework.javacutil.Pair;
-import org.checkerframework.javacutil.TypesUtils;
+import org.checkerframework.javacutil.*;
 import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.StringsPlume;
 
@@ -46,11 +42,7 @@ import java.util.Map;
 import java.util.Set;
 
 import javax.annotation.processing.ProcessingEnvironment;
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.TypeParameterElement;
+import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -967,7 +959,7 @@ public class AnnotatedTypes {
      * @param method the method's type
      * @param args the arguments to the method invocation
      * @return the types that the method invocation arguments need to be subtype of
-     * @deprecated Use {@link AnnotatedTypeFactory#adaptParameters(
+     * @deprecated Use {@link #adaptParameters(AnnotatedTypeFactory,
      *     AnnotatedTypeMirror.AnnotatedExecutableType, List)} instead
      */
     @Deprecated
@@ -975,7 +967,85 @@ public class AnnotatedTypes {
             AnnotatedTypeFactory atypeFactory,
             AnnotatedExecutableType method,
             List<? extends ExpressionTree> args) {
-        return atypeFactory.adaptParameters(method, args);
+        return adaptParameters(atypeFactory, method, args);
+    }
+
+    /**
+     * Returns the method parameters for the invoked method (or constructor), with the same number
+     * of arguments as passed to the invocation tree.
+     *
+     * <p>This expands the parameters if the call uses varargs or contracts the parameters if the
+     * call is to an anonymous class that extends a class with an enclosing type. If the call is
+     * neither of these, then the parameters are returned unchanged.
+     *
+     * @param atypeFactory the type factory to use for fetching annotated types
+     * @param method the method or constructor's type
+     * @param args the arguments to the method or constructor invocation
+     * @return a list of the types that the invocation arguments need to be subtype of; has the same
+     *     length as {@code args}
+     */
+    public static List<AnnotatedTypeMirror> adaptParameters(
+            AnnotatedTypeFactory atypeFactory,
+            AnnotatedExecutableType method,
+            List<? extends ExpressionTree> args) {
+        List<AnnotatedTypeMirror> parameters = method.getParameterTypes();
+
+        if (parameters.isEmpty()) {
+            return parameters;
+        }
+
+        // Handle anonymous constructors that extend a class with an enclosing type.
+        if (method.getElement().getKind() == ElementKind.CONSTRUCTOR
+                && method.getElement().getEnclosingElement().getSimpleName().contentEquals("")) {
+            DeclaredType t =
+                    TypesUtils.getSuperClassOrInterface(
+                            method.getElement().getEnclosingElement().asType(), atypeFactory.types);
+            if (t.getEnclosingType() != null) {
+                if (args.isEmpty()) {
+                    // TODO: ugly hack to attempt to fix mismatch
+                    parameters = parameters.subList(1, parameters.size());
+                } else {
+                    TypeMirror p0tm = parameters.get(0).getUnderlyingType();
+                    // Is the first parameter either equal to the enclosing type?
+                    if (atypeFactory.types.isSameType(t.getEnclosingType(), p0tm)) {
+                        // Is the first argument the same type as the first parameter?
+                        if (!atypeFactory.types.isSameType(TreeUtils.typeOf(args.get(0)), p0tm)) {
+                            // Remove the first parameter.
+                            parameters = parameters.subList(1, parameters.size());
+                        }
+                    }
+                }
+                if (parameters.isEmpty()) {
+                    return parameters;
+                }
+            }
+        }
+
+        // Handle vararg methods.
+        if (!method.getElement().isVarArgs()) {
+            return parameters;
+        }
+
+        AnnotatedArrayType varargs = (AnnotatedArrayType) parameters.get(parameters.size() - 1);
+
+        if (parameters.size() == args.size()) {
+            // Check if one sent an element or an array
+            AnnotatedTypeMirror lastArg = atypeFactory.getAnnotatedType(args.get(args.size() - 1));
+            if (lastArg.getKind() == TypeKind.NULL
+                    || (lastArg.getKind() == TypeKind.ARRAY
+                            && AnnotatedTypes.getArrayDepth(varargs)
+                                    == AnnotatedTypes.getArrayDepth(
+                                            (AnnotatedArrayType) lastArg))) {
+                return parameters;
+            }
+        }
+
+        parameters = new ArrayList<>(parameters.subList(0, parameters.size() - 1));
+        for (int i = args.size() - parameters.size(); i > 0; --i) {
+            parameters.add(varargs.getComponentType().deepCopy());
+        }
+
+        return parameters;
     }
 
     /**
