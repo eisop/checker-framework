@@ -3,8 +3,8 @@ Version 3.28.0-eisop2 (December ?, 2022)
 
 **User-visible changes:**
 
-The new command-line argument `-AconservativeInnerClassEnclosingExprCheck` can enable the
-type checking for enclosing expression type of inner class.
+The new command-line argument `-AconservativeInnerClassEnclosingExprCheck` enables
+type checking for enclosing expression types of inner class instantiations.
 
 **Implementation details:**
 
