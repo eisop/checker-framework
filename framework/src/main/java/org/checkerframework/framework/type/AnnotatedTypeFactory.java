@@ -2339,7 +2339,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             method.setVarargType(varargs);
         }
 
-        // Adapt parameters, let parameters and args be same size for later checking
+        // Adapt parameters, which makes parameters and arguments be the same size for later checking
         parameters =
                 AnnotatedTypes.adaptParameters(this, method, tree.getArguments());
         method.setParameterTypes(parameters);
