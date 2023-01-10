@@ -521,7 +521,7 @@ public class AnnotationUtils {
   }
 
   /**
-   * Constructs an unmodifiable {@link Set} for storing {@link AnnotationMirror}s contain all the
+   * Constructs an unmodifiable {@link Set} for storing {@link AnnotationMirror}s containing all the
    * annotations in {@code annos}.
    *
    * <p>It stores at most once instance of {@link AnnotationMirror} of a given type, regardless of
@@ -1168,7 +1168,7 @@ public class AnnotationUtils {
     if (av == null) {
       throw new BugInCF("getElementValueArray(%s, %s, ...)", anno, element);
     }
-    return AnnotationUtils.annotationValueToList(av, expectedType);
+    return annotationValueToList(av, expectedType);
   }
 
   /**
@@ -1192,7 +1192,7 @@ public class AnnotationUtils {
     if (av == null) {
       return defaultValue;
     } else {
-      return AnnotationUtils.annotationValueToList(av, expectedType);
+      return annotationValueToList(av, expectedType);
     }
   }
 
