@@ -4,6 +4,7 @@ import com.github.javaparser.Position;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
@@ -16,10 +17,12 @@ import com.github.javaparser.printer.DefaultPrettyPrinter;
 import com.github.javaparser.utils.Pair;
 import com.sun.source.util.JavacTask;
 
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.signature.qual.DotSeparatedIdentifiers;
 import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.framework.stub.AnnotationFileParser;
 import org.checkerframework.framework.util.JavaParserUtil;
+import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.FilesPlume;
 
 import java.io.File;
@@ -163,7 +166,7 @@ public class InsertAjavaAnnotations {
      * <p>The map is populated from import statements and also when parsing a file that uses the
      * fully qualified name of an annotation it doesn't import.
      */
-    private Map<String, TypeElement> allAnnotations;
+    private @MonotonicNonNull Map<String, TypeElement> allAnnotations = null;
 
     /** The annotation insertions seen so far. */
     public final List<Insertion> insertions = new ArrayList<>();
@@ -192,7 +195,7 @@ public class InsertAjavaAnnotations {
       String[] lines = destFileContents.split(lineSeparator);
       this.lines = Arrays.asList(lines);
       this.lineSeparator = lineSeparator;
-      cumulativeLineSizes = new ArrayList<>();
+      cumulativeLineSizes = new ArrayList<>(lines.length);
       cumulativeLineSizes.add(0);
       for (int i = 1; i < lines.length; i++) {
         int lastSize = cumulativeLineSizes.get(i - 1);
@@ -269,8 +272,10 @@ public class InsertAjavaAnnotations {
 
       List<String> newImports;
       { // set `newImports`
-        Set<String> existingImports = new HashSet<>();
-        for (ImportDeclaration importDecl : dest.getImports()) {
+        NodeList<ImportDeclaration> destImports = dest.getImports();
+        Set<String> existingImports =
+            new HashSet<>(CollectionsPlume.mapCapacity(destImports.size()));
+        for (ImportDeclaration importDecl : destImports) {
           existingImports.add(printer.print(importDecl));
         }
 
@@ -586,8 +591,11 @@ public class InsertAjavaAnnotations {
               System.exit(1);
             }
 
-            Set<String> annotationFilesForRoot = new LinkedHashSet<>();
-            for (TypeDeclaration<?> type : root.getTypes()) {
+            List<TypeDeclaration<?>> rootTypes = root.getTypes();
+            // Estimate of size.
+            Set<String> annotationFilesForRoot =
+                new LinkedHashSet<>(CollectionsPlume.mapCapacity(rootTypes.size()));
+            for (TypeDeclaration<?> type : rootTypes) {
               String name = JavaParserUtil.getFullyQualifiedName(type, root);
               annotationFilesForRoot.addAll(annotationFiles.getAnnotationFileForType(name));
             }

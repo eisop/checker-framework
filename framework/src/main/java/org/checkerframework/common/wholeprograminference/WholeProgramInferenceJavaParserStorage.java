@@ -56,6 +56,7 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
+import org.plumelib.util.ArraySet;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -1227,7 +1228,8 @@ public class WholeProgramInferenceJavaParserStorage
     public boolean addDeclarationAnnotationToFormalParameter(
         AnnotationMirror annotation, int index) {
       if (paramsDeclAnnos == null) {
-        paramsDeclAnnos = new HashSet<>();
+        // There are usually few formal parameters.
+        paramsDeclAnnos = new ArraySet<>(4);
       }
 
       return paramsDeclAnnos.add(Pair.of(index, annotation));

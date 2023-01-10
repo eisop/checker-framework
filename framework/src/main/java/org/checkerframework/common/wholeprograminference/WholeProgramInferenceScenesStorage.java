@@ -45,6 +45,7 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.UserError;
+import org.plumelib.util.CollectionsPlume;
 
 import java.io.File;
 import java.io.IOException;
@@ -932,7 +933,7 @@ public class WholeProgramInferenceScenesStorage
       Pair<String, TypeUseLocation> key = Pair.of(firstKey, defLoc);
       Set<String> annosIgnored = annosToIgnore.get(key);
       if (annosIgnored == null) {
-        annosIgnored = new HashSet<>();
+        annosIgnored = new HashSet<>(CollectionsPlume.mapCapacity(1));
         annosToIgnore.put(key, annosIgnored);
       }
       annosIgnored.add(anno.def().toString());

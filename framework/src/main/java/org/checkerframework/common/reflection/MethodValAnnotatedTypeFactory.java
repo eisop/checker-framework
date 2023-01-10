@@ -26,6 +26,7 @@ import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.TreeUtils;
+import org.plumelib.util.CollectionsPlume;
 
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
@@ -129,7 +130,7 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
    * @param sigs the method signatures that the result should represent
    * @return a {@code @MethodVal} annotation that represents {@code sigs}
    */
-  private AnnotationMirror createMethodVal(Set<MethodSignature> sigs) {
+  private AnnotationMirror createMethodVal(Collection<MethodSignature> sigs) {
     int size = sigs.size();
     List<String> classNames = new ArrayList<>(size);
     List<String> methodNames = new ArrayList<>(size);
@@ -226,10 +227,7 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
       } else if (AnnotationUtils.areSameByName(a1, a2)) {
         List<MethodSignature> a1Sigs = getListOfMethodSignatures(a1);
         List<MethodSignature> a2Sigs = getListOfMethodSignatures(a2);
-
-        Set<MethodSignature> lubSigs = new HashSet<>(a1Sigs);
-        lubSigs.addAll(a2Sigs); // union
-
+        List<MethodSignature> lubSigs = CollectionsPlume.listUnion(a1Sigs, a2Sigs);
         AnnotationMirror result = createMethodVal(lubSigs);
         return result;
       }
@@ -247,10 +245,7 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
       } else if (AnnotationUtils.areSameByName(a1, a2)) {
         List<MethodSignature> a1Sigs = getListOfMethodSignatures(a1);
         List<MethodSignature> a2Sigs = getListOfMethodSignatures(a2);
-
-        Set<MethodSignature> lubSigs = new HashSet<>(a1Sigs);
-        lubSigs.retainAll(a2Sigs); // intersection
-
+        List<MethodSignature> lubSigs = CollectionsPlume.listIntersection(a1Sigs, a2Sigs);
         AnnotationMirror result = createMethodVal(lubSigs);
         return result;
       }
@@ -325,9 +320,11 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         return null;
       }
 
-      Set<MethodSignature> methodSigs = new HashSet<>();
+      Set<MethodSignature> methodSigs =
+          new HashSet<>(
+              CollectionsPlume.mapCapacity(methodNames.size() * classNames.size() * params.size()));
       // The possible method signatures are the Cartesian product of all
-      // found class, method, and parameter lengths
+      // found class, method, and parameter lengths.
       for (String methodName : methodNames) {
         for (String className : classNames) {
           for (Integer param : params) {

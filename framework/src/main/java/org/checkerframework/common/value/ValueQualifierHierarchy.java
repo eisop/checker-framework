@@ -53,7 +53,7 @@ final class ValueQualifierHierarchy extends ElementQualifierHierarchy {
       case ValueAnnotatedTypeFactory.ARRAYLEN_NAME:
         // Retain strings of correct lengths
         List<Integer> otherLengths = atypeFactory.getArrayLength(otherAnno);
-        ArrayList<String> result = new ArrayList<>();
+        ArrayList<String> result = new ArrayList<>(values.size());
         for (String s : values) {
           if (otherLengths.contains(s.length())) {
             result.add(s);
@@ -64,7 +64,7 @@ final class ValueQualifierHierarchy extends ElementQualifierHierarchy {
       case ValueAnnotatedTypeFactory.ARRAYLENRANGE_NAME:
         // Retain strings of lengths from a range
         Range otherRange = atypeFactory.getRange(otherAnno);
-        ArrayList<String> range = new ArrayList<>();
+        ArrayList<String> range = new ArrayList<>(values.size());
         for (String s : values) {
           if (otherRange.contains(s.length())) {
             range.add(s);

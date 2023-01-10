@@ -22,12 +22,12 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.UserError;
+import org.plumelib.util.ArraySet;
 import org.plumelib.util.CollectionsPlume;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -96,7 +96,8 @@ public class ASceneWrapper {
     String annosToRemoveKey = WholeProgramInferenceScenesStorage.aTypeElementToString(typeElt);
     Set<String> annosToRemoveForLocation = annosToRemove.get(Pair.of(annosToRemoveKey, loc));
     if (annosToRemoveForLocation != null) {
-      Set<Annotation> annosToRemoveHere = new HashSet<>();
+      Set<Annotation> annosToRemoveHere =
+          ArraySet.newArraySetOrHashSet(annosToRemoveForLocation.size());
       for (Annotation anno : typeElt.tlAnnotationsHere) {
         if (annosToRemoveForLocation.contains(anno.def().toString())) {
           annosToRemoveHere.add(anno);
