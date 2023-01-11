@@ -8,8 +8,6 @@ type checking for enclosing expression types of inner class instantiations.
 
 **Implementation details:**
 
-Type checked the actual enclosing type of inner class with its declared constructor receiver type.
-
 Cleaned up unnecessary usages of `AnnotatedTypes.adaptParameters()`.
 
 A `VariableDeclarationNode` is now correctly added to the CFG for the binding variable

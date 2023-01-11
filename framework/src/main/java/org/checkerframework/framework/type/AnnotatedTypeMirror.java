@@ -2,6 +2,8 @@ package org.checkerframework.framework.type;
 
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
 
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
@@ -1128,9 +1130,11 @@ public abstract class AnnotatedTypeMirror {
         /** The receiver type. */
         private AnnotatedDeclaredType receiverType;
         /**
-         * The varargs type, which is the last parameter of {@link paramTypes} before it is removed.
+         * The varargs type, which is the last parameter of {@link paramTypes}, keep it in this
+         * field because the varargs parameters will be reorganized after calling adaptParameters.
+         * It can be null if no varargs.
          */
-        private AnnotatedArrayType varargType = null;
+        private @MonotonicNonNull AnnotatedArrayType varargType = null;
         /** Whether {@link receiverType} has been computed. */
         private boolean receiverTypeComputed = false;
         /** The return type. */
@@ -1216,7 +1220,7 @@ public abstract class AnnotatedTypeMirror {
          * @param varargs an AnnotatedArrayType of varargs
          */
         /*package-private*/
-        void setVarargType(AnnotatedArrayType varargs) {
+        void setVarargType(@NonNull AnnotatedArrayType varargs) {
             varargType = varargs;
         }
 

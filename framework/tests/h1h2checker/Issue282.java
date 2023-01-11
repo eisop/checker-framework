@@ -1,7 +1,7 @@
 import org.checkerframework.framework.testchecker.h1h2checker.quals.*;
 
 public class Issue282 {
-    // Constructor type are not consistent with declared type.
+    // Declared constructor type is not consistent with default from class.
     @SuppressWarnings({"super.invocation.invalid", "inconsistent.constructor.type"})
     @H1S1 Issue282() {}
 

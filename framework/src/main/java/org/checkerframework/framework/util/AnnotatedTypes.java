@@ -1043,9 +1043,8 @@ public class AnnotatedTypes {
             AnnotatedTypeMirror lastArg = atypeFactory.getAnnotatedType(args.get(args.size() - 1));
             if (lastArg.getKind() == TypeKind.NULL
                     || (lastArg.getKind() == TypeKind.ARRAY
-                            && AnnotatedTypes.getArrayDepth(varargs)
-                                    == AnnotatedTypes.getArrayDepth(
-                                            (AnnotatedArrayType) lastArg))) {
+                            && getArrayDepth(varargs)
+                                    == getArrayDepth((AnnotatedArrayType) lastArg))) {
                 return parameters;
             }
         }

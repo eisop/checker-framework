@@ -125,17 +125,14 @@ public class ObjectCreationNode extends Node {
         return visitor.visitObjectCreation(this, p);
     }
 
-    /**
-     * If the object is from an inner class, to make it clear, add enclosingExpr as its first
-     * argument explicitly.
-     */
     @Override
     @SideEffectFree
     public String toString() {
         StringBuilder sb = new StringBuilder();
         List<Node> argumentsDeepCopy = new ArrayList<Node>();
         int startingIndex = 0;
-        // To make it clear, set the first argument to enclosing expression explicitly.
+        // To make the output string clear, set the first argument to enclosing expression
+        // explicitly.
         if (enclosingExpression != null) {
             sb.append(enclosingExpression + ".");
             startingIndex = 1;
@@ -162,7 +159,7 @@ public class ObjectCreationNode extends Node {
             return false;
         }
         ObjectCreationNode other = (ObjectCreationNode) obj;
-        // TODO: maybe it is easier to just compare the new class tree.
+        // TODO: See issue 376
         if (constructor == null && other.getConstructor() != null) {
             return false;
         }
