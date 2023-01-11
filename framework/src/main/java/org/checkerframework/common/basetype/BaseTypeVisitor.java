@@ -2053,26 +2053,22 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 argumentReceiverType = atypeFactory.getImplicitReceiverType(node);
             }
             if (parameterReceiverType != null && argumentReceiverType != null) {
-                if (atypeFactory.types.isSameType(
-                        argumentReceiverType.getUnderlyingType(),
-                        parameterReceiverType.getUnderlyingType())) {
-                    boolean success =
-                            atypeFactory
-                                    .getTypeHierarchy()
-                                    .isSubtype(argumentReceiverType, parameterReceiverType);
-                    if (!success) {
-                        FoundRequired pair =
-                                FoundRequired.of(argumentReceiverType, parameterReceiverType);
-                        String valueTypeString = pair.found;
-                        String varTypeString = pair.required;
-                        checker.reportError(
-                                node,
-                                "argument.type.incompatible",
-                                valueTypeString,
-                                varTypeString,
-                                valueTypeString,
-                                varTypeString);
-                    }
+                boolean success =
+                        atypeFactory
+                                .getTypeHierarchy()
+                                .isSubtype(argumentReceiverType, parameterReceiverType);
+                if (!success) {
+                    FoundRequired pair =
+                            FoundRequired.of(argumentReceiverType, parameterReceiverType);
+                    String valueTypeString = pair.found;
+                    String varTypeString = pair.required;
+                    checker.reportError(
+                            node,
+                            "argument.type.incompatible",
+                            valueTypeString,
+                            varTypeString,
+                            valueTypeString,
+                            varTypeString);
                 }
             }
         }
