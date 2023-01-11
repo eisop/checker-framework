@@ -185,6 +185,9 @@ import io.github.classgraph.ClassGraph;
     // See Issue 979.
     "conservativeUninferredTypeArguments",
 
+    // Whether type check enclosing expr for an inner class initialization.
+    "conservativeInnerClassEnclosingExprCheck",
+
     // Issues a "redundant.anno" warning if the annotation explicitly written on the type is
     // the same as the default annotation for this type and location.
     "warnRedundantAnnotations",

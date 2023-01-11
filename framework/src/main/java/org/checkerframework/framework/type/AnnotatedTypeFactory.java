@@ -2331,17 +2331,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             wildcard.setExtendsBound(t);
             addDefaultAnnotations(wildcard);
         }
-        // Update varargs type for con before parameter adaption
-        List<AnnotatedTypeMirror> parameters;
-        if (method.getElement().isVarArgs()) {
-            parameters = method.getParameterTypes();
-            AnnotatedArrayType varargs = (AnnotatedArrayType) parameters.get(parameters.size() - 1);
-            method.setVarargType(varargs);
-        }
 
         // Adapt parameters, which makes parameters and arguments be the same size for later
         // checking
-        parameters = AnnotatedTypes.adaptParameters(this, method, tree.getArguments());
+        List<AnnotatedTypeMirror> parameters =
+                AnnotatedTypes.adaptParameters(this, method, tree.getArguments());
         method.setParameterTypes(parameters);
         return result;
     }
@@ -2797,16 +2791,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             ((AnnotatedDeclaredType) con.getReturnType()).setEnclosingType(enclosingType);
         }
 
-        // Update varargs type for con before parameter adaption.
-        List<AnnotatedTypeMirror> parameters;
-        if (con.getElement().isVarArgs()) {
-            parameters = con.getParameterTypes();
-            AnnotatedArrayType varargs = (AnnotatedArrayType) parameters.get(parameters.size() - 1);
-            con.setVarargType(varargs);
-        }
-
         // Adapt parameters, let parameters and args be same size for later checking
-        parameters = AnnotatedTypes.adaptParameters(this, con, tree.getArguments());
+        List<AnnotatedTypeMirror> parameters =
+                AnnotatedTypes.adaptParameters(this, con, tree.getArguments());
         con.setParameterTypes(parameters);
         return new ParameterizedExecutableType(con, typeargs);
     }
