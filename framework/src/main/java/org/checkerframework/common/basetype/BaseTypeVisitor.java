@@ -2052,7 +2052,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             } else {
                 argumentReceiverType = atypeFactory.getImplicitReceiverType(node);
             }
-            if (parameterReceiverType != null && argumentReceiverType != null) {
+            if (parameterReceiverType != null) {
                 boolean success =
                         atypeFactory
                                 .getTypeHierarchy()
