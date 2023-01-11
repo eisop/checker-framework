@@ -3523,6 +3523,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         listToString(passedArgs),
                         executableName,
                         listToString(paramNames));
+
         for (int i = 0; i < size; ++i) {
             commonAssignmentCheck(
                     requiredArgs.get(i),
