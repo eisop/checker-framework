@@ -11,7 +11,17 @@ public class Issue282 {
 
     public void test1() {
         // The enclosing type is @H1S1 @H2Top, the receiver type is @H1Top @H2Top
-        // :: error: (argument.type.incompatible)
+        // :: error: (enclosingexpr.type.incompatible)
         Inner inner = new Issue282().new Inner() {};
+        // :: error: (enclosingexpr.type.incompatible)
+        Inner inner2 = new Issue282().new Inner();
+    }
+
+    class Issue282Sub extends Issue282 {}
+
+    public void test2() {
+        // found: @H1Top @H2Top Issue282.@H1Top @H2Top Issue282Sub. required: @H1Top @H2S2 Issue282
+        // :: error: (enclosingexpr.type.incompatible)
+        Inner inner = new Issue282Sub().new Inner();
     }
 }

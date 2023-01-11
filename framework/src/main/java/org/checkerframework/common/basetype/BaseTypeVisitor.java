@@ -2046,13 +2046,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         // Type check inner class enclosing expr type
         if (conservativeInnerClassEnclosingExprCheck) {
             AnnotatedTypeMirror parameterReceiverType = constructorType.getReceiverType();
-            AnnotatedTypeMirror argumentReceiverType;
-            if (node.getEnclosingExpression() != null) {
-                argumentReceiverType = atypeFactory.getAnnotatedType(node.getEnclosingExpression());
-            } else {
-                argumentReceiverType = atypeFactory.getImplicitReceiverType(node);
-            }
             if (parameterReceiverType != null) {
+                AnnotatedTypeMirror argumentReceiverType;
+                if (node.getEnclosingExpression() != null) {
+                    argumentReceiverType =
+                            atypeFactory.getAnnotatedType(node.getEnclosingExpression());
+                } else {
+                    argumentReceiverType = atypeFactory.getImplicitReceiverType(node);
+                }
                 boolean success =
                         atypeFactory
                                 .getTypeHierarchy()
@@ -2064,9 +2065,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     String varTypeString = pair.required;
                     checker.reportError(
                             node,
-                            "argument.type.incompatible",
-                            valueTypeString,
-                            varTypeString,
+                            "enclosingexpr.type.incompatible",
                             valueTypeString,
                             varTypeString);
                 }

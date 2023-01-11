@@ -17,7 +17,6 @@ in a `BindingPatternTree`.
 
 eisop#314
 
-
 Version 3.28.0-eisop1 (December 7, 2022)
 ----------------------------------------
 
