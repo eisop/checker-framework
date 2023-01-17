@@ -1185,17 +1185,13 @@ public abstract class AnnotatedTypeMirror {
          *     excluding the receiver
          */
         /*package-private*/ void setParameterTypes(List<AnnotatedTypeMirror> params) {
+            // Record varargsType when initializing paramTypes
+            if (isVarArgs() && paramTypes == null) {
+                AnnotatedTypeMirror varargsType = params.get(params.size() - 1);
+                this.setVarargType((AnnotatedArrayType) varargsType);
+            }
             paramTypes = params;
             paramTypesComputed = true;
-            if (isVarArgs()) {
-                if (paramTypes.size() < 1) {
-                    return;
-                }
-                AnnotatedTypeMirror varargsType = paramTypes.get(paramTypes.size() - 1);
-                if (varargsType instanceof AnnotatedArrayType) {
-                    this.setVarargType((AnnotatedArrayType) varargsType);
-                }
-            }
         }
 
         /**
