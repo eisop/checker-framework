@@ -949,18 +949,18 @@ public class NullnessAnnotatedTypeFactory
   // then change rhs to @MonotonicNonNull.
   @Override
   public void wpiAdjustForUpdateField(
-          Tree lhsTree, Element element, String fieldName, AnnotatedTypeMirror rhsATM) {
-      if (!rhsATM.hasAnnotation(Nullable.class)) {
-          return;
-      }
-      TreePath lhsPath = getPath(lhsTree);
-      TypeElement enclosingClassOfLhs =
-              TreeUtils.elementFromDeclaration(TreePathUtil.enclosingClass(lhsPath));
-      ClassSymbol enclosingClassOfField = ((VarSymbol) element).enclClass();
-      if (enclosingClassOfLhs.equals(enclosingClassOfField)
-              && TreePathUtil.inConstructor(lhsPath)) {
-          rhsATM.replaceAnnotation(MONOTONIC_NONNULL);
-      }
+      Tree lhsTree, Element element, String fieldName, AnnotatedTypeMirror rhsATM) {
+    // Synthetic variable names contain "#". Ignore them.
+    if (!rhsATM.hasAnnotation(Nullable.class) || fieldName.contains("#")) {
+      return;
+    }
+    TreePath lhsPath = getPath(lhsTree);
+    TypeElement enclosingClassOfLhs =
+        TreeUtils.elementFromDeclaration(TreePathUtil.enclosingClass(lhsPath));
+    ClassSymbol enclosingClassOfField = ((VarSymbol) element).enclClass();
+    if (enclosingClassOfLhs.equals(enclosingClassOfField) && TreePathUtil.inConstructor(lhsPath)) {
+      rhsATM.replaceAnnotation(MONOTONIC_NONNULL);
+    }
   }
 
   // If
