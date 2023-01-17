@@ -6,6 +6,7 @@ import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Options;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.plumelib.util.CollectionsPlume;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -16,6 +17,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -184,6 +187,29 @@ public class SystemUtil {
     List<T> result = new ArrayList<>(list1);
     result.retainAll(list2);
     return result;
+  }
+
+  /**
+   * Returns a list with the same contents as its argument, but sorted and without duplicates. May
+   * return its argument if its argument is sorted and has no duplicates, but is not guaranteed to
+   * do so. The argument is not modified.
+   *
+   * <p>This is like {@code withoutDuplicates}, but requires the list elements to implement {@link
+   * Comparable}, and thus can be more efficient.
+   *
+   * @param <T> the type of elements in {@code values}
+   * @param values a list of values
+   * @return the values, with duplicates removed
+   */
+  // TODO: Deprecate or delete once plume-util 1.6.6 (from which this is taken) is released.
+  public static <T extends Comparable<T>> List<T> withoutDuplicatesSorted(List<T> values) {
+    // This adds O(n) time cost, and has the benefit of sometimes avoiding allocating a TreeSet.
+    if (CollectionsPlume.isSortedNoDuplicates(values)) {
+      return values;
+    }
+
+    Set<T> set = new TreeSet<>(values);
+    return new ArrayList<>(set);
   }
 
   ///
