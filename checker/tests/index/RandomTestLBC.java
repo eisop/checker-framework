@@ -1,6 +1,5 @@
-import org.checkerframework.checker.index.qual.NonNegative;
-
 import java.util.Random;
+import org.checkerframework.checker.index.qual.NonNegative;
 
 public class RandomTestLBC {
   void test() {

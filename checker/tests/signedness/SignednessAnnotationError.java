@@ -1,7 +1,6 @@
-import org.checkerframework.checker.nullness.qual.KeyFor;
-
 import java.util.ArrayList;
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.KeyFor;
 
 public class SignednessAnnotationError {
   void test() {

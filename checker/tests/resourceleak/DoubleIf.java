@@ -3,9 +3,8 @@
 // Adding an @CalledMethods annotation, like in parse4, also
 // makes this code verifiable...
 
-import org.checkerframework.checker.calledmethods.qual.CalledMethods;
-
 import java.io.*;
+import org.checkerframework.checker.calledmethods.qual.CalledMethods;
 
 class DoubleIf {
 

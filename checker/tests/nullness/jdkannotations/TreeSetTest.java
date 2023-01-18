@@ -3,9 +3,8 @@
 
 // @skip-test until we fix the issue
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import java.util.TreeSet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class TreeSetTest {
 

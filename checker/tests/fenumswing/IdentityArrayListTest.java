@@ -1,6 +1,5 @@
-import org.checkerframework.checker.fenum.qual.FenumTop;
-
 import java.util.Arrays;
+import org.checkerframework.checker.fenum.qual.FenumTop;
 
 /*
  * This test case violates an assertion in the compiler.

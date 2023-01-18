@@ -3,11 +3,10 @@
 
 // @skip-test until the bug is fixed
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class CollectorsToList {
 

@@ -1,9 +1,8 @@
 // A test that the must-call type of an object tested against null
 // is always empty.
 
-import org.checkerframework.checker.mustcall.qual.*;
-
 import java.io.*;
+import org.checkerframework.checker.mustcall.qual.*;
 
 class NullableTransfer {
 

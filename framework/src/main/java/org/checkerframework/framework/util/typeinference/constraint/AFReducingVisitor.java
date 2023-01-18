@@ -1,5 +1,8 @@
 package org.checkerframework.framework.util.typeinference.constraint;
 
+import java.util.List;
+import java.util.Set;
+import javax.lang.model.type.TypeKind;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
@@ -16,11 +19,6 @@ import org.checkerframework.framework.util.typeinference.TypeArgInferenceUtil;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.StringsPlume;
-
-import java.util.List;
-import java.util.Set;
-
-import javax.lang.model.type.TypeKind;
 
 /**
  * Takes a single step in reducing a AFConstraint.
@@ -200,8 +198,8 @@ abstract class AFReducingVisitor extends AbstractAtmComboVisitor<Void, Set<AFCon
         }
 
       } else {
-        // if F has the form G<..., Yk-1, U, Yk+1, ...>, where U is a type expression that
-        // involves Tj
+        // If F has the form G<..., Yk-1, U, Yk+1, ...>, where U is a type expression that
+        // involves Tj.
         addEqualityConstraint(subTypeArg, superTypeArg, constraints);
       }
     }

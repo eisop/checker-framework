@@ -1,6 +1,5 @@
-import lombok.Builder;
-
 import java.util.Optional;
+import lombok.Builder;
 
 @Builder
 public class LombokDefaultAssignments {

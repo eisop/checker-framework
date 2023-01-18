@@ -2,11 +2,10 @@
 // This is a modified version of tests/socket/SocketContainer.java
 // for checking that without CO support we can't assign to non-final owning fields at all.
 
-import org.checkerframework.checker.calledmethods.qual.*;
-import org.checkerframework.checker.mustcall.qual.*;
-
 import java.io.*;
 import java.net.*;
+import org.checkerframework.checker.calledmethods.qual.*;
+import org.checkerframework.checker.mustcall.qual.*;
 
 @InheritableMustCall("close")
 class SocketContainer {

@@ -1,8 +1,7 @@
 // A test for some issues related to the getFD() method in RandomAccessFile.
 
-import org.checkerframework.checker.mustcall.qual.*;
-
 import java.io.*;
+import org.checkerframework.checker.mustcall.qual.*;
 
 class FileDescriptors {
   void test(@Owning RandomAccessFile r) throws Exception {

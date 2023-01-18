@@ -1,9 +1,8 @@
 // Test case for issue #1032:
 // https://github.com/typetools/checker-framework/issues/1032
 
-import org.checkerframework.checker.nullness.qual.*;
-
 import java.util.stream.Stream;
+import org.checkerframework.checker.nullness.qual.*;
 
 public class Issue1032 {
 

@@ -1,8 +1,7 @@
+import java.util.List;
 import org.checkerframework.checker.guieffect.qual.AlwaysSafe;
 import org.checkerframework.checker.guieffect.qual.PolyUIType;
 import org.checkerframework.checker.guieffect.qual.UI;
-
-import java.util.List;
 
 public class ThrowCatchTest {
   List<? extends @UI Object> ooo;

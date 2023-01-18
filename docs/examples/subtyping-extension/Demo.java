@@ -1,6 +1,5 @@
 import java.util.LinkedList;
 import java.util.List;
-
 import qual.Encrypted;
 
 abstract class EncryptionDemo {

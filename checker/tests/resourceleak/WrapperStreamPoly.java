@@ -2,9 +2,8 @@
 // "polymorphic" streams like DataInputStream and DataOutputStream are treated as
 // their constituent stream.
 
-import org.checkerframework.checker.mustcall.qual.Owning;
-
 import java.io.*;
+import org.checkerframework.checker.mustcall.qual.Owning;
 
 class WrapperStreamPoly {
   void test_no_close_needed(@Owning ByteArrayInputStream b) {

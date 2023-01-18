@@ -1,17 +1,15 @@
 package org.checkerframework.framework.test.junit;
 
-import org.checkerframework.common.value.util.Range;
-import org.junit.Assert;
-import org.junit.Test;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-
 import javax.lang.model.type.TypeKind;
+import org.checkerframework.common.value.util.Range;
+import org.junit.Assert;
+import org.junit.Test;
 
 /** This class tests the Range class, independent of the Value Checker. */
 public class RangeTest {

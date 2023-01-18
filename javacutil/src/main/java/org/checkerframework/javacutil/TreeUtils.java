@@ -55,16 +55,6 @@ import com.sun.tools.javac.tree.JCTree.JCTypeParameter;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.Context;
-
-import org.checkerframework.checker.interning.qual.PolyInterned;
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.signature.qual.FullyQualifiedName;
-import org.checkerframework.dataflow.qual.Pure;
-import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.UniqueIdMap;
-
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -74,7 +64,6 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.StringJoiner;
-
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.AnnotationMirror;
@@ -89,6 +78,14 @@ import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
+import org.checkerframework.checker.interning.qual.PolyInterned;
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.signature.qual.FullyQualifiedName;
+import org.checkerframework.dataflow.qual.Pure;
+import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.UniqueIdMap;
 
 /**
  * Utility methods for analyzing a javac {@code Tree}.
@@ -2098,8 +2095,8 @@ public final class TreeUtils {
         return TreeUtils.createLiteral(TypeTag.INT, 0, typeMirror, processingEnv);
       case CHAR:
         // Value of a char literal needs to be stored as an integer because
-        // LiteralTree#getValue
-        // converts it from an integer to a char before being returned.
+        // LiteralTree#getValue converts it from an integer to a char before being
+        // returned.
         return TreeUtils.createLiteral(TypeTag.CHAR, (int) '\u0000', typeMirror, processingEnv);
       case LONG:
         return TreeUtils.createLiteral(TypeTag.LONG, 0L, typeMirror, processingEnv);
@@ -2109,8 +2106,8 @@ public final class TreeUtils {
         return TreeUtils.createLiteral(TypeTag.DOUBLE, 0.0d, typeMirror, processingEnv);
       case BOOLEAN:
         // Value of a boolean literal needs to be stored as an integer because
-        // LiteralTree#getValue
-        // converts it from an integer to a boolean before being returned.
+        // LiteralTree#getValue converts it from an integer to a boolean before being
+        // returned.
         return TreeUtils.createLiteral(TypeTag.BOOLEAN, 0, typeMirror, processingEnv);
       default:
         return TreeUtils.createLiteral(

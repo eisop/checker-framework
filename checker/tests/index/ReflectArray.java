@@ -1,6 +1,5 @@
-import org.checkerframework.common.value.qual.MinLen;
-
 import java.lang.reflect.Array;
+import org.checkerframework.common.value.qual.MinLen;
 
 public class ReflectArray {
 

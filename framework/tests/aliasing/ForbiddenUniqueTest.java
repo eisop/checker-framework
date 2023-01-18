@@ -1,6 +1,5 @@
-import org.checkerframework.common.aliasing.qual.Unique;
-
 import java.util.List;
+import org.checkerframework.common.aliasing.qual.Unique;
 
 public class ForbiddenUniqueTest {
 

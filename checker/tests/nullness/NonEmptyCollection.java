@@ -1,8 +1,7 @@
-import org.checkerframework.checker.nullness.qual.*;
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-
 import java.io.*;
 import java.util.SortedMap;
+import org.checkerframework.checker.nullness.qual.*;
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 
 public class NonEmptyCollection {
 

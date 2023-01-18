@@ -1,17 +1,15 @@
 // Based on a false positive in hdfs
 
-import org.checkerframework.checker.calledmethods.qual.*;
-import org.checkerframework.checker.mustcall.qual.*;
-import org.checkerframework.common.returnsreceiver.qual.*;
-
 import java.io.*;
 import java.net.*;
 import java.nio.*;
 import java.nio.file.*;
 import java.security.*;
 import java.util.*;
-
 import javax.net.ssl.*;
+import org.checkerframework.checker.calledmethods.qual.*;
+import org.checkerframework.checker.mustcall.qual.*;
+import org.checkerframework.common.returnsreceiver.qual.*;
 
 class HdfsReport3 {
   private StringBuffer nonObligationTest(int id) {

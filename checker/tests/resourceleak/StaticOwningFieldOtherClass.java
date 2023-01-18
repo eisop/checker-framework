@@ -1,8 +1,7 @@
-import org.checkerframework.checker.mustcall.qual.Owning;
-
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import org.checkerframework.checker.mustcall.qual.Owning;
 
 public class StaticOwningFieldOtherClass {}
 

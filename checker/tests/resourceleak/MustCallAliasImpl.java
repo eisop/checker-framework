@@ -1,10 +1,9 @@
 // A simple test that the extra obligations that MustCallAlias imposes are
 // respected.
 
+import java.io.*;
 import org.checkerframework.checker.calledmethods.qual.*;
 import org.checkerframework.checker.mustcall.qual.*;
-
-import java.io.*;
 
 public class MustCallAliasImpl implements Closeable {
 

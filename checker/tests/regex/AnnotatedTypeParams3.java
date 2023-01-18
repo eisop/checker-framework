@@ -1,7 +1,6 @@
-import org.checkerframework.checker.regex.qual.Regex;
-
 import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
+import org.checkerframework.checker.regex.qual.Regex;
 
 public class AnnotatedTypeParams3 {
   private <T extends Annotation> T safeGetAnnotation(Field f, Class<T> annotationClass) {

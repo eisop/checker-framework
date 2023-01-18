@@ -1,10 +1,9 @@
 // Based on a Zookeeper false positive that requires unconnected socket support.
 
-import org.checkerframework.checker.mustcall.qual.*;
-
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketAddress;
+import org.checkerframework.checker.mustcall.qual.*;
 
 // Like ZookeeperReport1, but using "@MustCall()" instead of "@MustCall({})"
 class ZookeeperReport1a {

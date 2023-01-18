@@ -16,7 +16,19 @@ import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
-
+import java.lang.annotation.Annotation;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeMirror;
 import org.checkerframework.checker.initialization.InitializationAnnotatedTypeFactory;
 import org.checkerframework.checker.initialization.qual.FBCBottom;
 import org.checkerframework.checker.initialization.qual.Initialized;
@@ -59,21 +71,6 @@ import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.TypesUtils;
-
-import java.lang.annotation.Annotation;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
-
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.TypeMirror;
 
 /** The annotated type factory for the nullness type-system. */
 public class NullnessAnnotatedTypeFactory
@@ -986,17 +983,33 @@ public class NullnessAnnotatedTypeFactory
   //  * output @RequiresNonNull rather than @RequiresQualifier.
   @Override
   protected @Nullable AnnotationMirror createRequiresOrEnsuresQualifier(
-          String expression,
-          AnnotationMirror qualifier,
-          AnnotatedTypeMirror declaredType,
-          Analysis.BeforeOrAfter preOrPost,
-          @Nullable List<AnnotationMirror> preconds) {
-      // TODO: This does not handle the possibility that the user set a different default
-      // annotation.
-      if (!(declaredType.hasAnnotation(NULLABLE)
-              || declaredType.hasAnnotation(POLYNULL)
-              || declaredType.hasAnnotation(MONOTONIC_NONNULL))) {
-          return null;
+      String expression,
+      AnnotationMirror qualifier,
+      AnnotatedTypeMirror declaredType,
+      Analysis.BeforeOrAfter preOrPost,
+      @Nullable List<AnnotationMirror> preconds) {
+    // TODO: This does not handle the possibility that the user set a different default
+    // annotation.
+    if (!(declaredType.hasAnnotation(NULLABLE)
+        || declaredType.hasAnnotation(POLYNULL)
+        || declaredType.hasAnnotation(MONOTONIC_NONNULL))) {
+      return null;
+    }
+
+    if (preOrPost == BeforeOrAfter.AFTER
+        && declaredType.hasAnnotation(MONOTONIC_NONNULL)
+        && preconds.contains(requiresNonNullAnno(expression))) {
+      // The postcondition is implied by the precondition and the field being
+      // @MonotonicNonNull.
+      return null;
+    }
+
+    if (AnnotationUtils.areSameByName(
+        qualifier, "org.checkerframework.checker.nullness.qual.NonNull")) {
+      if (preOrPost == BeforeOrAfter.BEFORE) {
+        return requiresNonNullAnno(expression);
+      } else {
+        return ensuresNonNullAnno(expression);
       }
 
       if (preOrPost == BeforeOrAfter.AFTER

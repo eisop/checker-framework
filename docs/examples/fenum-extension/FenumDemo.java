@@ -1,7 +1,6 @@
 import org.checkerframework.checker.fenum.qual.Fenum;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.framework.qual.DefaultQualifier;
-
 import qual.MyFenum;
 
 @SuppressWarnings("fenum:assignment.type.incompatible") // initialization of fake enums

@@ -3,11 +3,10 @@
 // This test that shows that no unsoundess occurs when a single close() method is responsible
 // for closing two resources.
 
-import org.checkerframework.checker.calledmethods.qual.*;
-import org.checkerframework.checker.mustcall.qual.*;
-
 import java.io.IOException;
 import java.net.Socket;
+import org.checkerframework.checker.calledmethods.qual.*;
+import org.checkerframework.checker.mustcall.qual.*;
 
 @InheritableMustCall("dispose")
 class TwoResourcesECM {

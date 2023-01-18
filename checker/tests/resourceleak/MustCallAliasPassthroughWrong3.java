@@ -1,9 +1,8 @@
 // This is a test for what happens when there's a missing MCA return type.
 
+import java.io.*;
 import org.checkerframework.checker.calledmethods.qual.*;
 import org.checkerframework.checker.mustcall.qual.*;
-
-import java.io.*;
 
 class MustCallAliasPassthroughWrong3 {
   // Both of these verify - it's okay to leave off the MCA param, because the return type is

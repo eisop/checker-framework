@@ -1,3 +1,6 @@
+import java.util.AbstractList;
+import java.util.Collections;
+import java.util.List;
 import org.checkerframework.checker.index.qual.HasSubsequence;
 import org.checkerframework.checker.index.qual.IndexFor;
 import org.checkerframework.checker.index.qual.IndexOrHigh;
@@ -7,10 +10,6 @@ import org.checkerframework.checker.index.qual.LTLengthOf;
 import org.checkerframework.checker.index.qual.LessThan;
 import org.checkerframework.checker.index.qual.Positive;
 import org.checkerframework.common.value.qual.MinLen;
-
-import java.util.AbstractList;
-import java.util.Collections;
-import java.util.List;
 
 /**
  * A simplified version of the Guava primitives classes (such as Bytes, Longs, Shorts, etc.) with

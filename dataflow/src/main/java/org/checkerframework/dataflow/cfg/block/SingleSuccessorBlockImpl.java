@@ -1,10 +1,9 @@
 package org.checkerframework.dataflow.cfg.block;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.analysis.Store.FlowRule;
-
 import java.util.Collections;
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.analysis.Store.FlowRule;
 
 /**
  * A basic block that has at most one successor. SpecialBlockImpl extends this, but exit blocks have

@@ -1,9 +1,8 @@
 // A test for a class that wraps a map. I found a similar example in Zookeeper that causes false
 // positives.
 
-import org.checkerframework.checker.mustcall.qual.*;
-
 import java.util.HashMap;
+import org.checkerframework.checker.mustcall.qual.*;
 
 class MapWrap<E> {
   HashMap<E, String> impl = new HashMap<E, String>();

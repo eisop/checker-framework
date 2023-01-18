@@ -1,6 +1,5 @@
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class CapturedWildcards {
   abstract static class MyClass {

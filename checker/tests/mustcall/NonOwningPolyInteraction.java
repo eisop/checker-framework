@@ -1,9 +1,8 @@
 // A test that non-owning method parameters are really treated as @MustCall({})
 // wrt polymorphic types. Based on some false positives in Zookeeper.
 
-import org.checkerframework.checker.mustcall.qual.*;
-
 import java.io.*;
+import org.checkerframework.checker.mustcall.qual.*;
 
 class NonOwningPolyInteraction {
   void foo(@NotOwning InputStream instream) {

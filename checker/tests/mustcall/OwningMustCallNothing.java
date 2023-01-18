@@ -1,9 +1,8 @@
+import java.io.Closeable;
 import org.checkerframework.checker.mustcall.qual.CreatesMustCallFor;
 import org.checkerframework.checker.mustcall.qual.InheritableMustCall;
 import org.checkerframework.checker.mustcall.qual.MustCall;
 import org.checkerframework.checker.mustcall.qual.Owning;
-
-import java.io.Closeable;
 
 @InheritableMustCall({})
 // :: error: (inconsistent.mustcall.subtype)

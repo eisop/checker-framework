@@ -1,8 +1,7 @@
-import org.checkerframework.checker.interning.qual.InternMethod;
-import org.checkerframework.checker.interning.qual.Interned;
-
 import java.util.HashMap;
 import java.util.Map;
+import org.checkerframework.checker.interning.qual.InternMethod;
+import org.checkerframework.checker.interning.qual.Interned;
 
 public @Interned class InternedClass2 {
   private final int i;

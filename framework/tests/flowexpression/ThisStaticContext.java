@@ -1,6 +1,5 @@
-import org.checkerframework.framework.testchecker.flowexpression.qual.FlowExp;
-
 import java.util.Map;
+import org.checkerframework.framework.testchecker.flowexpression.qual.FlowExp;
 
 public class ThisStaticContext {
   public static Map<Object, Object> staticField;

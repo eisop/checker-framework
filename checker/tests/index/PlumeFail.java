@@ -1,9 +1,8 @@
 // Test case affected by eisop Issue 22:
 // https://github.com/eisop/checker-framework/issues/22
 
-import org.checkerframework.common.value.qual.MinLen;
-
 import java.util.Arrays;
+import org.checkerframework.common.value.qual.MinLen;
 
 public class PlumeFail {
   void method() {

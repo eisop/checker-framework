@@ -1,7 +1,6 @@
-import org.checkerframework.framework.testchecker.typedeclbounds.quals.*;
-
 import java.util.ArrayList;
 import java.util.List;
+import org.checkerframework.framework.testchecker.typedeclbounds.quals.*;
 
 // Test the @S1 upperbound applied to string conversion
 public class StringConcatConversion<T> {

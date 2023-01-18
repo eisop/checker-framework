@@ -1,7 +1,6 @@
 package use;
 
 import lib.Test;
-
 import org.checkerframework.framework.testchecker.variablenamedefault.quals.*;
 
 public class UseTest {

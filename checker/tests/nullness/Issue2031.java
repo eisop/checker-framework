@@ -1,6 +1,5 @@
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import java.util.Map;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class Issue2031 {
   public interface InterfaceA<A> {}

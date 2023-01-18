@@ -1,9 +1,8 @@
 // Test case for https://github.com/typetools/checker-framework/issues/4699
 
+import java.io.IOException;
 import org.checkerframework.checker.calledmethods.qual.EnsuresCalledMethods;
 import org.checkerframework.checker.calledmethods.qual.EnsuresCalledMethodsIf;
-
-import java.io.IOException;
 
 class EnsuresCalledMethodsIfTest {
 

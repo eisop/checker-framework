@@ -1,11 +1,10 @@
 package org.checkerframework.checker.test.junit;
 
+import java.io.File;
+import java.util.List;
 import org.checkerframework.checker.resourceleak.ResourceLeakChecker;
 import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
 import org.junit.runners.Parameterized.Parameters;
-
-import java.io.File;
-import java.util.List;
 
 /** Tests for the Resource Leak Checker. */
 public class ResourceLeakPermitInitializationLeak extends CheckerFrameworkPerDirectoryTest {

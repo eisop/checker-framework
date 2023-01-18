@@ -1,7 +1,24 @@
 package org.checkerframework.checker.calledmethods.builder;
 
 import com.sun.source.tree.NewClassTree;
-
+import java.beans.Introspector;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 import org.checkerframework.checker.calledmethods.CalledMethodsAnnotatedTypeFactory;
 import org.checkerframework.checker.calledmethods.qual.CalledMethods;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
@@ -13,26 +30,6 @@ import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.ArraysPlume;
-
-import java.beans.Introspector;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Modifier;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeMirror;
 
 /**
  * AutoValue support for the Called Methods Checker. This class adds {@code @}{@link CalledMethods}
@@ -384,8 +381,8 @@ public class AutoValueSupport implements BuilderFrameworkSupport {
               .getReturnType()
               .getUnderlyingType();
     }
-    // either the return type should be the builder itself, or it should be a Guava immutable
-    // type
+    // Either the return type should be the builder itself, or it should be a Guava immutable
+    // type.
     return BuilderFrameworkSupportUtils.isGuavaImmutableType(retType)
         || builderElement.equals(TypesUtils.getTypeElement(retType));
   }

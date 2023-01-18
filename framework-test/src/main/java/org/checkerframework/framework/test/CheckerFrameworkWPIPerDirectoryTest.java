@@ -1,12 +1,10 @@
 package org.checkerframework.framework.test;
 
-import org.checkerframework.checker.initialization.qual.UnderInitialization;
-import org.junit.Assert;
-
 import java.io.File;
 import java.util.List;
-
 import javax.annotation.processing.AbstractProcessor;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
+import org.junit.Assert;
 
 /**
  * A specialized variant of {@link CheckerFrameworkPerDirectoryTest} for testing the Whole Program

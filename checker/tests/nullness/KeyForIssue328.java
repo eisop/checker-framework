@@ -1,9 +1,8 @@
 // Test case for Issue 328:
 // https://github.com/typetools/checker-framework/issues/328
 
-import org.checkerframework.checker.nullness.qual.*;
-
 import java.util.Map;
+import org.checkerframework.checker.nullness.qual.*;
 
 public class KeyForIssue328 {
   public static void m(Map<Object, Object> a, Map<Object, Object> b, Object ka, Object kb) {

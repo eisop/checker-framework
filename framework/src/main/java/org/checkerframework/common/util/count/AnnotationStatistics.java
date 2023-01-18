@@ -17,21 +17,18 @@ import com.sun.source.tree.WildcardTree;
 import com.sun.source.util.TreePath;
 import com.sun.tools.javac.tree.JCTree.JCAnnotation;
 import com.sun.tools.javac.util.Log;
-
-import org.checkerframework.framework.source.SourceChecker;
-import org.checkerframework.framework.source.SourceVisitor;
-import org.checkerframework.framework.source.SupportedOptions;
-import org.checkerframework.javacutil.AnnotationProvider;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.StringJoiner;
 import java.util.TreeSet;
-
 import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Name;
 import javax.tools.Diagnostic.Kind;
+import org.checkerframework.framework.source.SourceChecker;
+import org.checkerframework.framework.source.SourceVisitor;
+import org.checkerframework.framework.source.SupportedOptions;
+import org.checkerframework.javacutil.AnnotationProvider;
 
 /**
  * An annotation processor for listing the potential locations of annotations. To invoke it, use

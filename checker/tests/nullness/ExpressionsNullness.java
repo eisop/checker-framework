@@ -1,6 +1,3 @@
-import org.checkerframework.checker.nullness.qual.*;
-import org.checkerframework.framework.qual.DefaultQualifier;
-
 import java.io.*;
 import java.util.Date;
 import java.util.HashMap;
@@ -9,6 +6,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.*;
+import org.checkerframework.checker.nullness.qual.*;
+import org.checkerframework.framework.qual.DefaultQualifier;
 
 @DefaultQualifier(NonNull.class)
 public class ExpressionsNullness {

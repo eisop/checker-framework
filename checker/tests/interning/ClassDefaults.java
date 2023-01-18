@@ -1,6 +1,5 @@
-import org.checkerframework.checker.interning.qual.Interned;
-
 import java.util.List;
+import org.checkerframework.checker.interning.qual.Interned;
 
 /*
  * This test case excercises the interaction between class annotations

@@ -1,9 +1,8 @@
 // Test case for Issue 596:
 // https://github.com/typetools/checker-framework/issues/596
 
-import org.checkerframework.checker.nullness.qual.*;
-
 import java.util.concurrent.atomic.AtomicReference;
+import org.checkerframework.checker.nullness.qual.*;
 
 public class Issue596 {
 

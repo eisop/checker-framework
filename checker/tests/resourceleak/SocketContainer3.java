@@ -1,11 +1,10 @@
 // A simple class that has a Socket as an owning field.
 // This test exists to check that we gracefully handle assignments.
 
-import org.checkerframework.checker.calledmethods.qual.*;
-import org.checkerframework.checker.mustcall.qual.*;
-
 import java.io.*;
 import java.net.*;
+import org.checkerframework.checker.calledmethods.qual.*;
+import org.checkerframework.checker.mustcall.qual.*;
 
 @InheritableMustCall("close")
 class SocketContainer3 {

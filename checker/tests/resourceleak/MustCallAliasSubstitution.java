@@ -2,10 +2,9 @@
 // substituting a fresh object is not counted as an alias, for the purpose of MustCallAlias
 // verification.
 
-import org.checkerframework.checker.mustcall.qual.*;
-
 import java.io.*;
 import java.net.Socket;
+import org.checkerframework.checker.mustcall.qual.*;
 
 class MustCallAliasSubstitution {
 

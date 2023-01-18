@@ -1,5 +1,6 @@
 // Tests that String.length() is supported in the same situations as array length
 
+import java.util.Random;
 import org.checkerframework.checker.index.qual.IndexFor;
 import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.checker.index.qual.LTLengthOf;
@@ -7,8 +8,6 @@ import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.index.qual.Positive;
 import org.checkerframework.checker.index.qual.SameLen;
 import org.checkerframework.common.value.qual.MinLen;
-
-import java.util.Random;
 
 public class StringLength {
   void testMinLenSubtractPositive(@MinLen(10) String s) {

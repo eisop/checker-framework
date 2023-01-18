@@ -32,7 +32,30 @@ import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
-
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Writer;
+import java.lang.annotation.Annotation;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 import org.checkerframework.afu.scenelib.annotations.util.JVMNames;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -57,32 +80,6 @@ import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
 import org.plumelib.util.ArraySet;
-
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.Writer;
-import java.lang.annotation.Annotation;
-import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeMirror;
 
 /**
  * This is an implementation of {@link WholeProgramInferenceStorage} that stores annotations
@@ -563,20 +560,18 @@ public class WholeProgramInferenceJavaParserStorage
           public void processNewClass(NewClassTree javacTree, ObjectCreationExpr javaParserNode) {
             ClassTree body = javacTree.getClassBody();
             if (body != null) {
-              // elementFromTree returns null instead of crashing when no element
-              // exists for the class tree, which can happen for certain kinds of
-              // anonymous classes, such as Ordering$1 in PolyCollectorTypeVar.java in
-              // the all-systems test suite.
-              // addClass(ClassTree) in the then branch just below assumes that such
-              // an element exists.
+              // elementFromTree returns null instead of crashing when no element exists
+              // for the class tree, which can happen for certain kinds of anonymous
+              // classes, such as Ordering$1 in PolyCollectorTypeVar.java in the
+              // all-systems test suite.  addClass(ClassTree) in the then branch just
+              // below assumes that such an element exists.
               Element classElt = TreeUtils.elementFromDeclaration(body);
               if (classElt != null) {
                 addClass(body, null);
               } else {
                 // If such an element does not exist, compute the name of the class,
-                // instead.
-                // This method of computing the name is not 100% guaranteed to be
-                // reliable, but it should be sufficient for WPI's purposes here: if
+                // instead.  This method of computing the name is not 100% guaranteed to
+                // be reliable, but it should be sufficient for WPI's purposes here: if
                 // the wrong name is computed, the worst outcome is a false positive
                 // because WPI inferred an untrue annotation.
                 @BinaryName String className;
@@ -668,6 +663,13 @@ public class WholeProgramInferenceJavaParserStorage
           private void addCallableDeclaration(
               MethodTree javacTree, CallableDeclaration<?> javaParserNode) {
             ExecutableElement element = TreeUtils.elementFromDeclaration(javacTree);
+            if (element == null) {
+              // element can be null if there is no element corresponding to the
+              // method, which happens for certain kinds of anonymous classes,
+              // such as Ordering$1 in PolyCollectorTypeVar.java in the
+              // all-systems test suite.
+              return;
+            }
             String className = ElementUtils.getEnclosingClassName(element);
             ClassOrInterfaceAnnos enclosingClass = classToAnnos.get(className);
             String executableSignature = JVMNames.getJVMMethodSignature(javacTree);
@@ -691,11 +693,10 @@ public class WholeProgramInferenceJavaParserStorage
             enclosingClass.enumConstants.add(fieldName);
 
             // Ensure that if an enum constant defines a class, that class gets
-            // registered properly.
-            // See e.g.
-            // https://docs.oracle.com/javase/specs/jls/se17/html/jls-8.html#jls-8.9.1
-            // for the specification of an enum constant, which does permit it to define
-            // an anonymous class.
+            // registered properly.  See
+            // e.g. https://docs.oracle.com/javase/specs/jls/se17/html/jls-8.html#jls-8.9.1
+            // for the specification of an enum constant, which does permit it to
+            // define an anonymous class.
             NewClassTree constructor = (NewClassTree) javacTree.getInitializer();
             ClassTree constructorClassBody = constructor.getClassBody();
             if (constructorClassBody != null) {

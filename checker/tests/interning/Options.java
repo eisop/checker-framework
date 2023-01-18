@@ -1,7 +1,6 @@
-import org.checkerframework.checker.interning.qual.*;
-
 import java.util.ArrayList;
 import java.util.List;
+import org.checkerframework.checker.interning.qual.*;
 
 // Test case lifted from plume.Options
 public class Options {

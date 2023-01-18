@@ -1,7 +1,6 @@
+import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-
-import java.util.Objects;
 
 class Issue4889 {
   void f(@Nullable String s) {

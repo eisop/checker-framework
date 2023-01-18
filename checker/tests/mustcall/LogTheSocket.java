@@ -17,11 +17,10 @@
 // This test is also coincidentally a test case for
 // https://github.com/typetools/checker-framework/pull/3867.
 
-import org.checkerframework.checker.mustcall.qual.*;
-
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.channels.SocketChannel;
+import org.checkerframework.checker.mustcall.qual.*;
 
 class LogTheSocket {
 

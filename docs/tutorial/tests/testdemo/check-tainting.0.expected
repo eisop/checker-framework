@@ -1,6 +1,5 @@
 
 clean:
-Deleting directory /Users/smillst/src/jsr308/checker-framework/tutorial/eclipse-projects/personalblog-demo/bin
 
 check-tainting:
 Created dir: /Users/smillst/src/jsr308/checker-framework/tutorial/eclipse-projects/personalblog-demo/bin
@@ -14,8 +13,6 @@ javac 1.8.0-jsr308-3.12.0
 1 error
 
 BUILD FAILED
-/Users/smillst/src/jsr308/checker-framework/tutorial/eclipse-projects/personalblog-demo/build.xml:35: Compile failed; see the compiler error output for details.
+/home/mernst/research/types/checker-framework-fork-mernst-branch-formatting/docs/tutorial/src/personalblog-demo/build.xml:33: Compile failed; see the compiler error output for details.
 
-Total time: 3 seconds
-
-
+Total time: 1 second

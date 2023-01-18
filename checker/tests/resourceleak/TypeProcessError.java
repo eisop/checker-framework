@@ -1,8 +1,7 @@
-import org.checkerframework.checker.mustcall.qual.MustCall;
-import org.checkerframework.checker.mustcall.qual.Owning;
-
 import java.io.IOException;
 import java.io.PrintStream;
+import org.checkerframework.checker.mustcall.qual.MustCall;
+import org.checkerframework.checker.mustcall.qual.Owning;
 
 public class TypeProcessError {
 

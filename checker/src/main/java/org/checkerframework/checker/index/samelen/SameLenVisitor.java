@@ -2,7 +2,10 @@ package org.checkerframework.checker.index.samelen;
 
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.Tree;
-
+import java.util.Collection;
+import java.util.Collections;
+import java.util.TreeSet;
+import javax.lang.model.element.AnnotationMirror;
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.index.IndexUtil;
 import org.checkerframework.checker.index.qual.PolySameLen;
@@ -13,12 +16,6 @@ import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.TreeUtils;
-
-import java.util.Collection;
-import java.util.Collections;
-import java.util.TreeSet;
-
-import javax.lang.model.element.AnnotationMirror;
 
 public class SameLenVisitor extends BaseTypeVisitor<SameLenAnnotatedTypeFactory> {
   public SameLenVisitor(BaseTypeChecker checker) {

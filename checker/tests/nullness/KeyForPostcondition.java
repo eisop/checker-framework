@@ -1,9 +1,8 @@
+import java.util.HashMap;
+import java.util.Map;
 import org.checkerframework.checker.nullness.qual.EnsuresKeyFor;
 import org.checkerframework.checker.nullness.qual.EnsuresKeyForIf;
 import org.checkerframework.checker.nullness.qual.KeyFor;
-
-import java.util.HashMap;
-import java.util.Map;
 
 public class KeyForPostcondition {
 

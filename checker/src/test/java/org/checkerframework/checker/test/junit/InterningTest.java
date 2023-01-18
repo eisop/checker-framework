@@ -1,10 +1,9 @@
 package org.checkerframework.checker.test.junit;
 
-import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
-import org.junit.runners.Parameterized.Parameters;
-
 import java.io.File;
 import java.util.List;
+import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
+import org.junit.runners.Parameterized.Parameters;
 
 /** JUnit tests for the Interning Checker, which tests the Interned annotation. */
 public class InterningTest extends CheckerFrameworkPerDirectoryTest {

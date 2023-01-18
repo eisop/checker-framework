@@ -1,8 +1,7 @@
 package org.checkerframework.framework.util.defaults;
 
-import org.plumelib.util.StringsPlume;
-
 import java.util.TreeSet;
+import org.plumelib.util.StringsPlume;
 
 /**
  * An ordered set of Defaults (see {@link org.checkerframework.framework.util.defaults.Default}).

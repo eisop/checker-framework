@@ -16,15 +16,6 @@ import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.printer.DefaultPrettyPrinter;
 import com.github.javaparser.utils.Pair;
 import com.sun.source.util.JavacTask;
-
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
-import org.checkerframework.checker.signature.qual.DotSeparatedIdentifiers;
-import org.checkerframework.checker.signature.qual.FullyQualifiedName;
-import org.checkerframework.framework.stub.AnnotationFileParser;
-import org.checkerframework.framework.util.JavaParserUtil;
-import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.FilesPlume;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -46,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
-
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
@@ -57,6 +47,13 @@ import javax.tools.JavaCompiler.CompilationTask;
 import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
 import javax.tools.ToolProvider;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.signature.qual.DotSeparatedIdentifiers;
+import org.checkerframework.checker.signature.qual.FullyQualifiedName;
+import org.checkerframework.framework.stub.AnnotationFileParser;
+import org.checkerframework.framework.util.JavaParserUtil;
+import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.FilesPlume;
 
 /** This program inserts annotations from an ajava file into a Java file. See {@link #main}. */
 public class InsertAjavaAnnotations {
@@ -224,8 +221,7 @@ public class InsertAjavaAnnotations {
       Position position;
       if (dest instanceof ClassOrInterfaceType) {
         // In a multi-part name like my.package.MyClass, type annotations go directly in
-        // front of
-        // MyClass instead of the full name.
+        // front of MyClass instead of the full name.
         position = ((ClassOrInterfaceType) dest).getName().getBegin().get();
       } else {
         position = dest.getBegin().get();
@@ -264,8 +260,7 @@ public class InsertAjavaAnnotations {
       allAnnotations = getImportedAnnotations(src);
 
       // Move any annotations that JavaParser puts in the declaration position but belong only
-      // in
-      // the type position.
+      // in the type position.
       src.accept(new TypeAnnotationMover(allAnnotations, elements), null);
 
       // Transfer import statements from the ajava file to the Java file.

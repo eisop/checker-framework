@@ -1,6 +1,5 @@
-import org.checkerframework.checker.nullness.qual.NonNull;
-
 import java.lang.annotation.Annotation;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 public class DotClass {
 

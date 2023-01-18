@@ -1,7 +1,6 @@
 // @below-java14-jdk-skip-test
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import java.util.function.Function;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class NullnessSwitchExpressionLambda {
   int anInt;

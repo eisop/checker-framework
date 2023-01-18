@@ -1,10 +1,9 @@
 package org.checkerframework.checker.test.junit;
 
-import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
-import org.junit.runners.Parameterized.Parameters;
-
 import java.io.File;
 import java.util.List;
+import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
+import org.junit.runners.Parameterized.Parameters;
 
 /** JUnit tests for the Nullness checker when reflection resolution is enabled. */
 public class NullnessReflectionTest extends CheckerFrameworkPerDirectoryTest {

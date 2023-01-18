@@ -1,10 +1,8 @@
 package org.checkerframework.dataflow.cfg.node;
 
 import com.sun.source.tree.Tree;
-
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import javax.lang.model.type.TypeMirror;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A node to model the implicit {@code this}, e.g., in a field access. */
 public class ImplicitThisNode extends ThisNode {

@@ -3,7 +3,6 @@
 
 import com.sun.tools.classfile.Annotation;
 import com.sun.tools.classfile.ClassFile;
-
 import java.io.PrintStream;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

@@ -1,6 +1,5 @@
-import org.checkerframework.checker.nullness.qual.*;
-
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.*;
 
 public class WildcardAnnos {
   // :: error: (bound.type.incompatible)

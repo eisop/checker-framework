@@ -1,9 +1,8 @@
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Target;
 import org.checkerframework.checker.nullness.qual.*;
 import org.checkerframework.framework.qual.SubtypeOf;
 import org.checkerframework.framework.qual.Unused;
-
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Target;
 
 // TODO: feature request: the Nullness Checker should be aware of the @Unused annotation.
 // This is difficult to implement: one needs to determine the correct AnnotatedTypeFactory for the

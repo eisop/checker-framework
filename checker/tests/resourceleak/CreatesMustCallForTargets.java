@@ -1,10 +1,9 @@
 // A test that errors are correctly issued when re-assignments don't match the
 // create obligation annotation on a method.
 
+import java.io.*;
 import org.checkerframework.checker.calledmethods.qual.*;
 import org.checkerframework.checker.mustcall.qual.*;
-
-import java.io.*;
 
 @InheritableMustCall("a")
 class CreatesMustCallForTargets {

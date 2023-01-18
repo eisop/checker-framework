@@ -1,10 +1,9 @@
 // Test case for Issue 524:
 // https://github.com/typetools/checker-framework/issues/524
 
+import java.util.concurrent.locks.ReentrantLock;
 import org.checkerframework.checker.lock.qual.GuardedBy;
 import org.checkerframework.checker.lock.qual.GuardedByUnknown;
-
-import java.util.concurrent.locks.ReentrantLock;
 
 // WARNING: this test is nondeterministic, and has already been minimized - if you modify it by
 // removing what appears to be redundant code, it may no longer reproduce the issue or provide

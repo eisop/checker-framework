@@ -1,7 +1,8 @@
 package org.checkerframework.common.reflection;
 
 import com.sun.source.tree.Tree;
-
+import java.util.List;
+import javax.lang.model.element.AnnotationMirror;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeValidator;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
@@ -10,10 +11,6 @@ import org.checkerframework.common.reflection.qual.ClassVal;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.plumelib.reflection.Signatures;
-
-import java.util.List;
-
-import javax.lang.model.element.AnnotationMirror;
 
 /** A visitor to verify validity of {@code @}{@link ClassVal} annotations. */
 public class ClassValVisitor extends BaseTypeVisitor<ClassValAnnotatedTypeFactory> {

@@ -1,7 +1,6 @@
-import org.checkerframework.checker.tainting.qual.PolyTainted;
-
 import java.util.ArrayList;
 import java.util.List;
+import org.checkerframework.checker.tainting.qual.PolyTainted;
 
 public class PolyClassDecl {
   // :: error: (invalid.polymorphic.qualifier)

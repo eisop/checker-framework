@@ -1,8 +1,7 @@
 package org.checkerframework.framework.test.diagnostics;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Represents an expected error/warning message in a Java test file or an error/warning reported by
@@ -112,5 +111,16 @@ public class TestDiagnostic {
       return filename + ":" + lineNumber + ": " + kind.parseString + ": " + message;
     }
     return filename + ":" + lineNumber + ": " + kind.parseString + ": (" + message + ")";
+  }
+
+  /**
+   * Returns the internal representation of this, formatted.
+   *
+   * @return the internal representation of this, formatted
+   */
+  public String repr() {
+    return String.format(
+        "[TestDiagnostic: filename=%s, lineNumber=%d, kind=%s, message=%s]",
+        filename, lineNumber, kind, message);
   }
 }

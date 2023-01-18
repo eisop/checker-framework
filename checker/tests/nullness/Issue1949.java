@@ -1,7 +1,6 @@
-import org.checkerframework.checker.nullness.qual.*;
-
 import java.util.ArrayList;
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.*;
 
 public class Issue1949 {
   public interface Base<R> {}

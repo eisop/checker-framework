@@ -196,91 +196,91 @@ allprojects {
         // the sections with labels "javac-jdk11-non-modularized", "maven", and "sbt" in the manual
         // and in the checker-framework-gradle-plugin, CheckerFrameworkPlugin#applyToProject
         compilerArgsForRunningCF = [
-                // These are required in Java 16+ because the --illegal-access option is set to deny
-                // by default.  None of these packages are accessed via reflection, so the module
-                // only needs to be exported, but not opened.
-                '--add-exports', 'jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
-                '--add-exports', 'jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED',
-                '--add-exports', 'jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
-                '--add-exports', 'jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED',
-                '--add-exports', 'jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED',
-                '--add-exports', 'jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED',
-                '--add-exports', 'jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
-                '--add-exports', 'jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED',
-                // Required because the Checker Framework reflectively accesses private members in com.sun.tools.javac.comp.
-                '--add-opens', 'jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED',
+            // These are required in Java 16+ because the --illegal-access option is set to deny
+            // by default.  None of these packages are accessed via reflection, so the module
+            // only needs to be exported, but not opened.
+            '--add-exports', 'jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
+            '--add-exports', 'jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED',
+            '--add-exports', 'jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
+            '--add-exports', 'jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED',
+            '--add-exports', 'jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED',
+            '--add-exports', 'jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED',
+            '--add-exports', 'jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
+            '--add-exports', 'jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED',
+            // Required because the Checker Framework reflectively accesses private members in com.sun.tools.javac.comp.
+            '--add-opens', 'jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED',
         ]
 
         reflectionUtilVersion = '1.0.5'
         plumeUtilVersion = '1.6.5'
     }
 
-    spotless {
-        // If you add any formatters to this block that require dependencies here, then you must also
-        // add them to spotlessPredeclare block.
-        format 'misc', {
-            // define the files to apply `misc` to
-            target '*.gradle', '*.md', '.gitignore'
-
-            // define the steps to apply to those files
-            trimTrailingWhitespace()
-            indentWithSpaces(2)
-            endWithNewline()
-        }
-        java {
-            def targets = [
-                    // add target folders here
-                    'checker',
-                    'checker-qual',
-                    'checker-util',
-                    'dataflow',
-                    'docs/examples',
-                    'docs/tutorial',
-                    'framework',
-                    'framework-test',
-                    'javacutil',
-            ]
-            targets = targets.collectMany {[
-                    // must call toString() to convert GString to String
-                    "${it}/**/*.java".toString(),
-                    "${it}/**/*.ajava".toString()
-            ]}
-            target targets
-
-            def stdExclude = [ 'dataflow/manual/examples/',
-                '**/nullness-javac-errors/*',
-                '**/calledmethods-delomboked/*',
-                '**/returnsreceiverdelomboked/*',
-                '*/build/**',
-                '*/tests/build/**'
-            ]
-            if (isJava16plus) {
-                targetExclude stdExclude
-            } else if (isJava14plus) {
-                targetExclude stdExclude, '**/*record*/'
-            } else {
-                // TODO: directories should be renamed `-switchexpr` or some such,
-                // as they  only contain examples for switch expressions, which were
-                // added in Java 14, not Java 17.
-                targetExclude stdExclude, '**/java17/', '**/*record*/'
-            }
-
-            googleJavaFormat() // .aosp()
-            importOrder('com', 'jdk', 'lib', 'lombok', 'org', 'java', 'javax')
-            // Remove addTypeAnnotation after the next release of Spotless.
-            formatAnnotations().addTypeAnnotation('DoesNotMatchRegex')
-        }
+  spotless {
+    // If you add any formatters to this block that require dependencies here, then you must also
+    // add them to spotlessPredeclare block.
+    format 'misc', {
+      // define the files to apply `misc` to
+      target '*.gradle', '*.md', '.gitignore'
+      // define the steps to apply to those files
+      trimTrailingWhitespace()
+      indentWithSpaces(2)
+      endWithNewline()
     }
-    // The Spotless plugin uses the latest version of google-java-format
-    // that is compatible with the currently running JVM. Under Java 8,
-    // that is an older version that produces different formatting.
-    if (isJava8) {
-        spotlessApply.enabled = false
-        spotlessCheck.enabled = false
-        spotlessJavaApply.enabled = false
-        spotlessJavaCheck.enabled = false
-    }
+    java {
+      def targets = [
+          // add target folders here
+          'checker',
+          'checker-qual',
+          'checker-util',
+          'dataflow',
+          'docs/examples',
+          'docs/tutorial',
+          'framework',
+          'framework-test',
+          'javacutil',
+      ]
+      targets = targets.collectMany {[
+          // must call toString() to convert GString to String
+          "${it}/**/*.java".toString(),
+          // Not .ajava files because formatting would remove import statements.
+      ]}
+      target targets
 
+      def doNotFormat = [ 'dataflow/manual/examples/',
+        '**/nullness-javac-errors/*',
+        '**/calledmethods-delomboked/*',
+        '**/returnsreceiverdelomboked/*',
+        '**/build/**',
+        '*/dist/**',
+      ]
+      if (isJava17plus) {
+        targetExclude doNotFormat
+      } else {
+        targetExclude doNotFormat, '**/java17/', '**/*record*/'
+      }
+
+      googleJavaFormat()
+      formatAnnotations()
+            // Remove addTypeAnnotation after a Spotless release is made (2022-01-15).
+                .addTypeAnnotation("AinferDefaultType")
+                .addTypeAnnotation("AinferParent")
+                .addTypeAnnotation("AinferSibling1")
+                .addTypeAnnotation("AinferSibling2")
+                .addTypeAnnotation("AinferTop")
+                .addTypeAnnotation("AinferImplicitAnno")
+                .addTypeAnnotation("AinferSiblingWithFields")
+                .addTypeAnnotation("DoesNotMatchRegex")
+    }
+  }
+  // The Spotless plugin uses the latest version of google-java-format
+  // that is compatible with the currently running JVM. Under Java 8,
+  // that is an older version that produces different formatting.
+  if (isJava8) {
+    spotlessApply.enabled = false
+    spotlessCheck.enabled = false
+    spotlessJavaApply.enabled = false
+    spotlessJavaCheck.enabled = false
+  }
 
     // After all the tasks have been created, modify some of them.
     afterEvaluate {

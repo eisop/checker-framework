@@ -1,8 +1,7 @@
 package org.checkerframework.dataflow.expression;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A simple scanner for {@link JavaExpression}.

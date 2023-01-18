@@ -1,15 +1,10 @@
 package net.eyde.personalblog.service;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.checkerframework.checker.tainting.qual.Untainted;
-
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
-
 import net.eyde.personalblog.beans.BlogProperty;
 import net.eyde.personalblog.beans.Comment;
 import net.eyde.personalblog.beans.Post;
@@ -17,6 +12,9 @@ import net.eyde.personalblog.beans.Referrer;
 import net.sf.hibernate.Session;
 import net.sf.hibernate.SessionFactory;
 import net.sf.hibernate.cfg.Configuration;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.checkerframework.checker.tainting.qual.Untainted;
 
 /**
  * @author NEyde

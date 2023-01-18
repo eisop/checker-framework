@@ -1,12 +1,10 @@
 package org.checkerframework.dataflow.cfg.block;
 
-import org.checkerframework.dataflow.cfg.node.Node;
-import org.checkerframework.dataflow.qual.Pure;
-
 import java.util.Map;
 import java.util.Set;
-
 import javax.lang.model.type.TypeMirror;
+import org.checkerframework.dataflow.cfg.node.Node;
+import org.checkerframework.dataflow.qual.Pure;
 
 /**
  * Represents a basic block that contains exactly one {@link Node} which can throw an exception.

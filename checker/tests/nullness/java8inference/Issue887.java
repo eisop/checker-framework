@@ -2,9 +2,8 @@
 // https://github.com/typetools/checker-framework/issues/887
 // Additional test case in framework/tests/all-systems/Issue887.java
 
-import org.checkerframework.checker.nullness.qual.*;
-
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.*;
 
 public abstract class Issue887 {
   void test() {

@@ -1,8 +1,7 @@
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.optional.qual.Present;
-
 import java.util.Optional;
 import java.util.function.Supplier;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.optional.qual.Present;
 
 /** Test JDK annotations. */
 @SuppressWarnings("optional.parameter")

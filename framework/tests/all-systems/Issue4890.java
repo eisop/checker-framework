@@ -1,6 +1,5 @@
-import org.checkerframework.checker.nullness.qual.NonNull;
-
 import java.util.function.Function;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 @SuppressWarnings("all") // Just check for crashes.
 public class Issue4890 {

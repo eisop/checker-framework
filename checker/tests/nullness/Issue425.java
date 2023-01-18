@@ -3,10 +3,9 @@
 
 // @skip-test until the issue is fixed
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import java.util.HashSet;
 import java.util.Set;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class Issue425 {
   private @Nullable Set<Integer> field = null;

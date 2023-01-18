@@ -1,6 +1,5 @@
-import org.checkerframework.checker.nullness.qual.*;
-
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.*;
 
 public class Issue2171 {
   static void varArgsMethod(@PolyNull Object... args) {}

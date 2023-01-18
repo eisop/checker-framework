@@ -1,6 +1,5 @@
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import java.util.function.Function;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 class FieldWithAnnotatedLambda {
   Function<Object, @Nullable Object> f1 = (@Nullable Object in) -> in;

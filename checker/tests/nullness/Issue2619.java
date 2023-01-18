@@ -1,9 +1,8 @@
+import java.util.HashMap;
+import java.util.Map;
 import org.checkerframework.checker.nullness.qual.EnsuresKeyForIf;
 import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.checkerframework.dataflow.qual.Pure;
-
-import java.util.HashMap;
-import java.util.Map;
 
 public class Issue2619 {
   public Map<String, String> map = new HashMap<>();

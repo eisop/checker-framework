@@ -1,8 +1,7 @@
 package org.checkerframework.framework.type;
 
-import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
-
 import java.util.Objects;
+import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
 
 /**
  * Computes the hashcode of an AnnotatedTypeMirror using the underlying type and primary annotations

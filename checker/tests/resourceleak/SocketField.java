@@ -1,11 +1,10 @@
 // test case for https://github.com/kelloggm/object-construction-checker/issues/381
 
+import java.io.IOException;
+import java.net.Socket;
 import org.checkerframework.checker.calledmethods.qual.*;
 import org.checkerframework.checker.mustcall.qual.*;
 import org.checkerframework.dataflow.qual.Pure;
-
-import java.io.IOException;
-import java.net.Socket;
 
 @InheritableMustCall("closeSocket")
 class SocketField {

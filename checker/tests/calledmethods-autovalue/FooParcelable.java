@@ -1,6 +1,5 @@
-import com.google.auto.value.AutoValue;
-
 import android.os.Parcelable;
+import com.google.auto.value.AutoValue;
 
 /**
  * Test for support of AutoValue Parcel extension. This test currently passes, but only because we

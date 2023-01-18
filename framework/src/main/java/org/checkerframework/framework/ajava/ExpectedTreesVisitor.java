@@ -25,11 +25,9 @@ import com.sun.source.tree.VariableTree;
 import com.sun.source.tree.WhileLoopTree;
 import com.sun.tools.javac.tree.JCTree.JCExpression;
 import com.sun.tools.javac.util.Position;
-
-import org.checkerframework.javacutil.TreeUtils;
-
 import java.util.HashSet;
 import java.util.Set;
+import org.checkerframework.javacutil.TreeUtils;
 
 /**
  * After this visitor visits a tree, {@link #getTrees} returns all the trees that should match with
@@ -128,8 +126,8 @@ public class ExpectedTreesVisitor extends TreeScannerWithDefaults {
       //      private final String myField;
       //   }
       // So the constructor and the field declarations have no matching trees in the
-      // JavaParser
-      // node, and we must remove those trees (and their subtrees) from the `trees` field.
+      // JavaParser node, and we must remove those trees (and their subtrees) from the
+      // `trees` field.
       TreeScannerWithDefaults removeAllVisitor =
           new TreeScannerWithDefaults() {
             @Override
@@ -143,8 +141,8 @@ public class ExpectedTreesVisitor extends TreeScannerWithDefaults {
           member.accept(removeAllVisitor, null);
         } else {
           // If the user declares a compact canonical constructor, javac will
-          // automatically fill in
-          // the parameters.  These trees also don't have a match:
+          // automatically fill in the parameters.
+          // These trees also don't have a match:
           if (member.getKind() == Tree.Kind.METHOD) {
             MethodTree methodTree = (MethodTree) member;
             if (TreeUtils.isCompactCanonicalRecordConstructor(methodTree)) {

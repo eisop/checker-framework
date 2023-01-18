@@ -1,7 +1,6 @@
+import java.util.ArrayList;
 import org.checkerframework.checker.index.qual.LowerBoundBottom;
 import org.checkerframework.checker.index.qual.PolyLowerBound;
-
-import java.util.ArrayList;
 
 public class NonnegativeChar {
   void foreach(char[] array) {

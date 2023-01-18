@@ -2,9 +2,8 @@ package nullness.generics;
 
 // see also framework/tests/all-systems/WildcardSuper2
 
-import org.checkerframework.checker.nullness.qual.NonNull;
-
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 interface ToOverride<T> {
   public abstract int transform(List<? super T> function);

@@ -1,8 +1,7 @@
+import java.lang.reflect.Constructor;
 import org.checkerframework.framework.testchecker.reflection.qual.TestReflectSibling1;
 import org.checkerframework.framework.testchecker.reflection.qual.TestReflectSibling2;
 import org.checkerframework.framework.testchecker.reflection.qual.TestReflectTop;
-
-import java.lang.reflect.Constructor;
 
 public class ReflectionConstructorTest {
   @TestReflectSibling1 int sibling1;
@@ -13,9 +12,8 @@ public class ReflectionConstructorTest {
 
   // :: warning: (inconsistent.constructor.type)
   public @TestReflectSibling2 ReflectionConstructorTest(
-      @TestReflectSibling2 int a, @TestReflectSibling2 int b)
-        // :: error: (super.invocation.invalid)
-      {}
+      // :: error: (super.invocation.invalid)
+      @TestReflectSibling2 int a, @TestReflectSibling2 int b) {}
 
   public void pass1() {
     try {

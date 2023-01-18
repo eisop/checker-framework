@@ -1,12 +1,11 @@
 package org.checkerframework.checker.test.junit.ainferrunners;
 
+import java.io.File;
+import java.util.List;
 import org.checkerframework.checker.index.IndexChecker;
 import org.checkerframework.framework.test.AinferValidatePerDirectoryTest;
 import org.junit.experimental.categories.Category;
 import org.junit.runners.Parameterized.Parameters;
-
-import java.io.File;
-import java.util.List;
 
 /**
  * Tests whole-program type inference with ajava files. This test is the second pass, which ensures

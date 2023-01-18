@@ -5,9 +5,8 @@
 // @CreatesMustCallFor annotation
 // and its accompanying logic) has been disabled.
 
-import org.checkerframework.checker.mustcall.qual.*;
-
 import java.net.*;
+import org.checkerframework.checker.mustcall.qual.*;
 
 class ConnectingServerSockets {
 

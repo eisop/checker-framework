@@ -1,6 +1,5 @@
-import org.checkerframework.checker.nullness.qual.*;
-
 import java.io.*;
+import org.checkerframework.checker.nullness.qual.*;
 
 class MyFilterInputStream {
   MyFilterInputStream(InputStream in) {}

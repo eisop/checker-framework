@@ -1,17 +1,14 @@
 package org.checkerframework.dataflow.cfg.node;
 
 import com.sun.source.tree.CaseTree;
-
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.plumelib.util.StringsPlume;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
-
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.util.Types;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.plumelib.util.StringsPlume;
 
 /**
  * A node for a case in a switch statement. Although a case has no abstract value, it can imply

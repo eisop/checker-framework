@@ -1,7 +1,6 @@
+import java.util.Map;
 import org.checkerframework.checker.signedness.qual.PolySigned;
 import org.checkerframework.checker.signedness.qual.Signed;
-
-import java.util.Map;
 
 public class Desugar {
 

@@ -1,5 +1,6 @@
 package org.checkerframework.checker.index;
 
+import javax.lang.model.element.AnnotationMirror;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
 import org.checkerframework.dataflow.cfg.node.GreaterThanNode;
@@ -11,8 +12,6 @@ import org.checkerframework.framework.flow.CFAnalysis;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFTransfer;
 import org.checkerframework.framework.flow.CFValue;
-
-import javax.lang.model.element.AnnotationMirror;
 
 /**
  * This class provides methods shared by the Index Checker's internal checkers in their transfer

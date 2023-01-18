@@ -1,9 +1,8 @@
 // a set of test cases that demonstrate that errors are actually insued in appropriate
 // places when Sockets are connected
 
-import org.checkerframework.checker.mustcall.qual.*;
-
 import java.net.*;
+import org.checkerframework.checker.mustcall.qual.*;
 
 class ConnectingSockets {
 

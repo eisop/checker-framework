@@ -1,8 +1,7 @@
-import org.checkerframework.checker.nullness.qual.*;
-
 import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
+import org.checkerframework.checker.nullness.qual.*;
 
 class Cell<T extends @Nullable Object> {
   void add(T arg) {}

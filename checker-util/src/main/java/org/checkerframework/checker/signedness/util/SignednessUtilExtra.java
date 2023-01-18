@@ -1,10 +1,9 @@
 package org.checkerframework.checker.signedness.util;
 
-import org.checkerframework.checker.signedness.qual.Unsigned;
-import org.checkerframework.framework.qual.AnnotatedFor;
-
 import java.awt.Dimension;
 import java.awt.image.BufferedImage;
+import org.checkerframework.checker.signedness.qual.Unsigned;
+import org.checkerframework.framework.qual.AnnotatedFor;
 
 /**
  * Provides more static utility methods for unsigned values. These methods use Java packages not

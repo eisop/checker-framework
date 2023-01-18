@@ -1,8 +1,7 @@
 // Test case for https://tinyurl.com/cfissue/3622
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class Issue3622 {
 

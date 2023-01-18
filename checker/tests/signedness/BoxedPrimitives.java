@@ -1,7 +1,6 @@
+import java.util.LinkedList;
 import org.checkerframework.checker.signedness.qual.Signed;
 import org.checkerframework.checker.signedness.qual.Unsigned;
-
-import java.util.LinkedList;
 
 public class BoxedPrimitives {
 

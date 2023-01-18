@@ -1,6 +1,5 @@
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import java.util.function.Function;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class Issue1847B {
   public void test1() {

@@ -2,9 +2,8 @@
 
 // @skip-test until the issue is fixed
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 abstract class Issue4048 {
   @Nullable Number m1(List<? extends Number> numbers) {

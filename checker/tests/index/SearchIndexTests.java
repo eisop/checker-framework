@@ -1,6 +1,5 @@
-import org.checkerframework.checker.index.qual.*;
-
 import java.util.Arrays;
+import org.checkerframework.checker.index.qual.*;
 
 public class SearchIndexTests {
   public void test(short[] a, short instant) {

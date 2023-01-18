@@ -1,6 +1,5 @@
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import java.util.Arrays;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class CopyOfArray {
   protected void makeCopy(Object[] args, int i) {

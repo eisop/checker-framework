@@ -2,10 +2,6 @@ package org.checkerframework.framework.ajava;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.TypeDeclaration;
-
-import org.checkerframework.framework.util.JavaParserUtil;
-import org.checkerframework.javacutil.BugInCF;
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
@@ -13,6 +9,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.checkerframework.framework.util.JavaParserUtil;
+import org.checkerframework.javacutil.BugInCF;
 
 /**
  * Stores a collection of annotation files. Given a type name, can return a list of paths to stored

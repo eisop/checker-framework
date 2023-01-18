@@ -1,10 +1,9 @@
 // A MustCallAlias test wrt sockets. Also coincidentally tests that MCA sets can be larger than two.
 
-import org.checkerframework.checker.mustcall.qual.*;
-
 import java.io.*;
 import java.io.IOException;
 import java.net.*;
+import org.checkerframework.checker.mustcall.qual.*;
 
 class InputOutputStreams {
   void test_close_sock(@Owning Socket sock) throws IOException {

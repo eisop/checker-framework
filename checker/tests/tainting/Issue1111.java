@@ -2,9 +2,8 @@
 // https://github.com/typetools/checker-framework/issues/1111
 // Additional test case in framework/tests/all-systems/Issue1111.java
 
-import org.checkerframework.checker.tainting.qual.Untainted;
-
 import java.util.List;
+import org.checkerframework.checker.tainting.qual.Untainted;
 
 public class Issue1111 {
   void foo(Box<? super Integer> box, List<Integer> list) {

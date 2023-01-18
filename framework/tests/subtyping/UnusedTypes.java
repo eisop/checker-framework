@@ -1,8 +1,7 @@
-import org.checkerframework.framework.qual.SubtypeOf;
-import org.checkerframework.framework.qual.Unused;
-
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Target;
+import org.checkerframework.framework.qual.SubtypeOf;
+import org.checkerframework.framework.qual.Unused;
 
 // This test case is quite meaningless, as it's not run with the
 // Nullness Checker. See nullness/UnusedNullness.java instead.

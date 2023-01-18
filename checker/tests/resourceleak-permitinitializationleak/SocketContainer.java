@@ -2,11 +2,10 @@
 // This test exists to check that we gracefully handle assignments 1)
 // in the constructor and 2) to null.
 
-import org.checkerframework.checker.calledmethods.qual.*;
-import org.checkerframework.checker.mustcall.qual.*;
-
 import java.io.*;
 import java.net.*;
+import org.checkerframework.checker.calledmethods.qual.*;
+import org.checkerframework.checker.mustcall.qual.*;
 
 @InheritableMustCall("close")
 class SocketContainer {

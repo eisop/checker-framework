@@ -1,9 +1,8 @@
 // Same code (but different expected errors) as test PreventClearProperty.java .
 
+import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.common.value.qual.StringVal;
-
-import java.util.Properties;
 
 public class PermitClearProperty {
 

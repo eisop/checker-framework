@@ -2,10 +2,9 @@
 // respected. This version gets it wrong by not assigning the MCA param
 // to a field.
 
+import java.io.*;
 import org.checkerframework.checker.calledmethods.qual.*;
 import org.checkerframework.checker.mustcall.qual.*;
-
-import java.io.*;
 
 public class MustCallAliasImplWrong1 implements Closeable {
 

@@ -1,9 +1,8 @@
 // A test that passing a local to an MCA super constructor is allowed.
 
+import java.io.*;
 import org.checkerframework.checker.calledmethods.qual.*;
 import org.checkerframework.checker.mustcall.qual.*;
-
-import java.io.*;
 
 class MustCallAliasPassthroughLocal extends FilterInputStream {
   MustCallAliasPassthroughLocal(File f) throws Exception {

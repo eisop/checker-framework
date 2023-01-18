@@ -1,9 +1,8 @@
-import org.checkerframework.checker.nullness.qual.*;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import org.checkerframework.checker.nullness.qual.*;
 
 public class FlowConditions {
   void m(@Nullable Object x, @Nullable Object y) {

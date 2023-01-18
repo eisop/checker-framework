@@ -1,10 +1,8 @@
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
-
+import java.util.Collection;
 import org.checkerframework.checker.calledmethods.qual.*;
 import org.checkerframework.checker.nullness.qual.*;
-
-import java.util.Collection;
 
 @AutoValue
 abstract class CallWithinBuilder {

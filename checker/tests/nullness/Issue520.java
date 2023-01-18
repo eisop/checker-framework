@@ -5,10 +5,9 @@
 // compile with: $CHECKERFRAMEWORK/checker/bin/javac -g Issue520.java -processor nullness
 // -AprintAllQualifiers
 
-import org.checkerframework.checker.nullness.qual.*;
-
 import java.util.ArrayList;
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.*;
 
 public class Issue520 {}
 

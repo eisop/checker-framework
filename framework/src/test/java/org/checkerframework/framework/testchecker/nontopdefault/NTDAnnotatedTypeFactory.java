@@ -1,10 +1,9 @@
 package org.checkerframework.framework.testchecker.nontopdefault;
 
-import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
-import org.checkerframework.common.basetype.BaseTypeChecker;
-
 import java.lang.annotation.Annotation;
 import java.util.Set;
+import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
+import org.checkerframework.common.basetype.BaseTypeChecker;
 
 public class NTDAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 

@@ -3,7 +3,6 @@
 // TODO: add a @Processor method-annotation to parameterize
 
 import com.sun.tools.classfile.ClassFile;
-
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -72,8 +71,7 @@ public class PersistUtil {
         File fCopy = File.createTempFile("FCopy", ".java", tempDir);
         File resultCopy = File.createTempFile("FCopy", ".class", tempDir);
         // REPLACE_EXISTING is essential in the `Files.copy()` calls because createTempFile
-        // actually
-        // creates a file in addition to returning its name.
+        // actually creates a file in addition to returning its name.
         Files.copy(f.toPath(), fCopy.toPath(), StandardCopyOption.REPLACE_EXISTING);
         Files.copy(result.toPath(), resultCopy.toPath(), StandardCopyOption.REPLACE_EXISTING);
         System.out.printf("comileTestFile: copied to %s %s%n", fCopy, resultCopy);

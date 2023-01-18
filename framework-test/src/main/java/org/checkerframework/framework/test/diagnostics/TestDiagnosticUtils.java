@@ -1,10 +1,5 @@
 package org.checkerframework.framework.test.diagnostics;
 
-import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.javacutil.Pair;
-import org.plumelib.util.CollectionsPlume;
-
 import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
@@ -13,9 +8,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.javacutil.Pair;
+import org.plumelib.util.CollectionsPlume;
 
 /** A set of utilities and factory methods useful for working with TestDiagnostics. */
 public class TestDiagnosticUtils {
@@ -202,7 +200,7 @@ public class TestDiagnosticUtils {
   }
 
   /**
-   * Given a javax diagnostic, return a pair of (trimmed, fileame), where "trimmed" is the first
+   * Given a javax diagnostic, return a pair of (trimmed, filename), where "trimmed" is the first
    * line of the message, without the leading filename.
    *
    * @param original a javax diagnostic
@@ -240,8 +238,7 @@ public class TestDiagnosticUtils {
    */
   private static boolean retainAllLines(String message) {
     // Retain all if it is a thrown exception "unexpected Throwable" or it is a Checker
-    // Framework
-    // Error (contains "Compilation unit") or is OutOfMemoryError.
+    // Framework Error (contains "Compilation unit") or is OutOfMemoryError.
     return message.contains("unexpected Throwable")
         || message.contains("Compilation unit")
         || message.contains("OutOfMemoryError");

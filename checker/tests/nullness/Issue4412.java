@@ -1,8 +1,7 @@
 // @skip-test This test passes, but is slow. So skip it until performance improves.
 
-import org.checkerframework.checker.nullness.qual.NonNull;
-
 import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 public interface Issue4412<
     LeftLeftType extends Issue4412.LeftLeft<LeftLeftType, LeftType, RightType, RightRightType>,

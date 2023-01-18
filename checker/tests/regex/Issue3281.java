@@ -1,10 +1,9 @@
 // Test case for Issue 3281:
 // https://github.com/typetools/checker-framework/issues/3281
 
+import java.util.regex.Pattern;
 import org.checkerframework.checker.regex.qual.Regex;
 import org.checkerframework.checker.regex.util.RegexUtil;
-
-import java.util.regex.Pattern;
 
 public class Issue3281 {
 

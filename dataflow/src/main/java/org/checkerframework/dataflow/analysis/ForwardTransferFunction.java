@@ -1,9 +1,8 @@
 package org.checkerframework.dataflow.analysis;
 
+import java.util.List;
 import org.checkerframework.dataflow.cfg.UnderlyingAST;
 import org.checkerframework.dataflow.cfg.node.LocalVariableNode;
-
-import java.util.List;
 
 /**
  * Interface of a forward transfer function for the abstract interpretation used for the forward

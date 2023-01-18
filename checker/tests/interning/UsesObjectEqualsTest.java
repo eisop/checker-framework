@@ -1,8 +1,7 @@
-import org.checkerframework.checker.interning.qual.Interned;
-import org.checkerframework.checker.interning.qual.UsesObjectEquals;
-
 import java.util.LinkedList;
 import java.util.prefs.*;
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.checker.interning.qual.UsesObjectEquals;
 
 public class UsesObjectEqualsTest {
 

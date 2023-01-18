@@ -1,8 +1,7 @@
-import org.checkerframework.framework.testchecker.h1h2checker.quals.*;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.checkerframework.framework.testchecker.h1h2checker.quals.*;
 
 public class InferTypeArgsPolyChecker<OUTER_SCOPE_TV> {
   // ----------------------------------------------------------

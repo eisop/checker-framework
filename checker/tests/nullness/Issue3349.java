@@ -1,6 +1,5 @@
-import org.checkerframework.checker.nullness.qual.*;
-
 import java.io.Serializable;
+import org.checkerframework.checker.nullness.qual.*;
 
 // :: warning: (explicit.annotation.ignored)
 public class Issue3349<T extends @NonNull Object & @Nullable Serializable> {

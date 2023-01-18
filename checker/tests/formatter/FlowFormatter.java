@@ -1,10 +1,9 @@
+import java.util.Date;
+import java.util.Formatter;
 import org.checkerframework.checker.formatter.qual.ConversionCategory;
 import org.checkerframework.checker.formatter.qual.Format;
 import org.checkerframework.checker.formatter.util.FormatUtil;
 import org.junit.Assert;
-
-import java.util.Date;
-import java.util.Formatter;
 
 public class FlowFormatter {
   public static String callUnqual(String u) {

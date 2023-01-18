@@ -1,8 +1,7 @@
+import java.util.Date;
 import org.checkerframework.checker.signedness.qual.PolySigned;
 import org.checkerframework.checker.signedness.qual.Signed;
 import org.checkerframework.checker.signedness.qual.Unsigned;
-
-import java.util.Date;
 
 public class RestrictedPolymorphism {
 

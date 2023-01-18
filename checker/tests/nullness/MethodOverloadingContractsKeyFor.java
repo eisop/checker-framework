@@ -1,8 +1,7 @@
-import org.checkerframework.checker.nullness.qual.EnsuresKeyFor;
-import org.checkerframework.dataflow.qual.Pure;
-
 import java.util.HashMap;
 import java.util.Map;
+import org.checkerframework.checker.nullness.qual.EnsuresKeyFor;
+import org.checkerframework.dataflow.qual.Pure;
 
 public class MethodOverloadingContractsKeyFor {
 

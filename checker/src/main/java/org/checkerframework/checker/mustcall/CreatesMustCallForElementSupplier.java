@@ -1,8 +1,7 @@
 package org.checkerframework.checker.mustcall;
 
-import org.checkerframework.checker.mustcall.qual.CreatesMustCallFor;
-
 import javax.lang.model.element.ExecutableElement;
+import org.checkerframework.checker.mustcall.qual.CreatesMustCallFor;
 
 /**
  * This interface should be implemented by all type factories that can provide an {@link

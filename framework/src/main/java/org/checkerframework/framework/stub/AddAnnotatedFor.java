@@ -1,5 +1,17 @@
 package org.checkerframework.framework.stub;
 
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.LineNumberReader;
+import java.io.PrintWriter;
+import java.io.Reader;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import org.checkerframework.afu.scenelib.Annotation;
 import org.checkerframework.afu.scenelib.Annotations;
 import org.checkerframework.afu.scenelib.annotations.Annotation;
@@ -42,19 +54,6 @@ import org.checkerframework.afu.scenelib.io.IndexFileWriter;
 import org.checkerframework.afu.scenelib.io.ParseException;
 import org.checkerframework.checker.signature.qual.BinaryName;
 import org.plumelib.util.ArraySet;
-
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.LineNumberReader;
-import java.io.PrintWriter;
-import java.io.Reader;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 
 /**
  * Utility that generates {@code @AnnotatedFor} class annotations. The {@link #main} method acts as

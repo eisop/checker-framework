@@ -1,8 +1,7 @@
+import java.util.Stack;
 import org.checkerframework.checker.initialization.qual.*;
 import org.checkerframework.checker.nullness.qual.*;
 import org.checkerframework.dataflow.qual.*;
-
-import java.util.Stack;
 
 public final class InitializedField {
   private Stack<Object> stack;

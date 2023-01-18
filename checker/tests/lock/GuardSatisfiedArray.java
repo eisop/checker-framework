@@ -3,9 +3,8 @@
 // Test case for Issue #917:
 // https://github.com/typetools/checker-framework/issues/917
 
-import org.checkerframework.checker.lock.qual.GuardSatisfied;
-
 import java.util.List;
+import org.checkerframework.checker.lock.qual.GuardSatisfied;
 
 public class GuardSatisfiedArray {
 

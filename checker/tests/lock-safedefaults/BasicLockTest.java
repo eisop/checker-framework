@@ -1,7 +1,6 @@
+import java.util.concurrent.locks.*;
 import org.checkerframework.checker.lock.qual.*;
 import org.checkerframework.framework.qual.AnnotatedFor;
-
-import java.util.concurrent.locks.*;
 
 public class BasicLockTest {
   class MyClass {

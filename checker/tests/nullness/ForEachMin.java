@@ -1,7 +1,6 @@
-import org.checkerframework.checker.nullness.qual.NonNull;
-
 import java.util.ArrayList;
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 class MyTop {
   List<String> children = new ArrayList<>();

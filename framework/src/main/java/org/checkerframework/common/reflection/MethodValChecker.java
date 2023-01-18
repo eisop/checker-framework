@@ -1,11 +1,10 @@
 package org.checkerframework.common.reflection;
 
+import java.util.LinkedHashSet;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.common.value.ValueChecker;
 import org.plumelib.util.CollectionsPlume;
-
-import java.util.LinkedHashSet;
 
 /**
  * The MethodVal Checker provides a sound estimate of the signature of Method objects.

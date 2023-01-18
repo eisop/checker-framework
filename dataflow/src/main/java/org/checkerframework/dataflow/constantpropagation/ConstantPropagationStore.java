@@ -1,5 +1,7 @@
 package org.checkerframework.dataflow.constantpropagation;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.Store;
 import org.checkerframework.dataflow.cfg.node.IntegerLiteralNode;
@@ -9,9 +11,6 @@ import org.checkerframework.dataflow.cfg.visualize.CFGVisualizer;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.plumelib.util.ArrayMap;
 import org.plumelib.util.CollectionsPlume;
-
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 /** A store that records information about constant values. */
 public class ConstantPropagationStore implements Store<ConstantPropagationStore> {

@@ -1,9 +1,8 @@
 // Test case from
 // http://stackoverflow.com/questions/38339332/in-a-bounded-wildcard-where-does-the-annotation-belong
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 class Styleable {}
 

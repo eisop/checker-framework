@@ -1,6 +1,5 @@
-import org.checkerframework.checker.nullness.qual.*;
-
 import java.lang.ref.WeakReference;
+import org.checkerframework.checker.nullness.qual.*;
 
 public class WeakIdentityPair<T1 extends Object> {
 

@@ -1,9 +1,8 @@
-import org.checkerframework.checker.nullness.qual.KeyFor;
-
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.function.Function;
+import org.checkerframework.checker.nullness.qual.KeyFor;
 
 public class Issue1847 {
   final Map<String, String> map = new HashMap<>();

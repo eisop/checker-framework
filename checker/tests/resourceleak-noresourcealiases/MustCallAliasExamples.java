@@ -2,12 +2,11 @@
 // This version has been modified to expect that @MustCallAlias annotations
 // are always ignored, as if running with -AnoResourceAliases.
 
-import org.checkerframework.checker.calledmethods.qual.*;
-import org.checkerframework.checker.mustcall.qual.*;
-
 import java.io.*;
 import java.io.IOException;
 import java.net.*;
+import org.checkerframework.checker.calledmethods.qual.*;
+import org.checkerframework.checker.mustcall.qual.*;
 
 class MustCallAliasExamples {
 
