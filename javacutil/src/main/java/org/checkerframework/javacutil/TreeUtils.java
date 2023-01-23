@@ -147,6 +147,16 @@ public final class TreeUtils {
   /** The set of tree kinds that can be categorized as binary comparison. */
   private static final Set<Tree.Kind> BINARY_COMPARISON_TREE_KINDS;
 
+  /** Tree kinds that represent a binary comparison. */
+  private static final Set<Tree.Kind> BINARY_COMPARISON_TREE_KINDS =
+      EnumSet.of(
+          Tree.Kind.EQUAL_TO,
+          Tree.Kind.NOT_EQUAL_TO,
+          Tree.Kind.LESS_THAN,
+          Tree.Kind.GREATER_THAN,
+          Tree.Kind.LESS_THAN_EQUAL,
+          Tree.Kind.GREATER_THAN_EQUAL);
+
   static {
     final SourceVersion latestSource = SourceVersion.latest();
     SourceVersion java12;
