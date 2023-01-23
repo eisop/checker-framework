@@ -705,7 +705,8 @@ public class AnnotationUtils {
     }
     for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
         valmap.entrySet()) {
-      if (entry.getKey().getSimpleName().contentEquals(elementName)) {
+      ExecutableElement elem = entry.getKey();
+      if (elem.getSimpleName().contentEquals(elementName)) {
         AnnotationValue val = entry.getValue();
         try {
           return expectedType.cast(val.getValue());
