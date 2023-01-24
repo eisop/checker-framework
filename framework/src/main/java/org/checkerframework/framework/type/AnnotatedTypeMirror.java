@@ -1179,7 +1179,8 @@ public abstract class AnnotatedTypeMirror {
         }
 
         /**
-         * Sets the parameter types of this executable type, excluding the receiver.
+         * Sets the parameter types and updates varargsType of this executable type, excluding the
+         * receiver.
          *
          * @param varargsType the type of varargs if the method or constructor accepts a variable
          *     number of arguments, otherwise it should be null

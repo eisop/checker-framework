@@ -2333,7 +2333,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         // Adapt parameters, which makes parameters and arguments be the same size for later
-        // checking
+        // checking, always update varargsType and parameter types together.
         AnnotatedArrayType varargsType = null;
         List<AnnotatedTypeMirror> parameters;
         if (method.getElement().isVarArgs()) {
@@ -2795,15 +2795,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // Reset the enclosing type because it can be substituted incorrectly.
             ((AnnotatedDeclaredType) con.getReturnType()).setEnclosingType(enclosingType);
         }
+
+        // Adapt parameters, which makes parameters and arguments be the same size for later
+        // checking, always update varargsType and parameter types together.
         AnnotatedArrayType varargsType = null;
         List<AnnotatedTypeMirror> parameters;
         if (con.getElement().isVarArgs()) {
             parameters = con.getParameterTypes();
             varargsType = (AnnotatedArrayType) parameters.get(parameters.size() - 1);
         }
-
-        // Adapt parameters, which makes parameters and arguments be the same size for later
-        // checking
         parameters = AnnotatedTypes.adaptParameters(this, con, tree.getArguments());
         con.setParameterTypes(parameters, varargsType);
         return new ParameterizedExecutableType(con, typeargs);
