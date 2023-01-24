@@ -1189,8 +1189,8 @@ public abstract class AnnotatedTypeMirror {
          */
         /*package-private*/ void setParameterTypes(
                 List<AnnotatedTypeMirror> params, @Nullable AnnotatedArrayType varargsType) {
-            // Record varargsType when initializing paramTypes
             paramTypes = params;
+            // varargsType cannot be null if it has value because it is @MonotonicNonNull
             if (varargsType != null) {
                 varargType = varargsType;
             }
