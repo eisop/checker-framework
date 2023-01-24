@@ -129,14 +129,11 @@ public class ObjectCreationNode extends Node {
     @SideEffectFree
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        List<Node> argumentsDeepCopy = new ArrayList<Node>();
+        List<Node> argumentsDeepCopy = arguments.subList(0, arguments.size());
         // To serve the purpose of cfg presentation, set the first argument to enclosing expression
         // explicitly.
         if (enclosingExpression != null) {
             sb.append(enclosingExpression + ".");
-        }
-        for (int i = 0; i < arguments.size(); i++) {
-            argumentsDeepCopy.add(arguments.get(i));
         }
         sb.append("new " + constructor + "(");
 
