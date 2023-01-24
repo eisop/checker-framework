@@ -10,6 +10,7 @@ import java.util.Collection;
 import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.TreeUtils;
 
 /**
@@ -142,7 +143,7 @@ public class AssignmentNode extends Node {
   }
 
   @Override
-  @Pure
+  @SideEffectFree
   public Collection<Node> getOperands() {
     return Arrays.asList(getTarget(), getExpression());
   }
