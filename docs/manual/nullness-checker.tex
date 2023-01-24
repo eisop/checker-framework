@@ -141,12 +141,6 @@ by the Checker Framework.
   an empty constructor of an inner still throws a warning since its enclosing expression is not initialized, which is
   not necessary.
   Use this flag to soundly handle the nullness of the enclosing expression for the inner class.
-
-  the receiver and
-  arguments that are passed to non-null parameters in a method call
-  or constructor invocation are assumed to be non-null after the invocation.
-  This assumption is unsound in general, but holds for most code.
-  Use this flag to soundly handle the nullness of the receiver and arguments in an invocation.
 \end{itemize}
 
 \item
