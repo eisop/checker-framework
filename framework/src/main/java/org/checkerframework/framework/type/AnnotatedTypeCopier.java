@@ -194,14 +194,14 @@ public class AnnotatedTypeCopier
 
         List<? extends AnnotatedTypeMirror> originalParameterTypes = original.getParameterTypes();
         if (originalParameterTypes.isEmpty()) {
-            copy.setParameterTypes(Collections.emptyList());
+            copy.setParameterTypes(Collections.emptyList(), null);
         } else {
             List<AnnotatedTypeMirror> copyParamTypes =
                     new ArrayList<>(originalParameterTypes.size());
             for (final AnnotatedTypeMirror param : originalParameterTypes) {
                 copyParamTypes.add(visit(param, originalToCopy));
             }
-            copy.setParameterTypes(Collections.unmodifiableList(copyParamTypes));
+            copy.setParameterTypes(Collections.unmodifiableList(copyParamTypes), null);
         }
 
         if (original.getVarargType() != null) {

@@ -1180,6 +1180,8 @@ public abstract class AnnotatedTypeMirror {
          * has been computed and this type is a varargs method, computes and store {@link
          * varargType} before calling this method, @see {@link varargType}
          *
+         * @param varargsType the type of varargs if the method or constructor accepts a variable
+         *     number of arguments, otherwise it should be null
          * @param params an unmodifiable list of parameter types to be captured by this method,
          *     excluding the receiver
          */
@@ -1188,6 +1190,9 @@ public abstract class AnnotatedTypeMirror {
                 throw new BugInCF("Set vararg type before resetting parameter types");
             }
             paramTypes = params;
+            if (varargsType != null) {
+                varargType = varargsType;
+            }
             paramTypesComputed = true;
         }
 
@@ -1202,14 +1207,14 @@ public abstract class AnnotatedTypeMirror {
                 List<? extends TypeMirror> underlyingParameterTypes =
                         ((ExecutableType) underlyingType).getParameterTypes();
                 if (underlyingParameterTypes.isEmpty()) {
-                    setParameterTypes(Collections.emptyList());
+                    setParameterTypes(Collections.emptyList(), varargType);
                 } else {
                     List<AnnotatedTypeMirror> newParamTypes =
                             new ArrayList<>(underlyingParameterTypes.size());
                     for (TypeMirror t : underlyingParameterTypes) {
                         newParamTypes.add(createType(t, atypeFactory, false));
                     }
-                    setParameterTypes(Collections.unmodifiableList(newParamTypes));
+                    setParameterTypes(Collections.unmodifiableList(newParamTypes), varargType);
                 }
             }
             // No need to copy or wrap; it is an unmodifiable list.

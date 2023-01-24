@@ -2758,7 +2758,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     AnnotatedTypes.asMemberOf(types, this, type, superCon.getElement(), superCon);
             con.computeVarargType(superCon);
             if (superCon.getParameterTypes().size() == con.getParameterTypes().size()) {
-                con.setParameterTypes(superCon.getParameterTypes());
+                con.setParameterTypes(superCon.getParameterTypes(), null);
             } else {
                 // If the super class of the anonymous class has an enclosing type, then it is the
                 // first parameter of the anonymous constructor. For example,
@@ -2781,7 +2781,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     p.add(con.getParameterTypes().get(0));
                 }
                 p.addAll(1, superCon.getParameterTypes());
-                con.setParameterTypes(Collections.unmodifiableList(p));
+                con.setParameterTypes(Collections.unmodifiableList(p), null);
             }
             con.getReturnType().replaceAnnotations(superCon.getReturnType().getAnnotations());
         } else {
