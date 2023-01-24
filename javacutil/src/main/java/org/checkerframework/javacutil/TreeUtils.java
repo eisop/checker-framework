@@ -144,9 +144,6 @@ public final class TreeUtils {
   /** The value of Flags.RECORD which does not exist in Java 9 or 11. */
   private static final long Flags_RECORD = 2305843009213693952L;
 
-  /** The set of tree kinds that can be categorized as binary comparison. */
-  private static final Set<Tree.Kind> BINARY_COMPARISON_TREE_KINDS;
-
   /** Tree kinds that represent a binary comparison. */
   private static final Set<Tree.Kind> BINARY_COMPARISON_TREE_KINDS =
       EnumSet.of(
@@ -245,15 +242,6 @@ public final class TreeUtils {
       err.initCause(e);
       throw err;
     }
-
-    BINARY_COMPARISON_TREE_KINDS =
-        EnumSet.of(
-            Tree.Kind.EQUAL_TO,
-            Tree.Kind.NOT_EQUAL_TO,
-            Tree.Kind.LESS_THAN,
-            Tree.Kind.GREATER_THAN,
-            Tree.Kind.LESS_THAN_EQUAL,
-            Tree.Kind.GREATER_THAN_EQUAL);
   }
 
   /**

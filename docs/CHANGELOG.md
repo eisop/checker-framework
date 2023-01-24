@@ -305,7 +305,7 @@ Version 3.22.2 (June 14, 2022)
 
 **Implementation details:**
 
-Expose CFG APIs to allow inserting jumps and throws
+Expose CFG APIs to allow inserting jumps and throws.
 
 
 Version 3.22.1-eisop1 (June 3, 2022)
