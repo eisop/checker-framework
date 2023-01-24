@@ -1253,8 +1253,6 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * a list of {@link Node}s representing the arguments converted for a call of the method. This
      * method applies to both method invocations and constructor calls.
      *
-     * @param enclosingTypeReceiverNode a Node representing the receiver of an inner class
-     *     instantiation, or null
      * @param method an ExecutableElement representing a method to be called
      * @param methodType an ExecutableType representing the type of the method call
      * @param actualExprs a List of argument expressions to a call
@@ -1262,7 +1260,6 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      *     to this method
      */
     protected List<Node> convertCallArguments(
-            @Nullable Node enclosingTypeReceiverNode,
             ExecutableElement method,
             ExecutableType methodType,
             List<? extends ExpressionTree> actualExprs) {
@@ -1489,8 +1486,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             // See also BaseTypeVisitor.visitMethodInvocation and QualifierPolymorphism.annotate.
             arguments = Collections.emptyList();
         } else {
-            arguments =
-                    convertCallArguments(null, method, TreeUtils.typeFromUse(tree), actualExprs);
+            arguments = convertCallArguments(method, TreeUtils.typeFromUse(tree), actualExprs);
         }
 
         // TODO: lock the receiver for synchronized methods
@@ -3408,8 +3404,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         List<? extends ExpressionTree> actualExprs = tree.getArguments();
 
         List<Node> arguments =
-                convertCallArguments(
-                        enclosingExprNode, constructor, TreeUtils.typeFromUse(tree), actualExprs);
+                convertCallArguments(constructor, TreeUtils.typeFromUse(tree), actualExprs);
         // TODO: for anonymous classes, don't use the identifier alone.
         // See Issue 890.
         Node constructorNode = scan(tree.getIdentifier(), p);

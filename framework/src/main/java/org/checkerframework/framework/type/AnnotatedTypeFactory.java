@@ -2334,9 +2334,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         // Adapt parameters, which makes parameters and arguments be the same size for later
         // checking
-        List<AnnotatedTypeMirror> parameters =
-                AnnotatedTypes.adaptParameters(this, method, tree.getArguments());
-        method.setParameterTypes(parameters);
+        AnnotatedArrayType varargsType = null;
+        List<AnnotatedTypeMirror> parameters;
+        if (method.getElement().isVarArgs()) {
+            parameters = method.getParameterTypes();
+            varargsType = (AnnotatedArrayType) parameters.get(parameters.size() - 1);
+        }
+        parameters = AnnotatedTypes.adaptParameters(this, method, tree.getArguments());
+        method.setParameterTypes(parameters, varargsType);
         return result;
     }
 
@@ -2731,7 +2736,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             superCon =
                     AnnotatedTypes.asMemberOf(types, this, type, superCon.getElement(), superCon);
             if (superCon.getParameterTypes().size() == con.getParameterTypes().size()) {
-                con.setParameterTypes(superCon.getParameterTypes());
+                con.setParameterTypes(superCon.getParameterTypes(), null);
             } else {
                 // If the super class of the anonymous class has an enclosing type, then it is the
                 // first parameter of the anonymous constructor. For example,
@@ -2754,7 +2759,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     p.add(con.getParameterTypes().get(0));
                 }
                 p.addAll(1, superCon.getParameterTypes());
-                con.setParameterTypes(Collections.unmodifiableList(p));
+                con.setParameterTypes(Collections.unmodifiableList(p), null);
             }
             con.getReturnType().replaceAnnotations(superCon.getReturnType().getAnnotations());
         } else {
@@ -2790,11 +2795,17 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // Reset the enclosing type because it can be substituted incorrectly.
             ((AnnotatedDeclaredType) con.getReturnType()).setEnclosingType(enclosingType);
         }
+        AnnotatedArrayType varargsType = null;
+        List<AnnotatedTypeMirror> parameters;
+        if (con.getElement().isVarArgs()) {
+            parameters = con.getParameterTypes();
+            varargsType = (AnnotatedArrayType) parameters.get(parameters.size() - 1);
+        }
 
-        // Adapt parameters, let parameters and args be same size for later checking
-        List<AnnotatedTypeMirror> parameters =
-                AnnotatedTypes.adaptParameters(this, con, tree.getArguments());
-        con.setParameterTypes(parameters);
+        // Adapt parameters, which makes parameters and arguments be the same size for later
+        // checking
+        parameters = AnnotatedTypes.adaptParameters(this, con, tree.getArguments());
+        con.setParameterTypes(parameters, varargsType);
         return new ParameterizedExecutableType(con, typeargs);
     }
 

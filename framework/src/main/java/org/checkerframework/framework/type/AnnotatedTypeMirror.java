@@ -1130,9 +1130,9 @@ public abstract class AnnotatedTypeMirror {
         /** The receiver type. */
         private AnnotatedDeclaredType receiverType;
         /**
-         * The varargs type, which is the last parameter of {@link paramTypes}, keep it in this
-         * field because the varargs parameters will be reorganized after calling adaptParameters.
-         * It can be null if no varargs.
+         * The varargs type is the last element of {@link paramTypes} if the method or constructor
+         * accepts a variable number of arguments. The type need to be stored in this field for
+         * future usage since it will be erased after calling adaptParameters.
          */
         private @MonotonicNonNull AnnotatedArrayType varargType = null;
         /** Whether {@link receiverType} has been computed. */
@@ -1181,16 +1181,18 @@ public abstract class AnnotatedTypeMirror {
         /**
          * Sets the parameter types of this executable type, excluding the receiver.
          *
+         * @param varargsType the type of varargs if the method or constructor accepts a variable
+         *     number of arguments, otherwise it should be null
          * @param params an unmodifiable list of parameter types to be captured by this method,
          *     excluding the receiver
          */
-        /*package-private*/ void setParameterTypes(List<AnnotatedTypeMirror> params) {
+        /*package-private*/ void setParameterTypes(
+                List<AnnotatedTypeMirror> params, @Nullable AnnotatedArrayType varargsType) {
             // Record varargsType when initializing paramTypes
-            if (isVarArgs() && paramTypes == null) {
-                AnnotatedTypeMirror varargsType = params.get(params.size() - 1);
-                this.setVarargType((AnnotatedArrayType) varargsType);
-            }
             paramTypes = params;
+            if (varargsType != null) {
+                varargType = varargsType;
+            }
             paramTypesComputed = true;
         }
 
@@ -1205,14 +1207,14 @@ public abstract class AnnotatedTypeMirror {
                 List<? extends TypeMirror> underlyingParameterTypes =
                         ((ExecutableType) underlyingType).getParameterTypes();
                 if (underlyingParameterTypes.isEmpty()) {
-                    setParameterTypes(Collections.emptyList());
+                    setParameterTypes(Collections.emptyList(), varargType);
                 } else {
                     List<AnnotatedTypeMirror> newParamTypes =
                             new ArrayList<>(underlyingParameterTypes.size());
                     for (TypeMirror t : underlyingParameterTypes) {
                         newParamTypes.add(createType(t, atypeFactory, false));
                     }
-                    setParameterTypes(Collections.unmodifiableList(newParamTypes));
+                    setParameterTypes(Collections.unmodifiableList(newParamTypes), varargType);
                 }
             }
             // No need to copy or wrap; it is an unmodifiable list.
@@ -1234,7 +1236,7 @@ public abstract class AnnotatedTypeMirror {
          *
          * @return the varargs type of this executable type
          */
-        public AnnotatedArrayType getVarargType() {
+        public @Nullable AnnotatedArrayType getVarargType() {
             return varargType;
         }
 
@@ -1418,7 +1420,7 @@ public abstract class AnnotatedTypeMirror {
                     new AnnotatedExecutableType(getUnderlyingType(), atypeFactory);
 
             type.setElement(getElement());
-            type.setParameterTypes(getParameterTypes());
+            type.setParameterTypes(getParameterTypes(), getVarargType());
             type.setReceiverType(getReceiverType());
             type.setReturnType(getReturnType());
             type.setThrownTypes(getThrownTypes());
@@ -1447,7 +1449,9 @@ public abstract class AnnotatedTypeMirror {
                             (ExecutableType) atypeFactory.types.erasure(getUnderlyingType()),
                             atypeFactory);
             type.setElement(getElement());
-            type.setParameterTypes(erasureList(getParameterTypes()));
+            type.setParameterTypes(
+                    erasureList(getParameterTypes()),
+                    getVarargType() == null ? null : getVarargType().getErased());
             if (getReceiverType() != null) {
                 type.setReceiverType(getReceiverType().getErased());
             } else {

@@ -158,8 +158,6 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
                     // any explicit arguments for the varargs (i.e., an empty array).
                     // So we don't try getting the argument from methodInvocationTree
                     // to avoid out-of-bound exception.
-                    // TODO: argument could be the varargs array vs one of the elements
-                    // in that array?
                     contextType = m.getVarargType();
                 }
             }

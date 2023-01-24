@@ -130,14 +130,12 @@ public class ObjectCreationNode extends Node {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         List<Node> argumentsDeepCopy = new ArrayList<Node>();
-        int startingIndex = 0;
-        // To make the output string clear, set the first argument to enclosing expression
+        // To serve the purpose of cfg presentation, set the first argument to enclosing expression
         // explicitly.
         if (enclosingExpression != null) {
             sb.append(enclosingExpression + ".");
-            startingIndex = 1;
         }
-        for (int i = startingIndex; i < arguments.size(); i++) {
+        for (int i = 0; i < arguments.size(); i++) {
             argumentsDeepCopy.add(arguments.get(i));
         }
         sb.append("new " + constructor + "(");

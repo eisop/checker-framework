@@ -131,7 +131,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
                         AnnotatedTypeCopierWithReplacement.replace(
                                 unsubstitutedConstructorType, mappings);
 
-        constructorType.setParameterTypes(unsubstitutedConstructorType.getParameterTypes());
+        constructorType.setParameterTypes(unsubstitutedConstructorType.getParameterTypes(), null);
         constructorType.setTypeVariables(unsubstitutedConstructorType.getTypeVariables());
         constructorType.setReturnType(unsubstitutedConstructorType.getReturnType());
     }
@@ -186,7 +186,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         // and sets the corresponding parts to asMemberOf result
         methodType.setReturnType(unsubstitutedMethodType.getReturnType());
         methodType.setReceiverType(unsubstitutedMethodType.getReceiverType());
-        methodType.setParameterTypes(unsubstitutedMethodType.getParameterTypes());
+        methodType.setParameterTypes(unsubstitutedMethodType.getParameterTypes(), null);
         methodType.setTypeVariables(unsubstitutedMethodType.getTypeVariables());
     }
 
