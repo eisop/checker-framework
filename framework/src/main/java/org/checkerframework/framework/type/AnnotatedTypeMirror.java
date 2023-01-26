@@ -1132,7 +1132,7 @@ public abstract class AnnotatedTypeMirror {
         /**
          * The varargs type is the last element of {@link paramTypes} if the method or constructor
          * accepts a variable number of arguments. The type need to be stored in this field for
-         * future usage since it will be erased after calling adaptParameters.
+         * future usage since the {@link paramTypes} will be adapted.
          */
         private @MonotonicNonNull AnnotatedArrayType varargType = null;
         /** Whether {@link receiverType} has been computed. */
