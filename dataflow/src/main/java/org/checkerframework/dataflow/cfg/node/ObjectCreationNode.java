@@ -94,7 +94,8 @@ public class ObjectCreationNode extends Node {
     }
 
     /**
-     * Returns the enclosing expression node, which only exists if it is an inner class instantiation
+     * Returns the enclosing expression node, which only exists if it is an inner class
+     * instantiation
      *
      * @return the enclosing type expression node
      */
@@ -128,7 +129,6 @@ public class ObjectCreationNode extends Node {
     @SideEffectFree
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        List<Node> argumentsDeepCopy = arguments.subList(0, arguments.size());
         // To serve the purpose of cfg presentation, set the first argument to enclosing expression
         // explicitly.
         if (enclosingExpression != null) {
@@ -136,7 +136,7 @@ public class ObjectCreationNode extends Node {
         }
         sb.append("new " + constructor + "(");
 
-        sb.append(StringsPlume.join(", ", argumentsDeepCopy));
+        sb.append(StringsPlume.join(", ", arguments));
         sb.append(")");
         if (classbody != null) {
             // TODO: maybe this can be done nicer...
