@@ -94,8 +94,7 @@ public class ObjectCreationNode extends Node {
     }
 
     /**
-     * Returns the enclosing expression node, which only exists if the object creation is from an
-     * inner class
+     * Returns the enclosing expression node, which only exists if it is an inner class instantiation
      *
      * @return the enclosing type expression node
      */
