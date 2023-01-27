@@ -2332,16 +2332,18 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             addDefaultAnnotations(wildcard);
         }
 
-        // Adapt parameters, which makes parameters and arguments be the same size for later
-        // checking, always update varargsType and parameter types together.
+        // Store varargType before resetting parameterTypes.
         AnnotatedArrayType varargsType = null;
         List<AnnotatedTypeMirror> parameters;
         if (method.getElement().isVarArgs()) {
             parameters = method.getParameterTypes();
             varargsType = (AnnotatedArrayType) parameters.get(parameters.size() - 1);
+            method.setVarargType(varargsType);
         }
+        // Adapt parameters, which makes parameters and arguments be the same size for later
+        // checking.
         parameters = AnnotatedTypes.adaptParameters(this, method, tree.getArguments());
-        method.setParameterTypes(parameters, varargsType);
+        method.setParameterTypes(parameters);
         return result;
     }
 
@@ -2721,6 +2723,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             viewpointAdapter.viewpointAdaptConstructor(type, ctor, con);
         }
 
+        // Store varargType before resetting parameterTypes.
+        AnnotatedArrayType varargsType = null;
+        List<AnnotatedTypeMirror> parameters;
+        if (con.getElement().isVarArgs()) {
+            parameters = con.getParameterTypes();
+            varargsType = (AnnotatedArrayType) parameters.get(parameters.size() - 1);
+            con.setVarargType(varargsType);
+        }
+
         if (tree.getClassBody() != null) {
             // Because the anonymous constructor can't have explicit annotations on its parameters,
             // they are copied from the super constructor invoked in the anonymous constructor. To
@@ -2736,7 +2747,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             superCon =
                     AnnotatedTypes.asMemberOf(types, this, type, superCon.getElement(), superCon);
             if (superCon.getParameterTypes().size() == con.getParameterTypes().size()) {
-                con.setParameterTypes(superCon.getParameterTypes(), null);
+                con.setParameterTypes(superCon.getParameterTypes());
             } else {
                 // If the super class of the anonymous class has an enclosing type, then it is the
                 // first parameter of the anonymous constructor. For example,
@@ -2759,7 +2770,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     p.add(con.getParameterTypes().get(0));
                 }
                 p.addAll(1, superCon.getParameterTypes());
-                con.setParameterTypes(Collections.unmodifiableList(p), null);
+                con.setParameterTypes(Collections.unmodifiableList(p));
             }
             con.getReturnType().replaceAnnotations(superCon.getReturnType().getAnnotations());
         } else {
@@ -2795,17 +2806,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // Reset the enclosing type because it can be substituted incorrectly.
             ((AnnotatedDeclaredType) con.getReturnType()).setEnclosingType(enclosingType);
         }
-
+        // Store varargType before resetting parameterTypes.
+        con.setVarargType(varargsType);
         // Adapt parameters, which makes parameters and arguments be the same size for later
-        // checking, always update varargsType and parameter types together.
-        AnnotatedArrayType varargsType = null;
-        List<AnnotatedTypeMirror> parameters;
-        if (con.getElement().isVarArgs()) {
-            parameters = con.getParameterTypes();
-            varargsType = (AnnotatedArrayType) parameters.get(parameters.size() - 1);
-        }
+        // checking.
         parameters = AnnotatedTypes.adaptParameters(this, con, tree.getArguments());
-        con.setParameterTypes(parameters, varargsType);
+        con.setParameterTypes(parameters);
         return new ParameterizedExecutableType(con, typeargs);
     }
 
