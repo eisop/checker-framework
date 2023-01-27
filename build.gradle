@@ -351,6 +351,10 @@ allprojects {
                         'https://docs.oracle.com/javase/8/docs/api/',
                         'https://docs.oracle.com/javase/9/docs/api/'
                     ]
+                } else {
+                    options.links = [
+                        'https://docs.oracle.com/javase/19/docs/api/',
+                    ]
                 }
                 // This file is looked for by Javadoc.
                 file("${destinationDir}/resources/fonts/").mkdirs()
@@ -360,6 +364,7 @@ allprojects {
                 // on changed lines.  Enable -Xwerror in the future when all Javadoc exists.
                 // options.addBooleanOption('Xwerror', true)
                 options.addStringOption('Xmaxwarns', '99999')
+
             }
         }
 
