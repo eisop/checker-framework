@@ -945,12 +945,11 @@ public abstract class AnnotatedTypeMirror {
         for (AnnotatedTypeMirror typeArg : ts) {
           if (typeArg.getKind() != TypeKind.TYPEVAR) {
             throw new BugInCF(
-                "Type declaration must have type variables as type" + " arguments. Found %s",
-                typeArg);
+                "Type declaration must have type variables as type arguments. Found %s", typeArg);
           }
           if (!typeArg.isDeclaration()) {
             throw new BugInCF(
-                "Type declarations must have type variables that are" + " declarations. Found %s",
+                "Type declarations must have type variables that are declarations. Found %s",
                 typeArg);
           }
         }
@@ -1062,7 +1061,7 @@ public abstract class AnnotatedTypeMirror {
       AnnotatedDeclaredType erased =
           (AnnotatedDeclaredType)
               AnnotatedTypeMirror.createType(
-                  atypeFactory.types.erasure(underlyingType), atypeFactory, declaration);
+                  atypeFactory.types.erasure(underlyingType), atypeFactory, false);
       erased.addAnnotations(this.getAnnotations());
       AnnotatedDeclaredType erasedEnclosing = erased.getEnclosingType();
       AnnotatedDeclaredType thisEnclosing = this.getEnclosingType();
