@@ -12,6 +12,13 @@ public class Desugar {
         @Signed Integer box2 = method(box);
     }
 
+    void testDesugared(int x) {
+        int i = getI();
+        Integer box = Integer.valueOf(i);
+        @Signed Integer boxy = box;
+        @Signed Integer box2 = method(box);
+    }
+
     @PolySigned Integer method(@PolySigned Integer i) {
         return i;
     }

@@ -662,6 +662,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      */
     protected void addToConvertedLookupMap(Tree tree, Node node) {
         assert tree != null;
+        assert node != null;
         assert treeLookupMap.containsKey(tree);
         Set<Node> existing = convertedTreeLookupMap.get(tree);
         if (existing == null) {
@@ -861,6 +862,10 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     protected Node box(Node node) {
         // For boxing conversion, see JLS 5.1.7
         if (TypesUtils.isPrimitive(node.getType())) {
+            Node valueOfArgument = buildValueOfArgument(node);
+            // Use the following to not generate a new node for the valueOf argument
+            // Node valueOfArgument = node;
+
             PrimitiveType primitive = types.getPrimitiveType(node.getType().getKind());
             TypeMirror boxedType = types.getDeclaredType(types.boxedClass(primitive));
 
@@ -871,7 +876,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             // since this is synthetic code that can't fail.
             ClassNameNode className = new ClassNameNode(classTree);
             className.setInSource(false);
-            insertNodeAfter(className, node);
+            insertNodeAfter(className, valueOfArgument);
 
             MemberSelectTree valueOfSelect = treeBuilder.buildValueOfMethodAccess(classTree);
             handleArtificialTree(valueOfSelect);
@@ -881,13 +886,13 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
             MethodInvocationTree valueOfCall =
                     treeBuilder.buildMethodInvocation(
-                            valueOfSelect, (ExpressionTree) node.getTree());
+                            valueOfSelect, (ExpressionTree) valueOfArgument.getTree());
             handleArtificialTree(valueOfCall);
             Node boxed =
                     new MethodInvocationNode(
                             valueOfCall,
                             valueOfAccess,
-                            Collections.singletonList(node),
+                            Collections.singletonList(valueOfArgument),
                             getCurrentPath());
             boxed.setInSource(false);
             // Add Throwable to account for unchecked exceptions
@@ -897,6 +902,43 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         } else {
             return node;
         }
+    }
+
+    /**
+     * Build a new temporary variable that holds the value of the argument to the valueOf call. This
+     * additional local variable is needed to ensure different trees are used for the argument of
+     * valueOf and for the post-conversion node.
+     *
+     * @param argNode the node for the argument to the valueOf call
+     * @return a new temporary variable
+     */
+    protected Node buildValueOfArgument(Node argNode) {
+        ExpressionTree argTree = (ExpressionTree) argNode.getTree();
+        TypeMirror argType = TreeUtils.typeOf(argTree);
+        VariableTree tempVarDecl =
+                treeBuilder.buildVariableDecl(
+                        argType, uniqueName("tempValueOfArg"), findOwner(), argTree);
+        handleArtificialTree(tempVarDecl);
+        VariableDeclarationNode tempVarDeclNode = new VariableDeclarationNode(tempVarDecl);
+        tempVarDeclNode.setInSource(false);
+        extendWithNode(tempVarDeclNode);
+
+        Tree tempVar = treeBuilder.buildVariableUse(tempVarDecl);
+        handleArtificialTree(tempVar);
+        Node tempVarNode = new LocalVariableNode(tempVar);
+        tempVarNode.setInSource(false);
+        extendWithNode(tempVarNode);
+
+        AssignmentNode tempAssignNode = new AssignmentNode(tempVarDecl, tempVarNode, argNode);
+        tempAssignNode.setInSource(false);
+        extendWithNode(tempAssignNode);
+
+        ExpressionTree resultExpr = treeBuilder.buildVariableUse(tempVarDecl);
+        handleArtificialTree(resultExpr);
+        Node resultNode = new LocalVariableNode(resultExpr);
+        resultNode.setInSource(false);
+        extendWithNode(resultNode);
+        return resultNode;
     }
 
     /**
@@ -3952,10 +3994,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         TypeMirror exprType = TreeUtils.typeOf(exprTree);
                         VariableTree tempVarDecl =
                                 treeBuilder.buildVariableDecl(
-                                        exprType,
-                                        uniqueName("tempPostfix"),
-                                        findOwner(),
-                                        tree.getExpression());
+                                        exprType, uniqueName("tempPostfix"), findOwner(), exprTree);
                         handleArtificialTree(tempVarDecl);
                         VariableDeclarationNode tempVarDeclNode =
                                 new VariableDeclarationNode(tempVarDecl);

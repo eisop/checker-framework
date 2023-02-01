@@ -269,14 +269,10 @@ public abstract class AbstractAnalysis<
     @Override
     public @Nullable V getValue(Tree t) {
         // Dataflow is analyzing the tree, so no value is available.
-        if (t == currentTree || cfg == null) {
+        if (t == currentTree) {
             return null;
         }
-        V result = getValue(getNodesForTree(t));
-        if (result == null) {
-            result = getValue(cfg.getTreeLookup().get(t));
-        }
-        return result;
+        return getValue(getNodesForTree(t));
     }
 
     /**
