@@ -2746,6 +2746,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // no viewpoint adaptation needed for super invocation
             superCon =
                     AnnotatedTypes.asMemberOf(types, this, type, superCon.getElement(), superCon);
+            if (superCon.getElement().isVarArgs()) {
+                varargsType = (AnnotatedArrayType) superCon.getParameterTypes().get( superCon.getParameterTypes().size() - 1);
+                con.setVarargType(varargsType);
+            }
             if (superCon.getParameterTypes().size() == con.getParameterTypes().size()) {
                 con.setParameterTypes(superCon.getParameterTypes());
             } else {
