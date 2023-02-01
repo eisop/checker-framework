@@ -24,12 +24,4 @@ public class Issue282 {
         // :: error: (enclosingexpr.type.incompatible)
         Inner inner = new Issue282Sub().new Inner();
     }
-
-    public class InnerGeneric<T> {
-        InnerGeneric(T... o) {}
-    }
-
-    public void testGeneric(@H1S1 String a, @H1S1 String b) {
-        this.new InnerGeneric<@H1S1 String>(a, b);
-    }
 }

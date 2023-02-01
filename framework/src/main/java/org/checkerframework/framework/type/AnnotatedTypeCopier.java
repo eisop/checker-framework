@@ -187,8 +187,7 @@ public class AnnotatedTypeCopier
         copy.setElement(original.getElement());
 
         if (original.getReceiverType() != null) {
-            copy.setReceiverType(
-                    (AnnotatedDeclaredType) visit(original.getReceiverType(), originalToCopy));
+            copy.setReceiverType((AnnotatedDeclaredType) visit(original.getReceiverType(), originalToCopy));
         }
 
         if (original.getVarargType() != null) {
