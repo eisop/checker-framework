@@ -2747,7 +2747,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             superCon =
                     AnnotatedTypes.asMemberOf(types, this, type, superCon.getElement(), superCon);
             if (superCon.getElement().isVarArgs()) {
-                varargsType = (AnnotatedArrayType) superCon.getParameterTypes().get( superCon.getParameterTypes().size() - 1);
+                varargsType =
+                        (AnnotatedArrayType)
+                                superCon.getParameterTypes()
+                                        .get( superCon.getParameterTypes().size() - 1);
                 con.setVarargType(varargsType);
             }
             if (superCon.getParameterTypes().size() == con.getParameterTypes().size()) {
