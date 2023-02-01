@@ -2806,8 +2806,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // Reset the enclosing type because it can be substituted incorrectly.
             ((AnnotatedDeclaredType) con.getReturnType()).setEnclosingType(enclosingType);
         }
-        // Store varargType before resetting parameterTypes.
-        con.setVarargType(varargsType);
         // Adapt parameters, which makes parameters and arguments be the same size for later
         // checking.
         parameters = AnnotatedTypes.adaptParameters(this, con, tree.getArguments());
