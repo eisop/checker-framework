@@ -202,7 +202,7 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
   }
 
   @Override
-  public Void visitCompoundAssignment(CompoundAssignmentTree node, AnnotatedTypeMirror type) {
+  public Void visitCompoundAssignment(CompoundAssignmentTree tree, AnnotatedTypeMirror type) {
     if (hasPrimaryAnnotationInAllHierarchies(type)) {
       // If the type already has a primary annotation in all hierarchies, then the
       // propagated annotations won't be applied.  So don't compute them.
@@ -210,7 +210,7 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
     }
 
     Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> argTypes =
-        atypeFactory.compoundAssignmentTreeArgTypes(node);
+        atypeFactory.compoundAssignmentTreeArgTypes(tree);
     Set<? extends AnnotationMirror> lubs =
         qualHierarchy.leastUpperBounds(
             argTypes.first.getEffectiveAnnotations(), argTypes.second.getEffectiveAnnotations());
@@ -220,7 +220,7 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
   }
 
   @Override
-  public Void visitBinary(BinaryTree node, AnnotatedTypeMirror type) {
+  public Void visitBinary(BinaryTree tree, AnnotatedTypeMirror type) {
     if (hasPrimaryAnnotationInAllHierarchies(type)) {
       // If the type already has a primary annotation in all hierarchies, then the
       // propagated annotations won't be applied.  So don't compute them.
@@ -229,12 +229,12 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
       return null;
     }
 
-    Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> argTypes = atypeFactory.binaryTreeArgTypes(node);
+    Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> argTypes = atypeFactory.binaryTreeArgTypes(tree);
     Set<? extends AnnotationMirror> lubs =
         qualHierarchy.leastUpperBounds(
             argTypes.first.getEffectiveAnnotations(), argTypes.second.getEffectiveAnnotations());
 
-    if (TreeUtils.isBinaryComparison(node)) {
+    if (TreeUtils.isBinaryComparison(tree)) {
       // When we have binary comparison, the result type (boolean) can be different
       // from the operands' types. So we need to apply the bounds of boolean to the
       // lubs.
@@ -246,14 +246,14 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
   }
 
   @Override
-  public Void visitUnary(UnaryTree node, AnnotatedTypeMirror type) {
+  public Void visitUnary(UnaryTree tree, AnnotatedTypeMirror type) {
     if (hasPrimaryAnnotationInAllHierarchies(type)) {
       // If the type already has a primary annotation in all hierarchies, then the
       // propagated annotations won't be applied.  So don't compute them.
       return null;
     }
 
-    AnnotatedTypeMirror exp = atypeFactory.getAnnotatedType(node.getExpression());
+    AnnotatedTypeMirror exp = atypeFactory.getAnnotatedType(tree.getExpression());
     type.addMissingAnnotations(exp.getAnnotations());
     return null;
   }
@@ -261,25 +261,25 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
   /*
    * TODO: would this make sense in general?
   @Override
-  public Void visitConditionalExpression(ConditionalExpressionTree node, AnnotatedTypeMirror type) {
+  public Void visitConditionalExpression(ConditionalExpressionTree tree, AnnotatedTypeMirror type) {
       if (!type.isAnnotated()) {
-          AnnotatedTypeMirror a = typeFactory.getAnnotatedType(node.getTrueExpression());
-          AnnotatedTypeMirror b = typeFactory.getAnnotatedType(node.getFalseExpression());
+          AnnotatedTypeMirror a = typeFactory.getAnnotatedType(tree.getTrueExpression());
+          AnnotatedTypeMirror b = typeFactory.getAnnotatedType(tree.getFalseExpression());
           Set<AnnotationMirror> lubs = qualHierarchy.leastUpperBounds(a.getEffectiveAnnotations(), b.getEffectiveAnnotations());
           type.replaceAnnotations(lubs);
       }
-      return super.visitConditionalExpression(node, type);
+      return super.visitConditionalExpression(tree, type);
   }*/
 
   @Override
-  public Void visitTypeCast(TypeCastTree node, AnnotatedTypeMirror type) {
+  public Void visitTypeCast(TypeCastTree tree, AnnotatedTypeMirror type) {
     if (hasPrimaryAnnotationInAllHierarchies(type)) {
       // If the type is already has a primary annotation in all hierarchies, then the
       // propagated annotations won't be applied.  So don't compute them.
       return null;
     }
 
-    AnnotatedTypeMirror exprType = atypeFactory.getAnnotatedType(node.getExpression());
+    AnnotatedTypeMirror exprType = atypeFactory.getAnnotatedType(tree.getExpression());
     if (type.getKind() == TypeKind.TYPEVAR) {
       if (exprType.getKind() == TypeKind.TYPEVAR) {
         // If both types are type variables, take the direct annotations.
