@@ -3,7 +3,6 @@ package org.checkerframework.framework.type;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
 
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
@@ -1224,11 +1223,15 @@ public abstract class AnnotatedTypeMirror {
         /**
          * Sets the varargs types of this executable type.
          *
-         * @param varargs an AnnotatedArrayType of varargs
+         * @param @Nullable superCon for annoymous class
          */
         /*package-private*/
-        void setVarargType(@NonNull AnnotatedArrayType varargs) {
-            varargType = varargs;
+        public void setVarargType(@Nullable AnnotatedExecutableType superCon) {
+            List<AnnotatedTypeMirror> parameters = paramTypes;
+            if (superCon != null) {
+                parameters = superCon.getParameterTypes();
+            }
+            varargType = (AnnotatedArrayType) parameters.get(parameters.size() - 1);
         }
 
         /**
@@ -1421,7 +1424,7 @@ public abstract class AnnotatedTypeMirror {
 
             type.setElement(getElement());
             type.setParameterTypes(getParameterTypes());
-            type.setVarargType(getVarargType());
+            type.setVarargType(null);
             type.setReceiverType(getReceiverType());
             type.setReturnType(getReturnType());
             type.setThrownTypes(getThrownTypes());
@@ -1451,7 +1454,7 @@ public abstract class AnnotatedTypeMirror {
                             atypeFactory);
             type.setElement(getElement());
             type.setParameterTypes(erasureList(getParameterTypes()));
-            type.setVarargType(getVarargType() == null ? null : getVarargType().getErased());
+            type.setVarargType(null);
             if (getReceiverType() != null) {
                 type.setReceiverType(getReceiverType().getErased());
             } else {

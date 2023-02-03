@@ -184,16 +184,12 @@ public class AnnotatedTypeCopier
         }
 
         final AnnotatedExecutableType copy = makeOrReturnCopy(original, originalToCopy);
+
         copy.setElement(original.getElement());
 
         if (original.getReceiverType() != null) {
             copy.setReceiverType(
                     (AnnotatedDeclaredType) visit(original.getReceiverType(), originalToCopy));
-        }
-
-        if (original.getVarargType() != null) {
-            copy.setVarargType(
-                    (AnnotatedArrayType) visit(original.getVarargType(), originalToCopy));
         }
 
         List<? extends AnnotatedTypeMirror> originalParameterTypes = original.getParameterTypes();
@@ -206,6 +202,10 @@ public class AnnotatedTypeCopier
                 copyParamTypes.add(visit(param, originalToCopy));
             }
             copy.setParameterTypes(Collections.unmodifiableList(copyParamTypes));
+        }
+
+        if (original.getVarargType() != null) {
+            copy.setVarargType(null);
         }
 
         List<? extends AnnotatedTypeMirror> originalThrownTypes = original.getThrownTypes();
@@ -240,6 +240,7 @@ public class AnnotatedTypeCopier
             copy.setTypeVariables(Collections.unmodifiableList(copyTypeVarTypes));
             visitingExecutableTypeParam = false;
         }
+
         return copy;
     }
 

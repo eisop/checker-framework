@@ -2333,12 +2333,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         // Store varargType before resetting parameterTypes.
-        AnnotatedArrayType varargsType = null;
         List<AnnotatedTypeMirror> parameters;
         if (method.getElement().isVarArgs()) {
-            parameters = method.getParameterTypes();
-            varargsType = (AnnotatedArrayType) parameters.get(parameters.size() - 1);
-            method.setVarargType(varargsType);
+            method.setVarargType(null);
         }
         // Adapt parameters, which makes parameters and arguments be the same size for later
         // checking.
@@ -2724,12 +2721,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         // Store varargType before resetting parameterTypes.
-        AnnotatedArrayType varargsType = null;
         List<AnnotatedTypeMirror> parameters;
         if (con.getElement().isVarArgs()) {
-            parameters = con.getParameterTypes();
-            varargsType = (AnnotatedArrayType) parameters.get(parameters.size() - 1);
-            con.setVarargType(varargsType);
+            con.setVarargType(null);
         }
 
         if (tree.getClassBody() != null) {
@@ -2747,11 +2741,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             superCon =
                     AnnotatedTypes.asMemberOf(types, this, type, superCon.getElement(), superCon);
             if (superCon.getElement().isVarArgs()) {
-                varargsType =
-                        (AnnotatedArrayType)
-                                superCon.getParameterTypes()
-                                        .get(superCon.getParameterTypes().size() - 1);
-                con.setVarargType(varargsType);
+                con.setVarargType(superCon);
             }
             if (superCon.getParameterTypes().size() == con.getParameterTypes().size()) {
                 con.setParameterTypes(superCon.getParameterTypes());
