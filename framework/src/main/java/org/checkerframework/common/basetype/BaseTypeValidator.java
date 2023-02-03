@@ -13,7 +13,6 @@ import com.sun.source.tree.VariableTree;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeKind;
@@ -36,6 +35,7 @@ import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
 import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
 import org.checkerframework.framework.util.AnnotatedTypes;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.Pair;
@@ -178,8 +178,8 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
   protected List<DiagMessage> isTopLevelValidType(
       QualifierHierarchy qualifierHierarchy, AnnotatedTypeMirror type) {
     // multiple annotations from the same hierarchy
-    Set<AnnotationMirror> annotations = type.getAnnotations();
-    Set<AnnotationMirror> seenTops = AnnotationUtils.createAnnotationSet();
+    AnnotationMirrorSet annotations = type.getAnnotations();
+    AnnotationMirrorSet seenTops = new AnnotationMirrorSet();
     for (AnnotationMirror anno : annotations) {
       AnnotationMirror top = qualifierHierarchy.getTopAnnotation(anno);
       if (AnnotationUtils.containsSame(seenTops, top)) {
@@ -282,8 +282,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
       // Ensure that type use is a subtype of the element type
       // isValidUse determines the erasure of the types.
 
-      Set<AnnotationMirror> bounds =
-          atypeFactory.getTypeDeclarationBounds(type.getUnderlyingType());
+      AnnotationMirrorSet bounds = atypeFactory.getTypeDeclarationBounds(type.getUnderlyingType());
 
       AnnotatedDeclaredType elemType = type.deepCopy();
       elemType.clearAnnotations();
@@ -610,8 +609,8 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         // For example, Set<@1 ? super @2 Object> will collapse into Set<@2 Object>.
         // So, issue a warning if the annotations on the extends bound are not the
         // same as the annotations on the super bound.
-        Set<AnnotationMirror> extendsBoundAnnos = wildcard.getExtendsBound().getAnnotations();
-        Set<AnnotationMirror> superBoundAnnos = wildcard.getSuperBound().getEffectiveAnnotations();
+        AnnotationMirrorSet extendsBoundAnnos = wildcard.getExtendsBound().getAnnotations();
+        AnnotationMirrorSet superBoundAnnos = wildcard.getSuperBound().getEffectiveAnnotations();
         QualifierHierarchy qualifierHierarchy = atypeFactory.getQualifierHierarchy();
         if (!(qualifierHierarchy.isSubtype(extendsBoundAnnos, superBoundAnnos)
             && qualifierHierarchy.isSubtype(superBoundAnnos, extendsBoundAnnos))) {
@@ -668,9 +667,9 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
   public boolean areBoundsValid(
       final AnnotatedTypeMirror upperBound, final AnnotatedTypeMirror lowerBound) {
     final QualifierHierarchy qualifierHierarchy = atypeFactory.getQualifierHierarchy();
-    final Set<AnnotationMirror> upperBoundAnnos =
+    final AnnotationMirrorSet upperBoundAnnos =
         AnnotatedTypes.findEffectiveAnnotations(qualifierHierarchy, upperBound);
-    final Set<AnnotationMirror> lowerBoundAnnos =
+    final AnnotationMirrorSet lowerBoundAnnos =
         AnnotatedTypes.findEffectiveAnnotations(qualifierHierarchy, lowerBound);
 
     if (upperBoundAnnos.size() == lowerBoundAnnos.size()) {

@@ -66,6 +66,7 @@ import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.QualifierKind;
 import org.checkerframework.javacutil.AnnotationBuilder;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
@@ -769,7 +770,7 @@ public class NullnessAnnotatedTypeFactory
   protected boolean hasFieldInvariantAnnotation(
       AnnotatedTypeMirror type, VariableElement fieldElement) {
     AnnotationMirror invariant = getFieldInvariantAnnotation();
-    Set<AnnotationMirror> lowerBounds =
+    AnnotationMirrorSet lowerBounds =
         AnnotatedTypes.findEffectiveLowerBoundAnnotations(qualHierarchy, type);
     return AnnotationUtils.containsSame(lowerBounds, invariant);
   }

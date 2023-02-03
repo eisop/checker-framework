@@ -28,7 +28,6 @@ import java.util.jar.JarFile;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.processing.ProcessingEnvironment;
-import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -47,6 +46,7 @@ import org.checkerframework.framework.stub.AnnotationFileUtil.AnnotationFileType
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.Pair;
@@ -390,7 +390,7 @@ public class AnnotationFileElementTypes {
    *     the annotation file and in the element. {@code null} is returned if {@code element} does
    *     not appear in an annotation file.
    */
-  public Set<AnnotationMirror> getDeclAnnotations(Element elt) {
+  public AnnotationMirrorSet getDeclAnnotations(Element elt) {
     parseEnclosingJdkClass(elt);
     String eltName = ElementUtils.getQualifiedName(elt);
     if (annotationFileAnnos.declAnnos.containsKey(eltName)) {
@@ -434,7 +434,7 @@ public class AnnotationFileElementTypes {
         }
       }
     }
-    return Collections.emptySet();
+    return AnnotationMirrorSet.emptySet();
   }
 
   /**

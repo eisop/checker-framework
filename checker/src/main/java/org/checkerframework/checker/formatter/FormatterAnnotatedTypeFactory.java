@@ -133,16 +133,13 @@ public class FormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
    * @return true if the method has a {@code @FormatMethod} annotation
    */
   /* NO-AFU
-  private boolean hasFormatMethodAnno(AMethod methodAnnos) {
-      for (Annotation anno : methodAnnos.tlAnnotationsHere) {
-          String annoName = anno.def.name;
-          if (annoName.equals("org.checkerframework.checker.formatter.qual.FormatMethod")
-                  // TODO: avoid com.google relocate
-                  || anno.def.name.equals("com.google.errorprone.annotations.FormatMethod")) {
-              return true;
-          }
-      }
-      return false;
+  private boolean hasFormatMethodAnno(
+      WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos methodAnnos) {
+    AnnotationMirrorSet declarationAnnos = methodAnnos.getDeclarationAnnotations();
+    return AnnotationUtils.containsSameByClass(
+            declarationAnnos, org.checkerframework.checker.formatter.qual.FormatMethod.class)
+        || AnnotationUtils.containsSameByName(
+            declarationAnnos, "com.google.errorprone.annotations.FormatMethod");
   }
   */
 
@@ -155,7 +152,7 @@ public class FormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
   /* NO-AFU
   private boolean hasFormatMethodAnno(
           WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos methodAnnos) {
-      Set<AnnotationMirror> declarationAnnos = methodAnnos.getDeclarationAnnotations();
+      AnnotationMirrorSet declarationAnnos = methodAnnos.getDeclarationAnnotations();
       return AnnotationUtils.containsSameByClass(
                       declarationAnnos,
                       org.checkerframework.checker.formatter.qual.FormatMethod.class)

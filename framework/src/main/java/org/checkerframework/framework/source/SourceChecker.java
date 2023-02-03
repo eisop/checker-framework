@@ -42,7 +42,6 @@ import java.util.NavigableSet;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
-import java.util.SortedSet;
 import java.util.StringJoiner;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
@@ -2441,7 +2440,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
    *
    * @return non-empty modifiable set of lower-case prefixes for SuppressWarnings strings
    */
-  public SortedSet<String> getSuppressWarningsPrefixes() {
+  public NavigableSet<String> getSuppressWarningsPrefixes() {
     return getStandardSuppressWarningsPrefixes();
   }
 
