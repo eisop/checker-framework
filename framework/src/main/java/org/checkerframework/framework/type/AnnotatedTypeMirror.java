@@ -1227,6 +1227,9 @@ public abstract class AnnotatedTypeMirror {
          */
         /*package-private*/
         public void setVarargType(@Nullable AnnotatedExecutableType superCon) {
+            if (!isVarArgs()) {
+                return;
+            }
             List<AnnotatedTypeMirror> parameters = paramTypes;
             if (superCon != null) {
                 parameters = superCon.getParameterTypes();
