@@ -160,12 +160,7 @@ import java.util.Map;
 import java.util.Set;
 
 import javax.annotation.processing.ProcessingEnvironment;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Name;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
+import javax.lang.model.element.*;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
@@ -3395,8 +3390,17 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     public Node visitNewClass(NewClassTree tree, Void p) {
         // see JLS 15.9
 
+        TypeElement typeElement = (TypeElement) TreeUtils.elementFromTree(tree.getIdentifier());
+        NestingKind nestingKind = typeElement.getNestingKind();
         Tree enclosingExpr = tree.getEnclosingExpression();
-        Node enclosingExprNode = enclosingExpr != null ? scan(enclosingExpr, p) : null;
+        Node enclosingExprNode = null;
+        if (enclosingExpr != null) {
+            scan(enclosingExpr, p);
+        } else if (nestingKind != NestingKind.TOP_LEVEL) {
+            ClassTree enclosingClass = TreePathUtil.enclosingClass(getCurrentPath());
+            TypeElement classElem = TreeUtils.elementFromDeclaration(enclosingClass);
+            enclosingExprNode = new ImplicitThisNode(classElem.asType());
+        }
 
         // Convert constructor arguments
         ExecutableElement constructor = TreeUtils.elementFromUse(tree);
