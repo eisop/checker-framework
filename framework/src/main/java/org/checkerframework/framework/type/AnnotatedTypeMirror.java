@@ -1180,13 +1180,13 @@ public abstract class AnnotatedTypeMirror {
 
         /**
          * Sets the parameter types and updates varargsType of this executable type, excluding the
-         * receiver. If paramTypes is computed before and this type is a varargs method, set
+         * receiver. If paramTypes has been computed and this type is a varargs method, set
          * varargType before calling this method.
          *
          * @param params an unmodifiable list of parameter types to be captured by this method,
          *     excluding the receiver
-         * @see #varargType
-         * @see #setVarargType(AnnotatedArrayType)
+         * @see AnnotatedExecutableType#varargType
+         * @see AnnotatedExecutableType#setVarargType(AnnotatedArrayType)
          */
         /*package-private*/ void setParameterTypes(List<AnnotatedTypeMirror> params) {
             if (paramTypesComputed && isVarArgs() && varargType == null) {
