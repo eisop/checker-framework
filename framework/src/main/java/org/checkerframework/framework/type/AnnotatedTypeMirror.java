@@ -1185,7 +1185,6 @@ public abstract class AnnotatedTypeMirror {
          * @param params an unmodifiable list of parameter types to be captured by this method,
          *     excluding the receiver
          * @see AnnotatedExecutableType#varargType
-         * @see AnnotatedExecutableType#setVarargType(AnnotatedExecutableType)
          */
         /*package-private*/ void setParameterTypes(List<AnnotatedTypeMirror> params) {
             if (paramTypesComputed && isVarArgs() && varargType == null) {
@@ -1226,7 +1225,7 @@ public abstract class AnnotatedTypeMirror {
          * @param superCon for anonymous class
          */
         /*package-private*/
-        public void setVarargType(@Nullable AnnotatedExecutableType superCon) {
+        void setVarargType(@Nullable AnnotatedExecutableType superCon) {
             if (!isVarArgs()) {
                 return;
             }
