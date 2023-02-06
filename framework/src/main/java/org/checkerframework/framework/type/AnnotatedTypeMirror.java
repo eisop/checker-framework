@@ -1130,8 +1130,9 @@ public abstract class AnnotatedTypeMirror {
         private AnnotatedDeclaredType receiverType;
         /**
          * The varargs type is the last element of {@link paramTypes} if the method or constructor
-         * accepts a variable number of arguments and the paramTypes has not adapted yet. This type
-         * need to be stored in the field to avoid paramTypes being reset.
+         * accepts a variable number of arguments and the {@link paramTypes} has not been adapted
+         * yet. This type needs to be stored in the field to avoid being affected by {@link
+         * paramTypes} adaptation.
          */
         private @MonotonicNonNull AnnotatedArrayType varargType = null;
         /** Whether {@link receiverType} has been computed. */
@@ -1178,9 +1179,9 @@ public abstract class AnnotatedTypeMirror {
         }
 
         /**
-         * Sets the parameter types and updates varargsType of this executable type, excluding the
-         * receiver. If paramTypes has been computed and this type is a varargs method, set
-         * varargType before calling this method.
+         * Sets the parameter types and updates {@link varargType} of this executable type,
+         * excluding the receiver. If paramTypes has been computed and this type is a varargs
+         * method, set varargType before calling this method.
          *
          * @param params an unmodifiable list of parameter types to be captured by this method,
          *     excluding the receiver

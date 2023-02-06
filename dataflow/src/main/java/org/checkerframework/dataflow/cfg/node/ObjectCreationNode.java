@@ -135,7 +135,6 @@ public class ObjectCreationNode extends Node {
             sb.append(enclosingExpression + ".");
         }
         sb.append("new " + constructor + "(");
-
         sb.append(StringsPlume.join(", ", arguments));
         sb.append(")");
         if (classbody != null) {

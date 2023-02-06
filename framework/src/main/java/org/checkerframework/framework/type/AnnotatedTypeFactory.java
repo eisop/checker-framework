@@ -2332,14 +2332,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             addDefaultAnnotations(wildcard);
         }
 
-        // Store varargType before resetting parameterTypes.
-        List<AnnotatedTypeMirror> parameters;
-        if (method.getElement().isVarArgs()) {
-            method.setVarargType(null);
-        }
+        // Store varargType before calling setParameterTypes, otherwise we may lose the varargType
+        // as it is
+        // the last element of parameterTypes.
+        method.setVarargType(null);
         // Adapt parameters, which makes parameters and arguments be the same size for later
         // checking.
-        parameters = AnnotatedTypes.adaptParameters(this, method, tree.getArguments());
+        List<AnnotatedTypeMirror> parameters =
+                AnnotatedTypes.adaptParameters(this, method, tree.getArguments());
         method.setParameterTypes(parameters);
         return result;
     }
@@ -2720,11 +2720,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             viewpointAdapter.viewpointAdaptConstructor(type, ctor, con);
         }
 
-        // Store varargType before resetting parameterTypes.
-        List<AnnotatedTypeMirror> parameters;
-        if (con.getElement().isVarArgs()) {
-            con.setVarargType(null);
-        }
+        // Store varargType before calling setParameterTypes, otherwise we may lose the varargType
+        // as it is
+        // the last element of parameterTypes.
+        con.setVarargType(null);
 
         if (tree.getClassBody() != null) {
             // Because the anonymous constructor can't have explicit annotations on its parameters,
@@ -2740,9 +2739,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // no viewpoint adaptation needed for super invocation
             superCon =
                     AnnotatedTypes.asMemberOf(types, this, type, superCon.getElement(), superCon);
-            if (superCon.getElement().isVarArgs()) {
-                con.setVarargType(superCon);
-            }
+            con.setVarargType(superCon);
             if (superCon.getParameterTypes().size() == con.getParameterTypes().size()) {
                 con.setParameterTypes(superCon.getParameterTypes());
             } else {
@@ -2805,7 +2802,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
         // Adapt parameters, which makes parameters and arguments be the same size for later
         // checking.
-        parameters = AnnotatedTypes.adaptParameters(this, con, tree.getArguments());
+        List<AnnotatedTypeMirror> parameters =
+                AnnotatedTypes.adaptParameters(this, con, tree.getArguments());
         con.setParameterTypes(parameters);
         return new ParameterizedExecutableType(con, typeargs);
     }

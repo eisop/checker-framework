@@ -164,7 +164,6 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
-import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
@@ -3396,16 +3395,16 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     public Node visitNewClass(NewClassTree tree, Void p) {
         // see JLS 15.9
 
-        TypeElement typeElement = (TypeElement) TreeUtils.elementFromTree(tree.getIdentifier());
-        NestingKind nestingKind = typeElement.getNestingKind();
+        DeclaredType classType = (DeclaredType) TreeUtils.typeOf(tree);
+        TypeMirror enclosingClassType = classType.getEnclosingType();
         Tree enclosingExpr = tree.getEnclosingExpression();
         Node enclosingExprNode = null;
         if (enclosingExpr != null) {
-            scan(enclosingExpr, p);
-        } else if (nestingKind != NestingKind.TOP_LEVEL) {
-            ClassTree enclosingClass = TreePathUtil.enclosingClass(getCurrentPath());
-            TypeElement classElem = TreeUtils.elementFromDeclaration(enclosingClass);
-            enclosingExprNode = new ImplicitThisNode(classElem.asType());
+            enclosingExprNode = scan(enclosingExpr, p);
+        } else if (enclosingClassType.getKind() == TypeKind.DECLARED) {
+            TypeElement enclosingClassElement =
+                    (TypeElement) ((DeclaredType) enclosingClassType).asElement();
+            enclosingExprNode = new ImplicitThisNode(enclosingClassElement.asType());
         }
 
         // Convert constructor arguments
