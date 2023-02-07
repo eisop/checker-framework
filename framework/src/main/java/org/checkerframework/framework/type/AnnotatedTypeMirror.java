@@ -1179,7 +1179,9 @@ public abstract class AnnotatedTypeMirror {
         }
 
         /**
-         * Sets the parameter types of this executable type, excluding the receiver.
+         * Sets the parameter types of this executable type, excluding the receiver.If paramTypes
+         * has been computed and this type is a varargs method, computes and store {@link
+         * varargType} before calling this method, @see {@link varargType}
          *
          * @param params an unmodifiable list of parameter types to be captured by this method,
          *     excluding the receiver
