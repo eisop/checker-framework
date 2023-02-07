@@ -24,4 +24,16 @@ public class Issue282 {
         // :: error: (enclosingexpr.type.incompatible)
         Inner inner = new Issue282Sub().new Inner();
     }
+
+    class InnerGeneric<T> {
+        InnerGeneric(T... t) {}
+        ;
+    }
+
+    public void test3(@H1S1 String a, @H1S1 String b, @H1S2 String c) {
+        new InnerGeneric<@H1S1 String>(a, b);
+        // found: @H1S2 @H2Top String. required: @H1S1 @H2Top String
+        // :: error: (argument.type.incompatible)
+        new InnerGeneric<@H1S1 String>(a, c);
+    }
 }

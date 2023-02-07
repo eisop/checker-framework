@@ -1221,20 +1221,39 @@ public abstract class AnnotatedTypeMirror {
         }
 
         /**
-         * Sets the varargs types of this executable type.
+         * Computers the {@link varargType} of this executable type to store the information into
+         * the filed {@link varargType}.
          *
-         * @param superCon for anonymous class
+         * <p>This method computes {@link varargType} by {@link paramTypes} of this executable type,
+         * if we want to use {@link paramTypes} from different executable type, see {@link
+         * #computeVarargType(AnnotatedExecutableType)}
          */
         /*package-private*/
-        void setVarargType(@Nullable AnnotatedExecutableType superCon) {
+        void computeVarargType() {
+            computeVarargType(paramTypes);
+        }
+
+        /**
+         * Computes the {@link varargType} of passed executable type to store the information into
+         * the field {@link varargType}.
+         *
+         * @param annotatedExecutableType an AnnotatedExecutableType
+         */
+        void computeVarargType(AnnotatedExecutableType annotatedExecutableType) {
+            computeVarargType(annotatedExecutableType.getParameterTypes());
+        }
+
+        /**
+         * Helper Function for {@link #computeVarargType()} and {@link
+         * #computeVarargType(AnnotatedExecutableType)}.
+         *
+         * @param paramTypes the parameter types of this executable type
+         */
+        private void computeVarargType(List<AnnotatedTypeMirror> paramTypes) {
             if (!isVarArgs()) {
                 return;
             }
-            List<AnnotatedTypeMirror> parameters = paramTypes;
-            if (superCon != null) {
-                parameters = superCon.getParameterTypes();
-            }
-            varargType = (AnnotatedArrayType) parameters.get(parameters.size() - 1);
+            varargType = (AnnotatedArrayType) paramTypes.get(paramTypes.size() - 1);
         }
 
         /**
@@ -1427,7 +1446,7 @@ public abstract class AnnotatedTypeMirror {
 
             type.setElement(getElement());
             type.setParameterTypes(getParameterTypes());
-            type.setVarargType(null);
+            type.computeVarargType();
             type.setReceiverType(getReceiverType());
             type.setReturnType(getReturnType());
             type.setThrownTypes(getThrownTypes());
@@ -1457,7 +1476,7 @@ public abstract class AnnotatedTypeMirror {
                             atypeFactory);
             type.setElement(getElement());
             type.setParameterTypes(erasureList(getParameterTypes()));
-            type.setVarargType(null);
+            type.computeVarargType();
             if (getReceiverType() != null) {
                 type.setReceiverType(getReceiverType().getErased());
             } else {

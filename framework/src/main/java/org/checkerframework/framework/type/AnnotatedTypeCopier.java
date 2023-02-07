@@ -204,7 +204,7 @@ public class AnnotatedTypeCopier
             copy.setParameterTypes(Collections.unmodifiableList(copyParamTypes));
         }
 
-        copy.setVarargType(null);
+        copy.computeVarargType();
 
         List<? extends AnnotatedTypeMirror> originalThrownTypes = original.getThrownTypes();
         if (originalThrownTypes.isEmpty()) {

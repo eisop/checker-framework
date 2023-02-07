@@ -2333,9 +2333,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         // Store varargType before calling setParameterTypes, otherwise we may lose the varargType
-        // as it is
-        // the last element of parameterTypes.
-        method.setVarargType(null);
+        // as it is the last element of the original parameterTypes.
+        method.computeVarargType();
         // Adapt parameters, which makes parameters and arguments be the same size for later
         // checking.
         List<AnnotatedTypeMirror> parameters =
@@ -2721,9 +2720,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         // Store varargType before calling setParameterTypes, otherwise we may lose the varargType
-        // as it is
-        // the last element of parameterTypes.
-        con.setVarargType(null);
+        // as it is the last element of the original parameterTypes.
+        con.computeVarargType();
 
         if (tree.getClassBody() != null) {
             // Because the anonymous constructor can't have explicit annotations on its parameters,
@@ -2739,7 +2737,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // no viewpoint adaptation needed for super invocation
             superCon =
                     AnnotatedTypes.asMemberOf(types, this, type, superCon.getElement(), superCon);
-            con.setVarargType(superCon);
+            con.computeVarargType(superCon);
             if (superCon.getParameterTypes().size() == con.getParameterTypes().size()) {
                 con.setParameterTypes(superCon.getParameterTypes());
             } else {
