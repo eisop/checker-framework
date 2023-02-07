@@ -19,39 +19,39 @@ import java.util.SortedSet;
  */
 public abstract class InitializationChecker extends BaseTypeChecker {
 
-    /** Create a new InitializationChecker. */
-    protected InitializationChecker() {}
+  /** Create a new InitializationChecker. */
+  protected InitializationChecker() {}
 
-    @Override
-    public SortedSet<String> getSuppressWarningsPrefixes() {
-        SortedSet<String> result = super.getSuppressWarningsPrefixes();
-        // "fbc" is for backward compatibility only.
-        // Notes:
-        //   * "fbc" suppresses *all* warnings, not just those related to initialization.  See
-        //     https://checkerframework.org/manual/#initialization-checking-suppressing-warnings .
-        //   * "initialization" is not a checkername/prefix.
-        result.add("fbc");
-        return result;
-    }
+  @Override
+  public SortedSet<String> getSuppressWarningsPrefixes() {
+    SortedSet<String> result = super.getSuppressWarningsPrefixes();
+    // "fbc" is for backward compatibility only.
+    // Notes:
+    //   * "fbc" suppresses *all* warnings, not just those related to initialization.  See
+    //     https://checkerframework.org/manual/#initialization-checking-suppressing-warnings .
+    //   * "initialization" is not a checkername/prefix.
+    result.add("fbc");
+    return result;
+  }
 
-    /** Returns a list of all fields of the given class. */
-    public static List<VariableTree> getAllFields(ClassTree clazz) {
-        List<VariableTree> fields = new ArrayList<>();
-        for (Tree t : clazz.getMembers()) {
-            if (t.getKind() == Tree.Kind.VARIABLE) {
-                VariableTree vt = (VariableTree) t;
-                fields.add(vt);
-            }
-        }
-        return fields;
+  /** Returns a list of all fields of the given class. */
+  public static List<VariableTree> getAllFields(ClassTree clazz) {
+    List<VariableTree> fields = new ArrayList<>();
+    for (Tree t : clazz.getMembers()) {
+      if (t.getKind() == Tree.Kind.VARIABLE) {
+        VariableTree vt = (VariableTree) t;
+        fields.add(vt);
+      }
     }
+    return fields;
+  }
 
-    @Override
-    protected boolean messageKeyMatches(
-            String messageKey, String messageKeyInSuppressWarningsString) {
-        // Also support the shorter keys used by typetools
-        return super.messageKeyMatches(messageKey, messageKeyInSuppressWarningsString)
-                || super.messageKeyMatches(
-                        messageKey.replace(".invalid", ""), messageKeyInSuppressWarningsString);
-    }
+  @Override
+  protected boolean messageKeyMatches(
+      String messageKey, String messageKeyInSuppressWarningsString) {
+    // Also support the shorter keys used by typetools
+    return super.messageKeyMatches(messageKey, messageKeyInSuppressWarningsString)
+        || super.messageKeyMatches(
+            messageKey.replace(".invalid", ""), messageKeyInSuppressWarningsString);
+  }
 }

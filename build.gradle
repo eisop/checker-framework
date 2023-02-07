@@ -262,7 +262,7 @@ allprojects {
                 targetExclude stdExclude, '**/java17/', '**/*record*/'
             }
 
-            googleJavaFormat().aosp()
+            googleJavaFormat() // .aosp()
             importOrder('com', 'jdk', 'lib', 'lombok', 'org', 'java', 'javax')
             // Remove addTypeAnnotation after the next release of Spotless.
             formatAnnotations().addTypeAnnotation("DoesNotMatchRegex")

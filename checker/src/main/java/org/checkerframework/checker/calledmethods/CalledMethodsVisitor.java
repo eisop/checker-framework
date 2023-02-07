@@ -30,85 +30,80 @@ import javax.tools.Diagnostic;
  */
 public class CalledMethodsVisitor extends AccumulationVisitor {
 
-    /**
-     * Creates a new CalledMethodsVisitor.
-     *
-     * @param checker the type-checker associated with this visitor
-     */
-    public CalledMethodsVisitor(final BaseTypeChecker checker) {
-        super(checker);
-    }
+  /**
+   * Creates a new CalledMethodsVisitor.
+   *
+   * @param checker the type-checker associated with this visitor
+   */
+  public CalledMethodsVisitor(final BaseTypeChecker checker) {
+    super(checker);
+  }
 
-    /**
-     * Issue an error at every EnsuresCalledMethodsVarArgs annotation, because using it is unsound.
-     */
-    @Override
-    public Void visitAnnotation(final AnnotationTree node, final Void p) {
-        AnnotationMirror anno = TreeUtils.annotationFromAnnotationTree(node);
-        if (AnnotationUtils.areSameByName(
-                anno,
-                "org.checkerframework.checker.calledmethods.qual.EnsuresCalledMethodsVarArgs")) {
-            // We can't verify these yet.  Emit an error (which will have to be suppressed) for now.
-            checker.report(
-                    node, new DiagMessage(Diagnostic.Kind.ERROR, "ensuresvarargs.unverified"));
+  /**
+   * Issue an error at every EnsuresCalledMethodsVarArgs annotation, because using it is unsound.
+   */
+  @Override
+  public Void visitAnnotation(final AnnotationTree node, final Void p) {
+    AnnotationMirror anno = TreeUtils.annotationFromAnnotationTree(node);
+    if (AnnotationUtils.areSameByName(
+        anno, "org.checkerframework.checker.calledmethods.qual.EnsuresCalledMethodsVarArgs")) {
+      // We can't verify these yet.  Emit an error (which will have to be suppressed) for now.
+      checker.report(node, new DiagMessage(Diagnostic.Kind.ERROR, "ensuresvarargs.unverified"));
+    }
+    return super.visitAnnotation(node, p);
+  }
+
+  @Override
+  public Void visitMethod(MethodTree node, Void p) {
+    ExecutableElement elt = TreeUtils.elementFromDeclaration(node);
+    AnnotationMirror ecmva = atypeFactory.getDeclAnnotation(elt, EnsuresCalledMethodsVarArgs.class);
+    if (ecmva != null) {
+      if (!elt.isVarArgs()) {
+        checker.report(node, new DiagMessage(Diagnostic.Kind.ERROR, "ensuresvarargs.invalid"));
+      }
+    }
+    return super.visitMethod(node, p);
+  }
+
+  @Override
+  public Void visitMethodInvocation(MethodInvocationTree node, Void p) {
+
+    if (checker.getBooleanOption(CalledMethodsChecker.COUNT_FRAMEWORK_BUILD_CALLS)) {
+      ExecutableElement element = TreeUtils.elementFromUse(node);
+      for (BuilderFrameworkSupport builderFrameworkSupport :
+          ((CalledMethodsAnnotatedTypeFactory) getTypeFactory()).getBuilderFrameworkSupports()) {
+        if (builderFrameworkSupport.isBuilderBuildMethod(element)) {
+          ((CalledMethodsChecker) checker).numBuildCalls++;
+          break;
         }
-        return super.visitAnnotation(node, p);
+      }
     }
+    return super.visitMethodInvocation(node, p);
+  }
 
-    @Override
-    public Void visitMethod(MethodTree node, Void p) {
-        ExecutableElement elt = TreeUtils.elementFromDeclaration(node);
-        AnnotationMirror ecmva =
-                atypeFactory.getDeclAnnotation(elt, EnsuresCalledMethodsVarArgs.class);
-        if (ecmva != null) {
-            if (!elt.isVarArgs()) {
-                checker.report(
-                        node, new DiagMessage(Diagnostic.Kind.ERROR, "ensuresvarargs.invalid"));
-            }
+  /** Turns some method.invocation.invalid errors into finalizer.invocation.invalid errors. */
+  @Override
+  protected void reportMethodInvocabilityError(
+      MethodInvocationTree node, AnnotatedTypeMirror found, AnnotatedTypeMirror expected) {
+
+    AnnotationMirror expectedCM = expected.getAnnotation(CalledMethods.class);
+    if (expectedCM != null) {
+      AnnotationMirror foundCM = found.getAnnotation(CalledMethods.class);
+      Set<String> foundMethods =
+          foundCM == null
+              ? Collections.emptySet()
+              : new HashSet<>(atypeFactory.getAccumulatedValues(foundCM));
+      List<String> expectedMethods = atypeFactory.getAccumulatedValues(expectedCM);
+      StringJoiner missingMethods = new StringJoiner(" ");
+      for (String expectedMethod : expectedMethods) {
+        if (!foundMethods.contains(expectedMethod)) {
+          missingMethods.add(expectedMethod + "()");
         }
-        return super.visitMethod(node, p);
+      }
+
+      checker.reportError(node, "finalizer.invocation.invalid", missingMethods.toString());
+    } else {
+      super.reportMethodInvocabilityError(node, found, expected);
     }
-
-    @Override
-    public Void visitMethodInvocation(MethodInvocationTree node, Void p) {
-
-        if (checker.getBooleanOption(CalledMethodsChecker.COUNT_FRAMEWORK_BUILD_CALLS)) {
-            ExecutableElement element = TreeUtils.elementFromUse(node);
-            for (BuilderFrameworkSupport builderFrameworkSupport :
-                    ((CalledMethodsAnnotatedTypeFactory) getTypeFactory())
-                            .getBuilderFrameworkSupports()) {
-                if (builderFrameworkSupport.isBuilderBuildMethod(element)) {
-                    ((CalledMethodsChecker) checker).numBuildCalls++;
-                    break;
-                }
-            }
-        }
-        return super.visitMethodInvocation(node, p);
-    }
-
-    /** Turns some method.invocation.invalid errors into finalizer.invocation.invalid errors. */
-    @Override
-    protected void reportMethodInvocabilityError(
-            MethodInvocationTree node, AnnotatedTypeMirror found, AnnotatedTypeMirror expected) {
-
-        AnnotationMirror expectedCM = expected.getAnnotation(CalledMethods.class);
-        if (expectedCM != null) {
-            AnnotationMirror foundCM = found.getAnnotation(CalledMethods.class);
-            Set<String> foundMethods =
-                    foundCM == null
-                            ? Collections.emptySet()
-                            : new HashSet<>(atypeFactory.getAccumulatedValues(foundCM));
-            List<String> expectedMethods = atypeFactory.getAccumulatedValues(expectedCM);
-            StringJoiner missingMethods = new StringJoiner(" ");
-            for (String expectedMethod : expectedMethods) {
-                if (!foundMethods.contains(expectedMethod)) {
-                    missingMethods.add(expectedMethod + "()");
-                }
-            }
-
-            checker.reportError(node, "finalizer.invocation.invalid", missingMethods.toString());
-        } else {
-            super.reportMethodInvocabilityError(node, found, expected);
-        }
-    }
+  }
 }
