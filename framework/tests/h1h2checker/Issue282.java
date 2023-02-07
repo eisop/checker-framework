@@ -26,8 +26,8 @@ public class Issue282 {
     }
 
     class InnerGeneric<T> {
+        @SuppressWarnings("unchecked")
         InnerGeneric(T... t) {}
-        ;
     }
 
     public void test3(@H1S1 String a, @H1S1 String b, @H1S2 String c) {
