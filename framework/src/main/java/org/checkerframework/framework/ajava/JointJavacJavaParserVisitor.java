@@ -2249,7 +2249,7 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
    * @param javacTrees list of trees
    * @param javaParserNodes list of corresponding JavaParser nodes
    */
-  private void visitLists(List<? extends Tree> javacTrees, List<? extends Node> javaParserNodes) {
+  protected void visitLists(List<? extends Tree> javacTrees, List<? extends Node> javaParserNodes) {
     if (javacTrees.size() != javaParserNodes.size()) {
       throw new BugInCF(
           "%s.visitLists(%s [size %d], %s [size %d])",

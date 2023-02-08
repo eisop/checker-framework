@@ -321,18 +321,6 @@ public class AutoValueSupport implements BuilderFrameworkSupport {
   }
 
   /** Classes that AutoValue considers "optional". This list comes from AutoValue's source code. */
-  private static String[] optionalClassNames =
-      new String[] {
-        "com.google.common.base.Optional",
-        "java.util.Optional",
-        "java.util.OptionalDouble",
-        "java.util.OptionalInt",
-        "java.util.OptionalLong"
-      };
-
-  /**
-   * This list of classes that AutoValue considers "optional" comes from AutoValue's source code.
-   */
   private static final String[] optionalClassNames =
       new String[] {
         // Use concatenation to avoid ShadowJar relocate
