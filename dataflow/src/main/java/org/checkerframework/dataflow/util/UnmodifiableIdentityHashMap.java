@@ -24,171 +24,173 @@ import java.util.function.Function;
 @SuppressWarnings("keyfor") // Keys for `this` are also keys for `this.map`
 public class UnmodifiableIdentityHashMap<K, V> extends IdentityHashMap<K, V> {
 
-  /** The serial version UID. */
-  private static final long serialVersionUID = -5147442142854693854L;
+    /** The serial version UID. */
+    private static final long serialVersionUID = -5147442142854693854L;
 
-  /** The wrapped map. */
-  private final IdentityHashMap<K, V> map;
+    /** The wrapped map. */
+    private final IdentityHashMap<K, V> map;
 
-  /**
-   * Create an UnmodifiableIdentityHashMap. Clients should use {@link #wrap} instead.
-   *
-   * @param map the map to wrap
-   */
-  private UnmodifiableIdentityHashMap(IdentityHashMap<K, V> map) {
-    this.map = map;
-  }
-
-  /**
-   * Create an {@link UnmodifiableIdentityHashMap} wrapper for a map. Returns the argument if it is
-   * already an {@link UnmodifiableIdentityHashMap}.
-   *
-   * @param map the map to wrap
-   * @return the wrapper
-   * @param <K> the key type
-   * @param <V> the value type
-   */
-  public static <K, V> UnmodifiableIdentityHashMap<K, V> wrap(IdentityHashMap<K, V> map) {
-    // avoid repeated wrapping
-    if (map instanceof UnmodifiableIdentityHashMap) {
-      return (UnmodifiableIdentityHashMap<K, V>) map;
+    /**
+     * Create an UnmodifiableIdentityHashMap. Clients should use {@link #wrap} instead.
+     *
+     * @param map the map to wrap
+     */
+    private UnmodifiableIdentityHashMap(IdentityHashMap<K, V> map) {
+        this.map = map;
     }
-    return new UnmodifiableIdentityHashMap<>(map);
-  }
 
-  @Override
-  public int size() {
-    return map.size();
-  }
+    /**
+     * Create an {@link UnmodifiableIdentityHashMap} wrapper for a map. Returns the argument if it
+     * is already an {@link UnmodifiableIdentityHashMap}.
+     *
+     * @param map the map to wrap
+     * @return the wrapper
+     * @param <K> the key type
+     * @param <V> the value type
+     */
+    public static <K, V> UnmodifiableIdentityHashMap<K, V> wrap(IdentityHashMap<K, V> map) {
+        // avoid repeated wrapping
+        if (map instanceof UnmodifiableIdentityHashMap) {
+            return (UnmodifiableIdentityHashMap<K, V>) map;
+        }
+        return new UnmodifiableIdentityHashMap<>(map);
+    }
 
-  @Override
-  public boolean isEmpty() {
-    return map.isEmpty();
-  }
+    @Override
+    public int size() {
+        return map.size();
+    }
 
-  @Override
-  public @Nullable V get(@Nullable Object key) {
-    return map.get(key);
-  }
+    @Override
+    public boolean isEmpty() {
+        return map.isEmpty();
+    }
 
-  @Override
-  public boolean containsKey(@Nullable Object key) {
-    return map.containsKey(key);
-  }
+    @Override
+    public @Nullable V get(@Nullable Object key) {
+        return map.get(key);
+    }
 
-  @Override
-  public boolean containsValue(@Nullable Object value) {
-    return map.containsValue(value);
-  }
+    @Override
+    public boolean containsKey(@Nullable Object key) {
+        return map.containsKey(key);
+    }
 
-  @Override
-  public @Nullable V put(K key, V value) {
-    throw new UnsupportedOperationException();
-  }
+    @Override
+    public boolean containsValue(@Nullable Object value) {
+        return map.containsValue(value);
+    }
 
-  @Override
-  public void putAll(Map<? extends K, ? extends V> m) {
-    throw new UnsupportedOperationException();
-  }
+    @Override
+    public @Nullable V put(K key, V value) {
+        throw new UnsupportedOperationException();
+    }
 
-  @Override
-  public @Nullable V remove(@Nullable Object key) {
-    throw new UnsupportedOperationException();
-  }
+    @Override
+    public void putAll(Map<? extends K, ? extends V> m) {
+        throw new UnsupportedOperationException();
+    }
 
-  @Override
-  public void clear() {
-    throw new UnsupportedOperationException();
-  }
+    @Override
+    public @Nullable V remove(@Nullable Object key) {
+        throw new UnsupportedOperationException();
+    }
 
-  @Override
-  @SuppressWarnings("IdentityHashMapUsage")
-  public boolean equals(@Nullable Object o) {
-    return map.equals(o);
-  }
+    @Override
+    public void clear() {
+        throw new UnsupportedOperationException();
+    }
 
-  @Override
-  public int hashCode() {
-    return map.hashCode();
-  }
+    @Override
+    @SuppressWarnings("IdentityHashMapUsage")
+    public boolean equals(@Nullable Object o) {
+        return map.equals(o);
+    }
 
-  @Override
-  public Set<K> keySet() {
-    return Collections.unmodifiableSet(map.keySet());
-  }
+    @Override
+    public int hashCode() {
+        return map.hashCode();
+    }
 
-  @Override
-  public Collection<V> values() {
-    return Collections.unmodifiableCollection(map.values());
-  }
+    @Override
+    public Set<K> keySet() {
+        return Collections.unmodifiableSet(map.keySet());
+    }
 
-  @Override
-  public Set<Map.Entry<K, V>> entrySet() {
-    return Collections.unmodifiableSet(map.entrySet());
-  }
+    @Override
+    public Collection<V> values() {
+        return Collections.unmodifiableCollection(map.values());
+    }
 
-  // `action` has no side effects on the map, because it is only passed keys and values.
-  @Override
-  public void forEach(BiConsumer<? super K, ? super V> action) {
-    map.forEach(action);
-  }
+    @Override
+    public Set<Map.Entry<K, V>> entrySet() {
+        return Collections.unmodifiableSet(map.entrySet());
+    }
 
-  @Override
-  public void replaceAll(BiFunction<? super K, ? super V, ? extends V> function) {
-    throw new UnsupportedOperationException();
-  }
+    // `action` has no side effects on the map, because it is only passed keys and values.
+    @Override
+    public void forEach(BiConsumer<? super K, ? super V> action) {
+        map.forEach(action);
+    }
 
-  @Override
-  public String toString() {
-    return map.toString();
-  }
+    @Override
+    public void replaceAll(BiFunction<? super K, ? super V, ? extends V> function) {
+        throw new UnsupportedOperationException();
+    }
 
-  @Override
-  public V getOrDefault(Object key, V defaultValue) {
-    return map.getOrDefault(key, defaultValue);
-  }
+    @Override
+    public String toString() {
+        return map.toString();
+    }
 
-  @Override
-  public V putIfAbsent(K key, V value) {
-    throw new UnsupportedOperationException();
-  }
+    @Override
+    public V getOrDefault(Object key, V defaultValue) {
+        return map.getOrDefault(key, defaultValue);
+    }
 
-  @Override
-  public boolean remove(Object key, Object value) {
-    throw new UnsupportedOperationException();
-  }
+    @Override
+    public V putIfAbsent(K key, V value) {
+        throw new UnsupportedOperationException();
+    }
 
-  @Override
-  public boolean replace(K key, V oldValue, V newValue) {
-    throw new UnsupportedOperationException();
-  }
+    @Override
+    public boolean remove(Object key, Object value) {
+        throw new UnsupportedOperationException();
+    }
 
-  @Override
-  public V replace(K key, V value) {
-    throw new UnsupportedOperationException();
-  }
+    @Override
+    public boolean replace(K key, V oldValue, V newValue) {
+        throw new UnsupportedOperationException();
+    }
 
-  @Override
-  public @PolyNull V computeIfAbsent(
-      K key, Function<? super K, ? extends @PolyNull V> mappingFunction) {
-    throw new UnsupportedOperationException();
-  }
+    @Override
+    public V replace(K key, V value) {
+        throw new UnsupportedOperationException();
+    }
 
-  @Override
-  public @PolyNull V computeIfPresent(
-      K key, BiFunction<? super K, ? super V, ? extends @PolyNull V> remappingFunction) {
-    throw new UnsupportedOperationException();
-  }
+    @Override
+    public @PolyNull V computeIfAbsent(
+            K key, Function<? super K, ? extends @PolyNull V> mappingFunction) {
+        throw new UnsupportedOperationException();
+    }
 
-  @Override
-  public @PolyNull V compute(
-      K key, BiFunction<? super K, ? super V, ? extends @PolyNull V> remappingFunction) {
-    throw new UnsupportedOperationException();
-  }
+    @Override
+    public @PolyNull V computeIfPresent(
+            K key, BiFunction<? super K, ? super V, ? extends @PolyNull V> remappingFunction) {
+        throw new UnsupportedOperationException();
+    }
 
-  @Override
-  public @PolyNull V merge(
-      K key, V value, BiFunction<? super V, ? super V, ? extends @PolyNull V> remappingFunction) {
-    throw new UnsupportedOperationException();
-  }
+    @Override
+    public @PolyNull V compute(
+            K key, BiFunction<? super K, ? super V, ? extends @PolyNull V> remappingFunction) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public @PolyNull V merge(
+            K key,
+            V value,
+            BiFunction<? super V, ? super V, ? extends @PolyNull V> remappingFunction) {
+        throw new UnsupportedOperationException();
+    }
 }

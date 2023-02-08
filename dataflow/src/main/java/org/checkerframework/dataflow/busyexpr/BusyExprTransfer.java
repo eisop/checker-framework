@@ -17,74 +17,76 @@ import java.util.List;
 
 /** A busy expression transfer function */
 public class BusyExprTransfer
-    extends AbstractNodeVisitor<
-        TransferResult<UnusedAbstractValue, BusyExprStore>,
-        TransferInput<UnusedAbstractValue, BusyExprStore>>
-    implements BackwardTransferFunction<UnusedAbstractValue, BusyExprStore> {
+        extends AbstractNodeVisitor<
+                TransferResult<UnusedAbstractValue, BusyExprStore>,
+                TransferInput<UnusedAbstractValue, BusyExprStore>>
+        implements BackwardTransferFunction<UnusedAbstractValue, BusyExprStore> {
 
-  @Override
-  public BusyExprStore initialNormalExitStore(
-      UnderlyingAST underlyingAST, List<ReturnNode> returnNodes) {
-    return new BusyExprStore();
-  }
-
-  @Override
-  public BusyExprStore initialExceptionalExitStore(UnderlyingAST underlyingAST) {
-    return new BusyExprStore();
-  }
-
-  @Override
-  public RegularTransferResult<UnusedAbstractValue, BusyExprStore> visitNode(
-      Node n, TransferInput<UnusedAbstractValue, BusyExprStore> p) {
-    return new RegularTransferResult<>(null, p.getRegularStore());
-  }
-
-  @Override
-  public RegularTransferResult<UnusedAbstractValue, BusyExprStore> visitAssignment(
-      AssignmentNode n, TransferInput<UnusedAbstractValue, BusyExprStore> p) {
-    RegularTransferResult<UnusedAbstractValue, BusyExprStore> transferResult =
-        (RegularTransferResult<UnusedAbstractValue, BusyExprStore>) super.visitAssignment(n, p);
-    BusyExprStore store = transferResult.getRegularStore();
-    store.killBusyExpr(n.getTarget());
-    store.addUseInExpression(n.getExpression());
-    return transferResult;
-  }
-
-  @Override
-  public RegularTransferResult<UnusedAbstractValue, BusyExprStore> visitMethodInvocation(
-      MethodInvocationNode n, TransferInput<UnusedAbstractValue, BusyExprStore> p) {
-    RegularTransferResult<UnusedAbstractValue, BusyExprStore> transferResult =
-        (RegularTransferResult<UnusedAbstractValue, BusyExprStore>)
-            super.visitMethodInvocation(n, p);
-    BusyExprStore store = transferResult.getRegularStore();
-    for (Node arg : n.getArguments()) {
-      store.addUseInExpression(arg);
+    @Override
+    public BusyExprStore initialNormalExitStore(
+            UnderlyingAST underlyingAST, List<ReturnNode> returnNodes) {
+        return new BusyExprStore();
     }
-    return transferResult;
-  }
 
-  @Override
-  public RegularTransferResult<UnusedAbstractValue, BusyExprStore> visitObjectCreation(
-      ObjectCreationNode n, TransferInput<UnusedAbstractValue, BusyExprStore> p) {
-    RegularTransferResult<UnusedAbstractValue, BusyExprStore> transferResult =
-        (RegularTransferResult<UnusedAbstractValue, BusyExprStore>) super.visitObjectCreation(n, p);
-    BusyExprStore store = transferResult.getRegularStore();
-    for (Node arg : n.getArguments()) {
-      store.addUseInExpression(arg);
+    @Override
+    public BusyExprStore initialExceptionalExitStore(UnderlyingAST underlyingAST) {
+        return new BusyExprStore();
     }
-    return transferResult;
-  }
 
-  @Override
-  public RegularTransferResult<UnusedAbstractValue, BusyExprStore> visitReturn(
-      ReturnNode n, TransferInput<UnusedAbstractValue, BusyExprStore> p) {
-    RegularTransferResult<UnusedAbstractValue, BusyExprStore> transferResult =
-        (RegularTransferResult<UnusedAbstractValue, BusyExprStore>) super.visitReturn(n, p);
-    Node result = n.getResult();
-    if (result != null) {
-      BusyExprStore store = transferResult.getRegularStore();
-      store.addUseInExpression(result);
+    @Override
+    public RegularTransferResult<UnusedAbstractValue, BusyExprStore> visitNode(
+            Node n, TransferInput<UnusedAbstractValue, BusyExprStore> p) {
+        return new RegularTransferResult<>(null, p.getRegularStore());
     }
-    return transferResult;
-  }
+
+    @Override
+    public RegularTransferResult<UnusedAbstractValue, BusyExprStore> visitAssignment(
+            AssignmentNode n, TransferInput<UnusedAbstractValue, BusyExprStore> p) {
+        RegularTransferResult<UnusedAbstractValue, BusyExprStore> transferResult =
+                (RegularTransferResult<UnusedAbstractValue, BusyExprStore>)
+                        super.visitAssignment(n, p);
+        BusyExprStore store = transferResult.getRegularStore();
+        store.killBusyExpr(n.getTarget());
+        store.addUseInExpression(n.getExpression());
+        return transferResult;
+    }
+
+    @Override
+    public RegularTransferResult<UnusedAbstractValue, BusyExprStore> visitMethodInvocation(
+            MethodInvocationNode n, TransferInput<UnusedAbstractValue, BusyExprStore> p) {
+        RegularTransferResult<UnusedAbstractValue, BusyExprStore> transferResult =
+                (RegularTransferResult<UnusedAbstractValue, BusyExprStore>)
+                        super.visitMethodInvocation(n, p);
+        BusyExprStore store = transferResult.getRegularStore();
+        for (Node arg : n.getArguments()) {
+            store.addUseInExpression(arg);
+        }
+        return transferResult;
+    }
+
+    @Override
+    public RegularTransferResult<UnusedAbstractValue, BusyExprStore> visitObjectCreation(
+            ObjectCreationNode n, TransferInput<UnusedAbstractValue, BusyExprStore> p) {
+        RegularTransferResult<UnusedAbstractValue, BusyExprStore> transferResult =
+                (RegularTransferResult<UnusedAbstractValue, BusyExprStore>)
+                        super.visitObjectCreation(n, p);
+        BusyExprStore store = transferResult.getRegularStore();
+        for (Node arg : n.getArguments()) {
+            store.addUseInExpression(arg);
+        }
+        return transferResult;
+    }
+
+    @Override
+    public RegularTransferResult<UnusedAbstractValue, BusyExprStore> visitReturn(
+            ReturnNode n, TransferInput<UnusedAbstractValue, BusyExprStore> p) {
+        RegularTransferResult<UnusedAbstractValue, BusyExprStore> transferResult =
+                (RegularTransferResult<UnusedAbstractValue, BusyExprStore>) super.visitReturn(n, p);
+        Node result = n.getResult();
+        if (result != null) {
+            BusyExprStore store = transferResult.getRegularStore();
+            store.addUseInExpression(result);
+        }
+        return transferResult;
+    }
 }

@@ -6,7 +6,7 @@ import java.util.ArrayList;
 
 public class ToArrayIndex {
 
-  public String @MinLen(1) [] m(@MinLen(1) ArrayList<String> compiler) {
-    return compiler.toArray(new String[0]);
-  }
+    public String @MinLen(1) [] m(@MinLen(1) ArrayList<String> compiler) {
+        return compiler.toArray(new String[0]);
+    }
 }

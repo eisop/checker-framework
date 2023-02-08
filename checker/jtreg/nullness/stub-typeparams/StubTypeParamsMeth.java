@@ -9,7 +9,7 @@
  * @compile/fail/ref=StubTypeParamsMeth.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -Astubs=box-nonnull.astub -Werror StubTypeParamsMeth.java
  */
 public class StubTypeParamsMeth {
-  void use() {
-    Box.of(null);
-  }
+    void use() {
+        Box.of(null);
+    }
 }

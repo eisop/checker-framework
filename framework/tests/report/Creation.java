@@ -1,35 +1,35 @@
 import org.checkerframework.common.util.report.qual.*;
 
 public class Creation {
-  class TestOne {
-    TestOne() {}
+    class TestOne {
+        TestOne() {}
+
+        @ReportCreation
+        TestOne(int i) {}
+    }
 
     @ReportCreation
-    TestOne(int i) {}
-  }
+    class TestAll {
+        TestAll() {}
 
-  @ReportCreation
-  class TestAll {
-    TestAll() {}
+        TestAll(int i) {}
+    }
 
-    TestAll(int i) {}
-  }
+    void test() {
+        // :: error: (creation)
+        new TestAll();
+        // :: error: (creation)
+        new TestAll(4);
 
-  void test() {
-    // :: error: (creation)
-    new TestAll();
-    // :: error: (creation)
-    new TestAll(4);
+        new TestOne();
+        // :: error: (creation)
+        new TestOne(4);
+    }
 
-    new TestOne();
-    // :: error: (creation)
-    new TestOne(4);
-  }
+    class TestSub extends TestAll {}
 
-  class TestSub extends TestAll {}
-
-  void testSub() {
-    // :: error: (creation)
-    new TestSub();
-  }
+    void testSub() {
+        // :: error: (creation)
+        new TestSub();
+    }
 }

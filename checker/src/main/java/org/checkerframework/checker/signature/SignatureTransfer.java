@@ -21,43 +21,45 @@ import javax.lang.model.element.ExecutableElement;
 /** The transfer function for the Signature Checker. */
 public class SignatureTransfer extends CFTransfer {
 
-  /** The annotated type factory for this transfer function. */
-  private final SignatureAnnotatedTypeFactory aTypeFactory;
+    /** The annotated type factory for this transfer function. */
+    private final SignatureAnnotatedTypeFactory aTypeFactory;
 
-  /**
-   * Create a new SignatureTransfer.
-   *
-   * @param analysis the analysis
-   */
-  public SignatureTransfer(CFAnalysis analysis) {
-    super(analysis);
-    aTypeFactory = (SignatureAnnotatedTypeFactory) analysis.getTypeFactory();
-  }
-
-  @Override
-  public TransferResult<CFValue, CFStore> visitMethodInvocation(
-      MethodInvocationNode n, TransferInput<CFValue, CFStore> in) {
-    TransferResult<CFValue, CFStore> superResult = super.visitMethodInvocation(n, in);
-
-    MethodAccessNode target = n.getTarget();
-    ExecutableElement method = target.getMethod();
-    Node receiver = target.getReceiver();
-    if (TypesUtils.isString(receiver.getType()) && ElementUtils.matchesElement(method, "isEmpty")) {
-
-      AnnotatedTypeMirror receiverAtm = aTypeFactory.getAnnotatedType(receiver.getTree());
-      if (receiverAtm.hasAnnotation(CanonicalNameOrEmpty.class)) {
-
-        CFStore thenStore = superResult.getRegularStore();
-        CFStore elseStore = thenStore.copy();
-        ConditionalTransferResult<CFValue, CFStore> result =
-            new ConditionalTransferResult<>(superResult.getResultValue(), thenStore, elseStore);
-        // The refined expression is the receiver of the method call.
-        JavaExpression refinedExpr = JavaExpression.fromNode(receiver);
-
-        elseStore.insertValue(refinedExpr, aTypeFactory.CANONICAL_NAME);
-        return result;
-      }
+    /**
+     * Create a new SignatureTransfer.
+     *
+     * @param analysis the analysis
+     */
+    public SignatureTransfer(CFAnalysis analysis) {
+        super(analysis);
+        aTypeFactory = (SignatureAnnotatedTypeFactory) analysis.getTypeFactory();
     }
-    return superResult;
-  }
+
+    @Override
+    public TransferResult<CFValue, CFStore> visitMethodInvocation(
+            MethodInvocationNode n, TransferInput<CFValue, CFStore> in) {
+        TransferResult<CFValue, CFStore> superResult = super.visitMethodInvocation(n, in);
+
+        MethodAccessNode target = n.getTarget();
+        ExecutableElement method = target.getMethod();
+        Node receiver = target.getReceiver();
+        if (TypesUtils.isString(receiver.getType())
+                && ElementUtils.matchesElement(method, "isEmpty")) {
+
+            AnnotatedTypeMirror receiverAtm = aTypeFactory.getAnnotatedType(receiver.getTree());
+            if (receiverAtm.hasAnnotation(CanonicalNameOrEmpty.class)) {
+
+                CFStore thenStore = superResult.getRegularStore();
+                CFStore elseStore = thenStore.copy();
+                ConditionalTransferResult<CFValue, CFStore> result =
+                        new ConditionalTransferResult<>(
+                                superResult.getResultValue(), thenStore, elseStore);
+                // The refined expression is the receiver of the method call.
+                JavaExpression refinedExpr = JavaExpression.fromNode(receiver);
+
+                elseStore.insertValue(refinedExpr, aTypeFactory.CANONICAL_NAME);
+                return result;
+            }
+        }
+        return superResult;
+    }
 }

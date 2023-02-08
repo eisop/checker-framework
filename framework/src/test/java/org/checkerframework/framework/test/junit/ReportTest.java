@@ -8,19 +8,19 @@ import java.util.List;
 
 public class ReportTest extends CheckerFrameworkPerDirectoryTest {
 
-  /**
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public ReportTest(List<File> testFiles) {
-    super(
-        testFiles,
-        org.checkerframework.common.util.report.ReportChecker.class,
-        "report",
-        "-Astubs=tests/report/reporttest.astub");
-  }
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public ReportTest(List<File> testFiles) {
+        super(
+                testFiles,
+                org.checkerframework.common.util.report.ReportChecker.class,
+                "report",
+                "-Astubs=tests/report/reporttest.astub");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"report"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"report"};
+    }
 }

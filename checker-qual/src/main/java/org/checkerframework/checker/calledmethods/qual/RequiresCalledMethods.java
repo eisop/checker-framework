@@ -24,38 +24,38 @@ import java.lang.annotation.Target;
 @PreconditionAnnotation(qualifier = CalledMethods.class)
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
 public @interface RequiresCalledMethods {
-  /**
-   * The Java expressions that must have had methods called on them.
-   *
-   * @return the Java expressions that must have had methods called on them
-   * @see org.checkerframework.framework.qual.EnsuresQualifier
-   */
-  // Preconditions must use "value" as the name (conditional preconditions use "expression").
-  String[] value();
-
-  /**
-   * The methods guaranteed to be invoked on the expressions.
-   *
-   * @return the methods guaranteed to be invoked on the expressions
-   */
-  @QualifierArgument("value")
-  String[] methods();
-
-  /**
-   * A wrapper annotation that makes the {@link RequiresCalledMethods} annotation repeatable.
-   *
-   * <p>Programmers generally do not need to write this. It is created by Java when a programmer
-   * writes more than one {@link RequiresCalledMethods} annotation at the same location.
-   */
-  @Documented
-  @Retention(RetentionPolicy.RUNTIME)
-  @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
-  public static @interface List {
     /**
-     * Returns the repeatable annotations.
+     * The Java expressions that must have had methods called on them.
      *
-     * @return the repeatable annotations
+     * @return the Java expressions that must have had methods called on them
+     * @see org.checkerframework.framework.qual.EnsuresQualifier
      */
-    RequiresCalledMethods[] value();
-  }
+    // Preconditions must use "value" as the name (conditional preconditions use "expression").
+    String[] value();
+
+    /**
+     * The methods guaranteed to be invoked on the expressions.
+     *
+     * @return the methods guaranteed to be invoked on the expressions
+     */
+    @QualifierArgument("value")
+    String[] methods();
+
+    /**
+     * A wrapper annotation that makes the {@link RequiresCalledMethods} annotation repeatable.
+     *
+     * <p>Programmers generally do not need to write this. It is created by Java when a programmer
+     * writes more than one {@link RequiresCalledMethods} annotation at the same location.
+     */
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
+    public static @interface List {
+        /**
+         * Returns the repeatable annotations.
+         *
+         * @return the repeatable annotations
+         */
+        RequiresCalledMethods[] value();
+    }
 }

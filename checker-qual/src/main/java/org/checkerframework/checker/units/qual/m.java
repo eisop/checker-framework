@@ -24,5 +24,5 @@ import java.lang.annotation.Target;
 // @UnitsMultiple(quantity=m.class, prefix=Prefix.one)
 @SuppressWarnings("checkstyle:typename")
 public @interface m {
-  Prefix value() default Prefix.one;
+    Prefix value() default Prefix.one;
 }

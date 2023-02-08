@@ -13,15 +13,15 @@ import java.util.List;
  */
 public class AccumulationTest extends CheckerFrameworkPerDirectoryTest {
 
-  /**
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public AccumulationTest(List<File> testFiles) {
-    super(testFiles, TestAccumulationChecker.class, "accumulation", "-encoding", "UTF-8");
-  }
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public AccumulationTest(List<File> testFiles) {
+        super(testFiles, TestAccumulationChecker.class, "accumulation", "-encoding", "UTF-8");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"accumulation", "all-systems"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"accumulation", "all-systems"};
+    }
 }

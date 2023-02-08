@@ -10,19 +10,19 @@ import java.util.List;
 /** Create the TypeDeclDefault test. */
 public class TypeDeclDefaultTest extends CheckerFrameworkPerDirectoryTest {
 
-  /**
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public TypeDeclDefaultTest(List<File> testFiles) {
-    super(
-        testFiles,
-        TypeDeclDefaultChecker.class,
-        "typedecldefault",
-        "-Astubs=tests/typedecldefault/jdk.astub");
-  }
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public TypeDeclDefaultTest(List<File> testFiles) {
+        super(
+                testFiles,
+                TypeDeclDefaultChecker.class,
+                "typedecldefault",
+                "-Astubs=tests/typedecldefault/jdk.astub");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"typedecldefault"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"typedecldefault"};
+    }
 }

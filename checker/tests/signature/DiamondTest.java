@@ -4,7 +4,7 @@ import java.util.ArrayList;
 
 public class DiamondTest {
 
-  void m() {
-    ArrayList<String> list = new ArrayList<>();
-  }
+    void m() {
+        ArrayList<String> list = new ArrayList<>();
+    }
 }

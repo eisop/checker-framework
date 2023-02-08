@@ -13,18 +13,18 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class VariableNameDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
-  public VariableNameDefaultAnnotatedTypeFactory(BaseTypeChecker checker) {
-    super(checker);
-    this.postInit();
-  }
+    public VariableNameDefaultAnnotatedTypeFactory(BaseTypeChecker checker) {
+        super(checker);
+        this.postInit();
+    }
 
-  @Override
-  protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
-    return new HashSet<>(
-        Arrays.asList(
-            VariableNameDefaultTop.class,
-            VariableNameDefaultMiddle.class,
-            VariableNameDefaultBottom.class,
-            PolyVariableNameDefault.class));
-  }
+    @Override
+    protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
+        return new HashSet<>(
+                Arrays.asList(
+                        VariableNameDefaultTop.class,
+                        VariableNameDefaultMiddle.class,
+                        VariableNameDefaultBottom.class,
+                        PolyVariableNameDefault.class));
+    }
 }

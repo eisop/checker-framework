@@ -17,18 +17,18 @@ import javax.lang.model.element.AnnotationMirror;
  * straightforward and only intended for test purposes.
  */
 public final class ReflectionTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
-  public ReflectionTestAnnotatedTypeFactory(BaseTypeChecker checker) {
-    super(checker);
-    postInit();
-  }
+    public ReflectionTestAnnotatedTypeFactory(BaseTypeChecker checker) {
+        super(checker);
+        postInit();
+    }
 
-  @Override
-  public TreeAnnotator createTreeAnnotator() {
-    LiteralTreeAnnotator literalTreeAnnotator = new LiteralTreeAnnotator(this);
-    AnnotationMirror bottom = AnnotationBuilder.fromClass(elements, TestReflectBottom.class);
-    literalTreeAnnotator.addLiteralKind(LiteralKind.INT, bottom);
-    literalTreeAnnotator.addStandardLiteralQualifiers();
+    @Override
+    public TreeAnnotator createTreeAnnotator() {
+        LiteralTreeAnnotator literalTreeAnnotator = new LiteralTreeAnnotator(this);
+        AnnotationMirror bottom = AnnotationBuilder.fromClass(elements, TestReflectBottom.class);
+        literalTreeAnnotator.addLiteralKind(LiteralKind.INT, bottom);
+        literalTreeAnnotator.addStandardLiteralQualifiers();
 
-    return new ListTreeAnnotator(new PropagationTreeAnnotator(this), literalTreeAnnotator);
-  }
+        return new ListTreeAnnotator(new PropagationTreeAnnotator(this), literalTreeAnnotator);
+    }
 }

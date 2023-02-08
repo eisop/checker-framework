@@ -11,21 +11,21 @@ import java.util.Queue;
 
 public final class IsEmptyPoll extends ArrayList<String> {
 
-  void mNonNull(Queue<String> q) {
-    while (!q.isEmpty()) {
-      @NonNull String firstNode = q.poll();
+    void mNonNull(Queue<String> q) {
+        while (!q.isEmpty()) {
+            @NonNull String firstNode = q.poll();
+        }
     }
-  }
 
-  void mNullable(Queue<@Nullable String> q) {
-    while (!q.isEmpty()) {
-      // :: error: (assignment.type.incompatible)
-      @NonNull String firstNode = q.poll();
+    void mNullable(Queue<@Nullable String> q) {
+        while (!q.isEmpty()) {
+            // :: error: (assignment.type.incompatible)
+            @NonNull String firstNode = q.poll();
+        }
     }
-  }
 
-  void mNoCheck(Queue<@Nullable String> q) {
-    // :: error: (assignment.type.incompatible)
-    @NonNull String firstNode = q.poll();
-  }
+    void mNoCheck(Queue<@Nullable String> q) {
+        // :: error: (assignment.type.incompatible)
+        @NonNull String firstNode = q.poll();
+    }
 }

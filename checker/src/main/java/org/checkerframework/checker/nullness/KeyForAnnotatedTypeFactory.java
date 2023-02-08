@@ -37,229 +37,234 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.type.TypeKind;
 
 public class KeyForAnnotatedTypeFactory
-    extends GenericAnnotatedTypeFactory<KeyForValue, KeyForStore, KeyForTransfer, KeyForAnalysis> {
+        extends GenericAnnotatedTypeFactory<
+                KeyForValue, KeyForStore, KeyForTransfer, KeyForAnalysis> {
 
-  /** The @{@link UnknownKeyFor} annotation. */
-  protected final AnnotationMirror UNKNOWNKEYFOR =
-      AnnotationBuilder.fromClass(elements, UnknownKeyFor.class);
-  /** The @{@link KeyForBottom} annotation. */
-  protected final AnnotationMirror KEYFORBOTTOM =
-      AnnotationBuilder.fromClass(elements, KeyForBottom.class);
+    /** The @{@link UnknownKeyFor} annotation. */
+    protected final AnnotationMirror UNKNOWNKEYFOR =
+            AnnotationBuilder.fromClass(elements, UnknownKeyFor.class);
+    /** The @{@link KeyForBottom} annotation. */
+    protected final AnnotationMirror KEYFORBOTTOM =
+            AnnotationBuilder.fromClass(elements, KeyForBottom.class);
 
-  /** The canonical name of the KeyFor class. */
-  protected static final @CanonicalName String KEYFOR_NAME = KeyFor.class.getCanonicalName();
+    /** The canonical name of the KeyFor class. */
+    protected static final @CanonicalName String KEYFOR_NAME = KeyFor.class.getCanonicalName();
 
-  /** The Map.containsKey method. */
-  private final ExecutableElement mapContainsKey =
-      TreeUtils.getMethod("java.util.Map", "containsKey", 1, processingEnv);
-  /** The Map.get method. */
-  private final ExecutableElement mapGet =
-      TreeUtils.getMethod("java.util.Map", "get", 1, processingEnv);
-  /** The Map.put method. */
-  private final ExecutableElement mapPut =
-      TreeUtils.getMethod("java.util.Map", "put", 2, processingEnv);
-  /** The KeyFor.value field/element. */
-  protected final ExecutableElement keyForValueElement =
-      TreeUtils.getMethod(KeyFor.class, "value", 0, processingEnv);
+    /** The Map.containsKey method. */
+    private final ExecutableElement mapContainsKey =
+            TreeUtils.getMethod("java.util.Map", "containsKey", 1, processingEnv);
+    /** The Map.get method. */
+    private final ExecutableElement mapGet =
+            TreeUtils.getMethod("java.util.Map", "get", 1, processingEnv);
+    /** The Map.put method. */
+    private final ExecutableElement mapPut =
+            TreeUtils.getMethod("java.util.Map", "put", 2, processingEnv);
+    /** The KeyFor.value field/element. */
+    protected final ExecutableElement keyForValueElement =
+            TreeUtils.getMethod(KeyFor.class, "value", 0, processingEnv);
 
-  /** Moves annotations from one side of a pseudo-assignment to the other. */
-  private final KeyForPropagator keyForPropagator = new KeyForPropagator(UNKNOWNKEYFOR);
+    /** Moves annotations from one side of a pseudo-assignment to the other. */
+    private final KeyForPropagator keyForPropagator = new KeyForPropagator(UNKNOWNKEYFOR);
 
-  /**
-   * If true, assume the argument to Map.get is always a key for the receiver map. This is set by
-   * the `-AassumeKeyFor` command-line argument. However, if the Nullness Checker is being run, then
-   * `-AassumeKeyFor` disables the Map Key Checker.
-   */
-  private final boolean assumeKeyFor;
+    /**
+     * If true, assume the argument to Map.get is always a key for the receiver map. This is set by
+     * the `-AassumeKeyFor` command-line argument. However, if the Nullness Checker is being run,
+     * then `-AassumeKeyFor` disables the Map Key Checker.
+     */
+    private final boolean assumeKeyFor;
 
-  /**
-   * Creates a new KeyForAnnotatedTypeFactory.
-   *
-   * @param checker the associated checker
-   */
-  public KeyForAnnotatedTypeFactory(BaseTypeChecker checker) {
-    super(checker, true);
+    /**
+     * Creates a new KeyForAnnotatedTypeFactory.
+     *
+     * @param checker the associated checker
+     */
+    public KeyForAnnotatedTypeFactory(BaseTypeChecker checker) {
+        super(checker, true);
 
-    assumeKeyFor = checker.hasOption("assumeKeyFor");
+        assumeKeyFor = checker.hasOption("assumeKeyFor");
 
-    // Add compatibility annotations:
-    addAliasedTypeAnnotation(
-        "org.checkerframework.checker.nullness.compatqual.KeyForDecl", KeyFor.class, true);
-    addAliasedTypeAnnotation(
-        "org.checkerframework.checker.nullness.compatqual.KeyForType", KeyFor.class, true);
+        // Add compatibility annotations:
+        addAliasedTypeAnnotation(
+                "org.checkerframework.checker.nullness.compatqual.KeyForDecl", KeyFor.class, true);
+        addAliasedTypeAnnotation(
+                "org.checkerframework.checker.nullness.compatqual.KeyForType", KeyFor.class, true);
 
-    // While strictly required for soundness, this leads to too many false positives.  Printing
-    // a key or putting it in a map erases all knowledge of what maps it was a key for.
-    // TODO: Revisit when side effect annotations are more precise.
-    // sideEffectsUnrefineAliases = true;
+        // While strictly required for soundness, this leads to too many false positives.  Printing
+        // a key or putting it in a map erases all knowledge of what maps it was a key for.
+        // TODO: Revisit when side effect annotations are more precise.
+        // sideEffectsUnrefineAliases = true;
 
-    this.postInit();
-  }
-
-  @Override
-  protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
-    return new LinkedHashSet<>(
-        Arrays.asList(KeyFor.class, UnknownKeyFor.class, KeyForBottom.class, PolyKeyFor.class));
-  }
-
-  @Override
-  public ParameterizedExecutableType constructorFromUse(NewClassTree tree) {
-    ParameterizedExecutableType result = super.constructorFromUse(tree);
-    keyForPropagator.propagateNewClassTree(tree, result.executableType.getReturnType(), this);
-    return result;
-  }
-
-  @Override
-  protected TypeHierarchy createTypeHierarchy() {
-    return new KeyForTypeHierarchy(
-        checker,
-        getQualifierHierarchy(),
-        checker.getBooleanOption("ignoreRawTypeArguments", true),
-        checker.hasOption("invariantArrays"));
-  }
-
-  @Override
-  protected TreeAnnotator createTreeAnnotator() {
-    return new ListTreeAnnotator(
-        super.createTreeAnnotator(), new KeyForPropagationTreeAnnotator(this, keyForPropagator));
-  }
-
-  // TODO: work on removing this class
-  protected static class KeyForTypeHierarchy extends DefaultTypeHierarchy {
-
-    public KeyForTypeHierarchy(
-        BaseTypeChecker checker,
-        QualifierHierarchy qualifierHierarchy,
-        boolean ignoreRawTypes,
-        boolean invariantArrayComponents) {
-      super(checker, qualifierHierarchy, ignoreRawTypes, invariantArrayComponents);
+        this.postInit();
     }
 
     @Override
-    protected boolean isSubtype(
-        AnnotatedTypeMirror subtype, AnnotatedTypeMirror supertype, AnnotationMirror top) {
-      // TODO: THIS IS FROM THE OLD TYPE HIERARCHY.  WE SHOULD FIX DATA-FLOW/PROPAGATION TO DO
-      // THE RIGHT THING
-      if (supertype.getKind() == TypeKind.TYPEVAR && subtype.getKind() == TypeKind.TYPEVAR) {
-        // TODO: Investigate whether there is a nicer and more proper way to
-        // get assignments between two type variables working.
-        if (supertype.getAnnotations().isEmpty()) {
-          return true;
+    protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
+        return new LinkedHashSet<>(
+                Arrays.asList(
+                        KeyFor.class, UnknownKeyFor.class, KeyForBottom.class, PolyKeyFor.class));
+    }
+
+    @Override
+    public ParameterizedExecutableType constructorFromUse(NewClassTree tree) {
+        ParameterizedExecutableType result = super.constructorFromUse(tree);
+        keyForPropagator.propagateNewClassTree(tree, result.executableType.getReturnType(), this);
+        return result;
+    }
+
+    @Override
+    protected TypeHierarchy createTypeHierarchy() {
+        return new KeyForTypeHierarchy(
+                checker,
+                getQualifierHierarchy(),
+                checker.getBooleanOption("ignoreRawTypeArguments", true),
+                checker.hasOption("invariantArrays"));
+    }
+
+    @Override
+    protected TreeAnnotator createTreeAnnotator() {
+        return new ListTreeAnnotator(
+                super.createTreeAnnotator(),
+                new KeyForPropagationTreeAnnotator(this, keyForPropagator));
+    }
+
+    // TODO: work on removing this class
+    protected static class KeyForTypeHierarchy extends DefaultTypeHierarchy {
+
+        public KeyForTypeHierarchy(
+                BaseTypeChecker checker,
+                QualifierHierarchy qualifierHierarchy,
+                boolean ignoreRawTypes,
+                boolean invariantArrayComponents) {
+            super(checker, qualifierHierarchy, ignoreRawTypes, invariantArrayComponents);
         }
-      }
 
-      // Otherwise Covariant would cause trouble.
-      if (subtype.hasAnnotation(KeyForBottom.class)) {
-        return true;
-      }
-      return super.isSubtype(subtype, supertype, top);
-    }
-  }
+        @Override
+        protected boolean isSubtype(
+                AnnotatedTypeMirror subtype, AnnotatedTypeMirror supertype, AnnotationMirror top) {
+            // TODO: THIS IS FROM THE OLD TYPE HIERARCHY.  WE SHOULD FIX DATA-FLOW/PROPAGATION TO DO
+            // THE RIGHT THING
+            if (supertype.getKind() == TypeKind.TYPEVAR && subtype.getKind() == TypeKind.TYPEVAR) {
+                // TODO: Investigate whether there is a nicer and more proper way to
+                // get assignments between two type variables working.
+                if (supertype.getAnnotations().isEmpty()) {
+                    return true;
+                }
+            }
 
-  @Override
-  protected KeyForAnalysis createFlowAnalysis() {
-    // Explicitly call the constructor instead of using reflection.
-    return new KeyForAnalysis(checker, this);
-  }
-
-  @Override
-  public KeyForTransfer createFlowTransferFunction(
-      CFAbstractAnalysis<KeyForValue, KeyForStore, KeyForTransfer> analysis) {
-    // Explicitly call the constructor instead of using reflection.
-    return new KeyForTransfer((KeyForAnalysis) analysis);
-  }
-
-  /**
-   * Given a string array 'values', returns an AnnotationMirror corresponding to @KeyFor(values)
-   *
-   * @param values the values for the {@code @KeyFor} annotation
-   * @return a {@code @KeyFor} annotation with the given values
-   */
-  public AnnotationMirror createKeyForAnnotationMirrorWithValue(Set<String> values) {
-    // Create an AnnotationBuilder with the ArrayList
-    AnnotationBuilder builder = new AnnotationBuilder(getProcessingEnv(), KeyFor.class);
-    builder.setValue("value", values.toArray());
-
-    // Return the resulting AnnotationMirror
-    return builder.build();
-  }
-
-  /**
-   * Given a string 'value', returns an AnnotationMirror corresponding to @KeyFor(value)
-   *
-   * @param value the argument to {@code @KeyFor}
-   * @return a {@code @KeyFor} annotation with the given value
-   */
-  public AnnotationMirror createKeyForAnnotationMirrorWithValue(String value) {
-    return createKeyForAnnotationMirrorWithValue(Collections.singleton(value));
-  }
-
-  /**
-   * Returns true if the expression tree is a key for the map.
-   *
-   * @param mapExpression expression that has type Map
-   * @param tree expression that might be a key for the map
-   * @return whether or not the expression is a key for the map
-   */
-  public boolean isKeyForMap(String mapExpression, ExpressionTree tree) {
-    // This test only has an effect if the Map Key Checker is being run on its own.  If the
-    // Nullness Checker is being run, then -AassumeKeyFor disables the Map Key Checker.
-    if (assumeKeyFor) {
-      return true;
-    }
-    Collection<String> maps = null;
-    AnnotatedTypeMirror type = getAnnotatedType(tree);
-    AnnotationMirror keyForAnno = type.getAnnotation(KeyFor.class);
-    if (keyForAnno != null) {
-      maps = AnnotationUtils.getElementValueArray(keyForAnno, keyForValueElement, String.class);
-    } else {
-      KeyForValue value = getInferredValueFor(tree);
-      if (value != null) {
-        maps = value.getKeyForMaps();
-      }
+            // Otherwise Covariant would cause trouble.
+            if (subtype.hasAnnotation(KeyForBottom.class)) {
+                return true;
+            }
+            return super.isSubtype(subtype, supertype, top);
+        }
     }
 
-    return maps != null && maps.contains(mapExpression);
-  }
+    @Override
+    protected KeyForAnalysis createFlowAnalysis() {
+        // Explicitly call the constructor instead of using reflection.
+        return new KeyForAnalysis(checker, this);
+    }
 
-  @Override
-  protected QualifierHierarchy createQualifierHierarchy() {
-    return new SubtypeIsSupersetQualifierHierarchy(getSupportedTypeQualifiers(), processingEnv);
-  }
+    @Override
+    public KeyForTransfer createFlowTransferFunction(
+            CFAbstractAnalysis<KeyForValue, KeyForStore, KeyForTransfer> analysis) {
+        // Explicitly call the constructor instead of using reflection.
+        return new KeyForTransfer((KeyForAnalysis) analysis);
+    }
 
-  /** Returns true if the node is an invocation of Map.containsKey. */
-  boolean isMapContainsKey(Tree tree) {
-    return TreeUtils.isMethodInvocation(tree, mapContainsKey, getProcessingEnv());
-  }
+    /**
+     * Given a string array 'values', returns an AnnotationMirror corresponding to @KeyFor(values)
+     *
+     * @param values the values for the {@code @KeyFor} annotation
+     * @return a {@code @KeyFor} annotation with the given values
+     */
+    public AnnotationMirror createKeyForAnnotationMirrorWithValue(Set<String> values) {
+        // Create an AnnotationBuilder with the ArrayList
+        AnnotationBuilder builder = new AnnotationBuilder(getProcessingEnv(), KeyFor.class);
+        builder.setValue("value", values.toArray());
 
-  /** Returns true if the node is an invocation of Map.get. */
-  boolean isMapGet(Tree tree) {
-    return TreeUtils.isMethodInvocation(tree, mapGet, getProcessingEnv());
-  }
+        // Return the resulting AnnotationMirror
+        return builder.build();
+    }
 
-  /** Returns true if the node is an invocation of Map.put. */
-  boolean isMapPut(Tree tree) {
-    return TreeUtils.isMethodInvocation(tree, mapPut, getProcessingEnv());
-  }
+    /**
+     * Given a string 'value', returns an AnnotationMirror corresponding to @KeyFor(value)
+     *
+     * @param value the argument to {@code @KeyFor}
+     * @return a {@code @KeyFor} annotation with the given value
+     */
+    public AnnotationMirror createKeyForAnnotationMirrorWithValue(String value) {
+        return createKeyForAnnotationMirrorWithValue(Collections.singleton(value));
+    }
 
-  /** Returns true if the node is an invocation of Map.containsKey. */
-  boolean isMapContainsKey(Node node) {
-    return NodeUtils.isMethodInvocation(node, mapContainsKey, getProcessingEnv());
-  }
+    /**
+     * Returns true if the expression tree is a key for the map.
+     *
+     * @param mapExpression expression that has type Map
+     * @param tree expression that might be a key for the map
+     * @return whether or not the expression is a key for the map
+     */
+    public boolean isKeyForMap(String mapExpression, ExpressionTree tree) {
+        // This test only has an effect if the Map Key Checker is being run on its own.  If the
+        // Nullness Checker is being run, then -AassumeKeyFor disables the Map Key Checker.
+        if (assumeKeyFor) {
+            return true;
+        }
+        Collection<String> maps = null;
+        AnnotatedTypeMirror type = getAnnotatedType(tree);
+        AnnotationMirror keyForAnno = type.getAnnotation(KeyFor.class);
+        if (keyForAnno != null) {
+            maps =
+                    AnnotationUtils.getElementValueArray(
+                            keyForAnno, keyForValueElement, String.class);
+        } else {
+            KeyForValue value = getInferredValueFor(tree);
+            if (value != null) {
+                maps = value.getKeyForMaps();
+            }
+        }
 
-  /** Returns true if the node is an invocation of Map.get. */
-  boolean isMapGet(Node node) {
-    return NodeUtils.isMethodInvocation(node, mapGet, getProcessingEnv());
-  }
+        return maps != null && maps.contains(mapExpression);
+    }
 
-  /** Returns true if the node is an invocation of Map.put. */
-  boolean isMapPut(Node node) {
-    return NodeUtils.isMethodInvocation(node, mapPut, getProcessingEnv());
-  }
+    @Override
+    protected QualifierHierarchy createQualifierHierarchy() {
+        return new SubtypeIsSupersetQualifierHierarchy(getSupportedTypeQualifiers(), processingEnv);
+    }
 
-  /** Returns false. Redundancy in the KeyFor hierarchy is not worth warning about. */
-  @Override
-  public boolean shouldWarnIfStubRedundantWithBytecode() {
-    return false;
-  }
+    /** Returns true if the node is an invocation of Map.containsKey. */
+    boolean isMapContainsKey(Tree tree) {
+        return TreeUtils.isMethodInvocation(tree, mapContainsKey, getProcessingEnv());
+    }
+
+    /** Returns true if the node is an invocation of Map.get. */
+    boolean isMapGet(Tree tree) {
+        return TreeUtils.isMethodInvocation(tree, mapGet, getProcessingEnv());
+    }
+
+    /** Returns true if the node is an invocation of Map.put. */
+    boolean isMapPut(Tree tree) {
+        return TreeUtils.isMethodInvocation(tree, mapPut, getProcessingEnv());
+    }
+
+    /** Returns true if the node is an invocation of Map.containsKey. */
+    boolean isMapContainsKey(Node node) {
+        return NodeUtils.isMethodInvocation(node, mapContainsKey, getProcessingEnv());
+    }
+
+    /** Returns true if the node is an invocation of Map.get. */
+    boolean isMapGet(Node node) {
+        return NodeUtils.isMethodInvocation(node, mapGet, getProcessingEnv());
+    }
+
+    /** Returns true if the node is an invocation of Map.put. */
+    boolean isMapPut(Node node) {
+        return NodeUtils.isMethodInvocation(node, mapPut, getProcessingEnv());
+    }
+
+    /** Returns false. Redundancy in the KeyFor hierarchy is not worth warning about. */
+    @Override
+    public boolean shouldWarnIfStubRedundantWithBytecode() {
+        return false;
+    }
 }

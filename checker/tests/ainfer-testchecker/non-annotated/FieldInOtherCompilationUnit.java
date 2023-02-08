@@ -4,13 +4,13 @@ import java.util.GregorianCalendar;
 
 public class FieldInOtherCompilationUnit {
 
-  static @AinferSibling1 int myTime;
+    static @AinferSibling1 int myTime;
 
-  static void test() {
-    new GregorianCalendar() {
-      public void newMethod() {
-        this.time = myTime;
-      }
-    };
-  }
+    static void test() {
+        new GregorianCalendar() {
+            public void newMethod() {
+                this.time = myTime;
+            }
+        };
+    }
 }

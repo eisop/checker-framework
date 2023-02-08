@@ -19,50 +19,50 @@ import java.util.List;
  */
 public final class ListTypeAnnotator extends TypeAnnotator {
 
-  /**
-   * The annotators that will be executed for each type scanned by this TypeAnnotator. They are
-   * executed in order.
-   */
-  private final List<TypeAnnotator> annotators;
+    /**
+     * The annotators that will be executed for each type scanned by this TypeAnnotator. They are
+     * executed in order.
+     */
+    private final List<TypeAnnotator> annotators;
 
-  /**
-   * Create a new ListTypeAnnotator.
-   *
-   * @param annotators the annotators that will be executed for each type scanned by this
-   *     TypeAnnotator. They are executed in the order passed in.
-   */
-  public ListTypeAnnotator(TypeAnnotator... annotators) {
-    this(Arrays.asList(annotators));
-  }
-
-  /**
-   * @param annotators the annotators that will be executed for each type scanned by this
-   *     TypeAnnotator. They are executed in the order passed in.
-   */
-  public ListTypeAnnotator(List<TypeAnnotator> annotators) {
-    super(null);
-    List<TypeAnnotator> annotatorList = new ArrayList<>(annotators.size());
-    for (TypeAnnotator annotator : annotators) {
-      if (annotator instanceof ListTypeAnnotator) {
-        annotatorList.addAll(((ListTypeAnnotator) annotator).annotators);
-      } else {
-        annotatorList.add(annotator);
-      }
-    }
-    this.annotators = Collections.unmodifiableList(annotatorList);
-  }
-
-  @Override
-  protected Void scan(AnnotatedTypeMirror type, Void aVoid) {
-    for (TypeAnnotator annotator : annotators) {
-      annotator.visit(type, aVoid);
+    /**
+     * Create a new ListTypeAnnotator.
+     *
+     * @param annotators the annotators that will be executed for each type scanned by this
+     *     TypeAnnotator. They are executed in the order passed in.
+     */
+    public ListTypeAnnotator(TypeAnnotator... annotators) {
+        this(Arrays.asList(annotators));
     }
 
-    return null;
-  }
+    /**
+     * @param annotators the annotators that will be executed for each type scanned by this
+     *     TypeAnnotator. They are executed in the order passed in.
+     */
+    public ListTypeAnnotator(List<TypeAnnotator> annotators) {
+        super(null);
+        List<TypeAnnotator> annotatorList = new ArrayList<>(annotators.size());
+        for (TypeAnnotator annotator : annotators) {
+            if (annotator instanceof ListTypeAnnotator) {
+                annotatorList.addAll(((ListTypeAnnotator) annotator).annotators);
+            } else {
+                annotatorList.add(annotator);
+            }
+        }
+        this.annotators = Collections.unmodifiableList(annotatorList);
+    }
 
-  @Override
-  public String toString() {
-    return "ListTypeAnnotator" + annotators;
-  }
+    @Override
+    protected Void scan(AnnotatedTypeMirror type, Void aVoid) {
+        for (TypeAnnotator annotator : annotators) {
+            annotator.visit(type, aVoid);
+        }
+
+        return null;
+    }
+
+    @Override
+    public String toString() {
+        return "ListTypeAnnotator" + annotators;
+    }
 }

@@ -14,25 +14,26 @@ import java.util.List;
  */
 @Category(AinferNullnessJaifsTest.class)
 public class AinferNullnessJaifsValidationTest extends CheckerFrameworkPerDirectoryTest {
-  /**
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public AinferNullnessJaifsValidationTest(List<File> testFiles) {
-    super(testFiles, NullnessChecker.class, "nullness");
-  }
-
-  @Override
-  public void run() {
-    // Only run if annotated files have been created.
-    // See ainferTest task.
-    if (!new File("tests/ainfer-nullness/annotated/").exists()) {
-      throw new RuntimeException(AinferNullnessJaifsTest.class + " must be run before this test.");
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public AinferNullnessJaifsValidationTest(List<File> testFiles) {
+        super(testFiles, NullnessChecker.class, "nullness");
     }
-    super.run();
-  }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"ainfer-nullness/annotated/"};
-  }
+    @Override
+    public void run() {
+        // Only run if annotated files have been created.
+        // See ainferTest task.
+        if (!new File("tests/ainfer-nullness/annotated/").exists()) {
+            throw new RuntimeException(
+                    AinferNullnessJaifsTest.class + " must be run before this test.");
+        }
+        super.run();
+    }
+
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"ainfer-nullness/annotated/"};
+    }
 }

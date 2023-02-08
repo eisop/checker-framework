@@ -14,13 +14,13 @@ import java.util.Set;
 
 public class TypeDeclBoundsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
-  public TypeDeclBoundsAnnotatedTypeFactory(BaseTypeChecker checker) {
-    super(checker);
-    postInit();
-  }
+    public TypeDeclBoundsAnnotatedTypeFactory(BaseTypeChecker checker) {
+        super(checker);
+        postInit();
+    }
 
-  @Override
-  protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
-    return new HashSet<>(Arrays.asList(Top.class, Bottom.class, S1.class, S2.class));
-  }
+    @Override
+    protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
+        return new HashSet<>(Arrays.asList(Top.class, Bottom.class, S1.class, S2.class));
+    }
 }

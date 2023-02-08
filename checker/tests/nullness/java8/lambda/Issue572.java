@@ -6,12 +6,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import java.util.function.BiFunction;
 
 public class Issue572 {
-  static <A, B, C> C biApply(BiFunction<A, B, C> f, A a, B b) {
-    return f.apply(a, b);
-  }
+    static <A, B, C> C biApply(BiFunction<A, B, C> f, A a, B b) {
+        return f.apply(a, b);
+    }
 
-  public <A, B> A konst(@NonNull A a, @Nullable B b) {
-    // :: error: (argument.type.incompatible)
-    return biApply(((first, second) -> first), a, b);
-  }
+    public <A, B> A konst(@NonNull A a, @Nullable B b) {
+        // :: error: (argument.type.incompatible)
+        return biApply(((first, second) -> first), a, b);
+    }
 }

@@ -8,19 +8,19 @@ import java.io.InputStream;
 
 class ManualMustCallEmptyOnConstructor {
 
-  // Test that writing @MustCall({}) on a constructor results in an error
-  @InheritableMustCall("a")
-  static class Foo {
-    final @Owning InputStream is;
+    // Test that writing @MustCall({}) on a constructor results in an error
+    @InheritableMustCall("a")
+    static class Foo {
+        final @Owning InputStream is;
 
-    // :: error: inconsistent.constructor.type
-    @MustCall({}) Foo(@Owning InputStream is) {
-      this.is = is;
-    }
+        // :: error: inconsistent.constructor.type
+        @MustCall({}) Foo(@Owning InputStream is) {
+            this.is = is;
+        }
 
-    @EnsuresCalledMethods(value = "this.is", methods = "close")
-    void a() throws Exception {
-      is.close();
+        @EnsuresCalledMethods(value = "this.is", methods = "close")
+        void a() throws Exception {
+            is.close();
+        }
     }
-  }
 }

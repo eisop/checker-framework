@@ -19,14 +19,14 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @SubtypeOf({CalledMethods.class})
 public @interface CalledMethodsPredicate {
-  /**
-   * A boolean expression constructed from the following grammar:
-   *
-   * <p>S &rarr; method name | S &amp;&amp; S | S || S | !S | (S)
-   *
-   * <p>The expression uses standard Java operator precedence: "!" then "&amp;&amp;" then "||".
-   *
-   * @return the boolean expression
-   */
-  String value();
+    /**
+     * A boolean expression constructed from the following grammar:
+     *
+     * <p>S &rarr; method name | S &amp;&amp; S | S || S | !S | (S)
+     *
+     * <p>The expression uses standard Java operator precedence: "!" then "&amp;&amp;" then "||".
+     *
+     * @return the boolean expression
+     */
+    String value();
 }

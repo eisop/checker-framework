@@ -22,28 +22,28 @@ import java.io.UncheckedIOException;
 
 @MustCall("close") public class LemmaStack implements Closeable {
 
-  private @Owning @MustCall("close") PrintWriter session;
+    private @Owning @MustCall("close") PrintWriter session;
 
-  @CreatesMustCallFor("this")
-  @EnsuresNonNull("session")
-  private void startProver() {
-    try {
-      if (session != null) {
-        session.close();
-      }
-      session = new PrintWriter("filename.txt");
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
+    @CreatesMustCallFor("this")
+    @EnsuresNonNull("session")
+    private void startProver() {
+        try {
+            if (session != null) {
+                session.close();
+            }
+            session = new PrintWriter("filename.txt");
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
-  }
 
-  public LemmaStack() {
-    startProver();
-  }
+    public LemmaStack() {
+        startProver();
+    }
 
-  @EnsuresCalledMethods(value = "session", methods = "close")
-  @Override
-  public void close(LemmaStack this) {
-    session.close();
-  }
+    @EnsuresCalledMethods(value = "session", methods = "close")
+    @Override
+    public void close(LemmaStack this) {
+        session.close();
+    }
 }

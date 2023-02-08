@@ -6,10 +6,10 @@ import java.io.*;
 import java.util.Scanner;
 
 class SystemInOut {
-  void test() {
-    @MustCall({}) InputStream in = System.in;
-    @MustCall({}) OutputStream out = System.out;
-    @MustCall({}) OutputStream err = System.err;
-    @MustCall({}) Scanner sysIn = new Scanner(System.in);
-  }
+    void test() {
+        @MustCall({}) InputStream in = System.in;
+        @MustCall({}) OutputStream out = System.out;
+        @MustCall({}) OutputStream err = System.err;
+        @MustCall({}) Scanner sysIn = new Scanner(System.in);
+    }
 }

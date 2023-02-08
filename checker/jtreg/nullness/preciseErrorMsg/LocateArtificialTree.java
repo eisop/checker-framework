@@ -14,9 +14,9 @@ import java.util.List;
 import java.util.function.Consumer;
 
 public class LocateArtificialTree {
-  @NonNull class A {}
+    @NonNull class A {}
 
-  void foo() {
-    Consumer<List<@Nullable A>> c = a -> {};
-  }
+    void foo() {
+        Consumer<List<@Nullable A>> c = a -> {};
+    }
 }

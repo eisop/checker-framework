@@ -35,10 +35,10 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @SubtypeOf(SearchIndexFor.class)
 public @interface NegativeIndexFor {
-  /**
-   * Sequences for which this value is a "negative index"; that is, the expression is in the range
-   * {@code -1} to {@code -a.length - 1}, inclusive, for each sequence {@code a} given here.
-   */
-  @JavaExpression
-  public String[] value();
+    /**
+     * Sequences for which this value is a "negative index"; that is, the expression is in the range
+     * {@code -1} to {@code -a.length - 1}, inclusive, for each sequence {@code a} given here.
+     */
+    @JavaExpression
+    public String[] value();
 }

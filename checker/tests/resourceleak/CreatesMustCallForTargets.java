@@ -8,79 +8,83 @@ import java.io.*;
 
 @InheritableMustCall("a")
 class CreatesMustCallForTargets {
-  @Owning InputStream is1;
+    @Owning InputStream is1;
 
-  @CreatesMustCallFor
-  // :: error: createsmustcallfor.target.unparseable
-  // :: error: incompatible.creates.mustcall.for
-  static void resetObj1(CreatesMustCallForTargets r) throws Exception {
-    if (r.is1 == null) {
-      r.is1 = new FileInputStream("foo.txt");
+    @CreatesMustCallFor
+    // :: error: createsmustcallfor.target.unparseable
+    // :: error: incompatible.creates.mustcall.for
+    static void resetObj1(CreatesMustCallForTargets r) throws Exception {
+        if (r.is1 == null) {
+            r.is1 = new FileInputStream("foo.txt");
+        }
     }
-  }
 
-  @CreatesMustCallFor("#2")
-  // :: error: incompatible.creates.mustcall.for
-  static void resetObj2(CreatesMustCallForTargets r, CreatesMustCallForTargets other)
-      throws Exception {
-    if (r.is1 == null) {
-      r.is1 = new FileInputStream("foo.txt");
+    @CreatesMustCallFor("#2")
+    // :: error: incompatible.creates.mustcall.for
+    static void resetObj2(CreatesMustCallForTargets r, CreatesMustCallForTargets other)
+            throws Exception {
+        if (r.is1 == null) {
+            r.is1 = new FileInputStream("foo.txt");
+        }
     }
-  }
 
-  @CreatesMustCallFor("#1")
-  static void resetObj3(CreatesMustCallForTargets r, CreatesMustCallForTargets other)
-      throws Exception {
-    if (r.is1 == null) {
-      r.is1 = new FileInputStream("foo.txt");
+    @CreatesMustCallFor("#1")
+    static void resetObj3(CreatesMustCallForTargets r, CreatesMustCallForTargets other)
+            throws Exception {
+        if (r.is1 == null) {
+            r.is1 = new FileInputStream("foo.txt");
+        }
     }
-  }
 
-  @CreatesMustCallFor
-  void resetObj4(CreatesMustCallForTargets this, CreatesMustCallForTargets other) throws Exception {
-    if (is1 == null) {
-      is1 = new FileInputStream("foo.txt");
+    @CreatesMustCallFor
+    void resetObj4(CreatesMustCallForTargets this, CreatesMustCallForTargets other)
+            throws Exception {
+        if (is1 == null) {
+            is1 = new FileInputStream("foo.txt");
+        }
     }
-  }
 
-  @CreatesMustCallFor
-  // :: error: incompatible.creates.mustcall.for
-  void resetObj5(CreatesMustCallForTargets this, CreatesMustCallForTargets other) throws Exception {
-    if (other.is1 == null) {
-      other.is1 = new FileInputStream("foo.txt");
+    @CreatesMustCallFor
+    // :: error: incompatible.creates.mustcall.for
+    void resetObj5(CreatesMustCallForTargets this, CreatesMustCallForTargets other)
+            throws Exception {
+        if (other.is1 == null) {
+            other.is1 = new FileInputStream("foo.txt");
+        }
     }
-  }
 
-  @CreatesMustCallFor("#2")
-  // :: error: createsmustcallfor.target.unparseable
-  // :: error: incompatible.creates.mustcall.for
-  void resetObj6(CreatesMustCallForTargets this, CreatesMustCallForTargets other) throws Exception {
-    if (other.is1 == null) {
-      other.is1 = new FileInputStream("foo.txt");
+    @CreatesMustCallFor("#2")
+    // :: error: createsmustcallfor.target.unparseable
+    // :: error: incompatible.creates.mustcall.for
+    void resetObj6(CreatesMustCallForTargets this, CreatesMustCallForTargets other)
+            throws Exception {
+        if (other.is1 == null) {
+            other.is1 = new FileInputStream("foo.txt");
+        }
     }
-  }
 
-  @CreatesMustCallFor("#1")
-  void resetObj7(CreatesMustCallForTargets this, CreatesMustCallForTargets other) throws Exception {
-    if (other.is1 == null) {
-      other.is1 = new FileInputStream("foo.txt");
+    @CreatesMustCallFor("#1")
+    void resetObj7(CreatesMustCallForTargets this, CreatesMustCallForTargets other)
+            throws Exception {
+        if (other.is1 == null) {
+            other.is1 = new FileInputStream("foo.txt");
+        }
     }
-  }
 
-  @EnsuresCalledMethods(value = "this.is1", methods = "close")
-  void a() throws Exception {
-    is1.close();
-  }
+    @EnsuresCalledMethods(value = "this.is1", methods = "close")
+    void a() throws Exception {
+        is1.close();
+    }
 
-  @CreatesMustCallFor("#1")
-  // :: error: creates.mustcall.for.invalid.target
-  static void testBadCreates(Object o) {}
-
-  static class BadCreatesField {
-    @Owning Object o;
-
-    @CreatesMustCallFor("this.o")
+    @CreatesMustCallFor("#1")
     // :: error: creates.mustcall.for.invalid.target
-    void badCreatesOnField() {}
-  }
+    static void testBadCreates(Object o) {}
+
+    static class BadCreatesField {
+        @Owning Object o;
+
+        @CreatesMustCallFor("this.o")
+        // :: error: creates.mustcall.for.invalid.target
+        void badCreatesOnField() {}
+    }
 }

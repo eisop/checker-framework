@@ -10,15 +10,15 @@ import java.util.List;
 /** */
 public class FlowTest extends CheckerFrameworkPerDirectoryTest {
 
-  /**
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public FlowTest(List<File> testFiles) {
-    super(testFiles, FlowTestChecker.class, "flow", "-AcheckPurityAnnotations");
-  }
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public FlowTest(List<File> testFiles) {
+        super(testFiles, FlowTestChecker.class, "flow", "-AcheckPurityAnnotations");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"flow", "all-systems"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"flow", "all-systems"};
+    }
 }
