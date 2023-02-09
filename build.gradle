@@ -282,7 +282,7 @@ allprojects {
                     targetExclude doNotFormat, '**/java17/', '**/*record*/'
                 }
 
-                googleJavaFormat()
+                googleJavaFormat().aosp()
                 formatAnnotations()
             }
 

@@ -29,10 +29,10 @@ import org.checkerframework.framework.qual.TypeUseLocation;
 @DefaultQualifierInHierarchy
 @DefaultFor({TypeUseLocation.EXCEPTION_PARAMETER})
 public @interface MustCall {
-  /**
-   * Methods that might need to be called on the expression whose type is annotated.
-   *
-   * @return methods that might need to be called
-   */
-  public String[] value() default {};
+    /**
+     * Methods that might need to be called on the expression whose type is annotated.
+     *
+     * @return methods that might need to be called
+     */
+    public String[] value() default {};
 }

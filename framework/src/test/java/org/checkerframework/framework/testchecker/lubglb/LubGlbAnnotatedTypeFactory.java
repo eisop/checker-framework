@@ -16,21 +16,21 @@ import org.checkerframework.framework.testchecker.lubglb.quals.PolyLubglb;
 
 public class LubGlbAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
-  public LubGlbAnnotatedTypeFactory(BaseTypeChecker checker) {
-    super(checker);
-    this.postInit();
-  }
+    public LubGlbAnnotatedTypeFactory(BaseTypeChecker checker) {
+        super(checker);
+        this.postInit();
+    }
 
-  @Override
-  protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
-    return new HashSet<Class<? extends Annotation>>(
-        Arrays.asList(
-            LubglbA.class,
-            LubglbB.class,
-            LubglbC.class,
-            LubglbD.class,
-            LubglbE.class,
-            LubglbF.class,
-            PolyLubglb.class));
-  }
+    @Override
+    protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
+        return new HashSet<Class<? extends Annotation>>(
+                Arrays.asList(
+                        LubglbA.class,
+                        LubglbB.class,
+                        LubglbC.class,
+                        LubglbD.class,
+                        LubglbE.class,
+                        LubglbF.class,
+                        PolyLubglb.class));
+    }
 }

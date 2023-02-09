@@ -12,7 +12,7 @@ import org.checkerframework.framework.qual.SubtypeOf;
 @SubtypeOf(AinferParent.class)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 public @interface AinferSiblingWithFields {
-  String[] value() default {};
+    String[] value() default {};
 
-  String value2() default "";
+    String value2() default "";
 }

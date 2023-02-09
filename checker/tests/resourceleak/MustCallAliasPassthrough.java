@@ -6,7 +6,7 @@ import org.checkerframework.checker.calledmethods.qual.*;
 import org.checkerframework.checker.mustcall.qual.*;
 
 class MustCallAliasPassthrough extends FilterInputStream {
-  @MustCallAlias MustCallAliasPassthrough(@MustCallAlias InputStream is) {
-    super(is);
-  }
+    @MustCallAlias MustCallAliasPassthrough(@MustCallAlias InputStream is) {
+        super(is);
+    }
 }

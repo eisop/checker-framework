@@ -10,13 +10,13 @@ import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 
 public class DisbarUseTypeFactory extends BaseAnnotatedTypeFactory {
-  public DisbarUseTypeFactory(BaseTypeChecker checker) {
-    super(checker);
-    postInit();
-  }
+    public DisbarUseTypeFactory(BaseTypeChecker checker) {
+        super(checker);
+        postInit();
+    }
 
-  @Override
-  protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
-    return new LinkedHashSet<>(Arrays.asList(DisbarUseTop.class, DisbarUseBottom.class));
-  }
+    @Override
+    protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
+        return new LinkedHashSet<>(Arrays.asList(DisbarUseTop.class, DisbarUseBottom.class));
+    }
 }

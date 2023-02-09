@@ -5,7 +5,7 @@ import org.checkerframework.checker.mustcall.qual.MustCall;
 
 class NullOutputStreamTest {
 
-  void m() {
-    @MustCall() OutputStream nullOS = OutputStream.nullOutputStream();
-  }
+    void m() {
+        @MustCall() OutputStream nullOS = OutputStream.nullOutputStream();
+    }
 }

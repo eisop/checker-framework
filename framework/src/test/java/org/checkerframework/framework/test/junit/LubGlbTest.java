@@ -9,15 +9,15 @@ import org.junit.runners.Parameterized.Parameters;
 /** */
 public class LubGlbTest extends CheckerFrameworkPerDirectoryTest {
 
-  /**
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public LubGlbTest(List<File> testFiles) {
-    super(testFiles, LubGlbChecker.class, "lubglb");
-  }
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public LubGlbTest(List<File> testFiles) {
+        super(testFiles, LubGlbChecker.class, "lubglb");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"lubglb"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"lubglb"};
+    }
 }

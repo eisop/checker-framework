@@ -13,9 +13,9 @@ import java.util.function.Consumer;
 import org.checkerframework.checker.nullness.qual.*;
 
 public class LocateArtificialTree {
-  @NonNull class A {}
+    @NonNull class A {}
 
-  void foo() {
-    Consumer<List<@Nullable A>> c = a -> {};
-  }
+    void foo() {
+        Consumer<List<@Nullable A>> c = a -> {};
+    }
 }

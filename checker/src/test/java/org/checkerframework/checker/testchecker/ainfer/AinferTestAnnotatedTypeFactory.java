@@ -45,202 +45,209 @@ import org.checkerframework.javacutil.TypeSystemError;
  */
 public class AinferTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
-  private final AnnotationMirror PARENT =
-      new AnnotationBuilder(processingEnv, AinferParent.class).build();
-  private final AnnotationMirror BOTTOM =
-      new AnnotationBuilder(processingEnv, AinferBottom.class).build();
-  private final AnnotationMirror IMPLICIT_ANNO =
-      new AnnotationBuilder(processingEnv, AinferImplicitAnno.class).build();
+    private final AnnotationMirror PARENT =
+            new AnnotationBuilder(processingEnv, AinferParent.class).build();
+    private final AnnotationMirror BOTTOM =
+            new AnnotationBuilder(processingEnv, AinferBottom.class).build();
+    private final AnnotationMirror IMPLICIT_ANNO =
+            new AnnotationBuilder(processingEnv, AinferImplicitAnno.class).build();
 
-  private final AnnotationMirror SIBLING1 =
-      new AnnotationBuilder(processingEnv, AinferSibling1.class).build();
+    private final AnnotationMirror SIBLING1 =
+            new AnnotationBuilder(processingEnv, AinferSibling1.class).build();
 
-  private final AnnotationMirror TREAT_AS_SIBLING1 =
-      new AnnotationBuilder(processingEnv, AinferTreatAsSibling1.class).build();
+    private final AnnotationMirror TREAT_AS_SIBLING1 =
+            new AnnotationBuilder(processingEnv, AinferTreatAsSibling1.class).build();
 
-  /** The AinferSiblingWithFields.value field/element. */
-  private final ExecutableElement siblingWithFieldsValueElement =
-      TreeUtils.getMethod(AinferSiblingWithFields.class, "value", 0, processingEnv);
-  /** The AinferSiblingWithFields.value2 field/element. */
-  private final ExecutableElement siblingWithFieldsValue2Element =
-      TreeUtils.getMethod(AinferSiblingWithFields.class, "value2", 0, processingEnv);
+    /** The AinferSiblingWithFields.value field/element. */
+    private final ExecutableElement siblingWithFieldsValueElement =
+            TreeUtils.getMethod(AinferSiblingWithFields.class, "value", 0, processingEnv);
+    /** The AinferSiblingWithFields.value2 field/element. */
+    private final ExecutableElement siblingWithFieldsValue2Element =
+            TreeUtils.getMethod(AinferSiblingWithFields.class, "value2", 0, processingEnv);
 
-  public AinferTestAnnotatedTypeFactory(BaseTypeChecker checker) {
-    super(checker);
-    // Support a declaration annotation that can be written on parameters, to test that the
-    // WPI feature allowing inference of declaration annotations on parameters works as
-    // intended.
-    addAliasedTypeAnnotation(AinferTreatAsSibling1.class, SIBLING1);
-    postInit();
-  }
+    public AinferTestAnnotatedTypeFactory(BaseTypeChecker checker) {
+        super(checker);
+        // Support a declaration annotation that can be written on parameters, to test that the
+        // WPI feature allowing inference of declaration annotations on parameters works as
+        // intended.
+        addAliasedTypeAnnotation(AinferTreatAsSibling1.class, SIBLING1);
+        postInit();
+    }
 
-  @Override
-  protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
-    return new HashSet<Class<? extends Annotation>>(
-        Arrays.asList(
-            AinferParent.class,
-            AinferDefaultType.class,
-            AinferTop.class,
-            AinferSibling1.class,
-            AinferSibling2.class,
-            AinferBottom.class,
-            AinferSiblingWithFields.class,
-            AinferImplicitAnno.class));
-  }
+    @Override
+    protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
+        return new HashSet<Class<? extends Annotation>>(
+                Arrays.asList(
+                        AinferParent.class,
+                        AinferDefaultType.class,
+                        AinferTop.class,
+                        AinferSibling1.class,
+                        AinferSibling2.class,
+                        AinferBottom.class,
+                        AinferSiblingWithFields.class,
+                        AinferImplicitAnno.class));
+    }
 
-  @Override
-  public TreeAnnotator createTreeAnnotator() {
-    LiteralTreeAnnotator literalTreeAnnotator = new LiteralTreeAnnotator(this);
-    literalTreeAnnotator.addLiteralKind(LiteralKind.INT, BOTTOM);
-    literalTreeAnnotator.addStandardLiteralQualifiers();
+    @Override
+    public TreeAnnotator createTreeAnnotator() {
+        LiteralTreeAnnotator literalTreeAnnotator = new LiteralTreeAnnotator(this);
+        literalTreeAnnotator.addLiteralKind(LiteralKind.INT, BOTTOM);
+        literalTreeAnnotator.addStandardLiteralQualifiers();
 
-    return new ListTreeAnnotator(
-        new PropagationTreeAnnotator(this),
-        literalTreeAnnotator,
-        new AinferTestTreeAnnotator(this));
-  }
+        return new ListTreeAnnotator(
+                new PropagationTreeAnnotator(this),
+                literalTreeAnnotator,
+                new AinferTestTreeAnnotator(this));
+    }
 
-  protected class AinferTestTreeAnnotator extends TreeAnnotator {
+    protected class AinferTestTreeAnnotator extends TreeAnnotator {
+
+        /**
+         * Create a new AinferTestTreeAnnotator.
+         *
+         * @param atypeFactory the type factory
+         */
+        protected AinferTestTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+            super(atypeFactory);
+        }
+
+        @Override
+        public Void visitClass(ClassTree classTree, AnnotatedTypeMirror type) {
+            /* NO-AFU
+            WholeProgramInference wpi = atypeFactory.getWholeProgramInference();
+            TypeElement classElt = TreeUtils.elementFromDeclaration(classTree);
+            if (wpi != null && classElt.getSimpleName().contentEquals("IShouldBeSibling1")) {
+              wpi.addClassDeclarationAnnotation(classElt, SIBLING1);
+            }
+            */
+            return super.visitClass(classTree, type);
+        }
+
+        @Override
+        public Void visitMethod(MethodTree methodTree, AnnotatedTypeMirror type) {
+            /* NO-AFU
+            WholeProgramInference wpi = atypeFactory.getWholeProgramInference();
+            if (wpi != null) {
+              ExecutableElement execElt = TreeUtils.elementFromDeclaration(methodTree);
+              for (int i = 0; i < execElt.getParameters().size(); ++i) {
+                VariableElement param = execElt.getParameters().get(i);
+                if (param.getSimpleName().contentEquals("iShouldBeTreatedAsSibling1")) {
+                  wpi.addDeclarationAnnotationToFormalParameter(execElt, i, TREAT_AS_SIBLING1);
+                }
+              }
+            }
+            */
+            return super.visitMethod(methodTree, type);
+        }
+    }
+
+    @Override
+    protected QualifierHierarchy createQualifierHierarchy() {
+        return new AinferTestQualifierHierarchy(this.getSupportedTypeQualifiers(), elements);
+    }
 
     /**
-     * Create a new AinferTestTreeAnnotator.
+     * Using a MultiGraphQualifierHierarchy to enable tests with Annotations that contain fields.
      *
-     * @param atypeFactory the type factory
+     * @see AinferSiblingWithFields
      */
-    protected AinferTestTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
-      super(atypeFactory);
-    }
+    protected class AinferTestQualifierHierarchy extends MostlyNoElementQualifierHierarchy {
 
-    @Override
-    public Void visitClass(ClassTree classTree, AnnotatedTypeMirror type) {
-      /* NO-AFU
-      WholeProgramInference wpi = atypeFactory.getWholeProgramInference();
-      TypeElement classElt = TreeUtils.elementFromDeclaration(classTree);
-      if (wpi != null && classElt.getSimpleName().contentEquals("IShouldBeSibling1")) {
-        wpi.addClassDeclarationAnnotation(classElt, SIBLING1);
-      }
-      */
-      return super.visitClass(classTree, type);
-    }
+        private final QualifierKind SIBLING_WITH_FIELDS_KIND;
 
-    @Override
-    public Void visitMethod(MethodTree methodTree, AnnotatedTypeMirror type) {
-      /* NO-AFU
-      WholeProgramInference wpi = atypeFactory.getWholeProgramInference();
-      if (wpi != null) {
-        ExecutableElement execElt = TreeUtils.elementFromDeclaration(methodTree);
-        for (int i = 0; i < execElt.getParameters().size(); ++i) {
-          VariableElement param = execElt.getParameters().get(i);
-          if (param.getSimpleName().contentEquals("iShouldBeTreatedAsSibling1")) {
-            wpi.addDeclarationAnnotationToFormalParameter(execElt, i, TREAT_AS_SIBLING1);
-          }
+        /**
+         * Creates a AinferTestQualifierHierarchy from the given classes.
+         *
+         * @param qualifierClasses classes of annotations that are the qualifiers for this hierarchy
+         * @param elements element utils
+         */
+        protected AinferTestQualifierHierarchy(
+                Collection<Class<? extends Annotation>> qualifierClasses, Elements elements) {
+            super(qualifierClasses, elements);
+            SIBLING_WITH_FIELDS_KIND =
+                    getQualifierKind(AinferSiblingWithFields.class.getCanonicalName());
         }
-      }
-      */
-      return super.visitMethod(methodTree, type);
-    }
-  }
 
-  @Override
-  protected QualifierHierarchy createQualifierHierarchy() {
-    return new AinferTestQualifierHierarchy(this.getSupportedTypeQualifiers(), elements);
-  }
-
-  /**
-   * Using a MultiGraphQualifierHierarchy to enable tests with Annotations that contain fields.
-   *
-   * @see AinferSiblingWithFields
-   */
-  protected class AinferTestQualifierHierarchy extends MostlyNoElementQualifierHierarchy {
-
-    private final QualifierKind SIBLING_WITH_FIELDS_KIND;
-
-    /**
-     * Creates a AinferTestQualifierHierarchy from the given classes.
-     *
-     * @param qualifierClasses classes of annotations that are the qualifiers for this hierarchy
-     * @param elements element utils
-     */
-    protected AinferTestQualifierHierarchy(
-        Collection<Class<? extends Annotation>> qualifierClasses, Elements elements) {
-      super(qualifierClasses, elements);
-      SIBLING_WITH_FIELDS_KIND = getQualifierKind(AinferSiblingWithFields.class.getCanonicalName());
-    }
-
-    @Override
-    public AnnotationMirror getBottomAnnotation(AnnotationMirror start) {
-      return BOTTOM;
-    }
-
-    @Override
-    public Set<? extends AnnotationMirror> getBottomAnnotations() {
-      return Collections.singleton(BOTTOM);
-    }
-
-    @Override
-    protected AnnotationMirror greatestLowerBoundWithElements(
-        AnnotationMirror a1,
-        QualifierKind qualifierKind1,
-        AnnotationMirror a2,
-        QualifierKind qualifierKind2,
-        QualifierKind glbKind) {
-      if (qualifierKind1 == qualifierKind2 && qualifierKind1 == SIBLING_WITH_FIELDS_KIND) {
-        if (isSubtypeWithElements(a1, qualifierKind1, a2, qualifierKind2)) {
-          return a1;
-        } else {
-          return IMPLICIT_ANNO;
+        @Override
+        public AnnotationMirror getBottomAnnotation(AnnotationMirror start) {
+            return BOTTOM;
         }
-      } else if (qualifierKind1 == SIBLING_WITH_FIELDS_KIND) {
-        return a1;
-      } else if (qualifierKind2 == SIBLING_WITH_FIELDS_KIND) {
-        return a2;
-      }
-      throw new TypeSystemError("Unexpected qualifiers: %s %s", a1, a2);
-    }
 
-    @Override
-    protected AnnotationMirror leastUpperBoundWithElements(
-        AnnotationMirror a1,
-        QualifierKind qualifierKind1,
-        AnnotationMirror a2,
-        QualifierKind qualifierKind2,
-        QualifierKind lubKind) {
-      if (qualifierKind1 == qualifierKind2 && qualifierKind1 == SIBLING_WITH_FIELDS_KIND) {
-        if (isSubtypeWithElements(a1, qualifierKind1, a2, qualifierKind2)) {
-          return a1;
-        } else {
-          return PARENT;
+        @Override
+        public Set<? extends AnnotationMirror> getBottomAnnotations() {
+            return Collections.singleton(BOTTOM);
         }
-      } else if (qualifierKind1 == SIBLING_WITH_FIELDS_KIND) {
-        return a1;
-      } else if (qualifierKind2 == SIBLING_WITH_FIELDS_KIND) {
-        return a2;
-      }
-      throw new TypeSystemError("Unexpected qualifiers: %s %s", a1, a2);
-    }
 
-    @Override
-    protected boolean isSubtypeWithElements(
-        AnnotationMirror subAnno,
-        QualifierKind subKind,
-        AnnotationMirror superAnno,
-        QualifierKind superKind) {
-      if (subKind == SIBLING_WITH_FIELDS_KIND && superKind == SIBLING_WITH_FIELDS_KIND) {
-        List<String> subVal1 =
-            AnnotationUtils.getElementValueArray(
-                subAnno, siblingWithFieldsValueElement, String.class, Collections.emptyList());
-        List<String> supVal1 =
-            AnnotationUtils.getElementValueArray(
-                superAnno, siblingWithFieldsValueElement, String.class, Collections.emptyList());
-        String subVal2 =
-            AnnotationUtils.getElementValue(
-                subAnno, siblingWithFieldsValue2Element, String.class, "");
-        String supVal2 =
-            AnnotationUtils.getElementValue(
-                superAnno, siblingWithFieldsValue2Element, String.class, "");
-        return subVal1.equals(supVal1) && subVal2.equals(supVal2);
-      }
-      throw new TypeSystemError("Unexpected qualifiers: %s %s", subAnno, superAnno);
+        @Override
+        protected AnnotationMirror greatestLowerBoundWithElements(
+                AnnotationMirror a1,
+                QualifierKind qualifierKind1,
+                AnnotationMirror a2,
+                QualifierKind qualifierKind2,
+                QualifierKind glbKind) {
+            if (qualifierKind1 == qualifierKind2 && qualifierKind1 == SIBLING_WITH_FIELDS_KIND) {
+                if (isSubtypeWithElements(a1, qualifierKind1, a2, qualifierKind2)) {
+                    return a1;
+                } else {
+                    return IMPLICIT_ANNO;
+                }
+            } else if (qualifierKind1 == SIBLING_WITH_FIELDS_KIND) {
+                return a1;
+            } else if (qualifierKind2 == SIBLING_WITH_FIELDS_KIND) {
+                return a2;
+            }
+            throw new TypeSystemError("Unexpected qualifiers: %s %s", a1, a2);
+        }
+
+        @Override
+        protected AnnotationMirror leastUpperBoundWithElements(
+                AnnotationMirror a1,
+                QualifierKind qualifierKind1,
+                AnnotationMirror a2,
+                QualifierKind qualifierKind2,
+                QualifierKind lubKind) {
+            if (qualifierKind1 == qualifierKind2 && qualifierKind1 == SIBLING_WITH_FIELDS_KIND) {
+                if (isSubtypeWithElements(a1, qualifierKind1, a2, qualifierKind2)) {
+                    return a1;
+                } else {
+                    return PARENT;
+                }
+            } else if (qualifierKind1 == SIBLING_WITH_FIELDS_KIND) {
+                return a1;
+            } else if (qualifierKind2 == SIBLING_WITH_FIELDS_KIND) {
+                return a2;
+            }
+            throw new TypeSystemError("Unexpected qualifiers: %s %s", a1, a2);
+        }
+
+        @Override
+        protected boolean isSubtypeWithElements(
+                AnnotationMirror subAnno,
+                QualifierKind subKind,
+                AnnotationMirror superAnno,
+                QualifierKind superKind) {
+            if (subKind == SIBLING_WITH_FIELDS_KIND && superKind == SIBLING_WITH_FIELDS_KIND) {
+                List<String> subVal1 =
+                        AnnotationUtils.getElementValueArray(
+                                subAnno,
+                                siblingWithFieldsValueElement,
+                                String.class,
+                                Collections.emptyList());
+                List<String> supVal1 =
+                        AnnotationUtils.getElementValueArray(
+                                superAnno,
+                                siblingWithFieldsValueElement,
+                                String.class,
+                                Collections.emptyList());
+                String subVal2 =
+                        AnnotationUtils.getElementValue(
+                                subAnno, siblingWithFieldsValue2Element, String.class, "");
+                String supVal2 =
+                        AnnotationUtils.getElementValue(
+                                superAnno, siblingWithFieldsValue2Element, String.class, "");
+                return subVal1.equals(supVal1) && subVal2.equals(supVal2);
+            }
+            throw new TypeSystemError("Unexpected qualifiers: %s %s", subAnno, superAnno);
+        }
     }
-  }
 }

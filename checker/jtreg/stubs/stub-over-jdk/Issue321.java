@@ -9,5 +9,5 @@ import java.util.Optional;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 interface Issue321 {
-  @Nullable Optional<String> o();
+    @Nullable Optional<String> o();
 }

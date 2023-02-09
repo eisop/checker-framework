@@ -12,11 +12,11 @@ import org.checkerframework.common.value.ValueChecker;
  */
 public class SignednessChecker extends BaseTypeChecker {
 
-  @Override
-  protected LinkedHashSet<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
-    LinkedHashSet<Class<? extends BaseTypeChecker>> checkers =
-        super.getImmediateSubcheckerClasses();
-    checkers.add(ValueChecker.class);
-    return checkers;
-  }
+    @Override
+    protected LinkedHashSet<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
+        LinkedHashSet<Class<? extends BaseTypeChecker>> checkers =
+                super.getImmediateSubcheckerClasses();
+        checkers.add(ValueChecker.class);
+        return checkers;
+    }
 }
