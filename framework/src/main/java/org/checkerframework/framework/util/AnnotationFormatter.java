@@ -1,4 +1,4 @@
-package org.checkerframework.javacutil;
+package org.checkerframework.framework.util;
 
 import java.util.Collection;
 import javax.lang.model.element.AnnotationMirror;
