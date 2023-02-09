@@ -1,7 +1,8 @@
 // a test that sockets in fields are considered @MustCall("close")
 
-import java.net.Socket;
 import org.checkerframework.checker.mustcall.qual.MustCall;
+
+import java.net.Socket;
 
 class SimpleSocketField {
     Socket mySock = new Socket();

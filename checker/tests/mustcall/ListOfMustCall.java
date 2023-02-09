@@ -1,8 +1,9 @@
 // A test that checks that parameterized classes in the JDK don't cause false positives
 // when they are used with an @MustCall-annotated class.
 
-import java.util.*;
 import org.checkerframework.checker.mustcall.qual.*;
+
+import java.util.*;
 
 @InheritableMustCall("a")
 class ListOfMustCall {

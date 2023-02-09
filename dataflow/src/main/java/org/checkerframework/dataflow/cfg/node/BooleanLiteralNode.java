@@ -2,10 +2,12 @@ package org.checkerframework.dataflow.cfg.node;
 
 import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.Tree;
-import java.util.Collection;
-import java.util.Collections;
+
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.SideEffectFree;
+
+import java.util.Collection;
+import java.util.Collections;
 
 /**
  * A node for a boolean literal:

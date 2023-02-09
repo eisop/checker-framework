@@ -1,7 +1,8 @@
-import java.io.*;
-import java.security.*;
 import org.checkerframework.checker.calledmethods.qual.*;
 import org.checkerframework.checker.mustcall.qual.*;
+
+import java.io.*;
+import java.security.*;
 
 public class ReassignmentWithMCA {
     void testReassignment(File newFile, MessageDigest digester) throws IOException {

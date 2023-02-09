@@ -1,6 +1,7 @@
+import org.checkerframework.checker.nullness.qual.*;
+
 import java.io.InputStream;
 import java.util.List;
-import org.checkerframework.checker.nullness.qual.*;
 
 /*
 Check for redundant annotations in the following locations

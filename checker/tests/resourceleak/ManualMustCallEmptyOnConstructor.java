@@ -1,9 +1,10 @@
 // test for https://github.com/kelloggm/object-construction-checker/issues/326
 
-import java.io.InputStream;
 import org.checkerframework.checker.calledmethods.qual.*;
 import org.checkerframework.checker.mustcall.qual.*;
 import org.checkerframework.common.returnsreceiver.qual.*;
+
+import java.io.InputStream;
 
 class ManualMustCallEmptyOnConstructor {
 

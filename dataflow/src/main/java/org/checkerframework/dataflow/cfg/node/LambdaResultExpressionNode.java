@@ -1,12 +1,14 @@
 package org.checkerframework.dataflow.cfg.node;
 
 import com.sun.source.tree.ExpressionTree;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Objects;
+
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.TreeUtils;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Objects;
 
 /** A node for the single expression body of a single-expression lambda. */
 public class LambdaResultExpressionNode extends Node {

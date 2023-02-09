@@ -2,9 +2,7 @@ package org.checkerframework.checker.formatter;
 
 import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.Tree;
-import java.lang.annotation.Annotation;
-import java.util.IllegalFormatException;
-import javax.lang.model.element.AnnotationMirror;
+
 import org.checkerframework.checker.formatter.qual.ConversionCategory;
 import org.checkerframework.checker.formatter.qual.Format;
 import org.checkerframework.checker.formatter.qual.FormatBottom;
@@ -25,6 +23,11 @@ import org.checkerframework.framework.util.QualifierKind;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.TypeSystemError;
+
+import java.lang.annotation.Annotation;
+import java.util.IllegalFormatException;
+
+import javax.lang.model.element.AnnotationMirror;
 
 /**
  * Adds {@link Format} to the type of tree, if it is a {@code String} or {@code char} literal that

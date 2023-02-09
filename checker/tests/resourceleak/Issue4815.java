@@ -1,8 +1,9 @@
 // Test case for https://tinyurl.com/cfissue/4815
 
-import java.util.List;
 import org.checkerframework.checker.mustcall.qual.MustCall;
 import org.checkerframework.checker.mustcall.qual.Owning;
+
+import java.util.List;
 
 public class Issue4815 {
     public <T extends Component> void initialize(

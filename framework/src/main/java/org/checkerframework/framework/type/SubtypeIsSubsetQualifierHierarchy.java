@@ -1,16 +1,18 @@
 package org.checkerframework.framework.type;
 
-import java.lang.annotation.Annotation;
-import java.util.Collection;
-import java.util.LinkedHashSet;
-import java.util.List;
-import javax.annotation.processing.ProcessingEnvironment;
-import javax.lang.model.element.AnnotationMirror;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.util.QualifierKind;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
+
+import java.lang.annotation.Annotation;
+import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.List;
+
+import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.AnnotationMirror;
 
 /**
  * A {@link org.checkerframework.framework.type.QualifierHierarchy} where, when a qualifier has

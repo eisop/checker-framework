@@ -1,7 +1,8 @@
 // Test case based on an MCA situation in Zookeeper.
-import java.io.*;
 import org.checkerframework.checker.calledmethods.qual.*;
 import org.checkerframework.checker.mustcall.qual.*;
+
+import java.io.*;
 
 class MustCallAliasLayeredStreams {
     InputStream cache;

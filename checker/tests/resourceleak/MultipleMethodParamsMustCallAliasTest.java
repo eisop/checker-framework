@@ -1,8 +1,9 @@
-import java.io.*;
-import java.net.*;
 import org.checkerframework.checker.calledmethods.qual.*;
 import org.checkerframework.checker.mustcall.qual.*;
 import org.checkerframework.common.returnsreceiver.qual.*;
+
+import java.io.*;
+import java.net.*;
 
 class MultipleMethodParamsMustCallAliasTest {
 

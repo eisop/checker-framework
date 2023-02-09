@@ -4,9 +4,10 @@
  *
  * @compile/timeout=30 -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -Alint Issue4948.java
  */
-import java.util.stream.Stream;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
+
+import java.util.stream.Stream;
 
 @SuppressWarnings("nullness") // Check for timeout.
 public class Issue4948 {

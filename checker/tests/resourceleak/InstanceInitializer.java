@@ -2,8 +2,9 @@
 // In the resourceleak-permitinitializationleak/ directory, it's a test that the
 // checker is unsound with the -ApermitInitializationLeak command-line argument.
 
-import java.net.Socket;
 import org.checkerframework.checker.mustcall.qual.*;
+
+import java.net.Socket;
 
 class InstanceInitializer {
     // :: error: required.method.not.called

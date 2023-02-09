@@ -1,8 +1,9 @@
-import java.lang.reflect.Method;
 import org.checkerframework.framework.testchecker.reflection.qual.TestReflectBottom;
 import org.checkerframework.framework.testchecker.reflection.qual.TestReflectSibling1;
 import org.checkerframework.framework.testchecker.reflection.qual.TestReflectSibling2;
 import org.checkerframework.framework.testchecker.reflection.qual.TestReflectTop;
+
+import java.lang.reflect.Method;
 
 public class MethodTest {
 

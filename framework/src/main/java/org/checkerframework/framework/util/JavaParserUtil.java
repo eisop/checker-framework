@@ -19,13 +19,16 @@ import com.github.javaparser.ast.expr.BinaryExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+
+import org.checkerframework.javacutil.BugInCF;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Optional;
+
 import javax.annotation.processing.ProcessingEnvironment;
-import org.checkerframework.javacutil.BugInCF;
 
 /**
  * Utility methods for working with JavaParser. It is a replacement for StaticJavaParser that does

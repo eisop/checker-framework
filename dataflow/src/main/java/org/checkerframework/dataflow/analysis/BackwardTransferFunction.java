@@ -1,9 +1,10 @@
 package org.checkerframework.dataflow.analysis;
 
-import java.util.List;
 import org.checkerframework.dataflow.cfg.UnderlyingAST;
 import org.checkerframework.dataflow.cfg.node.ReturnNode;
 import org.checkerframework.dataflow.qual.SideEffectFree;
+
+import java.util.List;
 
 /**
  * Interface of a backward transfer function for the abstract interpretation used for the backward

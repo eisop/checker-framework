@@ -1,10 +1,12 @@
 package org.checkerframework.dataflow.cfg.node;
 
 import com.sun.source.tree.UnaryTree;
-import java.util.Collection;
-import java.util.Collections;
+
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.TreeUtils;
+
+import java.util.Collection;
+import java.util.Collections;
 
 /**
  * A node for a postfix or an unary expression.

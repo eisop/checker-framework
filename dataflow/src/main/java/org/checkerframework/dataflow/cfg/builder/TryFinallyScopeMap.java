@@ -1,10 +1,12 @@
 package org.checkerframework.dataflow.cfg.builder;
 
-import java.util.HashMap;
-import java.util.Map;
-import javax.lang.model.element.Name;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.plumelib.util.ArrayMap;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.lang.model.element.Name;
 
 /**
  * A map that keeps track of new labels added within a try block. For names that are outside of the

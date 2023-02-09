@@ -1,6 +1,5 @@
 package org.checkerframework.dataflow.livevariable;
 
-import java.util.List;
 import org.checkerframework.dataflow.analysis.BackwardTransferFunction;
 import org.checkerframework.dataflow.analysis.RegularTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
@@ -14,6 +13,8 @@ import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.ObjectCreationNode;
 import org.checkerframework.dataflow.cfg.node.ReturnNode;
 import org.checkerframework.dataflow.qual.SideEffectFree;
+
+import java.util.List;
 
 /** A live variable transfer function. */
 public class LiveVarTransfer

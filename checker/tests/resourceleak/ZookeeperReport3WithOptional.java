@@ -3,10 +3,11 @@
 
 // @skip-test until Optional is supported. For now, users should use null instead.
 
+import org.checkerframework.checker.mustcall.qual.*;
+
 import java.io.*;
 import java.net.*;
 import java.util.Optional;
-import org.checkerframework.checker.mustcall.qual.*;
 
 class ZookeeperReport3WithOptional {
 

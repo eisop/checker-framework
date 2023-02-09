@@ -1,7 +1,8 @@
+import org.checkerframework.checker.nullness.qual.*;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import org.checkerframework.checker.nullness.qual.*;
 
 public class ToArrayNullness {
     private List<@Nullable String> nullableList = new ArrayList<>();

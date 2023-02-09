@@ -1,16 +1,7 @@
 package org.checkerframework.common.wholeprograminference;
 
 import com.sun.tools.javac.code.Type.ArrayType;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import javax.annotation.processing.ProcessingEnvironment;
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.AnnotationValue;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.TypeMirror;
+
 import org.checkerframework.afu.scenelib.annotations.Annotation;
 import org.checkerframework.afu.scenelib.annotations.el.AnnotationDef;
 import org.checkerframework.afu.scenelib.annotations.field.AnnotationFieldType;
@@ -27,6 +18,18 @@ import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.reflection.Signatures;
 import org.plumelib.util.ArrayMap;
 import org.plumelib.util.CollectionsPlume;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.AnnotationValue;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeMirror;
 
 /**
  * This class contains static methods that convert between {@link

@@ -1,7 +1,8 @@
-import java.util.List;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.test.*;
 import org.checkerframework.framework.testchecker.util.*;
+
+import java.util.List;
 
 public class Basic2 {
 

@@ -1,8 +1,5 @@
 package org.checkerframework.dataflow.livevariable;
 
-import java.util.LinkedHashSet;
-import java.util.Set;
-import java.util.StringJoiner;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.Store;
 import org.checkerframework.dataflow.cfg.node.BinaryOperationNode;
@@ -17,6 +14,10 @@ import org.checkerframework.dataflow.cfg.visualize.CFGVisualizer;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.javacutil.BugInCF;
 import org.plumelib.util.ArraySet;
+
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.StringJoiner;
 
 /** A live variable store contains a set of live variables represented by nodes. */
 public class LiveVarStore implements Store<LiveVarStore> {

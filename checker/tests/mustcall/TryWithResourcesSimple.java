@@ -1,8 +1,9 @@
 // A test that try-with-resources variables are always @MustCall({}).
 
+import org.checkerframework.checker.mustcall.qual.MustCall;
+
 import java.io.*;
 import java.net.*;
-import org.checkerframework.checker.mustcall.qual.MustCall;
 
 public class TryWithResourcesSimple {
     static void test(String address, int port) {

@@ -1,6 +1,7 @@
-import java.util.List;
 import org.checkerframework.checker.mustcall.qual.MustCall;
 import org.checkerframework.checker.mustcall.qual.MustCallUnknown;
+
+import java.util.List;
 
 public class PrimitiveCast {
 

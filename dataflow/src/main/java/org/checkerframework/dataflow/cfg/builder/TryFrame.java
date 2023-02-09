@@ -1,6 +1,7 @@
 package org.checkerframework.dataflow.cfg.builder;
 
 import java.util.Set;
+
 import javax.lang.model.type.TypeMirror;
 
 /** A TryFrame maps a thrown exception type to a set of possible control-flow successors. */

@@ -1,7 +1,5 @@
 package org.checkerframework.checker.resourceleak;
 
-import java.util.LinkedHashSet;
-import javax.tools.Diagnostic.Kind;
 import org.checkerframework.checker.calledmethods.CalledMethodsChecker;
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.mustcall.MustCallChecker;
@@ -10,6 +8,10 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.qual.StubFiles;
 import org.checkerframework.framework.source.SupportedOptions;
+
+import java.util.LinkedHashSet;
+
+import javax.tools.Diagnostic.Kind;
 
 /**
  * The entry point for the Resource Leak Checker. This checker is a modifed {@link

@@ -1,8 +1,9 @@
 // A simple test that MustCallAlias annotations in source code don't issue
 // bogus annotations.on.use errors.
 
-import java.io.*;
 import org.checkerframework.checker.mustcall.qual.*;
+
+import java.io.*;
 
 public class MustCallAliasImpl implements Closeable {
 

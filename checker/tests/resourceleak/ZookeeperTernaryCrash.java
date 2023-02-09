@@ -1,7 +1,8 @@
+import org.checkerframework.checker.mustcall.qual.MustCall;
+
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.util.*;
-import org.checkerframework.checker.mustcall.qual.MustCall;
 
 final class ZookeeperTernaryCrash {
 

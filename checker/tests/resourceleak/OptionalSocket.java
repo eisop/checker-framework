@@ -4,10 +4,11 @@
 // which case it's fine with me to skip this test for now. - Martin
 // @skip-test
 
+import org.checkerframework.checker.mustcall.qual.*;
+
 import java.io.*;
 import java.net.*;
 import java.util.*;
-import org.checkerframework.checker.mustcall.qual.*;
 
 class OptionalSocket {
     void test_close_get_null(@Owning Optional<Socket> sock) throws IOException {

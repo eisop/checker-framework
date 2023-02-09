@@ -1,8 +1,9 @@
 // This is the safe version of TwoSocketContainer.java.
 
-import java.net.Socket;
 import org.checkerframework.checker.calledmethods.qual.*;
 import org.checkerframework.checker.mustcall.qual.*;
+
+import java.net.Socket;
 
 @InheritableMustCall({"close1", "close2"})
 public class TwoSocketContainerSafe {

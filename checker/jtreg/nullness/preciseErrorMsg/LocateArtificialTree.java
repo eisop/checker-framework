@@ -8,9 +8,10 @@
  *
  */
 
+import org.checkerframework.checker.nullness.qual.*;
+
 import java.util.List;
 import java.util.function.Consumer;
-import org.checkerframework.checker.nullness.qual.*;
 
 public class LocateArtificialTree {
     @NonNull class A {}

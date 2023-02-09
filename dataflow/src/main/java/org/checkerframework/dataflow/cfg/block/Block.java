@@ -1,10 +1,11 @@
 package org.checkerframework.dataflow.cfg.block;
 
-import java.util.List;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.qual.Pure;
 import org.plumelib.util.UniqueId;
+
+import java.util.List;
 
 /** Represents a basic block in a control flow graph. */
 public interface Block extends UniqueId {

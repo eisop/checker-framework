@@ -20,12 +20,14 @@ import com.github.javaparser.utils.CollectionStrategy;
 import com.github.javaparser.utils.ParserCollectionStrategy;
 import com.github.javaparser.utils.ProjectRoot;
 import com.github.javaparser.utils.SourceRoot;
+
+import org.checkerframework.framework.util.JavaParserUtil;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
-import org.checkerframework.framework.util.JavaParserUtil;
 
 /**
  * Process Java source files in a directory to produce, in-place, minimal stub files.

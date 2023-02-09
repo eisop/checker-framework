@@ -1,13 +1,16 @@
 package org.checkerframework.dataflow.cfg.node;
 
 import com.sun.source.tree.Tree;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Objects;
-import javax.lang.model.type.TypeMirror;
+
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.TypesUtils;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Objects;
+
+import javax.lang.model.type.TypeMirror;
 
 /**
  * A node for the narrowing primitive conversion operation. See JLS 5.1.3 for the definition of

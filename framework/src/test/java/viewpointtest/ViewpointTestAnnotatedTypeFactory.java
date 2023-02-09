@@ -1,10 +1,12 @@
 package viewpointtest;
 
-import java.lang.annotation.Annotation;
-import java.util.Set;
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.type.AbstractViewpointAdapter;
+
+import java.lang.annotation.Annotation;
+import java.util.Set;
+
 import viewpointtest.quals.A;
 import viewpointtest.quals.B;
 import viewpointtest.quals.Bottom;

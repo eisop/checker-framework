@@ -1,10 +1,11 @@
-import java.io.Closeable;
-import java.io.IOException;
-import java.io.PrintStream;
 import org.checkerframework.checker.calledmethods.qual.EnsuresCalledMethods;
 import org.checkerframework.checker.mustcall.qual.CreatesMustCallFor;
 import org.checkerframework.checker.mustcall.qual.MustCall;
 import org.checkerframework.checker.mustcall.qual.Owning;
+
+import java.io.Closeable;
+import java.io.IOException;
+import java.io.PrintStream;
 
 @MustCall("close") class StaticOwningField implements Closeable {
 

@@ -25,6 +25,13 @@ import com.google.common.base.CharMatcher;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.reflect.ClassPath;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.util.JavaParserUtil;
+import org.checkerframework.javacutil.BugInCF;
+import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.StringsPlume;
+
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -38,11 +45,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.util.JavaParserUtil;
-import org.checkerframework.javacutil.BugInCF;
-import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.StringsPlume;
 
 /**
  * Process Java source files to remove annotations that ought to be inferred.

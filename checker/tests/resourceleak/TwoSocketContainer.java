@@ -1,8 +1,9 @@
 // A test that a class with two owned sockets cannot be @MustCallAliased with both of them.
 
-import java.net.Socket;
 import org.checkerframework.checker.calledmethods.qual.*;
 import org.checkerframework.checker.mustcall.qual.*;
+
+import java.net.Socket;
 
 @InheritableMustCall({"close1", "close2"})
 public class TwoSocketContainer {

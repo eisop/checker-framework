@@ -1,11 +1,12 @@
 package org.checkerframework.dataflow.cfg.block;
 
+import org.checkerframework.checker.initialization.qual.UnknownInitialization;
+import org.plumelib.util.ArraySet;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
-import org.checkerframework.checker.initialization.qual.UnknownInitialization;
-import org.plumelib.util.ArraySet;
 
 /** Base class of the {@link Block} implementation hierarchy. */
 public abstract class BlockImpl implements Block {

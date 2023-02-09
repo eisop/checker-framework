@@ -2,9 +2,10 @@
 // shouldn't crash.  (Maybe they shouldn't run at all if javac issues any errors?)
 // @skip-test
 
+import org.checkerframework.checker.interning.qual.Interned;
+
 import java.util.HashMap;
 import java.util.Map;
-import org.checkerframework.checker.interning.qual.Interned;
 
 public class DontCrash {
 

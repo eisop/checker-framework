@@ -1,8 +1,5 @@
 package org.checkerframework.checker.units;
 
-import javax.annotation.processing.ProcessingEnvironment;
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.util.Elements;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.units.qual.N;
 import org.checkerframework.checker.units.qual.Prefix;
@@ -22,6 +19,10 @@ import org.checkerframework.checker.units.qual.mm3;
 import org.checkerframework.checker.units.qual.s;
 import org.checkerframework.checker.units.qual.t;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
+
+import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.util.Elements;
 
 /** Default relations between SI units. */
 public class UnitsRelationsDefault implements UnitsRelations {

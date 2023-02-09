@@ -1,5 +1,6 @@
-import java.util.Collection;
 import org.checkerframework.checker.nullness.qual.NonNull;
+
+import java.util.Collection;
 
 public final class ToArrayTest {
 

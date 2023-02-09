@@ -1,5 +1,6 @@
-import java.io.*;
 import org.checkerframework.checker.mustcall.qual.*;
+
+import java.io.*;
 
 class IOUtilsTest {
     static void test1(@Owning InputStream inputStream) {

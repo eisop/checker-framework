@@ -5,13 +5,15 @@ import com.sun.source.tree.CompoundAssignmentTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.VariableTree;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Objects;
+
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.TreeUtils;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Objects;
 
 /**
  * A node for an assignment:

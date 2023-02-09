@@ -1,13 +1,16 @@
 package org.checkerframework.dataflow.cfg.node;
 
 import com.sun.source.tree.SynchronizedTree;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
+
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.util.Types;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
 
 /**
  * This represents the start and end of a synchronized code block. If startOfBlock == true it is the

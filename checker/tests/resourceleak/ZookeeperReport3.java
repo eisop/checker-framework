@@ -3,9 +3,10 @@
 // ("createNewServerSocket"). This version of the test is incomplete: the real version
 // of this test also requires support for Optional. See ZookeeperTest3WithOptional.java.
 
+import org.checkerframework.checker.mustcall.qual.*;
+
 import java.io.*;
 import java.net.*;
-import org.checkerframework.checker.mustcall.qual.*;
 
 class ZookeeperReport3 {
 

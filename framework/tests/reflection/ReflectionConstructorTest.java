@@ -1,7 +1,8 @@
-import java.lang.reflect.Constructor;
 import org.checkerframework.framework.testchecker.reflection.qual.TestReflectSibling1;
 import org.checkerframework.framework.testchecker.reflection.qual.TestReflectSibling2;
 import org.checkerframework.framework.testchecker.reflection.qual.TestReflectTop;
+
+import java.lang.reflect.Constructor;
 
 public class ReflectionConstructorTest {
     @TestReflectSibling1 int sibling1;

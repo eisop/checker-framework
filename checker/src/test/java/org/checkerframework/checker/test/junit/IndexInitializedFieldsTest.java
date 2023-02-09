@@ -1,11 +1,12 @@
 package org.checkerframework.checker.test.junit;
 
+import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
+import org.junit.runners.Parameterized.Parameters;
+
 import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
-import org.junit.runners.Parameterized.Parameters;
 
 /** JUnit tests for the Index Checker when running together with the InitializedFields Checker. */
 public class IndexInitializedFieldsTest extends CheckerFrameworkPerDirectoryTest {
