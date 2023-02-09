@@ -9,13 +9,11 @@ import java.net.Socket;
 import javax.net.ssl.*;
 
 class SSLSocketFactoryTest {
-    public SSLSocket createSSLSocket(@Owning Socket socket, SSLContext sslContext)
-            throws IOException {
-        SSLSocket sslSocket =
-                (SSLSocket)
-                        sslContext
-                                .getSocketFactory()
-                                .createSocket(socket, null, socket.getPort(), true);
-        return sslSocket;
-    }
+  public SSLSocket createSSLSocket(@Owning Socket socket, SSLContext sslContext)
+      throws IOException {
+    SSLSocket sslSocket =
+        (SSLSocket)
+            sslContext.getSocketFactory().createSocket(socket, null, socket.getPort(), true);
+    return sslSocket;
+  }
 }

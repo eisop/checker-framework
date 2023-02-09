@@ -3,21 +3,21 @@ import org.checkerframework.checker.testchecker.ainfer.qual.AinferTop;
 
 public class ParameterInferenceTest {
 
-    void test1() {
-        @AinferParent int parent = (@AinferParent int) 0;
-        expectsParentNoSignature(parent);
-    }
+  void test1() {
+    @AinferParent int parent = (@AinferParent int) 0;
+    expectsParentNoSignature(parent);
+  }
 
-    void expectsParentNoSignature(int t) {
-        // :: warning: (assignment.type.incompatible)
-        @AinferParent int parent = t;
-    }
+  void expectsParentNoSignature(int t) {
+    // :: warning: (assignment.type.incompatible)
+    @AinferParent int parent = t;
+  }
 
-    void test2() {
-        @AinferTop int top = (@AinferTop int) 0;
-        // :: warning: (argument.type.incompatible)
-        expectsAinferTopNoSignature(top);
-    }
+  void test2() {
+    @AinferTop int top = (@AinferTop int) 0;
+    // :: warning: (argument.type.incompatible)
+    expectsAinferTopNoSignature(top);
+  }
 
-    void expectsAinferTopNoSignature(int t) {}
+  void expectsAinferTopNoSignature(int t) {}
 }
