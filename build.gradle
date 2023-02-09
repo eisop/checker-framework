@@ -15,7 +15,7 @@ plugins {
 
     // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
     // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
-    id 'com.diffplug.spotless' version '6.12.0'
+    id 'com.diffplug.spotless' version '6.14.1'
 }
 apply plugin: 'de.undercouch.download'
 
