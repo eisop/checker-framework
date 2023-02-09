@@ -210,7 +210,7 @@ allprojects {
         ]
 
         reflectionUtilVersion = '1.0.5'
-        plumeUtilVersion = '1.6.0'
+        plumeUtilVersion = '1.6.5'
     }
 
     spotless {
