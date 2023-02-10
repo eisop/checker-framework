@@ -284,7 +284,7 @@ dependencies {
     <tr>
       <td>1.</td>
       <td><strong>Ensure you are a member of the types_www and pl_gang groups</strong><br/>
-        Run the command "groups" on the CSE file system (perhaps on Buffalo).
+        Run the command "groups" on the CSE file system (perhaps on tern).
         If the group types_www or pl_gang do not appear in the list, email the appropriate
         person to be added (currently Michael Ernst).
       </td>
@@ -292,7 +292,7 @@ dependencies {
     <tr>
       <td>2.</td>
       <td><strong>Import the Checker Framework signing key for PGP</strong><br/>
-        SSH into Buffalo and run the following command:<br/>
+        SSH into tern and run the following command:<br/>
         <code>gpg --allow-secret-key-import --import /projects/swlab1/checker-framework/hosting-info/release-private.key<br/><br/></code>
         Note:  The password for this key is located in the file<br/>
         <code>/projects/swlab1/checker-framework/hosting-info/release-private.password<br/></code>
@@ -320,7 +320,7 @@ dependencies {
         <pre>
 SONATYPE_NEXUS_USERNAME=your_user_name
 SONATYPE_NEXUS_PASSWORD=your_password</pre>
-        using the information you just created for your Sonatype Account on Buffalo or other
+        using the information you just created for your Sonatype Account on tern or other
         network host.  Since the file contains your password, make it non-readable:  <code>chmod og-rw ~/.gradle/gradle.properties</code>
       </td>
     </tr>
@@ -660,7 +660,7 @@ git config --global user.email you@example.com</pre>
     release related errors.
     <h4>Tasks:</h4> <!-- omit from toc -->
     <ul>
-      <li>Create a Buffalo task to run the release_build script without prompting.</li>
+      <li>Create a tern task to run the release_build script without prompting.</li>
       <li>Observe the output of this task and identify possible errors.</li>
       <li>Fix up all observed errors until the release_build script runs without error.</li>
       <li>We probably want to move the link checking of the development site to the release_build script and
