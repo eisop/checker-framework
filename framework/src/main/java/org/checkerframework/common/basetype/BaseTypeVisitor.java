@@ -238,6 +238,16 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
    * command line.
    */
   private final boolean checkPurity;
+  /** True if "-AajavaChecks" was passed on the command line. */
+  private final boolean ajavaChecks;
+  /** True if "-AassumeSideEffectFree" or "-aassumePure" was passed on the command line. */
+  private final boolean assumeSideEffectFree;
+  /** True if "-AassumeDeterministic" or "-aassumePure" was passed on the command line. */
+  private final boolean assumeDeterministic;
+  /** True if "-AcheckCastElementType" was passed on the command line. */
+  private final boolean checkCastElementType;
+  /** True if "-AconservativeUninferredTypeArguments" was passed on the command line. */
+  private final boolean conservativeUninferredTypeArguments;
 
   /** True if "-AwarnRedundantAnnotations" was passed on the command line */
   private final boolean warnRedundantAnnotations;
@@ -278,6 +288,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     suggestPureMethods = checker.hasOption("suggestPureMethods"); // NO-AFU || infer;
     checkPurity = checker.hasOption("checkPurityAnnotations") || suggestPureMethods;
     warnRedundantAnnotations = checker.hasOption("warnRedundantAnnotations");
+    ajavaChecks = checker.hasOption("ajavaChecks");
+    assumeSideEffectFree =
+        checker.hasOption("assumeSideEffectFree") || checker.hasOption("assumePure");
+    assumeDeterministic =
+        checker.hasOption("assumeDeterministic") || checker.hasOption("assumePure");
+    checkCastElementType = checker.hasOption("checkCastElementType");
+    conservativeUninferredTypeArguments = checker.hasOption("conservativeUninferredTypeArguments");
   }
 
   /** An array containing just {@code BaseTypeChecker.class}. */
@@ -376,7 +393,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
    * <p>Subclasses may override this method to disable the test if even the option is provided.
    */
   protected void testJointJavacJavaParserVisitor() {
-    if (root == null || !checker.hasOption("ajavaChecks")) {
+    if (root == null || !ajavaChecks) {
       return;
     }
 
@@ -422,7 +439,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
    * <p>Subclasses may override this method to disable the test even if the option is provided.
    */
   protected void testAnnotationInsertion() {
-    if (root == null || !checker.hasOption("ajavaChecks")) {
+    if (root == null || !ajavaChecks) {
       return;
     }
 
@@ -1019,12 +1036,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     if (body == null) {
       r = new PurityResult();
     } else {
-      r =
-          PurityChecker.checkPurity(
-              body,
-              atypeFactory,
-              checker.hasOption("assumeSideEffectFree") || checker.hasOption("assumePure"),
-              checker.hasOption("assumeDeterministic") || checker.hasOption("assumePure"));
+      r = PurityChecker.checkPurity(body, atypeFactory, assumeSideEffectFree, assumeDeterministic);
     }
     if (!r.isPure(kinds)) {
       reportPurityErrors(r, tree, kinds);
@@ -2383,7 +2395,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     QualifierHierarchy qualifierHierarchy = atypeFactory.getQualifierHierarchy();
 
     AnnotationMirrorSet castAnnos;
-    if (!checker.hasOption("checkCastElementType")) {
+    if (!checkCastElementType) {
       // checkCastElementType option wasn't specified, so only check effective annotations.
       castAnnos = castType.getEffectiveAnnotations();
     } else {
@@ -3692,7 +3704,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
       }
     }
     if (requiresInference) {
-      if (checker.hasOption("conservativeUninferredTypeArguments")) {
+      if (conservativeUninferredTypeArguments) {
         checker.reportWarning(memberReferenceTree, "methodref.inference.unimplemented");
       }
       return true;
