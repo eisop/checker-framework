@@ -2771,7 +2771,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
    *     #getExplicitNewClassClassTypeArgs(NewClassTree)}, or {@link #getAnnotatedType(ClassTree)}
    *     instead.
    */
-  @Deprecated // This should be removed when the #979 is fixed and the remain use is removed.
+  @Deprecated // This should be removed when the #979 is fixed and the remaining use is removed.
   public AnnotatedDeclaredType fromNewClass(NewClassTree newClassTree) {
     AnnotatedDeclaredType type =
         (AnnotatedDeclaredType) toAnnotatedType(TreeUtils.typeOf(newClassTree), false);
