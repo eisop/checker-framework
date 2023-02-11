@@ -18,6 +18,11 @@ public final class SyntheticArrays {
     throw new AssertionError("Class SyntheticArrays cannot be instantiated.");
   }
 
+  /** Do not instantiate. */
+  private SyntheticArrays() {
+    throw new AssertionError("Class SyntheticArrays cannot be instantiated.");
+  }
+
   /**
    * Returns true if this combination of type/elem represents an array.clone.
    *

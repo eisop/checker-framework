@@ -45,6 +45,11 @@ final class SupertypeFinder {
     throw new AssertionError("Class SupertypeFinder cannot be instantiated.");
   }
 
+  /** Do not instantiate. */
+  private SupertypeFinder() {
+    throw new AssertionError("Class SupertypeFinder cannot be instantiated.");
+  }
+
   // Version of method below for declared types
   /**
    * See {@link Types#directSupertypes(TypeMirror)}.

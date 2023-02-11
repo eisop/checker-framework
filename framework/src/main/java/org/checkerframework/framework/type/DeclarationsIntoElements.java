@@ -29,6 +29,11 @@ public final class DeclarationsIntoElements {
     throw new AssertionError("Class DeclarationsIntoElements cannot be instantiated.");
   }
 
+  /** Do not instantiate. */
+  private DeclarationsIntoElements() {
+    throw new AssertionError("Class DeclarationsIntoElements cannot be instantiated.");
+  }
+
   /**
    * The entry point.
    *
