@@ -854,14 +854,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
   }
   */
 
+  /** Initialize reflection resolution. */
   protected void initializeReflectionResolution() {
     if (checker.shouldResolveReflection()) {
       boolean debug = "debug".equals(checker.getOption("resolveReflection"));
 
       MethodValChecker methodValChecker = checker.getSubchecker(MethodValChecker.class);
       assert methodValChecker != null
-          : "AnnotatedTypeFactory: reflection resolution was requested, but"
-              + " MethodValChecker isn't a subchecker.";
+          : "AnnotatedTypeFactory: reflection resolution was requested,"
+              + " but MethodValChecker isn't a subchecker.";
       MethodValAnnotatedTypeFactory methodValATF =
           (MethodValAnnotatedTypeFactory) methodValChecker.getAnnotationProvider();
 
@@ -2364,9 +2365,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
       for (AnnotatedTypeVariable tv : methodType.getTypeVariables()) {
         if (typeParamToTypeArg.get(tv.getUnderlyingType()) == null) {
           throw new BugInCF(
-              "AnnotatedTypeFactory.methodFromUse:mismatch between declared method"
-                  + " type variables and the inferred method type arguments. Method"
-                  + " type variables: "
+              "AnnotatedTypeFactory.methodFromUse: mismatch between"
+                  + " declared method type variables and the inferred method type arguments."
+                  + " Method type variables: "
                   + methodType.getTypeVariables()
                   + "; "
                   + "Inferred method type arguments: "
@@ -4780,9 +4781,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
           // We should never reach here: isFunctionalInterface performs the same check
           // and would have raised an error already.
           throw new BugInCF(
-              "Expected the type of a cast tree in an assignment context to contain a"
-                  + " functional interface bound. Found type: %s for tree: %s in"
-                  + " lambda tree: %s",
+              "Expected the type of a cast tree in an assignment context to contain"
+                  + " a functional interface bound."
+                  + " Found type: %s for tree: %s in lambda tree: %s",
               castATM, cast, tree);
         }
         return castATM;
