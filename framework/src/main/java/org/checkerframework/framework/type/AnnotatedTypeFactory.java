@@ -5520,7 +5520,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     return this.trees;
   }
 
-  /** Accessor for the processing environment. */
+  /**
+   * Accessor for the processing environment.
+   *
+   * @return the processing environment
+   */
   public ProcessingEnvironment getProcessingEnv() {
     return this.processingEnv;
   }

@@ -1375,10 +1375,20 @@ public abstract class AnnotatedTypeMirror {
       return shallowCopy(true);
     }
 
+    /**
+     * Returns the element of this AnnotatedExecutableType.
+     *
+     * @return the element of this AnnotatedExecutableType
+     */
     public ExecutableElement getElement() {
       return element;
     }
 
+    /**
+     * Sets the element of this AnnotatedExecutableType.
+     *
+     * @param elem the new element for this AnnotatedExecutableType
+     */
     public void setElement(ExecutableElement elem) {
       this.element = elem;
     }
@@ -2033,6 +2043,8 @@ public abstract class AnnotatedTypeMirror {
     /**
      * Sets type variable to which this wildcard is an argument. This method should only be called
      * during initialization of the type.
+     *
+     * @param typeParameterElement the type variable to which this wildcard is an argument
      */
     /*package-private*/ void setTypeVariable(TypeParameterElement typeParameterElement) {
       this.typeVariable = (TypeVariable) typeParameterElement.asType();
@@ -2041,6 +2053,8 @@ public abstract class AnnotatedTypeMirror {
     /**
      * Sets type variable to which this wildcard is an argument. This method should only be called
      * during initialization of the type.
+     *
+     * @param typeVariable the type variable to which this wildcard is an argument
      */
     /*package-private*/ void setTypeVariable(TypeVariable typeVariable) {
       this.typeVariable = typeVariable;
