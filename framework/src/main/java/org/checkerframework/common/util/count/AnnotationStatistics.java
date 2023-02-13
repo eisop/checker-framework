@@ -25,11 +25,13 @@ import org.checkerframework.javacutil.AnnotationProvider;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.StringJoiner;
 import java.util.TreeSet;
 
 import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Name;
+import javax.tools.Diagnostic.Kind;
 
 /**
  * An annotation processor for listing the potential locations of annotations. To invoke it, use
@@ -54,6 +56,7 @@ import javax.lang.model.element.Name;
  *   <li>{@code -Anolocations}: suppresses location output; only makes sense in conjunction with
  *       {@code -Aannotations}
  *   <li>{@code -Aannotationsummaryonly}: with both of the obove, only outputs a summary
+ *   <li>{@code -Aannotationserror}: histogram is issued as a warning, not just printed
  * </ul>
  *
  * @see JavaCodeStatistics
@@ -63,13 +66,13 @@ import javax.lang.model.element.Name;
  * This e.g. influences the output of "method return", which is only valid
  * for type annotations for non-void methods.
  */
-@SupportedOptions({"nolocations", "annotations", "annotationsummaryonly"})
+@SupportedOptions({"nolocations", "annotations", "annotationserror", "annotationsummaryonly"})
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 public class AnnotationStatistics extends SourceChecker {
 
     /**
-     * Map from annotation name (as the toString() of its Name representation) to number of times
-     * the annotation was written in source code.
+     * Map from annotation name (as the {@code toString()} of its Name representation) to number of
+     * times the annotation was written in source code.
      */
     final Map<String, Integer> annotationCount = new HashMap<>();
 
@@ -83,15 +86,25 @@ public class AnnotationStatistics extends SourceChecker {
     @Override
     public void typeProcessingOver() {
         Log log = getCompilerLog();
+        String output;
         if (log.nerrors != 0) {
-            System.out.println("Not counting annotations, because compilation issued an error.");
+            output = "Not counting annotations, because compilation issued an error.";
         } else if (annotationCount.isEmpty()) {
-            System.out.println("No annotations found.");
+            output = "No annotations found.";
         } else {
-            System.out.println("Found annotations: ");
+            StringJoiner sj = new StringJoiner(System.lineSeparator());
+            sj.add("Found annotations: ");
             for (String key : new TreeSet<>(annotationCount.keySet())) {
-                System.out.println(key + "\t" + annotationCount.get(key));
+                sj.add(key + "\t" + annotationCount.get(key));
             }
+            output = sj.toString();
+        }
+        if (hasOption("annotationserror")) {
+            // Issue annotation details a compiler warning rather than printed. This may be useful,
+            // for example, when Maven swallows non-warning output from the annotation processor.
+            getProcessingEnvironment().getMessager().printMessage(Kind.WARNING, output);
+        } else {
+            System.out.println(output);
         }
         super.typeProcessingOver();
     }

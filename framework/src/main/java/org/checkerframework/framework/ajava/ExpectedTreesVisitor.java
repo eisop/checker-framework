@@ -387,7 +387,8 @@ public class ExpectedTreesVisitor extends TreeScannerWithDefaults {
         // JavaParser has a special "var" construct, so they won't match. If a javac type was
         // generated this way, then it won't have a position in source code so in that case we don't
         // add it.
-        if (((JCExpression) tree.getType()).pos == Position.NOPOS) {
+        JCExpression type = (JCExpression) tree.getType();
+        if (type != null && type.pos == Position.NOPOS) {
             return null;
         }
 

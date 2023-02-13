@@ -5,6 +5,7 @@ import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
 
+import org.checkerframework.afu.scenelib.Annotation;
 import org.checkerframework.afu.scenelib.annotations.Annotation;
 import org.checkerframework.afu.scenelib.annotations.el.AClass;
 import org.checkerframework.afu.scenelib.annotations.el.AField;
@@ -14,6 +15,14 @@ import org.checkerframework.afu.scenelib.annotations.el.ATypeElement;
 import org.checkerframework.afu.scenelib.annotations.el.TypePathEntry;
 import org.checkerframework.afu.scenelib.annotations.io.IndexFileParser;
 import org.checkerframework.afu.scenelib.annotations.util.JVMNames;
+import org.checkerframework.afu.scenelib.el.AClass;
+import org.checkerframework.afu.scenelib.el.AField;
+import org.checkerframework.afu.scenelib.el.AMethod;
+import org.checkerframework.afu.scenelib.el.AScene;
+import org.checkerframework.afu.scenelib.el.ATypeElement;
+import org.checkerframework.afu.scenelib.el.TypePathEntry;
+import org.checkerframework.afu.scenelib.io.IndexFileParser;
+import org.checkerframework.afu.scenelib.util.JVMNames;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.BinaryName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
@@ -49,6 +58,7 @@ import java.util.Set;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -159,6 +169,9 @@ public class WholeProgramInferenceScenesStorage
             case ENUM_CONSTANT:
                 ClassSymbol enclosingClass = ((VarSymbol) elt).enclClass();
                 className = enclosingClass.flatname.toString();
+                break;
+            case CLASS:
+                className = ElementUtils.getBinaryName((TypeElement) elt);
                 break;
             default:
                 throw new BugInCF("What element? %s %s", elt.getKind(), elt);
@@ -386,6 +399,41 @@ public class WholeProgramInferenceScenesStorage
                 AnnotationConverter.annotationMirrorToAnnotation(anno);
 
         boolean isNewAnnotation = fieldAnnos.tlAnnotationsHere.add(sceneAnno);
+        return isNewAnnotation;
+    }
+
+    @Override
+    public boolean addDeclarationAnnotationToFormalParameter(
+            ExecutableElement methodElt, int index, AnnotationMirror anno) {
+        if (!ElementUtils.isElementFromSourceCode(methodElt)) {
+            return false;
+        }
+
+        VariableElement paramElt = methodElt.getParameters().get(index);
+        AnnotatedTypeMirror paramAType = atypeFactory.getAnnotatedType(paramElt);
+        ATypeElement paramAnnos =
+                getParameterAnnotations(methodElt, index, paramAType, paramElt, atypeFactory);
+        Annotation sceneAnno = AnnotationConverter.annotationMirrorToAnnotation(anno);
+
+        boolean isNewAnnotation = paramAnnos.tlAnnotationsHere.add(sceneAnno);
+        return isNewAnnotation;
+    }
+
+    @Override
+    public boolean addClassDeclarationAnnotation(TypeElement classElt, AnnotationMirror anno) {
+        if (!ElementUtils.isElementFromSourceCode(classElt)) {
+            return false;
+        }
+
+        AClass classAnnos =
+                getClassAnnos(
+                        ElementUtils.getBinaryName(classElt),
+                        getFileForElement(classElt),
+                        (ClassSymbol) classElt);
+
+        Annotation sceneAnno = AnnotationConverter.annotationMirrorToAnnotation(anno);
+
+        boolean isNewAnnotation = classAnnos.tlAnnotationsHere.add(sceneAnno);
         return isNewAnnotation;
     }
 

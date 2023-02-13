@@ -61,31 +61,39 @@ public class VariableApplier extends TargetedElementAnnotationApplier {
         // need to look at, but it might not be set at this point.
     }
 
+    /** The annotated targets. */
+    private static final TargetType[] annotatedTargets =
+            new TargetType[] {
+                TargetType.LOCAL_VARIABLE,
+                TargetType.RESOURCE_VARIABLE,
+                TargetType.EXCEPTION_PARAMETER,
+                TargetType.FIELD
+            };
+
     @Override
     protected TargetType[] annotatedTargets() {
-        return new TargetType[] {
-            TargetType.LOCAL_VARIABLE,
-            TargetType.RESOURCE_VARIABLE,
-            TargetType.EXCEPTION_PARAMETER,
-            TargetType.FIELD
-        };
+        return annotatedTargets;
     }
+
+    /** The valid targets. */
+    private static final TargetType[] validTargets =
+            new TargetType[] {
+                TargetType.NEW,
+                TargetType.CAST,
+                TargetType.INSTANCEOF,
+                TargetType.METHOD_INVOCATION_TYPE_ARGUMENT,
+                TargetType.CONSTRUCTOR_INVOCATION_TYPE_ARGUMENT,
+                TargetType.METHOD_REFERENCE,
+                TargetType.CONSTRUCTOR_REFERENCE,
+                TargetType.METHOD_REFERENCE_TYPE_ARGUMENT,
+                TargetType.CONSTRUCTOR_REFERENCE_TYPE_ARGUMENT,
+                TargetType.METHOD_FORMAL_PARAMETER,
+                TargetType.CLASS_EXTENDS
+            };
 
     @Override
     protected TargetType[] validTargets() {
-        return new TargetType[] {
-            TargetType.NEW,
-            TargetType.CAST,
-            TargetType.INSTANCEOF,
-            TargetType.METHOD_INVOCATION_TYPE_ARGUMENT,
-            TargetType.CONSTRUCTOR_INVOCATION_TYPE_ARGUMENT,
-            TargetType.METHOD_REFERENCE,
-            TargetType.CONSTRUCTOR_REFERENCE,
-            TargetType.METHOD_REFERENCE_TYPE_ARGUMENT,
-            TargetType.CONSTRUCTOR_REFERENCE_TYPE_ARGUMENT,
-            TargetType.METHOD_FORMAL_PARAMETER,
-            TargetType.CLASS_EXTENDS
-        };
+        return validTargets;
     }
 
     @Override

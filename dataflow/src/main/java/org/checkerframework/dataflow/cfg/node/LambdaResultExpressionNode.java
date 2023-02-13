@@ -9,7 +9,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
 
-/** A node for the single expression body of a single expression lambda. */
+/** A node for the single expression body of a single-expression lambda. */
 public class LambdaResultExpressionNode extends Node {
 
     /** Tree for the lambda expression body. */

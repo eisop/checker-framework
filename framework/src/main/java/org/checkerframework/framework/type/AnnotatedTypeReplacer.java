@@ -6,6 +6,9 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcard
 import org.checkerframework.framework.type.visitor.DoubleAnnotatedTypeScanner;
 import org.checkerframework.javacutil.BugInCF;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.type.TypeKind;
 
@@ -150,10 +153,17 @@ public class AnnotatedTypeReplacer extends DoubleAnnotatedTypeScanner<Void> {
                     to.removeAnnotationInHierarchy(top);
                 }
             } else {
+                List<AnnotationMirror> toRemove = new ArrayList<>(1);
                 for (final AnnotationMirror toPrimaryAnno : to.getAnnotations()) {
                     if (from.getAnnotationInHierarchy(toPrimaryAnno) == null) {
-                        to.removeAnnotation(toPrimaryAnno);
+                        // Doing the removal here directly can lead to a
+                        // ConcurrentModificationException,
+                        // because this loop is iterating over the annotations in to.
+                        toRemove.add(toPrimaryAnno);
                     }
+                }
+                for (AnnotationMirror annoToRemove : toRemove) {
+                    to.removeAnnotation(annoToRemove);
                 }
             }
         } else {

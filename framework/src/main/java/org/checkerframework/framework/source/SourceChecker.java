@@ -21,6 +21,7 @@ import com.sun.tools.javac.util.Position;
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.formatter.qual.FormatMethod;
 import org.checkerframework.checker.interning.qual.InternedDistinct;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.checker.signature.qual.CanonicalName;
@@ -244,10 +245,6 @@ import io.github.classgraph.ClassGraph;
     // java.lang.String)
     "requirePrefixInWarningSuppressions",
 
-    // Permit running under JDKs other than those the Checker Framework officially supports.
-    // Also see "noJreVersionCheck" option.
-    "permitUnsupportedJdkVersion",
-
     // Ignore annotations in bytecode that have invalid annotation locations.
     // See https://github.com/typetools/checker-framework/issues/2173
     // org.checkerframework.framework.type.ElementAnnotationApplier.apply
@@ -323,7 +320,6 @@ import io.github.classgraph.ClassGraph;
     "nomsgtext",
 
     // Do not perform a JRE version check.
-    // Also see "permitUnsupportedJdkVersion" option.
     "noJreVersionCheck",
 
     /// Format of messages
@@ -452,10 +448,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * Maps error keys to localized/custom error messages. Do not use directly; call {@link
      * #fullMessageOf} or {@link #processArg}.
      */
-    protected Properties messagesProperties;
+    protected @MonotonicNonNull Properties messagesProperties;
 
     /** Used to report error messages and warnings via the compiler. */
-    protected Messager messager;
+    protected @MonotonicNonNull Messager messager;
 
     /** Element utilities. */
     protected Elements elements;
@@ -482,7 +478,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * SuppressWarnings strings supplied via the -AsuppressWarnings option. Do not use directly,
      * call {@link #getSuppressWarningsStringsFromOption()}.
      */
-    private String @Nullable [] suppressWarningsStringsFromOption;
+    private String @MonotonicNonNull [] suppressWarningsStringsFromOption;
 
     /**
      * If true, use the "allcheckers:" warning string prefix.
@@ -500,7 +496,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * <p>It contains the pattern specified by the user, through the option {@code
      * checkers.skipUses}; otherwise it contains a pattern that can match no class.
      */
-    private Pattern skipUsesPattern;
+    private @MonotonicNonNull Pattern skipUsesPattern;
 
     /**
      * Regular expression pattern to specify Java classes that are annotated, so warnings about them
@@ -509,7 +505,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * <p>It contains the pattern specified by the user, through the option {@code
      * checkers.onlyUses}; otherwise it contains a pattern that matches every class.
      */
-    private Pattern onlyUsesPattern;
+    private @MonotonicNonNull Pattern onlyUsesPattern;
 
     /**
      * Regular expression pattern to specify Java classes whose definition should not be checked.
@@ -517,7 +513,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * <p>It contains the pattern specified by the user, through the option {@code
      * checkers.skipDefs}; otherwise it contains a pattern that can match no class.
      */
-    private Pattern skipDefsPattern;
+    private @MonotonicNonNull Pattern skipDefsPattern;
 
     /**
      * Regular expression pattern to specify Java classes whose definition should be checked.
@@ -525,13 +521,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * <p>It contains the pattern specified by the user, through the option {@code
      * checkers.onlyDefs}; otherwise it contains a pattern that matches every class.
      */
-    private Pattern onlyDefsPattern;
+    private @MonotonicNonNull Pattern onlyDefsPattern;
 
     /** The supported lint options. */
-    private Set<String> supportedLints;
+    private @MonotonicNonNull Set<String> supportedLints;
 
     /** The enabled lint options. */
-    private Set<String> activeLints;
+    private @MonotonicNonNull Set<String> activeLints;
 
     /**
      * The active options for this checker. This is a processed version of {@link
@@ -544,7 +540,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * <p>Both the simple and the canonical name of the checker can be used. Superclasses of the
      * current checker are also considered.
      */
-    private Map<String, String> activeOptions;
+    private @MonotonicNonNull Map<String, String> activeOptions;
 
     /**
      * The string that separates the checker name from the option name in a "-A" command-line
@@ -562,7 +558,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     protected @Nullable SourceChecker parentChecker;
 
     /** List of upstream checker names. Includes the current checker. */
-    protected List<@FullyQualifiedName String> upstreamCheckerNames;
+    protected @MonotonicNonNull List<@FullyQualifiedName String> upstreamCheckerNames;
 
     /**
      * TreePathCacher to share between instances. Initialized in getTreePathCacher (which is also
@@ -589,7 +585,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 && jreVersion != 17
                 && jreVersion != 19) {
             message(
-                    (hasOption("permitUnsupportedJdkVersion") ? Kind.NOTE : Kind.WARNING),
+                    Kind.NOTE,
                     "The Checker Framework is tested with JDK 8, 11, 17, and 19."
                             + " You are using version %d.",
                     jreVersion);
@@ -2100,7 +2096,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /** The name of the @SuppressWarnings annotation. */
-    private final @CanonicalName String suppressWarningsClassName =
+    private static final @CanonicalName String suppressWarningsClassName =
             SuppressWarnings.class.getCanonicalName();
     /**
      * Finds the tree that is a {@code @SuppressWarnings} annotation.

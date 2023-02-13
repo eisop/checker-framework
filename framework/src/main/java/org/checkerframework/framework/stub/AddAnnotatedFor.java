@@ -41,7 +41,7 @@ import java.util.Set;
  */
 public class AddAnnotatedFor {
     /** Definition of {@code @AnnotatedFor} annotation. */
-    private static AnnotationDef adAnnotatedFor;
+    private static final AnnotationDef adAnnotatedFor;
 
     static {
         Class<?> annotatedFor = org.checkerframework.framework.qual.AnnotatedFor.class;
@@ -61,6 +61,11 @@ public class AddAnnotatedFor {
                         Collections.singletonMap(
                                 "value", new ArrayAFT(BasicAFT.forType(String.class))),
                         "AddAnnotatedFor.<clinit>");
+    }
+
+    /** Do not instantiate. */
+    private AddAnnotatedFor() {
+        throw new Error("Do not instantiate");
     }
 
     /**
@@ -114,7 +119,7 @@ public class AddAnnotatedFor {
      * These need to be the arguments to an {@code AnnotatedFor} annotation on the class, so that
      * all of the given type systems are run.
      */
-    private static ElementVisitor<Void, Set<String>> annotatedForVisitor =
+    private static final ElementVisitor<Void, Set<String>> annotatedForVisitor =
             new ElementVisitor<Void, Set<String>>() {
                 @Override
                 public Void visitAnnotationDef(AnnotationDef el, final Set<String> annotatedFor) {

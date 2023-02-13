@@ -844,8 +844,15 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     /* Utility Methods */
     /* --------------------------------------------------------- */
 
+    /** The UID for the next unique name. */
     protected long uid = 0;
 
+    /**
+     * Returns a unique name starting with {@code prefix}.
+     *
+     * @param prefix the prefix of the unique name
+     * @return a unique name starting with {@code prefix}
+     */
     protected String uniqueName(String prefix) {
         return prefix + "#num" + uid++;
     }
@@ -2332,7 +2339,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         return null;
     }
 
-    // This visits a switch statement, not a switch expression.
+    // This visits a switch statement.
+    // Switch expressions are visited by visitSwitchExpression17.
     @Override
     public Node visitSwitch(SwitchTree tree, Void p) {
         SwitchBuilder builder = new SwitchBuilder(tree);
@@ -2434,16 +2442,28 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             for (int i = 0; i < numCases; ++i) {
                 CaseTree caseTree = caseTrees.get(i);
                 if (TreeUtils.isDefaultCaseTree(caseTree)) {
+                    // Per the Java Language Specification, the checks of all cases must happen
+                    // before the default case, no matter where `default:` is written.  Therefore,
+                    // build the default case last.
                     defaultIndex = i;
                 } else {
-                    buildCase(caseTree, i);
+                    boolean isLastExceptDefault =
+                            i == numCases - 1
+                                    || (i == numCases - 2
+                                            && TreeUtils.isDefaultCaseTree(caseTrees.get(i + 1)));
+                    // This can be extended to handle case statements as well as case rules.
+                    boolean noFallthroughToHere = TreeUtils.isCaseRule(caseTree);
+                    boolean isLastOfExhaustive =
+                            isLastExceptDefault && casesAreExhaustive() && noFallthroughToHere;
+                    buildCase(caseTree, i, isLastOfExhaustive);
                 }
             }
+
             if (defaultIndex != -1) {
                 // The checks of all cases must happen before the default case, therefore we build
                 // the default case last.
                 // Fallthrough is still handled correctly with the caseBodyLabels.
-                buildCase(caseTrees.get(defaultIndex), defaultIndex);
+                buildCase(caseTrees.get(defaultIndex), defaultIndex, false);
             }
 
             addLabelForNextNode(breakTargetLC.peekLabel());
@@ -2540,17 +2560,26 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
          *
          * @param tree a case tree whose CFG to build
          * @param index the index of the case tree in {@link #caseBodyLabels}
+         * @param isLastOfExhaustive true if this is the last case of an exhaustive switch
+         *     statement, with no fallthrough to it. In other words, no test of the labels is
+         *     necessary.
          */
-        private void buildCase(CaseTree tree, int index) {
+        private void buildCase(CaseTree tree, int index, boolean isLastOfExhaustive) {
             boolean isDefaultCase = TreeUtils.isDefaultCaseTree(tree);
+            // If true, no test of labels is necessary.
+            // Unfortunately, if isLastOfExhaustive==TRUE, no flow-sensitive refinement occurs
+            // within the body of the CaseNode.  In the future, that can be performed, but it
+            // requires addition of InfeasibleExitBlock, a new SpecialBlock in the CFG.
+            boolean isTerminalCase = isDefaultCase || isLastOfExhaustive;
 
             final Label thisBodyLabel = caseBodyLabels[index];
             final Label nextBodyLabel = caseBodyLabels[index + 1];
+            // `nextCaseLabel` is not used if isTerminalCase==FALSE.
             final Label nextCaseLabel = new Label();
 
             // Handle the case expressions
-            if (!isDefaultCase) {
-                // non-default cases: a case expression exists
+            if (!isTerminalCase) {
+                // A case expression exists, and it needs to be tested.
                 ArrayList<Node> exprs = new ArrayList<>();
                 for (ExpressionTree exprTree : TreeUtils.caseTreeGetExpressions(tree)) {
                     exprs.add(scan(exprTree, null));
@@ -2571,7 +2600,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                     scan(stmt, null);
                 }
                 // Handle possible fallthrough by adding jump to next body.
-                if (!isDefaultCase) {
+                if (!isTerminalCase) {
                     extendWithExtendedNode(new UnconditionalJump(nextBodyLabel));
                 }
             } else {
@@ -2590,7 +2619,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 }
             }
 
-            if (!isDefaultCase) {
+            if (!isTerminalCase) {
                 addLabelForNextNode(nextCaseLabel);
             }
         }
@@ -2631,6 +2660,44 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             // Switch rules never fall through so add jump to the break target.
             assert breakTargetLC != null : "no target for case statement";
             extendWithExtendedNode(new UnconditionalJump(breakTargetLC.accessLabel()));
+        }
+
+        /**
+         * Returns true if the cases are exhaustive -- exactly one is executed. There might or might
+         * not be a `default` case label; if there is, it is never used.
+         *
+         * @return true if the cases are exhaustive
+         */
+        private boolean casesAreExhaustive() {
+            TypeMirror selectorTypeMirror = TreeUtils.typeOf(selectorExprTree);
+
+            switch (selectorTypeMirror.getKind()) {
+                case BOOLEAN:
+                    // TODO
+                    break;
+                case DECLARED:
+                    DeclaredType declaredType = (DeclaredType) selectorTypeMirror;
+                    TypeElement declaredTypeElement = (TypeElement) declaredType.asElement();
+                    if (declaredTypeElement.getKind() == ElementKind.ENUM) {
+                        // It's an enumerated type.
+                        List<VariableElement> enumConstants =
+                                ElementUtils.getEnumConstants(declaredTypeElement);
+                        List<Name> caseLabels = new ArrayList<>(enumConstants.size());
+                        for (CaseTree caseTree : caseTrees) {
+                            for (ExpressionTree caseEnumConstant :
+                                    TreeUtils.caseTreeGetExpressions(caseTree)) {
+                                caseLabels.add(((IdentifierTree) caseEnumConstant).getName());
+                            }
+                        }
+                        // Could also check that the values match.
+                        boolean result = enumConstants.size() == caseLabels.size();
+                        return result;
+                    }
+                    break;
+                default:
+                    break;
+            }
+            return false;
         }
     }
 
@@ -3413,7 +3480,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         List<Node> arguments =
                 convertCallArguments(constructor, TreeUtils.typeFromUse(tree), actualExprs);
         // TODO: for anonymous classes, don't use the identifier alone.
-        // See Issue 890.
+        // See https://github.com/typetools/checker-framework/issues/890 .
         Node constructorNode = scan(tree.getIdentifier(), p);
 
         // Handle anonymous classes in visitClass.

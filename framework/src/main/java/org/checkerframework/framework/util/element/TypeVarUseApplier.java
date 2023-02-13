@@ -6,6 +6,7 @@ import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.code.TargetType;
 import com.sun.tools.javac.code.TypeAnnotationPosition;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
@@ -35,7 +36,8 @@ public class TypeVarUseApplier {
         new TypeVarUseApplier(type, element, typeFactory).extractAndApply();
     }
 
-    private static ElementKind[] acceptedKinds = {
+    /** The ElementKinds that are accepted by this. */
+    private static final ElementKind[] acceptedKinds = {
         ElementKind.PARAMETER,
         ElementKind.FIELD,
         ElementKind.LOCAL_VARIABLE,
@@ -70,16 +72,28 @@ public class TypeVarUseApplier {
         return componentType;
     }
 
+    /** The generic array type, if any. */
     // In order to avoid sprinkling code for type parameter uses all over the various locations
-    // uses can show up we also handle generic array types.  T [] myTArr;
-    private final AnnotatedArrayType arrayType;
+    // uses can show up, we also handle generic array types.  T [] myTArr;
+    private final @Nullable AnnotatedArrayType arrayType;
 
+    /** The type variable. */
     private final AnnotatedTypeVariable typeVariable;
+    /** The element for the declaration. */
     private final TypeParameterElement declarationElem;
+    /** The element for the use. */
     private final Element useElem;
 
-    private AnnotatedTypeFactory typeFactory;
+    /** The annotated type factory. */
+    private final AnnotatedTypeFactory typeFactory;
 
+    /**
+     * Create a new TypeVarUseApplier.
+     *
+     * @param type the type of the variable use
+     * @param element the element for the variable use
+     * @param typeFactory the type factory
+     */
     TypeVarUseApplier(
             final AnnotatedTypeMirror type,
             final Element element,

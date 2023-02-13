@@ -1,6 +1,7 @@
 package org.checkerframework.framework.type;
 
 import com.sun.source.tree.AnnotatedTypeTree;
+import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.ArrayAccessTree;
 import com.sun.source.tree.ArrayTypeTree;
 import com.sun.source.tree.AssignmentTree;
@@ -75,7 +76,18 @@ import javax.lang.model.type.TypeMirror;
  *   <li>{@code IntersectionTypeTree}
  * </ul>
  */
+/* package-private */
 class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
+
+    /** Creates a new TypeFromTreeVisitor. */
+    /* package-private */ TypeFromExpressionVisitor() {
+        // nothing to do
+    }
+
+    @Override
+    public AnnotatedTypeMirror visitAnnotation(AnnotationTree node, AnnotatedTypeFactory f) {
+        return f.type(node);
+    }
 
     @Override
     public AnnotatedTypeMirror visitBinary(BinaryTree node, AnnotatedTypeFactory f) {

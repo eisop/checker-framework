@@ -41,7 +41,7 @@ import javax.lang.model.type.TypeMirror;
 public class AutoValueSupport implements BuilderFrameworkSupport {
 
     /** The type factory. */
-    private CalledMethodsAnnotatedTypeFactory atypeFactory;
+    private final CalledMethodsAnnotatedTypeFactory atypeFactory;
 
     /**
      * Create a new AutoValueSupport.
@@ -278,7 +278,7 @@ public class AutoValueSupport implements BuilderFrameworkSupport {
     }
 
     /** Method names for {@link #isAutoValueRequiredProperty} to ignore. */
-    private Set<String> isAutoValueRequiredPropertyIgnored =
+    private final Set<String> isAutoValueRequiredPropertyIgnored =
             new HashSet<>(Arrays.asList("equals", "hashCode", "toString", "<init>", "toBuilder"));
 
     /**
@@ -329,7 +329,7 @@ public class AutoValueSupport implements BuilderFrameworkSupport {
     }
 
     /**
-     * This list of classes that AutoValue considers "optional" comes from AutoValue's source code.
+     * Classes that AutoValue considers "optional". This list comes from AutoValue's source code.
      */
     private static final String[] optionalClassNames =
             new String[] {

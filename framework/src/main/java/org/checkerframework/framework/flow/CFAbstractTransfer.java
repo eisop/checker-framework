@@ -8,6 +8,7 @@ import com.sun.source.tree.Tree;
 import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.interning.qual.InternedDistinct;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
 import org.checkerframework.dataflow.analysis.ForwardTransferFunction;
@@ -218,7 +219,7 @@ public abstract class CFAbstractTransfer<
     }
 
     /** The fixed initial store. */
-    private S fixedInitialStore = null;
+    private @MonotonicNonNull S fixedInitialStore = null;
 
     /** Set a fixed initial Store. */
     public void setFixedInitialStore(S s) {
@@ -1103,7 +1104,7 @@ public abstract class CFAbstractTransfer<
       if (!shouldPerformWholeProgramInference(expressionTree)) {
         return false;
       }
-      VariableElement elt = (VariableElement) TreeUtils.elementFromTree(lhsTree);
+      Element elt = TreeUtils.elementFromTree(lhsTree);
       return !analysis.checker.shouldSuppressWarnings(elt, "");
     }
     */

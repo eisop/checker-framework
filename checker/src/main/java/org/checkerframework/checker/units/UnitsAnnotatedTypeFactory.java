@@ -6,6 +6,7 @@ import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.Tree;
 
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.RequiresNonNull;
@@ -95,7 +96,7 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      * Map from canonical class name to the corresponding UnitsRelations instance. We use the string
      * to prevent instantiating the UnitsRelations multiple times.
      */
-    private Map<@CanonicalName String, UnitsRelations> unitsRel;
+    private @MonotonicNonNull Map<@CanonicalName String, UnitsRelations> unitsRel;
 
     /** Map from canonical name of external qualifiers, to their Class. */
     private static final Map<@CanonicalName String, Class<? extends Annotation>> externalQualsMap =

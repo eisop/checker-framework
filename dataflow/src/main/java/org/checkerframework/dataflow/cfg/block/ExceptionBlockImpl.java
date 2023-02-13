@@ -13,7 +13,7 @@ import java.util.Set;
 
 import javax.lang.model.type.TypeMirror;
 
-/** Base class of the {@link Block} implementation hierarchy. */
+/** Implementation of {@link ExceptionBlock}. */
 public class ExceptionBlockImpl extends SingleSuccessorBlockImpl implements ExceptionBlock {
 
     /** The node of this block. */

@@ -17,6 +17,7 @@ import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.formatter.qual.FormatMethod;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.dataflow.analysis.Analysis;
@@ -142,7 +143,7 @@ public abstract class GenericAnnotatedTypeFactory<
         extends AnnotatedTypeFactory {
 
     /** To cache the supported monotonic type qualifiers. */
-    private Set<Class<? extends Annotation>> supportedMonotonicQuals;
+    private @MonotonicNonNull Set<Class<? extends Annotation>> supportedMonotonicQuals;
 
     /** to annotate types based on the given tree */
     protected TypeAnnotator typeAnnotator;
@@ -165,7 +166,7 @@ public abstract class GenericAnnotatedTypeFactory<
     /** To handle dependent type annotations and contract expressions. */
     protected DependentTypesHelper dependentTypesHelper;
 
-    /** to handle method pre- and postconditions */
+    /** To handle method pre- and postconditions. */
     protected final ContractsFromMethod contractsUtils;
 
     /**
@@ -188,7 +189,7 @@ public abstract class GenericAnnotatedTypeFactory<
 
     // Flow related fields
 
-    /** Should use flow by default. */
+    /** Should flow be used by default? */
     protected static boolean flowByDefault = true;
 
     /**
@@ -235,7 +236,7 @@ public abstract class GenericAnnotatedTypeFactory<
      *
      * @see GenericAnnotatedTypeFactory#applyLocalVariableQualifierParameterDefaults
      */
-    private final Set<VariableElement> variablesUnderInitialization;
+    private final Set<VariableElement> variablesUnderInitialization = new HashSet<>();
 
     /**
      * Caches types of initializers for local variables with a qualifier parameter, so that they
@@ -300,7 +301,7 @@ public abstract class GenericAnnotatedTypeFactory<
      *
      * <p>The initial capacity of the map is set by {@link #getCacheSize()}.
      */
-    protected @Nullable Map<Tree, ControlFlowGraph> subcheckerSharedCFG;
+    protected @MonotonicNonNull Map<Tree, ControlFlowGraph> subcheckerSharedCFG;
 
     /**
      * If true, {@link #setRoot(CompilationUnitTree)} should clear the {@link #subcheckerSharedCFG}
@@ -330,8 +331,6 @@ public abstract class GenericAnnotatedTypeFactory<
         this.shouldDefaultTypeVarLocals = useFlow;
         this.useFlow = useFlow;
 
-        this.variablesUnderInitialization = new HashSet<>();
-        this.scannedClasses = new HashMap<>();
         this.flowResult = null;
         this.regularExitStores = new IdentityHashMap<>();
         this.exceptionalExitStores = new IdentityHashMap<>();
@@ -362,10 +361,10 @@ public abstract class GenericAnnotatedTypeFactory<
             Elements elements = getElementUtils();
             Class<?>[] classes = relevantJavaTypesAnno.value();
             this.relevantJavaTypes = new HashSet<>(CollectionsPlume.mapCapacity(classes.length));
-            boolean calcArraysAreRelevant = false;
+            boolean arraysAreRelevantTemp = false;
             for (Class<?> clazz : classes) {
                 if (clazz == Object[].class) {
-                    calcArraysAreRelevant = true;
+                    arraysAreRelevantTemp = true;
                 } else if (clazz.isArray()) {
                     throw new TypeSystemError(
                             "Don't use arrays other than Object[] in @RelevantJavaTypes on "
@@ -375,7 +374,7 @@ public abstract class GenericAnnotatedTypeFactory<
                     relevantJavaTypes.add(types.erasure(relevantType));
                 }
             }
-            this.arraysAreRelevant = calcArraysAreRelevant;
+            this.arraysAreRelevant = arraysAreRelevantTemp;
         }
 
         contractsUtils = createContractsFromMethod();
@@ -1051,7 +1050,7 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /** Map from ClassTree to their dataflow analysis state. */
-    protected final Map<ClassTree, ScanState> scannedClasses;
+    protected final Map<ClassTree, ScanState> scannedClasses = new HashMap<>();
 
     /**
      * The result of the flow analysis. Invariant:
@@ -1063,7 +1062,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * Note that flowResult contains analysis results for Trees from multiple classes which are
      * produced by multiple calls to performFlowAnalysis.
      */
-    protected AnalysisResult<Value, Store> flowResult;
+    protected @MonotonicNonNull AnalysisResult<Value, Store> flowResult;
 
     /**
      * A mapping from methods (or other code blocks) to their regular exit store (used to check
@@ -1081,13 +1080,22 @@ public abstract class GenericAnnotatedTypeFactory<
 
     /**
      * Returns the regular exit store for a method or another code block (such as static
-     * initializers).
+     * initializers). Returns {@code null} if there is no such store. This can happen because the
+     * method cannot exit through the regular exit block, or it is abstract or in an interface.
      *
      * @param tree a MethodTree or other code block, such as a static initializer
-     * @return the regular exit store, or {@code null}, if there is no such store (because the
-     *     method cannot exit through the regular exit block).
+     * @return the regular exit store, or {@code null}
      */
     public @Nullable Store getRegularExitStore(Tree tree) {
+        if (regularExitStores == null) {
+            if (tree.getKind() == Tree.Kind.METHOD) {
+                if (((MethodTree) tree).getBody() == null) {
+                    // No body: the method is abstract or in an interface
+                    return null;
+                }
+            }
+            throw new BugInCF("regularExitStores==null for [" + tree.getClass() + "]" + tree);
+        }
         return regularExitStores.get(tree);
     }
 

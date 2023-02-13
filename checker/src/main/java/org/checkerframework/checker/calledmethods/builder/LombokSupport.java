@@ -31,7 +31,7 @@ import javax.lang.model.element.TypeElement;
 public class LombokSupport implements BuilderFrameworkSupport {
 
     /** The type factory. */
-    private CalledMethodsAnnotatedTypeFactory atypeFactory;
+    private final CalledMethodsAnnotatedTypeFactory atypeFactory;
 
     /**
      * Create a new LombokSupport.
