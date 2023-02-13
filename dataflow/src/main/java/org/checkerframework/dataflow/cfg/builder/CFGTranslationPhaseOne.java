@@ -3402,9 +3402,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         if (enclosingExpr != null) {
             enclosingExprNode = scan(enclosingExpr, p);
         } else if (enclosingClassType.getKind() == TypeKind.DECLARED) {
-            TypeElement enclosingClassElement =
-                    (TypeElement) ((DeclaredType) enclosingClassType).asElement();
-            enclosingExprNode = new ImplicitThisNode(enclosingClassElement.asType());
+            enclosingExprNode = new ImplicitThisNode(enclosingClassType);
         }
 
         // Convert constructor arguments
