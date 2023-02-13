@@ -3,6 +3,7 @@ package org.checkerframework.framework.type;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
 
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
@@ -1220,6 +1221,15 @@ public abstract class AnnotatedTypeMirror {
         }
 
         /**
+         * Sets the varargs types of this executable type.
+         *
+         * @param varargType the varargs types of this executable type
+         */
+        void setVarargType(@NonNull AnnotatedArrayType varargType) {
+            varargType = varargType;
+        }
+
+        /**
          * Computers the {@link varargType} of this executable type to store the information into
          * the filed {@link varargType}.
          *
@@ -1445,7 +1455,11 @@ public abstract class AnnotatedTypeMirror {
 
             type.setElement(getElement());
             type.setParameterTypes(getParameterTypes());
-            type.computeVarargType();
+            if (getVarargType() != null) {
+                type.setVarargType(getVarargType());
+            } else {
+                type.computeVarargType();
+            }
             type.setReceiverType(getReceiverType());
             type.setReturnType(getReturnType());
             type.setThrownTypes(getThrownTypes());
@@ -1475,7 +1489,11 @@ public abstract class AnnotatedTypeMirror {
                             atypeFactory);
             type.setElement(getElement());
             type.setParameterTypes(erasureList(getParameterTypes()));
-            type.computeVarargType();
+            if (getVarargType() != null) {
+                type.setVarargType(getVarargType().getErased());
+            } else {
+                type.computeVarargType();
+            }
             if (getReceiverType() != null) {
                 type.setReceiverType(getReceiverType().getErased());
             } else {
