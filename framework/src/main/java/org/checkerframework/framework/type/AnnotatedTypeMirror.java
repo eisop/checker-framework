@@ -1226,7 +1226,7 @@ public abstract class AnnotatedTypeMirror {
          * @param varargType the varargs types of this executable type
          */
         void setVarargType(@NonNull AnnotatedArrayType varargType) {
-            varargType = varargType;
+            this.varargType = varargType;
         }
 
         /**
