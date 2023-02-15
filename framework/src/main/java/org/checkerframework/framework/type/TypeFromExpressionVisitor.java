@@ -76,11 +76,11 @@ import javax.lang.model.type.TypeMirror;
  *   <li>{@code IntersectionTypeTree}
  * </ul>
  */
-/* package-private */
+/*package-private*/
 class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
 
     /** Creates a new TypeFromTreeVisitor. */
-    /* package-private */ TypeFromExpressionVisitor() {
+    /*package-private*/ TypeFromExpressionVisitor() {
         // nothing to do
     }
 

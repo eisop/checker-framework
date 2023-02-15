@@ -140,7 +140,7 @@ import javax.lang.model.type.TypeMirror;
  * expressions, method calls (for the return value), and ternary expressions. Other types of
  * expressions may also be supported in the future.
  */
-/* package-private */
+/*package-private*/
 class MustCallConsistencyAnalyzer {
 
     /** True if errors related to static owning fields should be suppressed. */
@@ -195,7 +195,7 @@ class MustCallConsistencyAnalyzer {
      * alias is certainly a null pointer, or if the must-call obligation is the empty set), the
      * analysis can discard the Obligation.
      */
-    /* package-private */ static class Obligation {
+    /*package-private*/ static class Obligation {
 
         /**
          * The set of resource aliases through which a must-call obligation can be satisfied.
@@ -401,7 +401,7 @@ class MustCallConsistencyAnalyzer {
      * (the "reference" through which the must-call obligations for the alias set to which it
      * belongs can be satisfied) and a tree that "assigns" the reference.
      */
-    /* package-private */ static class ResourceAlias {
+    /*package-private*/ static class ResourceAlias {
 
         /**
          * A local variable defined in the source code or a temporary variable for an expression.
@@ -483,7 +483,7 @@ class MustCallConsistencyAnalyzer {
      * @param analysis the analysis from the type factory. Usually this would have protected access,
      *     so this constructor cannot get it directly.
      */
-    /* package-private */
+    /*package-private*/
     MustCallConsistencyAnalyzer(ResourceLeakAnnotatedTypeFactory typeFactory, CFAnalysis analysis) {
         this.typeFactory = typeFactory;
         this.checker = (ResourceLeakChecker) typeFactory.getChecker();
@@ -510,8 +510,7 @@ class MustCallConsistencyAnalyzer {
      */
     // TODO: This analysis is currently implemented directly using a worklist; in the future, it
     // should be rewritten to use the dataflow framework of the Checker Framework.
-    /* package-private */
-    void analyze(ControlFlowGraph cfg) {
+    /*package-private*/ void analyze(ControlFlowGraph cfg) {
         // The `visited` set contains everything that has been added to the worklist, even if it has
         // not yet been removed and analyzed.
         Set<BlockWithObligations> visited = new HashSet<>();
@@ -2146,7 +2145,7 @@ class MustCallConsistencyAnalyzer {
      * @return true iff the type's fully-qualified name starts with "java", indicating that it is
      *     from a java.* or javax.* package (probably)
      */
-    /* package-private */ static boolean isJdkClass(String qualifiedName) {
+    /*package-private*/ static boolean isJdkClass(String qualifiedName) {
         return qualifiedName.startsWith("java");
     }
 
@@ -2177,7 +2176,7 @@ class MustCallConsistencyAnalyzer {
      *
      * <p>Package-private to permit access from {@link ResourceLeakAnalysis}.
      */
-    /* package-private */ static final Set<String> ignoredExceptionTypes =
+    /*package-private*/ static final Set<String> ignoredExceptionTypes =
             new HashSet<>(
                     ImmutableSet.of(
                             // Any method call has a CFG edge for Throwable/RuntimeException/Error
@@ -2245,8 +2244,7 @@ class MustCallConsistencyAnalyzer {
      * @param mustCallVal the list of must-call strings
      * @return a formatted string
      */
-    /* package-private */
-    static String formatMissingMustCallMethods(List<String> mustCallVal) {
+    /*package-private*/ static String formatMissingMustCallMethods(List<String> mustCallVal) {
         int size = mustCallVal.size();
         if (size == 0) {
             throw new TypeSystemError("empty mustCallVal " + mustCallVal);

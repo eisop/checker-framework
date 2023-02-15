@@ -510,8 +510,7 @@ public class LockAnnotatedTypeFactory
      *     annotation is present on the method
      * @return the side effect annotation that is present on the given method
      */
-    /* package-private */
-    SideEffectAnnotation methodSideEffectAnnotation(
+    /*package-private*/ SideEffectAnnotation methodSideEffectAnnotation(
             ExecutableElement methodElement, boolean issueErrorIfMoreThanOnePresent) {
         if (methodElement == null) {
             // When there is not enough information to determine the correct side effect annotation,
@@ -558,8 +557,7 @@ public class LockAnnotatedTypeFactory
      * @param atm an AnnotatedTypeMirror containing a GuardSatisfied annotation
      * @return the index on the GuardSatisfied annotation
      */
-    /* package-private */
-    int getGuardSatisfiedIndex(AnnotatedTypeMirror atm) {
+    /*package-private*/ int getGuardSatisfiedIndex(AnnotatedTypeMirror atm) {
         return getGuardSatisfiedIndex(atm.getAnnotation(GuardSatisfied.class));
     }
 
@@ -570,8 +568,7 @@ public class LockAnnotatedTypeFactory
      * @param am an AnnotationMirror for a GuardSatisfied annotation
      * @return the index on the GuardSatisfied annotation
      */
-    /* package-private */
-    int getGuardSatisfiedIndex(AnnotationMirror am) {
+    /*package-private*/ int getGuardSatisfiedIndex(AnnotationMirror am) {
         return AnnotationUtils.getElementValueInt(am, guardSatisfiedValueElement, -1);
     }
 
