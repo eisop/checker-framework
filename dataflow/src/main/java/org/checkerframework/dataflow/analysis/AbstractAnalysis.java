@@ -497,7 +497,6 @@ public abstract class AbstractAnalysis<
          *
          * @param direction the direction (forward or backward)
          */
-        @SuppressWarnings("nullness:argument.type.incompatible")
         public Worklist(Direction direction) {
             if (direction == Direction.FORWARD) {
                 queue = new PriorityQueue<>(new ForwardDFOComparator());
