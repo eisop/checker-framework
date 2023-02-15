@@ -21,6 +21,7 @@ jobs:
    - inference_tests_jdk17
    - typecheck_jdk17
    - misc_jdk17
+   - jspecify_tests_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   steps:
