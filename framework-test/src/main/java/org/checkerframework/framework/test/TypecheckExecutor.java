@@ -98,7 +98,8 @@ public class TypecheckExecutor {
             //  of `TestDiagnosticUtils.fromJavaxDiagnosticList`.
             nonJvmOptions.add("-Anomsgtext");
 
-            nonJvmOptions.add("-AajavaChecks");
+            // TODO: decide whether this would be useful
+            // nonJvmOptions.add("-AajavaChecks");
 
             options.addAll(nonJvmOptions);
 

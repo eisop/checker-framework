@@ -11,6 +11,7 @@ import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.TreeUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -40,6 +41,12 @@ public class IndexMethodIdentifier {
     /** The LengthOf.value argument/element. */
     private final ExecutableElement lengthOfValueElement;
 
+    /**
+     * The {@code java.lang.String#indexOf} and {@code #lastIndexOf} methods that take a string as a
+     * non-receiver parameter.
+     */
+    private final List<ExecutableElement> indexOfStringMethods;
+
     /** The type factory. */
     private final AnnotatedTypeFactory factory;
 
@@ -55,10 +62,46 @@ public class IndexMethodIdentifier {
         mathMinMethods = TreeUtils.getMethods("java.lang.Math", "min", 2, processingEnv);
         mathMaxMethods = TreeUtils.getMethods("java.lang.Math", "max", 2, processingEnv);
 
+        indexOfStringMethods = new ArrayList<>(4);
+        indexOfStringMethods.add(
+                TreeUtils.getMethod(
+                        "java.lang.String", "indexOf", processingEnv, "java.lang.String"));
+        indexOfStringMethods.add(
+                TreeUtils.getMethod(
+                        "java.lang.String", "indexOf", processingEnv, "java.lang.String", "int"));
+        indexOfStringMethods.add(
+                TreeUtils.getMethod(
+                        "java.lang.String", "lastIndexOf", processingEnv, "java.lang.String"));
+        indexOfStringMethods.add(
+                TreeUtils.getMethod(
+                        "java.lang.String",
+                        "lastIndexOf",
+                        processingEnv,
+                        "java.lang.String",
+                        "int"));
+
         lengthOfValueElement = TreeUtils.getMethod(LengthOf.class, "value", 0, processingEnv);
     }
 
-    /** Returns true iff the argument is an invocation of Math.min. */
+    /**
+     * Returns true iff the argument is an invocation of String#indexOf or String#lastIndexOf that
+     * takes a string parameter.
+     *
+     * @param methodTree the method invocation tree to be tested
+     * @return true iff the argument is an invocation of one of String's indexOf or lastIndexOf
+     *     methods that takes another string as a parameter.
+     */
+    public boolean isIndexOfString(Tree methodTree) {
+        ProcessingEnvironment processingEnv = factory.getProcessingEnv();
+        return TreeUtils.isMethodInvocation(methodTree, indexOfStringMethods, processingEnv);
+    }
+
+    /**
+     * Returns true iff the argument is an invocation of Math.min.
+     *
+     * @param methodTree the method invocation tree to be tested
+     * @return true iff the argument is an invocation of Math.min()
+     */
     public boolean isMathMin(Tree methodTree) {
         ProcessingEnvironment processingEnv = factory.getProcessingEnv();
         return TreeUtils.isMethodInvocation(methodTree, mathMinMethods, processingEnv);

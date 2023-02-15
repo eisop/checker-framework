@@ -5,6 +5,7 @@ import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
 
+import org.checkerframework.afu.scenelib.Annotation;
 import org.checkerframework.afu.scenelib.annotations.Annotation;
 import org.checkerframework.afu.scenelib.annotations.el.AClass;
 import org.checkerframework.afu.scenelib.annotations.el.AField;
@@ -14,6 +15,14 @@ import org.checkerframework.afu.scenelib.annotations.el.ATypeElement;
 import org.checkerframework.afu.scenelib.annotations.el.TypePathEntry;
 import org.checkerframework.afu.scenelib.annotations.io.IndexFileParser;
 import org.checkerframework.afu.scenelib.annotations.util.JVMNames;
+import org.checkerframework.afu.scenelib.el.AClass;
+import org.checkerframework.afu.scenelib.el.AField;
+import org.checkerframework.afu.scenelib.el.AMethod;
+import org.checkerframework.afu.scenelib.el.AScene;
+import org.checkerframework.afu.scenelib.el.ATypeElement;
+import org.checkerframework.afu.scenelib.el.TypePathEntry;
+import org.checkerframework.afu.scenelib.io.IndexFileParser;
+import org.checkerframework.afu.scenelib.util.JVMNames;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.BinaryName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
@@ -36,6 +45,7 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.UserError;
+import org.plumelib.util.CollectionsPlume;
 
 import java.io.File;
 import java.io.IOException;
@@ -48,7 +58,9 @@ import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -160,6 +172,9 @@ public class WholeProgramInferenceScenesStorage
                 ClassSymbol enclosingClass = ((VarSymbol) elt).enclClass();
                 className = enclosingClass.flatname.toString();
                 break;
+            case CLASS:
+                className = ElementUtils.getBinaryName((TypeElement) elt);
+                break;
             default:
                 throw new BugInCF("What element? %s %s", elt.getKind(), elt);
         }
@@ -216,8 +231,12 @@ public class WholeProgramInferenceScenesStorage
 
     @Override
     public boolean hasStorageLocationForMethod(ExecutableElement methodElt) {
-        // The scenes implementation can always add annotations to a method.
-        return true;
+        // The only location that the scenes implementation cannot store an annotation is on
+        // a member of an annotation type, which it cannot distinguish from a normal interface's
+        // method. Without this, the scenes implementation will attempt to annotate annotation
+        // elements, which is an error.
+        Element enclosingType = ElementUtils.enclosingTypeElement(methodElt);
+        return enclosingType == null || enclosingType.getKind() != ElementKind.ANNOTATION_TYPE;
     }
 
     @Override
@@ -386,6 +405,41 @@ public class WholeProgramInferenceScenesStorage
                 AnnotationConverter.annotationMirrorToAnnotation(anno);
 
         boolean isNewAnnotation = fieldAnnos.tlAnnotationsHere.add(sceneAnno);
+        return isNewAnnotation;
+    }
+
+    @Override
+    public boolean addDeclarationAnnotationToFormalParameter(
+            ExecutableElement methodElt, int index, AnnotationMirror anno) {
+        if (!ElementUtils.isElementFromSourceCode(methodElt)) {
+            return false;
+        }
+
+        VariableElement paramElt = methodElt.getParameters().get(index);
+        AnnotatedTypeMirror paramAType = atypeFactory.getAnnotatedType(paramElt);
+        ATypeElement paramAnnos =
+                getParameterAnnotations(methodElt, index, paramAType, paramElt, atypeFactory);
+        Annotation sceneAnno = AnnotationConverter.annotationMirrorToAnnotation(anno);
+
+        boolean isNewAnnotation = paramAnnos.tlAnnotationsHere.add(sceneAnno);
+        return isNewAnnotation;
+    }
+
+    @Override
+    public boolean addClassDeclarationAnnotation(TypeElement classElt, AnnotationMirror anno) {
+        if (!ElementUtils.isElementFromSourceCode(classElt)) {
+            return false;
+        }
+
+        AClass classAnnos =
+                getClassAnnos(
+                        ElementUtils.getBinaryName(classElt),
+                        getFileForElement(classElt),
+                        (ClassSymbol) classElt);
+
+        Annotation sceneAnno = AnnotationConverter.annotationMirrorToAnnotation(anno);
+
+        boolean isNewAnnotation = classAnnos.tlAnnotationsHere.add(sceneAnno);
         return isNewAnnotation;
     }
 
@@ -578,7 +632,7 @@ public class WholeProgramInferenceScenesStorage
         Set<AnnotationMirror> annosToReplace = new HashSet<>(sourceCodeATM.getAnnotations().size());
         for (AnnotationMirror amSource : sourceCodeATM.getAnnotations()) {
             AnnotationMirror amJaif = jaifATM.getAnnotationInHierarchy(amSource);
-            // amJaif only contains  annotations from the jaif, so it might be missing
+            // amJaif only contains annotations from the jaif, so it might be missing
             // an annotation in the hierarchy
             if (amJaif != null) {
                 amSource = atypeFactory.getQualifierHierarchy().leastUpperBound(amSource, amJaif);
@@ -841,8 +895,8 @@ public class WholeProgramInferenceScenesStorage
         Set<Annotation> annosToRemove = getSupportedAnnosInSet(typeToUpdate.tlAnnotationsHere);
         // This method may be called consecutive times for the same ATypeElement.  Each time it is
         // called, the AnnotatedTypeMirror has a better type estimate for the ATypeElement.
-        // Therefore,
-        // it is not a problem to remove all annotations before inserting the new annotations.
+        // Therefore, it is not a problem to remove all annotations before inserting the new
+        // annotations.
         typeToUpdate.tlAnnotationsHere.removeAll(annosToRemove);
 
         // Only update the ATypeElement if there are no explicit annotations.
@@ -897,7 +951,7 @@ public class WholeProgramInferenceScenesStorage
             Pair<String, TypeUseLocation> key = Pair.of(firstKey, defLoc);
             Set<String> annosIgnored = annosToIgnore.get(key);
             if (annosIgnored == null) {
-                annosIgnored = new HashSet<>();
+                annosIgnored = new HashSet<>(CollectionsPlume.mapCapacity(1));
                 annosToIgnore.put(key, annosIgnored);
             }
             annosIgnored.add(anno.def().toString());

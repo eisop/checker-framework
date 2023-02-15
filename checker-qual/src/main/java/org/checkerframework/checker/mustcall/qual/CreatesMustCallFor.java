@@ -27,8 +27,8 @@ import java.lang.annotation.Target;
  *
  * <p>Because this annotation can only add obligations, it can be written safely on any method, even
  * one that does not actually create a new obligation. Writing this annotation on a method that does
- * not actually create any new obligations may lead to false positives, but never to false
- * negatives.
+ * not actually create any new obligations may lead to false alarms (warnings at correct code), but
+ * never to missed alarms (lack of warnings at incorrect code).
  *
  * <p>As an example, consider the following code, which uses a {@code @CreatesMustCallFor}
  * annotation to indicate that the {@code reset()} method re-assigns the {@code socket} field:

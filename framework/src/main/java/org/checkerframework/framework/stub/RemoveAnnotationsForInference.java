@@ -1,7 +1,6 @@
 package org.checkerframework.framework.stub;
 
 import com.github.javaparser.ParseResult;
-import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.Position;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
@@ -11,6 +10,7 @@ import com.github.javaparser.ast.expr.ArrayInitializerExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MarkerAnnotationExpr;
 import com.github.javaparser.ast.expr.MemberValuePair;
+import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.NormalAnnotationExpr;
 import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
@@ -26,8 +26,11 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.reflect.ClassPath;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.util.JavaParserUtil;
 import org.checkerframework.javacutil.BugInCF;
 import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.StringsPlume;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
@@ -114,8 +117,7 @@ public class RemoveAnnotationsForInference {
         CollectionStrategy strategy = new ParserCollectionStrategy();
         // Required to include directories that contain a module-info.java, which don't parse by
         // default.
-        strategy.getParserConfiguration()
-                .setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_11);
+        strategy.getParserConfiguration().setLanguageLevel(JavaParserUtil.DEFAULT_LANGUAGE_LEVEL);
         ProjectRoot projectRoot = strategy.collect(root);
 
         for (SourceRoot sourceRoot : projectRoot.getSourceRoots()) {
@@ -197,7 +199,7 @@ public class RemoveAnnotationsForInference {
                 String newLine = prefix + suffix;
                 replaceLine(lines, beginLine, newLine);
             } else {
-                String newLastLine = lines.get(endLine).substring(0, endColumn);
+                String newLastLine = lines.get(endLine).substring(endColumn);
                 replaceLine(lines, endLine, newLastLine);
                 for (int lineno = endLine - 1; lineno > beginLine; lineno--) {
                     lines.remove(lineno);
@@ -225,25 +227,11 @@ public class RemoveAnnotationsForInference {
      * @param newLine the new line for index {@code lineno}
      */
     static void replaceLine(List<String> lines, int lineno, String newLine) {
-        if (isBlank(newLine)) {
+        if (StringsPlume.isBlank(newLine)) {
             lines.remove(lineno);
         } else {
             lines.set(lineno, newLine);
         }
-    }
-
-    // TODO: Put the following utility methods in StringsPlume.
-
-    /**
-     * Returns true if the string contains only white space codepoints, otherwise false.
-     *
-     * <p>In Java 11, use {@code String.isBlank()} instead.
-     *
-     * @param s a string
-     * @return true if the string contains only white space codepoints, otherwise false
-     */
-    static boolean isBlank(String s) {
-        return s.chars().allMatch(Character::isWhitespace);
     }
 
     /**
@@ -257,14 +245,16 @@ public class RemoveAnnotationsForInference {
             extends GenericListVisitorAdapter<AnnotationExpr, Void> {
 
         /**
-         * Returns the argument if it should be removed from source code.
+         * Returns annotations that should be removed from source code.
          *
          * @param n an annotation
-         * @param superResult the result of processing the subcomponents of n
+         * @param superResult the result of calling {@code super.visit} on n; this includes
+         *     processing the subcomponents of n
          * @return the argument to remove it, or superResult to retain it
          */
         List<AnnotationExpr> processAnnotation(AnnotationExpr n, List<AnnotationExpr> superResult) {
             if (n == null) {
+                // TODO: How is this possible?
                 return superResult;
             }
 
@@ -448,8 +438,9 @@ public class RemoveAnnotationsForInference {
     }
 
     /**
-     * Given a @SuppressWarnings annotation, returns its strings. Given an annotation that
-     * suppresses warnings, returns strings for what it suppresses. Otherwise, returns null.
+     * Given a @SuppressWarnings annotation, returns its strings. Given a different annotation that
+     * suppresses warnings (e.g., @IgnoreInWholeProgramInference, @Inject, @Singleton), returns
+     * strings for what it suppresses. Otherwise, returns null.
      *
      * @param n an annotation
      * @return the (effective) arguments to {@code @SuppressWarnings}, or null
@@ -489,11 +480,13 @@ public class RemoveAnnotationsForInference {
 
     /**
      * Given an annotation argument for an element of type String[], return a list of strings.
+     * Returns null if the list of suppressed strings is unknown (e.g., if the argument is a name
+     * expression).
      *
      * @param e an annotation argument
      * @return the strings expressed by {@code e}
      */
-    private static List<String> annotationElementStrings(Expression e) {
+    private static @Nullable List<String> annotationElementStrings(Expression e) {
         if (e instanceof StringLiteralExpr) {
             return Collections.singletonList(((StringLiteralExpr) e).asString());
         } else if (e instanceof ArrayInitializerExpr) {
@@ -502,12 +495,24 @@ public class RemoveAnnotationsForInference {
             for (Expression v : values) {
                 if (v instanceof StringLiteralExpr) {
                     result.add(((StringLiteralExpr) v).asString());
+                } else if (v instanceof NameExpr) {
+                    // TODO: is it better to return null here, thus causing nothing under this
+                    // warning to be treated as "suppressed", or to return any keys that are string
+                    // literals?
+                    // Returning null here ensures that if any argument to the SW annotation isn't a
+                    // string literal, then none of them are considered.
+                    return null;
                 } else {
                     throw new BugInCF(
                             "Unexpected annotation element of type %s: %s", v.getClass(), v);
                 }
             }
             return result;
+        } else if (e instanceof NameExpr) {
+            // TODO: it would be better to check if the NameExpr represents a compile-time constant,
+            // and, if so, to use its value. But, it's not possible to determine that from just the
+            // result of the parser.
+            return null;
         } else {
             throw new BugInCF("Unexpected %s: %s", e.getClass(), e);
         }

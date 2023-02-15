@@ -22,10 +22,10 @@ import javax.lang.model.element.ElementKind;
 public class ReturnsReceiverAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     /**
-     * The {@code @}{@link This} annotation. The field is package visible due to a use in {@link
-     * ReturnsReceiverVisitor}
+     * The {@code @}{@link This} annotation. The field is package visible (i.e., "package private")
+     * due to a use in {@link ReturnsReceiverVisitor}
      */
-    final AnnotationMirror THIS_ANNOTATION;
+    /* package-private */ final AnnotationMirror THIS_ANNOTATION;
 
     /**
      * Create a new {@code ReturnsReceiverAnnotatedTypeFactory}.

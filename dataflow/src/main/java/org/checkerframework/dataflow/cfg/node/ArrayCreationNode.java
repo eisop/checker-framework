@@ -4,6 +4,7 @@ import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.Tree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.plumelib.util.StringsPlume;
 
 import java.util.ArrayList;
@@ -106,6 +107,7 @@ public class ArrayCreationNode extends Node {
     }
 
     @Override
+    @SideEffectFree
     public Collection<Node> getOperands() {
         ArrayList<Node> list = new ArrayList<>(dimensions.size() + initializers.size());
         list.addAll(dimensions);

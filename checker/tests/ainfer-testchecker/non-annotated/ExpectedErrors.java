@@ -130,8 +130,7 @@ public class ExpectedErrors {
         return 0;
     }
 
-    @AinferTop
-    int getAinferTop() {
+    @AinferTop int getAinferTop() {
         return 0;
     }
 

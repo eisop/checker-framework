@@ -7,8 +7,7 @@ public class MethodParameterInferenceTest {
         i = getAinferSibling1(); // The type of i must be inferred to @AinferSibling1.
     }
 
-    @AinferSibling1
-    int getAinferSibling1() {
+    @AinferSibling1 int getAinferSibling1() {
         return (@AinferSibling1 int) 0;
     }
 }

@@ -2,6 +2,7 @@ package org.checkerframework.framework.type;
 
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
 
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
@@ -267,13 +268,13 @@ public abstract class AnnotatedTypeMirror {
      * @return an annotation from the same hierarchy as p if present
      */
     public AnnotationMirror getAnnotationInHierarchy(AnnotationMirror p) {
-        AnnotationMirror aliased = p;
-        if (!atypeFactory.isSupportedQualifier(aliased)) {
-            aliased = atypeFactory.canonicalAnnotation(p);
+        AnnotationMirror canonical = p;
+        if (!atypeFactory.isSupportedQualifier(canonical)) {
+            canonical = atypeFactory.canonicalAnnotation(p);
         }
-        if (atypeFactory.isSupportedQualifier(aliased)) {
+        if (atypeFactory.isSupportedQualifier(canonical)) {
             QualifierHierarchy qualHier = this.atypeFactory.getQualifierHierarchy();
-            AnnotationMirror anno = qualHier.findAnnotationInSameHierarchy(annotations, aliased);
+            AnnotationMirror anno = qualHier.findAnnotationInSameHierarchy(annotations, canonical);
             if (anno != null) {
                 return anno;
             }
@@ -291,14 +292,14 @@ public abstract class AnnotatedTypeMirror {
      * @return an annotation from the same hierarchy as p if present
      */
     public AnnotationMirror getEffectiveAnnotationInHierarchy(AnnotationMirror p) {
-        AnnotationMirror aliased = p;
-        if (!atypeFactory.isSupportedQualifier(aliased)) {
-            aliased = atypeFactory.canonicalAnnotation(p);
+        AnnotationMirror canonical = p;
+        if (!atypeFactory.isSupportedQualifier(canonical)) {
+            canonical = atypeFactory.canonicalAnnotation(p);
         }
-        if (atypeFactory.isSupportedQualifier(aliased)) {
+        if (atypeFactory.isSupportedQualifier(canonical)) {
             QualifierHierarchy qualHier = this.atypeFactory.getQualifierHierarchy();
             AnnotationMirror anno =
-                    qualHier.findAnnotationInSameHierarchy(getEffectiveAnnotations(), aliased);
+                    qualHier.findAnnotationInSameHierarchy(getEffectiveAnnotations(), canonical);
             if (anno != null) {
                 return anno;
             }
@@ -567,9 +568,9 @@ public abstract class AnnotatedTypeMirror {
         if (atypeFactory.isSupportedQualifier(a)) {
             this.annotations.add(a);
         } else {
-            AnnotationMirror aliased = atypeFactory.canonicalAnnotation(a);
-            if (atypeFactory.isSupportedQualifier(aliased)) {
-                addAnnotation(aliased);
+            AnnotationMirror canonical = atypeFactory.canonicalAnnotation(a);
+            if (atypeFactory.isSupportedQualifier(canonical)) {
+                addAnnotation(canonical);
             }
         }
     }
@@ -847,7 +848,7 @@ public abstract class AnnotatedTypeMirror {
          */
         private boolean isUnderlyingTypeRaw;
 
-        /** The enclosing type. May be null. */
+        /** The enclosing type. May be null. May be changed. */
         protected @Nullable AnnotatedDeclaredType enclosingType;
 
         /** True if this represents a declaration, rather than a use, of a type. */
@@ -914,13 +915,11 @@ public abstract class AnnotatedTypeMirror {
             result.setTypeArguments(typeArgs);
 
             // If "this" is a type declaration with a type variable that references itself, e.g.
-            // MyClass<T
-            // extends List<T>>, then the type variable is a declaration, i.e. the first T, but the
-            // reference to the type variable is a use, i.e. the second T.  When "this" is converted
-            // to a
-            // use, then both type variables are uses and should be the same object.  The code below
-            // does
-            // this.
+            // MyClass<T extends List<T>>, then the type variable is a declaration, i.e. the first
+            // T, but the reference to the type variable is a use, i.e. the second T.  When "this"
+            // is converted to a use, then both type variables are uses and should be the same
+            // object.
+            // The code below does this.
             Map<TypeVariable, AnnotatedTypeMirror> mapping = new HashMap<>(typeArgs.size());
             for (AnnotatedTypeMirror typeArg : result.getTypeArguments()) {
                 AnnotatedTypeVariable typeVar = (AnnotatedTypeVariable) typeArg;
@@ -956,14 +955,12 @@ public abstract class AnnotatedTypeMirror {
                 for (AnnotatedTypeMirror typeArg : ts) {
                     if (typeArg.getKind() != TypeKind.TYPEVAR) {
                         throw new BugInCF(
-                                "Type declaration must have type variables as type"
-                                        + " arguments. Found %s",
+                                "Type declaration must have type variables as type arguments. Found %s",
                                 typeArg);
                     }
                     if (!typeArg.isDeclaration()) {
                         throw new BugInCF(
-                                "Type declarations must have type variables that are"
-                                        + " declarations. Found %s",
+                                "Type declarations must have type variables that are declarations. Found %s",
                                 typeArg);
                     }
                 }
@@ -1078,7 +1075,7 @@ public abstract class AnnotatedTypeMirror {
                             AnnotatedTypeMirror.createType(
                                     atypeFactory.types.erasure(underlyingType),
                                     atypeFactory,
-                                    declaration);
+                                    false);
             erased.addAnnotations(this.getAnnotations());
             AnnotatedDeclaredType erasedEnclosing = erased.getEnclosingType();
             AnnotatedDeclaredType thisEnclosing = this.getEnclosingType();
@@ -2173,7 +2170,11 @@ public abstract class AnnotatedTypeMirror {
      */
     public static class AnnotatedIntersectionType extends AnnotatedTypeMirror {
 
-        /** A list of the bounds of this which are also its direct super types. */
+        /**
+         * A list of the bounds of this which are also its direct super types.
+         *
+         * <p>Is set by {@link #shallowCopy}.
+         */
         protected List<AnnotatedTypeMirror> bounds;
 
         /**
@@ -2373,8 +2374,12 @@ public abstract class AnnotatedTypeMirror {
             return shallowCopy(true);
         }
 
-        /** The types that are unioned to form this AnnotatedUnionType. */
-        protected List<AnnotatedDeclaredType> alternatives;
+        /**
+         * The types that are unioned to form this AnnotatedUnionType.
+         *
+         * <p>Is set by {@link #getAlternatives} and {@link #shallowCopy}.
+         */
+        protected @MonotonicNonNull List<AnnotatedDeclaredType> alternatives;
 
         /**
          * Returns the types that are unioned to form this AnnotatedUnionType.

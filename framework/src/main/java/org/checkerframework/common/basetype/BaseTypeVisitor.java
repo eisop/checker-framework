@@ -47,6 +47,7 @@ import com.sun.tools.javac.tree.TreeInfo;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.interning.qual.FindDistinct;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.TransferResult;
 import org.checkerframework.dataflow.cfg.node.BooleanLiteralNode;
@@ -110,6 +111,8 @@ import org.checkerframework.javacutil.SwitchExpressionScanner.FunctionalSwitchEx
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
+import org.plumelib.util.ArrayMap;
+import org.plumelib.util.ArraySet;
 import org.plumelib.util.ArraysPlume;
 import org.plumelib.util.CollectionsPlume;
 
@@ -123,8 +126,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -315,6 +316,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
     }
 
+    /** An array containing just {@code BaseTypeChecker.class}. */
+    private static final Class<?>[] baseTypeCheckerClassArray =
+            new Class<?>[] {BaseTypeChecker.class};
+
     /**
      * Constructs an instance of the appropriate type factory for the implemented type system.
      *
@@ -335,13 +340,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     protected Factory createTypeFactory() {
         // Try to reflectively load the type factory.
         Class<?> checkerClass = checker.getClass();
+        Object[] checkerArray = new Object[] {checker};
         while (checkerClass != BaseTypeChecker.class) {
             AnnotatedTypeFactory result =
                     BaseTypeChecker.invokeConstructorFor(
                             BaseTypeChecker.getRelatedClassName(
                                     checkerClass, "AnnotatedTypeFactory"),
-                            new Class<?>[] {BaseTypeChecker.class},
-                            new Object[] {checker});
+                            baseTypeCheckerClassArray,
+                            checkerArray);
             if (result != null) {
                 return (Factory) result;
             }
@@ -484,7 +490,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         try {
             modifiedAst = JavaParserUtil.parseCompilationUnit(withAnnotations);
         } catch (ParseProblemException e) {
-            throw new BugInCF("Failed to parse annotation insertion:\n" + withAnnotations, e);
+            throw new BugInCF(
+                    "Failed to parse code after annotation insertion:\n" + withAnnotations, e);
         }
 
         AnnotationEqualityVisitor visitor = new AnnotationEqualityVisitor();
@@ -496,8 +503,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                             "Sanity check of erasing then reinserting annotations produced a"
                                     + " different AST.",
                             "File: " + root.getSourceFile(),
-                            "Original node: " + visitor.getMismatchedNode1(),
-                            "Node with annotations re-inserted: " + visitor.getMismatchedNode2(),
+                            "Node class: "
+                                    + visitor.getMismatchedNode1().getClass().getSimpleName(),
+                            "Original node: " + oneLine(visitor.getMismatchedNode1()),
+                            "Node with annotations re-inserted: "
+                                    + oneLine(visitor.getMismatchedNode2()),
                             "Original annotations: "
                                     + visitor.getMismatchedNode1().getAnnotations(),
                             "Re-inserted annotations: "
@@ -506,6 +516,16 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                             originalAst.toString(),
                             "Ast with annotations re-inserted: " + modifiedAst));
         }
+    }
+
+    /**
+     * Replace newlines in the printed representation by spaces.
+     *
+     * @param arg an object to format
+     * @return the object's toString representation, on one line
+     */
+    private String oneLine(Object arg) {
+        return arg.toString().replace(System.lineSeparator(), " ");
     }
 
     /**
@@ -866,7 +886,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
         }
 
-        List<String> notFinal = new ArrayList<>();
+        List<String> notFinal = new ArrayList<>(fieldElts.size());
         for (VariableElement field : fieldElts) {
             String fieldName = field.getSimpleName().toString();
             if (!ElementUtils.isFinal(field)) {
@@ -1318,7 +1338,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             MethodTree methodDeclTree, JavaExpression javaExpression) {
         // check that all parameters used in the expression are
         // effectively final, so that they cannot be modified
-        Set<Element> parameters = new HashSet<>(1);
+        Set<Element> parameters = new ArraySet<>(2);
         findParameters.scan(javaExpression, parameters);
         for (Element parameter : parameters) {
             if (!ElementUtils.isEffectivelyFinal(parameter)) {
@@ -1344,8 +1364,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         CFAbstractStore<?, ?> exitStore = atypeFactory.getRegularExitStore(methodTree);
         if (exitStore == null) {
             // If there is no regular exitStore, then the method cannot reach the regular exit and
-            // there
-            // is no need to check anything.
+            // there is no need to check anything.
         } else {
             CFAbstractValue<?> value = exitStore.getValue(expression);
             AnnotationMirror inferredAnno = null;
@@ -1732,7 +1751,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
         }
         if (lastDeclAnnoIndex != -1) {
-            List<AnnotationTree> badTypeAnnos = new ArrayList<>();
+            // Usually, there are few bad invariant annotations.
+            List<AnnotationTree> badTypeAnnos = new ArrayList<>(2);
             for (int i = 0; i < lastDeclAnnoIndex; i++) {
                 AnnotationTree anno = annotations.get(i);
                 if (isTypeAnnotation(anno)) {
@@ -2073,18 +2093,32 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 Set<AnnotationMirror> annos = value.getAnnotations();
                 inferredAnno = hierarchy.findAnnotationInSameHierarchy(annos, anno);
             } else {
-                // If there is no information in the store (possible if e.g., no refinement
-                // of the field has occurred), use top instead of automatically
-                // issuing a warning. This is not perfectly precise: for example,
-                // if jeExpr is a field it would be more precise to use the field's
-                // declared type rather than top. However, doing so would be unsound
-                // in at least three circumstances where the type of the field depends
-                // on the type of the receiver: (1) all fields in Nullness Checker,
-                // because of possibility that the receiver is under initialization,
-                // (2) polymorphic fields, and (3) fields whose type is a type variable.
-                // Using top here instead means that there is no need for special cases
-                // for these situations.
-                inferredAnno = atypeFactory.getQualifierHierarchy().getTopAnnotation(anno);
+                // If the expression is "this", then get the type of the method receiver.
+                // TODO: There are other expressions that can be converted to trees, "#1" for
+                // example.
+                if (expressionString.equals("this")) {
+                    AnnotatedTypeMirror atype = atypeFactory.getReceiverType(tree);
+                    if (atype != null) {
+                        QualifierHierarchy hierarchy = atypeFactory.getQualifierHierarchy();
+                        Set<AnnotationMirror> annos = atype.getEffectiveAnnotations();
+                        inferredAnno = hierarchy.findAnnotationInSameHierarchy(annos, anno);
+                    }
+                }
+
+                if (inferredAnno == null) {
+                    // If there is no information in the store (possible if e.g., no refinement
+                    // of the field has occurred), use top instead of automatically
+                    // issuing a warning. This is not perfectly precise: for example,
+                    // if jeExpr is a field it would be more precise to use the field's
+                    // declared type rather than top. However, doing so would be unsound
+                    // in at least three circumstances where the type of the field depends
+                    // on the type of the receiver: (1) all fields in Nullness Checker,
+                    // because of possibility that the receiver is under initialization,
+                    // (2) polymorphic fields, and (3) fields whose type is a type variable.
+                    // Using top here instead means that there is no need for special cases
+                    // for these situations.
+                    inferredAnno = atypeFactory.getQualifierHierarchy().getTopAnnotation(anno);
+                }
             }
             if (!checkContract(exprJe, anno, inferredAnno, store)) {
                 if (exprJe != null) {
@@ -2266,6 +2300,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         return super.visitMemberReference(node, p);
     }
 
+    /** A set containing {@code Tree.Kind.METHOD} and {@code Tree.Kind.LAMBDA_EXPRESSION}. */
+    private final ArraySet<Tree.Kind> methodAndLambdaExpression =
+            new ArraySet<>(Arrays.asList(Tree.Kind.METHOD, Tree.Kind.LAMBDA_EXPRESSION));
+
     /**
      * Checks that the type of the return expression is a subtype of the enclosing method required
      * return type. If not, it issues a "return.type.incompatible" error.
@@ -2277,11 +2315,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return super.visitReturn(node, p);
         }
 
-        Tree enclosing =
-                TreePathUtil.enclosingOfKind(
-                        getCurrentPath(),
-                        new HashSet<>(
-                                Arrays.asList(Tree.Kind.METHOD, Tree.Kind.LAMBDA_EXPRESSION)));
+        Tree enclosing = TreePathUtil.enclosingOfKind(getCurrentPath(), methodAndLambdaExpression);
 
         AnnotatedTypeMirror ret = null;
         if (enclosing.getKind() == Tree.Kind.METHOD) {
@@ -2326,7 +2360,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         List<ExecutableElement> methods = ElementFilter.methodsIn(anno.getEnclosedElements());
         // Mapping from argument simple name to its annotated type.
-        Map<String, AnnotatedTypeMirror> annoTypes = new HashMap<>(methods.size());
+        Map<String, AnnotatedTypeMirror> annoTypes = ArrayMap.newArrayMapOrHashMap(methods.size());
         for (ExecutableElement meth : methods) {
             AnnotatedExecutableType exeatm = atypeFactory.getAnnotatedType(meth);
             AnnotatedTypeMirror retty = exeatm.getReturnType();
@@ -2862,8 +2896,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /**
      * Cache to avoid calling {@link #getExceptionParameterLowerBoundAnnotations} more than once.
      */
-    private Set<? extends AnnotationMirror> getExceptionParameterLowerBoundAnnotationsCache = null;
-    /** The same as {@link #getExceptionParameterLowerBoundAnnotations}, but uses a cache. */
+    private @MonotonicNonNull Set<? extends AnnotationMirror>
+            getExceptionParameterLowerBoundAnnotationsCache;
+    /**
+     * Returns a set of AnnotationMirrors that is a lower bound for exception parameters. The same
+     * as {@link #getExceptionParameterLowerBoundAnnotations}, but uses a cache.
+     *
+     * @return a set of AnnotationMirrors that is a lower bound for exception parameters
+     */
     private Set<? extends AnnotationMirror> getExceptionParameterLowerBoundAnnotationsCached() {
         if (getExceptionParameterLowerBoundAnnotationsCache == null) {
             getExceptionParameterLowerBoundAnnotationsCache =
@@ -3285,10 +3325,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * A scanner that indicates whether any (sub-)types have the same toString but different verbose
-     * toString. If so, the Checker Framework prints types verbosely.
+     * A scanner that indicates whether any (component) types have the same toString but different
+     * verbose toString. If so, the Checker Framework prints types verbosely.
      */
-    private static SimpleAnnotatedTypeScanner<Boolean, Map<String, String>>
+    private static final SimpleAnnotatedTypeScanner<Boolean, Map<String, String>>
             checkContainsSameToString =
                     new SimpleAnnotatedTypeScanner<>(
                             (AnnotatedTypeMirror type, Map<String, String> map) -> {
@@ -4464,7 +4504,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return Collections.emptySet();
         }
 
-        Set<Postcondition> result = new LinkedHashSet<>(conditionalPostconditions.size());
+        Set<Postcondition> result =
+                ArraySet.newArraySetOrLinkedHashSet(conditionalPostconditions.size());
         for (Contract c : conditionalPostconditions) {
             ConditionalPostcondition p = (ConditionalPostcondition) c;
             if (p.resultValue == b) {
@@ -4594,7 +4635,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     return javaExpr.atMethodBody(methodTree);
                 };
 
-        Set<Pair<JavaExpression, AnnotationMirror>> result = new HashSet<>(contractSet.size());
+        Set<Pair<JavaExpression, AnnotationMirror>> result =
+                ArraySet.newArraySetOrHashSet(contractSet.size());
         for (Contract p : contractSet) {
             String expressionString = p.expressionString;
             AnnotationMirror annotation =

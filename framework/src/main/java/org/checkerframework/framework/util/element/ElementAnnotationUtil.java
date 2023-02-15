@@ -419,8 +419,8 @@ public class ElementAnnotationUtil {
                 // Raise an error for all other types below.
         }
         throw new UnexpectedAnnotationLocationException(
-                "ElementAnnotationUtil.getTypeAtLocation: unexpected annotation with location found"
-                        + " for type: %s (kind: %s ) location: ",
+                "ElementAnnotationUtil.getTypeAtLocation: "
+                        + "unexpected annotation with location found for type: %s (kind: %s) location: ",
                 type, type.getKind(), location);
     }
 

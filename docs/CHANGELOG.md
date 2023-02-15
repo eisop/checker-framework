@@ -1,4 +1,4 @@
-Version 3.28.0-eisop2 (December ?, 2022)
+Version 3.30.0-eisop1 (February ?, 2023)
 ----------------------------------------
 
 **User-visible changes:**
@@ -14,8 +14,45 @@ applied on everywhere.
 A `VariableDeclarationNode` is now correctly added to the CFG for the binding variable
 in a `BindingPatternTree`.
 
+Remove the `fastAssemble` task which is subsumed by `assembleForJavac`.
+
 **Closed issues:**
 typetools#1919
+
+Version 3.30.0 (February 2, 2023)
+---------------------------------
+
+**Implementation details:**
+
+`getQualifierKind()` throws an exception rather than returning null.
+(EISOP note: this method is in `ElementQualifierHierarchy` and `QualifierKindHierarchy`.)
+
+Renamed gradle task `copyJarsToDist` to `assembleForJavac`.
+
+**Closed issues:**
+#5402, #5486, #5489, #5519, #5524, #5526.
+
+
+Version 3.29.0 (January 5, 2023)
+--------------------------------
+
+**User-visible changes:**
+
+Dropped support for `-ApermitUnsupportedJdkVersion` command-line argument.
+You can now run the Checker Framework under any JDK version, without a warning.
+(EISOP note: a note is however still issued. Use the EISOP option
+`-AnoJreVersionCheck` to also suppress the note.)
+
+Pass `-Astubs=permit-nullness-assertion-exception.astub` to not be warned about null
+pointer exceptions within nullness assertion methods like `Objects.requireNonNull`.
+
+Pass `-Astubs=sometimes-nullable.astub` to unsoundly permit passing null to
+calls if null is sometimes but not always permitted.
+
+**Closed issues:**
+
+#5412, #5431, #5435, #5438, #5447, #5450, #5453, #5471, #5472, #5487.
+
 
 Version 3.28.0-eisop1 (December 7, 2022)
 ----------------------------------------
@@ -280,7 +317,7 @@ Version 3.22.2 (June 14, 2022)
 
 **Implementation details:**
 
-Expose CFG APIs to allow inserting jumps and throws
+Expose CFG APIs to allow inserting jumps and throws.
 
 
 Version 3.22.1-eisop1 (June 3, 2022)

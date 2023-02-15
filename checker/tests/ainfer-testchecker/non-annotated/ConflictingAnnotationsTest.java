@@ -13,8 +13,7 @@ public class ConflictingAnnotationsTest {
     // This version of AinferSibling1 is not typechecked - it doesn't belong to the checker and
     // instead is
     // defined in the AinferSibling1.java file in this directory.
-    @AinferSibling1
-    Object getLocalAinferSibling1(Object o) {
+    @AinferSibling1 Object getLocalAinferSibling1(Object o) {
         return o;
     }
 
@@ -23,8 +22,7 @@ public class ConflictingAnnotationsTest {
         expectsAinferSibling1(getWPINamespaceAinferSibling1());
     }
 
-    @org.checkerframework.checker.testchecker.ainfer.qual.AinferSibling1
-    int getAinferSibling1() {
+    @org.checkerframework.checker.testchecker.ainfer.qual.AinferSibling1 int getAinferSibling1() {
         return 1;
     }
 

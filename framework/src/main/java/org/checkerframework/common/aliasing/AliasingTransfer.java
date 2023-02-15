@@ -47,8 +47,14 @@ import javax.lang.model.element.VariableElement;
  */
 public class AliasingTransfer extends CFTransfer {
 
-    private AnnotatedTypeFactory factory;
+    /** The annotated type factory. */
+    private final AnnotatedTypeFactory factory;
 
+    /**
+     * Create a new AliasingTransfer.
+     *
+     * @param analysis the CFAbstractAnalysis
+     */
     public AliasingTransfer(CFAbstractAnalysis<CFValue, CFStore, CFTransfer> analysis) {
         super(analysis);
         factory = analysis.getTypeFactory();

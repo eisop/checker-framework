@@ -2,7 +2,7 @@ Index: src/net/eyde/personalblog/service/PersonalBlogService.java
 ===================================================================
 --- src/net/eyde/personalblog/service/PersonalBlogService.java	(revision 3589)
 +++ src/net/eyde/personalblog/service/PersonalBlogService.java	(working copy)
-@@ -165,7 +165,7 @@ public class PersonalBlogService {
+@@ -151,7 +151,7 @@ public class PersonalBlogService {
          return posts;
      }
 

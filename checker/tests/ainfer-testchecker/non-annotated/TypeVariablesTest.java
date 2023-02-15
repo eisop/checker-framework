@@ -18,8 +18,7 @@ public class TypeVariablesTest<T1 extends @AinferParent Object, T2 extends @Ainf
 
     void test1() {
         @SuppressWarnings("cast.unsafe")
-        @AinferParent
-        String s = (@AinferParent String) "";
+        @AinferParent String s = (@AinferParent String) "";
         foo(getAinferSibling1(), getAinferSibling2());
         typeVarWithTypeVarUB(getAinferSibling1(), getAinferSibling2());
     }

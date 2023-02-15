@@ -3,6 +3,7 @@ package org.checkerframework.common.wholeprograminference;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
+import com.github.javaparser.ast.body.AnnotationDeclaration;
 import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
@@ -51,11 +52,11 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.util.JavaParserUtil;
-import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
+import org.plumelib.util.ArraySet;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -77,6 +78,7 @@ import java.util.stream.Collectors;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
@@ -201,11 +203,14 @@ public class WholeProgramInferenceJavaParserStorage
      * @param fieldElt a field
      * @return the annotations for a field
      */
-    private FieldAnnos getFieldAnnos(VariableElement fieldElt) {
+    private @Nullable FieldAnnos getFieldAnnos(VariableElement fieldElt) {
         String className = ElementUtils.getEnclosingClassName(fieldElt);
         // Read in classes for the element.
         getFileForElement(fieldElt);
         ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
+        if (classAnnos == null) {
+            return null;
+        }
         FieldAnnos fieldAnnos = classAnnos.fields.get(fieldElt.getSimpleName().toString());
         return fieldAnnos;
     }
@@ -267,6 +272,9 @@ public class WholeProgramInferenceJavaParserStorage
         @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
         @BinaryName String className = enclosingClass.flatname.toString();
         ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
+        if (classAnnos == null) {
+            return null;
+        }
         // If it's an enum constant it won't appear as a field
         // and it won't have extra annotations, so just return the basic type:
         if (classAnnos.enumConstants.contains(fieldName)) {
@@ -364,9 +372,32 @@ public class WholeProgramInferenceJavaParserStorage
     @Override
     public boolean addFieldDeclarationAnnotation(VariableElement field, AnnotationMirror anno) {
         FieldAnnos fieldAnnos = getFieldAnnos(field);
-        boolean isNewAnnotation = fieldAnnos.addDeclarationAnnotation(anno);
+        boolean isNewAnnotation = fieldAnnos != null && fieldAnnos.addDeclarationAnnotation(anno);
         if (isNewAnnotation) {
             modifiedFiles.add(getFileForElement(field));
+        }
+        return isNewAnnotation;
+    }
+
+    @Override
+    public boolean addDeclarationAnnotationToFormalParameter(
+            ExecutableElement methodElt, int index, AnnotationMirror anno) {
+        CallableDeclarationAnnos methodAnnos = getMethodAnnos(methodElt);
+        boolean isNewAnnotation =
+                methodAnnos.addDeclarationAnnotationToFormalParameter(anno, index);
+        if (isNewAnnotation) {
+            modifiedFiles.add(getFileForElement(methodElt));
+        }
+        return isNewAnnotation;
+    }
+
+    @Override
+    public boolean addClassDeclarationAnnotation(TypeElement classElt, AnnotationMirror anno) {
+        String className = ElementUtils.getBinaryName(classElt);
+        ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
+        boolean isNewAnnotation = classAnnos.addAnnotationToClassDeclaration(anno);
+        if (isNewAnnotation) {
+            modifiedFiles.add(getFileForElement(classElt));
         }
         return isNewAnnotation;
     }
@@ -384,25 +415,10 @@ public class WholeProgramInferenceJavaParserStorage
             AnnotatedTypeMirror typeToUpdate,
             TypeUseLocation defLoc,
             boolean ignoreIfAnnotated) {
-        // Clears only the annotations that are supported by atypeFactory.
-        // The others stay intact.
-        Set<AnnotationMirror> annosToRemove = AnnotationUtils.createAnnotationSet();
-        for (AnnotationMirror anno : typeToUpdate.getAnnotations()) {
-            if (atypeFactory.isSupportedQualifier(anno)) {
-                annosToRemove.add(anno);
-            }
-        }
-
-        // This method may be called consecutive times to modify the same AnnotatedTypeMirror.
-        // Each time it is called, the AnnotatedTypeMirror has a better type
-        // estimate for the modified AnnotatedTypeMirror. Therefore, it is not a problem to remove
-        // all annotations before inserting the new annotations.
-        typeToUpdate.removeAnnotations(annosToRemove);
-
         // Only update the AnnotatedTypeMirror if there are no explicit annotations
         if (curATM.getExplicitAnnotations().isEmpty() || !ignoreIfAnnotated) {
             for (AnnotationMirror am : newATM.getAnnotations()) {
-                typeToUpdate.addAnnotation(am);
+                typeToUpdate.replaceAnnotation(am);
             }
         } else if (curATM.getKind() == TypeKind.TYPEVAR) {
             // getExplicitAnnotations will be non-empty for type vars whose bounds are explicitly
@@ -414,8 +430,7 @@ public class WholeProgramInferenceJavaParserStorage
                     // in the same hierarchy.
                     break;
                 }
-
-                typeToUpdate.addAnnotation(am);
+                typeToUpdate.replaceAnnotation(am);
             }
         }
 
@@ -453,6 +468,11 @@ public class WholeProgramInferenceJavaParserStorage
      */
     private void addClassTree(ClassTree tree) {
         TypeElement element = TreeUtils.elementFromDeclaration(tree);
+        if (element == null) {
+            // TODO: There should be an element here, or there is nowhere to store inferences about
+            // `tree`.
+            return;
+        }
         String className = ElementUtils.getBinaryName(element);
         if (classToAnnos.containsKey(className)) {
             return;
@@ -493,7 +513,7 @@ public class WholeProgramInferenceJavaParserStorage
     }
 
     /**
-     * The first two arugments are a javac tree and a JavaParser node representing the same class.
+     * The first two arguments are a javac tree and a JavaParser node representing the same class.
      * This method creates wrappers around all the classes, fields, and methods in that class, and
      * stores those wrappers in {@code sourceAnnos}.
      *
@@ -521,18 +541,26 @@ public class WholeProgramInferenceJavaParserStorage
                     @Override
                     public void processClass(
                             ClassTree javacTree, ClassOrInterfaceDeclaration javaParserNode) {
-                        addClass(javacTree);
+                        addClass(javacTree, javaParserNode);
                     }
 
                     @Override
                     public void processClass(ClassTree javacTree, EnumDeclaration javaParserNode) {
-                        addClass(javacTree);
+                        addClass(javacTree, javaParserNode);
                     }
 
                     @Override
                     public void processClass(
                             ClassTree javacTree, RecordDeclaration javaParserNode) {
-                        addClass(javacTree);
+                        addClass(javacTree, javaParserNode);
+                    }
+
+                    @Override
+                    public void processClass(
+                            ClassTree javacTree, AnnotationDeclaration javaParserNode) {
+                        // TODO: consider supporting inferring annotations on annotation
+                        // declarations.
+                        // addClass(javacTree, javaParserNode);
                     }
 
                     @Override
@@ -540,7 +568,42 @@ public class WholeProgramInferenceJavaParserStorage
                             NewClassTree javacTree, ObjectCreationExpr javaParserNode) {
                         ClassTree body = javacTree.getClassBody();
                         if (body != null) {
-                            addClass(body);
+                            // elementFromTree returns null instead of crashing when no element
+                            // exists for the class tree, which can happen for certain kinds of
+                            // anonymous classes, such as Ordering$1 in PolyCollectorTypeVar.java in
+                            // the all-systems test suite.  addClass(ClassTree) in the then branch
+                            // just below assumes that such an element exists.
+                            Element classElt = TreeUtils.elementFromDeclaration(body);
+                            if (classElt != null) {
+                                addClass(body, null);
+                            } else {
+                                // If such an element does not exist, compute the name of the class,
+                                // instead.  This method of computing the name is not 100%
+                                // guaranteed to be reliable, but it should be sufficient for WPI's
+                                // purposes here: if the wrong name is computed, the worst outcome
+                                // is a false positive because WPI inferred an untrue annotation.
+                                @BinaryName String className;
+                                if ("".contentEquals(body.getSimpleName())) {
+                                    @SuppressWarnings(
+                                            "signature:assignment") // computed from string
+                                    // concatenation
+                                    @BinaryName String computedName =
+                                            javaParserClass.getFullyQualifiedName().get()
+                                                    + "$"
+                                                    + ++innerClassCount;
+                                    className = computedName;
+                                } else {
+                                    @SuppressWarnings(
+                                            "signature:assignment") // computed from string
+                                    // concatenation
+                                    @BinaryName String computedName =
+                                            javaParserClass.getFullyQualifiedName().get()
+                                                    + "$"
+                                                    + body.getSimpleName().toString();
+                                    className = computedName;
+                                }
+                                addClass(body, className, null);
+                            }
                         }
                     }
 
@@ -555,9 +618,14 @@ public class WholeProgramInferenceJavaParserStorage
                      *     {@code classToAnnos} if {@code classNameKey} is null.
                      * @param classNameKey if non-null, used as the key for {@code classToAnnos}
                      *     instead of the element corresponding to {@code tree}
+                     * @param javaParserNode the node corresponding to the declaration, which is
+                     *     used to place annotations on the class itself. Can be null, e.g. for an
+                     *     anonymous class.
                      */
                     private void addClass(
-                            ClassTree tree, @Nullable @BinaryName String classNameKey) {
+                            ClassTree tree,
+                            @Nullable @BinaryName String classNameKey,
+                            @Nullable TypeDeclaration<?> javaParserNode) {
                         String className;
                         if (classNameKey == null) {
                             TypeElement classElt = TreeUtils.elementFromDeclaration(tree);
@@ -565,7 +633,8 @@ public class WholeProgramInferenceJavaParserStorage
                         } else {
                             className = classNameKey;
                         }
-                        ClassOrInterfaceAnnos typeWrapper = new ClassOrInterfaceAnnos();
+                        ClassOrInterfaceAnnos typeWrapper =
+                                new ClassOrInterfaceAnnos(javaParserNode);
                         if (!classToAnnos.containsKey(className)) {
                             classToAnnos.put(className, typeWrapper);
                         }
@@ -582,9 +651,13 @@ public class WholeProgramInferenceJavaParserStorage
                      *
                      * @param tree tree to add. Its corresponding element is used as the key for
                      *     {@code classToAnnos}.
+                     * @param javaParserNode the node corresponding to the declaration, which is
+                     *     used to place annotations on the class itself. Can be null, e.g. for an
+                     *     anonymous class.
                      */
-                    private void addClass(ClassTree tree) {
-                        addClass(tree, null);
+                    private void addClass(
+                            ClassTree tree, @Nullable TypeDeclaration<?> javaParserNode) {
+                        addClass(tree, null, javaParserNode);
                     }
 
                     @Override
@@ -609,6 +682,13 @@ public class WholeProgramInferenceJavaParserStorage
                     private void addCallableDeclaration(
                             MethodTree javacTree, CallableDeclaration<?> javaParserNode) {
                         ExecutableElement element = TreeUtils.elementFromDeclaration(javacTree);
+                        if (element == null) {
+                            // element can be null if there is no element corresponding to the
+                            // method, which happens for certain kinds of anonymous classes,
+                            // such as Ordering$1 in PolyCollectorTypeVar.java in the
+                            // all-systems test suite.
+                            return;
+                        }
                         String className = ElementUtils.getEnclosingClassName(element);
                         ClassOrInterfaceAnnos enclosingClass = classToAnnos.get(className);
                         String executableSignature = JVMNames.getJVMMethodSignature(javacTree);
@@ -633,16 +713,18 @@ public class WholeProgramInferenceJavaParserStorage
                         enclosingClass.enumConstants.add(fieldName);
 
                         // Ensure that if an enum constant defines a class, that class gets
-                        // registered properly.
-                        // See e.g.
-                        // https://docs.oracle.com/javase/specs/jls/se7/html/jls-8.html#jls-8.9.1
-                        // for
-                        // the specification of an enum constant, which does permit it to define an
-                        // anonymous
-                        // class.
+                        // registered properly.  See e.g.
+                        // https://docs.oracle.com/javase/specs/jls/se17/html/jls-8.html#jls-8.9.1
+                        // for the specification of an enum constant, which does permit it to
+                        // define an anonymous class.
                         NewClassTree constructor = (NewClassTree) javacTree.getInitializer();
-                        if (constructor.getClassBody() != null) {
-                            addClass(constructor.getClassBody());
+                        ClassTree constructorClassBody = constructor.getClassBody();
+                        if (constructorClassBody != null) {
+                            // addClass assumes there is an element for its argument, but that is
+                            // not always true!
+                            if (TreeUtils.elementFromDeclaration(constructorClassBody) != null) {
+                                addClass(constructorClassBody, null);
+                            }
                         }
                     }
 
@@ -678,6 +760,17 @@ public class WholeProgramInferenceJavaParserStorage
 
         TypeElement toplevelClass = ElementUtils.toplevelEnclosingTypeElement(element);
         String path = ElementUtils.getSourceFilePath(toplevelClass);
+        if (toplevelClass.getKind() == ElementKind.ANNOTATION_TYPE) {
+            // Inferring annotations on elements of annotation declarations is not supported.
+            // One issue with supporting inference on annotation declaration elements is that
+            // AnnotatedTypeFactory#declarationFromElement returns null for annotation declarations
+            // quite commonly (because Trees#getTree, which it delegates to, does as well).
+            // In this case, we return path here without actually attempting to create the wrappers
+            // for the annotation declaration. The rest of WholeProgramInferenceJavaParserStorage
+            // already needs to handle classes without entries in the various tables (because of the
+            // possibility of classes outside the current compilation unit), so this is safe.
+            return path;
+        }
         if (classToAnnos.containsKey(ElementUtils.getBinaryName(toplevelClass))) {
             return path;
         }
@@ -799,13 +892,10 @@ public class WholeProgramInferenceJavaParserStorage
         try (Writer writer = new BufferedWriter(new FileWriter(outputPath))) {
 
             // JavaParser can output using lexical preserving printing, which writes the file such
-            // that
-            // its formatting is close to the original source file it was parsed from as
+            // that its formatting is close to the original source file it was parsed from as
             // possible. Currently, this feature is very buggy and crashes when adding annotations
-            // in
-            // certain locations. This implementation could be used instead if it's fixed in
-            // JavaParser.
-            // LexicalPreservingPrinter.print(root.declaration, writer);
+            // in certain locations. This implementation could be used instead if it's fixed in
+            // JavaParser.LexicalPreservingPrinter.print(root.declaration, writer);
 
             // Do not print invisible qualifiers, to avoid cluttering the output.
             Set<String> invisibleQualifierNames = getInvisibleQualifierNames(this.atypeFactory);
@@ -921,9 +1011,9 @@ public class WholeProgramInferenceJavaParserStorage
      */
     private static class CompilationUnitAnnos {
         /** Compilation unit being wrapped. */
-        public CompilationUnit compilationUnit;
+        public final CompilationUnit compilationUnit;
         /** Wrappers for classes and interfaces in {@code compilationUnit}. */
-        public List<ClassOrInterfaceAnnos> types;
+        public final List<ClassOrInterfaceAnnos> types = new ArrayList<>();
 
         /**
          * Constructs a wrapper around the given compilation unit.
@@ -932,7 +1022,6 @@ public class WholeProgramInferenceJavaParserStorage
          */
         public CompilationUnitAnnos(CompilationUnit compilationUnit) {
             this.compilationUnit = compilationUnit;
-            types = new ArrayList<>();
         }
 
         /**
@@ -980,12 +1069,56 @@ public class WholeProgramInferenceJavaParserStorage
         public Set<String> enumConstants = new HashSet<>(2);
 
         /**
+         * Annotations on the declaration of the class (note that despite the name, these can also
+         * be type annotations).
+         */
+        private @MonotonicNonNull Set<AnnotationMirror> classAnnotations = null;
+
+        /**
+         * The Java Parser TypeDeclaration representing the class's declaration. Used for placing
+         * annotations inferred on the class declaration itself.
+         */
+        private @MonotonicNonNull TypeDeclaration<?> classDeclaration;
+
+        /**
+         * Create a new ClassOrInterfaceAnnos.
+         *
+         * @param javaParserNode the java parser node corresponding to the class declaration, which
+         *     is used for placing annotations on the class declaration
+         */
+        public ClassOrInterfaceAnnos(@Nullable TypeDeclaration<?> javaParserNode) {
+            classDeclaration = javaParserNode;
+        }
+
+        /**
+         * Adds {@code annotation} to the set of annotations on the declaration of this class.
+         *
+         * @param annotation an annotation (can be declaration or type)
+         * @return true if this is a new annotation for this class
+         */
+        public boolean addAnnotationToClassDeclaration(AnnotationMirror annotation) {
+            if (classAnnotations == null) {
+                classAnnotations = new HashSet<>();
+            }
+
+            return classAnnotations.add(annotation);
+        }
+
+        /**
          * Transfers all annotations inferred by whole program inference for the methods and fields
          * in the wrapper class or interface to their corresponding JavaParser locations.
          */
         public void transferAnnotations() {
             for (CallableDeclarationAnnos callableAnnos : callableDeclarations.values()) {
                 callableAnnos.transferAnnotations();
+            }
+
+            if (classAnnotations != null && classDeclaration != null) {
+                for (AnnotationMirror annotation : classAnnotations) {
+                    classDeclaration.addAnnotation(
+                            AnnotationMirrorToAnnotationExprConversion
+                                    .annotationMirrorToAnnotationExpr(annotation));
+                }
             }
 
             for (FieldAnnos field : fields.values()) {
@@ -1009,9 +1142,7 @@ public class WholeProgramInferenceJavaParserStorage
      */
     public class CallableDeclarationAnnos {
         /** Wrapped method or constructor declaration. */
-        public CallableDeclaration<?> declaration;
-        /** Path to file containing the declaration. */
-        public String file;
+        public final CallableDeclaration<?> declaration;
         /**
          * Inferred annotations for the return type, if the declaration represents a method.
          * Initialized on first usage.
@@ -1029,6 +1160,9 @@ public class WholeProgramInferenceJavaParserStorage
         private @MonotonicNonNull List<@Nullable AnnotatedTypeMirror> parameterTypes = null;
         /** Annotations on the callable declaration. */
         private @MonotonicNonNull Set<AnnotationMirror> declarationAnnotations = null;
+
+        /** Declaration annotations on the parameters. */
+        private @MonotonicNonNull Set<Pair<Integer, AnnotationMirror>> paramsDeclAnnos = null;
 
         /**
          * Mapping from expression strings to pairs of (inferred precondition, declared type). The
@@ -1128,6 +1262,24 @@ public class WholeProgramInferenceJavaParserStorage
             }
 
             return declarationAnnotations.add(annotation);
+        }
+
+        /**
+         * Adds a declaration annotation to this parameter and returns whether it was a new
+         * annotation.
+         *
+         * @param annotation declaration annotation to add
+         * @param index index of the parameter
+         * @return true if {@code annotation} wasn't previously stored for this parameter
+         */
+        public boolean addDeclarationAnnotationToFormalParameter(
+                AnnotationMirror annotation, int index) {
+            if (paramsDeclAnnos == null) {
+                // There are usually few formal parameters.
+                paramsDeclAnnos = new ArraySet<>(4);
+            }
+
+            return paramsDeclAnnos.add(Pair.of(index, annotation));
         }
 
         /**
@@ -1275,11 +1427,20 @@ public class WholeProgramInferenceJavaParserStorage
                 }
             }
 
-            if (declarationAnnotations != null) {
+            if (declarationAnnotations != null && declaration != null) {
                 for (AnnotationMirror annotation : declarationAnnotations) {
                     declaration.addAnnotation(
                             AnnotationMirrorToAnnotationExprConversion
                                     .annotationMirrorToAnnotationExpr(annotation));
+                }
+            }
+
+            if (paramsDeclAnnos != null) {
+                for (Pair<Integer, AnnotationMirror> pair : paramsDeclAnnos) {
+                    Parameter param = declaration.getParameter(pair.first);
+                    param.addAnnotation(
+                            AnnotationMirrorToAnnotationExprConversion
+                                    .annotationMirrorToAnnotationExpr(pair.second));
                 }
             }
 
@@ -1305,6 +1466,11 @@ public class WholeProgramInferenceJavaParserStorage
 
             for (int i = 0; i < parameterTypes.size(); i++) {
                 AnnotatedTypeMirror inferredType = parameterTypes.get(i);
+                if (inferredType == null) {
+                    // Can occur if the only places that this method was called were
+                    // outside the compilation unit.
+                    continue;
+                }
                 Parameter param = declaration.getParameter(i);
                 Type javaParserType = param.getType();
                 if (param.isVarArgs()) {
@@ -1329,8 +1495,6 @@ public class WholeProgramInferenceJavaParserStorage
         public String toString() {
             return "CallableDeclarationAnnos [declaration="
                     + declaration
-                    + ", file="
-                    + file
                     + ", parameterTypes="
                     + parameterTypes
                     + ", receiverType="
@@ -1346,7 +1510,7 @@ public class WholeProgramInferenceJavaParserStorage
      */
     private static class FieldAnnos {
         /** Wrapped field declaration. */
-        public VariableDeclarator declaration;
+        public final VariableDeclarator declaration;
         /** Inferred type for field, initialized the first time it's accessed. */
         private @MonotonicNonNull AnnotatedTypeMirror type = null;
         /** Annotations on the field declaration. */
@@ -1428,6 +1592,27 @@ public class WholeProgramInferenceJavaParserStorage
                 }
             }
 
+            // Don't transfer type annotations to variable declarators with sibling
+            // variable declarators, because they're printed incorrectly (as "???").
+            // (A variable declarator can have siblings if it's part of a declaration
+            // like "int x, y, z;", which is bad style but legal Java.)
+            // In any event, WPI doesn't consider the LUB of the types of the siblings,
+            // so any inferred type is likely to be wrong.
+            // TODO: avoid inferring these types at all, or take the LUB of all assignments
+            // to the siblings. Unfortunately, VariableElements don't track whether they have
+            // siblings, and there's no other information about the declaration for
+            // WholeProgramInferenceImplementation to use: to determine that there are siblings,
+            // a parse tree is needed.
+            boolean foundVariableDeclarator = false;
+            for (Node child : this.declaration.getParentNode().get().getChildNodes()) {
+                if (child instanceof VariableDeclarator) {
+                    if (foundVariableDeclarator) {
+                        // This is the second VariableDeclarator that was found.
+                        return;
+                    }
+                    foundVariableDeclarator = true;
+                }
+            }
             Type newType = (Type) declaration.getType().accept(new CloneVisitor(), null);
             WholeProgramInferenceJavaParserStorage.transferAnnotations(type, newType);
             declaration.setType(newType);

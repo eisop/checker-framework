@@ -11,6 +11,7 @@ import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.WildcardType;
 
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.CanonicalName;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
@@ -71,7 +72,8 @@ public class AnnotatedTypes {
         throw new AssertionError("Class AnnotatedTypes cannot be instantiated.");
     }
 
-    private static AsSuperVisitor asSuperVisitor;
+    /** Implements {@code asSuper}. */
+    private static @MonotonicNonNull AsSuperVisitor asSuperVisitor;
 
     /**
      * Copies annotations from {@code type} to a copy of {@code superType} where the type variables
@@ -303,7 +305,7 @@ public class AnnotatedTypes {
             }
             if (enclosingType == null) {
                 // TODO: https://github.com/typetools/checker-framework/issues/724
-                // testcase javacheck -processor nullness  src/java/util/AbstractMap.java
+                // testcase javacheck -processor nullness src/java/util/AbstractMap.java
                 //                SourceChecker checker =  atypeFactory.getChecker().getChecker();
                 //                String msg = (String.format("OuterAsSuper did not find outer
                 // class. type: %s superType: %s", type, superType));
@@ -1234,7 +1236,7 @@ public class AnnotatedTypes {
     }
 
     /** java.lang.annotation.Annotation.class canonical name. */
-    private static @CanonicalName String annotationClassName =
+    private static final @CanonicalName String annotationClassName =
             java.lang.annotation.Annotation.class.getCanonicalName();
 
     /**

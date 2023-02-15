@@ -140,11 +140,11 @@ A typical invocation of \<wpi.sh> is
 
 The result is a set of log files placed in the \<dljc-out/> folder of the
 target project. The results of type-checking with each candidate set of
-annotations will be concatenated into the file \<dljc-out/wpi.log>; the final
+annotations will be concatenated into the file \<dljc-out/wpi-stdout.log>; the final
 results (i.e., those obtained using the most precise, consistent set of annotations)
 will appear at the end of this file.
 The inferred annotations appear in \<.ajava> files in a
-temporary directory whose name appears in the \<dlcj-out/wpi.log> file;
+temporary directory whose name appears in the \<dlcj-out/wpi-stdout.log> file;
 you can find their location by examining the \<-Ajava> argument
 to the last \<javac> command that was run. The annotation files generated in
 each round of inference appear in directories labeled \<iteration0>, \<iteration1>, etc.
@@ -309,7 +309,7 @@ all --- just that the Checker Framework attempted to typecheck the project and
 some output was produced.)
 
 \item (Optional) Add annotations that WPI does not infer, to eliminate
-  false positive warnings. There are three ways you can add annotations to a target
+  false positive warnings. There are two ways you can add annotations to a target
   program:
   \begin{itemize}
   \item
@@ -318,15 +318,9 @@ some output was produced.)
     \<org.checkerframework:checker-qual> to the project's build
     system. This approach is the most difficult, but has the advantage that
     the checker will attempt to verify any annotations you add.
-  \item
-    Add the annotations in an \<.ajava> file. Create the \<.ajava> file
-    as a copy of the \<.java> file, following the instructions in
-    Section~\ref{ajava-files} about directory structure, etc.
   \item Add the annotations in a stub file, creating the \<.astub> file as
     a copy of the \<.java> file.  When you run the checker, supply the
-    \<-AmergeStubsWithSource> and \<-Astubs=...> command-line arguments.  This
-    option is similar to option 2, but requires extra command-line options
-    to the checker rather than a specific directory structure.
+    \<-AmergeStubsWithSource> and \<-Astubs=...> command-line arguments.
   \end{itemize}
 
 \end{enumerate}
