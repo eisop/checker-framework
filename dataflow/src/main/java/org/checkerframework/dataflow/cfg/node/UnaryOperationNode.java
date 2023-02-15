@@ -2,6 +2,7 @@ package org.checkerframework.dataflow.cfg.node;
 
 import com.sun.source.tree.UnaryTree;
 
+import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.Collection;
@@ -39,6 +40,7 @@ public abstract class UnaryOperationNode extends Node {
     }
 
     @Override
+    @SideEffectFree
     public Collection<Node> getOperands() {
         return Collections.singletonList(getOperand());
     }

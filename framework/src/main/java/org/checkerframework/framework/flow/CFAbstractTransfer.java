@@ -982,8 +982,8 @@ public abstract class CFAbstractTransfer<
           // Can't infer annotations on an anonymous constructor, so use the super constructor.
           ExecutableElement constructorElt = TreeUtils.getSuperConstructor(newClassTree);
           if (newClassTree.getClassBody() == null || !TreeUtils.hasSyntheticArgument(newClassTree)) {
-            // TODO: WPI could be changed to handle the synthetic argument, but for now just don't infer
-            // annotations for those new class trees.
+            // TODO: WPI could be changed to handle the synthetic argument, but for now just
+            // don't infer annotations for those new class trees.
             analysis
                 .atypeFactory
                 .getWholeProgramInference()

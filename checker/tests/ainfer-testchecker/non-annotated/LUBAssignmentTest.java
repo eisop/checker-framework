@@ -39,13 +39,11 @@ public class LUBAssignmentTest {
     String lubTest2() {
         if (Math.random() > 0.5) {
             @SuppressWarnings("cast.unsafe")
-            @AinferSibling1
-            String s = (@AinferSibling1 String) "";
+            @AinferSibling1 String s = (@AinferSibling1 String) "";
             return s;
         } else {
             @SuppressWarnings("cast.unsafe")
-            @AinferSibling2
-            String s = (@AinferSibling2 String) "";
+            @AinferSibling2 String s = (@AinferSibling2 String) "";
             return s;
         }
     }

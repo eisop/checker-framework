@@ -11,6 +11,7 @@ import com.github.javaparser.ast.StubUnit;
 import com.github.javaparser.ast.body.AnnotationDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.EnumDeclaration;
+import com.github.javaparser.ast.body.RecordDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.ArrayInitializerExpr;
@@ -230,12 +231,45 @@ public class JavaParserUtil {
             return annoDecl.get();
         }
 
+        Optional<RecordDeclaration> recordDecl = getRecordByName(root, name);
+        if (recordDecl.isPresent()) {
+            return recordDecl.get();
+        }
+
         Optional<CompilationUnit.Storage> storage = root.getStorage();
         if (storage.isPresent()) {
             throw new BugInCF("Type " + name + " not found in " + storage.get().getPath());
         } else {
             throw new BugInCF("Type " + name + " not found in " + root);
         }
+    }
+
+    /**
+     * JavaParser's {@link CompilationUnit} class has methods like this for every other kind of
+     * class-like structure (e.g., classes, enums, annotation declarations, etc.), but not for
+     * records. This implementation is based on the implementation of {@link
+     * CompilationUnit#getClassByName(String)}, and has the same interface as the other, similar
+     * JavaParser methods (except that it is static and takes the CompilationUnit as a parameter,
+     * rather than being an instance method on the CompilationUnit).
+     *
+     * @param cu the CompilationUnit to search
+     * @param recordName the name of the record
+     * @return the record declaration in the compilation unit with the given name, or an empty
+     *     Optional if no such record declaration exists
+     */
+    private static Optional<RecordDeclaration> getRecordByName(
+            CompilationUnit cu, String recordName) {
+        return cu.getTypes().stream()
+                .filter(
+                        (type) -> {
+                            return type.getNameAsString().equals(recordName)
+                                    && type instanceof RecordDeclaration;
+                        })
+                .findFirst()
+                .map(
+                        (t) -> {
+                            return (RecordDeclaration) t;
+                        });
     }
 
     /**
@@ -306,15 +340,15 @@ public class JavaParserUtil {
             super.visit(node, p);
             if (node.getOperator() == BinaryExpr.Operator.PLUS
                     && node.getRight().isStringLiteralExpr()) {
-                String right = node.getRight().asStringLiteralExpr().asString();
+                String right = node.getRight().asStringLiteralExpr().getValue();
                 if (node.getLeft().isStringLiteralExpr()) {
-                    String left = node.getLeft().asStringLiteralExpr().asString();
+                    String left = node.getLeft().asStringLiteralExpr().getValue();
                     node.replace(new StringLiteralExpr(left + right));
                 } else if (node.getLeft().isBinaryExpr()) {
                     BinaryExpr leftExpr = node.getLeft().asBinaryExpr();
                     if (leftExpr.getOperator() == BinaryExpr.Operator.PLUS
                             && leftExpr.getRight().isStringLiteralExpr()) {
-                        String left = leftExpr.getRight().asStringLiteralExpr().asString();
+                        String left = leftExpr.getRight().asStringLiteralExpr().getValue();
                         node.replace(
                                 new BinaryExpr(
                                         leftExpr.getLeft(),

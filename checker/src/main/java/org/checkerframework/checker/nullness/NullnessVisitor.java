@@ -90,7 +90,7 @@ public class NullnessVisitor
     private static final @CompilerMessageKey String DEREFERENCE_OF_NULLABLE =
             "dereference.of.nullable";
 
-    /** Annotation mirrors. */
+    /** Annotation mirrors for nullness annotations. */
     private final AnnotationMirror NONNULL, NULLABLE, MONOTONIC_NONNULL;
     /** TypeMirror for java.lang.String. */
     private final TypeMirror stringType;

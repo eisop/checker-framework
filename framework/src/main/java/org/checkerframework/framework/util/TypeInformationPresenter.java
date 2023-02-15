@@ -64,7 +64,7 @@ public class TypeInformationPresenter {
     /**
      * Constructs a presenter for the given factory.
      *
-     * @param factory The AnnotatedTypeFactory for the current analysis.
+     * @param factory the AnnotatedTypeFactory for the current analysis
      */
     public TypeInformationPresenter(AnnotatedTypeFactory factory) {
         this.factory = factory;
@@ -79,7 +79,7 @@ public class TypeInformationPresenter {
     /**
      * The entry point for presenting type information of trees in the given class.
      *
-     * @param tree A ClassTree that has been type-checked by the factory.
+     * @param tree a ClassTree that has been type-checked by the factory
      */
     public void process(ClassTree tree) {
         TypeInformationReporter visitor = new TypeInformationReporter(tree);
@@ -178,7 +178,7 @@ public class TypeInformationPresenter {
          */
         private final CompilationUnitTree currentRoot;
 
-        /** This is a helper for computing positions of a sub-tree. */
+        /** Computes positions of a sub-tree. */
         private final SourcePositions sourcePositions;
 
         /** The checker that's currently running. */
@@ -202,9 +202,9 @@ public class TypeInformationPresenter {
          * name of the checker, the given messageKind, the given type, and the computed message
          * range for the tree. If the tree is an artificial tree, don't report anything.
          *
-         * @param tree The tree that is used to find the corresponding range to report.
-         * @param type The type that we are going to display.
-         * @param messageKind The kind of the given type.
+         * @param tree the tree that is used to find the corresponding range to report
+         * @param type the type that we are going to display
+         * @param messageKind the kind of the given type
          */
         private void reportTreeType(Tree tree, AnnotatedTypeMirror type, MessageKind messageKind) {
             MessageRange messageRange = computeMessageRange(tree);
@@ -228,8 +228,8 @@ public class TypeInformationPresenter {
          * A wrapper of the method reportTreeType(Tree, AnnotatedTypeMirror, MessageKind) with
          * {@link MessageKind#USE_TYPE} as the default message kind.
          *
-         * @param tree The tree that is used to find the corresponding range to report.
-         * @param type The type that we are going to display.
+         * @param tree the tree that is used to find the corresponding range to report
+         * @param type the type that we are going to display
          */
         private void reportTreeType(Tree tree, AnnotatedTypeMirror type) {
             reportTreeType(tree, type, MessageKind.USE_TYPE);
@@ -243,8 +243,8 @@ public class TypeInformationPresenter {
          * range of the identifier "a". This customizes the positions where we want the type
          * information to show.
          *
-         * @param tree The tree for which we want to compute the message range.
-         * @return A message range corresponds to the tree.
+         * @param tree the tree for which we want to compute the message range
+         * @return a message range corresponds to the tree
          */
         private MessageRange computeMessageRange(Tree tree) {
             long startPos = sourcePositions.getStartPosition(currentRoot, tree);

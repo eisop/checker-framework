@@ -20,8 +20,7 @@ public class StringConcatenationTest {
     void expectsAinferSibling1(@AinferSibling1 String t) {}
 
     @SuppressWarnings("cast.unsafe")
-    @AinferSibling1
-    String getAinferSibling1() {
+    @AinferSibling1 String getAinferSibling1() {
         return (@AinferSibling1 String) " ";
     }
 }

@@ -6,6 +6,7 @@ import com.sun.source.tree.ReturnTree;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -118,6 +119,7 @@ public class ReturnNode extends Node {
     }
 
     @Override
+    @SideEffectFree
     public Collection<Node> getOperands() {
         if (result == null) {
             return Collections.emptyList();

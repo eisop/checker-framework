@@ -42,6 +42,7 @@ import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.UserError;
+import org.plumelib.util.ArraySet;
 import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.SystemPlume;
 import org.plumelib.util.UtilPlume;
@@ -64,7 +65,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
@@ -559,7 +559,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /**
      * TreePathCacher to share between instances. Initialized in getTreePathCacher (which is also
-     * called from {@link BaseTypeChecker#instantiateSubcheckers(LinkedHashMap)}).
+     * called from {@link BaseTypeChecker#instantiateSubcheckers(Map)}).
      */
     protected TreePathCacher treePathCacher = null;
 
@@ -1130,7 +1130,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @param messageKey the message key
      * @param args arguments for interpolation in the string corresponding to the given message key
      */
-    // Not a format method.  However, messageKey should be either a format string for `args`, or  a
+    // Not a format method.  However, messageKey should be either a format string for `args`, or a
     // property key that maps to a format string for `args`.
     // @FormatMethod
     @SuppressWarnings("formatter:format.string.invalid") // arg is a format string or a property key
@@ -1412,8 +1412,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         sj.add(defaultFormat);
 
         // (2) number of additional tokens, and those tokens; this depends on the error message, and
-        // an
-        // example is the found and expected types
+        // an example is the found and expected types
         if (args != null) {
             sj.add(Integer.toString(args.length));
             for (Object arg : args) {
@@ -1525,8 +1524,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return Collections.singleton("all");
         }
 
-        Set<String> activeLint = new HashSet<>();
-        for (String s : lintString.split(",")) {
+        String[] lintStrings = lintString.split(",");
+        Set<String> activeLint = ArraySet.newArraySetOrHashSet(lintStrings.length);
+        for (String s : lintStrings) {
             if (!this.getSupportedLintOptions().contains(s)
                     && !(s.charAt(0) == '-'
                             && this.getSupportedLintOptions().contains(s.substring(1)))
@@ -1651,7 +1651,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         TODO: assert that name doesn't start with '-'
         */
 
-        Set<String> newlints = new HashSet<>();
+        Set<String> newlints = ArraySet.newArraySetOrHashSet(activeLints.size() + 1);
         newlints.addAll(activeLints);
         if (val) {
             newlints.add(name);
@@ -1948,8 +1948,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      */
     protected Collection<String> expandCFOptions(
             List<? extends Class<?>> clazzPrefixes, String[] options) {
-        Set<String> res = new HashSet<>();
-
+        Set<String> res =
+                new HashSet<>(
+                        CollectionsPlume.mapCapacity(options.length * (1 + clazzPrefixes.size())));
         for (String option : options) {
             res.add(option);
             for (Class<?> clazz : clazzPrefixes) {
@@ -2397,8 +2398,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                     return result;
                 }
                 // The currentSuppressWarningsInEffect is not a prefix or a prefix:message-key, so
-                // it might
-                // be a message key.
+                // it might be a message key.
                 messageKeyInSuppressWarningsString = currentSuppressWarningsInEffect;
             } else {
                 // The SuppressWarnings string has a colon; that is, it has a prefix.

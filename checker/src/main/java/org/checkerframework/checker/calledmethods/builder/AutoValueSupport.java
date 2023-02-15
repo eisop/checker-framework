@@ -396,8 +396,8 @@ public class AutoValueSupport implements BuilderFrameworkSupport {
                             .getReturnType()
                             .getUnderlyingType();
         }
-        // either the return type should be the builder itself, or it should be a Guava immutable
-        // type
+        // Either the return type should be the builder itself, or it should be a Guava immutable
+        // type.
         return BuilderFrameworkSupportUtils.isGuavaImmutableType(retType)
                 || builderElement.equals(TypesUtils.getTypeElement(retType));
     }

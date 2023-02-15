@@ -155,15 +155,13 @@ public class ResourceLeakVisitor extends CalledMethodsVisitor {
         }
         if (!isMustCallMethod(methodTree)) {
             // In this case, the method has an EnsuresCalledMethods annotation but is not a
-            // destructor,
-            // so no further checking is required.
+            // destructor, so no further checking is required.
             return;
         }
         CFAbstractStore<?, ?> exitStore = atypeFactory.getExceptionalExitStore(methodTree);
         if (exitStore == null) {
             // If there is no exceptional exitStore, then the method cannot throw an exception and
-            // there
-            // is no need to check anything else.
+            // there is no need to check anything else.
         } else {
             CFAbstractValue<?> value = exitStore.getValue(expression);
             AnnotationMirror inferredAnno = null;

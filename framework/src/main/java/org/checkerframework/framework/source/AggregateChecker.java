@@ -104,8 +104,7 @@ public abstract class AggregateChecker extends SourceChecker {
         Log log = Log.instance(context);
         if (log.nerrors > this.errsOnLastExit) {
             // If there is a Java error, do not perform any of the component type checks, but come
-            // back
-            // for the next compilation unit.
+            // back for the next compilation unit.
             this.errsOnLastExit = log.nerrors;
             return;
         }
