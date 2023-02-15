@@ -3486,6 +3486,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
         List<Node> arguments =
                 convertCallArguments(constructor, TreeUtils.typeFromUse(tree), actualExprs);
+
         // TODO: for anonymous classes, don't use the identifier alone.
         // See https://github.com/typetools/checker-framework/issues/890 .
         Node constructorNode = scan(tree.getIdentifier(), p);
