@@ -1024,13 +1024,13 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             case BYTE:
             case CHAR:
             case SHORT:
-            {
-                TypeMirror intType = types.getPrimitiveType(TypeKind.INT);
-                Node widened = new WideningConversionNode(node.getTree(), node, intType);
-                addToConvertedLookupMap(widened);
-                insertNodeAfter(widened, node);
-                return widened;
-            }
+                {
+                    TypeMirror intType = types.getPrimitiveType(TypeKind.INT);
+                    Node widened = new WideningConversionNode(node.getTree(), node, intType);
+                    addToConvertedLookupMap(widened);
+                    insertNodeAfter(widened, node);
+                    return widened;
+                }
             default:
                 // Nothing to do.
                 break;
@@ -1301,7 +1301,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             TypeMirror lastParamType = formals.get(lastArgIndex);
             if (numActuals == numFormals
                     && types.isAssignable(
-                    TreeUtils.typeOf(actualExprs.get(numActuals - 1)), lastParamType)) {
+                            TreeUtils.typeOf(actualExprs.get(numActuals - 1)), lastParamType)) {
                 // Normal call with no array creation, apply method
                 // invocation conversion to all arguments.
                 for (int i = 0; i < numActuals; i++) {
@@ -1426,8 +1426,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         // For the final case in JLS 15.25, apply boxing but not lub.
         if (TypesUtils.isPrimitive(nodeType)
                 && (destType.getKind() == TypeKind.DECLARED
-                || destType.getKind() == TypeKind.UNION
-                || destType.getKind() == TypeKind.INTERSECTION)) {
+                        || destType.getKind() == TypeKind.UNION
+                        || destType.getKind() == TypeKind.INTERSECTION)) {
             return box(node);
         }
 
@@ -1852,88 +1852,14 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             case DIVIDE_ASSIGNMENT:
             case MULTIPLY_ASSIGNMENT:
             case REMAINDER_ASSIGNMENT:
-            {
-                // see JLS 15.17 and 15.26.2
-                Node targetLHS = scan(tree.getVariable(), p);
-                Node value = scan(tree.getExpression(), p);
+                {
+                    // see JLS 15.17 and 15.26.2
+                    Node targetLHS = scan(tree.getVariable(), p);
+                    Node value = scan(tree.getExpression(), p);
 
-                TypeMirror exprType = TreeUtils.typeOf(tree);
-                TypeMirror leftType = TreeUtils.typeOf(tree.getVariable());
-                TypeMirror rightType = TreeUtils.typeOf(tree.getExpression());
-                TypeMirror promotedType = binaryPromotedType(leftType, rightType);
-                Node targetRHS = binaryNumericPromotion(targetLHS, promotedType);
-                value = binaryNumericPromotion(value, promotedType);
-
-                BinaryTree operTree =
-                        treeBuilder.buildBinary(
-                                promotedType,
-                                withoutAssignment(kind),
-                                tree.getVariable(),
-                                tree.getExpression());
-                handleArtificialTree(operTree);
-                Node operNode;
-                if (kind == Tree.Kind.MULTIPLY_ASSIGNMENT) {
-                    operNode = new NumericalMultiplicationNode(operTree, targetRHS, value);
-                } else if (kind == Tree.Kind.DIVIDE_ASSIGNMENT) {
-                    if (TypesUtils.isIntegralPrimitive(exprType)) {
-                        operNode = new IntegerDivisionNode(operTree, targetRHS, value);
-
-                        extendWithNodeWithException(operNode, arithmeticExceptionType);
-                    } else {
-                        operNode = new FloatingDivisionNode(operTree, targetRHS, value);
-                    }
-                } else {
-                    assert kind == Tree.Kind.REMAINDER_ASSIGNMENT;
-                    if (TypesUtils.isIntegralPrimitive(exprType)) {
-                        operNode = new IntegerRemainderNode(operTree, targetRHS, value);
-
-                        extendWithNodeWithException(operNode, arithmeticExceptionType);
-                    } else {
-                        operNode = new FloatingRemainderNode(operTree, targetRHS, value);
-                    }
-                }
-                extendWithNode(operNode);
-
-                TypeMirror castType = TypeAnnotationUtils.unannotatedType(leftType);
-                TypeCastTree castTree = treeBuilder.buildTypeCast(castType, operTree);
-                handleArtificialTree(castTree);
-                TypeCastNode castNode = new TypeCastNode(castTree, operNode, castType, types);
-                castNode.setInSource(false);
-                extendWithNode(castNode);
-
-                AssignmentNode assignNode = new AssignmentNode(tree, targetLHS, castNode);
-                extendWithNode(assignNode);
-                return assignNode;
-            }
-
-            case MINUS_ASSIGNMENT:
-            case PLUS_ASSIGNMENT:
-            {
-                // see JLS 15.18 and 15.26.2
-
-                Node targetLHS = scan(tree.getVariable(), p);
-                Node value = scan(tree.getExpression(), p);
-
-                TypeMirror leftType = TreeUtils.typeOf(tree.getVariable());
-                TypeMirror rightType = TreeUtils.typeOf(tree.getExpression());
-
-                if (TypesUtils.isString(leftType) || TypesUtils.isString(rightType)) {
-                    assert (kind == Tree.Kind.PLUS_ASSIGNMENT);
-                    Node targetRHS = stringConversion(targetLHS);
-                    value = stringConversion(value);
-                    BinaryTree operTree =
-                            treeBuilder.buildBinary(
-                                    leftType,
-                                    withoutAssignment(kind),
-                                    tree.getVariable(),
-                                    tree.getExpression());
-                    handleArtificialTree(operTree);
-                    Node operNode = new StringConcatenateNode(operTree, targetRHS, value);
-                    extendWithNode(operNode);
-                    AssignmentNode assignNode = new AssignmentNode(tree, targetLHS, operNode);
-                    extendWithNode(assignNode);
-                    return assignNode;
-                } else {
+                    TypeMirror exprType = TreeUtils.typeOf(tree);
+                    TypeMirror leftType = TreeUtils.typeOf(tree.getVariable());
+                    TypeMirror rightType = TreeUtils.typeOf(tree.getExpression());
                     TypeMirror promotedType = binaryPromotedType(leftType, rightType);
                     Node targetRHS = binaryNumericPromotion(targetLHS, promotedType);
                     value = binaryNumericPromotion(value, promotedType);
@@ -1946,72 +1872,146 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                                     tree.getExpression());
                     handleArtificialTree(operTree);
                     Node operNode;
-                    if (kind == Tree.Kind.PLUS_ASSIGNMENT) {
-                        operNode = new NumericalAdditionNode(operTree, targetRHS, value);
+                    if (kind == Tree.Kind.MULTIPLY_ASSIGNMENT) {
+                        operNode = new NumericalMultiplicationNode(operTree, targetRHS, value);
+                    } else if (kind == Tree.Kind.DIVIDE_ASSIGNMENT) {
+                        if (TypesUtils.isIntegralPrimitive(exprType)) {
+                            operNode = new IntegerDivisionNode(operTree, targetRHS, value);
+
+                            extendWithNodeWithException(operNode, arithmeticExceptionType);
+                        } else {
+                            operNode = new FloatingDivisionNode(operTree, targetRHS, value);
+                        }
                     } else {
-                        assert kind == Tree.Kind.MINUS_ASSIGNMENT;
-                        operNode = new NumericalSubtractionNode(operTree, targetRHS, value);
+                        assert kind == Tree.Kind.REMAINDER_ASSIGNMENT;
+                        if (TypesUtils.isIntegralPrimitive(exprType)) {
+                            operNode = new IntegerRemainderNode(operTree, targetRHS, value);
+
+                            extendWithNodeWithException(operNode, arithmeticExceptionType);
+                        } else {
+                            operNode = new FloatingRemainderNode(operTree, targetRHS, value);
+                        }
                     }
                     extendWithNode(operNode);
 
                     TypeMirror castType = TypeAnnotationUtils.unannotatedType(leftType);
                     TypeCastTree castTree = treeBuilder.buildTypeCast(castType, operTree);
                     handleArtificialTree(castTree);
-                    TypeCastNode castNode =
-                            new TypeCastNode(castTree, operNode, castType, types);
+                    TypeCastNode castNode = new TypeCastNode(castTree, operNode, castType, types);
                     castNode.setInSource(false);
                     extendWithNode(castNode);
 
-                    // Map the compound assignment tree to an assignment node, which
-                    // will have the correct type.
                     AssignmentNode assignNode = new AssignmentNode(tree, targetLHS, castNode);
                     extendWithNode(assignNode);
                     return assignNode;
                 }
-            }
+
+            case MINUS_ASSIGNMENT:
+            case PLUS_ASSIGNMENT:
+                {
+                    // see JLS 15.18 and 15.26.2
+
+                    Node targetLHS = scan(tree.getVariable(), p);
+                    Node value = scan(tree.getExpression(), p);
+
+                    TypeMirror leftType = TreeUtils.typeOf(tree.getVariable());
+                    TypeMirror rightType = TreeUtils.typeOf(tree.getExpression());
+
+                    if (TypesUtils.isString(leftType) || TypesUtils.isString(rightType)) {
+                        assert (kind == Tree.Kind.PLUS_ASSIGNMENT);
+                        Node targetRHS = stringConversion(targetLHS);
+                        value = stringConversion(value);
+                        BinaryTree operTree =
+                                treeBuilder.buildBinary(
+                                        leftType,
+                                        withoutAssignment(kind),
+                                        tree.getVariable(),
+                                        tree.getExpression());
+                        handleArtificialTree(operTree);
+                        Node operNode = new StringConcatenateNode(operTree, targetRHS, value);
+                        extendWithNode(operNode);
+                        AssignmentNode assignNode = new AssignmentNode(tree, targetLHS, operNode);
+                        extendWithNode(assignNode);
+                        return assignNode;
+                    } else {
+                        TypeMirror promotedType = binaryPromotedType(leftType, rightType);
+                        Node targetRHS = binaryNumericPromotion(targetLHS, promotedType);
+                        value = binaryNumericPromotion(value, promotedType);
+
+                        BinaryTree operTree =
+                                treeBuilder.buildBinary(
+                                        promotedType,
+                                        withoutAssignment(kind),
+                                        tree.getVariable(),
+                                        tree.getExpression());
+                        handleArtificialTree(operTree);
+                        Node operNode;
+                        if (kind == Tree.Kind.PLUS_ASSIGNMENT) {
+                            operNode = new NumericalAdditionNode(operTree, targetRHS, value);
+                        } else {
+                            assert kind == Tree.Kind.MINUS_ASSIGNMENT;
+                            operNode = new NumericalSubtractionNode(operTree, targetRHS, value);
+                        }
+                        extendWithNode(operNode);
+
+                        TypeMirror castType = TypeAnnotationUtils.unannotatedType(leftType);
+                        TypeCastTree castTree = treeBuilder.buildTypeCast(castType, operTree);
+                        handleArtificialTree(castTree);
+                        TypeCastNode castNode =
+                                new TypeCastNode(castTree, operNode, castType, types);
+                        castNode.setInSource(false);
+                        extendWithNode(castNode);
+
+                        // Map the compound assignment tree to an assignment node, which
+                        // will have the correct type.
+                        AssignmentNode assignNode = new AssignmentNode(tree, targetLHS, castNode);
+                        extendWithNode(assignNode);
+                        return assignNode;
+                    }
+                }
 
             case LEFT_SHIFT_ASSIGNMENT:
             case RIGHT_SHIFT_ASSIGNMENT:
             case UNSIGNED_RIGHT_SHIFT_ASSIGNMENT:
-            {
-                // see JLS 15.19 and 15.26.2
-                Node targetLHS = scan(tree.getVariable(), p);
-                Node value = scan(tree.getExpression(), p);
+                {
+                    // see JLS 15.19 and 15.26.2
+                    Node targetLHS = scan(tree.getVariable(), p);
+                    Node value = scan(tree.getExpression(), p);
 
-                TypeMirror leftType = TreeUtils.typeOf(tree.getVariable());
+                    TypeMirror leftType = TreeUtils.typeOf(tree.getVariable());
 
-                Node targetRHS = unaryNumericPromotion(targetLHS);
-                value = unaryNumericPromotion(value);
+                    Node targetRHS = unaryNumericPromotion(targetLHS);
+                    value = unaryNumericPromotion(value);
 
-                BinaryTree operTree =
-                        treeBuilder.buildBinary(
-                                leftType,
-                                withoutAssignment(kind),
-                                tree.getVariable(),
-                                tree.getExpression());
-                handleArtificialTree(operTree);
-                Node operNode;
-                if (kind == Tree.Kind.LEFT_SHIFT_ASSIGNMENT) {
-                    operNode = new LeftShiftNode(operTree, targetRHS, value);
-                } else if (kind == Tree.Kind.RIGHT_SHIFT_ASSIGNMENT) {
-                    operNode = new SignedRightShiftNode(operTree, targetRHS, value);
-                } else {
-                    assert kind == Tree.Kind.UNSIGNED_RIGHT_SHIFT_ASSIGNMENT;
-                    operNode = new UnsignedRightShiftNode(operTree, targetRHS, value);
+                    BinaryTree operTree =
+                            treeBuilder.buildBinary(
+                                    leftType,
+                                    withoutAssignment(kind),
+                                    tree.getVariable(),
+                                    tree.getExpression());
+                    handleArtificialTree(operTree);
+                    Node operNode;
+                    if (kind == Tree.Kind.LEFT_SHIFT_ASSIGNMENT) {
+                        operNode = new LeftShiftNode(operTree, targetRHS, value);
+                    } else if (kind == Tree.Kind.RIGHT_SHIFT_ASSIGNMENT) {
+                        operNode = new SignedRightShiftNode(operTree, targetRHS, value);
+                    } else {
+                        assert kind == Tree.Kind.UNSIGNED_RIGHT_SHIFT_ASSIGNMENT;
+                        operNode = new UnsignedRightShiftNode(operTree, targetRHS, value);
+                    }
+                    extendWithNode(operNode);
+
+                    TypeMirror castType = TypeAnnotationUtils.unannotatedType(leftType);
+                    TypeCastTree castTree = treeBuilder.buildTypeCast(castType, operTree);
+                    handleArtificialTree(castTree);
+                    TypeCastNode castNode = new TypeCastNode(castTree, operNode, castType, types);
+                    castNode.setInSource(false);
+                    extendWithNode(castNode);
+
+                    AssignmentNode assignNode = new AssignmentNode(tree, targetLHS, castNode);
+                    extendWithNode(assignNode);
+                    return assignNode;
                 }
-                extendWithNode(operNode);
-
-                TypeMirror castType = TypeAnnotationUtils.unannotatedType(leftType);
-                TypeCastTree castTree = treeBuilder.buildTypeCast(castType, operTree);
-                handleArtificialTree(castTree);
-                TypeCastNode castNode = new TypeCastNode(castTree, operNode, castType, types);
-                castNode.setInSource(false);
-                extendWithNode(castNode);
-
-                AssignmentNode assignNode = new AssignmentNode(tree, targetLHS, castNode);
-                extendWithNode(assignNode);
-                return assignNode;
-            }
 
             case AND_ASSIGNMENT:
             case OR_ASSIGNMENT:
@@ -2084,243 +2084,243 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             case DIVIDE:
             case MULTIPLY:
             case REMAINDER:
-            {
-                // see JLS 15.17
+                {
+                    // see JLS 15.17
 
-                TypeMirror exprType = TreeUtils.typeOf(tree);
-                TypeMirror leftType = TreeUtils.typeOf(leftTree);
-                TypeMirror rightType = TreeUtils.typeOf(rightTree);
-                TypeMirror promotedType = binaryPromotedType(leftType, rightType);
-
-                Node left = binaryNumericPromotion(scan(leftTree, p), promotedType);
-                Node right = binaryNumericPromotion(scan(rightTree, p), promotedType);
-
-                if (kind == Tree.Kind.MULTIPLY) {
-                    r = new NumericalMultiplicationNode(tree, left, right);
-                } else if (kind == Tree.Kind.DIVIDE) {
-                    if (TypesUtils.isIntegralPrimitive(exprType)) {
-                        r = new IntegerDivisionNode(tree, left, right);
-
-                        extendWithNodeWithException(r, arithmeticExceptionType);
-                    } else {
-                        r = new FloatingDivisionNode(tree, left, right);
-                    }
-                } else {
-                    assert kind == Tree.Kind.REMAINDER;
-                    if (TypesUtils.isIntegralPrimitive(exprType)) {
-                        r = new IntegerRemainderNode(tree, left, right);
-
-                        extendWithNodeWithException(r, arithmeticExceptionType);
-                    } else {
-                        r = new FloatingRemainderNode(tree, left, right);
-                    }
-                }
-                break;
-            }
-
-            case MINUS:
-            case PLUS:
-            {
-                // see JLS 15.18
-
-                // TypeMirror exprType = InternalUtils.typeOf(tree);
-                TypeMirror leftType = TreeUtils.typeOf(leftTree);
-                TypeMirror rightType = TreeUtils.typeOf(rightTree);
-
-                if (TypesUtils.isString(leftType) || TypesUtils.isString(rightType)) {
-                    assert (kind == Tree.Kind.PLUS);
-                    Node left = stringConversion(scan(leftTree, p));
-                    Node right = stringConversion(scan(rightTree, p));
-                    r = new StringConcatenateNode(tree, left, right);
-                } else {
+                    TypeMirror exprType = TreeUtils.typeOf(tree);
+                    TypeMirror leftType = TreeUtils.typeOf(leftTree);
+                    TypeMirror rightType = TreeUtils.typeOf(rightTree);
                     TypeMirror promotedType = binaryPromotedType(leftType, rightType);
+
                     Node left = binaryNumericPromotion(scan(leftTree, p), promotedType);
                     Node right = binaryNumericPromotion(scan(rightTree, p), promotedType);
 
-                    // TODO: Decide whether to deal with floating-point value
-                    // set conversion.
-                    if (kind == Tree.Kind.PLUS) {
-                        r = new NumericalAdditionNode(tree, left, right);
+                    if (kind == Tree.Kind.MULTIPLY) {
+                        r = new NumericalMultiplicationNode(tree, left, right);
+                    } else if (kind == Tree.Kind.DIVIDE) {
+                        if (TypesUtils.isIntegralPrimitive(exprType)) {
+                            r = new IntegerDivisionNode(tree, left, right);
+
+                            extendWithNodeWithException(r, arithmeticExceptionType);
+                        } else {
+                            r = new FloatingDivisionNode(tree, left, right);
+                        }
                     } else {
-                        assert kind == Tree.Kind.MINUS;
-                        r = new NumericalSubtractionNode(tree, left, right);
+                        assert kind == Tree.Kind.REMAINDER;
+                        if (TypesUtils.isIntegralPrimitive(exprType)) {
+                            r = new IntegerRemainderNode(tree, left, right);
+
+                            extendWithNodeWithException(r, arithmeticExceptionType);
+                        } else {
+                            r = new FloatingRemainderNode(tree, left, right);
+                        }
                     }
+                    break;
                 }
-                break;
-            }
+
+            case MINUS:
+            case PLUS:
+                {
+                    // see JLS 15.18
+
+                    // TypeMirror exprType = InternalUtils.typeOf(tree);
+                    TypeMirror leftType = TreeUtils.typeOf(leftTree);
+                    TypeMirror rightType = TreeUtils.typeOf(rightTree);
+
+                    if (TypesUtils.isString(leftType) || TypesUtils.isString(rightType)) {
+                        assert (kind == Tree.Kind.PLUS);
+                        Node left = stringConversion(scan(leftTree, p));
+                        Node right = stringConversion(scan(rightTree, p));
+                        r = new StringConcatenateNode(tree, left, right);
+                    } else {
+                        TypeMirror promotedType = binaryPromotedType(leftType, rightType);
+                        Node left = binaryNumericPromotion(scan(leftTree, p), promotedType);
+                        Node right = binaryNumericPromotion(scan(rightTree, p), promotedType);
+
+                        // TODO: Decide whether to deal with floating-point value
+                        // set conversion.
+                        if (kind == Tree.Kind.PLUS) {
+                            r = new NumericalAdditionNode(tree, left, right);
+                        } else {
+                            assert kind == Tree.Kind.MINUS;
+                            r = new NumericalSubtractionNode(tree, left, right);
+                        }
+                    }
+                    break;
+                }
 
             case LEFT_SHIFT:
             case RIGHT_SHIFT:
             case UNSIGNED_RIGHT_SHIFT:
-            {
-                // see JLS 15.19
+                {
+                    // see JLS 15.19
 
-                Node left = unaryNumericPromotion(scan(leftTree, p));
-                Node right = unaryNumericPromotion(scan(rightTree, p));
+                    Node left = unaryNumericPromotion(scan(leftTree, p));
+                    Node right = unaryNumericPromotion(scan(rightTree, p));
 
-                if (kind == Tree.Kind.LEFT_SHIFT) {
-                    r = new LeftShiftNode(tree, left, right);
-                } else if (kind == Tree.Kind.RIGHT_SHIFT) {
-                    r = new SignedRightShiftNode(tree, left, right);
-                } else {
-                    assert kind == Tree.Kind.UNSIGNED_RIGHT_SHIFT;
-                    r = new UnsignedRightShiftNode(tree, left, right);
+                    if (kind == Tree.Kind.LEFT_SHIFT) {
+                        r = new LeftShiftNode(tree, left, right);
+                    } else if (kind == Tree.Kind.RIGHT_SHIFT) {
+                        r = new SignedRightShiftNode(tree, left, right);
+                    } else {
+                        assert kind == Tree.Kind.UNSIGNED_RIGHT_SHIFT;
+                        r = new UnsignedRightShiftNode(tree, left, right);
+                    }
+                    break;
                 }
-                break;
-            }
 
             case GREATER_THAN:
             case GREATER_THAN_EQUAL:
             case LESS_THAN:
             case LESS_THAN_EQUAL:
-            {
-                // see JLS 15.20.1
-                TypeMirror leftType = TreeUtils.typeOf(leftTree);
-                if (TypesUtils.isBoxedPrimitive(leftType)) {
-                    leftType = types.unboxedType(leftType);
+                {
+                    // see JLS 15.20.1
+                    TypeMirror leftType = TreeUtils.typeOf(leftTree);
+                    if (TypesUtils.isBoxedPrimitive(leftType)) {
+                        leftType = types.unboxedType(leftType);
+                    }
+
+                    TypeMirror rightType = TreeUtils.typeOf(rightTree);
+                    if (TypesUtils.isBoxedPrimitive(rightType)) {
+                        rightType = types.unboxedType(rightType);
+                    }
+
+                    TypeMirror promotedType = binaryPromotedType(leftType, rightType);
+                    Node left = binaryNumericPromotion(scan(leftTree, p), promotedType);
+                    Node right = binaryNumericPromotion(scan(rightTree, p), promotedType);
+
+                    Node node;
+                    if (kind == Tree.Kind.GREATER_THAN) {
+                        node = new GreaterThanNode(tree, left, right);
+                    } else if (kind == Tree.Kind.GREATER_THAN_EQUAL) {
+                        node = new GreaterThanOrEqualNode(tree, left, right);
+                    } else if (kind == Tree.Kind.LESS_THAN) {
+                        node = new LessThanNode(tree, left, right);
+                    } else {
+                        assert kind == Tree.Kind.LESS_THAN_EQUAL;
+                        node = new LessThanOrEqualNode(tree, left, right);
+                    }
+
+                    extendWithNode(node);
+
+                    return node;
                 }
-
-                TypeMirror rightType = TreeUtils.typeOf(rightTree);
-                if (TypesUtils.isBoxedPrimitive(rightType)) {
-                    rightType = types.unboxedType(rightType);
-                }
-
-                TypeMirror promotedType = binaryPromotedType(leftType, rightType);
-                Node left = binaryNumericPromotion(scan(leftTree, p), promotedType);
-                Node right = binaryNumericPromotion(scan(rightTree, p), promotedType);
-
-                Node node;
-                if (kind == Tree.Kind.GREATER_THAN) {
-                    node = new GreaterThanNode(tree, left, right);
-                } else if (kind == Tree.Kind.GREATER_THAN_EQUAL) {
-                    node = new GreaterThanOrEqualNode(tree, left, right);
-                } else if (kind == Tree.Kind.LESS_THAN) {
-                    node = new LessThanNode(tree, left, right);
-                } else {
-                    assert kind == Tree.Kind.LESS_THAN_EQUAL;
-                    node = new LessThanOrEqualNode(tree, left, right);
-                }
-
-                extendWithNode(node);
-
-                return node;
-            }
 
             case EQUAL_TO:
             case NOT_EQUAL_TO:
-            {
-                // see JLS 15.21
-                TreeInfo leftInfo = getTreeInfo(leftTree);
-                TreeInfo rightInfo = getTreeInfo(rightTree);
-                Node left = scan(leftTree, p);
-                Node right = scan(rightTree, p);
+                {
+                    // see JLS 15.21
+                    TreeInfo leftInfo = getTreeInfo(leftTree);
+                    TreeInfo rightInfo = getTreeInfo(rightTree);
+                    Node left = scan(leftTree, p);
+                    Node right = scan(rightTree, p);
 
-                if (leftInfo.isNumeric()
-                        && rightInfo.isNumeric()
-                        && !(leftInfo.isBoxed() && rightInfo.isBoxed())) {
-                    // JLS 15.21.1 numerical equality
-                    TypeMirror promotedType =
-                            binaryPromotedType(leftInfo.unboxedType(), rightInfo.unboxedType());
-                    left = binaryNumericPromotion(left, promotedType);
-                    right = binaryNumericPromotion(right, promotedType);
-                } else if (leftInfo.isBoolean()
-                        && rightInfo.isBoolean()
-                        && !(leftInfo.isBoxed() && rightInfo.isBoxed())) {
-                    // JSL 15.21.2 boolean equality
-                    left = unboxAsNeeded(left, leftInfo.isBoxed());
-                    right = unboxAsNeeded(right, rightInfo.isBoxed());
+                    if (leftInfo.isNumeric()
+                            && rightInfo.isNumeric()
+                            && !(leftInfo.isBoxed() && rightInfo.isBoxed())) {
+                        // JLS 15.21.1 numerical equality
+                        TypeMirror promotedType =
+                                binaryPromotedType(leftInfo.unboxedType(), rightInfo.unboxedType());
+                        left = binaryNumericPromotion(left, promotedType);
+                        right = binaryNumericPromotion(right, promotedType);
+                    } else if (leftInfo.isBoolean()
+                            && rightInfo.isBoolean()
+                            && !(leftInfo.isBoxed() && rightInfo.isBoxed())) {
+                        // JSL 15.21.2 boolean equality
+                        left = unboxAsNeeded(left, leftInfo.isBoxed());
+                        right = unboxAsNeeded(right, rightInfo.isBoxed());
+                    }
+
+                    Node node;
+                    if (kind == Tree.Kind.EQUAL_TO) {
+                        node = new EqualToNode(tree, left, right);
+                    } else {
+                        assert kind == Tree.Kind.NOT_EQUAL_TO;
+                        node = new NotEqualNode(tree, left, right);
+                    }
+                    extendWithNode(node);
+
+                    return node;
                 }
-
-                Node node;
-                if (kind == Tree.Kind.EQUAL_TO) {
-                    node = new EqualToNode(tree, left, right);
-                } else {
-                    assert kind == Tree.Kind.NOT_EQUAL_TO;
-                    node = new NotEqualNode(tree, left, right);
-                }
-                extendWithNode(node);
-
-                return node;
-            }
 
             case AND:
             case OR:
             case XOR:
-            {
-                // see JLS 15.22
-                TypeMirror leftType = TreeUtils.typeOf(leftTree);
-                TypeMirror rightType = TreeUtils.typeOf(rightTree);
-                boolean isBooleanOp =
-                        TypesUtils.isBooleanType(leftType)
-                                && TypesUtils.isBooleanType(rightType);
+                {
+                    // see JLS 15.22
+                    TypeMirror leftType = TreeUtils.typeOf(leftTree);
+                    TypeMirror rightType = TreeUtils.typeOf(rightTree);
+                    boolean isBooleanOp =
+                            TypesUtils.isBooleanType(leftType)
+                                    && TypesUtils.isBooleanType(rightType);
 
-                Node left;
-                Node right;
+                    Node left;
+                    Node right;
 
-                if (isBooleanOp) {
-                    left = unbox(scan(leftTree, p));
-                    right = unbox(scan(rightTree, p));
-                } else if (isNumericOrBoxed(leftType) && isNumericOrBoxed(rightType)) {
-                    TypeMirror promotedType = binaryPromotedType(leftType, rightType);
-                    left = binaryNumericPromotion(scan(leftTree, p), promotedType);
-                    right = binaryNumericPromotion(scan(rightTree, p), promotedType);
-                } else {
-                    left = unbox(scan(leftTree, p));
-                    right = unbox(scan(rightTree, p));
+                    if (isBooleanOp) {
+                        left = unbox(scan(leftTree, p));
+                        right = unbox(scan(rightTree, p));
+                    } else if (isNumericOrBoxed(leftType) && isNumericOrBoxed(rightType)) {
+                        TypeMirror promotedType = binaryPromotedType(leftType, rightType);
+                        left = binaryNumericPromotion(scan(leftTree, p), promotedType);
+                        right = binaryNumericPromotion(scan(rightTree, p), promotedType);
+                    } else {
+                        left = unbox(scan(leftTree, p));
+                        right = unbox(scan(rightTree, p));
+                    }
+
+                    Node node;
+                    if (kind == Tree.Kind.AND) {
+                        node = new BitwiseAndNode(tree, left, right);
+                    } else if (kind == Tree.Kind.OR) {
+                        node = new BitwiseOrNode(tree, left, right);
+                    } else {
+                        assert kind == Tree.Kind.XOR;
+                        node = new BitwiseXorNode(tree, left, right);
+                    }
+
+                    extendWithNode(node);
+
+                    return node;
                 }
-
-                Node node;
-                if (kind == Tree.Kind.AND) {
-                    node = new BitwiseAndNode(tree, left, right);
-                } else if (kind == Tree.Kind.OR) {
-                    node = new BitwiseOrNode(tree, left, right);
-                } else {
-                    assert kind == Tree.Kind.XOR;
-                    node = new BitwiseXorNode(tree, left, right);
-                }
-
-                extendWithNode(node);
-
-                return node;
-            }
 
             case CONDITIONAL_AND:
             case CONDITIONAL_OR:
-            {
-                // see JLS 15.23 and 15.24
+                {
+                    // see JLS 15.23 and 15.24
 
-                // all necessary labels
-                Label rightStartLabel = new Label();
-                Label shortCircuitLabel = new Label();
+                    // all necessary labels
+                    Label rightStartLabel = new Label();
+                    Label shortCircuitLabel = new Label();
 
-                // left-hand side
-                Node left = scan(leftTree, p);
+                    // left-hand side
+                    Node left = scan(leftTree, p);
 
-                ConditionalJump cjump;
-                if (kind == Tree.Kind.CONDITIONAL_AND) {
-                    cjump = new ConditionalJump(rightStartLabel, shortCircuitLabel);
-                    cjump.setFalseFlowRule(FlowRule.ELSE_TO_ELSE);
-                } else {
-                    cjump = new ConditionalJump(shortCircuitLabel, rightStartLabel);
-                    cjump.setTrueFlowRule(FlowRule.THEN_TO_THEN);
+                    ConditionalJump cjump;
+                    if (kind == Tree.Kind.CONDITIONAL_AND) {
+                        cjump = new ConditionalJump(rightStartLabel, shortCircuitLabel);
+                        cjump.setFalseFlowRule(FlowRule.ELSE_TO_ELSE);
+                    } else {
+                        cjump = new ConditionalJump(shortCircuitLabel, rightStartLabel);
+                        cjump.setTrueFlowRule(FlowRule.THEN_TO_THEN);
+                    }
+                    extendWithExtendedNode(cjump);
+
+                    // right-hand side
+                    addLabelForNextNode(rightStartLabel);
+                    Node right = scan(rightTree, p);
+
+                    // conditional expression itself
+                    addLabelForNextNode(shortCircuitLabel);
+                    Node node;
+                    if (kind == Tree.Kind.CONDITIONAL_AND) {
+                        node = new ConditionalAndNode(tree, left, right);
+                    } else {
+                        node = new ConditionalOrNode(tree, left, right);
+                    }
+                    extendWithNode(node);
+                    return node;
                 }
-                extendWithExtendedNode(cjump);
-
-                // right-hand side
-                addLabelForNextNode(rightStartLabel);
-                Node right = scan(rightTree, p);
-
-                // conditional expression itself
-                addLabelForNextNode(shortCircuitLabel);
-                Node node;
-                if (kind == Tree.Kind.CONDITIONAL_AND) {
-                    node = new ConditionalAndNode(tree, left, right);
-                } else {
-                    node = new ConditionalOrNode(tree, left, right);
-                }
-                extendWithNode(node);
-                return node;
-            }
             default:
                 throw new BugInCF("unexpected binary tree: " + kind);
         }
@@ -2464,7 +2464,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                     boolean isLastExceptDefault =
                             i == numCases - 1
                                     || (i == numCases - 2
-                                    && TreeUtils.isDefaultCaseTree(caseTrees.get(i + 1)));
+                                            && TreeUtils.isDefaultCaseTree(caseTrees.get(i + 1)));
                     // This can be extended to handle case statements as well as case rules.
                     boolean noFallthroughToHere = TreeUtils.isCaseRule(caseTree);
                     boolean isLastOfExhaustive =
@@ -3988,91 +3988,91 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             case BITWISE_COMPLEMENT:
             case UNARY_MINUS:
             case UNARY_PLUS:
-            {
-                // see JLS 15.14 and 15.15
-                Node expr = scan(tree.getExpression(), p);
-                expr = unaryNumericPromotion(expr);
+                {
+                    // see JLS 15.14 and 15.15
+                    Node expr = scan(tree.getExpression(), p);
+                    expr = unaryNumericPromotion(expr);
 
-                // TypeMirror exprType = InternalUtils.typeOf(tree);
+                    // TypeMirror exprType = InternalUtils.typeOf(tree);
 
-                switch (kind) {
-                    case BITWISE_COMPLEMENT:
-                        result = new BitwiseComplementNode(tree, expr);
-                        break;
-                    case UNARY_MINUS:
-                        result = new NumericalMinusNode(tree, expr);
-                        break;
-                    case UNARY_PLUS:
-                        result = new NumericalPlusNode(tree, expr);
-                        break;
-                    default:
-                        throw new BugInCF("Unexpected unary tree kind: " + kind);
+                    switch (kind) {
+                        case BITWISE_COMPLEMENT:
+                            result = new BitwiseComplementNode(tree, expr);
+                            break;
+                        case UNARY_MINUS:
+                            result = new NumericalMinusNode(tree, expr);
+                            break;
+                        case UNARY_PLUS:
+                            result = new NumericalPlusNode(tree, expr);
+                            break;
+                        default:
+                            throw new BugInCF("Unexpected unary tree kind: " + kind);
+                    }
+                    extendWithNode(result);
+                    break;
                 }
-                extendWithNode(result);
-                break;
-            }
 
             case LOGICAL_COMPLEMENT:
-            {
-                // see JLS 15.15.6
-                Node expr = scan(tree.getExpression(), p);
-                result = new ConditionalNotNode(tree, unbox(expr));
-                extendWithNode(result);
-                break;
-            }
+                {
+                    // see JLS 15.15.6
+                    Node expr = scan(tree.getExpression(), p);
+                    result = new ConditionalNotNode(tree, unbox(expr));
+                    extendWithNode(result);
+                    break;
+                }
 
             case POSTFIX_DECREMENT:
             case POSTFIX_INCREMENT:
             case PREFIX_DECREMENT:
             case PREFIX_INCREMENT:
-            {
-                ExpressionTree exprTree = tree.getExpression();
-                Node expr = scan(exprTree, p);
+                {
+                    ExpressionTree exprTree = tree.getExpression();
+                    Node expr = scan(exprTree, p);
 
-                boolean isIncrement =
-                        kind == Tree.Kind.POSTFIX_INCREMENT
-                                || kind == Tree.Kind.PREFIX_INCREMENT;
-                boolean isPostfix =
-                        kind == Tree.Kind.POSTFIX_INCREMENT
-                                || kind == Tree.Kind.POSTFIX_DECREMENT;
+                    boolean isIncrement =
+                            kind == Tree.Kind.POSTFIX_INCREMENT
+                                    || kind == Tree.Kind.PREFIX_INCREMENT;
+                    boolean isPostfix =
+                            kind == Tree.Kind.POSTFIX_INCREMENT
+                                    || kind == Tree.Kind.POSTFIX_DECREMENT;
 
-                if (isPostfix) {
-                    TypeMirror exprType = TreeUtils.typeOf(exprTree);
-                    VariableTree tempVarDecl =
-                            treeBuilder.buildVariableDecl(
-                                    exprType,
-                                    uniqueName("tempPostfix"),
-                                    findOwner(),
-                                    tree.getExpression());
-                    handleArtificialTree(tempVarDecl);
-                    VariableDeclarationNode tempVarDeclNode =
-                            new VariableDeclarationNode(tempVarDecl);
-                    tempVarDeclNode.setInSource(false);
-                    extendWithNode(tempVarDeclNode);
+                    if (isPostfix) {
+                        TypeMirror exprType = TreeUtils.typeOf(exprTree);
+                        VariableTree tempVarDecl =
+                                treeBuilder.buildVariableDecl(
+                                        exprType,
+                                        uniqueName("tempPostfix"),
+                                        findOwner(),
+                                        tree.getExpression());
+                        handleArtificialTree(tempVarDecl);
+                        VariableDeclarationNode tempVarDeclNode =
+                                new VariableDeclarationNode(tempVarDecl);
+                        tempVarDeclNode.setInSource(false);
+                        extendWithNode(tempVarDeclNode);
 
-                    Tree tempVar = treeBuilder.buildVariableUse(tempVarDecl);
-                    handleArtificialTree(tempVar);
-                    Node tempVarNode = new LocalVariableNode(tempVar);
-                    tempVarNode.setInSource(false);
-                    extendWithNode(tempVarNode);
+                        Tree tempVar = treeBuilder.buildVariableUse(tempVarDecl);
+                        handleArtificialTree(tempVar);
+                        Node tempVarNode = new LocalVariableNode(tempVar);
+                        tempVarNode.setInSource(false);
+                        extendWithNode(tempVarNode);
 
-                    AssignmentNode tempAssignNode = new AssignmentNode(tree, tempVarNode, expr);
-                    tempAssignNode.setInSource(false);
-                    extendWithNode(tempAssignNode);
+                        AssignmentNode tempAssignNode = new AssignmentNode(tree, tempVarNode, expr);
+                        tempAssignNode.setInSource(false);
+                        extendWithNode(tempAssignNode);
 
-                    Tree resultExpr = treeBuilder.buildVariableUse(tempVarDecl);
-                    handleArtificialTree(resultExpr);
-                    result = new LocalVariableNode(resultExpr);
-                    result.setInSource(false);
-                    extendWithNode(result);
+                        Tree resultExpr = treeBuilder.buildVariableUse(tempVarDecl);
+                        handleArtificialTree(resultExpr);
+                        result = new LocalVariableNode(resultExpr);
+                        result.setInSource(false);
+                        extendWithNode(result);
+                    }
+                    AssignmentNode unaryAssign =
+                            createIncrementOrDecrementAssign(tree, expr, isIncrement, isPostfix);
+                    if (!isPostfix) {
+                        result = unaryAssign;
+                    }
+                    break;
                 }
-                AssignmentNode unaryAssign =
-                        createIncrementOrDecrementAssign(tree, expr, isIncrement, isPostfix);
-                if (!isPostfix) {
-                    result = unaryAssign;
-                }
-                break;
-            }
 
             case OTHER:
             default:

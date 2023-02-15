@@ -161,8 +161,8 @@ public class ObjectCreationNode extends Node {
         return getConstructor().equals(other.getConstructor())
                 && getArguments().equals(other.getArguments())
                 && (getEnclosingExpression() == null
-                ? null == other.getEnclosingExpression()
-                : getEnclosingExpression().equals(other.getEnclosingExpression()));
+                        ? null == other.getEnclosingExpression()
+                        : getEnclosingExpression().equals(other.getEnclosingExpression()));
     }
 
     @Override

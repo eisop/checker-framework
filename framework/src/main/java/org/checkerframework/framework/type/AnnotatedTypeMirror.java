@@ -1221,7 +1221,7 @@ public abstract class AnnotatedTypeMirror {
         }
 
         /**
-         * Sets the varargs types of this executable type. TODO: at least document it
+         * Sets the varargs types of this executable type.
          *
          * @param varargType the varargs types of this executable type
          */
