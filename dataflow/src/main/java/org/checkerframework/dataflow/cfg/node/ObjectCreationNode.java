@@ -31,7 +31,6 @@ public class ObjectCreationNode extends Node {
 
     // TODO: See issue 376
     /** The constructor node of the object creation. */
-    // TODO: Change its name to identifier in a separate pr
     protected final Node constructor;
 
     /** The arguments of the object creation. */
