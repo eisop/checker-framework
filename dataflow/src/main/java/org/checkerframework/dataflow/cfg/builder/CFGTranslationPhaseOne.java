@@ -1287,12 +1287,6 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         ArrayList<Node> convertedNodes = new ArrayList<>(numFormals);
 
         int numActuals = actualExprs.size();
-        int lastArgIndex = numFormals - 1;
-        // For an inner class constructor, add the receiver as the first arguments
-        // explicitly.
-        if (enclosingTypeReceiverNode != null) {
-            convertedNodes.add(enclosingTypeReceiverNode);
-        }
         if (method.isVarArgs()) {
             // Create a new array argument if the actuals outnumber the formals, or if the last
             // actual is not assignable to the last formal.

@@ -1188,10 +1188,6 @@ public abstract class AnnotatedTypeMirror {
                 throw new BugInCF("Set vararg type before resetting parameter types");
             }
             paramTypes = params;
-            if (varargsType != null) {
-                varargType = varargsType;
-            }
-            paramTypes = params;
             paramTypesComputed = true;
         }
 
