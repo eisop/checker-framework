@@ -11,8 +11,7 @@ public class DefaultsTest {
 
     void test() {
         @SuppressWarnings("all") // To allow the use of the explicit @AinferDefaultType.
-        @AinferDefaultType
-        String explicitDefault = "";
+        @AinferDefaultType String explicitDefault = "";
         defaultField2 = explicitDefault;
     }
 

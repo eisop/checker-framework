@@ -10,10 +10,15 @@ import org.checkerframework.dataflow.constantpropagation.ConstantPropagationTran
 /** The playground for constant propagation analysis. */
 public class ConstantPropagationPlayground {
 
+    /** Do not instantiate. */
+    private ConstantPropagationPlayground() {
+        throw new Error("do not instantiate");
+    }
+
     /**
-     * Run constant propagation for a specific file and create a PDF of the CFG in the end.
+     * Run constant propagation for a specific file and create a PDF of the CFG.
      *
-     * @param args input arguments, not used
+     * @param args command-line arguments, not used
      */
     public static void main(String[] args) {
 

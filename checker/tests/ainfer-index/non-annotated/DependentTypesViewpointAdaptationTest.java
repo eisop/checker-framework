@@ -61,13 +61,13 @@ public class DependentTypesViewpointAdaptationTest {
     public void compute5(
             DependentTypesViewpointAdaptationTest this,
             DependentTypesViewpointAdaptationTest other) {
-        // :: warning: assignment.type.incompatible
+        // :: warning: (assignment.type.incompatible)
         @SameLen("this") DependentTypesViewpointAdaptationTest myOther = other;
     }
 
     // Same as compute5, but without an explicit this parameter.
     public void compute6(DependentTypesViewpointAdaptationTest other) {
-        // :: warning: assignment.type.incompatible
+        // :: warning: (assignment.type.incompatible)
         @SameLen("this") DependentTypesViewpointAdaptationTest myOther = other;
     }
 }

@@ -1,26 +1,27 @@
 package org.checkerframework.framework.stub;
 
-import org.checkerframework.afu.scenelib.annotations.Annotation;
-import org.checkerframework.afu.scenelib.annotations.Annotations;
-import org.checkerframework.afu.scenelib.annotations.el.ABlock;
-import org.checkerframework.afu.scenelib.annotations.el.AClass;
-import org.checkerframework.afu.scenelib.annotations.el.ADeclaration;
-import org.checkerframework.afu.scenelib.annotations.el.AElement;
-import org.checkerframework.afu.scenelib.annotations.el.AExpression;
-import org.checkerframework.afu.scenelib.annotations.el.AField;
-import org.checkerframework.afu.scenelib.annotations.el.AMethod;
-import org.checkerframework.afu.scenelib.annotations.el.AScene;
-import org.checkerframework.afu.scenelib.annotations.el.ATypeElement;
-import org.checkerframework.afu.scenelib.annotations.el.ATypeElementWithType;
-import org.checkerframework.afu.scenelib.annotations.el.AnnotationDef;
-import org.checkerframework.afu.scenelib.annotations.el.DefException;
-import org.checkerframework.afu.scenelib.annotations.el.ElementVisitor;
-import org.checkerframework.afu.scenelib.annotations.field.ArrayAFT;
-import org.checkerframework.afu.scenelib.annotations.field.BasicAFT;
-import org.checkerframework.afu.scenelib.annotations.io.IndexFileParser;
-import org.checkerframework.afu.scenelib.annotations.io.IndexFileWriter;
-import org.checkerframework.afu.scenelib.annotations.io.ParseException;
+import org.checkerframework.afu.scenelib.Annotation;
+import org.checkerframework.afu.scenelib.Annotations;
+import org.checkerframework.afu.scenelib.el.ABlock;
+import org.checkerframework.afu.scenelib.el.AClass;
+import org.checkerframework.afu.scenelib.el.ADeclaration;
+import org.checkerframework.afu.scenelib.el.AElement;
+import org.checkerframework.afu.scenelib.el.AExpression;
+import org.checkerframework.afu.scenelib.el.AField;
+import org.checkerframework.afu.scenelib.el.AMethod;
+import org.checkerframework.afu.scenelib.el.AScene;
+import org.checkerframework.afu.scenelib.el.ATypeElement;
+import org.checkerframework.afu.scenelib.el.ATypeElementWithType;
+import org.checkerframework.afu.scenelib.el.AnnotationDef;
+import org.checkerframework.afu.scenelib.el.DefException;
+import org.checkerframework.afu.scenelib.el.ElementVisitor;
+import org.checkerframework.afu.scenelib.field.ArrayAFT;
+import org.checkerframework.afu.scenelib.field.BasicAFT;
+import org.checkerframework.afu.scenelib.io.IndexFileParser;
+import org.checkerframework.afu.scenelib.io.IndexFileWriter;
+import org.checkerframework.afu.scenelib.io.ParseException;
 import org.checkerframework.checker.signature.qual.BinaryName;
+import org.plumelib.util.ArraySet;
 
 import java.io.FileReader;
 import java.io.IOException;
@@ -101,7 +102,8 @@ public class AddAnnotatedFor {
      */
     public static void addAnnotatedFor(AScene scene) {
         for (AClass clazz : new HashSet<>(scene.classes.values())) {
-            Set<String> annotatedFor = new HashSet<>(2); // usually few @AnnotatedFor are applicable
+            Set<String> annotatedFor =
+                    new ArraySet<>(2); // usually few @AnnotatedFor are applicable
             clazz.accept(annotatedForVisitor, annotatedFor);
             if (!annotatedFor.isEmpty()) {
                 // Set eliminates duplicates, but it must be converted to List; for whatever reason,

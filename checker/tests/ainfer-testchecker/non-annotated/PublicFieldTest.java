@@ -31,8 +31,7 @@ public class PublicFieldTest {
 
     void expectsParent(@AinferParent int t) {}
 
-    @AinferSibling1
-    int getAinferSibling1() {
+    @AinferSibling1 int getAinferSibling1() {
         return (@AinferSibling1 int) 0;
     }
 
@@ -55,13 +54,11 @@ public class PublicFieldTest {
             return (@AinferBottom int) 0;
         }
 
-        @AinferTop
-        int getAinferTop() {
+        @AinferTop int getAinferTop() {
             return (@AinferTop int) 0;
         }
 
-        @AinferSibling2
-        int getAinferSibling2() {
+        @AinferSibling2 int getAinferSibling2() {
             return (@AinferSibling2 int) 0;
         }
 

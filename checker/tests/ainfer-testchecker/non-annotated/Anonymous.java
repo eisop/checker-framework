@@ -31,8 +31,7 @@ public class Anonymous {
 
     void expectsParent(@AinferParent int t) {}
 
-    @AinferSibling1
-    int getAinferSibling1() {
+    @AinferSibling1 int getAinferSibling1() {
         return (@AinferSibling1 int) 0;
     }
 }

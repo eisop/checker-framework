@@ -3,6 +3,7 @@ package org.checkerframework.dataflow.cfg.node;
 import com.sun.source.tree.AssertTree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -71,6 +72,7 @@ public class AssertionErrorNode extends Node {
     }
 
     @Override
+    @SideEffectFree
     public Collection<Node> getOperands() {
         return Arrays.asList(getCondition(), getDetail());
     }

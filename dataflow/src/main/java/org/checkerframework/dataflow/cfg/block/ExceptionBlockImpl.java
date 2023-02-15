@@ -3,10 +3,11 @@ package org.checkerframework.dataflow.cfg.block;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.javacutil.BugInCF;
+import org.plumelib.util.ArrayMap;
+import org.plumelib.util.ArraySet;
+import org.plumelib.util.CollectionsPlume;
 
 import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -25,7 +26,7 @@ public class ExceptionBlockImpl extends SingleSuccessorBlockImpl implements Exce
     /** Create an empty exceptional block. */
     public ExceptionBlockImpl() {
         super(BlockType.EXCEPTION_BLOCK);
-        exceptionalSuccessors = new LinkedHashMap<>(2);
+        exceptionalSuccessors = new ArrayMap<>(2);
     }
 
     /** Set the node. */
@@ -64,8 +65,7 @@ public class ExceptionBlockImpl extends SingleSuccessorBlockImpl implements Exce
      * @param cause the exception type that leads to the given block
      */
     public void addExceptionalSuccessor(BlockImpl b, TypeMirror cause) {
-        Set<Block> blocks =
-                exceptionalSuccessors.computeIfAbsent(cause, __ -> new LinkedHashSet<>());
+        Set<Block> blocks = exceptionalSuccessors.computeIfAbsent(cause, __ -> new ArraySet<>(2));
         blocks.add(b);
         b.addPredecessor(this);
     }
@@ -80,9 +80,9 @@ public class ExceptionBlockImpl extends SingleSuccessorBlockImpl implements Exce
 
     @Override
     public Set<Block> getSuccessors() {
-        Set<Block> result = new LinkedHashSet<>(super.getSuccessors());
+        Set<Block> result = new ArraySet<>(super.getSuccessors());
         for (Set<? extends Block> blocks : getExceptionalSuccessors().values()) {
-            result.addAll(blocks);
+            CollectionsPlume.adjoinAll(result, blocks);
         }
         return result;
     }

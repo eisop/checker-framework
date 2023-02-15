@@ -28,7 +28,7 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 
 // The use of reflection in ReflectiveEvaluator is troubling.
-// A static analysis such as  the Checker Framework should always use compiler APIs, never
+// A static analysis such as the Checker Framework should always use compiler APIs, never
 // reflection, to obtain values, for these reasons:
 //  * The program being compiled is not necessarily on the classpath nor the processorpath.
 //  * There might even be a different class of the same fully-qualified name on the processorpath.
@@ -55,7 +55,7 @@ public class ReflectiveEvaluator {
      * Create a new ReflectiveEvaluator.
      *
      * @param checker the BaseTypeChecker
-     * @param factory the annotated type factory.
+     * @param factory the annotated type factory
      * @param reportWarnings if true, report warnings about problems with evaluation
      */
     public ReflectiveEvaluator(
@@ -264,7 +264,7 @@ public class ReflectiveEvaluator {
     @SuppressWarnings("mustcall") // I cannot type cartesianProduct() for @MustCall
     private List<Object[]> cartesianProduct(List<List<?>> allArgValues, int whichArg) {
         List<?> argValues = allArgValues.get(whichArg);
-        List<Object[]> tuples = new ArrayList<>();
+        List<Object[]> tuples = new ArrayList<>(argValues.size());
 
         for (Object value : argValues) {
             if (whichArg == 0) {

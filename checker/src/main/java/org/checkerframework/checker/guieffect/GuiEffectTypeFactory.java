@@ -470,8 +470,9 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
                 assert eff.isPoly();
                 polyOverridden = overriddenMethodElt;
                 if (isUI) {
-                    // Need to special case an anonymous class with @UI on the decl, because "new
-                    // @UI Runnable {...}" parses as @UI on an anon class decl extending Runnable
+                    // Need to special case an anonymous class with @UI on the decl, because
+                    //   "new @UI Runnable {...}"
+                    // parses as @UI on an anon class decl extending Runnable
                     boolean isAnonInstantiation =
                             isAnonymousType(declaringType)
                                     && (fromElement(declaringType).hasAnnotation(UI.class)

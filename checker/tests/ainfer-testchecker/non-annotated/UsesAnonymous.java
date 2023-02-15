@@ -23,13 +23,11 @@ public class UsesAnonymous {
                         return (@AinferBottom int) 0;
                     }
 
-                    @AinferTop
-                    int getAinferTop() {
+                    @AinferTop int getAinferTop() {
                         return (@AinferTop int) 0;
                     }
 
-                    @AinferSibling2
-                    int getAinferSibling2() {
+                    @AinferSibling2 int getAinferSibling2() {
                         return (@AinferSibling2 int) 0;
                     }
 

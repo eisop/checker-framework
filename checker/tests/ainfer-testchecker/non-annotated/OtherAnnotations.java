@@ -27,8 +27,7 @@ public class OtherAnnotations {
         methodWithAnnotatedParam(w);
     }
 
-    @AinferSibling1
-    int getAinferSibling1() {
+    @AinferSibling1 int getAinferSibling1() {
         return 5;
     }
 

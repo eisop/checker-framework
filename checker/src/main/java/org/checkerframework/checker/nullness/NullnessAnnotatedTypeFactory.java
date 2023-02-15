@@ -963,18 +963,18 @@ public class NullnessAnnotatedTypeFactory
     // then change rhs to @MonotonicNonNull.
     @Override
     public void wpiAdjustForUpdateField(
-            Tree lhsTree, Element element, String fieldName, AnnotatedTypeMirror rhsATM) {
-        if (!rhsATM.hasAnnotation(Nullable.class)) {
-            return;
-        }
-        TreePath lhsPath = getPath(lhsTree);
-        TypeElement enclosingClassOfLhs =
-                TreeUtils.elementFromDeclaration(TreePathUtil.enclosingClass(lhsPath));
-        ClassSymbol enclosingClassOfField = ((VarSymbol) element).enclClass();
-        if (enclosingClassOfLhs.equals(enclosingClassOfField)
-                && TreePathUtil.inConstructor(lhsPath)) {
-            rhsATM.replaceAnnotation(MONOTONIC_NONNULL);
-        }
+        Tree lhsTree, Element element, String fieldName, AnnotatedTypeMirror rhsATM) {
+      // Synthetic variable names contain "#". Ignore them.
+      if (!rhsATM.hasAnnotation(Nullable.class) || fieldName.contains("#")) {
+        return;
+      }
+      TreePath lhsPath = getPath(lhsTree);
+      TypeElement enclosingClassOfLhs =
+          TreeUtils.elementFromDeclaration(TreePathUtil.enclosingClass(lhsPath));
+      ClassSymbol enclosingClassOfField = ((VarSymbol) element).enclClass();
+      if (enclosingClassOfLhs.equals(enclosingClassOfField) && TreePathUtil.inConstructor(lhsPath)) {
+        rhsATM.replaceAnnotation(MONOTONIC_NONNULL);
+      }
     }
 
     // If
@@ -1000,17 +1000,33 @@ public class NullnessAnnotatedTypeFactory
     //  * output @RequiresNonNull rather than @RequiresQualifier.
     @Override
     protected @Nullable AnnotationMirror createRequiresOrEnsuresQualifier(
-            String expression,
-            AnnotationMirror qualifier,
-            AnnotatedTypeMirror declaredType,
-            Analysis.BeforeOrAfter preOrPost,
-            @Nullable List<AnnotationMirror> preconds) {
-        // TODO: This does not handle the possibility that the user set a different default
-        // annotation.
-        if (!(declaredType.hasAnnotation(NULLABLE)
-                || declaredType.hasAnnotation(POLYNULL)
-                || declaredType.hasAnnotation(MONOTONIC_NONNULL))) {
-            return null;
+        String expression,
+        AnnotationMirror qualifier,
+        AnnotatedTypeMirror declaredType,
+        Analysis.BeforeOrAfter preOrPost,
+        @Nullable List<AnnotationMirror> preconds) {
+      // TODO: This does not handle the possibility that the user set a different default
+      // annotation.
+      if (!(declaredType.hasAnnotation(NULLABLE)
+          || declaredType.hasAnnotation(POLYNULL)
+          || declaredType.hasAnnotation(MONOTONIC_NONNULL))) {
+        return null;
+      }
+
+      if (preOrPost == BeforeOrAfter.AFTER
+          && declaredType.hasAnnotation(MONOTONIC_NONNULL)
+          && preconds.contains(requiresNonNullAnno(expression))) {
+        // The postcondition is implied by the precondition and the field being
+        // @MonotonicNonNull.
+        return null;
+      }
+
+      if (AnnotationUtils.areSameByName(
+          qualifier, "org.checkerframework.checker.nullness.qual.NonNull")) {
+        if (preOrPost == BeforeOrAfter.BEFORE) {
+          return requiresNonNullAnno(expression);
+        } else {
+          return ensuresNonNullAnno(expression);
         }
 
         if (preOrPost == BeforeOrAfter.AFTER
