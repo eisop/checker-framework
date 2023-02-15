@@ -4818,12 +4818,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 break;
             case TYPE_PARAMETER:
                 type = atypeFactory.getAnnotatedTypeFromTypeTree(tree);
-                for (Tree t : ((TypeParameterTree) tree).getBounds()) {
-                    validateTargetLocation(
-                            t,
-                            ((AnnotatedTypeVariable) type).getUpperBound(),
-                            TypeUseLocation.UPPER_BOUND);
-                }
+                validateTargetLocation(
+                        tree,
+                        ((AnnotatedTypeVariable) type).getUpperBound(),
+                        TypeUseLocation.UPPER_BOUND);
                 validateTargetLocation(
                         tree,
                         ((AnnotatedTypeVariable) type).getLowerBound(),
