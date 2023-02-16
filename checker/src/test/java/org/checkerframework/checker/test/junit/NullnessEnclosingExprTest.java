@@ -23,7 +23,7 @@ public class NullnessEnclosingExprTest extends CheckerFrameworkPerDirectoryTest 
                 testFiles,
                 NullnessChecker.class,
                 "nullness",
-                "-AconservativeInnerClassEnclosingExprCheck=true");
+                "-AconservativeInnerClassEnclosingExprCheck");
     }
 
     @Parameters
