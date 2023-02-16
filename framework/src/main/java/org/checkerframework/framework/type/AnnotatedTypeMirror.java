@@ -1228,9 +1228,9 @@ public abstract class AnnotatedTypeMirror {
         /**
          * Computes the vararg type of this executable type and stores it in {@link varargType}.
          *
-         * <p>This method computes {@link varargType} by {@link paramTypes} of this executable type,
-         * if we want to use {@link paramTypes} from different executable type, see {@link
-         * #computeVarargType(AnnotatedExecutableType)}
+         * <p>This method computes {@link varargType} using the {@link paramTypes} of this executable type.
+         * To use the {@link paramTypes} from different executable type, use {@link
+         * #computeVarargType(AnnotatedExecutableType)}.
          */
         /*package-private*/ void computeVarargType() {
             computeVarargType(paramTypes);
