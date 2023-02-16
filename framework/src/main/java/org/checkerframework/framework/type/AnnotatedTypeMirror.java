@@ -8,6 +8,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeVisitor;
+import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.element.ElementAnnotationUtil.ErrorTypeKindException;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
@@ -1127,9 +1128,9 @@ public abstract class AnnotatedTypeMirror {
         private AnnotatedDeclaredType receiverType;
         /**
          * The varargs type is the last element of {@link paramTypes} if the method or constructor
-         * accepts a variable number of arguments and the {@link paramTypes} has not been adapted
-         * yet. This type needs to be stored in the field to avoid being affected by {@link
-         * paramTypes} adaptation.
+         * accepts a variable number of arguments and the {@link paramTypes} has not been expanded
+         * yet. This type needs to be stored in the field to avoid being affected by calling {@link
+         * AnnotatedTypes#adaptParameters(AnnotatedTypeFactory, AnnotatedExecutableType, List)}.
          */
         private @MonotonicNonNull AnnotatedArrayType varargType = null;
         /** Whether {@link receiverType} has been computed. */

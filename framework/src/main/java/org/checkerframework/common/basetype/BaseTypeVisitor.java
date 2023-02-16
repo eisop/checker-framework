@@ -2077,34 +2077,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         List<AnnotatedTypeMirror> typeargs = fromUse.typeArgs;
 
         // Type check inner class enclosing expr type
-        if (checkEnclosingExpr) {
-            AnnotatedTypeMirror parameterReceiverType = constructorType.getReceiverType();
-            if (parameterReceiverType != null) {
-                AnnotatedTypeMirror argumentReceiverType;
-                if (node.getEnclosingExpression() != null) {
-                    argumentReceiverType =
-                            atypeFactory.getAnnotatedType(node.getEnclosingExpression());
-                } else {
-                    argumentReceiverType = atypeFactory.getImplicitReceiverType(node);
-                }
-                boolean success =
-                        atypeFactory
-                                .getTypeHierarchy()
-                                .isSubtype(argumentReceiverType, parameterReceiverType);
-                if (!success) {
-                    FoundRequired pair =
-                            FoundRequired.of(argumentReceiverType, parameterReceiverType);
-                    String valueTypeString = pair.found;
-                    String varTypeString = pair.required;
-                    checker.reportError(
-                            node,
-                            "enclosingexpr.type.incompatible",
-                            valueTypeString,
-                            varTypeString);
-                }
-            }
-        }
-
+        checkEnclosingExpr(node, constructorType);
         List<? extends ExpressionTree> passedArguments = node.getArguments();
         List<AnnotatedTypeMirror> params = constructorType.getParameterTypes();
 
@@ -3442,6 +3415,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      *
      * <p>Issue a warning if the annotations on the constructor invocation is a subtype of the
      * constructor result type. This is equivalent to down-casting.
+     *
+     * <p>For type checking enclosing expression of inner type instantiations, see {@link
+     * #checkEnclosingExpr(NewClassTree, AnnotatedExecutableType)}
      */
     protected void checkConstructorInvocation(
             AnnotatedDeclaredType invocation,
@@ -3533,6 +3509,32 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     executableName);
             // Also descend into the argument within the correct assignment context.
             scan(passedArgs.get(i), null);
+        }
+    }
+
+    /**
+     * A helper method to type check the enclosing expression of inner class.
+     *
+     * @param node the newClassTree
+     * @param constructorType the constructor annotatedExecutableType
+     */
+    protected void checkEnclosingExpr(NewClassTree node, AnnotatedExecutableType constructorType) {
+        if (!checkEnclosingExpr) {
+            return;
+        }
+        AnnotatedTypeMirror parameterReceiverType = constructorType.getReceiverType();
+        if (parameterReceiverType != null) {
+            AnnotatedTypeMirror argumentReceiverType;
+            if (node.getEnclosingExpression() != null) {
+                argumentReceiverType = atypeFactory.getAnnotatedType(node.getEnclosingExpression());
+            } else {
+                argumentReceiverType = atypeFactory.getImplicitReceiverType(node);
+            }
+            commonAssignmentCheck(
+                    parameterReceiverType,
+                    argumentReceiverType,
+                    node,
+                    "enclosingexpr.type.incompatible");
         }
     }
 

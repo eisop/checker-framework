@@ -2738,18 +2738,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             viewpointAdapter.viewpointAdaptConstructor(type, ctor, con);
         }
 
-        // Store varargType before calling setParameterTypes, otherwise we may lose the varargType
-        // as it is the last element of the original parameterTypes.
-        con.computeVarargType();
-
         if (tree.getClassBody() != null) {
             // Because the anonymous constructor can't have explicit annotations on its parameters,
             // they are copied from the super constructor invoked in the anonymous constructor. To
             // do this:
             // 1. get unsubstituted type of the super constructor.
             // 2. adapt it to this call site.
-            // 3. copy the parameters to the anonymous constructor, `con`.
-            // 4. copy annotations on the return type to `con`.
+            // 3. compute the vararg type.
+            // 4. copy the parameters to the anonymous constructor, `con`.
+            // 5. copy annotations on the return type to `con`.
             AnnotatedExecutableType superCon =
                     getAnnotatedType(TreeUtils.getSuperConstructor(tree));
             constructorFromUsePreSubstitution(tree, superCon);
@@ -2785,6 +2782,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             }
             con.getReturnType().replaceAnnotations(superCon.getReturnType().getAnnotations());
         } else {
+            // Store varargType before calling setParameterTypes, otherwise we may lose the
+            // varargType
+            // as it is the last element of the original parameterTypes.
+            con.computeVarargType();
             con = AnnotatedTypes.asMemberOf(types, this, type, ctor, con);
         }
 
@@ -2818,7 +2819,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             ((AnnotatedDeclaredType) con.getReturnType()).setEnclosingType(enclosingType);
         }
         // Adapt parameters, which makes parameters and arguments be the same size for later
-        // checking.
+        // checking. The vararg type of con has been already computed and stored before.
         List<AnnotatedTypeMirror> parameters =
                 AnnotatedTypes.adaptParameters(this, con, tree.getArguments());
         con.setParameterTypes(parameters);
