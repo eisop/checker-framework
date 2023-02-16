@@ -3,6 +3,7 @@ package org.checkerframework.dataflow.cfg.node;
 import com.sun.source.tree.Tree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -67,6 +68,7 @@ public class MarkerNode extends Node {
     }
 
     @Override
+    @SideEffectFree
     public Collection<Node> getOperands() {
         return Collections.emptyList();
     }

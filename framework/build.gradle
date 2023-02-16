@@ -17,7 +17,10 @@ sourceSets {
 
         resources {
             // Stub files, message.properties, etc.
-            srcDirs += ['src/main/java', "${buildDir}/generated/resources"]
+            srcDirs += [
+                'src/main/java',
+                "${buildDir}/generated/resources"
+            ]
 
             // NO-AFU
             exclude '**/org/checkerframework/common/wholeprograminference/**'
@@ -40,8 +43,8 @@ jar {
 
 
 def versions = [
-        autoValue       : '1.7.4',
-        lombok          : '1.18.24',
+    autoValue       : '1.7.4',
+    lombok          : '1.18.24',
 ]
 
 configurations {
@@ -55,12 +58,12 @@ dependencies {
 
     // NO-AFU
     /*
-    // AFU is an "includedBuild" imported in checker-framework/settings.gradle, so the version number doesn't matter.
-    // https://docs.gradle.org/current/userguide/composite_builds.html#settings_defined_composite
-    api('org.checkerframework:annotation-file-utilities:*') {
-        exclude group: 'com.google.errorprone', module: 'javac'
-    }
-    */
+     // AFU is an "includedBuild" imported in checker-framework/settings.gradle, so the version number doesn't matter.
+     // https://docs.gradle.org/current/userguide/composite_builds.html#settings_defined_composite
+     api('org.checkerframework:annotation-file-utilities:*') {
+     exclude group: 'com.google.errorprone', module: 'javac'
+     }
+     */
 
     api project(':checker-qual')
 
@@ -98,7 +101,14 @@ task cloneTypetoolsJdk() {
             exec {
                 workingDir "${annotatedJdkHome}/../"
                 executable 'git'
-                args = ['clone', '-q', '--depth', '1', 'https://github.com/eisop/jdk.git', 'jdk']
+                args = [
+                    'clone',
+                    '-q',
+                    '--depth',
+                    '1',
+                    'https://github.com/eisop/jdk.git',
+                    'jdk'
+                ]
             }
         }
     }
@@ -193,10 +203,10 @@ shadowJar {
 }
 
 createCheckTypeTask(project.name, 'CompilerMessages',
-    'org.checkerframework.checker.compilermsgs.CompilerMessagesChecker')
+        'org.checkerframework.checker.compilermsgs.CompilerMessagesChecker')
 checkCompilerMessages {
     options.compilerArgs += [
-            '-Apropfiles=' + sourceSets.main.resources.filter { file -> file.name.equals('messages.properties') }.asPath
+        '-Apropfiles=' + sourceSets.main.resources.filter { file -> file.name.equals('messages.properties') }.asPath
     ]
 }
 
@@ -209,7 +219,11 @@ task loaderTests(dependsOn: 'shadowJar', group: 'Verification') {
     doLast {
         exec {
             executable 'make'
-            args = ['-C', 'tests/annotationclassloader/', 'all']
+            args = [
+                '-C',
+                'tests/annotationclassloader/',
+                'all'
+            ]
         }
     }
 }
@@ -235,13 +249,12 @@ task delombok {
     dependsOn project(':checker-qual').tasks.jar
 
     doLast {
-      // As of 2022-11-30, delombok crashes under JDK 19.
-      if(!skipDelombok) {
-        def collection = files(configurations.testCompileClasspath)
-        ant.taskdef(name: 'delombok', classname: 'lombok.delombok.ant.Tasks$Delombok',
+        if(!skipDelombok) {
+            def collection = files(configurations.testCompileClasspath)
+            ant.taskdef(name: 'delombok', classname: 'lombok.delombok.ant.Tasks$Delombok',
             classpath: collection.asPath)
-        ant.delombok(from: srcJava, to: srcDelomboked, classpath: collection.asPath)
-      }
+            ant.delombok(from: srcJava, to: srcDelomboked, classpath: collection.asPath)
+        }
     }
 }
 

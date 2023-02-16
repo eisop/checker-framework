@@ -5,6 +5,7 @@ import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.Collection;
@@ -117,6 +118,7 @@ public class LocalVariableNode extends Node {
     }
 
     @Override
+    @SideEffectFree
     public Collection<Node> getOperands() {
         return Collections.emptyList();
     }

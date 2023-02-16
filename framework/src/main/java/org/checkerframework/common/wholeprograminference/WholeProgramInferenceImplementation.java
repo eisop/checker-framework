@@ -191,18 +191,15 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
         // Don't infer formal parameter types from recursive calls.
         //
         // When performing WPI on a library, if there are no external calls (only recursive calls),
-        // then
-        // each iteration of WPI would make the formal parameter types more restrictive, leading to
-        // an
-        // infinite (or very long) loop.
+        // then each iteration of WPI would make the formal parameter types more restrictive,
+        // leading to an infinite (or very long) loop.
         //
         // Consider
         //   void myMethod(int x) { ... myMethod(x-1) ... }`
         // On one iteration, if x has type IntRange(to=100), the recursive call's argument has type
         // IntRange(to=99).  If that is the only call to `MyMethod`, then the formal parameter type
         // would be updated.  On the next iteration it would be refined again to @IntRange(to=98),
-        // and
-        // so forth.  A recursive call should never restrict a formal parameter type.
+        // and so forth.  A recursive call should never restrict a formal parameter type.
         if (isRecursiveCall(methodInvNode)) {
             return;
         }
@@ -264,21 +261,24 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
             AnnotatedTypeMirror receiverArgATM = atypeFactory.getReceiverType(invocationTree);
             AnnotatedExecutableType methodDeclType = atypeFactory.getAnnotatedType(methodElt);
             AnnotatedTypeMirror receiverParamATM = methodDeclType.getReceiverType();
-            atypeFactory.wpiAdjustForUpdateNonField(receiverArgATM);
-            T receiverAnnotations =
-                    storage.getReceiverAnnotations(methodElt, receiverParamATM, atypeFactory);
-            if (this.atypeFactory instanceof GenericAnnotatedTypeFactory) {
-                ((GenericAnnotatedTypeFactory) this.atypeFactory)
-                        .getDependentTypesHelper()
-                        .delocalizeAtCallsite(
-                                receiverArgATM, invocationTree, arguments, receiver, methodElt);
+            // update the set of annotations for the receiver type if it is not null.
+            if (receiverParamATM != null) {
+                atypeFactory.wpiAdjustForUpdateNonField(receiverArgATM);
+                T receiverAnnotations =
+                        storage.getReceiverAnnotations(methodElt, receiverParamATM, atypeFactory);
+                if (this.atypeFactory instanceof GenericAnnotatedTypeFactory) {
+                    ((GenericAnnotatedTypeFactory) this.atypeFactory)
+                            .getDependentTypesHelper()
+                            .delocalizeAtCallsite(
+                                    receiverArgATM, invocationTree, arguments, receiver, methodElt);
+                }
+                updateAnnotationSet(
+                        receiverAnnotations,
+                        TypeUseLocation.RECEIVER,
+                        receiverArgATM,
+                        receiverParamATM,
+                        file);
             }
-            updateAnnotationSet(
-                    receiverAnnotations,
-                    TypeUseLocation.RECEIVER,
-                    receiverArgATM,
-                    receiverParamATM,
-                    file);
         }
 
         for (int i = 0; i < arguments.size(); i++) {
@@ -290,14 +290,11 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
                     i >= methodElt.getParameters().size() - 1 && methodElt.isVarArgs();
             if (varargsParam && this.atypeFactory.wpiOutputFormat == OutputFormat.JAIF) {
                 // The AFU's org.checkerframework.afu.annotator.Main produces a non-compilable
-                // source file
-                // when JAIF-based WPI tries to output an annotated varargs parameter, such as when
-                // running
-                // the test
+                // source file when JAIF-based WPI tries to output an annotated varargs parameter,
+                // such as when running the test
                 // checker/tests/ainfer-testchecker/non-annotated/AnonymousAndInnerClass.java.
                 // Until that bug is fixed, do not attempt to infer information about varargs
-                // parameters in
-                // JAIF mode.
+                // parameters in JAIF mode.
                 if (showWpiFailedInferences) {
                     printFailedInferenceDebugMessage(
                             "Annotations cannot be placed on varargs parameters in -Ainfer=jaifs mode, because"
@@ -316,8 +313,7 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
             AnnotatedTypeMirror argATM = atypeFactory.getAnnotatedType(argTree);
             if (varargsParam) {
                 // Check whether argATM needs to be turned into an array type, so that the type
-                // structure
-                // matches paramATM.
+                // structure matches paramATM.
                 boolean expandArgATM = false;
                 if (argATM.getKind() == TypeKind.ARRAY) {
                     int argATMDepth = AnnotatedTypes.getArrayDepth((AnnotatedArrayType) argATM);
@@ -395,8 +391,7 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
         // TODO: Probably move some part of this into the AnnotatedTypeFactory.
 
         // This code handles fields of "this" and method parameters (including the receiver
-        // parameter
-        // "this"), for now.  In the future, extend it to other expressions.
+        // parameter "this"), for now.  In the future, extend it to other expressions.
         TypeElement containingClass = (TypeElement) methodElt.getEnclosingElement();
         ThisReference thisReference = new ThisReference(containingClass.asType());
         ClassName classNameReceiver = new ClassName(containingClass.asType());
@@ -407,6 +402,10 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
                     && containingClass.getNestingKind().isNested()) {
                 // Don't infer facts about fields of inner classes, because IndexFileWriter
                 // places the annotations incorrectly on the class declarations.
+                continue;
+            }
+            if (ElementUtils.isStatic(methodElt) && !ElementUtils.isStatic(fieldElement)) {
+                // A static method can't have precondition annotations about instance fields.
                 continue;
             }
             FieldAccess fa =
@@ -462,10 +461,8 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
                 atypeFactory.wpiAdjustForUpdateNonField(inferredType);
             } else {
                 // The parameter is not in the store, so don't attempt to create a postcondition for
-                // it,
-                // since anything other than its default type would not be verifiable. (Only
-                // postconditions
-                // are supported for parameters.)
+                // it, since anything other than its default type would not be verifiable. (Only
+                // postconditions are supported for parameters.)
                 continue;
             }
             T preOrPostConditionAnnos =
@@ -491,8 +488,7 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
                         atypeFactory.getAnnotatedType(methodElt).getReceiverType();
                 if (declaredType == null) {
                     // declaredType is null when the method being analyzed is a constructor (which
-                    // doesn't
-                    // have a receiver).
+                    // doesn't have a receiver).
                     return;
                 }
                 AnnotatedTypeMirror inferredType =
@@ -678,10 +674,8 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
     protected boolean ignoreFieldInWPI(Element element, String fieldName) {
         // Do not attempt to infer types for fields that do not have valid names. For example,
         // compiler-generated temporary variables will have invalid names. Recording facts about
-        // fields
-        // with invalid names causes jaif-based WPI to crash when reading the .jaif file, and
-        // stub-based
-        // WPI to generate unparsable stub files.  See
+        // fields with invalid names causes jaif-based WPI to crash when reading the .jaif file,
+        // and stub-based WPI to generate unparsable stub files.  See
         // https://github.com/typetools/checker-framework/issues/3442
         if (!SourceVersion.isIdentifier(fieldName)) {
             return true;
@@ -750,8 +744,6 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
         //
         for (Map.Entry<AnnotatedDeclaredType, ExecutableElement> pair :
                 overriddenMethods.entrySet()) {
-
-            AnnotatedDeclaredType superclassDecl = pair.getKey();
             ExecutableElement overriddenMethodElement = pair.getValue();
 
             // Don't infer types for code that isn't presented as source.
@@ -760,12 +752,7 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
             }
 
             AnnotatedExecutableType overriddenMethod =
-                    AnnotatedTypes.asMemberOf(
-                            atypeFactory.getProcessingEnv().getTypeUtils(),
-                            atypeFactory,
-                            superclassDecl,
-                            overriddenMethodElement);
-
+                    atypeFactory.getAnnotatedType(overriddenMethodElement);
             String superClassFile = storage.getFileForElement(overriddenMethodElement);
             AnnotatedTypeMirror overriddenMethodReturnType = overriddenMethod.getReturnType();
             T storedOverriddenMethodReturnTypeAnnotations =
@@ -900,7 +887,11 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
         AnnotatedTypeMirror atmFromStorage =
                 storage.atmFromStorageLocation(rhsATM.getUnderlyingType(), annotationsToUpdate);
         updateAtmWithLub(rhsATM, atmFromStorage);
-        if (lhsATM instanceof AnnotatedTypeVariable) {
+
+        // For type variables, infer primary annotations for field type use locations, but
+        // for other locations only infer primary annotations if they are a super type of the upper
+        // bound.
+        if (defLoc != TypeUseLocation.FIELD && lhsATM instanceof AnnotatedTypeVariable) {
             Set<AnnotationMirror> upperAnnos =
                     ((AnnotatedTypeVariable) lhsATM).getUpperBound().getEffectiveAnnotations();
             // If the inferred type is a subtype of the upper bounds of the
@@ -1004,10 +995,9 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
                 break;
                 // case DECLARED:
                 // Inferring annotations on type arguments is not supported, so no need to recur on
-                // generic
-                // types. If this was ever implemented, this method would need a VisitHistory object
-                // to
-                // prevent infinite recursion on types such as T extends List<T>.
+                // generic types. If this was ever implemented, this method would need a
+                // VisitHistory object to prevent infinite recursion on types such as T extends
+                // List<T>.
             default:
                 // ATM only has primary annotations
                 break;

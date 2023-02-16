@@ -12,6 +12,7 @@ import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.ObjectCreationNode;
 import org.checkerframework.dataflow.cfg.node.ReturnNode;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 
 import java.util.List;
 
@@ -23,6 +24,7 @@ public class LiveVarTransfer
         implements BackwardTransferFunction<UnusedAbstractValue, LiveVarStore> {
 
     @Override
+    @SideEffectFree
     public LiveVarStore initialNormalExitStore(
             UnderlyingAST underlyingAST, List<ReturnNode> returnNodes) {
         return new LiveVarStore();

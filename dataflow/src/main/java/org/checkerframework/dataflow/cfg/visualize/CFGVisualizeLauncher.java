@@ -15,6 +15,7 @@ import org.checkerframework.dataflow.analysis.TransferFunction;
 import org.checkerframework.dataflow.cfg.CFGProcessor;
 import org.checkerframework.dataflow.cfg.CFGProcessor.CFGProcessResult;
 import org.checkerframework.dataflow.cfg.ControlFlowGraph;
+import org.plumelib.util.ArrayMap;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -22,7 +23,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 import javax.tools.JavaFileManager;
@@ -199,7 +199,7 @@ public final class CFGVisualizeLauncher {
             analysis.performAnalysis(cfg);
         }
 
-        Map<String, Object> args = new HashMap<>(2);
+        Map<String, Object> args = new ArrayMap<>(2);
         args.put("outdir", outputDir);
         args.put("verbose", verbose);
 

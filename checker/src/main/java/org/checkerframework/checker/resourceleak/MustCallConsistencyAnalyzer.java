@@ -999,8 +999,8 @@ class MustCallConsistencyAnalyzer {
                     if (typeFactory.hasOwning(parameter)) {
                         Obligation localObligation = getObligationForVar(obligations, local);
                         // Passing to an owning parameter is not sufficient to resolve the
-                        // obligation created from a MustCallAlias parameter, because the containing
-                        // method must actually return the value.
+                        // obligation created from a MustCallAlias parameter, because the
+                        // containing method must actually return the value.
                         if (!localObligation.derivedFromMustCallAlias()) {
                             // Transfer ownership!
                             obligations.remove(localObligation);

@@ -88,10 +88,9 @@ public class NullnessValue extends CFAbstractValue<NullnessValue> {
                 + AnnotationUtils.toStringSimple(annotations)
                 + ", "
                 + TypesUtils.simpleTypeName(underlyingType)
-                + ", "
-                + "poly nn/n = "
+                + ", poly nn/n="
                 + (isPolyNullNonNull ? 't' : 'f')
-                + "/"
+                + '/'
                 + (isPolyNullNull ? 't' : 'f')
                 + '}';
     }

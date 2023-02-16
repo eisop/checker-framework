@@ -14,8 +14,7 @@ public class OverloadedMethodsTest {
         return getAinferSibling1();
     }
 
-    @AinferSibling1
-    String getAinferSibling1() {
+    @AinferSibling1 String getAinferSibling1() {
         return null;
     }
 }

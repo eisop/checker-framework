@@ -83,6 +83,7 @@ import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.UserError;
+import org.plumelib.util.ArrayMap;
 import org.plumelib.util.CollectionsPlume;
 
 import java.io.File;
@@ -312,10 +313,10 @@ public class AnnotationFileParser {
     /** Information about a record from a stub file. */
     public static class RecordStub {
         /**
-         * A map from name to record component. The iteration order is the order that they are
-         * declared in the record header.
+         * A map from name to record component. It must have deterministic insertion/iteration
+         * order: the order that they are declared in the record header.
          */
-        public final LinkedHashMap<String, RecordComponentStub> componentsByName;
+        public final Map<String, RecordComponentStub> componentsByName;
         /**
          * If the canonical constructor is given in the stubs, the annotated types (in component
          * declaration order) for the constructor. Null if not present in the stubs.
@@ -325,10 +326,10 @@ public class AnnotationFileParser {
         /**
          * Creates a new RecordStub.
          *
-         * @param componentsByName a map from name to record component. The insertion/iteration
-         *     order is the order that they are declared in the record header.
+         * @param componentsByName a map from name to record component. It must have deterministic
+         *     insertion/iteration order: the order that they are declared in the record header.
          */
-        public RecordStub(LinkedHashMap<String, RecordComponentStub> componentsByName) {
+        public RecordStub(Map<String, RecordComponentStub> componentsByName) {
             this.componentsByName = componentsByName;
         }
 
@@ -730,7 +731,7 @@ public class AnnotationFileParser {
             afp.process(ajavaAnnos);
         } catch (ParseProblemException e) {
             for (Problem p : e.getProblems()) {
-                afp.warn(null, p.getVerboseMessage());
+                afp.warn(null, filename + ": " + p.getVerboseMessage());
             }
         }
     }
@@ -1041,7 +1042,8 @@ public class AnnotationFileParser {
 
         if (typeDecl instanceof RecordDeclaration) {
             NodeList<Parameter> recordMembers = ((RecordDeclaration) typeDecl).getParameters();
-            LinkedHashMap<String, RecordComponentStub> byName = new LinkedHashMap<>();
+            Map<String, RecordComponentStub> byName =
+                    ArrayMap.newArrayMapOrLinkedHashMap(recordMembers.size());
             for (Parameter recordMember : recordMembers) {
                 RecordComponentStub stub =
                         processRecordField(
@@ -1166,9 +1168,9 @@ public class AnnotationFileParser {
             if (numParams != numArgs) {
                 stubDebug(
                         String.format(
-                                "parseType:  mismatched sizes for typeParameters=%s (size %d) and"
-                                        + " typeArguments=%s (size %d); decl=%s; elt=%s (%s); type=%s"
-                                        + " (%s); typeBeingParsed=%s",
+                                "parseType:  mismatched sizes for typeParameters=%s (size %d)"
+                                        + " and typeArguments=%s (size %d);"
+                                        + " decl=%s; elt=%s (%s); type=%s (%s); typeBeingParsed=%s",
                                 typeParameters,
                                 numParams,
                                 typeArguments,
@@ -1334,8 +1336,9 @@ public class AnnotationFileParser {
                 // annotations should not be automatically transferred:
                 String qualRecordName = ElementUtils.getQualifiedName(elt.getEnclosingElement());
                 if (annotationFileAnnos.records.containsKey(qualRecordName)) {
-                    ArrayList<AnnotatedTypeMirror> annotatedParameters = new ArrayList<>();
                     List<? extends VariableElement> parameters = elt.getParameters();
+                    ArrayList<AnnotatedTypeMirror> annotatedParameters =
+                            new ArrayList<>(parameters.size());
                     for (int i = 0; i < parameters.size(); i++) {
                         VariableElement parameter = parameters.get(i);
                         AnnotatedTypeMirror atm =
@@ -1362,8 +1365,8 @@ public class AnnotationFileParser {
                 if (decl.isConstructorDeclaration()) {
                     warn(
                             receiverParameter,
-                            "parseParameter: constructor %s of a top-level class cannot have"
-                                    + " receiver annotations %s",
+                            "parseParameter: constructor %s of a top-level class"
+                                    + " cannot have receiver annotations %s",
                             methodType,
                             decl.getReceiverParameter().get().getAnnotations());
                 } else {
@@ -1868,8 +1871,10 @@ public class AnnotationFileParser {
         if (typeParameters.size() != typeArguments.size()) {
             String msg =
                     String.format(
-                            "annotateTypeParameters: mismatched sizes:  typeParameters (size"
-                                    + " %d)=%s;  typeArguments (size %d)=%s;  decl=%s;  elt=%s (%s).",
+                            "annotateTypeParameters: mismatched sizes:"
+                                    + "  typeParameters (size %d)=%s;"
+                                    + "  typeArguments (size %d)=%s;"
+                                    + "  decl=%s;  elt=%s (%s).",
                             typeParameters.size(),
                             typeParameters,
                             typeArguments.size(),
@@ -2055,7 +2060,7 @@ public class AnnotationFileParser {
                 } else {
                     List<BodyDeclaration<?>> l =
                             fakeOverrideDecls.computeIfAbsent(
-                                    overriddenMethod, __ -> new ArrayList<>());
+                                    overriddenMethod, __ -> new ArrayList<>(1));
                     l.add(member);
                 }
             }
@@ -2251,7 +2256,8 @@ public class AnnotationFileParser {
                 decl);
 
         List<Pair<TypeMirror, AnnotatedTypeMirror>> l =
-                annotationFileAnnos.fakeOverrides.computeIfAbsent(element, __ -> new ArrayList<>());
+                annotationFileAnnos.fakeOverrides.computeIfAbsent(
+                        element, __ -> new ArrayList<>(1));
         l.add(Pair.of(fakeLocation.asType(), methodType));
     }
 
@@ -2403,9 +2409,9 @@ public class AnnotationFileParser {
                                 + " not found in type "
                                 + typeElt
                                 + System.lineSeparator()
-                                + "If the method is not package-private, add an access specifier in"
-                                + " the stub file and use pass -AstubDebug to receive a more useful"
-                                + " error message.");
+                                + "If the method is not package-private,"
+                                + " add an access specifier in the stub file"
+                                + " and use -AstubDebug to receive a more useful error message.");
             } else {
                 stubWarnNotFound(
                         methodDecl,

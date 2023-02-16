@@ -34,12 +34,12 @@ dependencies {
     api project(':framework')
 
     /* NO-AFU
-    // AFU is an "includedBuild" imported in checker-framework/settings.gradle, so the version number doesn't matter.
-    // https://docs.gradle.org/current/userguide/composite_builds.html#settings_defined_composite
-    implementation('org.checkerframework:annotation-file-utilities:*') {
-        exclude group: 'com.google.errorprone', module: 'javac'
-    }
-    */
+     // AFU is an "includedBuild" imported in checker-framework/settings.gradle, so the version number doesn't matter.
+     // https://docs.gradle.org/current/userguide/composite_builds.html#settings_defined_composite
+     implementation('org.checkerframework:annotation-file-utilities:*') {
+     exclude group: 'com.google.errorprone', module: 'javac'
+     }
+     */
 
     api project(':checker-qual')
     api project(':checker-util')
@@ -104,7 +104,7 @@ jar {
 }
 
 // checker.jar is copied to checker/dist/ when it is built by the shadowJar task.
-task copyJarsToDist(dependsOn: shadowJar, group: 'Build') {
+task assembleForJavac(dependsOn: shadowJar, group: 'Build') {
     description 'Builds or downloads jars required by CheckerMain and puts them in checker/dist/.'
     dependsOn project(':checker-qual').tasks.jar
     doLast {
@@ -144,7 +144,7 @@ task copyJarsToDist(dependsOn: shadowJar, group: 'Build') {
     }
 }
 
-assemble.dependsOn copyJarsToDist
+assemble.dependsOn assembleForJavac
 
 task allSourcesJar(type: Jar, group: 'Build') {
     description 'Creates a sources jar that includes sources for all Checker Framework classes in checker.jar'
@@ -228,35 +228,37 @@ clean {
     delete('tests/ainfer-nullness/inference-output')
     delete('tests/ainfer-index/annotated')
     delete('tests/ainfer-index/inference-output')
+    delete('tests/ainfer-resourceleak/annotated')
+    delete('tests/ainfer-resourceleak/inference-output')
 }
 
 // Add non-junit tests
 createCheckTypeTask(project.name, 'CompilerMessages',
-    'org.checkerframework.checker.compilermsgs.CompilerMessagesChecker')
+        'org.checkerframework.checker.compilermsgs.CompilerMessagesChecker')
 checkCompilerMessages {
     doFirst {
         options.compilerArgs += [
-                '-Apropfiles=' + sourceSets.main.resources.filter { file -> file.name.equals('messages.properties') }.asPath + File.pathSeparator
-                        + project(':framework').sourceSets.main.resources.filter { file -> file.name.equals('messages.properties') }.asPath
+            '-Apropfiles=' + sourceSets.main.resources.filter { file -> file.name.equals('messages.properties') }.asPath + File.pathSeparator
+            + project(':framework').sourceSets.main.resources.filter { file -> file.name.equals('messages.properties') }.asPath
         ]
     }
 }
 
-task nullnessExtraTests(type: Exec, dependsOn: copyJarsToDist, group: 'Verification') {
+task nullnessExtraTests(type: Exec, dependsOn: assembleForJavac, group: 'Verification') {
     description 'Run extra tests for the Nullness Checker.'
     executable 'make'
     environment JAVAC: "${projectDir}/bin/javac -AnoJreVersionCheck", JAVAP: 'javap'
     args = ['-C', 'tests/nullness-extra/']
 }
 
-task commandLineTests(type: Exec, dependsOn: copyJarsToDist, group: 'Verification') {
+task commandLineTests(type: Exec, dependsOn: assembleForJavac, group: 'Verification') {
     description 'Run tests that need a special command line.'
     executable 'make'
     environment JAVAC: "${projectDir}/bin/javac -AnoJreVersionCheck"
     args = ['-C', 'tests/command-line/']
 }
 
-task tutorialTests(dependsOn: copyJarsToDist, group: 'Verification') {
+task tutorialTests(dependsOn: assembleForJavac, group: 'Verification') {
     description 'Test that the tutorial is working as expected.'
     doLast {
         ant.ant(dir: "${rootDir}/docs/tutorial/tests", useNativeBasedir: 'true', inheritAll: 'false') {
@@ -265,14 +267,14 @@ task tutorialTests(dependsOn: copyJarsToDist, group: 'Verification') {
     }
 }
 
-task exampleTests(type: Exec, dependsOn: copyJarsToDist, group: 'Verification') {
+task exampleTests(type: Exec, dependsOn: assembleForJavac, group: 'Verification') {
     description 'Run tests for the example programs.'
     executable 'make'
     environment JAVAC: "${projectDir}/bin/javac -AnoJreVersionCheck"
     args = ['-C', '../docs/examples']
 }
 
-task demosTests(dependsOn: copyJarsToDist, group: 'Verification') {
+task demosTests(dependsOn: assembleForJavac, group: 'Verification') {
     description 'Test that the demos are working as expected.'
     doLast {
         if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
@@ -281,13 +283,21 @@ task demosTests(dependsOn: copyJarsToDist, group: 'Verification') {
                 exec {
                     workingDir file(demosDir.toString() + '/../')
                     executable 'git'
-                    args = ['clone', '--depth', '1', 'https://github.com/typetools/checker-framework.demos.git']
+                    args = [
+                        'clone',
+                        '--depth',
+                        '1',
+                        'https://github.com/eisop/checker-framework.demos.git'
+                    ]
                 }
             } else {
                 exec {
                     workingDir demosDir
                     executable 'git'
-                    args = ['pull', 'https://github.com/typetools/checker-framework.demos.git']
+                    args = [
+                        'pull',
+                        'https://github.com/eisop/checker-framework.demos.git'
+                    ]
                     ignoreExitValue = true
                 }
             }
@@ -329,31 +339,29 @@ task jtregJdk11Tests(dependsOn: ':downloadJtreg', group: 'Verification') {
         exec {
             executable "${jtregHome}/bin/jtreg"
             args = [
-                    "-dir:${projectDir}/jtregJdk11",
-                    "-workDir:${jtregOutput}/${name}/work",
-                    "-reportDir:${jtregOutput}/${name}/report",
-                    '-verbose:summary',
-                    '-javacoptions:-g',
-                    '-keywords:!ignore',
-                    '-samevm',
-                    "-javacoptions:-classpath ${tasks.shadowJar.archiveFile.get()}:${sourceSets.test.output.asPath}",
-                    "-vmoptions:-classpath ${tasks.shadowJar.archiveFile.get()}:${sourceSets.test.output.asPath}",
-                    '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
-                    '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED',
-                    '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED',
-                    '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
-                    '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED',
-                    '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
-                    '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED',
-                    '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
-                    '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED',
-                    "-javacoptions:-classpath ${sourceSets.testannotations.output.asPath}",
-                    // Location of jtreg tests
-                    '.'
+                "-dir:${projectDir}/jtregJdk11",
+                "-workDir:${jtregOutput}/${name}/work",
+                "-reportDir:${jtregOutput}/${name}/report",
+                '-verbose:summary',
+                '-javacoptions:-g',
+                '-keywords:!ignore',
+                '-samevm',
+                "-javacoptions:-classpath ${tasks.shadowJar.archiveFile.get()}:${sourceSets.test.output.asPath}",
+                "-vmoptions:-classpath ${tasks.shadowJar.archiveFile.get()}:${sourceSets.test.output.asPath}",
+                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
+                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED',
+                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED',
+                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
+                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED',
+                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
+                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED',
+                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
+                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED',
+                "-javacoptions:-classpath ${sourceSets.testannotations.output.asPath}",
+                // Location of jtreg tests
+                '.'
             ]
         }
-
-
     }
 }
 
@@ -376,13 +384,12 @@ task delombok {
     dependsOn project(':checker-qual').tasks.jar
 
     doLast {
-      // As of 2022-11-30, delombok crashes under JDK 19.
-      if(!skipDelombok) {
-        def collection = files(configurations.testCompileClasspath)
-        ant.taskdef(name: 'delombok', classname: 'lombok.delombok.ant.Tasks$Delombok',
+        if(!skipDelombok) {
+            def collection = files(configurations.testCompileClasspath)
+            ant.taskdef(name: 'delombok', classname: 'lombok.delombok.ant.Tasks$Delombok',
             classpath: collection.asPath)
-        ant.delombok(from: srcJava, to: srcDelomboked, classpath: collection.asPath)
-      }
+            ant.delombok(from: srcJava, to: srcDelomboked, classpath: collection.asPath)
+        }
     }
 }
 
@@ -405,6 +412,7 @@ test {
         excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferNullnessJaifsTest'
         excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferNullnessAjavaTest'
         excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferIndexAjavaTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferResourceLeakAjavaTest'
     }
 }
 
@@ -535,10 +543,10 @@ void copyNonannotatedToAnnotatedDirectory(String testdir) {
         from files("tests/${testdir}/non-annotated")
         into file("tests/${testdir}/annotated")
         filter { String line ->
-            line.contains('// :: error:')
+            (line.contains('// :: error:')
                     // Don't remove unchecked cast warnings, because they're genuinely expected in some all-systems
                     // tests, such as GenericsCasts.java.
-                    || (line.contains('// :: warning:') && !line.contains('// :: warning: [unchecked]'))
+                    || (line.contains('// :: warning:') && !line.contains('// :: warning: [unchecked]')))
                     ? null : line
         }
     }
@@ -625,7 +633,10 @@ task ainferTestCheckerGenerateJaifs(type: Test) {
             // Script argument -cp must precede Java program argument -i.
             // checker-qual is needed for Constant Value Checker annotations.
             // Note that "/" works on Windows as well as on Linux.
-            args = ['-cp', "${sourceSets.test.output.asPath}:${project(':checker-qual').tasks.jar.archivePath}:" + file('tests/build/testclasses')]
+            args = [
+                '-cp',
+                "${sourceSets.test.output.asPath}:${project(':checker-qual').tasks.jar.archivePath}:" + file('tests/build/testclasses')
+            ]
             args += ['-i']
             for (File jaif : jaifs) {
                 args += [jaif.toString()]
@@ -751,6 +762,51 @@ task ainferNullnessAjavaTest(dependsOn: 'shadowJar', group: 'Verification') {
     outputs.upToDateWhen { false }
 }
 
+task ainferResourceLeakGenerateAjava(type: Test) {
+    description 'Internal task.  Users should run ainferResourceLeakAjavaTest instead.  This type-checks the ainfer-index files with -Ainfer=ajava to generate ajava files.'
+
+    dependsOn(compileTestJava)
+    doFirst {
+        delete('tests/ainfer-resourceleak/annotated')
+        delete("${buildDir}/ainfer-resourceleak/")
+    }
+    outputs.upToDateWhen { false }
+    include '**/AinferResourceLeakAjavaTest.class'
+    testLogging {
+        // Always run the tests
+        outputs.upToDateWhen { false }
+
+        // Show the found unexpected diagnostics and the expected diagnostics not found.
+        exceptionFormat 'full'
+        events 'passed', 'skipped', 'failed'
+    }
+
+    doLast {
+        copyNonannotatedToAnnotatedDirectory('ainfer-resourceleak')
+    }
+}
+
+task ainferResourceLeakValidateAjava(type: Test) {
+    description 'Internal task.  Users should run ainferResourceLeakAjavaTest instead.  This re-type-checks the ainfer-resourceleak files using the ajava files generated by ainferResourceLeakGenerateAjava'
+
+    dependsOn(ainferResourceLeakGenerateAjava)
+    outputs.upToDateWhen { false }
+    include '**/AinferResourceLeakAjavaValidationTest.class'
+    testLogging {
+        // Always run the tests
+        outputs.upToDateWhen { false }
+
+        // Show the found unexpected diagnostics and the expected diagnostics not found.
+        exceptionFormat 'full'
+        events 'passed', 'skipped', 'failed'
+    }
+}
+
+task ainferResourceLeakAjavaTest(dependsOn: 'shadowJar', group: 'Verification') {
+    description 'Run tests for whole-program inference using ajava files and the Resource Leak Checker'
+    dependsOn(ainferResourceLeakValidateAjava)
+    outputs.upToDateWhen { false }
+}
 task ainferNullnessGenerateJaifs(type: Test) {
     description 'Internal task.  Users should run ainferNullnessJaifTest instead.  This type-checks the ainfer-nullness files with -Ainfer=jaifs to generate .jaif files'
 
@@ -777,6 +833,9 @@ task ainferNullnessGenerateJaifs(type: Test) {
         delete('tests/ainfer-nullness/annotated/ConflictingAnnotationsTest.java')
         delete('tests/ainfer-nullness/annotated/MultiDimensionalArrays.java')
 
+        // JAIF-based WPI does not infer annotations on uses of type variables correctly.
+        delete('tests/ainfer-nullness/annotated/TwoCtorGenericAbstract.java')
+
         // Inserting annotations from .jaif files in-place.
         String jaifsDir = 'tests/ainfer-nullness/inference-output';
         List<File> jaifs = fileTree(jaifsDir).matching {
@@ -796,7 +855,10 @@ task ainferNullnessGenerateJaifs(type: Test) {
             executable "${afu}/scripts/insert-annotations-to-source"
             // Script argument -cp must precede Java program argument -i.
             // Note that "/" works on Windows as well as on Linux.
-            args = ['-cp', "${sourceSets.test.output.asPath}:${project(':checker-qual').tasks.jar.archivePath}:" + file('tests/build/testclasses')]
+            args = [
+                '-cp',
+                "${sourceSets.test.output.asPath}:${project(':checker-qual').tasks.jar.archivePath}:" + file('tests/build/testclasses')
+            ]
             args += ['-i']
             for (File jaif : jaifs) {
                 args += [jaif.toString()]
@@ -841,12 +903,13 @@ task ainferTest(group: 'Verification') {
     dependsOn('ainferNullnessJaifTest')
     dependsOn('ainferNullnessAjavaTest')
     dependsOn('ainferIndexAjavaTest')
+    dependsOn('ainferResourceLeakAjavaTest')
 }
 
 // This is run as part of the inferenceTests task.
 task wpiManyTest(group: 'Verification') {
     description 'Tests the wpi-many.sh script (and indirectly the wpi.sh script). Requires an Internet connection.'
-    dependsOn(copyJarsToDist)
+    dependsOn(assembleForJavac)
     // This test must always be re-run when requested.
     outputs.upToDateWhen { false }
 
@@ -884,6 +947,7 @@ task wpiManyTest(group: 'Verification') {
                 throw e
             }
         }
+
         // collect the logs from running WPI
         def typecheckFiles = fileTree(typecheckFilesDir).matching {
             include '**/*-typecheck.out'
@@ -930,7 +994,7 @@ task wpiManyTest(group: 'Verification') {
                 println("======== end of contents of ${filename} ========")
             }
             throw new GradleException("Failure: Too few *-typecheck.out files in ${typecheckFilesDir}: " +
-                    "found ${actualTypecheckFileCount} but expected ${expectedTypecheckFileCount}.")
+            "found ${actualTypecheckFileCount} but expected ${expectedTypecheckFileCount}.")
         }
 
         // check that WPI causes the expected builds to succeed
@@ -942,8 +1006,8 @@ task wpiManyTest(group: 'Verification') {
             }
             file.eachLine { line ->
                 if (
-                        // Ignore the line that WPI echoes with the javac command being run.
-                        line.startsWith('Running ')
+                // Ignore the line that WPI echoes with the javac command being run.
+                line.startsWith('Running ')
                         // Warnings about bad path elements aren't related to WPI and are ignored.
                         || line.startsWith('warning: [path]')
                         // Ignore bootstrap classpath warning:
@@ -954,14 +1018,14 @@ task wpiManyTest(group: 'Verification') {
                         || line.endsWith(' warning')
                         || line.endsWith(' warnings')
                         || line.startsWith('warning: No processor claimed any of these annotations: ')) {
-                  return;
+                    return;
                 }
                 if (!line.trim().equals('')) {
                     println("======== printing contents of ${filename} ========")
                     details.getFile().eachLine { l -> println(l) }
                     println("======== end of contents of ${filename} ========")
                     throw new GradleException('Failure: WPI scripts produced an unexpected output in ' + filename + '. ' +
-                            'Failing line is the following: ' + line)
+                    'Failing line is the following: ' + line)
                 }
             }
         }
@@ -971,7 +1035,7 @@ task wpiManyTest(group: 'Verification') {
 // This is run as part of the inferenceTests task.
 task wpiPlumeLibTest(group: 'Verification') {
     description 'Tests whole-program inference on the plume-lib projects. Requires an Internet connection.'
-    dependsOn(copyJarsToDist)
+    dependsOn(assembleForJavac)
 
     // This test must always be re-run when requested.
     outputs.upToDateWhen { false }

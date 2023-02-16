@@ -82,7 +82,7 @@ fi
 (./gradlew --write-verification-metadata sha256 help --dry-run ||
      (sleep 60 && ./gradlew --write-verification-metadata sha256 help --dry-run))
 
-echo "running \"./gradlew fastAssemble\" for checker-framework"
-./gradlew fastAssemble --console=plain --warning-mode=all -s -Dorg.gradle.internal.http.socketTimeout=60000 -Dorg.gradle.internal.http.connectionTimeout=60000
+echo "running \"./gradlew assembleForJavac\" for checker-framework"
+./gradlew assembleForJavac --console=plain --warning-mode=all -s -Dorg.gradle.internal.http.socketTimeout=60000 -Dorg.gradle.internal.http.connectionTimeout=60000
 
 echo Exiting checker/bin-devel/build.sh in "$(pwd)"
