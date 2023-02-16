@@ -1226,8 +1226,7 @@ public abstract class AnnotatedTypeMirror {
         }
 
         /**
-         * Computers the {@link varargType} of this executable type to store the information into
-         * the filed {@link varargType}.
+         * Computes the vararg type of this executable type and stores it in {@link varargType}.
          *
          * <p>This method computes {@link varargType} by {@link paramTypes} of this executable type,
          * if we want to use {@link paramTypes} from different executable type, see {@link
