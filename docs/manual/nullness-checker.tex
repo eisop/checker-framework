@@ -143,7 +143,7 @@ command-line option.)
   \label{nullness-AconservativeInnerClassEnclosingExprCheck}%
   If you supply the `-AconservativeInnerClassEnclosingExprCheck` command-line option, the soundness of
   the Nullness Initialization Checker is improved. In previous versions and without supplying the new flag,
-  the uninitialized enclosing expression of an inner class instantiation cannot be detected which is unsound. However, this
+  the uninitialized enclosing expression of an inner class instantiation cannot be detected, which is unsound. However, this
   option is by default disabled since it is pretty strict and will result in lots of false positive. For example,
   an empty inner class constructor has the enclosing expression type <@UnderInitialization> by default and will throw an error
   when being initialized, which is not necessary.
