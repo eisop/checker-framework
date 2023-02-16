@@ -1243,7 +1243,7 @@ public abstract class AnnotatedTypeMirror {
          *
          * @param annotatedExecutableType an AnnotatedExecutableType
          */
-        void computeVarargType(AnnotatedExecutableType annotatedExecutableType) {
+        /*package-private*/ void computeVarargType(AnnotatedExecutableType annotatedExecutableType) {
             computeVarargType(annotatedExecutableType.getParameterTypes());
         }
 
