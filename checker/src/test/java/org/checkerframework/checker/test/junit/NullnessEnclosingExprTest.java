@@ -8,8 +8,8 @@ import java.io.File;
 import java.util.List;
 
 /**
- * JUnit tests for the Nullness checker when checking the enclosing expression for inner class
- * instantiations.
+ * JUnit test for the Nullness Checker with conservative checking of enclosing expressions of inner class
+ * instantiations enabled.
  */
 public class NullnessEnclosingExprTest extends CheckerFrameworkPerDirectoryTest {
 
