@@ -1259,9 +1259,9 @@ public abstract class AnnotatedTypeMirror {
         }
 
         /**
-         * Returns the varargs types of this executable type.
+         * Returns the vararg type of this executable type.
          *
-         * @return the varargs type of this executable type
+         * @return the vararg type of this executable type
          */
         public @Nullable AnnotatedArrayType getVarargType() {
             return varargType;
