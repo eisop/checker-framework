@@ -12,8 +12,7 @@ class NullnessEnclosingExprTest {
 
     class InnerFalsePositive {
         // Although this constructor does nothing, the default type of the implicit enclosing expr
-        // is
-        // @UnknownInitialization, so it will throw an error at line #31.
+        // is @UnknownInitialization, so it will throw an error at line #33.
         InnerFalsePositive() {}
     }
 
