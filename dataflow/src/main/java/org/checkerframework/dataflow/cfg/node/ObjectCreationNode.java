@@ -129,8 +129,6 @@ public class ObjectCreationNode extends Node {
     @SideEffectFree
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        // To serve the purpose of cfg presentation, set the first argument to enclosing expression
-        // explicitly.
         if (enclosingExpression != null) {
             sb.append(enclosingExpression + ".");
         }
