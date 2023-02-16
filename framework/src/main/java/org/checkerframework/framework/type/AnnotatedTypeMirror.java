@@ -1233,8 +1233,7 @@ public abstract class AnnotatedTypeMirror {
          * if we want to use {@link paramTypes} from different executable type, see {@link
          * #computeVarargType(AnnotatedExecutableType)}
          */
-        /*package-private*/
-        void computeVarargType() {
+        /*package-private*/ void computeVarargType() {
             computeVarargType(paramTypes);
         }
 
