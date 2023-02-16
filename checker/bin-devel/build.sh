@@ -56,7 +56,9 @@ echo "Running:  (cd ../stubparser/ && ./.build-without-test.sh)"
 (cd ../stubparser/ && ./.build-without-test.sh)
 echo "... done: (cd ../stubparser/ && ./.build-without-test.sh)"
 
-
+# TODO: NullnessNullMarkedTest depends on JSpecify annotations.
+# Find a way to not run that test, to avoid this dependency and
+# instead only use ./test-jspecify.sh.
 ## Build JSpecify, only for the purpose of using its tests.
 "$PLUME_SCRIPTS/git-clone-related" jspecify jspecify
 if type -p java; then
@@ -69,10 +71,10 @@ else
 fi
 version=$("$_java" -version 2>&1 | head -1 | cut -d'"' -f2 | sed '/^1\./s///' | cut -d'.' -f1)
 if [[ "$version" -ge 9 ]]; then
-  echo "Running:  (cd ../jspecify/ && ./gradlew build)"
+  echo "Running:  (cd ../jspecify/ && ./gradlew assemble)"
   # If failure, retry in case the failure was due to network lossage.
-  (cd ../jspecify/ && export JDK_JAVA_OPTIONS='--add-opens jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED' && (./gradlew build || (sleep 60 && ./gradlew build)))
-  echo "... done: (cd ../jspecify/ && ./gradlew build)"
+  (cd ../jspecify/ && export JDK_JAVA_OPTIONS='--add-opens jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED' && (./gradlew assemble || (sleep 60 && ./gradlew assemble)))
+  echo "... done: (cd ../jspecify/ && ./gradlew assemble)"
 fi
 
 
