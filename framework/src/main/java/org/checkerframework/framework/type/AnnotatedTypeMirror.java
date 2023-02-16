@@ -1246,7 +1246,7 @@ public abstract class AnnotatedTypeMirror {
         }
 
         /**
-         * Helper Function for {@link #computeVarargType()} and {@link
+         * Helper function for {@link #computeVarargType()} and {@link
          * #computeVarargType(AnnotatedExecutableType)}.
          *
          * @param paramTypes the parameter types of this executable type
