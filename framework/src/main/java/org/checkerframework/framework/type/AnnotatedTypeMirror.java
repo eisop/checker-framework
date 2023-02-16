@@ -1249,7 +1249,7 @@ public abstract class AnnotatedTypeMirror {
          * Helper function for {@link #computeVarargType()} and {@link
          * #computeVarargType(AnnotatedExecutableType)}.
          *
-         * @param paramTypes the parameter types of this executable type
+         * @param paramTypes the parameter types to determine the vararg type
          */
         private void computeVarargType(List<AnnotatedTypeMirror> paramTypes) {
             if (!isVarArgs()) {
