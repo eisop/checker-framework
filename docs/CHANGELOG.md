@@ -4,9 +4,10 @@ Version 3.30.0-eisop1 (February ?, 2023)
 **User-visible changes:**
 
 The new command-line argument `-AconservativeInnerClassEnclosingExprCheck` enables
-type checking for enclosing expression types of inner class instantiations, this fixes the
-unsoundness for the Nullness Initialization Checker, which could not detect the uninitialized
-outer class for the inner class instantiation.
+type checking for enclosing expression types of inner class instantiations. This fixes an
+unsoundness, in particular for the Nullness Initialization Checker, which did not detect the use of
+an uninitialized outer class for an inner class instantiation.
+The option is off by default to avoid many false-positive errors.
 
 **Implementation details:**
 
