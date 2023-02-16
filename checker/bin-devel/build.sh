@@ -57,6 +57,12 @@ echo "Running:  (cd ../stubparser/ && ./.build-without-test.sh)"
 echo "... done: (cd ../stubparser/ && ./.build-without-test.sh)"
 
 
+## JSpecify
+
+# TODO: NullnessNullMarkedTest depends on JSpecify annotations
+# Find a way to not run that test, to avoid this dependency
+./test-jspecify.sh
+
 ## Compile
 
 # Download dependencies, trying a second time if there is a failure.

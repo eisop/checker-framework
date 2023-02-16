@@ -33,4 +33,3 @@ if [[ "$version" -ge 9 ]]; then
 
   # TODO: run tests
 fi
-
