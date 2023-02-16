@@ -1228,8 +1228,8 @@ public abstract class AnnotatedTypeMirror {
         /**
          * Computes the vararg type of this executable type and stores it in {@link varargType}.
          *
-         * <p>This method computes {@link varargType} using the {@link paramTypes} of this executable type.
-         * To use the {@link paramTypes} from different executable type, use {@link
+         * <p>This method computes {@link varargType} using the {@link paramTypes} of this
+         * executable type. To use the {@link paramTypes} from different executable type, use {@link
          * #computeVarargType(AnnotatedExecutableType)}.
          */
         /*package-private*/ void computeVarargType() {
@@ -1237,11 +1237,13 @@ public abstract class AnnotatedTypeMirror {
         }
 
         /**
-         * Computes the vararg type using the passed executable type and stores it in this {@link varargType}.
+         * Computes the vararg type using the passed executable type and stores it in this {@link
+         * varargType}.
          *
          * @param annotatedExecutableType an AnnotatedExecutableType
          */
-        /*package-private*/ void computeVarargType(AnnotatedExecutableType annotatedExecutableType) {
+        /*package-private*/ void computeVarargType(
+                AnnotatedExecutableType annotatedExecutableType) {
             computeVarargType(annotatedExecutableType.getParameterTypes());
         }
 

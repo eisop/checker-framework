@@ -4,13 +4,16 @@ import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 class NullnessEnclosingExprTest {
     class Inner {
         Inner() {
+            // This will lead to a NPE at line #31, since NullnessEnclosingExprTest
+            // is not intialized yet.
             NullnessEnclosingExprTest.this.f.hashCode();
         }
     }
 
     class InnerFalsePositive {
-        // This constructor does nothing, but the default type of the implicit enclosing expr is
-        // @UnknownInitialization, so it is a false positive in line #30
+        // Although this constructor does nothing, the default type of the implicit enclosing expr
+        // is
+        // @UnknownInitialization, so it will throw an error at line #31.
         InnerFalsePositive() {}
     }
 
@@ -27,7 +30,6 @@ class NullnessEnclosingExprTest {
     NullnessEnclosingExprTest() {
         // :: error: (enclosingexpr.type.incompatible)
         this.new Inner();
-        // False positive
         // :: error: (enclosingexpr.type.incompatible)
         this.new InnerFalsePositive();
         this.new InnerWithExplicitEnclosingExpression1();

@@ -171,7 +171,7 @@ public class ObjectCreationNode extends Node {
     @Override
     @SideEffectFree
     public Collection<Node> getOperands() {
-        ArrayList<Node> list = new ArrayList<>(1 + arguments.size());
+        ArrayList<Node> list = new ArrayList<>(2 + arguments.size());
         if (enclosingExpression != null) {
             list.add(enclosingExpression);
         }

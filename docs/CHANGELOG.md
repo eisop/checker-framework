@@ -3,7 +3,7 @@ Version 3.30.0-eisop1 (February ?, 2023)
 
 **User-visible changes:**
 
-The new command-line argument `-AconservativeInnerClassEnclosingExprCheck` enables
+The new command-line argument `-AcheckEnclosingExpr` enables
 type checking for enclosing expression types of inner class instantiations. This fixes an
 unsoundness, in particular for the Nullness Initialization Checker, which did not detect the use of
 an uninitialized outer class for an inner class instantiation.
@@ -264,7 +264,7 @@ even if it is parsing a different stub file.
 
 **Closed issues:**
 
-eisop#308, eisop#282.
+eisop#308.
 
 
 Version 3.23.0-eisop1 (July 14, 2022)

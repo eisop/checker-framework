@@ -18,7 +18,7 @@ public class H1H2CheckerTest extends CheckerFrameworkPerDirectoryTest {
                 H1H2Checker.class,
                 "h1h2checker",
                 "-Astubs=tests/h1h2checker/h1h2checker.astub",
-                "-AconservativeInnerClassEnclosingExprCheck=true");
+                "-AcheckEnclosingExpr");
     }
 
     @Parameters

@@ -164,6 +164,9 @@ import io.github.classgraph.ClassGraph;
     // casting to an array or generic type. This will be the new default soon.
     "checkCastElementType",
 
+    // Whether type check enclosing expr for an inner class initialization.
+    "checkEnclosingExpr",
+
     // Whether to use conservative defaults for bytecode and/or source code.
     // This option takes arguments "source" and/or "bytecode".
     // The default is "-source,-bytecode" (eventually this will be changed to "-source,bytecode").
@@ -185,9 +188,6 @@ import io.github.classgraph.ClassGraph;
     // Whether to use a conservative value for type arguments that could not be inferred.
     // See Issue 979.
     "conservativeUninferredTypeArguments",
-
-    // Whether type check enclosing expr for an inner class initialization.
-    "conservativeInnerClassEnclosingExprCheck",
 
     // Issues a "redundant.anno" warning if the annotation explicitly written on the type is
     // the same as the default annotation for this type and location.
