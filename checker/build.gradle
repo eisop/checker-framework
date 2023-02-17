@@ -69,7 +69,7 @@ dependencies {
     // The AWS SDK is used for testing the Called Methods Checker.
     testImplementation platform('com.amazonaws:aws-java-sdk-bom:1.12.293')
     // For the Resource Leak Checker's support for JavaEE.
-    testImplementation 'javax.servlet:javax.servlet-api:3.1.0'
+    testImplementation 'javax.servlet:javax.servlet-api:4.0.1'
     // For the Resource Leak Checker's support for IOUtils.
     testImplementation 'commons-io:commons-io:2.11.0'
 
