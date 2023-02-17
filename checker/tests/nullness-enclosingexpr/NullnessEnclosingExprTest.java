@@ -13,7 +13,7 @@ class NullnessEnclosingExprTest {
     class InnerWithImplicitEnclosingExpression {
         // The default annotation type of the implicit enclosing expression is
         // @UnknownInitialization, so we will get an error at line #37
-        InnerFalsePositive() {}
+        InnerWithImplicitEnclosingExpression() {}
     }
 
     class InnerWithExplicitEnclosingExpression1 {
