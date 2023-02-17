@@ -4,21 +4,25 @@ import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 class NullnessEnclosingExprTest {
     class Inner {
         Inner() {
-            // This will lead to a NPE at line #31, since NullnessEnclosingExprTest
+            // This will lead to a NPE at line #35, since NullnessEnclosingExprTest
             // is not intialized yet.
             NullnessEnclosingExprTest.this.f.hashCode();
         }
     }
 
-    class InnerFalsePositive {
-        // Although this constructor does nothing, the default type of the implicit enclosing expr
-        // is @UnknownInitialization, so it will throw an error at line #33.
+    class InnerWithImplicitEnclosingExpression {
+        // The default annotation type of the implicit enclosing expression is
+        // @UnknownInitialization, so we will get an error at line #37
         InnerFalsePositive() {}
     }
 
     class InnerWithExplicitEnclosingExpression1 {
         InnerWithExplicitEnclosingExpression1(
-                @UnknownInitialization NullnessEnclosingExprTest NullnessEnclosingExprTest.this) {}
+                @UnknownInitialization NullnessEnclosingExprTest NullnessEnclosingExprTest.this) {
+            // This will NOT lead to a NPE as we annotate @UnknownInitialization to the enclosing
+            // expression
+            NullnessEnclosingExprTest.this.f.hashCode();
+        }
     }
 
     class InnerWithExplicitEnclosingExpression2 {
@@ -30,7 +34,7 @@ class NullnessEnclosingExprTest {
         // :: error: (enclosingexpr.type.incompatible)
         this.new Inner();
         // :: error: (enclosingexpr.type.incompatible)
-        this.new InnerFalsePositive();
+        this.new InnerWithImplicitEnclosingExpression();
         this.new InnerWithExplicitEnclosingExpression1();
         // :: error: (enclosingexpr.type.incompatible)
         this.new InnerWithExplicitEnclosingExpression2();

@@ -2080,7 +2080,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return the type of the implicit receiver. Returns null if the expression has an explicit
      *     receiver or doesn't have a receiver.
      */
-    public @Nullable AnnotatedDeclaredType getImplicitReceiverType(ExpressionTree tree) {
+    protected @Nullable AnnotatedDeclaredType getImplicitReceiverType(ExpressionTree tree) {
         assert (tree.getKind() == Tree.Kind.IDENTIFIER
                         || tree.getKind() == Tree.Kind.MEMBER_SELECT
                         || tree.getKind() == Tree.Kind.METHOD_INVOCATION
@@ -2783,8 +2783,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             con.getReturnType().replaceAnnotations(superCon.getReturnType().getAnnotations());
         } else {
             // Store varargType before calling setParameterTypes, otherwise we may lose the
-            // varargType
-            // as it is the last element of the original parameterTypes.
+            // varargType as it is the last element of the original parameterTypes.
+            // AnnotatedTypes.asMemberOf handles vararg type properly, so we do not need to compute
+            // vararg type again.
             con.computeVarargType();
             con = AnnotatedTypes.asMemberOf(types, this, type, ctor, con);
         }
@@ -2819,7 +2820,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             ((AnnotatedDeclaredType) con.getReturnType()).setEnclosingType(enclosingType);
         }
         // Adapt parameters, which makes parameters and arguments be the same size for later
-        // checking. The vararg type of con has been already computed and stored before.
+        // checking. The vararg type of con has been already computed and stored when calling
+        // typeVarSubstitutor.substitute.
         List<AnnotatedTypeMirror> parameters =
                 AnnotatedTypes.adaptParameters(this, con, tree.getArguments());
         con.setParameterTypes(parameters);

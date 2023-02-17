@@ -3416,8 +3416,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * <p>Issue a warning if the annotations on the constructor invocation is a subtype of the
      * constructor result type. This is equivalent to down-casting.
      *
-     * <p>For type checking enclosing expression of inner type instantiations, see {@link
+     * <p>To type check enclosing expression of inner type instantiations, see {@link
      * #checkEnclosingExpr(NewClassTree, AnnotatedExecutableType)}
+     *
+     * @param invocation the AnnotatedDeclaredType of a NewClassTree
+     * @param constructor the AnnotatedExecutableType of a NewClassTree
+     * @param newClassTree the NewClassTree
      */
     protected void checkConstructorInvocation(
             AnnotatedDeclaredType invocation,
@@ -3453,9 +3457,32 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 return;
             }
         }
+    }
 
-        // TODO: what properties should hold for constructor receivers for
-        // inner type instantiations?
+    /**
+     * A helper method to type check the enclosing expression of inner class.
+     *
+     * @param node the NewClassTree
+     * @param constructorType the annotatedExecutableType of the NewClassTree
+     */
+    protected void checkEnclosingExpr(NewClassTree node, AnnotatedExecutableType constructorType) {
+        if (!checkEnclosingExpr) {
+            return;
+        }
+        AnnotatedTypeMirror parameterReceiverType = constructorType.getReceiverType();
+        if (parameterReceiverType != null) {
+            AnnotatedTypeMirror argumentReceiverType;
+            if (node.getEnclosingExpression() != null) {
+                argumentReceiverType = atypeFactory.getAnnotatedType(node.getEnclosingExpression());
+            } else {
+                argumentReceiverType = atypeFactory.getReceiverType(node);
+            }
+            commonAssignmentCheck(
+                    parameterReceiverType,
+                    argumentReceiverType,
+                    node,
+                    "enclosingexpr.type.incompatible");
+        }
     }
 
     /**
@@ -3509,32 +3536,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     executableName);
             // Also descend into the argument within the correct assignment context.
             scan(passedArgs.get(i), null);
-        }
-    }
-
-    /**
-     * A helper method to type check the enclosing expression of inner class.
-     *
-     * @param node the newClassTree
-     * @param constructorType the constructor annotatedExecutableType
-     */
-    protected void checkEnclosingExpr(NewClassTree node, AnnotatedExecutableType constructorType) {
-        if (!checkEnclosingExpr) {
-            return;
-        }
-        AnnotatedTypeMirror parameterReceiverType = constructorType.getReceiverType();
-        if (parameterReceiverType != null) {
-            AnnotatedTypeMirror argumentReceiverType;
-            if (node.getEnclosingExpression() != null) {
-                argumentReceiverType = atypeFactory.getAnnotatedType(node.getEnclosingExpression());
-            } else {
-                argumentReceiverType = atypeFactory.getImplicitReceiverType(node);
-            }
-            commonAssignmentCheck(
-                    parameterReceiverType,
-                    argumentReceiverType,
-                    node,
-                    "enclosingexpr.type.incompatible");
         }
     }
 
