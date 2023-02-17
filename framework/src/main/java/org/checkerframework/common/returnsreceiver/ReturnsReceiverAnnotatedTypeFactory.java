@@ -25,7 +25,7 @@ public class ReturnsReceiverAnnotatedTypeFactory extends BaseAnnotatedTypeFactor
      * The {@code @}{@link This} annotation. The field is package visible (i.e., "package private")
      * due to a use in {@link ReturnsReceiverVisitor}
      */
-    /* package-private */ final AnnotationMirror THIS_ANNOTATION;
+    /*package-private*/ final AnnotationMirror THIS_ANNOTATION;
 
     /**
      * Create a new {@code ReturnsReceiverAnnotatedTypeFactory}.

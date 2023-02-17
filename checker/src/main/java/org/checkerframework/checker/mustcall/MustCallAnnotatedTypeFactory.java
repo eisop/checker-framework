@@ -93,7 +93,7 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
      * are shared in the same way that subcheckers share CFG structure; see {@link
      * #getSharedCFGForTree(Tree)}.
      */
-    /* package-private */ final IdentityHashMap<Tree, LocalVariableNode> tempVars =
+    /*package-private*/ final IdentityHashMap<Tree, LocalVariableNode> tempVars =
             new IdentityHashMap<>(100);
 
     /** The MustCall.value field/element. */
@@ -101,7 +101,7 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
             TreeUtils.getMethod(MustCall.class, "value", 0, processingEnv);
 
     /** The InheritableMustCall.value field/element. */
-    /* package-private */ final ExecutableElement inheritableMustCallValueElement =
+    /*package-private*/ final ExecutableElement inheritableMustCallValueElement =
             TreeUtils.getMethod(InheritableMustCall.class, "value", 0, processingEnv);
 
     /** The CreatesMustCallFor.List.value field/element. */
@@ -190,7 +190,7 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
      * @param elt an element; may be null, in which case this method always returns false
      * @return true iff the given element represents a resource variable
      */
-    /* package-private */ boolean isResourceVariable(@Nullable Element elt) {
+    /*package-private*/ boolean isResourceVariable(@Nullable Element elt) {
         return elt != null && elt.getKind() == ElementKind.RESOURCE_VARIABLE;
     }
 

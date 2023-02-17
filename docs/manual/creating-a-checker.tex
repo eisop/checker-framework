@@ -2044,6 +2044,18 @@ where the first command creates file \<MyClass.dot> that
 represents the CFG, and the last command draws the CFG in a PDF file.
 The \<dot> program is part of \href{http://www.graphviz.org}{Graphviz}.
 
+\noindent
+Note that you can also convert the \<.dot> file to various other file formats using
+the \code{dot} program. The full list of supported file types can be found \href{http://www.graphviz.org/doc/info/output.html}{here}.
+
+\noindent
+For example, to convert to SVG, use:
+
+\begin{Verbatim}
+dot -Tsvg <file.dot> -o <file.svg>
+\end{Verbatim}
+
+
 In the output, conditional basic blocks are represented as octagons with
 two successors.  Special basic blocks are represented as ovals (e.g., the
 entry and exit point of the method).
@@ -2124,8 +2136,11 @@ java -cp $CHECKERFRAMEWORK/checker/dist/checker.jar \
 
 \noindent
 The above command will generate the corresponding \<.dot> and \<.pdf> files for the
-method \code{test} in the class \code{MyClass} in the project directory.
-To generate a string representation of the graph to standard output,
+method \code{test} in the class \code{MyClass} in the project directory. If you run into
+issues with the \code{com.sun} packages not being exported for JDK 11+, add the \code{---add-exports} flags
+found in Section~\ref{javac-jdk11-non-modularized} to the above command.
+
+\noindent To generate a string representation of the graph to standard output,
 remove \<--pdf> but add \<--string>. For example (with JDK 8):
 
 \begin{smaller}
