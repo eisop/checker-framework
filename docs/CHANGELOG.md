@@ -1,4 +1,4 @@
-Version 3.31.0-eisop1 (February ?, 2023)
+Version 3.32.0-eisop1 (March ?, 2023)
 ----------------------------------------
 
 **User-visible changes:**
@@ -22,6 +22,16 @@ Remove the `fastAssemble` task which is subsumed by `assembleForJavac`.
 **Closed issues:**
 
 eisop#282, eisop#310, eisop#312.
+
+
+Version 3.31.1 (March 1, 2023)
+------------------------------
+
+**User-visible changes:**
+
+**Implementation details:**
+
+**Closed issues:**
 
 
 Version 3.31.0 (February 17, 2023)
