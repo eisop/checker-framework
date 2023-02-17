@@ -13,7 +13,7 @@ Remove the `fastAssemble` task which is subsumed by `assembleForJavac`.
 **Closed issues:**
 
 
-Version 3.31.0 (March 1, 2023)
+Version 3.31.0 (February 17, 2023)
 ------------------------------
 
 **User-visible changes:**
@@ -38,6 +38,7 @@ Removed methods from AnnotationUtils that are no longer useful:
 `createAnnotationMap`, `createAnnotationSet`, `createUnmodifiableAnnotationSet`.
 
 **Closed issues:**
+#5597.
 
 
 Version 3.30.0 (February 2, 2023)
