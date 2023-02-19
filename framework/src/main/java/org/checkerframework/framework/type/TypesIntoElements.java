@@ -44,11 +44,6 @@ import org.checkerframework.javacutil.TypeAnnotationUtils;
  */
 public final class TypesIntoElements {
 
-  // Class cannot be instantiated.
-  private TypesIntoElements() {
-    throw new AssertionError("Class TypesIntoElements cannot be instantiated.");
-  }
-
   /** Do not instantiate. */
   private TypesIntoElements() {
     throw new AssertionError("Class TypesIntoElements cannot be instantiated.");

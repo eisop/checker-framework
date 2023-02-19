@@ -44,11 +44,6 @@ import org.checkerframework.javacutil.Pair;
  */
 public final class ElementAnnotationApplier {
 
-  // Class cannot be instantiated.
-  private ElementAnnotationApplier() {
-    throw new AssertionError("Class ElementAnnotationApplier cannot be instantiated.");
-  }
-
   /** Do not instantiate. */
   private ElementAnnotationApplier() {
     throw new AssertionError("Class ElementAnnotationApplier cannot be instantiated.");

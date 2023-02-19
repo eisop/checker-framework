@@ -13,11 +13,6 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
  */
 public final class SyntheticArrays {
 
-  // Class cannot be instantiated.
-  private SyntheticArrays() {
-    throw new AssertionError("Class SyntheticArrays cannot be instantiated.");
-  }
-
   /** Do not instantiate. */
   private SyntheticArrays() {
     throw new AssertionError("Class SyntheticArrays cannot be instantiated.");

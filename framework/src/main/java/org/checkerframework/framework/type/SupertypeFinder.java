@@ -40,11 +40,6 @@ import org.plumelib.util.CollectionsPlume;
  */
 final class SupertypeFinder {
 
-  // Class cannot be instantiated.
-  private SupertypeFinder() {
-    throw new AssertionError("Class SupertypeFinder cannot be instantiated.");
-  }
-
   /** Do not instantiate. */
   private SupertypeFinder() {
     throw new AssertionError("Class SupertypeFinder cannot be instantiated.");
