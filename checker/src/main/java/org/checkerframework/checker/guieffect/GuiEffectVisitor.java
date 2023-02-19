@@ -520,9 +520,7 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
                 ExecutableElement method = invokedMethod.getElement();
                 CharSequence methodName = ElementUtils.getSimpleNameOrDescription(method);
                 List<? extends VariableElement> methodParams = method.getParameters();
-                List<AnnotatedTypeMirror> paramTypes =
-                        AnnotatedTypes.adaptParameters(
-                                atypeFactory, invokedMethod, invocationTree.getArguments());
+                List<AnnotatedTypeMirror> paramTypes = invokedMethod.getParameterTypes();
                 for (int i = 0; i < args.size(); ++i) {
                     if (args.get(i).getKind() == Tree.Kind.NEW_CLASS
                             || args.get(i).getKind() == Tree.Kind.LAMBDA_EXPRESSION) {

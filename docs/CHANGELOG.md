@@ -5,6 +5,8 @@ Version 3.30.0-eisop1 (February ?, 2023)
 
 **Implementation details:**
 
+Cleaned up unnecessary usages of `AnnotatedTypes.adaptParameters()`.
+
 A `VariableDeclarationNode` is now correctly added to the CFG for the binding variable
 in a `BindingPatternTree`.
 
@@ -12,6 +14,7 @@ Remove the `fastAssemble` task which is subsumed by `assembleForJavac`.
 
 **Closed issues:**
 
+eisop#310
 
 Version 3.30.0 (February 2, 2023)
 ---------------------------------

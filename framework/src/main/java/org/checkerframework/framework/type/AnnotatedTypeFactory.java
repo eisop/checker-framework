@@ -2353,6 +2353,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             addDefaultAnnotations(wildcard);
         }
 
+        // Store varargType before calling setParameterTypes, otherwise we may lose the varargType
+        // as it is the last element of the original parameterTypes.
+        method.computeVarargType();
+        // Adapt parameters, which makes parameters and arguments be the same size for later
+        // checking.
+        List<AnnotatedTypeMirror> parameters =
+                AnnotatedTypes.adaptParameters(this, method, tree.getArguments());
+        method.setParameterTypes(parameters);
         return result;
     }
 
@@ -2736,14 +2744,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // do this:
             // 1. get unsubstituted type of the super constructor.
             // 2. adapt it to this call site.
-            // 3. copy the parameters to the anonymous constructor, `con`.
-            // 4. copy annotations on the return type to `con`.
+            // 3. compute and store the vararg type.
+            // 4. copy the parameters to the anonymous constructor, `con`.
+            // 5. copy annotations on the return type to `con`.
             AnnotatedExecutableType superCon =
                     getAnnotatedType(TreeUtils.getSuperConstructor(tree));
             constructorFromUsePreSubstitution(tree, superCon);
             // no viewpoint adaptation needed for super invocation
             superCon =
                     AnnotatedTypes.asMemberOf(types, this, type, superCon.getElement(), superCon);
+            con.computeVarargType(superCon);
             if (superCon.getParameterTypes().size() == con.getParameterTypes().size()) {
                 con.setParameterTypes(superCon.getParameterTypes());
             } else {
@@ -2770,6 +2780,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             }
             con.getReturnType().replaceAnnotations(superCon.getReturnType().getAnnotations());
         } else {
+            // Store varargType before calling setParameterTypes, otherwise we may lose the
+            // varargType as it is the last element of the original parameterTypes.
+            // AnnotatedTypes.asMemberOf handles vararg type properly, so we do not need to compute
+            // vararg type again.
+            con.computeVarargType();
             con = AnnotatedTypes.asMemberOf(types, this, type, ctor, con);
         }
 
@@ -2802,6 +2817,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // Reset the enclosing type because it can be substituted incorrectly.
             ((AnnotatedDeclaredType) con.getReturnType()).setEnclosingType(enclosingType);
         }
+        // Adapt parameters, which makes parameters and arguments be the same size for later
+        // checking. The vararg type of con has been already computed and stored when calling
+        // typeVarSubstitutor.substitute.
+        List<AnnotatedTypeMirror> parameters =
+                AnnotatedTypes.adaptParameters(this, con, tree.getArguments());
+        con.setParameterTypes(parameters);
         return new ParameterizedExecutableType(con, typeargs);
     }
 
