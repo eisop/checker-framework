@@ -12,38 +12,38 @@ import org.checkerframework.dataflow.cfg.node.AssignmentNode;
  */
 public class ReachingDefinitionNode {
 
-  /**
-   * A reaching definition is represented by a node, which can only be a {@link
-   * org.checkerframework.dataflow.cfg.node.AssignmentNode}.
-   */
-  protected final AssignmentNode def;
+    /**
+     * A reaching definition is represented by a node, which can only be a {@link
+     * org.checkerframework.dataflow.cfg.node.AssignmentNode}.
+     */
+    protected final AssignmentNode def;
 
-  /**
-   * Create a new reaching definition.
-   *
-   * @param n an assignment node
-   */
-  public ReachingDefinitionNode(AssignmentNode n) {
-    this.def = n;
-  }
-
-  @Override
-  public int hashCode() {
-    return this.def.hashCode();
-  }
-
-  @Override
-  public boolean equals(@Nullable Object obj) {
-    if (!(obj instanceof ReachingDefinitionNode)) {
-      return false;
+    /**
+     * Create a new reaching definition.
+     *
+     * @param n an assignment node
+     */
+    public ReachingDefinitionNode(AssignmentNode n) {
+        this.def = n;
     }
-    ReachingDefinitionNode other = (ReachingDefinitionNode) obj;
-    // We use `.equals` instead of `==` here to compare value equality.
-    return this.def.equals(other.def);
-  }
 
-  @Override
-  public String toString() {
-    return this.def.toString();
-  }
+    @Override
+    public int hashCode() {
+        return this.def.hashCode();
+    }
+
+    @Override
+    public boolean equals(@Nullable Object obj) {
+        if (!(obj instanceof ReachingDefinitionNode)) {
+            return false;
+        }
+        ReachingDefinitionNode other = (ReachingDefinitionNode) obj;
+        // We use `.equals` instead of `==` here to compare value equality.
+        return this.def.equals(other.def);
+    }
+
+    @Override
+    public String toString() {
+        return this.def.toString();
+    }
 }

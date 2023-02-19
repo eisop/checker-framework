@@ -3,23 +3,24 @@
 
 // @above-java17-jdk-skip-test TODO: reinstate, false positives may be due to issue #979
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class Issue980 {
 
-  void m(List<String> strings) {
-    Stream<String> s = strings.stream();
+    void m(List<String> strings) {
+        Stream<String> s = strings.stream();
 
-    // This works:
-    List<String> collectedStrings1 = s.collect(Collectors.<String>toList());
-    // This works:
-    List<@Nullable String> collectedStrings2 = s.collect(Collectors.toList());
+        // This works:
+        List<String> collectedStrings1 = s.collect(Collectors.<String>toList());
+        // This works:
+        List<@Nullable String> collectedStrings2 = s.collect(Collectors.toList());
 
-    List<String> collectedStrings = s.collect(Collectors.toList());
+        List<String> collectedStrings = s.collect(Collectors.toList());
 
-    collectedStrings.forEach(System.out::println);
-  }
+        collectedStrings.forEach(System.out::println);
+    }
 }

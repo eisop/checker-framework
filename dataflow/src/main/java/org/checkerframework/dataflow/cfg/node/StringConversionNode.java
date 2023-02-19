@@ -1,12 +1,15 @@
 package org.checkerframework.dataflow.cfg.node;
 
 import com.sun.source.tree.Tree;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
+
 import javax.lang.model.type.TypeMirror;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
 
 /**
  * A node for the string conversion operation. See JLS 5.1.11 for the definition of string
@@ -22,55 +25,55 @@ import org.checkerframework.dataflow.qual.SideEffectFree;
  */
 public class StringConversionNode extends Node {
 
-  protected final Tree tree;
-  protected final Node operand;
+    protected final Tree tree;
+    protected final Node operand;
 
-  // TODO: The type of a string conversion should be a final
-  // TypeMirror representing java.lang.String. Currently we require
-  // the caller to pass in a TypeMirror instead of creating one
-  // through the javax.lang.model.type.Types interface.
-  public StringConversionNode(Tree tree, Node operand, TypeMirror type) {
-    super(type);
-    this.tree = tree;
-    this.operand = operand;
-  }
-
-  public Node getOperand() {
-    return operand;
-  }
-
-  @Override
-  public Tree getTree() {
-    return tree;
-  }
-
-  @Override
-  public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
-    return visitor.visitStringConversion(this, p);
-  }
-
-  @Override
-  public String toString() {
-    return "StringConversion(" + getOperand() + ")";
-  }
-
-  @Override
-  public boolean equals(@Nullable Object obj) {
-    if (!(obj instanceof StringConversionNode)) {
-      return false;
+    // TODO: The type of a string conversion should be a final
+    // TypeMirror representing java.lang.String. Currently we require
+    // the caller to pass in a TypeMirror instead of creating one
+    // through the javax.lang.model.type.Types interface.
+    public StringConversionNode(Tree tree, Node operand, TypeMirror type) {
+        super(type);
+        this.tree = tree;
+        this.operand = operand;
     }
-    StringConversionNode other = (StringConversionNode) obj;
-    return getOperand().equals(other.getOperand());
-  }
 
-  @Override
-  public int hashCode() {
-    return Objects.hash(StringConversionNode.class, getOperand());
-  }
+    public Node getOperand() {
+        return operand;
+    }
 
-  @Override
-  @SideEffectFree
-  public Collection<Node> getOperands() {
-    return Collections.singletonList(getOperand());
-  }
+    @Override
+    public Tree getTree() {
+        return tree;
+    }
+
+    @Override
+    public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
+        return visitor.visitStringConversion(this, p);
+    }
+
+    @Override
+    public String toString() {
+        return "StringConversion(" + getOperand() + ")";
+    }
+
+    @Override
+    public boolean equals(@Nullable Object obj) {
+        if (!(obj instanceof StringConversionNode)) {
+            return false;
+        }
+        StringConversionNode other = (StringConversionNode) obj;
+        return getOperand().equals(other.getOperand());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(StringConversionNode.class, getOperand());
+    }
+
+    @Override
+    @SideEffectFree
+    public Collection<Node> getOperands() {
+        return Collections.singletonList(getOperand());
+    }
 }

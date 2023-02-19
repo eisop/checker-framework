@@ -8,14 +8,15 @@
  *
  */
 
-import java.util.List;
-import java.util.function.Consumer;
 import org.checkerframework.checker.nullness.qual.*;
 
-public class LocateArtificialTree {
-  @NonNull class A {}
+import java.util.List;
+import java.util.function.Consumer;
 
-  void foo() {
-    Consumer<List<@Nullable A>> c = a -> {};
-  }
+public class LocateArtificialTree {
+    @NonNull class A {}
+
+    void foo() {
+        Consumer<List<@Nullable A>> c = a -> {};
+    }
 }

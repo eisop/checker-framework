@@ -1,10 +1,12 @@
 package org.checkerframework.common.accumulation;
 
 import com.sun.source.tree.AnnotationTree;
-import javax.lang.model.element.AnnotationMirror;
+
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.javacutil.TreeUtils;
+
+import javax.lang.model.element.AnnotationMirror;
 
 /**
  * The visitor for an accumulation checker. Issues predicate.invalid errors if the user writes an
@@ -12,25 +14,25 @@ import org.checkerframework.javacutil.TreeUtils;
  */
 public class AccumulationVisitor extends BaseTypeVisitor<AccumulationAnnotatedTypeFactory> {
 
-  /**
-   * Constructor matching super.
-   *
-   * @param checker the checker
-   */
-  public AccumulationVisitor(BaseTypeChecker checker) {
-    super(checker);
-  }
-
-  /** Checks each predicate annotation to make sure the predicate is well-formed. */
-  @Override
-  public Void visitAnnotation(final AnnotationTree tree, final Void p) {
-    AnnotationMirror anno = TreeUtils.annotationFromAnnotationTree(tree);
-    if (atypeFactory.isPredicate(anno)) {
-      String errorMessage = atypeFactory.isValidPredicate(anno);
-      if (errorMessage != null) {
-        checker.reportError(tree, "predicate.invalid", errorMessage);
-      }
+    /**
+     * Constructor matching super.
+     *
+     * @param checker the checker
+     */
+    public AccumulationVisitor(BaseTypeChecker checker) {
+        super(checker);
     }
-    return super.visitAnnotation(tree, p);
-  }
+
+    /** Checks each predicate annotation to make sure the predicate is well-formed. */
+    @Override
+    public Void visitAnnotation(final AnnotationTree tree, final Void p) {
+        AnnotationMirror anno = TreeUtils.annotationFromAnnotationTree(tree);
+        if (atypeFactory.isPredicate(anno)) {
+            String errorMessage = atypeFactory.isValidPredicate(anno);
+            if (errorMessage != null) {
+                checker.reportError(tree, "predicate.invalid", errorMessage);
+            }
+        }
+        return super.visitAnnotation(tree, p);
+    }
 }

@@ -1,6 +1,7 @@
+import org.checkerframework.checker.nullness.qual.*;
+
 import java.util.LinkedList;
 import java.util.List;
-import org.checkerframework.checker.nullness.qual.*;
 
 /**
  * This class illustrates use of nullness type annotations. The class doesn't do anything -- it is
@@ -12,27 +13,27 @@ import org.checkerframework.checker.nullness.qual.*;
  */
 public class NullnessExampleWithWarnings {
 
-  public void example() {
+    public void example() {
 
-    // In general, you do not have to annotate local variables, because the
-    // Nullness Checker infers such annotations.  It is written here in the
-    // example for emhpasis.
-    @NonNull String foo = "foo";
-    String bar = null;
+        // In general, you do not have to annotate local variables, because the
+        // Nullness Checker infers such annotations.  It is written here in the
+        // example for emhpasis.
+        @NonNull String foo = "foo";
+        String bar = null;
 
-    foo = bar;
-    bar = foo;
-  }
+        foo = bar;
+        bar = foo;
+    }
 
-  public String exampleGenerics() {
+    public String exampleGenerics() {
 
-    List<@NonNull String> foo = new LinkedList<@NonNull String>();
-    List<String> bar = foo;
+        List<@NonNull String> foo = new LinkedList<@NonNull String>();
+        List<String> bar = foo;
 
-    String quux = null;
-    foo.add(quux);
-    foo.add("quux");
-    @NonNull String baz = foo.get(0);
-    return baz;
-  }
+        String quux = null;
+        foo.add(quux);
+        foo.add("quux");
+        @NonNull String baz = foo.get(0);
+        return baz;
+    }
 }
