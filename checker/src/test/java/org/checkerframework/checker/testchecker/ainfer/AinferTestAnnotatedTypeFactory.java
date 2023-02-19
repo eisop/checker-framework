@@ -1,8 +1,5 @@
 package org.checkerframework.checker.testchecker.ainfer;
 
-import com.sun.source.tree.ClassTree;
-import com.sun.source.tree.MethodTree;
-import com.sun.source.tree.VariableTree;
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import java.util.Collection;
@@ -125,15 +122,14 @@ public class AinferTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
       super(atypeFactory);
     }
 
+    /* NO-AFU
     @Override
     public Void visitClass(ClassTree classTree, AnnotatedTypeMirror type) {
-      /* NO-AFU
       WholeProgramInference wpi = atypeFactory.getWholeProgramInference();
       TypeElement classElt = TreeUtils.elementFromDeclaration(classTree);
       if (wpi != null && classElt.getSimpleName().contentEquals("IShouldBeSibling1")) {
         wpi.addClassDeclarationAnnotation(classElt, SIBLING1);
       }
-      */
       return super.visitClass(classTree, type);
     }
 
@@ -149,7 +145,6 @@ public class AinferTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     @Override
     public Void visitMethod(MethodTree methodTree, AnnotatedTypeMirror type) {
-      /* NO-AFU
       WholeProgramInference wpi = atypeFactory.getWholeProgramInference();
       if (wpi != null) {
         ExecutableElement execElt = TreeUtils.elementFromDeclaration(methodTree);
@@ -161,9 +156,9 @@ public class AinferTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
           }
         }
       }
-      */
       return super.visitMethod(methodTree, type);
     }
+    end NO-AFU */
   }
 
   @Override
