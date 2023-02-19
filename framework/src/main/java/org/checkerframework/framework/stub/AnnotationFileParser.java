@@ -2963,7 +2963,7 @@ public class AnnotationFileParser {
         annotationsToAdd =
             annos.stream()
                 .filter(am -> !AnnotationUtils.containsSameByName(stored, am))
-                .collect(Collectors.toSet());
+                .collect(Collectors.toCollection(AnnotationMirrorSet::new));
       } else {
         // Annotations that are not from the annotated JDK may replace existing
         // annotations of the same type.
