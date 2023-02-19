@@ -3,6 +3,12 @@ Version 3.30.0-eisop1 (February ?, 2023)
 
 **User-visible changes:**
 
+The new command-line argument `-AcheckEnclosingExpr` enables
+type checking for enclosing expression types of inner class instantiations. This fixes an
+unsoundness, in particular for the Nullness Initialization Checker, which did not detect the use of
+an uninitialized outer class for an inner class instantiation.
+The option is off by default to avoid many false-positive errors.
+
 **Implementation details:**
 
 A `VariableDeclarationNode` is now correctly added to the CFG for the binding variable
@@ -11,6 +17,8 @@ in a `BindingPatternTree`.
 Remove the `fastAssemble` task which is subsumed by `assembleForJavac`.
 
 **Closed issues:**
+
+eisop#282
 
 
 Version 3.30.0 (February 2, 2023)

@@ -2760,8 +2760,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                         new ArrayList<>(superCon.getParameterTypes().size() + 1);
                 if (TreeUtils.hasSyntheticArgument(tree)) {
                     p.add(con.getParameterTypes().get(0));
+                    con.setReceiverType(superCon.getReceiverType());
                 } else if (con.getReceiverType() != null) {
                     p.add(con.getReceiverType());
+                    con.setReceiverType(superCon.getReceiverType());
                 } else {
                     p.add(con.getParameterTypes().get(0));
                 }

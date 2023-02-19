@@ -3469,10 +3469,15 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     public Node visitNewClass(NewClassTree tree, Void p) {
         // see JLS 15.9
 
+        DeclaredType classType = (DeclaredType) TreeUtils.typeOf(tree);
+        TypeMirror enclosingClassType = classType.getEnclosingType();
         Tree enclosingExpr = tree.getEnclosingExpression();
-        if (enclosingExpr != null) {
-            scan(enclosingExpr, p);
-        }
+        Node enclosingExprNode =
+                enclosingExpr != null
+                        ? scan(enclosingExpr, p)
+                        : (enclosingClassType.getKind() == TypeKind.DECLARED
+                                ? new ImplicitThisNode(enclosingClassType)
+                                : null);
 
         // Convert constructor arguments
         ExecutableElement constructor = TreeUtils.elementFromUse(tree);
@@ -3490,8 +3495,9 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         // Note that getClassBody() and therefore classbody can be null.
         ClassDeclarationNode classbody = (ClassDeclarationNode) scan(tree.getClassBody(), p);
 
-        Node node = new ObjectCreationNode(tree, constructorNode, arguments, classbody);
-
+        Node node =
+                new ObjectCreationNode(
+                        tree, enclosingExprNode, constructorNode, arguments, classbody);
         List<? extends TypeMirror> thrownTypes = constructor.getThrownTypes();
         Set<TypeMirror> thrownSet =
                 ArraySet.newArraySetOrLinkedHashSet(
