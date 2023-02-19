@@ -303,6 +303,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         checkCastElementType = checker.hasOption("checkCastElementType");
         conservativeUninferredTypeArguments =
                 checker.hasOption("conservativeUninferredTypeArguments");
+        checkEnclosingExpr = checker.hasOption("checkEnclosingExpr");
     }
 
     /** An array containing just {@code BaseTypeChecker.class}. */
