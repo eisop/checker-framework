@@ -224,7 +224,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
   protected final ExecutableElement unusedWhenElement;
 
   /** True if "-Ashowchecks" was passed on the command line. */
-  private final boolean showchecks;
+  protected final boolean showchecks;
 
   /* NO-AFU True if "-Ainfer" was passed on the command line. */
   /* NO-AFU
