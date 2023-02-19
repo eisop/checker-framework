@@ -1,16 +1,13 @@
 package org.checkerframework.dataflow.cfg.node;
 
 import com.sun.source.tree.Tree;
-
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
-
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.util.Types;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 
 /**
  * MarkerNodes are no-op Nodes used for debugging information. They can hold a Tree and a message,
@@ -20,56 +17,55 @@ import javax.lang.model.util.Types;
  */
 public class MarkerNode extends Node {
 
-    protected final @Nullable Tree tree;
-    protected final String message;
+  protected final @Nullable Tree tree;
+  protected final String message;
 
-    public MarkerNode(@Nullable Tree tree, String message, Types types) {
-        super(types.getNoType(TypeKind.NONE));
-        this.tree = tree;
-        this.message = message;
-    }
+  public MarkerNode(@Nullable Tree tree, String message, Types types) {
+    super(types.getNoType(TypeKind.NONE));
+    this.tree = tree;
+    this.message = message;
+  }
 
-    public String getMessage() {
-        return message;
-    }
+  public String getMessage() {
+    return message;
+  }
 
-    @Override
-    public @Nullable Tree getTree() {
-        return tree;
-    }
+  @Override
+  public @Nullable Tree getTree() {
+    return tree;
+  }
 
-    @Override
-    public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
-        return visitor.visitMarker(this, p);
-    }
+  @Override
+  public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
+    return visitor.visitMarker(this, p);
+  }
 
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("marker (");
-        sb.append(message);
-        sb.append(")");
-        return sb.toString();
-    }
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("marker (");
+    sb.append(message);
+    sb.append(")");
+    return sb.toString();
+  }
 
-    @Override
-    public boolean equals(@Nullable Object obj) {
-        if (!(obj instanceof MarkerNode)) {
-            return false;
-        }
-        MarkerNode other = (MarkerNode) obj;
-        return Objects.equals(getTree(), other.getTree())
-                && getMessage().equals(other.getMessage());
+  @Override
+  public boolean equals(@Nullable Object obj) {
+    if (!(obj instanceof MarkerNode)) {
+      return false;
     }
+    MarkerNode other = (MarkerNode) obj;
+    return Objects.equals(getTree(), other.getTree()) && getMessage().equals(other.getMessage());
+  }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(tree, getMessage());
-    }
+  @Override
+  public int hashCode() {
+    return Objects.hash(tree, getMessage());
+  }
 
-    @Override
-    @SideEffectFree
-    public Collection<Node> getOperands() {
-        return Collections.emptyList();
-    }
+  @Override
+  @SideEffectFree
+  public Collection<Node> getOperands() {
+    return Collections.emptyList();
+  }
 }

@@ -4,7 +4,7 @@
 import java.io.*;
 
 class WrapperStream {
-    void test(byte[] buf) {
-        InputStream is = new ByteArrayInputStream(buf);
-    }
+  void test(byte[] buf) {
+    InputStream is = new ByteArrayInputStream(buf);
+  }
 }
