@@ -449,18 +449,18 @@ public class I18nFormatterTreeUtil {
                                                         InvocationType, Class<Void>>() {
                                                     @Override
                                                     protected InvocationType defaultAction(
-                                                            Tree node, Class<Void> p) {
+                                                            Tree tree, Class<Void> p) {
                                                         // just a normal array
                                                         return InvocationType.ARRAY;
                                                     }
 
                                                     @Override
                                                     public InvocationType visitTypeCast(
-                                                            TypeCastTree node, Class<Void> p) {
+                                                            TypeCastTree tree, Class<Void> p) {
                                                         // it's a (Object[])null
                                                         return atypeFactory
                                                                                 .getAnnotatedType(
-                                                                                        node
+                                                                                        tree
                                                                                                 .getExpression())
                                                                                 .getUnderlyingType()
                                                                                 .getKind()

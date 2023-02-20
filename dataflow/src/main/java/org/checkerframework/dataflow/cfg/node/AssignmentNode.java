@@ -141,6 +141,7 @@ public class AssignmentNode extends Node {
     }
 
     @Override
+    @Pure
     public int hashCode() {
         return Objects.hash(getTarget(), getExpression());
     }

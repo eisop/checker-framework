@@ -165,15 +165,15 @@ public class FormatterTreeUtil {
     }
 
     /**
-     * Returns true if {@code node} is a call to a method annotated with {@code @FormatMethod}.
+     * Returns true if {@code tree} is a call to a method annotated with {@code @FormatMethod}.
      *
-     * @param node a method call
+     * @param tree a method call
      * @param atypeFactory a type factory
-     * @return true if {@code node} is a call to a method annotated with {@code @FormatMethod}
+     * @return true if {@code tree} is a call to a method annotated with {@code @FormatMethod}
      */
     public boolean isFormatMethodCall(
-            MethodInvocationTree node, AnnotatedTypeFactory atypeFactory) {
-        ExecutableElement method = TreeUtils.elementFromUse(node);
+            MethodInvocationTree tree, AnnotatedTypeFactory atypeFactory) {
+        ExecutableElement method = TreeUtils.elementFromUse(tree);
         AnnotationMirror anno = atypeFactory.getDeclAnnotation(method, FormatMethod.class);
         return anno != null;
     }
@@ -300,18 +300,18 @@ public class FormatterTreeUtil {
                                                         InvocationType, Class<Void>>() {
                                                     @Override
                                                     protected InvocationType defaultAction(
-                                                            Tree node, Class<Void> p) {
+                                                            Tree tree, Class<Void> p) {
                                                         // just a normal array
                                                         return InvocationType.ARRAY;
                                                     }
 
                                                     @Override
                                                     public InvocationType visitTypeCast(
-                                                            TypeCastTree node, Class<Void> p) {
+                                                            TypeCastTree tree, Class<Void> p) {
                                                         // it's a (Object[])null
                                                         return atypeFactory
                                                                                 .getAnnotatedType(
-                                                                                        node
+                                                                                        tree
                                                                                                 .getExpression())
                                                                                 .getUnderlyingType()
                                                                                 .getKind()

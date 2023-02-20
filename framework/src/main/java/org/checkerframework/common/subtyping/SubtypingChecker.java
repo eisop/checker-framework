@@ -5,8 +5,8 @@ import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.source.SourceVisitor;
 
 import java.lang.annotation.Annotation;
+import java.util.NavigableSet;
 import java.util.Set;
-import java.util.SortedSet;
 import java.util.TreeSet;
 
 import javax.annotation.processing.SupportedOptions;
@@ -42,8 +42,8 @@ public final class SubtypingChecker extends BaseTypeChecker {
      *     executed by checker
      * @return SuppressWarnings prefixes, based on the names of all the qualifiers
      */
-    public static SortedSet<String> getSuppressWarningsPrefixes(
-            SourceVisitor<?, ?> visitor, SortedSet<String> superSupportedTypeQualifiers) {
+    public static NavigableSet<String> getSuppressWarningsPrefixes(
+            SourceVisitor<?, ?> visitor, NavigableSet<String> superSupportedTypeQualifiers) {
         TreeSet<String> result = new TreeSet<>(superSupportedTypeQualifiers);
 
         // visitor can be null if there was an error when calling the visitor class's constructor --
@@ -60,7 +60,7 @@ public final class SubtypingChecker extends BaseTypeChecker {
     }
 
     @Override
-    public SortedSet<String> getSuppressWarningsPrefixes() {
+    public NavigableSet<String> getSuppressWarningsPrefixes() {
         return getSuppressWarningsPrefixes(this.visitor, super.getSuppressWarningsPrefixes());
     }
 }

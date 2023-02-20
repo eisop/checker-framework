@@ -49,10 +49,10 @@ import org.checkerframework.framework.type.treeannotator.PropagationTreeAnnotato
 import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.framework.type.typeannotator.ListTypeAnnotator;
 import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
-import org.checkerframework.framework.util.AnnotationMirrorSet;
 import org.checkerframework.framework.util.FieldInvariants;
 import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
 import org.checkerframework.javacutil.AnnotationBuilder;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.SystemUtil;
@@ -262,25 +262,24 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     @Override
-    protected void applyInferredAnnotations(AnnotatedTypeMirror type, CFValue as) {
+    protected void applyInferredAnnotations(AnnotatedTypeMirror type, CFValue inferred) {
         // Inference can widen an IntRange beyond the values possible for the Java type. Change the
         // annotation here so it is no wider than is possible.
-        TypeMirror t = as.getUnderlyingType();
-        Set<AnnotationMirror> inferredAnnos = as.getAnnotations();
+        TypeMirror t = inferred.getUnderlyingType();
+        AnnotationMirrorSet inferredAnnos = inferred.getAnnotations();
         AnnotationMirror intRange =
                 AnnotationUtils.getAnnotationByName(inferredAnnos, INTRANGE_NAME);
         if (intRange != null && TypeKindUtils.primitiveOrBoxedToTypeKind(t) != null) {
             Range range = getRange(intRange);
             Range newRange = NumberUtils.castRange(t, range);
             if (!newRange.equals(range)) {
-                inferredAnnos =
-                        AnnotationMirrorSet.singleElementSet(createIntRangeAnnotation(newRange));
+                inferredAnnos = AnnotationMirrorSet.singleton(createIntRangeAnnotation(newRange));
             }
         }
 
         DefaultInferredTypesApplier applier =
                 new DefaultInferredTypesApplier(getQualifierHierarchy(), this);
-        applier.applyInferredType(type, inferredAnnos, as.getUnderlyingType());
+        applier.applyInferredType(type, inferredAnnos, inferred.getUnderlyingType());
     }
 
     @Override
@@ -582,8 +581,8 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                             new PropagationTreeAnnotator(atypeFactory);
 
                     @Override
-                    public Void visitNewArray(NewArrayTree node, AnnotatedTypeMirror mirror) {
-                        return propagationTreeAnnotator.visitNewArray(node, mirror);
+                    public Void visitNewArray(NewArrayTree tree, AnnotatedTypeMirror mirror) {
+                        return propagationTreeAnnotator.visitNewArray(tree, mirror);
                     }
                 };
         return new ListTreeAnnotator(
@@ -750,6 +749,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                     }
                 }
                 if (numberVals.isEmpty()) {
+                    // Every value in the list is a Character.
                     return createCharAnnotation(characterVals);
                 }
                 return createNumberAnnotationMirror(new ArrayList<>(numberVals));
@@ -988,7 +988,8 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     /**
      * Returns an annotation that represents the given set of values.
      *
-     * @param values a homogeneous list: every element of it has the same class
+     * @param values a homogeneous list: every element of it has the same class. This method does
+     *     not modify or store it.
      * @return an annotation that represents the given set of values
      */
     public AnnotationMirror createNumberAnnotationMirror(List<Number> values) {
@@ -1005,8 +1006,8 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             List<Long> intValues = CollectionsPlume.mapList(Number::longValue, values);
             return createIntValAnnotation(intValues);
         } else if (first instanceof Double || first instanceof Float) {
-            List<Double> intValues = CollectionsPlume.mapList(Number::doubleValue, values);
-            return createDoubleValAnnotation(intValues);
+            List<Double> doubleValues = CollectionsPlume.mapList(Number::doubleValue, values);
+            return createDoubleValAnnotation(doubleValues);
         }
         throw new UnsupportedOperationException(
                 "ValueAnnotatedTypeFactory: unexpected class: " + first.getClass());
@@ -1432,7 +1433,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      * @param anmSet a set of annotations
      * @return true if any annotation is {@link IntRange} or related
      */
-    public boolean isIntRange(Set<AnnotationMirror> anmSet) {
+    public boolean isIntRange(AnnotationMirrorSet anmSet) {
         for (AnnotationMirror anm : anmSet) {
             if (isIntRange(anm)) {
                 return true;
@@ -1532,7 +1533,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      * @param annotations the annotations on the array expression
      * @return the minimum length of an array
      */
-    public int getMinLenValue(Set<AnnotationMirror> annotations) {
+    public int getMinLenValue(AnnotationMirrorSet annotations) {
         int result = 0;
         for (AnnotationMirror annotation : annotations) {
             Integer minLen = getSpecifiedMinLenValue(annotation);

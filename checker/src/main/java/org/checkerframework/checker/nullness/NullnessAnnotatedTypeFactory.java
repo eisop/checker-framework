@@ -54,6 +54,7 @@ import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.QualifierKind;
 import org.checkerframework.javacutil.AnnotationBuilder;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
@@ -609,17 +610,17 @@ public class NullnessAnnotatedTypeFactory
         }
 
         @Override
-        public Void visitBinary(BinaryTree node, AnnotatedTypeMirror type) {
+        public Void visitBinary(BinaryTree tree, AnnotatedTypeMirror type) {
             return null;
         }
 
         @Override
-        public Void visitUnary(UnaryTree node, AnnotatedTypeMirror type) {
+        public Void visitUnary(UnaryTree tree, AnnotatedTypeMirror type) {
             return null;
         }
 
         @Override
-        public Void visitTypeCast(TypeCastTree node, AnnotatedTypeMirror type) {
+        public Void visitTypeCast(TypeCastTree tree, AnnotatedTypeMirror type) {
             if (type.getKind().isPrimitive()) {
                 AnnotationMirror NONNULL = ((NullnessAnnotatedTypeFactory) atypeFactory).NONNULL;
                 // If a @Nullable expression is cast to a primitive, then an unboxing.of.nullable
@@ -629,7 +630,7 @@ public class NullnessAnnotatedTypeFactory
                     type.addAnnotation(NONNULL);
                 }
             }
-            return super.visitTypeCast(node, type);
+            return super.visitTypeCast(tree, type);
         }
     }
 
@@ -641,16 +642,16 @@ public class NullnessAnnotatedTypeFactory
         }
 
         @Override
-        public Void visitMemberSelect(MemberSelectTree node, AnnotatedTypeMirror type) {
+        public Void visitMemberSelect(MemberSelectTree tree, AnnotatedTypeMirror type) {
 
-            Element elt = TreeUtils.elementFromUse(node);
+            Element elt = TreeUtils.elementFromUse(tree);
             assert elt != null;
             return null;
         }
 
         @Override
-        public Void visitVariable(VariableTree node, AnnotatedTypeMirror type) {
-            Element elt = TreeUtils.elementFromDeclaration(node);
+        public Void visitVariable(VariableTree tree, AnnotatedTypeMirror type) {
+            Element elt = TreeUtils.elementFromDeclaration(tree);
             if (elt.getKind() == ElementKind.EXCEPTION_PARAMETER) {
                 if (!type.isAnnotatedInHierarchy(NONNULL)) {
                     // case 9. exception parameter
@@ -661,9 +662,9 @@ public class NullnessAnnotatedTypeFactory
         }
 
         @Override
-        public Void visitIdentifier(IdentifierTree node, AnnotatedTypeMirror type) {
+        public Void visitIdentifier(IdentifierTree tree, AnnotatedTypeMirror type) {
 
-            Element elt = TreeUtils.elementFromUse(node);
+            Element elt = TreeUtils.elementFromUse(tree);
             assert elt != null;
 
             if (elt.getKind() == ElementKind.EXCEPTION_PARAMETER) {
@@ -678,14 +679,14 @@ public class NullnessAnnotatedTypeFactory
 
         // The result of a binary operation is always non-null.
         @Override
-        public Void visitBinary(BinaryTree node, AnnotatedTypeMirror type) {
+        public Void visitBinary(BinaryTree tree, AnnotatedTypeMirror type) {
             type.replaceAnnotation(NONNULL);
             return null;
         }
 
         // The result of a compound operation is always non-null.
         @Override
-        public Void visitCompoundAssignment(CompoundAssignmentTree node, AnnotatedTypeMirror type) {
+        public Void visitCompoundAssignment(CompoundAssignmentTree tree, AnnotatedTypeMirror type) {
             type.replaceAnnotation(NONNULL);
             // Commitment will run after for initialization defaults
             return null;
@@ -693,20 +694,20 @@ public class NullnessAnnotatedTypeFactory
 
         // The result of a unary operation is always non-null.
         @Override
-        public Void visitUnary(UnaryTree node, AnnotatedTypeMirror type) {
+        public Void visitUnary(UnaryTree tree, AnnotatedTypeMirror type) {
             type.replaceAnnotation(NONNULL);
             return null;
         }
 
         // The result of newly allocated structures is always non-null.
         @Override
-        public Void visitNewClass(NewClassTree node, AnnotatedTypeMirror type) {
+        public Void visitNewClass(NewClassTree tree, AnnotatedTypeMirror type) {
             type.replaceAnnotation(NONNULL);
             return null;
         }
 
         @Override
-        public Void visitNewArray(NewArrayTree node, AnnotatedTypeMirror type) {
+        public Void visitNewArray(NewArrayTree tree, AnnotatedTypeMirror type) {
             // The result of newly allocated structures is always non-null.
             if (!type.isAnnotatedInHierarchy(NONNULL)) {
                 type.replaceAnnotation(NONNULL);
@@ -784,7 +785,7 @@ public class NullnessAnnotatedTypeFactory
     protected boolean hasFieldInvariantAnnotation(
             AnnotatedTypeMirror type, VariableElement fieldElement) {
         AnnotationMirror invariant = getFieldInvariantAnnotation();
-        Set<AnnotationMirror> lowerBounds =
+        AnnotationMirrorSet lowerBounds =
                 AnnotatedTypes.findEffectiveLowerBoundAnnotations(qualHierarchy, type);
         return AnnotationUtils.containsSame(lowerBounds, invariant);
     }
@@ -1083,7 +1084,7 @@ public class NullnessAnnotatedTypeFactory
     /**
      * Returns true if {@code node} is an invocation of Map.get.
      *
-     * @param node a node
+     * @param node a CFG node
      * @return true if {@code node} is an invocation of Map.get
      */
     public boolean isMapGet(Node node) {
