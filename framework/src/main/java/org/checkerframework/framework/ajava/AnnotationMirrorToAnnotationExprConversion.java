@@ -25,13 +25,13 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.utils.StringEscapeUtils;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
@@ -81,7 +81,7 @@ public class AnnotationMirrorToAnnotationExprConversion {
      * @see #annotationMirrorToAnnotationExpr
      */
     public static NodeList<AnnotationExpr> annotationMirrorSetToAnnotationExprList(
-            Set<AnnotationMirror> annotationMirrors) {
+            AnnotationMirrorSet annotationMirrors) {
         NodeList<AnnotationExpr> result = new NodeList<>();
         for (AnnotationMirror am : annotationMirrors) {
             result.add(annotationMirrorToAnnotationExpr(am));

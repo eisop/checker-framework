@@ -5,11 +5,10 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.type.DefaultAnnotatedTypeFormatter;
 import org.checkerframework.framework.util.AnnotationFormatter;
 import org.checkerframework.framework.util.DefaultAnnotationFormatter;
-import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.util.Elements;
@@ -72,7 +71,7 @@ public class UnitsAnnotatedTypeFormatter extends DefaultAnnotatedTypeFormatter {
         public String formatAnnotationString(
                 Collection<? extends AnnotationMirror> annos, boolean printInvisible) {
             // create an empty annotation set
-            Set<AnnotationMirror> trimmedAnnoSet = AnnotationUtils.createAnnotationSet();
+            AnnotationMirrorSet trimmedAnnoSet = new AnnotationMirrorSet();
 
             // loop through all the annotation mirrors to see if they use Prefix.one, remove
             // Prefix.one if it does

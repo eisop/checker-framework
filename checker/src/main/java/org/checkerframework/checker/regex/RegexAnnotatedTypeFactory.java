@@ -33,13 +33,13 @@ import org.checkerframework.framework.type.treeannotator.PropagationTreeAnnotato
 import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.framework.util.QualifierKind;
 import org.checkerframework.javacutil.AnnotationBuilder;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 
 import java.lang.annotation.Annotation;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -93,6 +93,10 @@ public class RegexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     /** The @{@link UnknownRegex} annotation. */
     protected final AnnotationMirror UNKNOWNREGEX =
             AnnotationBuilder.fromClass(elements, UnknownRegex.class);
+
+    /** A set containing just {@link #UNKNOWNREGEX}. */
+    protected final AnnotationMirrorSet UNKNOWNREGEX_SET =
+            AnnotationMirrorSet.singleton(UNKNOWNREGEX);
 
     /** The method that returns the value element of a {@code @Regex} annotation. */
     protected final ExecutableElement regexValueElement =
@@ -291,9 +295,9 @@ public class RegexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     @Override
-    public Set<AnnotationMirror> getWidenedAnnotations(
-            Set<AnnotationMirror> annos, TypeKind typeKind, TypeKind widenedTypeKind) {
-        return Collections.singleton(UNKNOWNREGEX);
+    public AnnotationMirrorSet getWidenedAnnotations(
+            AnnotationMirrorSet annos, TypeKind typeKind, TypeKind widenedTypeKind) {
+        return UNKNOWNREGEX_SET;
     }
 
     @Override
@@ -313,7 +317,7 @@ public class RegexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         @Override
-        public Void visitBinary(BinaryTree node, AnnotatedTypeMirror type) {
+        public Void visitBinary(BinaryTree tree, AnnotatedTypeMirror type) {
             // Don't call super method which will try to create a LUB
             // Even when it is not yet valid: i.e. between a @PolyRegex and a @Regex
             return null;
@@ -404,10 +408,10 @@ public class RegexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
         /** Case 2: Also handle compound String concatenation. */
         @Override
-        public Void visitCompoundAssignment(CompoundAssignmentTree node, AnnotatedTypeMirror type) {
-            if (TreeUtils.isStringCompoundConcatenation(node)) {
-                AnnotatedTypeMirror rhs = getAnnotatedType(node.getExpression());
-                AnnotatedTypeMirror lhs = getAnnotatedType(node.getVariable());
+        public Void visitCompoundAssignment(CompoundAssignmentTree tree, AnnotatedTypeMirror type) {
+            if (TreeUtils.isStringCompoundConcatenation(tree)) {
+                AnnotatedTypeMirror rhs = getAnnotatedType(tree.getExpression());
+                AnnotatedTypeMirror lhs = getAnnotatedType(tree.getVariable());
 
                 final Integer lhsRegexCount = getMinimumRegexCount(lhs);
                 final Integer rhsRegexCount = getMinimumRegexCount(rhs);
@@ -419,7 +423,7 @@ public class RegexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                     type.addAnnotation(createRegexAnnotation(lCount + rCount));
                 }
             }
-            return null; // super.visitCompoundAssignment(node, type);
+            return null; // super.visitCompoundAssignment(tree, type);
         }
 
         /**

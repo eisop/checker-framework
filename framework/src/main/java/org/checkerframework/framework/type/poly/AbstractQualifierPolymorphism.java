@@ -18,8 +18,8 @@ import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.visitor.EquivalentAtmComboScanner;
 import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
 import org.checkerframework.framework.util.AnnotatedTypes;
-import org.checkerframework.framework.util.AnnotationMirrorMap;
-import org.checkerframework.framework.util.AnnotationMirrorSet;
+import org.checkerframework.javacutil.AnnotationMirrorMap;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
@@ -532,8 +532,8 @@ public abstract class AbstractQualifierPolymorphism implements QualifierPolymorp
         protected String defaultErrorMessage(
                 AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, Void aVoid) {
             return String.format(
-                    "AbstractQualifierPolymorphism: Unexpected combination: type1: %s (%s) type2:"
-                            + " %s (%s).",
+                    "AbstractQualifierPolymorphism:"
+                            + " Unexpected combination: type1: %s (%s) type2: %s (%s).",
                     type1, type1.getKind(), type2, type2.getKind());
         }
 

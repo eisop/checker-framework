@@ -26,12 +26,10 @@ import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.framework.type.typeannotator.DefaultQualifierForUseTypeAnnotator;
 import org.checkerframework.framework.type.typeannotator.ListTypeAnnotator;
 import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
-import org.checkerframework.framework.util.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationBuilder;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
-
-import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -75,6 +73,9 @@ public class InterningAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     /** The {@link InternedDistinct} annotation. */
     final AnnotationMirror INTERNED_DISTINCT =
             AnnotationBuilder.fromClass(elements, InternedDistinct.class);
+
+    /** A set containing just {@link #INTERNED}. */
+    final AnnotationMirrorSet INTERNED_SET = AnnotationMirrorSet.singleton(INTERNED);
 
     /**
      * Creates a new {@link InterningAnnotatedTypeFactory} that operates on a particular AST.
@@ -129,10 +130,10 @@ public class InterningAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     @Override
-    public Set<AnnotationMirror> getTypeDeclarationBounds(TypeMirror typeMirror) {
+    public AnnotationMirrorSet getTypeDeclarationBounds(TypeMirror typeMirror) {
         if (typeMirror.getKind() == TypeKind.DECLARED
                 && ((DeclaredType) typeMirror).asElement().getKind() == ElementKind.ENUM) {
-            return AnnotationMirrorSet.singleElementSet(INTERNED);
+            return INTERNED_SET;
         }
         return super.getTypeDeclarationBounds(typeMirror);
     }
@@ -172,45 +173,45 @@ public class InterningAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         @Override
-        public Void visitBinary(BinaryTree node, AnnotatedTypeMirror type) {
-            if (TreeUtils.isCompileTimeString(node)) {
+        public Void visitBinary(BinaryTree tree, AnnotatedTypeMirror type) {
+            if (TreeUtils.isCompileTimeString(tree)) {
                 type.replaceAnnotation(INTERNED);
-            } else if (TreeUtils.isStringConcatenation(node)) {
+            } else if (TreeUtils.isStringConcatenation(tree)) {
                 type.replaceAnnotation(TOP);
             } else if (type.getKind().isPrimitive()
-                    || node.getKind() == Tree.Kind.EQUAL_TO
-                    || node.getKind() == Tree.Kind.NOT_EQUAL_TO) {
+                    || tree.getKind() == Tree.Kind.EQUAL_TO
+                    || tree.getKind() == Tree.Kind.NOT_EQUAL_TO) {
                 type.replaceAnnotation(INTERNED);
             } else {
                 type.replaceAnnotation(TOP);
             }
-            return super.visitBinary(node, type);
+            return super.visitBinary(tree, type);
         }
 
         /* Compound assignments never result in an interned result.
          */
         @Override
-        public Void visitCompoundAssignment(CompoundAssignmentTree node, AnnotatedTypeMirror type) {
+        public Void visitCompoundAssignment(CompoundAssignmentTree tree, AnnotatedTypeMirror type) {
             type.replaceAnnotation(TOP);
-            return super.visitCompoundAssignment(node, type);
+            return super.visitCompoundAssignment(tree, type);
         }
 
         @Override
-        public Void visitTypeCast(TypeCastTree node, AnnotatedTypeMirror type) {
-            if (TreeUtils.typeOf(node.getType()).getKind().isPrimitive()) {
+        public Void visitTypeCast(TypeCastTree tree, AnnotatedTypeMirror type) {
+            if (TreeUtils.typeOf(tree.getType()).getKind().isPrimitive()) {
                 type.replaceAnnotation(INTERNED);
             }
-            return super.visitTypeCast(node, type);
+            return super.visitTypeCast(tree, type);
         }
 
         @Override
-        public Void visitIdentifier(IdentifierTree node, AnnotatedTypeMirror type) {
-            Element e = TreeUtils.elementFromUse(node);
+        public Void visitIdentifier(IdentifierTree tree, AnnotatedTypeMirror type) {
+            Element e = TreeUtils.elementFromUse(tree);
             if (atypeFactory.getDeclAnnotation(e, FindDistinct.class) != null) {
                 // TODO: See note above about this being a poor implementation.
                 type.replaceAnnotation(INTERNED_DISTINCT);
             }
-            return super.visitIdentifier(node, type);
+            return super.visitIdentifier(tree, type);
         }
     }
 

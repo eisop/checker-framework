@@ -28,7 +28,7 @@ class COAnonymousClass {
                             // treats all versions of "this" (including "Foo.this") as referring to
                             // the object that directly contains the annotation, so we treat this
                             // call to resetFoo as not permitted.
-                            // :: error: reset.not.owning
+                            // :: error: (reset.not.owning)
                             resetFoo();
                         }
                     };

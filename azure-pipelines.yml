@@ -20,7 +20,7 @@ jobs:
    - nonjunit_tests_jdk17
    - inference_tests_jdk17
    - typecheck_jdk17
-   - misc_jdk17
+#   - misc_jdk17
    - jspecify_tests_jdk17
   pool:
     vmImage: 'ubuntu-latest'
@@ -174,7 +174,7 @@ jobs:
 # Unlimited fetchDepth for misc_jobs, because of need to make contributors.tex
 - job: misc_jdk8
   dependsOn:
-   - canary_jobs
+   # - canary_jobs
    - misc_jdk17
   pool:
     vmImage: 'ubuntu-latest'
@@ -185,7 +185,7 @@ jobs:
     displayName: test-misc.sh
 - job: misc_jdk11
   dependsOn:
-   - canary_jobs
+   # - canary_jobs
    - misc_jdk17
   pool:
     vmImage: 'ubuntu-latest'

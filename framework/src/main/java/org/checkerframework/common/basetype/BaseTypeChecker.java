@@ -114,6 +114,8 @@ public abstract class BaseTypeChecker extends SourceChecker {
         }
 
         super.initChecker();
+
+        warnUnneededSuppressions = hasOption("warnUnneededSuppressions");
     }
 
     /**
@@ -152,6 +154,19 @@ public abstract class BaseTypeChecker extends SourceChecker {
      * #getSuppressWarningsPrefixesOfSubcheckers}.
      */
     private @MonotonicNonNull Collection<String> suppressWarningsPrefixesOfSubcheckers = null;
+
+    /** True if -AwarnUnneededSuppressions was supplied on the command line. */
+    // Not final because it is set in `init()`.
+    private boolean warnUnneededSuppressions;
+
+    @Override
+    protected void setRoot(CompilationUnitTree newRoot) {
+        super.setRoot(newRoot);
+        if (parentChecker == null) {
+            // Only clear the path cache if this is the main checker.
+            treePathCacher.clear();
+        }
+    }
 
     /**
      * Returns the set of subchecker classes on which this checker depends. Returns an empty set if
@@ -328,7 +343,15 @@ public abstract class BaseTypeChecker extends SourceChecker {
                     // Don't add more information about the constructor invocation.
                     throw (RuntimeException) err;
                 }
+            } else if (t instanceof NoSuchMethodException) {
+                // Note: it's possible that NoSuchMethodException was caused by
+                // `ctor.newInstance(args)`, if
+                // the constructor itself uses reflection.  But this case is unlikely.
+                throw new TypeSystemError(
+                        "Could not find constructor %s(%s)",
+                        name, StringsPlume.join(", ", paramTypes));
             }
+
             Throwable cause;
             String causeMessage;
             if (t instanceof InvocationTargetException) {
@@ -595,7 +618,7 @@ public abstract class BaseTypeChecker extends SourceChecker {
             return;
         }
 
-        if (!hasOption("warnUnneededSuppressions")) {
+        if (!warnUnneededSuppressions) {
             return;
         }
         Set<Element> elementsWithSuppressedWarnings =

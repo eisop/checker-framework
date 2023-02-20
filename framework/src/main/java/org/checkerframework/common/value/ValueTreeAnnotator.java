@@ -126,7 +126,7 @@ class ValueTreeAnnotator extends TreeAnnotator {
      *
      * @param dimensions a list of ExpressionTrees where each ExpressionTree is a specifier of the
      *     size of that dimension
-     * @param type the AnnotatedTypeMirror of the array
+     * @param type the AnnotatedTypeMirror of the array, which is side-effected by this method
      */
     private void handleDimensions(
             List<? extends ExpressionTree> dimensions,
@@ -261,6 +261,7 @@ class ValueTreeAnnotator extends TreeAnnotator {
         return null;
     }
 
+    // Side-effects the `atm` formal parameter.
     @Override
     public Void visitTypeCast(TypeCastTree tree, AnnotatedTypeMirror atm) {
         if (handledByValueChecker(atm)) {
@@ -307,8 +308,13 @@ class ValueTreeAnnotator extends TreeAnnotator {
     }
 
     /**
-     * Get the "value" field of the given annotation, casted to the given type. Empty list means no
-     * value is possible (dead code). Null means no information is known -- any value is possible.
+     * Get the "value" field of the annotation on {@code type}, casted to the given type. Empty list
+     * means no value is possible (dead code). Null means no information is known -- any value is
+     * possible.
+     *
+     * @param type the type with a Value Checker annotation
+     * @param castTo the type to cast to
+     * @return the Value Checker annotation's value, casted to the given type
      */
     private List<?> getValues(AnnotatedTypeMirror type, TypeMirror castTo) {
         AnnotationMirror anno = type.getAnnotationInHierarchy(atypeFactory.UNKNOWNVAL);
@@ -620,7 +626,7 @@ class ValueTreeAnnotator extends TreeAnnotator {
 
     @Override
     public Void visitConditionalExpression(
-            ConditionalExpressionTree node, AnnotatedTypeMirror annotatedTypeMirror) {
+            ConditionalExpressionTree tree, AnnotatedTypeMirror annotatedTypeMirror) {
         // Work around for https://github.com/typetools/checker-framework/issues/602.
         annotatedTypeMirror.replaceAnnotation(atypeFactory.UNKNOWNVAL);
         return null;

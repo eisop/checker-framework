@@ -620,7 +620,7 @@ method arguments have the same signedness type.  Writing
 \end{Verbatim}
 
 \noindent
-permits every invocation, because one if its instantiations is
+permits every invocation, because one of its instantiations is
 
 \begin{Verbatim}
   void foo(@UnknownSignedness Object a, @UnknownSignedness Object b) { ... }
@@ -942,9 +942,9 @@ optional, and many checker classes do not have one.)
 The checker class bridges between the Java compiler and the checker.  It
 invokes the type-rule check visitor on every Java source file being
 compiled.  The checker uses
-\refmethod{framework/source}{SourceChecker}{reportError}{(java.lang.Object,java.lang.String-java.lang.Object...)}
+\refmethod{framework/source}{SourceChecker}{reportError}{(java.lang.Object,java.lang.String,java.lang.Object...)}
 and
-\refmethod{framework/source}{SourceChecker}{reportWarning}{(java.lang.Object,java.lang.String-java.lang.Object...)}
+\refmethod{framework/source}{SourceChecker}{reportWarning}{(java.lang.Object,java.lang.String,java.lang.Object...)}
 to issue errors.
 
 Also, the checker class follows the factory method pattern to
@@ -961,7 +961,7 @@ must specify the component classes for construction.
 A checker can customize the default error messages through a
 \sunjavadoc{java.base/java/util/Properties.html}{Properties}-loadable text file named
 \<messages.properties> that appears in the same directory as the checker class.
-The property file keys are the strings passed to \refmethodterse{framework/source}{SourceChecker}{reportError}{(java.lang.Object,java.lang.String-java.lang.Object...)}
+The property file keys are the strings passed to \refmethodterse{framework/source}{SourceChecker}{reportError}{(java.lang.Object,java.lang.String,java.lang.Object...)}
 and
 \refmethodterse{framework/source}{SourceChecker}{reportWarning}{(java.lang.Object,java.lang.String,java.lang.Object...)}
 (like \code{"type.incompatible"}) and the values are the strings to be
@@ -1150,9 +1150,9 @@ Java syntax trees as provided by Oracle's
 \href{https://docs.oracle.com/en/java/javase/17/docs/api/jdk.compiler/module-summary.html}{jdk.compiler
 API},
 and it issues a warning (by calling
-\refmethodterse{framework/source}{SourceChecker}{reportError}{(java.lang.Object-java.lang.String,java.lang.Object...)}
+\refmethodterse{framework/source}{SourceChecker}{reportError}{(java.lang.Object,java.lang.String,java.lang.Object...)}
 or
-\refmethodterse{framework/source}{SourceChecker}{reportWarning}{(java.lang.Object-java.lang.String,java.lang.Object...)})
+\refmethodterse{framework/source}{SourceChecker}{reportWarning}{(java.lang.Object,java.lang.String,java.lang.Object...)})
 whenever the type system is violated.
 
 Most type-checkers
@@ -1988,7 +1988,7 @@ This does not work if you are using Maven, because it does not print
 the full output of the Java compiler (see \url{https://github.com/codehaus-plexus/plexus-compiler/issues/149}).
 % Also, with forked compilation,
 % the maven-compiler-plugin queues up all the output and then prints it at the end.
-(Also, maven-compiler-plugin versions before 3.10.1 are buggy: it sometimes
+(Also, maven-compiler-plugin is buggy: it sometimes
 doesn't print any output if it cannot parse it.)
 % Example of not producing output:
 % https://github.com/codehaus-plexus/plexus-compiler/issues/66
@@ -2495,7 +2495,7 @@ build powerful and useful checkers.
 Beyond this document,
 other useful resources include the Java Infrastructure
 Developer's guide at
-\url{https://netbeans.apache.org/wiki/Java_DevelopersGuide.asciidoc} and the compiler
+\url{https://netbeans.apache.org/wiki/Java_DevelopersGuide.html} and the compiler
 mailing list archives at
 \url{https://mail.openjdk.org/pipermail/compiler-dev/}
 (subscribe at

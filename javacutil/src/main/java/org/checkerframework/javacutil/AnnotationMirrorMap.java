@@ -1,9 +1,12 @@
-package org.checkerframework.framework.util;
+package org.checkerframework.javacutil;
 
-import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.checker.nullness.qual.KeyFor;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -23,21 +26,21 @@ import javax.lang.model.element.AnnotationMirror;
  * <p>AnnotationMirror is an interface and not all implementing classes provide a correct equals
  * method; therefore, existing implementations of Map cannot be used.
  */
-public class AnnotationMirrorMap<V> implements Map<AnnotationMirror, V> {
+public class AnnotationMirrorMap<V> implements Map<@KeyFor("this") AnnotationMirror, V> {
 
     /** The actual map to which all work is delegated. */
-    private final Map<AnnotationMirror, V> shadowMap;
+    private final NavigableMap<@KeyFor("this") AnnotationMirror, V> shadowMap =
+            new TreeMap<>(AnnotationUtils::compareAnnotationMirrors);
 
     /** Default constructor. */
-    public AnnotationMirrorMap() {
-        this.shadowMap = new TreeMap<>(AnnotationUtils::compareAnnotationMirrors);
-    }
+    public AnnotationMirrorMap() {}
 
     /**
      * Creates an annotation mirror map and adds all the mappings in {@code copy}.
      *
      * @param copy a map whose contents should be copied to the newly created map
      */
+    @SuppressWarnings("nullness:method.invocation") // #979 ?
     public AnnotationMirrorMap(Map<AnnotationMirror, ? extends V> copy) {
         this();
         this.putAll(copy);
@@ -53,6 +56,7 @@ public class AnnotationMirrorMap<V> implements Map<AnnotationMirror, V> {
         return shadowMap.isEmpty();
     }
 
+    @SuppressWarnings("keyfor:contracts.conditional.postcondition") // delegation
     @Override
     public boolean containsKey(Object key) {
         if (key instanceof AnnotationMirror) {
@@ -68,7 +72,8 @@ public class AnnotationMirrorMap<V> implements Map<AnnotationMirror, V> {
     }
 
     @Override
-    public V get(Object key) {
+    @Pure
+    public @Nullable V get(Object key) {
         if (key instanceof AnnotationMirror) {
             AnnotationMirror keyAnno =
                     AnnotationUtils.getSame(shadowMap.keySet(), (AnnotationMirror) key);
@@ -79,8 +84,13 @@ public class AnnotationMirrorMap<V> implements Map<AnnotationMirror, V> {
         return null;
     }
 
+    @SuppressWarnings({
+        "keyfor:contracts.postcondition",
+        "keyfor:contracts.postcondition",
+        "keyfor:argument"
+    }) // delegation
     @Override
-    public V put(AnnotationMirror key, V value) {
+    public @Nullable V put(AnnotationMirror key, V value) {
         V pre = get(key);
         remove(key);
         shadowMap.put(key, value);
@@ -88,7 +98,7 @@ public class AnnotationMirrorMap<V> implements Map<AnnotationMirror, V> {
     }
 
     @Override
-    public V remove(Object key) {
+    public @Nullable V remove(Object key) {
         if (key instanceof AnnotationMirror) {
             AnnotationMirror keyAnno =
                     AnnotationUtils.getSame(shadowMap.keySet(), (AnnotationMirror) key);
@@ -112,7 +122,7 @@ public class AnnotationMirrorMap<V> implements Map<AnnotationMirror, V> {
     }
 
     @Override
-    public Set<AnnotationMirror> keySet() {
+    public AnnotationMirrorSet keySet() {
         return new AnnotationMirrorSet(shadowMap.keySet());
     }
 
@@ -121,13 +131,50 @@ public class AnnotationMirrorMap<V> implements Map<AnnotationMirror, V> {
         return shadowMap.values();
     }
 
+    @SuppressWarnings("keyfor:return") // delegation
     @Override
-    public Set<Map.Entry<AnnotationMirror, V>> entrySet() {
+    public Set<Map.Entry<@KeyFor("this") AnnotationMirror, V>> entrySet() {
         return shadowMap.entrySet();
     }
 
     @Override
     public String toString() {
         return shadowMap.toString();
+    }
+
+    @Override
+    @Pure
+    public boolean equals(@Nullable Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof AnnotationMirrorMap)) return false;
+        AnnotationMirrorMap<?> m = (AnnotationMirrorMap) o;
+        if (m.size() != size()) {
+            return false;
+        }
+
+        try {
+            for (Entry<AnnotationMirror, V> e : entrySet()) {
+                AnnotationMirror key = e.getKey();
+                V value = e.getValue();
+                if (value == null) {
+                    if (!(m.get(key) == null && m.containsKey(key))) return false;
+                } else {
+                    if (!value.equals(m.get(key))) return false;
+                }
+            }
+        } catch (ClassCastException | NullPointerException unused) {
+            return false;
+        }
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = 0;
+        for (Entry<AnnotationMirror, V> entry : entrySet()) result += entry.hashCode();
+        return result;
     }
 }
