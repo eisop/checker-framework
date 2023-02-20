@@ -1782,13 +1782,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
         Map<String, String> activeOpts = new HashMap<>(CollectionsPlume.mapCapacity(options));
 
+        forEveryOption:
         for (Map.Entry<String, String> opt : options.entrySet()) {
             String key = opt.getKey();
             String value = opt.getValue();
 
             String[] split = key.split(OPTION_SEPARATOR);
 
-            splitlengthswitch:
             switch (split.length) {
                 case 1:
                     // No separator, option always active.
@@ -1802,7 +1802,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                                 || clazz.getSimpleName().equals(split[0])) {
                             // Valid class-option pair.
                             activeOpts.put(split[1], value);
-                            break splitlengthswitch;
+                            continue forEveryOption;
                         }
 
                         clazz = clazz.getSuperclass();
@@ -1818,6 +1818,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                     // anyways. javac will warn if no processor supports the option.
                     activeOpts.put(key, value);
             }
+            // Don't add code here, there is a `continue` in the switch above.
         }
         return Collections.unmodifiableMap(activeOpts);
     }
