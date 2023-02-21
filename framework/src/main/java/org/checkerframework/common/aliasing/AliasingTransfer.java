@@ -92,9 +92,7 @@ public class AliasingTransfer extends CFTransfer {
     @Override
     protected void processPostconditions(
             Node n, CFStore store, ExecutableElement executableElement, ExpressionTree tree) {
-        // TODO: Process ObjectCreationNode here after finishing the pull request and addressing the
-        // issue:
-        // https://github.com/eisop/checker-framework/pull/405
+        // TODO: Process ObjectCreationNode here after fixing issue:
         // https://github.com/eisop/checker-framework/issues/400
         if (!(n instanceof MethodInvocationNode)) {
             return;
