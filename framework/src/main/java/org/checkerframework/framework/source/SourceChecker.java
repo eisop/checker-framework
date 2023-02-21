@@ -163,7 +163,7 @@ import io.github.classgraph.ClassGraph;
     // casting to an array or generic type. This will be the new default soon.
     "checkCastElementType",
 
-    // Whether type check enclosing expr for an inner class initialization.
+    // Whether to type check the enclosing expression of an inner class instantiation.
     "checkEnclosingExpr",
 
     // Whether to use conservative defaults for bytecode and/or source code.
