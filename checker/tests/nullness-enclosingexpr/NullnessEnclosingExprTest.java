@@ -3,7 +3,7 @@ import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 
 class NullnessEnclosingExprTest {
     class InnerWithImplicitEnclosingExpression {
-        // This will lead to a NPE at line #27, since NullnessEnclosingExprTest
+        // This will lead to a NPE, since NullnessEnclosingExprTest
         // is not intialized yet.
         InnerWithImplicitEnclosingExpression() {
             NullnessEnclosingExprTest.this.f.hashCode();
