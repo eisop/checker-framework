@@ -3446,7 +3446,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * #checkEnclosingExpr(NewClassTree, AnnotatedExecutableType)}
      *
      * @param invocation the AnnotatedDeclaredType of a NewClassTree
-     * @param constructor the AnnotatedExecutableType of a NewClassTree
+     * @param constructor the AnnotatedExecutableType of the constructor declaration
      * @param newClassTree the NewClassTree
      */
     protected void checkConstructorInvocation(
