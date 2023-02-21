@@ -3442,7 +3442,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * <p>Issue a warning if the annotations on the constructor invocation is a subtype of the
      * constructor result type. This is equivalent to down-casting.
      *
-     * <p>To type check enclosing expression of inner type instantiations, see {@link
+     * <p>For type checking of the enclosing expression of inner type instantiations, see {@link
      * #checkEnclosingExpr(NewClassTree, AnnotatedExecutableType)}
      *
      * @param invocation the AnnotatedDeclaredType of the constructor invocation
