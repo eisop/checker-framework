@@ -3470,13 +3470,13 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         // see JLS 15.9
 
         DeclaredType classType = (DeclaredType) TreeUtils.typeOf(tree);
-        TypeMirror enclosingClassType = classType.getEnclosingType();
+        TypeMirror enclosingType = classType.getEnclosingType();
         Tree enclosingExpr = tree.getEnclosingExpression();
         Node enclosingExprNode;
         if (enclosingExpr != null) {
             enclosingExprNode = scan(enclosingExpr, p);
-        } else if (enclosingClassType.getKind() == TypeKind.DECLARED) {
-            enclosingExprNode = new ImplicitThisNode(enclosingClassType);
+        } else if (enclosingType.getKind() == TypeKind.DECLARED) {
+            enclosingExprNode = new ImplicitThisNode(enclosingType);
             extendWithNode(enclosingExprNode);
         } else {
             enclosingExprNode = null;

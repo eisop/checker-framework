@@ -3,18 +3,8 @@ import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 
 class NullnessEnclosingExprTest {
     class InnerWithImplicitEnclosingExpression {
-        // This will lead to a NPE, since NullnessEnclosingExprTest
-        // is not intialized yet.
+        // There is no possible NPE and therefore no expected error.
         InnerWithImplicitEnclosingExpression() {
-            NullnessEnclosingExprTest.this.f.hashCode();
-        }
-    }
-
-    class InnerWithUnknownInitializationEnclosingExpression {
-        InnerWithUnknownInitializationEnclosingExpression(
-                @UnknownInitialization NullnessEnclosingExprTest NullnessEnclosingExprTest.this) {
-            // TODO: This SHOULD lead to a NPE as we annotate @UnknownInitialization to the
-            // enclosing expression
             NullnessEnclosingExprTest.this.f.hashCode();
         }
     }
@@ -26,12 +16,23 @@ class NullnessEnclosingExprTest {
                 @Initialized NullnessEnclosingExprTest NullnessEnclosingExprTest.this) {}
     }
 
+    class InnerWithUnknownInitializationEnclosingExpression {
+        InnerWithUnknownInitializationEnclosingExpression(
+                @UnknownInitialization NullnessEnclosingExprTest NullnessEnclosingExprTest.this) {
+            // This should also never lead to an NPE, because that dereference should produce an
+            // type error.
+            // See Issue https://github.com/eisop/checker-framework/issues/412.
+            NullnessEnclosingExprTest.this.f.hashCode();
+        }
+    }
+
     NullnessEnclosingExprTest() {
         // :: error: (enclosingexpr.type.incompatible)
         this.new InnerWithImplicitEnclosingExpression();
-        this.new InnerWithUnknownInitializationEnclosingExpression();
         // :: error: (enclosingexpr.type.incompatible)
         this.new InnerWithInitializedEnclosingExpression();
+        // :: TODO error: (method.invocation.invalid)
+        this.new InnerWithUnknownInitializationEnclosingExpression();
         f = "a";
     }
 

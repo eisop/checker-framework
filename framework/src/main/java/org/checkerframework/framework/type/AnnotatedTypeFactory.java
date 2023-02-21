@@ -2778,8 +2778,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     p.add(con.getParameterTypes().get(0));
                     con.setReceiverType(superCon.getReceiverType());
                 } else if (con.getReceiverType() != null) {
-                    p.add(con.getReceiverType());
+                    // Because the anonymous constructor doesn't have annotated receiver type,
+                    // we copy the receiver type from the super constructor invoked in the anonymous
+                    // constructor and add it to the parameterTypes as the first element.
                     con.setReceiverType(superCon.getReceiverType());
+                    p.add(con.getReceiverType());
                 } else {
                     p.add(con.getParameterTypes().get(0));
                 }
