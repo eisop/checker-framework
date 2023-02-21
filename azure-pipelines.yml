@@ -13,6 +13,8 @@ jobs:
 # The dependsOn clauses are:
 #  * Everything depends on the canary jobs (the 4 main jdk17 jobs), except those jobs themselves.
 #  * Anything *_jdk8, *_jdk11, or *_jdk19 depends on *_jdk17.
+#  * Anything daikon_* and guava_* depends on the framework jobs (all core CF tests for JDK 8, 11, and 17).
+#    (This avoids running these long-running jobs if something already failed in the framework.)
 
 - job: canary_jobs
   dependsOn:
@@ -27,6 +29,31 @@ jobs:
   steps:
   - bash: true
     displayName: canary_jobs
+
+- job: framework_jobs
+  dependsOn:
+   - junit_tests_jdk8
+   - junit_tests_jdk11
+   - junit_tests_jdk17
+   # - junit_tests_jdk19
+   - nonjunit_tests_jdk8
+   - nonjunit_tests_jdk11
+   - nonjunit_tests_jdk17
+   # - nonjunit_tests_jdk19
+   - inference_tests_jdk8
+   - inference_tests_jdk11
+   - inference_tests_jdk17
+   # - inference_tests_jdk19
+   - typecheck_jdk8
+   - typecheck_jdk11
+   - typecheck_jdk17
+   # - typecheck_jdk19
+  pool:
+    vmImage: 'ubuntu-latest'
+  steps:
+  - bash: true
+    displayName: framework_jobs
+
 
 - job: junit_tests_jdk8
   dependsOn:
@@ -261,7 +288,7 @@ jobs:
 
 - job: daikon_jdk8
   dependsOn:
-   - canary_jobs
+   - framework_jobs
    - daikon_jdk17
   pool:
     vmImage: 'ubuntu-latest'
@@ -274,7 +301,7 @@ jobs:
     displayName: test-daikon.sh
 - job: daikon_jdk11
   dependsOn:
-   - canary_jobs
+   - framework_jobs
    - daikon_jdk17
   pool:
     vmImage: 'ubuntu-latest'
@@ -287,7 +314,7 @@ jobs:
     displayName: test-daikon.sh
 - job: daikon_jdk17
   dependsOn:
-   - canary_jobs
+   - framework_jobs
   pool:
     vmImage: 'ubuntu-latest'
   container: mdernst/cf-ubuntu-jdk17:latest
@@ -299,7 +326,7 @@ jobs:
     displayName: test-daikon.sh
 - job: daikon_jdk19
   dependsOn:
-   - canary_jobs
+   - framework_jobs
    # Could comment out the "daikon_jdk17" dependency to reduce latency.
    - daikon_jdk17
   pool:
@@ -314,7 +341,7 @@ jobs:
 
 - job: guava_jdk8
   dependsOn:
-   - canary_jobs
+   - framework_jobs
    - guava_jdk17
   pool:
     vmImage: 'ubuntu-latest'
@@ -326,7 +353,7 @@ jobs:
     displayName: test-guava.sh
 - job: guava_jdk11
   dependsOn:
-   - canary_jobs
+   - framework_jobs
    - guava_jdk17
   pool:
     vmImage: 'ubuntu-latest'
@@ -338,7 +365,7 @@ jobs:
     displayName: test-guava.sh
 - job: guava_jdk17
   dependsOn:
-   - canary_jobs
+   - framework_jobs
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk-latest:latest
@@ -349,7 +376,7 @@ jobs:
     displayName: test-guava.sh
 - job: guava_jdk19
   dependsOn:
-   - canary_jobs
+   - framework_jobs
    - guava_jdk17
   pool:
     vmImage: 'ubuntu-latest'
