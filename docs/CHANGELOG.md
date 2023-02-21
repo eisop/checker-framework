@@ -5,7 +5,8 @@ Version 3.31.0-eisop1 (February ?, 2023)
 
 **Implementation details:**
 
-Cleaned up unnecessary usages of `AnnotatedTypes.adaptParameters()`.
+Added method `AnnotatedExecutableType.getVarargType` to access the vararg type of a method/constructor.
+This allows us to remove usages of `AnnotatedTypes.adaptParameters()`.
 
 A `VariableDeclarationNode` is now correctly added to the CFG for the binding variable
 in a `BindingPatternTree`.
