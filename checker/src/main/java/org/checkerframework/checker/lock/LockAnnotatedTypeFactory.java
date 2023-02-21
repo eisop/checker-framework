@@ -39,7 +39,6 @@ import org.checkerframework.framework.type.MostlyNoElementQualifierHierarchy;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.treeannotator.ListTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
-import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.QualifierKind;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesError;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
@@ -625,8 +624,7 @@ public class LockAnnotatedTypeFactory
 
         List<? extends ExpressionTree> methodInvocationTreeArguments =
                 ((MethodInvocationTree) tree).getArguments();
-        List<AnnotatedTypeMirror> paramTypes =
-                AnnotatedTypes.adaptParameters(this, invokedMethod, methodInvocationTreeArguments);
+        List<AnnotatedTypeMirror> paramTypes = invokedMethod.getParameterTypes();
 
         for (int i = 0; i < paramTypes.size(); i++) {
             if (replaceAnnotationInGuardedByHierarchyIfGuardSatisfiedIndexMatches(

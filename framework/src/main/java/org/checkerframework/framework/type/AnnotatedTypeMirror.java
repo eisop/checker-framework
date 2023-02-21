@@ -3,10 +3,12 @@ package org.checkerframework.framework.type;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
 
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeVisitor;
+import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.element.ElementAnnotationUtil.ErrorTypeKindException;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
@@ -1124,6 +1126,13 @@ public abstract class AnnotatedTypeMirror {
         private boolean paramTypesComputed = false;
         /** The receiver type. */
         private AnnotatedDeclaredType receiverType;
+        /**
+         * The varargs type is the last element of {@link paramTypes} if the method or constructor
+         * accepts a variable number of arguments and the {@link paramTypes} has not been expanded
+         * yet. This type needs to be stored in the field to avoid being affected by calling {@link
+         * AnnotatedTypes#adaptParameters(AnnotatedTypeFactory, AnnotatedExecutableType, List)}.
+         */
+        private @MonotonicNonNull AnnotatedArrayType varargType = null;
         /** Whether {@link receiverType} has been computed. */
         private boolean receiverTypeComputed = false;
         /** The return type. */
@@ -1168,12 +1177,17 @@ public abstract class AnnotatedTypeMirror {
         }
 
         /**
-         * Sets the parameter types of this executable type, excluding the receiver.
+         * Sets the parameter types of this executable type, excluding the receiver.If paramTypes
+         * has been computed and this type is a varargs method, computes and store {@link
+         * varargType} before calling this method, @see {@link varargType}
          *
          * @param params an unmodifiable list of parameter types to be captured by this method,
          *     excluding the receiver
          */
         /*package-private*/ void setParameterTypes(List<AnnotatedTypeMirror> params) {
+            if (paramTypesComputed && isVarArgs() && varargType == null) {
+                throw new BugInCF("Set vararg type before resetting parameter types");
+            }
             paramTypes = params;
             paramTypesComputed = true;
         }
@@ -1201,6 +1215,59 @@ public abstract class AnnotatedTypeMirror {
             }
             // No need to copy or wrap; it is an unmodifiable list.
             return paramTypes;
+        }
+
+        /**
+         * Sets the vararg type of this executable type.
+         *
+         * @param varargType the vararg type of this executable type
+         */
+        /*package-private*/ void setVarargType(@NonNull AnnotatedArrayType varargType) {
+            this.varargType = varargType;
+        }
+
+        /**
+         * Computes the vararg type of this executable type and stores it in {@link varargType}.
+         *
+         * <p>This method computes {@link varargType} using the {@link paramTypes} of this
+         * executable type. To use the {@link paramTypes} from different executable type, use {@link
+         * #computeVarargType(AnnotatedExecutableType)}.
+         */
+        /*package-private*/ void computeVarargType() {
+            computeVarargType(paramTypes);
+        }
+
+        /**
+         * Computes the vararg type using the passed executable type and stores it in this {@link
+         * varargType}.
+         *
+         * @param annotatedExecutableType an AnnotatedExecutableType
+         */
+        /*package-private*/ void computeVarargType(
+                AnnotatedExecutableType annotatedExecutableType) {
+            computeVarargType(annotatedExecutableType.getParameterTypes());
+        }
+
+        /**
+         * Helper function for {@link #computeVarargType()} and {@link
+         * #computeVarargType(AnnotatedExecutableType)}.
+         *
+         * @param paramTypes the parameter types to determine the vararg type
+         */
+        private void computeVarargType(List<AnnotatedTypeMirror> paramTypes) {
+            if (!isVarArgs()) {
+                return;
+            }
+            varargType = (AnnotatedArrayType) paramTypes.get(paramTypes.size() - 1);
+        }
+
+        /**
+         * Returns the vararg type of this executable type.
+         *
+         * @return the vararg type of this executable type
+         */
+        public @Nullable AnnotatedArrayType getVarargType() {
+            return varargType;
         }
 
         /**
@@ -1384,6 +1451,11 @@ public abstract class AnnotatedTypeMirror {
 
             type.setElement(getElement());
             type.setParameterTypes(getParameterTypes());
+            if (getVarargType() != null) {
+                type.setVarargType(getVarargType());
+            } else {
+                type.computeVarargType();
+            }
             type.setReceiverType(getReceiverType());
             type.setReturnType(getReturnType());
             type.setThrownTypes(getThrownTypes());
@@ -1423,6 +1495,11 @@ public abstract class AnnotatedTypeMirror {
                             atypeFactory);
             type.setElement(getElement());
             type.setParameterTypes(erasureList(getParameterTypes()));
+            if (getVarargType() != null) {
+                type.setVarargType(getVarargType().getErased());
+            } else {
+                type.computeVarargType();
+            }
             if (getReceiverType() != null) {
                 type.setReceiverType(getReceiverType().getErased());
             } else {

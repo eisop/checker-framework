@@ -1779,9 +1779,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     tree.getTypeArguments(),
                     methodName,
                     invokedMethod.getTypeVariables());
-            List<AnnotatedTypeMirror> params =
-                    AnnotatedTypes.adaptParameters(
-                            atypeFactory, invokedMethod, tree.getArguments());
+            List<AnnotatedTypeMirror> params = invokedMethod.getParameterTypes();
             checkArguments(params, tree.getArguments(), methodName, method.getParameters());
             checkVarargs(invokedMethod, tree);
 
@@ -1900,11 +1898,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return;
         }
 
-        List<AnnotatedTypeMirror> formals = invokedMethod.getParameterTypes();
-        int numFormals = formals.size();
-        int lastArgIndex = numFormals - 1;
         // This is the varags type, an array.
-        AnnotatedArrayType lastParamAnnotatedType = (AnnotatedArrayType) formals.get(lastArgIndex);
+        AnnotatedArrayType lastParamAnnotatedType = invokedMethod.getVarargType();
 
         AnnotatedTypeMirror wrappedVarargsType = atypeFactory.getAnnotatedTypeVarargsArray(tree);
 
@@ -2103,8 +2098,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         // Type check inner class enclosing expr type
         checkEnclosingExpr(tree, constructorType);
         List<? extends ExpressionTree> passedArguments = tree.getArguments();
-        List<AnnotatedTypeMirror> params =
-                AnnotatedTypes.adaptParameters(atypeFactory, constructorType, passedArguments);
+        List<AnnotatedTypeMirror> params = constructorType.getParameterTypes();
 
         ExecutableElement constructor = constructorType.getElement();
         CharSequence constructorName = ElementUtils.getSimpleNameOrDescription(constructor);
