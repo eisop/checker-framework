@@ -3486,7 +3486,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * A helper method to type check the enclosing expression of inner class.
+     * Helper method to type check the enclosing expression of an inner class instantiation.
      *
      * @param node the NewClassTree
      * @param constructorType the annotatedExecutableType of the constructor declaration
