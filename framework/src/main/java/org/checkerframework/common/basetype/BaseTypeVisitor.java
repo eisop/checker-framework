@@ -3445,7 +3445,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * <p>To type check enclosing expression of inner type instantiations, see {@link
      * #checkEnclosingExpr(NewClassTree, AnnotatedExecutableType)}
      *
-     * @param invocation the AnnotatedDeclaredType of a NewClassTree
+     * @param invocation the AnnotatedDeclaredType of the constructor invocation
      * @param constructor the AnnotatedExecutableType of the constructor declaration
      * @param newClassTree the NewClassTree
      */
