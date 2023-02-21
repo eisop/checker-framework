@@ -2,42 +2,36 @@ import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 
 class NullnessEnclosingExprTest {
-    class Inner {
-        Inner() {
-            // This will lead to a NPE at line #35, since NullnessEnclosingExprTest
-            // is not intialized yet.
-            NullnessEnclosingExprTest.this.f.hashCode();
-        }
-    }
-
     class InnerWithImplicitEnclosingExpression {
-        // The default annotation type of the implicit enclosing expression is
-        // @UnknownInitialization, so we will get an error at line #37
-        InnerWithImplicitEnclosingExpression() {}
-    }
-
-    class InnerWithExplicitEnclosingExpression1 {
-        InnerWithExplicitEnclosingExpression1(
-                @UnknownInitialization NullnessEnclosingExprTest NullnessEnclosingExprTest.this) {
-            // This will NOT lead to a NPE as we annotate @UnknownInitialization to the enclosing
-            // expression
+        // This will lead to a NPE at line #27, since NullnessEnclosingExprTest
+        // is not intialized yet.
+        InnerWithImplicitEnclosingExpression() {
             NullnessEnclosingExprTest.this.f.hashCode();
         }
     }
 
-    class InnerWithExplicitEnclosingExpression2 {
-        InnerWithExplicitEnclosingExpression2(
+    class InnerWithUnknownInitializationEnclosingExpression {
+        InnerWithUnknownInitializationEnclosingExpression(
+                @UnknownInitialization NullnessEnclosingExprTest NullnessEnclosingExprTest.this) {
+            // TODO: This SHOULD lead to a NPE as we annotate @UnknownInitialization to the
+            // enclosing expression
+            NullnessEnclosingExprTest.this.f.hashCode();
+        }
+    }
+
+    class InnerWithInitializedEnclosingExpression {
+        // The default type of enclosing expression is same as InnerWithImplicitEnclosingExpression,
+        // we just make it explicit for testing.
+        InnerWithInitializedEnclosingExpression(
                 @Initialized NullnessEnclosingExprTest NullnessEnclosingExprTest.this) {}
     }
 
     NullnessEnclosingExprTest() {
         // :: error: (enclosingexpr.type.incompatible)
-        this.new Inner();
-        // :: error: (enclosingexpr.type.incompatible)
         this.new InnerWithImplicitEnclosingExpression();
-        this.new InnerWithExplicitEnclosingExpression1();
+        this.new InnerWithUnknownInitializationEnclosingExpression();
         // :: error: (enclosingexpr.type.incompatible)
-        this.new InnerWithExplicitEnclosingExpression2();
+        this.new InnerWithInitializedEnclosingExpression();
         f = "a";
     }
 
