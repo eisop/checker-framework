@@ -25,10 +25,10 @@ import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.UserError;
-import org.plumelib.util.CollectionsPlume;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -202,7 +202,7 @@ public abstract class AccumulationAnnotatedTypeFactory extends BaseAnnotatedType
      */
     public AnnotationMirror createAccumulatorAnnotation(List<String> values) {
         AnnotationBuilder builder = new AnnotationBuilder(processingEnv, accumulator);
-        builder.setValue("value", CollectionsPlume.withoutDuplicates(values));
+        builder.setValue("value", SystemUtil.withoutDuplicatesSorted(values));
         return builder.build();
     }
 
@@ -550,8 +550,7 @@ public abstract class AccumulationAnnotatedTypeFactory extends BaseAnnotatedType
      * @return null if there is nothing wrong with the annotation, or an error message indicating
      *     the problem if it has an invalid predicate
      */
-    /* package-private */
-    @Nullable String isValidPredicate(AnnotationMirror anm) {
+    /*package-private*/ @Nullable String isValidPredicate(AnnotationMirror anm) {
         String pred = convertToPredicate(anm);
         try {
             evaluatePredicate(Collections.emptyList(), pred);

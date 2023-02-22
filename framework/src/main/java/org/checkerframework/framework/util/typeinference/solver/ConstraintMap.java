@@ -2,10 +2,10 @@ package org.checkerframework.framework.util.typeinference.solver;
 
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.QualifierHierarchy;
-import org.checkerframework.framework.util.AnnotationMirrorSet;
 import org.checkerframework.framework.util.typeinference.solver.TargetConstraints.Equalities;
 import org.checkerframework.framework.util.typeinference.solver.TargetConstraints.Subtypes;
 import org.checkerframework.framework.util.typeinference.solver.TargetConstraints.Supertypes;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

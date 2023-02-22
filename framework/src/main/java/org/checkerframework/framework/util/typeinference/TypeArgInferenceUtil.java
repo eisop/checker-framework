@@ -28,8 +28,8 @@ import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.TypeVariableSubstitutor;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
 import org.checkerframework.framework.util.AnnotatedTypes;
-import org.checkerframework.framework.util.AnnotationMirrorMap;
-import org.checkerframework.framework.util.AnnotationMirrorSet;
+import org.checkerframework.javacutil.AnnotationMirrorMap;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
@@ -199,8 +199,7 @@ public class TypeArgInferenceUtil {
             ExecutableElement constructorElt = TreeUtils.elementFromUse(newClassTree);
             // TODO: This call should be removed once #979 is implemented.
             // Change this to atypeFactory.getAnnotatedType(newClassTree) causes infinite recursion
-            // in the
-            // InitializationAnnotatedTypeFactory.CommitmentTreeAnnotator.visitNewClass.
+            // in the InitializationAnnotatedTypeFactory.CommitmentTreeAnnotator.visitNewClass.
             @SuppressWarnings("deprecation")
             AnnotatedTypeMirror receiver = atypeFactory.fromNewClass(newClassTree);
             res =

@@ -6,10 +6,10 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 
+import javax.lang.model.element.AnnotationMirror;
+
 import viewpointtest.quals.ReceiverDependentQual;
 import viewpointtest.quals.Top;
-
-import javax.lang.model.element.AnnotationMirror;
 
 public class ViewpointTestViewpointAdapter extends AbstractViewpointAdapter {
 

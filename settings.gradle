@@ -9,11 +9,11 @@ include 'checker-util'
 include 'framework-test'
 
 /* NO-AFU
-includeBuild ('../annotation-tools/annotation-file-utilities') {
-    if (!file('../annotation-tools/annotation-file-utilities').exists()) {
-        exec {
-            executable 'checker/bin-devel/build.sh'
-        }
-    }
-}
-*/
+ includeBuild ('../annotation-tools/annotation-file-utilities') {
+ if (!file('../annotation-tools/annotation-file-utilities').exists()) {
+ exec {
+ executable 'checker/bin-devel/build.sh'
+ }
+ }
+ }
+ */

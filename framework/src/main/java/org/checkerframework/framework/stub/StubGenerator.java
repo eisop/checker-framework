@@ -6,6 +6,7 @@ import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Options;
 
+import org.checkerframework.checker.mustcall.qual.MustCallUnknown;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.SystemUtil;
@@ -192,11 +193,19 @@ public class StubGenerator {
             }
         }
 
-        if (typeElement.getKind() == ElementKind.INTERFACE) {
+        // This could be a `switch` statement.
+        if (typeElement.getKind() == ElementKind.ANNOTATION_TYPE) {
+            out.print("@interface");
+        } else if (typeElement.getKind() == ElementKind.ENUM) {
+            out.print("enum");
+        } else if (typeElement.getKind() == ElementKind.INTERFACE) {
             out.print("interface");
+        } else if (typeElement.getKind().name().equals("RECORD")) {
+            out.print("record");
         } else if (typeElement.getKind() == ElementKind.CLASS) {
             out.print("class");
         } else {
+            // Shouldn't this throw an exception?
             return;
         }
 
@@ -386,7 +395,7 @@ public class StubGenerator {
      * @param lst a list to format
      * @return a string representation of the list, without surrounding square brackets
      */
-    private String formatList(List<?> lst) {
+    private String formatList(@MustCallUnknown List<? extends @MustCallUnknown Object> lst) {
         return StringsPlume.join(", ", lst);
     }
 

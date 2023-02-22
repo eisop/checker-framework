@@ -37,7 +37,7 @@ public class InitializedFieldsAnnotatedTypeFactory extends AccumulationAnnotated
      * The type factories that determine whether the default value is consistent with the annotated
      * type. If empty, warn about all uninitialized fields.
      */
-    List<GenericAnnotatedTypeFactory<?, ?, ?, ?>> defaultValueAtypeFactories;
+    private final List<GenericAnnotatedTypeFactory<?, ?, ?, ?>> defaultValueAtypeFactories;
 
     /**
      * Creates a new InitializedFieldsAnnotatedTypeFactory.
@@ -49,7 +49,8 @@ public class InitializedFieldsAnnotatedTypeFactory extends AccumulationAnnotated
 
         String[] checkerNames = getCheckerNames();
 
-        defaultValueAtypeFactories = new ArrayList<>();
+        // There are usually few subcheckers.
+        defaultValueAtypeFactories = new ArrayList<>(2);
         for (String checkerName : checkerNames) {
             if (checkerName.equals(InitializedFieldsChecker.class.getCanonicalName())) {
                 continue;
@@ -76,7 +77,7 @@ public class InitializedFieldsAnnotatedTypeFactory extends AccumulationAnnotated
      * @param processorName the fully-qualified class name of an annotation processor
      * @return the type factory for the given annotation processor, or null if it's not a checker
      */
-    GenericAnnotatedTypeFactory<?, ?, ?, ?> createTypeFactoryForProcessor(
+    private GenericAnnotatedTypeFactory<?, ?, ?, ?> createTypeFactoryForProcessor(
             @BinaryName String processorName) {
         try {
             Class<?> checkerClass = Class.forName(processorName);
@@ -110,6 +111,9 @@ public class InitializedFieldsAnnotatedTypeFactory extends AccumulationAnnotated
     public InitializedFieldsContractsFromMethod getContractsFromMethod() {
         return new InitializedFieldsContractsFromMethod(this);
     }
+
+    /** An array consisting only of the string "this". */
+    private static final String[] thisStringArray = new String[] {"this"};
 
     /**
      * A subclass of ContractsFromMethod that adds a postcondition contract to each constructor,
@@ -153,7 +157,7 @@ public class InitializedFieldsAnnotatedTypeFactory extends AccumulationAnnotated
                             AnnotationBuilder builder =
                                     new AnnotationBuilder(
                                             processingEnv, EnsuresInitializedFields.class);
-                            builder.setValue("value", new String[] {"this"});
+                            builder.setValue("value", thisStringArray);
                             builder.setValue("fields", fieldsToInitialize);
                             ensuresAnno = builder.build();
                         }

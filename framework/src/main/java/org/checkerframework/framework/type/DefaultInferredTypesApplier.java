@@ -2,10 +2,9 @@ package org.checkerframework.framework.type;
 
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.util.AnnotatedTypes;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TypesUtils;
-
-import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.type.TypeKind;
@@ -47,7 +46,7 @@ public class DefaultInferredTypesApplier {
      */
     public void applyInferredType(
             final AnnotatedTypeMirror type,
-            final Set<AnnotationMirror> inferredSet,
+            final AnnotationMirrorSet inferredSet,
             TypeMirror inferredTypeMirror) {
         if (inferredSet == null) {
             return;
@@ -85,7 +84,7 @@ public class DefaultInferredTypesApplier {
             }
         } else {
             if (primary == null) {
-                Set<AnnotationMirror> lowerbounds =
+                AnnotationMirrorSet lowerbounds =
                         AnnotatedTypes.findEffectiveLowerBoundAnnotations(hierarchy, type);
                 primary = hierarchy.findAnnotationInHierarchy(lowerbounds, top);
             }

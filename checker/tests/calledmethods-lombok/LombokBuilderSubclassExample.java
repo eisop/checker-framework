@@ -6,7 +6,8 @@ import org.checkerframework.checker.calledmethods.qual.CalledMethods;
 import org.checkerframework.common.returnsreceiver.qual.This;
 
 @Builder(builderClassName = "BaseBuilder")
-@Value public class LombokBuilderSubclassExample {
+@Value
+public class LombokBuilderSubclassExample {
 
     @NonNull Integer attribute;
 

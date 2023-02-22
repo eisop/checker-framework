@@ -80,7 +80,7 @@ public class AinferValidatePerDirectoryTest extends CheckerFrameworkWPIPerDirect
      * because the framework issues a warning if a .ajava file with no corresponding source file is
      * specified.
      *
-     * <p>Assumes that ajava files will be in the {@link #getInferenceBaseDir(String)} directory.
+     * <p>Assumes that ajava files will be in the {@code #getInferenceBaseDir(String)} directory.
      *
      * @param sourceFiles the list of source files
      * @param checkerShortName the short name of the checker, as used in the naming conventions for
@@ -96,7 +96,7 @@ public class AinferValidatePerDirectoryTest extends CheckerFrameworkWPIPerDirect
      * because the framework issues a warning if a .astub file with no corresponding source file is
      * specified.
      *
-     * <p>Assumes that astub files will be in the {@link #getInferenceBaseDir(String)} directory.
+     * <p>Assumes that astub files will be in the {@code #getInferenceBaseDir(String)} directory.
      *
      * @param sourceFiles the list of source files
      * @param checkerShortName the short name of the checker, as used in the naming conventions for
@@ -112,7 +112,7 @@ public class AinferValidatePerDirectoryTest extends CheckerFrameworkWPIPerDirect
      * necessary because the framework issues a warning if a .ajava file or a stub file with no
      * corresponding source file is specified.
      *
-     * <p>Assumes that ajava/astub files will be in the {@link #getInferenceBaseDir(String)}
+     * <p>Assumes that ajava/astub files will be in the {@code #getInferenceBaseDir(String)}
      * directory.
      *
      * @param sourceFiles the list of source files
@@ -152,8 +152,7 @@ public class AinferValidatePerDirectoryTest extends CheckerFrameworkWPIPerDirect
         StringBuilder sb = new StringBuilder();
         // Find all the annotation files associated with this class name. This approach is necessary
         // because (1) some tests are in packages, which will be included in the annotation file
-        // names,
-        // and (2) separate astub files are generated for inner classes.
+        // names, and (2) separate astub files are generated for inner classes.
         try (DirectoryStream<Path> dirStream =
                 Files.newDirectoryStream(
                         Paths.get(inferenceBaseDir), "*" + fileBaseName + "{-,$}*" + extension)) {

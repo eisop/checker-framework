@@ -47,8 +47,14 @@ import javax.lang.model.element.VariableElement;
  */
 public class AliasingTransfer extends CFTransfer {
 
-    private AnnotatedTypeFactory factory;
+    /** The annotated type factory. */
+    private final AnnotatedTypeFactory factory;
 
+    /**
+     * Create a new AliasingTransfer.
+     *
+     * @param analysis the CFAbstractAnalysis
+     */
     public AliasingTransfer(CFAbstractAnalysis<CFValue, CFStore, CFTransfer> analysis) {
         super(analysis);
         factory = analysis.getTypeFactory();
@@ -92,7 +98,7 @@ public class AliasingTransfer extends CFTransfer {
             return;
         }
         super.processPostconditions(n, store, executableElement, tree);
-        if (TreeUtils.isEnumSuper((MethodInvocationTree) n.getTree())) {
+        if (TreeUtils.isEnumSuperCall((MethodInvocationTree) n.getTree())) {
             // Skipping the init() method for enums.
             return;
         }

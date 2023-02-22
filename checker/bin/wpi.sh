@@ -68,11 +68,11 @@ else
   has_java17="yes"
 fi
 
-# shellcheck disable=SC2153 # testing for JAVA18_HOME, not a typo of JAVA_HOME
-if [ "${JAVA18_HOME}" = "" ]; then
-  has_java18="no"
+# shellcheck disable=SC2153 # testing for JAVA19_HOME, not a typo of JAVA_HOME
+if [ "${JAVA19_HOME}" = "" ]; then
+  has_java19="no"
 else
-  has_java18="yes"
+  has_java19="yes"
 fi
 
 if [ "${has_java_home}" = "yes" ]; then
@@ -89,9 +89,9 @@ if [ "${has_java_home}" = "yes" ]; then
       export JAVA17_HOME="${JAVA_HOME}"
       has_java17="yes"
     fi
-    if [ "${has_java18}" = "no" ] && [ "${java_version}" = 18 ]; then
-      export JAVA18_HOME="${JAVA_HOME}"
-      has_java18="yes"
+    if [ "${has_java19}" = "no" ] && [ "${java_version}" = 19 ]; then
+      export JAVA19_HOME="${JAVA_HOME}"
+      has_java19="yes"
     fi
 fi
 
@@ -110,13 +110,13 @@ if [ "${has_java17}" = "yes" ] && [ ! -d "${JAVA17_HOME}" ]; then
     exit 7
 fi
 
-if [ "${has_java18}" = "yes" ] && [ ! -d "${JAVA18_HOME}" ]; then
-    echo "JAVA18_HOME is set to a non-existent directory ${JAVA18_HOME}"
+if [ "${has_java19}" = "yes" ] && [ ! -d "${JAVA19_HOME}" ]; then
+    echo "JAVA19_HOME is set to a non-existent directory ${JAVA19_HOME}"
     exit 7
 fi
 
-if [ "${has_java8}" = "no" ] && [ "${has_java11}" = "no" ] && [ "${has_java17}" = "no" ] && [ "${has_java18}" = "no" ]; then
-    echo "No Java 8, 11, 17, or 18 JDKs found. At least one of JAVA_HOME, JAVA8_HOME, JAVA11_HOME, JAVA17_HOME, or JAVA18_HOME must be set."
+if [ "${has_java8}" = "no" ] && [ "${has_java11}" = "no" ] && [ "${has_java17}" = "no" ] && [ "${has_java19}" = "no" ]; then
+    echo "No Java 8, 11, 17, or 19 JDKs found. At least one of JAVA_HOME, JAVA8_HOME, JAVA11_HOME, JAVA17_HOME, or JAVA19_HOME must be set."
     exit 8
 fi
 
@@ -252,8 +252,9 @@ function configure_and_exec_dljc {
   # exists, which means that WPI produced no output. When that happens, the reason is usually that the Checker
   # Framework crashed, so output the log file for easier debugging.
   wpi_no_output_message="No WPI outputs were discovered; it is likely that WPI failed or the Checker Framework crashed"
+  echo "About to test: \$(cat \"${dljc_stdout}\") == \"${wpi_no_output_message}\""
   if [[ $(cat "${dljc_stdout}") == *"${wpi_no_output_message}"* ]]; then
-    wpi_log_path="${DIR}"/dljc-out/wpi.log
+    wpi_log_path="${DIR}"/dljc-out/wpi-stdout.log
     echo "=== ${wpi_no_output_message}: printing ${wpi_log_path} ==="
     cat "${wpi_log_path}"
     echo "=== end of ${wpi_log_path} ==="
@@ -265,15 +266,15 @@ function configure_and_exec_dljc {
       return
   fi
 
-  if [ -f dljc-out/wpi.log ]; then
+  if [ -f dljc-out/wpi-stdout.log ]; then
       # Put, in file `typecheck.out`, everything from the last "Running ..." onwards.
-      sed -n '/^Running/h;//!H;$!d;x;//p' dljc-out/wpi.log > dljc-out/typecheck.out
+      sed -n '/^Running/h;//!H;$!d;x;//p' dljc-out/wpi-stdout.log > dljc-out/typecheck.out
       WPI_RESULTS_AVAILABLE="yes"
       echo "dljc output is in ${DIR}/dljc-out/"
       echo "typecheck output is in ${DIR}/dljc-out/typecheck.out"
       echo "stdout is in $dljc_stdout"
   else
-      WPI_RESULTS_AVAILABLE="file ${DIR}/dljc-out/wpi.log does not exist"
+      WPI_RESULTS_AVAILABLE="file ${DIR}/dljc-out/wpi-stdout.log does not exist"
       echo "dljc failed: ${WPI_RESULTS_AVAILABLE}"
       echo "dljc output is in ${DIR}/dljc-out/"
       echo "stdout is in $dljc_stdout"
@@ -327,7 +328,7 @@ configure_and_exec_dljc "$@"
 if [ "${WPI_RESULTS_AVAILABLE}" != "yes" ] && [ "${has_java11}" = "yes" ]; then
   if [ "${has_java8}" = "yes" ]; then
     export JAVA_HOME="${JAVA11_HOME}"
-    echo "couldn't build using Java 8; trying Java 11"
+    echo "wpi.sh couldn't build using Java 8; trying Java 11"
     configure_and_exec_dljc "$@"
   fi
 fi
@@ -339,7 +340,7 @@ fi
 if [ "${WPI_RESULTS_AVAILABLE}" != "yes" ] && [ "${has_java17}" = "yes" ]; then
   if [ "${has_java11}" = "yes" ] || [ "${has_java8}" = "yes" ]; then
     export JAVA_HOME="${JAVA17_HOME}"
-    echo "couldn't build using Java 11 or Java 8; trying Java 17"
+    echo "wpi.sh couldn't build using Java 11 or Java 8; trying Java 17"
     configure_and_exec_dljc "$@"
   fi
 fi
@@ -347,7 +348,7 @@ fi
 # support wpi-many.sh's ability to delete projects without usable results
 # automatically
 if [ "${WPI_RESULTS_AVAILABLE}" != "yes" ]; then
-    echo "dljc could not run the build successfully: ${WPI_RESULTS_AVAILABLE}"
+    echo "wpi.sh: dljc could not run the build successfully: ${WPI_RESULTS_AVAILABLE}"
     echo "Check the log files in ${DIR}/dljc-out/ for diagnostics."
     echo "${WPI_RESULTS_AVAILABLE}" > "${DIR}/.cannot-run-wpi"
 fi

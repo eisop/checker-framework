@@ -8,6 +8,7 @@ import com.sun.source.tree.Tree;
 import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.interning.qual.InternedDistinct;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
 import org.checkerframework.dataflow.analysis.ForwardTransferFunction;
@@ -58,6 +59,7 @@ import org.checkerframework.framework.util.Contract.Precondition;
 import org.checkerframework.framework.util.ContractsFromMethod;
 import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
 import org.checkerframework.framework.util.StringToJavaExpression;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
@@ -218,7 +220,7 @@ public abstract class CFAbstractTransfer<
     }
 
     /** The fixed initial store. */
-    private S fixedInitialStore = null;
+    private @MonotonicNonNull S fixedInitialStore = null;
 
     /** Set a fixed initial Store. */
     public void setFixedInitialStore(S s) {
@@ -981,8 +983,8 @@ public abstract class CFAbstractTransfer<
           // Can't infer annotations on an anonymous constructor, so use the super constructor.
           ExecutableElement constructorElt = TreeUtils.getSuperConstructor(newClassTree);
           if (newClassTree.getClassBody() == null || !TreeUtils.hasSyntheticArgument(newClassTree)) {
-            // TODO: WPI could be changed to handle the synthetic argument, but for now just don't infer
-            // annotations for those new class trees.
+            // TODO: WPI could be changed to handle the synthetic argument, but for now just
+            // don't infer annotations for those new class trees.
             analysis
                 .atypeFactory
                 .getWholeProgramInference()
@@ -1103,7 +1105,7 @@ public abstract class CFAbstractTransfer<
       if (!shouldPerformWholeProgramInference(expressionTree)) {
         return false;
       }
-      VariableElement elt = (VariableElement) TreeUtils.elementFromTree(lhsTree);
+      Element elt = TreeUtils.elementFromTree(lhsTree);
       return !analysis.checker.shouldSuppressWarnings(elt, "");
     }
     */
@@ -1126,16 +1128,20 @@ public abstract class CFAbstractTransfer<
     /**
      * Add information from the postconditions of a method to the store after an invocation.
      *
-     * @param n a method call or an object creation
+     * @param invocationNode a method call or an object creation
      * @param store a store; is side-effected by this method
      * @param executableElement the method or constructor being called
-     * @param tree the tree for the method call or for the object creation
+     * @param invocationTree the tree for the method call or for the object creation
      */
     protected void processPostconditions(
-            Node n, S store, ExecutableElement executableElement, ExpressionTree tree) {
+            Node invocationNode,
+            S store,
+            ExecutableElement executableElement,
+            ExpressionTree invocationTree) {
         ContractsFromMethod contractsUtils = analysis.atypeFactory.getContractsFromMethod();
         Set<Postcondition> postconditions = contractsUtils.getPostconditions(executableElement);
-        processPostconditionsAndConditionalPostconditions(n, tree, store, null, postconditions);
+        processPostconditionsAndConditionalPostconditions(
+                invocationNode, invocationTree, store, null, postconditions);
     }
 
     /**
@@ -1165,36 +1171,38 @@ public abstract class CFAbstractTransfer<
      * Add information from the postconditions and conditional postconditions of a method to the
      * stores after an invocation.
      *
-     * @param n a method call node or an object creation node
-     * @param tree the tree for the method call or for the object creation
+     * @param invocationNode a method call node or an object creation node
+     * @param invocationTree the tree for the method call or for the object creation
      * @param thenStore the "then" store; is side-effected by this method
      * @param elseStore the "else" store; is side-effected by this method
      * @param postconditions the postconditions
      */
     private void processPostconditionsAndConditionalPostconditions(
-            Node n,
-            ExpressionTree tree,
+            Node invocationNode,
+            ExpressionTree invocationTree,
             S thenStore,
             S elseStore,
             Set<? extends Contract> postconditions) {
 
         StringToJavaExpression stringToJavaExpr = null;
-        if (n instanceof MethodInvocationNode) {
+        if (invocationNode instanceof MethodInvocationNode) {
             stringToJavaExpr =
                     stringExpr ->
                             StringToJavaExpression.atMethodInvocation(
-                                    stringExpr, (MethodInvocationNode) n, analysis.checker);
-        } else if (n instanceof ObjectCreationNode) {
+                                    stringExpr,
+                                    (MethodInvocationNode) invocationNode,
+                                    analysis.checker);
+        } else if (invocationNode instanceof ObjectCreationNode) {
             stringToJavaExpr =
                     stringExpr ->
                             StringToJavaExpression.atConstructorInvocation(
-                                    stringExpr, (NewClassTree) tree, analysis.checker);
+                                    stringExpr, (NewClassTree) invocationTree, analysis.checker);
         } else {
             throw new BugInCF(
-                    "processPostconditionsAndConditionalPostconditions in CFAbstractTransfer"
-                            + " expects a MethodInvocationNode or ObjectCreationNode argument; received"
-                            + " a "
-                            + n.getClass().getSimpleName());
+                    "CFAbstractTransfer.processPostconditionsAndConditionalPostconditions"
+                            + " expects a MethodInvocationNode or ObjectCreationNode argument;"
+                            + " received a "
+                            + invocationNode.getClass().getSimpleName());
         }
 
         for (Contract p : postconditions) {
@@ -1226,11 +1234,12 @@ public abstract class CFAbstractTransfer<
                     Object[] args = new Object[e.args.length + 1];
                     args[0] =
                             ElementUtils.getSimpleSignature(
-                                    (ExecutableElement) TreeUtils.elementFromUse(tree));
+                                    (ExecutableElement) TreeUtils.elementFromUse(invocationTree));
                     System.arraycopy(e.args, 0, args, 1, e.args.length);
-                    analysis.checker.reportError(tree, "flowexpr.parse.error.postcondition", args);
+                    analysis.checker.reportError(
+                            invocationTree, "flowexpr.parse.error.postcondition", args);
                 } else {
-                    analysis.checker.report(tree, e.getDiagMessage());
+                    analysis.checker.report(invocationTree, e.getDiagMessage());
                 }
             }
         }
@@ -1357,7 +1366,7 @@ public abstract class CFAbstractTransfer<
         if (annotatedValue == null) {
             return null;
         }
-        Set<AnnotationMirror> narrowedAnnos =
+        AnnotationMirrorSet narrowedAnnos =
                 analysis.atypeFactory.getNarrowedAnnotations(
                         annotatedValue.getAnnotations(),
                         annotatedValue.getUnderlyingType().getKind(),
@@ -1380,7 +1389,7 @@ public abstract class CFAbstractTransfer<
         if (annotatedValue == null) {
             return null;
         }
-        Set<AnnotationMirror> widenedAnnos =
+        AnnotationMirrorSet widenedAnnos =
                 analysis.atypeFactory.getWidenedAnnotations(
                         annotatedValue.getAnnotations(),
                         annotatedValue.getUnderlyingType().getKind(),

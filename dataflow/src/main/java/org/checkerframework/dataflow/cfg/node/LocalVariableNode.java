@@ -5,6 +5,7 @@ import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.Collection;
@@ -62,7 +63,6 @@ public class LocalVariableNode extends Node {
      *
      * @return the element associated with this local variable
      */
-    @SuppressWarnings("nullness:return") // non-null if a LocalVariableNode was created
     public VariableElement getElement() {
         VariableElement el;
         if (tree instanceof IdentifierTree) {
@@ -118,6 +118,7 @@ public class LocalVariableNode extends Node {
     }
 
     @Override
+    @SideEffectFree
     public Collection<Node> getOperands() {
         return Collections.emptyList();
     }

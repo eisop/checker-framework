@@ -78,6 +78,9 @@ public class ValueTransfer extends CFTransfer {
     /** The Value qualifier hierarchy. */
     protected final QualifierHierarchy hierarchy;
 
+    /** True if -AnonNullStringsConcatenation was passed on the command line. */
+    private final boolean nonNullStringsConcatenation;
+
     /**
      * Create a new ValueTransfer.
      *
@@ -87,6 +90,8 @@ public class ValueTransfer extends CFTransfer {
         super(analysis);
         atypeFactory = (ValueAnnotatedTypeFactory) analysis.getTypeFactory();
         hierarchy = atypeFactory.getQualifierHierarchy();
+        nonNullStringsConcatenation =
+                atypeFactory.getChecker().hasOption("nonNullStringsConcatenation");
     }
 
     /** Returns a range of possible lengths for an integer from a range, as casted to a String. */
@@ -673,12 +678,9 @@ public class ValueTransfer extends CFTransfer {
         List<String> leftValues = getStringValues(leftOperand, p);
         List<String> rightValues = getStringValues(rightOperand, p);
 
-        boolean nonNullStringConcat =
-                atypeFactory.getChecker().hasOption("nonNullStringsConcatenation");
-
         if (leftValues != null && rightValues != null) {
             // Both operands have known string values, compute set of results
-            if (!nonNullStringConcat) {
+            if (!nonNullStringsConcatenation) {
                 if (isNullable(leftOperand)) {
                     leftValues = CollectionsPlume.append(leftValues, "null");
                 }
@@ -721,7 +723,7 @@ public class ValueTransfer extends CFTransfer {
 
         if (leftLengths != null && rightLengths != null) {
             // Both operands have known lengths, compute set of result lengths
-            if (!nonNullStringConcat) {
+            if (!nonNullStringsConcatenation) {
                 if (isNullable(leftOperand)) {
                     leftLengths = new ArrayList<>(leftLengths);
                     leftLengths.add(4); // "null"
@@ -747,7 +749,7 @@ public class ValueTransfer extends CFTransfer {
 
         if (leftLengthRange != null && rightLengthRange != null) {
             // Both operands have a length from a known range, compute a range of result lengths
-            if (!nonNullStringConcat) {
+            if (!nonNullStringsConcatenation) {
                 if (isNullable(leftOperand)) {
                     leftLengthRange = leftLengthRange.union(Range.create(4, 4)); // "null"
                 }
@@ -886,7 +888,7 @@ public class ValueTransfer extends CFTransfer {
         if (lefts == null || rights == null) {
             return null;
         }
-        List<Number> resultValues = new ArrayList<>();
+        List<Number> resultValues = new ArrayList<>(lefts.size() * rights.size());
         for (Number left : lefts) {
             NumberMath<?> nmLeft = NumberMath.getNumberMath(left);
             for (Number right : rights) {
@@ -1238,14 +1240,15 @@ public class ValueTransfer extends CFTransfer {
         }
 
         // This is a list of all the values that the expression can evaluate to.
-        List<Boolean> resultValues = new ArrayList<>();
+        int numResultValues = lefts.size() * rights.size();
+        List<Boolean> resultValues = new ArrayList<>(numResultValues);
 
         // These lists are used to refine the values in the store based on the results of the
         // comparison.
-        List<Number> thenLeftVals = new ArrayList<>();
-        List<Number> elseLeftVals = new ArrayList<>();
-        List<Number> thenRightVals = new ArrayList<>();
-        List<Number> elseRightVals = new ArrayList<>();
+        List<Number> thenLeftVals = new ArrayList<>(numResultValues);
+        List<Number> elseLeftVals = new ArrayList<>(numResultValues);
+        List<Number> thenRightVals = new ArrayList<>(numResultValues);
+        List<Number> elseRightVals = new ArrayList<>(numResultValues);
 
         for (Number left : lefts) {
             NumberMath<?> nmLeft = NumberMath.getNumberMath(left);

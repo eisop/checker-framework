@@ -25,7 +25,7 @@ import java.util.LinkedHashSet;
 public abstract class AccumulationChecker extends BaseTypeChecker {
 
     /** Set of alias analyses that are enabled in this particular accumulation checker. */
-    private EnumSet<AliasAnalysis> aliasAnalyses;
+    private final EnumSet<AliasAnalysis> aliasAnalyses;
 
     /** Constructs a new AccumulationChecker. */
     protected AccumulationChecker() {

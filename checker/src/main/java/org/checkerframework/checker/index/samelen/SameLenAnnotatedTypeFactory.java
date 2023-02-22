@@ -191,7 +191,7 @@ public class SameLenAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          * @param c2 another collection of Strings
          * @return if the two inputs are disjoint (i.e., have no elements in common) and both are
          *     non-empty, returns null. Otherwise, returns the union of the two collections (which,
-         *     if one collection is empty, is just the other collection).
+         *     if one collection is empty, is just the other collection). The result is sorted.
          */
         private @Nullable Collection<String> unionIfNotDisjoint(
                 Collection<String> c1, Collection<String> c2) {
@@ -231,7 +231,8 @@ public class SameLenAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                     return createSameLen(exprs);
                 }
             } else {
-                // the glb is either one of the annotations (if the other is top), or bottom.
+                // If one of the annotations is top, the glb is the other annotation; otherwise
+                // bottom.
                 if (areSameByClass(a1, SameLenUnknown.class)) {
                     return a2;
                 } else if (areSameByClass(a2, SameLenUnknown.class)) {
@@ -316,9 +317,9 @@ public class SameLenAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
         // Case "new array" for "new T[a.length]"
         @Override
-        public Void visitNewArray(NewArrayTree node, AnnotatedTypeMirror type) {
-            if (node.getDimensions().size() == 1) {
-                Tree dimensionTree = node.getDimensions().get(0);
+        public Void visitNewArray(NewArrayTree tree, AnnotatedTypeMirror type) {
+            if (tree.getDimensions().size() == 1) {
+                Tree dimensionTree = tree.getDimensions().get(0);
                 ExpressionTree sequenceTree =
                         IndexUtil.getLengthSequenceTree(dimensionTree, imf, processingEnv);
                 if (sequenceTree != null) {

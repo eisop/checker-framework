@@ -6,6 +6,7 @@ import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Options;
 
+import org.checkerframework.checker.mustcall.qual.MustCall;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.AbstractValue;
 import org.checkerframework.dataflow.analysis.Analysis;
@@ -14,6 +15,7 @@ import org.checkerframework.dataflow.analysis.TransferFunction;
 import org.checkerframework.dataflow.cfg.CFGProcessor;
 import org.checkerframework.dataflow.cfg.CFGProcessor.CFGProcessResult;
 import org.checkerframework.dataflow.cfg.ControlFlowGraph;
+import org.plumelib.util.ArrayMap;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -21,7 +23,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 import javax.tools.JavaFileManager;
@@ -198,7 +199,7 @@ public final class CFGVisualizeLauncher {
             analysis.performAnalysis(cfg);
         }
 
-        Map<String, Object> args = new HashMap<>(2);
+        Map<String, Object> args = new ArrayMap<>(2);
         args.put("outdir", outputDir);
         args.put("verbose", verbose);
 
@@ -241,13 +242,17 @@ public final class CFGVisualizeLauncher {
         try {
             // Redirect syserr to nothing (and prevent the compiler from issuing
             // warnings about our exception).
-            System.setErr(
-                    new PrintStream(
-                            // In JDK 11+, this can be just "OutputStream.nullOutputStream()".
-                            new OutputStream() {
-                                @Override
-                                public void write(int b) throws IOException {}
-                            }));
+            @SuppressWarnings({
+                "builder:required.method.not.called",
+                "mustcall:assignment"
+            }) // Won't be needed in JDK 11+ with use of "OutputStream.nullOutputStream()".
+            @MustCall() OutputStream nullOS =
+                    // In JDK 11+, this can be just "OutputStream.nullOutputStream()".
+                    new OutputStream() {
+                        @Override
+                        public void write(int b) throws IOException {}
+                    };
+            System.setErr(new PrintStream(nullOS));
             javac.compile(List.of(l), List.of(clas), List.of(cfgProcessor), List.nil());
         } catch (Throwable e) {
             // ok

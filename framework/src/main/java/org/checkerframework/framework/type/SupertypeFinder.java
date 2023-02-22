@@ -9,6 +9,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiv
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeVisitor;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
@@ -22,9 +23,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
-import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
@@ -44,7 +43,7 @@ import javax.lang.model.util.Types;
  */
 final class SupertypeFinder {
 
-    // Class cannot be instantiated.
+    /** Do not instantiate. */
     private SupertypeFinder() {
         throw new AssertionError("Class SupertypeFinder cannot be instantiated.");
     }
@@ -128,7 +127,7 @@ final class SupertypeFinder {
         @Override
         public List<AnnotatedTypeMirror> visitPrimitive(AnnotatedPrimitiveType type, Void p) {
             List<AnnotatedTypeMirror> superTypes = new ArrayList<>(1);
-            Set<AnnotationMirror> annotations = type.getAnnotations();
+            AnnotationMirrorSet annotations = type.getAnnotations();
 
             // Find Boxed type
             TypeElement boxed = types.boxedClass(type.getUnderlyingType());
@@ -172,7 +171,7 @@ final class SupertypeFinder {
 
         @Override
         public List<AnnotatedDeclaredType> visitDeclared(AnnotatedDeclaredType type, Void p) {
-            // Set<AnnotationMirror> annotations = type.getAnnotations();
+            // AnnotationMirrorSet annotations = type.getAnnotations();
 
             TypeElement typeElement = (TypeElement) type.getUnderlyingType().asElement();
 
@@ -394,7 +393,7 @@ final class SupertypeFinder {
                 // If the type argument of super is the same as the input type
                 if (atypeFactory.types.isSameType(
                         t.getUnderlyingType(), type.getUnderlyingType())) {
-                    Set<AnnotationMirror> bounds =
+                    AnnotationMirrorSet bounds =
                             ((AnnotatedDeclaredType) atypeFactory.getAnnotatedType(dt.asElement()))
                                     .typeArgs
                                     .get(0)
@@ -422,7 +421,7 @@ final class SupertypeFinder {
         @Override
         public List<AnnotatedTypeMirror> visitArray(AnnotatedArrayType type, Void p) {
             List<AnnotatedTypeMirror> superTypes = new ArrayList<>();
-            Set<AnnotationMirror> annotations = type.getAnnotations();
+            AnnotationMirrorSet annotations = type.getAnnotations();
             final AnnotatedTypeMirror objectType = atypeFactory.getAnnotatedType(Object.class);
             objectType.addAnnotations(annotations);
             superTypes.add(objectType);

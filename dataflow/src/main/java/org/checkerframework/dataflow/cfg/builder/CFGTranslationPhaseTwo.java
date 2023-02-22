@@ -10,7 +10,8 @@ import org.checkerframework.dataflow.cfg.block.SingleSuccessorBlockImpl;
 import org.checkerframework.dataflow.cfg.block.SpecialBlock.SpecialBlockType;
 import org.checkerframework.dataflow.cfg.block.SpecialBlockImpl;
 import org.checkerframework.dataflow.cfg.node.Node;
-import org.checkerframework.dataflow.util.MostlySingleton;
+import org.checkerframework.javacutil.BugInCF;
+import org.plumelib.util.ArraySet;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -49,7 +50,7 @@ public class CFGTranslationPhaseTwo {
                 new SpecialBlockImpl(SpecialBlockType.EXCEPTIONAL_EXIT);
 
         // record missing edges that will be added later
-        Set<MissingEdge> missingEdges = new MostlySingleton<>();
+        Set<MissingEdge> missingEdges = new ArraySet<>(1);
 
         // missing exceptional edges
         Set<MissingEdge> missingExceptionalEdges = new LinkedHashSet<>();
@@ -113,7 +114,12 @@ public class CFGTranslationPhaseTwo {
                                         },
                                         target));
                         target = bindings.get(elseLabel);
-                        assert target != null;
+                        if (target == null) {
+                            throw new BugInCF(
+                                    String.format(
+                                            "in conditional jump %s, no binding for elseLabel %s: %s",
+                                            cj, elseLabel, bindings));
+                        }
                         missingEdges.add(
                                 new MissingEdge(
                                         new RegularBlockImpl() {
@@ -211,9 +217,9 @@ public class CFGTranslationPhaseTwo {
                 regularExitBlock,
                 exceptionalExitBlock,
                 in.underlyingAST,
-                in.treeLookupMap,
-                in.convertedTreeLookupMap,
-                in.postfixLookupMap,
+                in.treeToCfgNodes,
+                in.treeToConvertedCfgNodes,
+                in.postfixTreeToCfgNodes,
                 in.returnNodes,
                 in.declaredClasses,
                 in.declaredLambdas);

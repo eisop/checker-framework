@@ -54,6 +54,7 @@ import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.QualifierKind;
 import org.checkerframework.javacutil.AnnotationBuilder;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
@@ -154,10 +155,14 @@ public class NullnessAnnotatedTypeFactory
                     "edu.umd.cs.findbugs.annotations.NonNull",
                     // https://github.com/micrometer-metrics/micrometer/blob/main/micrometer-core/src/main/java/io/micrometer/core/lang/NonNull.java
                     "io.micrometer.core.lang.NonNull",
+                    // https://github.com/micronaut-projects/micronaut-core/blob/master/core/src/main/java/io/micronaut/core/annotation/NonNull.java
+                    "io.micronaut.core.annotation.NonNull",
                     // https://github.com/ReactiveX/RxJava/blob/2.x/src/main/java/io/reactivex/annotations/NonNull.java
                     "io.reactivex.annotations.NonNull",
                     // https://github.com/ReactiveX/RxJava/blob/3.x/src/main/java/io/reactivex/rxjava3/annotations/NonNull.java
                     "io.reactivex.rxjava3.annotations.NonNull",
+                    // https://github.com/jakartaee/common-annotations-api/blob/master/api/src/main/java/jakarta/annotation/Nonnull.java
+                    "jakarta.annotation.Nonnull",
                     // https://jcp.org/en/jsr/detail?id=305; no documentation at
                     // https://www.javadoc.io/doc/com.google.code.findbugs/jsr305/3.0.1/javax/annotation/Nonnull.html
                     "javax.annotation.Nonnull",
@@ -167,6 +172,10 @@ public class NullnessAnnotatedTypeFactory
                     "libcore.util.NonNull",
                     // https://github.com/projectlombok/lombok/blob/master/src/core/lombok/NonNull.java
                     "lombok.NonNull",
+                    // https://github.com/raphw/byte-buddy/blob/master/byte-buddy-agent/src/main/java/net/bytebuddy/agent/utility/nullability/NeverNull.java
+                    "net.bytebuddy.agent.utility.nullability.NeverNull",
+                    // https://github.com/raphw/byte-buddy/blob/master/byte-buddy-dep/src/main/java/net/bytebuddy/utility/nullability/NeverNull.java
+                    "net.bytebuddy.utility.nullability.NeverNull",
                     // https://github.com/antlr/antlr4/blob/master/runtime/Java/src/org/antlr/v4/runtime/misc/NotNull.java
                     "org.antlr.v4.runtime.misc.NotNull",
                     // https://search.maven.org/artifact/org.checkerframework/checker-compat-qual/2.5.5/jar
@@ -186,6 +195,9 @@ public class NullnessAnnotatedTypeFactory
                     "org.jetbrains.annotations.NotNull",
                     // http://svn.code.sf.net/p/jmlspecs/code/JMLAnnotations/trunk/src/org/jmlspecs/annotation/NonNull.java
                     "org.jmlspecs.annotation.NonNull",
+                    // https://github.com/jspecify/jspecify/blob/main/src/main/java/org/jspecify/annotations/NonNull.java
+                    "org.jspecify.annotations.NonNull",
+                    // 2022-11-17: Deprecated old package location, remove after some grace period
                     // https://github.com/jspecify/jspecify/tree/main/src/main/java/org/jspecify/nullness
                     "org.jspecify.nullness.NonNull",
                     // http://bits.netbeans.org/dev/javadoc/org-netbeans-api-annotations-common/org/netbeans/api/annotations/common/NonNull.html
@@ -255,10 +267,16 @@ public class NullnessAnnotatedTypeFactory
                     "edu.umd.cs.findbugs.annotations.UnknownNullness",
                     // https://github.com/micrometer-metrics/micrometer/blob/main/micrometer-core/src/main/java/io/micrometer/core/lang/Nullable.java
                     "io.micrometer.core.lang.Nullable",
+                    // https://github.com/micronaut-projects/micronaut-core/blob/master/core/src/main/java/io/micronaut/core/annotation/Nullable.java
+                    "io.micronaut.core.annotation.Nullable",
                     // https://github.com/ReactiveX/RxJava/blob/2.x/src/main/java/io/reactivex/annotations/Nullable.java
                     "io.reactivex.annotations.Nullable",
                     // https://github.com/ReactiveX/RxJava/blob/3.x/src/main/java/io/reactivex/rxjava3/annotations/Nullable.java
                     "io.reactivex.rxjava3.annotations.Nullable",
+                    // https://github.com/eclipse-vertx/vertx-codegen/blob/master/src/main/java/io/vertx/codegen/annotations/Nullable.java
+                    "io.vertx.codegen.annotations.Nullable",
+                    // https://github.com/jakartaee/common-annotations-api/blob/master/api/src/main/java/jakarta/annotation/Nullable.java
+                    "jakarta.annotation.Nullable",
                     // https://jcp.org/en/jsr/detail?id=305; no documentation at
                     // https://www.javadoc.io/doc/com.google.code.findbugs/jsr305/3.0.1/javax/annotation/Nullable.html
                     "javax.annotation.CheckForNull",
@@ -267,6 +285,18 @@ public class NullnessAnnotatedTypeFactory
                     "junitparams.converters.Nullable",
                     // https://android.googlesource.com/platform/libcore/+/master/luni/src/main/java/libcore/util/Nullable.java
                     "libcore.util.Nullable",
+                    // https://github.com/raphw/byte-buddy/blob/master/byte-buddy-agent/src/main/java/net/bytebuddy/agent/utility/nullability/AlwaysNull.java
+                    "net.bytebuddy.agent.utility.nullability.AlwaysNull",
+                    // https://github.com/raphw/byte-buddy/blob/master/byte-buddy-agent/src/main/java/net/bytebuddy/agent/utility/nullability/MaybeNull.java
+                    "net.bytebuddy.agent.utility.nullability.MaybeNull",
+                    // https://github.com/raphw/byte-buddy/blob/master/byte-buddy-agent/src/main/java/net/bytebuddy/agent/utility/nullability/UnknownNull.java
+                    "net.bytebuddy.agent.utility.nullability.UnknownNull",
+                    // https://github.com/raphw/byte-buddy/blob/master/byte-buddy-dep/src/main/java/net/bytebuddy/utility/nullability/AlwaysNull.java
+                    "net.bytebuddy.utility.nullability.AlwaysNull",
+                    // https://github.com/raphw/byte-buddy/blob/master/byte-buddy-dep/src/main/java/net/bytebuddy/utility/nullability/MaybeNull.java
+                    "net.bytebuddy.utility.nullability.MaybeNull",
+                    // https://github.com/raphw/byte-buddy/blob/master/byte-buddy-dep/src/main/java/net/bytebuddy/utility/nullability/UnknownNull.java
+                    "net.bytebuddy.utility.nullability.UnknownNull",
                     // https://github.com/apache/avro/blob/master/lang/java/avro/src/main/java/org/apache/avro/reflect/Nullable.java
                     // "org.apache.avro.reflect.Nullable",
                     "org.apa".toString() + "che.avro.reflect.Nullable",
@@ -293,6 +323,9 @@ public class NullnessAnnotatedTypeFactory
                     "org.jetbrains.annotations.UnknownNullability",
                     // http://svn.code.sf.net/p/jmlspecs/code/JMLAnnotations/trunk/src/org/jmlspecs/annotation/Nullable.java
                     "org.jmlspecs.annotation.Nullable",
+                    // https://github.com/jspecify/jspecify/blob/main/src/main/java/org/jspecify/annotations/Nullable.java
+                    "org.jspecify.annotations.Nullable",
+                    // 2022-11-17: Deprecated old package location, remove after some grace period
                     // https://github.com/jspecify/jspecify/tree/main/src/main/java/org/jspecify/nullness
                     "org.jspecify.nullness.Nullable",
                     "org.jspecify.nullness.NullnessUnspecified",
@@ -358,7 +391,12 @@ public class NullnessAnnotatedTypeFactory
                                     new TypeUseLocation[] {TypeUseLocation.UPPER_BOUND})
                             .setValue("applyToSubpackages", false)
                             .build();
+            addAliasedDeclAnnotation(
+                    "org.jspecify.annotations.NullMarked",
+                    DefaultQualifier.class.getCanonicalName(),
+                    nullMarkedDefaultQual);
 
+            // 2022-11-17: Deprecated old package location, remove after some grace period
             addAliasedDeclAnnotation(
                     "org.jspecify.nullness.NullMarked",
                     DefaultQualifier.class.getCanonicalName(),
@@ -572,17 +610,17 @@ public class NullnessAnnotatedTypeFactory
         }
 
         @Override
-        public Void visitBinary(BinaryTree node, AnnotatedTypeMirror type) {
+        public Void visitBinary(BinaryTree tree, AnnotatedTypeMirror type) {
             return null;
         }
 
         @Override
-        public Void visitUnary(UnaryTree node, AnnotatedTypeMirror type) {
+        public Void visitUnary(UnaryTree tree, AnnotatedTypeMirror type) {
             return null;
         }
 
         @Override
-        public Void visitTypeCast(TypeCastTree node, AnnotatedTypeMirror type) {
+        public Void visitTypeCast(TypeCastTree tree, AnnotatedTypeMirror type) {
             if (type.getKind().isPrimitive()) {
                 AnnotationMirror NONNULL = ((NullnessAnnotatedTypeFactory) atypeFactory).NONNULL;
                 // If a @Nullable expression is cast to a primitive, then an unboxing.of.nullable
@@ -592,7 +630,7 @@ public class NullnessAnnotatedTypeFactory
                     type.addAnnotation(NONNULL);
                 }
             }
-            return super.visitTypeCast(node, type);
+            return super.visitTypeCast(tree, type);
         }
     }
 
@@ -604,16 +642,16 @@ public class NullnessAnnotatedTypeFactory
         }
 
         @Override
-        public Void visitMemberSelect(MemberSelectTree node, AnnotatedTypeMirror type) {
+        public Void visitMemberSelect(MemberSelectTree tree, AnnotatedTypeMirror type) {
 
-            Element elt = TreeUtils.elementFromUse(node);
+            Element elt = TreeUtils.elementFromUse(tree);
             assert elt != null;
             return null;
         }
 
         @Override
-        public Void visitVariable(VariableTree node, AnnotatedTypeMirror type) {
-            Element elt = TreeUtils.elementFromDeclaration(node);
+        public Void visitVariable(VariableTree tree, AnnotatedTypeMirror type) {
+            Element elt = TreeUtils.elementFromDeclaration(tree);
             if (elt.getKind() == ElementKind.EXCEPTION_PARAMETER) {
                 if (!type.isAnnotatedInHierarchy(NONNULL)) {
                     // case 9. exception parameter
@@ -624,9 +662,9 @@ public class NullnessAnnotatedTypeFactory
         }
 
         @Override
-        public Void visitIdentifier(IdentifierTree node, AnnotatedTypeMirror type) {
+        public Void visitIdentifier(IdentifierTree tree, AnnotatedTypeMirror type) {
 
-            Element elt = TreeUtils.elementFromUse(node);
+            Element elt = TreeUtils.elementFromUse(tree);
             assert elt != null;
 
             if (elt.getKind() == ElementKind.EXCEPTION_PARAMETER) {
@@ -641,14 +679,14 @@ public class NullnessAnnotatedTypeFactory
 
         // The result of a binary operation is always non-null.
         @Override
-        public Void visitBinary(BinaryTree node, AnnotatedTypeMirror type) {
+        public Void visitBinary(BinaryTree tree, AnnotatedTypeMirror type) {
             type.replaceAnnotation(NONNULL);
             return null;
         }
 
         // The result of a compound operation is always non-null.
         @Override
-        public Void visitCompoundAssignment(CompoundAssignmentTree node, AnnotatedTypeMirror type) {
+        public Void visitCompoundAssignment(CompoundAssignmentTree tree, AnnotatedTypeMirror type) {
             type.replaceAnnotation(NONNULL);
             // Commitment will run after for initialization defaults
             return null;
@@ -656,20 +694,20 @@ public class NullnessAnnotatedTypeFactory
 
         // The result of a unary operation is always non-null.
         @Override
-        public Void visitUnary(UnaryTree node, AnnotatedTypeMirror type) {
+        public Void visitUnary(UnaryTree tree, AnnotatedTypeMirror type) {
             type.replaceAnnotation(NONNULL);
             return null;
         }
 
         // The result of newly allocated structures is always non-null.
         @Override
-        public Void visitNewClass(NewClassTree node, AnnotatedTypeMirror type) {
+        public Void visitNewClass(NewClassTree tree, AnnotatedTypeMirror type) {
             type.replaceAnnotation(NONNULL);
             return null;
         }
 
         @Override
-        public Void visitNewArray(NewArrayTree node, AnnotatedTypeMirror type) {
+        public Void visitNewArray(NewArrayTree tree, AnnotatedTypeMirror type) {
             // The result of newly allocated structures is always non-null.
             if (!type.isAnnotatedInHierarchy(NONNULL)) {
                 type.replaceAnnotation(NONNULL);
@@ -747,7 +785,7 @@ public class NullnessAnnotatedTypeFactory
     protected boolean hasFieldInvariantAnnotation(
             AnnotatedTypeMirror type, VariableElement fieldElement) {
         AnnotationMirror invariant = getFieldInvariantAnnotation();
-        Set<AnnotationMirror> lowerBounds =
+        AnnotationMirrorSet lowerBounds =
                 AnnotatedTypes.findEffectiveLowerBoundAnnotations(qualHierarchy, type);
         return AnnotationUtils.containsSame(lowerBounds, invariant);
     }
@@ -926,18 +964,18 @@ public class NullnessAnnotatedTypeFactory
     // then change rhs to @MonotonicNonNull.
     @Override
     public void wpiAdjustForUpdateField(
-            Tree lhsTree, Element element, String fieldName, AnnotatedTypeMirror rhsATM) {
-        if (!rhsATM.hasAnnotation(Nullable.class)) {
-            return;
-        }
-        TreePath lhsPath = getPath(lhsTree);
-        TypeElement enclosingClassOfLhs =
-                TreeUtils.elementFromDeclaration(TreePathUtil.enclosingClass(lhsPath));
-        ClassSymbol enclosingClassOfField = ((VarSymbol) element).enclClass();
-        if (enclosingClassOfLhs.equals(enclosingClassOfField)
-                && TreePathUtil.inConstructor(lhsPath)) {
-            rhsATM.replaceAnnotation(MONOTONIC_NONNULL);
-        }
+        Tree lhsTree, Element element, String fieldName, AnnotatedTypeMirror rhsATM) {
+      // Synthetic variable names contain "#". Ignore them.
+      if (!rhsATM.hasAnnotation(Nullable.class) || fieldName.contains("#")) {
+        return;
+      }
+      TreePath lhsPath = getPath(lhsTree);
+      TypeElement enclosingClassOfLhs =
+          TreeUtils.elementFromDeclaration(TreePathUtil.enclosingClass(lhsPath));
+      ClassSymbol enclosingClassOfField = ((VarSymbol) element).enclClass();
+      if (enclosingClassOfLhs.equals(enclosingClassOfField) && TreePathUtil.inConstructor(lhsPath)) {
+        rhsATM.replaceAnnotation(MONOTONIC_NONNULL);
+      }
     }
 
     // If
@@ -963,17 +1001,33 @@ public class NullnessAnnotatedTypeFactory
     //  * output @RequiresNonNull rather than @RequiresQualifier.
     @Override
     protected @Nullable AnnotationMirror createRequiresOrEnsuresQualifier(
-            String expression,
-            AnnotationMirror qualifier,
-            AnnotatedTypeMirror declaredType,
-            Analysis.BeforeOrAfter preOrPost,
-            @Nullable List<AnnotationMirror> preconds) {
-        // TODO: This does not handle the possibility that the user set a different default
-        // annotation.
-        if (!(declaredType.hasAnnotation(NULLABLE)
-                || declaredType.hasAnnotation(POLYNULL)
-                || declaredType.hasAnnotation(MONOTONIC_NONNULL))) {
-            return null;
+        String expression,
+        AnnotationMirror qualifier,
+        AnnotatedTypeMirror declaredType,
+        Analysis.BeforeOrAfter preOrPost,
+        @Nullable List<AnnotationMirror> preconds) {
+      // TODO: This does not handle the possibility that the user set a different default
+      // annotation.
+      if (!(declaredType.hasAnnotation(NULLABLE)
+          || declaredType.hasAnnotation(POLYNULL)
+          || declaredType.hasAnnotation(MONOTONIC_NONNULL))) {
+        return null;
+      }
+
+      if (preOrPost == BeforeOrAfter.AFTER
+          && declaredType.hasAnnotation(MONOTONIC_NONNULL)
+          && preconds.contains(requiresNonNullAnno(expression))) {
+        // The postcondition is implied by the precondition and the field being
+        // @MonotonicNonNull.
+        return null;
+      }
+
+      if (AnnotationUtils.areSameByName(
+          qualifier, "org.checkerframework.checker.nullness.qual.NonNull")) {
+        if (preOrPost == BeforeOrAfter.BEFORE) {
+          return requiresNonNullAnno(expression);
+        } else {
+          return ensuresNonNullAnno(expression);
         }
 
         if (preOrPost == BeforeOrAfter.AFTER
@@ -1030,7 +1084,7 @@ public class NullnessAnnotatedTypeFactory
     /**
      * Returns true if {@code node} is an invocation of Map.get.
      *
-     * @param node a node
+     * @param node a CFG node
      * @return true if {@code node} is an invocation of Map.get
      */
     public boolean isMapGet(Node node) {

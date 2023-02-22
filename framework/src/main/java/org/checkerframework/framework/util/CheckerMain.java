@@ -493,13 +493,6 @@ public class CheckerMain {
             args.add(
                     "-Xbootclasspath/p:"
                             + String.join(File.pathSeparator, compilationBootclasspath));
-
-            // We currently provide a Java 8 JDK and want to be runnable
-            // on a Java 8 JVM. So set source/target to 8.
-            args.add("-source");
-            args.add("8");
-            args.add("-target");
-            args.add("8");
         }
 
         args.addAll(toolOpts);

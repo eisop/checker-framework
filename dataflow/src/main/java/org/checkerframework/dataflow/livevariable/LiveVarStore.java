@@ -13,6 +13,7 @@ import org.checkerframework.dataflow.cfg.node.UnaryOperationNode;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizer;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.javacutil.BugInCF;
+import org.plumelib.util.ArraySet;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -109,11 +110,12 @@ public class LiveVarStore implements Store<LiveVarStore> {
 
     @Override
     public LiveVarStore leastUpperBound(LiveVarStore other) {
-        Set<LiveVarNode> liveVarValueSetLub =
-                new LinkedHashSet<>(this.liveVarNodeSet.size() + other.liveVarNodeSet.size());
-        liveVarValueSetLub.addAll(this.liveVarNodeSet);
-        liveVarValueSetLub.addAll(other.liveVarNodeSet);
-        return new LiveVarStore(liveVarValueSetLub);
+        Set<LiveVarNode> liveVarNodeSetLub =
+                ArraySet.newArraySetOrHashSet(
+                        this.liveVarNodeSet.size() + other.liveVarNodeSet.size());
+        liveVarNodeSetLub.addAll(this.liveVarNodeSet);
+        liveVarNodeSetLub.addAll(other.liveVarNodeSet);
+        return new LiveVarStore(liveVarNodeSetLub);
     }
 
     /** It should not be called since it is not used by the backward analysis. */

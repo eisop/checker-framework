@@ -47,7 +47,7 @@ import javax.lang.model.element.VariableElement;
  */
 public final class ElementAnnotationApplier {
 
-    // Class cannot be instantiated.
+    /** Do not instantiate. */
     private ElementAnnotationApplier() {
         throw new AssertionError("Class ElementAnnotationApplier cannot be instantiated.");
     }

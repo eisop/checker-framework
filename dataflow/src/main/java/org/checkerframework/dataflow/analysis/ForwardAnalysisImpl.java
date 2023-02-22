@@ -392,7 +392,7 @@ public class ForwardAnalysisImpl<
 
         if (node instanceof ReturnNode) {
             // Save a copy of the store to later check if some property holds at a given return
-            // statement
+            // statement.
             storesAtReturnStatements.put((ReturnNode) node, transferResult);
         }
         return transferResult;

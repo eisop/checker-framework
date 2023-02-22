@@ -6,6 +6,7 @@ import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.Tree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.Collection;
@@ -53,10 +54,7 @@ public class ClassNameNode extends Node {
     public ClassNameNode(ClassTree tree) {
         super(TreeUtils.typeOf(tree));
         this.tree = tree;
-        Element element = TreeUtils.elementFromDeclaration(tree);
-        assert element instanceof TypeElement || element instanceof TypeParameterElement
-                : "@AssumeAssertion(nullness)";
-        this.element = element;
+        this.element = TreeUtils.elementFromDeclaration(tree);
         this.parent = null;
     }
 
@@ -119,6 +117,7 @@ public class ClassNameNode extends Node {
     }
 
     @Override
+    @SideEffectFree
     public Collection<Node> getOperands() {
         if (parent == null) {
             return Collections.emptyList();

@@ -2,7 +2,7 @@ Index: src/net/eyde/personalblog/struts/action/ReadAction.java
 ===================================================================
 --- src/net/eyde/personalblog/struts/action/ReadAction.java	(revision 3589)
 +++ src/net/eyde/personalblog/struts/action/ReadAction.java	(working copy)
-@@ -45,7 +45,7 @@
+@@ -43,7 +43,7 @@
          String forward = "readposts";
  
          // Get request parameters
