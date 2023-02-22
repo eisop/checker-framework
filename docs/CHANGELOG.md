@@ -420,7 +420,7 @@ Moved the `-AajavaChecks` option from `CheckerFrameworkPerDirectoryTest` to
 `TypecheckExecutor.compile` to ensure the option is used for all tests.
 
 **Closed issues:**
-eisop#210.
+eisop#210, eisop#215.
 
 
 Version 3.22.0 (May 2, 2022)
