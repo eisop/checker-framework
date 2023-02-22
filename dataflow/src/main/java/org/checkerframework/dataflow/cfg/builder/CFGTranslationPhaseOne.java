@@ -3476,9 +3476,13 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         if (enclosingExpr != null) {
             enclosingExprNode = scan(enclosingExpr, p);
         } else if (enclosingType.getKind() == TypeKind.DECLARED) {
+            // This is an inner class (instance nested class).
+            // As there is no explicit enclosing expression, create a node for the implicit this argument.
             enclosingExprNode = new ImplicitThisNode(enclosingType);
             extendWithNode(enclosingExprNode);
         } else {
+            // For static nested classes, the kind would be Typekind.None.
+
             enclosingExprNode = null;
         }
 

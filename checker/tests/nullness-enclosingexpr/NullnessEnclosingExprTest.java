@@ -31,7 +31,6 @@ class NullnessEnclosingExprTest {
         this.new InnerWithImplicitEnclosingExpression();
         // :: error: (enclosingexpr.type.incompatible)
         this.new InnerWithInitializedEnclosingExpression();
-        // TODO :: error: (method.invocation.invalid)
         this.new InnerWithUnknownInitializationEnclosingExpression();
         f = "a";
     }
