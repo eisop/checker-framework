@@ -1,11 +1,89 @@
-Version 3.28.0-eisop2 (December ?, 2022)
+Version 3.31.0-eisop1 (February ?, 2023)
 ----------------------------------------
 
 **User-visible changes:**
 
+The new command-line argument `-AcheckEnclosingExpr` enables
+type checking for enclosing expression types of inner class instantiations. This fixes an
+unsoundness, in particular for the Nullness Initialization Checker, which did not detect the use of
+an uninitialized outer class for an inner class instantiation.
+The option is off by default to avoid many false-positive errors.
+
 **Implementation details:**
 
+Added method `AnnotatedExecutableType.getVarargType` to access the vararg type of a method/constructor.
+This allows us to remove usages of `AnnotatedTypes.adaptParameters()`.
+
+A `VariableDeclarationNode` is now correctly added to the CFG for the binding variable
+in a `BindingPatternTree`.
+
+Remove the `fastAssemble` task which is subsumed by `assembleForJavac`.
+
 **Closed issues:**
+
+eisop#282, eisop#310.
+
+Version 3.31.0 (February 17, 2023)
+----------------------------------
+
+**User-visible changes:**
+
+Command-line argument `-AshowPrefixInWarningMessages` puts the checker name
+on the first line of each warning and error message.
+
+Signedness Checker changes:
+ * Cast expressions are not subject to type refinement.  When a programmer
+   writes a cast such as `(@Signed int) 2`, it is not refined to
+   `@SignednessGlb` and cannot be used in an unsigned context.
+ * When incompatible arguments are passed to `@PolySigned` formal parameters,
+   the error is expressed in terms of `@SignednessBottom` rather than the
+   greatest lower bound of the argument types.
+
+**Implementation details:**
+
+Moved `AnnotationMirrorSet` and `AnnotationMirrorMap` from
+`org.checkerframework.framework.util` to `org.checkerframework.javacutil`.
+Changed uses of `Set<AnnotationMirror>` to `AnnotationMirrorSet` including in APIs.
+Removed methods from AnnotationUtils that are no longer useful:
+`createAnnotationMap`, `createAnnotationSet`, `createUnmodifiableAnnotationSet`.
+
+**Closed issues:**
+#5597.
+
+
+Version 3.30.0 (February 2, 2023)
+---------------------------------
+
+**Implementation details:**
+
+`getQualifierKind()` throws an exception rather than returning null.
+(EISOP note: this method is in `ElementQualifierHierarchy` and `QualifierKindHierarchy`.)
+
+Renamed Gradle task `copyJarsToDist` to `assembleForJavac`.
+
+**Closed issues:**
+#5402, #5486, #5489, #5519, #5524, #5526.
+
+
+Version 3.29.0 (January 5, 2023)
+--------------------------------
+
+**User-visible changes:**
+
+Dropped support for `-ApermitUnsupportedJdkVersion` command-line argument.
+You can now run the Checker Framework under any JDK version, without a warning.
+(EISOP note: a note is however still issued. Use the EISOP option
+`-AnoJreVersionCheck` to also suppress the note.)
+
+Pass `-Astubs=permit-nullness-assertion-exception.astub` to not be warned about null
+pointer exceptions within nullness assertion methods like `Objects.requireNonNull`.
+
+Pass `-Astubs=sometimes-nullable.astub` to unsoundly permit passing null to
+calls if null is sometimes but not always permitted.
+
+**Closed issues:**
+
+#5412, #5431, #5435, #5438, #5447, #5450, #5453, #5471, #5472, #5487.
 
 
 Version 3.28.0-eisop1 (December 7, 2022)
@@ -271,7 +349,7 @@ Version 3.22.2 (June 14, 2022)
 
 **Implementation details:**
 
-Expose CFG APIs to allow inserting jumps and throws
+Expose CFG APIs to allow inserting jumps and throws.
 
 
 Version 3.22.1-eisop1 (June 3, 2022)
@@ -342,7 +420,7 @@ Moved the `-AajavaChecks` option from `CheckerFrameworkPerDirectoryTest` to
 `TypecheckExecutor.compile` to ensure the option is used for all tests.
 
 **Closed issues:**
-eisop#210.
+eisop#210, eisop#215.
 
 
 Version 3.22.0 (May 2, 2022)

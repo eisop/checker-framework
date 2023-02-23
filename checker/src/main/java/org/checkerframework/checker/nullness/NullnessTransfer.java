@@ -31,6 +31,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
 import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.AnnotationBuilder;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
@@ -38,7 +39,6 @@ import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
@@ -86,6 +86,9 @@ public class NullnessTransfer
      */
     protected final @Nullable KeyForAnnotatedTypeFactory keyForTypeFactory;
 
+    /** True if -AassumeKeyFor was provided on the command line. */
+    private final boolean assumeKeyFor;
+
     /**
      * True if conservativeArgumentNullnessAfterInvocation flag is turned off, meaning that after a
      * method call or constructor invocation, arguments of the invocation (including the receiver)
@@ -103,7 +106,8 @@ public class NullnessTransfer
         this.nullnessTypeFactory = (NullnessAnnotatedTypeFactory) analysis.getTypeFactory();
         Elements elements = nullnessTypeFactory.getElementUtils();
         BaseTypeChecker checker = nullnessTypeFactory.getChecker();
-        if (checker.hasOption("assumeKeyFor")) {
+        assumeKeyFor = checker.hasOption("assumeKeyFor");
+        if (assumeKeyFor) {
             this.keyForTypeFactory = null;
         } else {
             // It is error-prone to put a type factory in a field.  It is OK here because
@@ -219,10 +223,8 @@ public class NullnessTransfer
                 }
             }
 
-            Set<AnnotationMirror> secondAnnos =
-                    secondValue != null
-                            ? secondValue.getAnnotations()
-                            : AnnotationUtils.createAnnotationSet();
+            AnnotationMirrorSet secondAnnos =
+                    secondValue != null ? secondValue.getAnnotations() : new AnnotationMirrorSet();
             if (nullnessTypeFactory.containsSameByClass(secondAnnos, PolyNull.class)) {
                 thenStore = thenStore == null ? res.getThenStore() : thenStore;
                 elseStore = elseStore == null ? res.getElseStore() : elseStore;
@@ -420,7 +422,7 @@ public class NullnessTransfer
                 String mapName = JavaExpression.fromNode(receiver).toString();
                 isKeyFor = keyForTypeFactory.isKeyForMap(mapName, methodArgs.get(0));
             } else {
-                isKeyFor = analysis.getTypeFactory().getChecker().hasOption("assumeKeyFor");
+                isKeyFor = assumeKeyFor;
             }
             if (isKeyFor) {
                 AnnotatedTypeMirror receiverType = nullnessTypeFactory.getReceiverType(n.getTree());
@@ -466,10 +468,14 @@ public class NullnessTransfer
         }
     }
 
-    /** Creates a dummy abstract value (whose type is not supposed to be looked at). */
+    /**
+     * Creates a dummy abstract value (whose type is not supposed to be looked at).
+     *
+     * @return a dummy abstract value
+     */
     private NullnessValue createDummyValue() {
         TypeMirror dummy = analysis.getEnv().getTypeUtils().getPrimitiveType(TypeKind.BOOLEAN);
-        Set<AnnotationMirror> annos = AnnotationUtils.createAnnotationSet();
+        AnnotationMirrorSet annos = new AnnotationMirrorSet();
         annos.addAll(nullnessTypeFactory.getQualifierHierarchy().getBottomAnnotations());
         return new NullnessValue(analysis, annos, dummy);
     }

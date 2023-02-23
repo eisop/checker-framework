@@ -35,6 +35,7 @@ import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
 import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
 import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.javacutil.AnnotationBuilder;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
@@ -72,7 +73,8 @@ import javax.lang.model.type.TypeMirror;
  * <ol>
  *   <li>Converts the expression strings in an {@link AnnotationMirror} {@code am}, by creating a
  *       new annotation whose Java expression elements are the result of the conversion. See {@link
- *       #convertAnnotationMirror(StringToJavaExpression, AnnotationMirror)}. Subclasses can
+ *       #convertAnnotationMirror(StringToJavaExpression, AnnotationMirror)}, though clients do not
+ *       call it (they call other methods in this class, which eventually call it). Subclasses can
  *       specialize this process by overriding methods in this class. Methods in this class always
  *       standardize Java expressions and may additionally viewpoint-adapt or delocalize
  *       expressions. Below is an explanation of each kind of conversion.
@@ -220,7 +222,8 @@ public class DependentTypesHelper {
     ///
 
     /** If true, log information about where lambdas are created. */
-    private static boolean debugStringToJavaExpression = false;
+    // This variable is only set here; edit the source code to modify it.
+    private static final boolean debugStringToJavaExpression = false;
 
     /**
      * Viewpoint-adapts the dependent type annotations on the bounds of the type parameters of the
@@ -287,7 +290,7 @@ public class DependentTypesHelper {
     }
 
     /**
-     * Viewpoint-adapts a method or constructor invocation.
+     * Viewpoint-adapts dependent type annotations in a method or constructor type.
      *
      * <p>{@code methodType} has been viewpoint-adapted to the call site, except for any dependent
      * type annotations. (For example, type variables have been substituted and polymorphic
@@ -996,7 +999,7 @@ public class DependentTypesHelper {
             // to the upper and lower bounds.  These annotations cannot be viewpoint-adapted again,
             // so remove them, viewpoint-adapt any other annotations in the bound, and then add them
             // back.
-            Set<AnnotationMirror> primarys = type.getAnnotations();
+            AnnotationMirrorSet primarys = type.getAnnotations();
             type.getLowerBound().removeAnnotations(primarys);
             Void r = scan(type.getLowerBound(), func);
             type.getLowerBound().addAnnotations(primarys);
@@ -1012,8 +1015,7 @@ public class DependentTypesHelper {
         @Override
         protected Void scan(
                 AnnotatedTypeMirror type, Function<AnnotationMirror, AnnotationMirror> func) {
-            for (AnnotationMirror anno :
-                    AnnotationUtils.createAnnotationSet(type.getAnnotations())) {
+            for (AnnotationMirror anno : new AnnotationMirrorSet(type.getAnnotations())) {
                 AnnotationMirror newAnno = func.apply(anno);
                 if (newAnno != null) {
                     // This code must remove and then add, rather than call `replace`, because a
@@ -1186,24 +1188,24 @@ public class DependentTypesHelper {
      * Reports an expression.unparsable.type.invalid error for each Java expression in the given
      * type variables that is an expression error string.
      *
-     * @param node a method declaration
+     * @param tree a method declaration
      * @param methodType annotated type of the method
      */
     private void checkTypeVariablesForErrorExpressions(
-            MethodTree node, AnnotatedExecutableType methodType) {
+            MethodTree tree, AnnotatedExecutableType methodType) {
         for (int i = 0; i < methodType.getTypeVariables().size(); i++) {
             AnnotatedTypeMirror atm = methodType.getTypeVariables().get(i);
             StringToJavaExpression stringToJavaExpr =
                     stringExpr ->
                             StringToJavaExpression.atMethodBody(
-                                    stringExpr, node, factory.getChecker());
+                                    stringExpr, tree, factory.getChecker());
             if (debugStringToJavaExpression) {
                 System.out.printf(
                         "checkTypeVariablesForErrorExpressions(%s, %s) created %s%n",
-                        node, methodType, stringToJavaExpr);
+                        tree, methodType, stringToJavaExpr);
             }
             convertAnnotatedTypeMirror(stringToJavaExpr, atm);
-            checkTypeForErrorExpressions(atm, node.getTypeParameters().get(i));
+            checkTypeForErrorExpressions(atm, tree.getTypeParameters().get(i));
         }
     }
 
@@ -1281,7 +1283,7 @@ public class DependentTypesHelper {
             if (from == null || to == null) {
                 return null;
             }
-            Set<AnnotationMirror> replacements = AnnotationUtils.createAnnotationSet();
+            AnnotationMirrorSet replacements = new AnnotationMirrorSet();
             for (String vpa : annoToElements.keySet()) {
                 AnnotationMirror anno = from.getAnnotation(vpa);
                 if (anno != null) {

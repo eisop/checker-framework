@@ -150,8 +150,7 @@ public class MultiDimensionalArrays {
     // three-dimensional arrays with arguments in annotations
 
     void requiresSf1Sf2Sf3(
-            @AinferSiblingWithFields(value = {"test1", "test1"})
-                    int @AinferSiblingWithFields(value = {"test2", "test2"}) []
+            @AinferSiblingWithFields(value = {"test1", "test1"}) int @AinferSiblingWithFields(value = {"test2", "test2"}) []
                                     @AinferSiblingWithFields(value = {"test3"}) []
                             x) {}
 
@@ -163,8 +162,7 @@ public class MultiDimensionalArrays {
     }
 
     void useField5(
-            @AinferSiblingWithFields(value = {"test1", "test1"})
-                    int @AinferSiblingWithFields(value = {"test2", "test2"}) []
+            @AinferSiblingWithFields(value = {"test1", "test1"}) int @AinferSiblingWithFields(value = {"test2", "test2"}) []
                                     @AinferSiblingWithFields(value = {"test3"}) []
                             x) {
         threeDimArray4 = x;
@@ -176,16 +174,14 @@ public class MultiDimensionalArrays {
     }
 
     void useParam5(
-            @AinferSiblingWithFields(value = {"test1", "test1"})
-                    int @AinferSiblingWithFields(value = {"test2", "test2"}) []
+            @AinferSiblingWithFields(value = {"test1", "test1"}) int @AinferSiblingWithFields(value = {"test2", "test2"}) []
                                     @AinferSiblingWithFields(value = {"test3"}) []
                             x) {
         testParam5(x);
     }
 
     int[][] useReturn5(
-            @AinferSiblingWithFields(value = {"test1", "test1"})
-                    int @AinferSiblingWithFields(value = {"test2", "test2"}) []
+            @AinferSiblingWithFields(value = {"test1", "test1"}) int @AinferSiblingWithFields(value = {"test2", "test2"}) []
                                     @AinferSiblingWithFields(value = {"test3"}) []
                             x) {
         return x;
@@ -241,12 +237,10 @@ public class MultiDimensionalArrays {
     }
 
     void requiresS1S2L(
-            @AinferSibling1
-                    List</*@AinferSibling1*/ String /*@AinferSibling2*/[]> @AinferSibling2 [] la) {}
+            @AinferSibling1 List</*@AinferSibling1*/ String /*@AinferSibling2*/[]> @AinferSibling2 [] la) {}
 
     void useField7(
-            @AinferSibling1
-                    List</*@AinferSibling1*/ String /*@AinferSibling2*/[]> @AinferSibling2 [] x) {
+            @AinferSibling1 List</*@AinferSibling1*/ String /*@AinferSibling2*/[]> @AinferSibling2 [] x) {
         arrayofListsOfStringArrays = x;
     }
 
@@ -256,14 +250,12 @@ public class MultiDimensionalArrays {
     }
 
     void useParam7(
-            @AinferSibling1
-                    List</*@AinferSibling1*/ String /*@AinferSibling2*/[]> @AinferSibling2 [] x) {
+            @AinferSibling1 List</*@AinferSibling1*/ String /*@AinferSibling2*/[]> @AinferSibling2 [] x) {
         testParam7(x);
     }
 
     List<String[]>[] useReturn7(
-            @AinferSibling1
-                    List</*@AinferSibling1*/ String /*@AinferSibling2*/[]> @AinferSibling2 [] x) {
+            @AinferSibling1 List</*@AinferSibling1*/ String /*@AinferSibling2*/[]> @AinferSibling2 [] x) {
         return x;
     }
 

@@ -48,21 +48,21 @@ public class FormatterVisitor extends BaseTypeVisitor<FormatterAnnotatedTypeFact
     }
 
     @Override
-    public Void visitMethod(MethodTree node, Void p) {
-        ExecutableElement methodElement = TreeUtils.elementFromDeclaration(node);
+    public Void visitMethod(MethodTree tree, Void p) {
+        ExecutableElement methodElement = TreeUtils.elementFromDeclaration(tree);
         if (atypeFactory.getDeclAnnotation(methodElement, FormatMethod.class) != null) {
             int formatStringIndex = FormatterVisitor.formatStringIndex(methodElement);
             if (formatStringIndex == -1) {
-                checker.reportError(node, "format.method.invalid", methodElement.getSimpleName());
+                checker.reportError(tree, "format.method.invalid", methodElement.getSimpleName());
             }
         }
-        return super.visitMethod(node, p);
+        return super.visitMethod(tree, p);
     }
 
     @Override
-    public Void visitMethodInvocation(MethodInvocationTree node, Void p) {
+    public Void visitMethodInvocation(MethodInvocationTree tree, Void p) {
         FormatterTreeUtil ftu = atypeFactory.treeUtil;
-        FormatCall fc = ftu.create(node, atypeFactory);
+        FormatCall fc = ftu.create(tree, atypeFactory);
         if (fc != null) {
             MethodTree enclosingMethod =
                     TreePathUtil.enclosingMethod(atypeFactory.getPath(fc.invocationTree));
@@ -122,7 +122,7 @@ public class FormatterVisitor extends BaseTypeVisitor<FormatterAnnotatedTypeFact
                                         if (!fc.isValidArgument(formatCat, argType)) {
                                             // II.3
                                             ExecutableElement method =
-                                                    TreeUtils.elementFromUse(node);
+                                                    TreeUtils.elementFromUse(tree);
                                             CharSequence methodName =
                                                     ElementUtils.getSimpleNameOrDescription(method);
                                             ftu.failure(
@@ -169,14 +169,14 @@ public class FormatterVisitor extends BaseTypeVisitor<FormatterAnnotatedTypeFact
             /* NO-AFU
                    // Support -Ainfer command-line argument.
                    WholeProgramInference wpi = atypeFactory.getWholeProgramInference();
-                   if (wpi != null && forwardsArguments(node, enclosingMethod)) {
+                   if (wpi != null && forwardsArguments(tree, enclosingMethod)) {
                        wpi.addMethodDeclarationAnnotation(
                                TreeUtils.elementFromDeclaration(enclosingMethod),
                                atypeFactory.FORMATMETHOD);
                    }
             */
         }
-        return super.visitMethodInvocation(node, p);
+        return super.visitMethodInvocation(tree, p);
     }
 
     /**

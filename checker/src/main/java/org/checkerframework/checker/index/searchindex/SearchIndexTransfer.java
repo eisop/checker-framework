@@ -24,9 +24,14 @@ import javax.lang.model.element.AnnotationMirror;
  */
 public class SearchIndexTransfer extends IndexAbstractTransfer {
 
-    // The ATF (Annotated Type Factory).
-    private SearchIndexAnnotatedTypeFactory aTypeFactory;
+    /** The annotated type factory. */
+    private final SearchIndexAnnotatedTypeFactory aTypeFactory;
 
+    /**
+     * Create a new SearchIndexTransfer.
+     *
+     * @param analysis the CFAnalysis
+     */
     public SearchIndexTransfer(CFAnalysis analysis) {
         super(analysis);
         aTypeFactory = (SearchIndexAnnotatedTypeFactory) analysis.getTypeFactory();

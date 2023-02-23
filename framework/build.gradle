@@ -17,7 +17,10 @@ sourceSets {
 
         resources {
             // Stub files, message.properties, etc.
-            srcDirs += ['src/main/java', "${buildDir}/generated/resources"]
+            srcDirs += [
+                'src/main/java',
+                "${buildDir}/generated/resources"
+            ]
 
             // NO-AFU
             exclude '**/org/checkerframework/common/wholeprograminference/**'
@@ -40,8 +43,8 @@ jar {
 
 
 def versions = [
-        autoValue       : "1.7.4",
-        lombok          : "1.18.24",
+    autoValue       : '1.10.1',
+    lombok          : '1.18.26',
 ]
 
 configurations {
@@ -55,12 +58,12 @@ dependencies {
 
     // NO-AFU
     /*
-    // AFU is an "includedBuild" imported in checker-framework/settings.gradle, so the version number doesn't matter.
-    // https://docs.gradle.org/current/userguide/composite_builds.html#settings_defined_composite
-    api('org.checkerframework:annotation-file-utilities:*') {
-        exclude group: 'com.google.errorprone', module: 'javac'
-    }
-    */
+     // AFU is an "includedBuild" imported in checker-framework/settings.gradle, so the version number doesn't matter.
+     // https://docs.gradle.org/current/userguide/composite_builds.html#settings_defined_composite
+     api('org.checkerframework:annotation-file-utilities:*') {
+     exclude group: 'com.google.errorprone', module: 'javac'
+     }
+     */
 
     api project(':checker-qual')
 
@@ -69,7 +72,7 @@ dependencies {
     // See the comment in ../build.gradle in the shadowJar block.
     implementation "org.plumelib:plume-util:${plumeUtilVersion}"
     implementation "org.plumelib:reflection-util:${reflectionUtilVersion}"
-    implementation 'io.github.classgraph:classgraph:4.8.149'
+    implementation 'io.github.classgraph:classgraph:4.8.154'
 
     testImplementation group: 'junit', name: 'junit', version: '4.13.2'
     testImplementation project(':framework-test')
@@ -98,7 +101,14 @@ task cloneTypetoolsJdk() {
             exec {
                 workingDir "${annotatedJdkHome}/../"
                 executable 'git'
-                args = ['clone', '-q', '--depth', '1', 'https://github.com/eisop/jdk.git', 'jdk']
+                args = [
+                    'clone',
+                    '-q',
+                    '--depth',
+                    '1',
+                    'https://github.com/eisop/jdk.git',
+                    'jdk'
+                ]
             }
         }
     }
@@ -117,12 +127,12 @@ task copyAndMinimizeAnnotatedJdkFiles(dependsOn: cloneTypetoolsJdk, group: 'Buil
 
     doLast {
         FileTree tree = fileTree(dir: inputDir)
-        SortedSet<String> annotatedForFiles = new TreeSet<>();
+        NavigableSet<String> annotatedForFiles = new TreeSet<>();
         tree.visit { FileVisitDetails fvd ->
-            if (!fvd.file.isDirectory() && fvd.file.name.matches(".*\\.java")
-                    && !fvd.file.path.contains("org/checkerframework")) {
+            if (!fvd.file.isDirectory() && fvd.file.name.matches('.*\\.java')
+                    && !fvd.file.path.contains('org/checkerframework')) {
                 fvd.getFile().readLines().any { line ->
-                    if (line.contains("@AnnotatedFor") || line.contains("org.checkerframework")) {
+                    if (line.contains('@AnnotatedFor') || line.contains('org.checkerframework')) {
                         annotatedForFiles.add(fvd.file.absolutePath)
                         return true;
                     }
@@ -164,7 +174,7 @@ compileJava.dependsOn(checkDependencies)
 task allSourcesJar(type: Jar, group: 'Build') {
     description 'Creates a sources jar that includes sources for all Checker Framework classes in framework.jar'
     destinationDirectory = file("${projectDir}/dist")
-    archiveFileName = "framework-source.jar"
+    archiveFileName = 'framework-source.jar'
     from (project(':framework').sourceSets.main.java,
             project(':dataflow').sourceSets.main.allJava,
             project(':javacutil').sourceSets.main.allJava)
@@ -175,7 +185,7 @@ task allJavadocJar(type: Jar, group: 'Build') {
     dependsOn rootProject.tasks.allJavadoc
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     destinationDirectory = file("${projectDir}/dist")
-    archiveFileName = "framework-javadoc.jar"
+    archiveFileName = 'framework-javadoc.jar'
     from (project(':framework').tasks.javadoc.destinationDir,
             project(':dataflow').tasks.javadoc.destinationDir,
             project(':javacutil').tasks.javadoc.destinationDir)
@@ -184,19 +194,19 @@ task allJavadocJar(type: Jar, group: 'Build') {
 shadowJar {
     description 'Creates the "fat" framework.jar in dist'
     destinationDirectory = file("${projectDir}/dist")
-    archiveFileName = "framework.jar"
+    archiveFileName = 'framework.jar'
     manifest {
-        attributes('Automatic-Module-Name': "org.checkerframework.framework")
+        attributes('Automatic-Module-Name': 'org.checkerframework.framework')
     }
 
     minimize()
 }
 
-createCheckTypeTask(project.name, "CompilerMessages",
-    'org.checkerframework.checker.compilermsgs.CompilerMessagesChecker')
+createCheckTypeTask(project.name, 'CompilerMessages',
+        'org.checkerframework.checker.compilermsgs.CompilerMessagesChecker')
 checkCompilerMessages {
     options.compilerArgs += [
-            '-Apropfiles=' + sourceSets.main.resources.filter { file -> file.name.equals('messages.properties') }.asPath
+        '-Apropfiles=' + sourceSets.main.resources.filter { file -> file.name.equals('messages.properties') }.asPath
     ]
 }
 
@@ -209,13 +219,17 @@ task loaderTests(dependsOn: 'shadowJar', group: 'Verification') {
     doLast {
         exec {
             executable 'make'
-            args = ['-C', "tests/annotationclassloader/", "all"]
+            args = [
+                '-C',
+                'tests/annotationclassloader/',
+                'all'
+            ]
         }
     }
 }
 
 clean {
-    delete("tests/returnsreceiverdelomboked")
+    delete('tests/returnsreceiverdelomboked')
     delete('dist')
 }
 
@@ -235,13 +249,12 @@ task delombok {
     dependsOn project(':checker-qual').tasks.jar
 
     doLast {
-      // As of 2022-11-30, delombok crashes under JDK 19.
-      if(!skipDelombok) {
-        def collection = files(configurations.testCompileClasspath)
-        ant.taskdef(name: 'delombok', classname: 'lombok.delombok.ant.Tasks$Delombok',
+        if(!skipDelombok) {
+            def collection = files(configurations.testCompileClasspath)
+            ant.taskdef(name: 'delombok', classname: 'lombok.delombok.ant.Tasks$Delombok',
             classpath: collection.asPath)
-        ant.delombok(from: srcJava, to: srcDelomboked, classpath: collection.asPath)
-      }
+            ant.delombok(from: srcJava, to: srcDelomboked, classpath: collection.asPath)
+        }
     }
 }
 
@@ -251,5 +264,5 @@ if (skipDelombok) {
         exclude '**/ReturnsReceiverLombokTest.java'
     }
 } else {
-    tasks.test.dependsOn("delombok")
+    tasks.test.dependsOn('delombok')
 }

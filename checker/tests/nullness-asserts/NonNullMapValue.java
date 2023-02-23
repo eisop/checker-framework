@@ -27,14 +27,12 @@ public class NonNullMapValue {
     //
     // Here are potential solutions:
     //  * Forbid declaring values as non-null.  This is the wrong approach.  (It would also be hard
-    // to
-    //    express syntactically.)
+    //    to express syntactically.)
     //  * The checker could recognize a special new annotation on the return value of get,
-    // indicating
-    //    that its return type isn't merely inferred from the generic type, but is always nullable.
-    //    (This special new annotations could even be "@Nullable".  A different annotation may be
-    //    better, becase in general we would like to issue an error message when someone applies an
-    //    annotation to a generic type parameter.)
+    //    indicating that its return type isn't merely inferred from the generic type, but is
+    //    always nullable.  (This special new annotations could even be "@Nullable".  A different
+    //    annotation may be better, becase in general we would like to issue an error message when
+    //    someone applies an annotation to a generic type parameter.)
     // Additionally, to reduce the number of false positive warnings caused by the fact that get's
     // return value is nullable:
     //  * Build a more specialized sophisticated flow analysis that checks that the passed key to

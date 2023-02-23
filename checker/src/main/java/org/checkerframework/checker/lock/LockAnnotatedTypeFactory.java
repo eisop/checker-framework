@@ -39,7 +39,6 @@ import org.checkerframework.framework.type.MostlyNoElementQualifierHierarchy;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.treeannotator.ListTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
-import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.QualifierKind;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesError;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
@@ -510,8 +509,7 @@ public class LockAnnotatedTypeFactory
      *     annotation is present on the method
      * @return the side effect annotation that is present on the given method
      */
-    // package-private
-    SideEffectAnnotation methodSideEffectAnnotation(
+    /*package-private*/ SideEffectAnnotation methodSideEffectAnnotation(
             ExecutableElement methodElement, boolean issueErrorIfMoreThanOnePresent) {
         if (methodElement == null) {
             // When there is not enough information to determine the correct side effect annotation,
@@ -558,8 +556,7 @@ public class LockAnnotatedTypeFactory
      * @param atm an AnnotatedTypeMirror containing a GuardSatisfied annotation
      * @return the index on the GuardSatisfied annotation
      */
-    // package-private
-    int getGuardSatisfiedIndex(AnnotatedTypeMirror atm) {
+    /*package-private*/ int getGuardSatisfiedIndex(AnnotatedTypeMirror atm) {
         return getGuardSatisfiedIndex(atm.getAnnotation(GuardSatisfied.class));
     }
 
@@ -570,8 +567,7 @@ public class LockAnnotatedTypeFactory
      * @param am an AnnotationMirror for a GuardSatisfied annotation
      * @return the index on the GuardSatisfied annotation
      */
-    // package-private
-    int getGuardSatisfiedIndex(AnnotationMirror am) {
+    /*package-private*/ int getGuardSatisfiedIndex(AnnotationMirror am) {
         return AnnotationUtils.getElementValueInt(am, guardSatisfiedValueElement, -1);
     }
 
@@ -628,8 +624,7 @@ public class LockAnnotatedTypeFactory
 
         List<? extends ExpressionTree> methodInvocationTreeArguments =
                 ((MethodInvocationTree) tree).getArguments();
-        List<AnnotatedTypeMirror> paramTypes =
-                AnnotatedTypes.adaptParameters(this, invokedMethod, methodInvocationTreeArguments);
+        List<AnnotatedTypeMirror> paramTypes = invokedMethod.getParameterTypes();
 
         for (int i = 0; i < paramTypes.size(); i++) {
             if (replaceAnnotationInGuardedByHierarchyIfGuardSatisfiedIndexMatches(

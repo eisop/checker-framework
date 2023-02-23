@@ -21,8 +21,8 @@ import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.ReturnNode;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizer;
 import org.checkerframework.dataflow.cfg.visualize.StringCFGVisualizer;
-import org.checkerframework.dataflow.util.UnmodifiableIdentityHashMap;
 import org.plumelib.util.UniqueId;
+import org.plumelib.util.UnmodifiableIdentityHashMap;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -296,7 +296,10 @@ public class ControlFlowGraph implements UniqueId {
 
     /**
      * Get the {@link ClassTree} of the CFG if the argument {@link Tree} maps to a {@link Node} in
-     * the CFG or null otherwise.
+     * the CFG, or null otherwise.
+     *
+     * @param t a tree that might be within a class
+     * @return the class that contains the given tree, or null
      */
     public @Nullable ClassTree getContainingClass(Tree t) {
         if (treeLookup.containsKey(t) && underlyingAST.getKind() == UnderlyingAST.Kind.METHOD) {

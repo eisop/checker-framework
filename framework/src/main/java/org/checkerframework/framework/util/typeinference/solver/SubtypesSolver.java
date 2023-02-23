@@ -3,11 +3,11 @@ package org.checkerframework.framework.util.typeinference.solver;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.QualifierHierarchy;
-import org.checkerframework.framework.util.AnnotationMirrorMap;
-import org.checkerframework.framework.util.AnnotationMirrorSet;
 import org.checkerframework.framework.util.typeinference.GlbUtil;
 import org.checkerframework.framework.util.typeinference.solver.InferredValue.InferredType;
 import org.checkerframework.framework.util.typeinference.solver.TargetConstraints.Subtypes;
+import org.checkerframework.javacutil.AnnotationMirrorMap;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -175,7 +175,7 @@ public class SubtypesSolver {
      * @param qualifierHierarchy the qualifier of the annotation hierarchy
      * @return the GLB of annos
      */
-    private final AnnotationMirror greatestLowerBound(
+    private static final AnnotationMirror greatestLowerBound(
             final Iterable<? extends AnnotationMirror> annos,
             QualifierHierarchy qualifierHierarchy) {
         Iterator<? extends AnnotationMirror> annoIter = annos.iterator();

@@ -55,7 +55,9 @@ def execute(command_args, halt_if_fail=True, capture_output=False, working_dir=N
     else:
         result = subprocess.call(args, cwd=working_dir)
         if halt_if_fail and result:
-            raise Exception("Error %s while executing %s in %s" % (result, args, working_dir))
+            raise Exception(
+                "Error %s while executing %s in %s" % (result, args, working_dir)
+            )
         return result
 
 
@@ -152,7 +154,8 @@ os.environ["BIBINPUTS"] = ".:" + PLUME_BIB
 os.environ["TEXINPUTS"] = ".:..:"
 # Still needed for santiy checks
 os.environ["JAVA_8_HOME"] = "/usr/lib/jvm/java-8-openjdk-amd64/"
-os.environ["JAVA_HOME"] = os.environ["JAVA_8_HOME"]
+os.environ["JAVA_17_HOME"] = "/usr/lib/jvm/java-17-openjdk-amd64/"
+os.environ["JAVA_HOME"] = os.environ["JAVA_17_HOME"]
 
 EDITOR = os.getenv("EDITOR")
 if EDITOR is None:
@@ -167,4 +170,15 @@ PATH = PATH + ":."
 os.environ["PATH"] = PATH
 
 # Tools that must be on your PATH (besides common Unix ones like grep)
-TOOLS = ["hevea", "perl", "java", "latex", "mvn", "hg", "git", "html5validator", "dot", EDITOR]
+TOOLS = [
+    "hevea",
+    "perl",
+    "java",
+    "latex",
+    "mvn",
+    "hg",
+    "git",
+    "html5validator",
+    "dot",
+    EDITOR,
+]

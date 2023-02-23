@@ -4,6 +4,7 @@ import com.github.javaparser.Position;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
@@ -16,10 +17,12 @@ import com.github.javaparser.printer.DefaultPrettyPrinter;
 import com.github.javaparser.utils.Pair;
 import com.sun.source.util.JavacTask;
 
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.signature.qual.DotSeparatedIdentifiers;
 import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.framework.stub.AnnotationFileParser;
 import org.checkerframework.framework.util.JavaParserUtil;
+import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.FilesPlume;
 
 import java.io.File;
@@ -58,7 +61,7 @@ import javax.tools.ToolProvider;
 /** This program inserts annotations from an ajava file into a Java file. See {@link #main}. */
 public class InsertAjavaAnnotations {
     /** Element utilities. */
-    private Elements elements;
+    private final Elements elements;
 
     /**
      * Constructs an {@code InsertAjavaAnnotations} using the given {@code Elements} instance.
@@ -111,11 +114,11 @@ public class InsertAjavaAnnotations {
     /** Represents some text to be inserted at a file and its location. */
     private static class Insertion {
         /** Offset of the insertion in the file, measured in characters from the beginning. */
-        public int position;
+        public final int position;
         /** The contents of the insertion. */
-        public String contents;
+        public final String contents;
         /** Whether the insertion should be on its own separate line. */
-        public boolean ownLine;
+        public final boolean ownLine;
 
         /**
          * Constructs an insertion with the given position and contents.
@@ -164,22 +167,22 @@ public class InsertAjavaAnnotations {
          * <p>The map is populated from import statements and also when parsing a file that uses the
          * fully qualified name of an annotation it doesn't import.
          */
-        private Map<String, TypeElement> allAnnotations;
+        private @MonotonicNonNull Map<String, TypeElement> allAnnotations = null;
 
         /** The annotation insertions seen so far. */
-        public List<Insertion> insertions;
+        public final List<Insertion> insertions = new ArrayList<>();
         /** A printer for annotations. */
-        private DefaultPrettyPrinter printer;
+        private final DefaultPrettyPrinter printer = new DefaultPrettyPrinter();
         /** The lines of the String representation of the second AST. */
-        private List<String> lines;
+        private final List<String> lines;
         /** The line separator used in the text the second AST was parsed from */
-        private String lineSeparator;
+        private final String lineSeparator;
         /**
          * Stores the offsets of the lines in the string representation of the second AST. At index
          * i, stores the number of characters from the start of the file to the beginning of the ith
          * line.
          */
-        private List<Integer> cumulativeLineSizes;
+        private final List<Integer> cumulativeLineSizes;
 
         /**
          * Constructs a {@code BuildInsertionsVisitor} where {@code destFileContents} is the String
@@ -192,12 +195,10 @@ public class InsertAjavaAnnotations {
          */
         public BuildInsertionsVisitor(String destFileContents, String lineSeparator) {
             allAnnotations = null;
-            insertions = new ArrayList<>();
-            printer = new DefaultPrettyPrinter();
             String[] lines = destFileContents.split(lineSeparator);
             this.lines = Arrays.asList(lines);
             this.lineSeparator = lineSeparator;
-            cumulativeLineSizes = new ArrayList<>();
+            cumulativeLineSizes = new ArrayList<>(lines.length);
             cumulativeLineSizes.add(0);
             for (int i = 1; i < lines.length; i++) {
                 int lastSize = cumulativeLineSizes.get(i - 1);
@@ -226,8 +227,7 @@ public class InsertAjavaAnnotations {
             Position position;
             if (dest instanceof ClassOrInterfaceType) {
                 // In a multi-part name like my.package.MyClass, type annotations go directly in
-                // front of
-                // MyClass instead of the full name.
+                // front of MyClass instead of the full name.
                 position = ((ClassOrInterfaceType) dest).getName().getBegin().get();
             } else {
                 position = dest.getBegin().get();
@@ -268,16 +268,17 @@ public class InsertAjavaAnnotations {
             allAnnotations = getImportedAnnotations(src);
 
             // Move any annotations that JavaParser puts in the declaration position but belong only
-            // in
-            // the type position.
+            // in the type position.
             src.accept(new TypeAnnotationMover(allAnnotations, elements), null);
 
             // Transfer import statements from the ajava file to the Java file.
 
             List<String> newImports;
             { // set `newImports`
-                Set<String> existingImports = new HashSet<>();
-                for (ImportDeclaration importDecl : dest.getImports()) {
+                NodeList<ImportDeclaration> destImports = dest.getImports();
+                Set<String> existingImports =
+                        new HashSet<>(CollectionsPlume.mapCapacity(destImports.size()));
+                for (ImportDeclaration importDecl : destImports) {
                     existingImports.add(printer.print(importDecl));
                 }
 
@@ -594,8 +595,11 @@ public class InsertAjavaAnnotations {
                             System.exit(1);
                         }
 
-                        Set<String> annotationFilesForRoot = new LinkedHashSet<>();
-                        for (TypeDeclaration<?> type : root.getTypes()) {
+                        List<TypeDeclaration<?>> rootTypes = root.getTypes();
+                        // Estimate of size.
+                        Set<String> annotationFilesForRoot =
+                                new LinkedHashSet<>(CollectionsPlume.mapCapacity(rootTypes.size()));
+                        for (TypeDeclaration<?> type : rootTypes) {
                             String name = JavaParserUtil.getFullyQualifiedName(type, root);
                             annotationFilesForRoot.addAll(
                                     annotationFiles.getAnnotationFileForType(name));

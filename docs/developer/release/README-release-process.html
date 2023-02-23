@@ -60,6 +60,7 @@ The process takes around 2 hours (including manual steps) when all goes accordin
     <ul>
       <li><a href="#step_by_step">Step by Step</a></li>
       <li><a href="#continuous-integration">Continuous integration tests</a></li>
+      <li><a href="#snapshot_release">Snapshot release</a></li>
       <li><a href="#pre_release_checklist">Pre-release Checklist</a></li>
       <li><a href="#release_process_overview">Release Process Overview</a>
         <ul>
@@ -245,13 +246,45 @@ TreeAnnotator
   </li>
 </ol>
 
+  <h2 id="snapshot_release">Snapshot release</h2>
+  <p>This section explains how to release the Maven artifacts to the snapshot repository.</p>
+  <ol>
+    <li>
+      Ensure that <code>~/.gradle/gradle.properties</code> includes your <code>SONATYPE_NEXUS_USERNAME</code>
+      and <code>SONATYPE_NEXUS_PASSWORD</code>.
+    </li>
+    <li>
+      Ensure that the version number in <code>checker-framework/build.gradle</code> (in <code>allprojects { version ... }</code>) ends in <code>-SNAPSHOT</code>.
+    </li>
+    <li>
+      Run <code>./gradlew publish</code> in <code>checker-framework</code>.
+    </li>
+    <li>
+      In the <code>build.gradle</code> file of a project that you want
+      to use the snapshot version of the Checker Framework:
+      <pre>
+repositories {
+  ...
+  maven { url 'https://oss.sonatype.org/content/repositories/snapshots/' }
+}
+
+ext.checkerFrameworkVersion = '3.28.1-SNAPSHOT'
+dependencies {
+  compileOnly "io.github.eisop:checker-qual:${checkerFrameworkVersion}"
+  testCompileOnly "io.github.eisop:checker-qual:${checkerFrameworkVersion}"
+  checkerFramework "io.github.eisop:checker:${checkerFrameworkVersion}"
+}
+      </pre>
+    </li>
+  </ol>
+
   <h2 id="pre_release_checklist">Pre-release Checklist</h2>
   <p>If you have not performed a release before you must follow these steps.</p>
   <table class="table">
     <tr>
       <td>1.</td>
       <td><strong>Ensure you are a member of the types_www and pl_gang groups</strong><br/>
-        Run the command "groups" on the CSE file system (perhaps on Buffalo).
+        Run the command "groups" on the CSE file system (perhaps on tern).
         If the group types_www or pl_gang do not appear in the list, email the appropriate
         person to be added (currently Michael Ernst).
       </td>
@@ -259,7 +292,7 @@ TreeAnnotator
     <tr>
       <td>2.</td>
       <td><strong>Import the Checker Framework signing key for PGP</strong><br/>
-        SSH into Buffalo and run the following command:<br/>
+        SSH into tern and run the following command:<br/>
         <code>gpg --allow-secret-key-import --import /projects/swlab1/checker-framework/hosting-info/release-private.key<br/><br/></code>
         Note:  The password for this key is located in the file<br/>
         <code>/projects/swlab1/checker-framework/hosting-info/release-private.password<br/></code>
@@ -270,7 +303,7 @@ TreeAnnotator
       <td><strong>Sign up for a Sonatype Account</strong><br/>
         You will likely want to do this a few days in advance.
         Directions can be found <a href="http://central.sonatype.org/pages/ossrh-guide.html">here</a>.
-        Remember to be asked to be added to the org.checkerframework repository by creating
+        Remember to be asked to be added to the io.github.eisop repository by creating
         a ticket (see the note
         <a href="http://central.sonatype.org/pages/ossrh-guide.html#create-a-ticket-with-sonatype">here</a>).
         If after signing up for a Sonatype JIRA account you are not able to sign in to
@@ -287,7 +320,7 @@ TreeAnnotator
         <pre>
 SONATYPE_NEXUS_USERNAME=your_user_name
 SONATYPE_NEXUS_PASSWORD=your_password</pre>
-        using the information you just created for your Sonatype Account on Buffalo or other
+        using the information you just created for your Sonatype Account on tern or other
         network host.  Since the file contains your password, make it non-readable:  <code>chmod og-rw ~/.gradle/gradle.properties</code>
       </td>
     </tr>
@@ -586,8 +619,8 @@ git config --global user.email you@example.com</pre>
       manually delete the versions of the Maven artifacts.  For instance, for the artifacts checker and compiler
       using version 0.9.8, I would delete the directories:
       <ul>
-        <li>.../m2-repo/org/checkerframework/checker/0.9.8</li>
-        <li>.../m2-repo/org/checkerframework/compiler/0.9.8</li>
+        <li>.../m2-repo/io/github/eisop/checker/0.9.8</li>
+        <li>.../m2-repo/io/github/eisop/compiler/0.9.8</li>
       </ul>
       Furthermore, I would grep the files in the parents of these directories and ensure the version number
       does not appear in any metadata.  If so, fix up the metadata.
@@ -627,7 +660,7 @@ git config --global user.email you@example.com</pre>
     release related errors.
     <h4>Tasks:</h4> <!-- omit from toc -->
     <ul>
-      <li>Create a Buffalo task to run the release_build script without prompting.</li>
+      <li>Create a tern task to run the release_build script without prompting.</li>
       <li>Observe the output of this task and identify possible errors.</li>
       <li>Fix up all observed errors until the release_build script runs without error.</li>
       <li>We probably want to move the link checking of the development site to the release_build script and

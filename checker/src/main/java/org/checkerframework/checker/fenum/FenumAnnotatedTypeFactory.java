@@ -30,11 +30,11 @@ import javax.lang.model.util.Elements;
 public class FenumAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     /** AnnotationMirror for {@link FenumUnqualified}. */
-    protected AnnotationMirror FENUM_UNQUALIFIED;
+    protected final AnnotationMirror FENUM_UNQUALIFIED;
     /** AnnotationMirror for {@link FenumBottom}. */
-    protected AnnotationMirror FENUM_BOTTOM;
+    protected final AnnotationMirror FENUM_BOTTOM;
     /** AnnotationMirror for {@link FenumTop}. */
-    protected AnnotationMirror FENUM_TOP;
+    protected final AnnotationMirror FENUM_TOP;
 
     /**
      * Create a FenumAnnotatedTypeFactory.

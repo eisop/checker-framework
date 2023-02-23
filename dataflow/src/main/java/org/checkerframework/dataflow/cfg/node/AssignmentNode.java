@@ -8,6 +8,7 @@ import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.Arrays;
@@ -140,12 +141,13 @@ public class AssignmentNode extends Node {
     }
 
     @Override
+    @Pure
     public int hashCode() {
         return Objects.hash(getTarget(), getExpression());
     }
 
     @Override
-    @Pure
+    @SideEffectFree
     public Collection<Node> getOperands() {
         return Arrays.asList(getTarget(), getExpression());
     }

@@ -12,7 +12,11 @@ import java.util.Set;
  */
 public abstract class SingleSuccessorBlockImpl extends BlockImpl implements SingleSuccessorBlock {
 
-    /** Internal representation of the successor. */
+    /**
+     * Internal representation of the successor.
+     *
+     * <p>Is set by {@link #setSuccessor}.
+     */
     protected @Nullable BlockImpl successor;
 
     /**

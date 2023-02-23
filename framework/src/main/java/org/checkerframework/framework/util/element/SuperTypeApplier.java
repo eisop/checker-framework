@@ -96,6 +96,10 @@ public class SuperTypeApplier extends IndexedElementAnnotationApplier {
         return typeIndex == 0xffff ? -1 : typeIndex;
     }
 
+    /** The annotated targets. */
+    private static final TargetType[] annotatedTargets =
+            new TargetType[] {TargetType.CLASS_EXTENDS};
+
     /**
      * Returns TargetType.CLASS_EXTENDS.
      *
@@ -103,8 +107,14 @@ public class SuperTypeApplier extends IndexedElementAnnotationApplier {
      */
     @Override
     protected TargetType[] annotatedTargets() {
-        return new TargetType[] {TargetType.CLASS_EXTENDS};
+        return annotatedTargets;
     }
+
+    /** The valid targets. */
+    private static final TargetType[] validTargets =
+            new TargetType[] {
+                TargetType.CLASS_TYPE_PARAMETER, TargetType.CLASS_TYPE_PARAMETER_BOUND
+            };
 
     /**
      * Returns TargetType.CLASS_TYPE_PARAMETER, TargetType.CLASS_TYPE_PARAMETER_BOUND.
@@ -113,9 +123,7 @@ public class SuperTypeApplier extends IndexedElementAnnotationApplier {
      */
     @Override
     protected TargetType[] validTargets() {
-        return new TargetType[] {
-            TargetType.CLASS_TYPE_PARAMETER, TargetType.CLASS_TYPE_PARAMETER_BOUND
-        };
+        return validTargets;
     }
 
     /**

@@ -5,6 +5,7 @@ import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.Tree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.Arrays;
@@ -35,6 +36,8 @@ public class ArrayAccessNode extends Node {
      * If this ArrayAccessNode is a node for an array desugared from an enhanced for loop, then the
      * {@code arrayExpression} field is the expression in the for loop, e.g., {@code arr} in {@code
      * for(Object o: arr}.
+     *
+     * <p>Is set by {@link #setArrayExpression}.
      */
     protected @Nullable ExpressionTree arrayExpression;
 
@@ -118,6 +121,7 @@ public class ArrayAccessNode extends Node {
     }
 
     @Override
+    @SideEffectFree
     public Collection<Node> getOperands() {
         return Arrays.asList(getArray(), getIndex());
     }

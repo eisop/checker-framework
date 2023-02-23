@@ -3,6 +3,7 @@ package org.checkerframework.dataflow.cfg.node;
 import com.sun.source.tree.CaseTree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.plumelib.util.StringsPlume;
 
 import java.util.ArrayList;
@@ -108,10 +109,12 @@ public class CaseNode extends Node {
     }
 
     @Override
+    @SideEffectFree
     public Collection<Node> getOperands() {
-        ArrayList<Node> operands = new ArrayList<>();
+        List<Node> caseOperands = getCaseOperands();
+        ArrayList<Node> operands = new ArrayList<>(caseOperands.size() + 1);
         operands.add(getSwitchOperand());
-        operands.addAll(getCaseOperands());
+        operands.addAll(caseOperands);
         return operands;
     }
 }

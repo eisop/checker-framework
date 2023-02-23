@@ -119,8 +119,7 @@ public class I18nFormatterTreeUtil {
      * @param anno an I18nInvalidFormat annotation
      * @return its value() element/field, or null if it does not have one
      */
-    /*package-private*/
-    @Nullable String getI18nInvalidFormatValue(AnnotationMirror anno) {
+    /*package-private*/ @Nullable String getI18nInvalidFormatValue(AnnotationMirror anno) {
         return AnnotationUtils.getElementValue(
                 anno, i18nInvalidFormatValueElement, String.class, null);
     }
@@ -450,18 +449,18 @@ public class I18nFormatterTreeUtil {
                                                         InvocationType, Class<Void>>() {
                                                     @Override
                                                     protected InvocationType defaultAction(
-                                                            Tree node, Class<Void> p) {
+                                                            Tree tree, Class<Void> p) {
                                                         // just a normal array
                                                         return InvocationType.ARRAY;
                                                     }
 
                                                     @Override
                                                     public InvocationType visitTypeCast(
-                                                            TypeCastTree node, Class<Void> p) {
+                                                            TypeCastTree tree, Class<Void> p) {
                                                         // it's a (Object[])null
                                                         return atypeFactory
                                                                                 .getAnnotatedType(
-                                                                                        node
+                                                                                        tree
                                                                                                 .getExpression())
                                                                                 .getUnderlyingType()
                                                                                 .getKind()
@@ -567,8 +566,8 @@ public class I18nFormatterTreeUtil {
                                         @BinaryName String cname = e.getQualifiedName().toString();
                                         return Class.forName(cname);
                                     } catch (ClassNotFoundException e1) {
-                                        return null; // the lookup should work for all the classes
-                                        // we care about
+                                        // The lookup should work for all the classes we care about.
+                                        return null;
                                     }
                                 }
                             },

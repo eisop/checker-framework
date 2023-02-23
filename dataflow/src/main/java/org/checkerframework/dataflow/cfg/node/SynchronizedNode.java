@@ -3,6 +3,7 @@ package org.checkerframework.dataflow.cfg.node;
 import com.sun.source.tree.SynchronizedTree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -12,7 +13,7 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.util.Types;
 
 /**
- * This represents the start and end of synchronized code block. If startOfBlock == true it is the
+ * This represents the start and end of a synchronized code block. If startOfBlock == true it is the
  * node preceding a synchronized code block. Otherwise it is the node immediately after a
  * synchronized code block.
  */
@@ -74,6 +75,7 @@ public class SynchronizedNode extends Node {
     }
 
     @Override
+    @SideEffectFree
     public Collection<Node> getOperands() {
         return Collections.emptyList();
     }

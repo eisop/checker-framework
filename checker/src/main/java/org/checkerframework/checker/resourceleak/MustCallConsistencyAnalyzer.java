@@ -59,7 +59,6 @@ import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.TypesUtils;
-import org.plumelib.util.StringsPlume;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayDeque;
@@ -74,6 +73,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.StringJoiner;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -140,7 +140,7 @@ import javax.lang.model.type.TypeMirror;
  * expressions, method calls (for the return value), and ternary expressions. Other types of
  * expressions may also be supported in the future.
  */
-/* package-private */
+/*package-private*/
 class MustCallConsistencyAnalyzer {
 
     /** True if errors related to static owning fields should be suppressed. */
@@ -181,6 +181,12 @@ class MustCallConsistencyAnalyzer {
      */
     private final CFAnalysis analysis;
 
+    /** True if -AnoLightweightOwnership was passed on the command line. */
+    private final boolean noLightweightOwnership;
+
+    /** True if -AcountMustCall was passed on the command line. */
+    private final boolean countMustCall;
+
     /**
      * An Obligation is a dataflow fact: a set of resource aliases. Abstractly, each Obligation
      * represents a resource that the analyzed program which might have a must-call obligation. Each
@@ -195,7 +201,7 @@ class MustCallConsistencyAnalyzer {
      * alias is certainly a null pointer, or if the must-call obligation is the empty set), the
      * analysis can discard the Obligation.
      */
-    /* package-private */ static class Obligation {
+    /*package-private*/ static class Obligation {
 
         /**
          * The set of resource aliases through which a must-call obligation can be satisfied.
@@ -401,7 +407,7 @@ class MustCallConsistencyAnalyzer {
      * (the "reference" through which the must-call obligations for the alias set to which it
      * belongs can be satisfied) and a tree that "assigns" the reference.
      */
-    /* package-private */ static class ResourceAlias {
+    /*package-private*/ static class ResourceAlias {
 
         /**
          * A local variable defined in the source code or a temporary variable for an expression.
@@ -483,13 +489,15 @@ class MustCallConsistencyAnalyzer {
      * @param analysis the analysis from the type factory. Usually this would have protected access,
      *     so this constructor cannot get it directly.
      */
-    /* package-private */
+    /*package-private*/
     MustCallConsistencyAnalyzer(ResourceLeakAnnotatedTypeFactory typeFactory, CFAnalysis analysis) {
         this.typeFactory = typeFactory;
         this.checker = (ResourceLeakChecker) typeFactory.getChecker();
         this.analysis = analysis;
         this.permitStaticOwning = checker.hasOption("permitStaticOwning");
         this.permitInitializationLeak = checker.hasOption("permitInitializationLeak");
+        this.noLightweightOwnership = checker.hasOption(MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP);
+        this.countMustCall = checker.hasOption(ResourceLeakChecker.COUNT_MUST_CALL);
     }
 
     /**
@@ -510,8 +518,7 @@ class MustCallConsistencyAnalyzer {
      */
     // TODO: This analysis is currently implemented directly using a worklist; in the future, it
     // should be rewritten to use the dataflow framework of the Checker Framework.
-    /* package-private */
-    void analyze(ControlFlowGraph cfg) {
+    /*package-private*/ void analyze(ControlFlowGraph cfg) {
         // The `visited` set contains everything that has been added to the worklist, even if it has
         // not yet been removed and analyzed.
         Set<BlockWithObligations> visited = new HashSet<>();
@@ -629,12 +636,16 @@ class MustCallConsistencyAnalyzer {
             }
         }
 
-        String missingStrs = StringsPlume.join(", ", missing);
+        StringJoiner missingStrs = new StringJoiner(",");
+        for (JavaExpression m : missing) {
+            String s = m.toString();
+            missingStrs.add(s.equals("this") ? s + " of type " + m.getType() : s);
+        }
         checker.reportError(
                 node.getTree(),
                 "reset.not.owning",
                 node.getTarget().getMethod().getSimpleName().toString(),
-                missingStrs);
+                missingStrs.toString());
     }
 
     /**
@@ -642,32 +653,34 @@ class MustCallConsistencyAnalyzer {
      * org.checkerframework.checker.mustcall.qual.CreatesMustCallFor} annotation. Helper method for
      * {@link #checkCreatesMustCallForInvocation(Set, MethodInvocationNode)}.
      *
-     * <p>An expression is valid if one of the following conditions is true: 1) the expression is an
-     * owning pointer, 2) the expression already has a tracked Obligation (i.e. there is already a
-     * resource alias in some Obligation's resource alias set that refers to the expression), or 3)
-     * the method in which the invocation occurs also has an @CreatesMustCallFor annotation, with
-     * the same expression.
+     * <p>An expression is valid if one of the following conditions is true:
+     *
+     * <ul>
+     *   <li>1) the expression is an owning pointer,
+     *   <li>2) the expression already has a tracked Obligation (i.e. there is already a resource
+     *       alias in some Obligation's resource alias set that refers to the expression), or
+     *   <li>3) the method in which the invocation occurs also has an @CreatesMustCallFor
+     *       annotation, with the same expression.
+     * </ul>
      *
      * @param obligations the currently-tracked Obligations; this value is side-effected if there is
      *     an Obligation in it which tracks {@code expression} as one of its resource aliases
      * @param expression an element of a method's @CreatesMustCallFor annotation
-     * @param path the path to the invocation of the method from whose @CreateMustCallFor annotation
-     *     {@code expression} came
+     * @param invocationPath the path to the invocation of the method from whose @CreateMustCallFor
+     *     annotation {@code expression} came
      * @return true iff the expression is valid, as defined above
      */
     private boolean isValidCreatesMustCallForExpression(
-            Set<Obligation> obligations, JavaExpression expression, TreePath path) {
+            Set<Obligation> obligations, JavaExpression expression, TreePath invocationPath) {
         if (expression instanceof FieldAccess) {
             Element elt = ((FieldAccess) expression).getField();
-            if (!checker.hasOption(MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP)
-                    && typeFactory.getDeclAnnotation(elt, Owning.class) != null) {
+            if (!noLightweightOwnership && typeFactory.hasOwning(elt)) {
                 // The expression is an Owning field.  This satisfies case 1.
                 return true;
             }
         } else if (expression instanceof LocalVariable) {
             Element elt = ((LocalVariable) expression).getElement();
-            if (!checker.hasOption(MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP)
-                    && typeFactory.getDeclAnnotation(elt, Owning.class) != null) {
+            if (!noLightweightOwnership && typeFactory.hasOwning(elt)) {
                 // The expression is an Owning formal parameter. Note that this cannot actually
                 // be a local variable (despite expressions's type being LocalVariable) because
                 // the @Owning annotation can only be written on methods, parameters, and fields;
@@ -702,34 +715,33 @@ class MustCallConsistencyAnalyzer {
 
         // TODO: Getting this every time is inefficient if a method has many @CreatesMustCallFor
         // annotations, but that should be rare.
-        MethodTree enclosingMethodTree = TreePathUtil.enclosingMethod(path);
-        if (enclosingMethodTree == null) {
+        MethodTree callerMethodTree = TreePathUtil.enclosingMethod(invocationPath);
+        if (callerMethodTree == null) {
             return false;
         }
-        ExecutableElement enclosingMethodElt =
-                TreeUtils.elementFromDeclaration(enclosingMethodTree);
+        ExecutableElement callerMethodElt = TreeUtils.elementFromDeclaration(callerMethodTree);
         MustCallAnnotatedTypeFactory mcAtf =
                 typeFactory.getTypeFactoryOfSubchecker(MustCallChecker.class);
-        List<String> enclosingCmcfValues =
+        List<String> callerCmcfValues =
                 ResourceLeakVisitor.getCreatesMustCallForValues(
-                        enclosingMethodElt, mcAtf, typeFactory);
-        if (enclosingCmcfValues.isEmpty()) {
+                        callerMethodElt, mcAtf, typeFactory);
+        if (callerCmcfValues.isEmpty()) {
             return false;
         }
-        for (String enclosingCmcfValue : enclosingCmcfValues) {
-            JavaExpression enclosingTarget;
+        for (String callerCmcfValue : callerCmcfValues) {
+            JavaExpression callerTarget;
             try {
-                enclosingTarget =
+                callerTarget =
                         StringToJavaExpression.atMethodBody(
-                                enclosingCmcfValue, enclosingMethodTree, checker);
+                                callerCmcfValue, callerMethodTree, checker);
             } catch (JavaExpressionParseException e) {
                 // Do not issue an error here, because it would be a duplicate.
                 // The error will be issued by the Transfer class of the checker,
                 // via the CreatesMustCallForElementSupplier interface.
-                enclosingTarget = null;
+                callerTarget = null;
             }
 
-            if (areSame(expression, enclosingTarget)) {
+            if (areSame(expression, callerTarget)) {
                 // This satisfies case 3.
                 return true;
             }
@@ -962,7 +974,7 @@ class MustCallConsistencyAnalyzer {
     private void removeObligationsAtOwnershipTransferToParameters(
             Set<Obligation> obligations, Node node) {
 
-        if (checker.hasOption(MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP)) {
+        if (noLightweightOwnership) {
             // Never transfer ownership to parameters, matching the default in the analysis built
             // into Eclipse.
             return;
@@ -989,20 +1001,14 @@ class MustCallConsistencyAnalyzer {
 
                     // check if parameter has an @Owning annotation
                     VariableElement parameter = parameters.get(i);
-                    Set<AnnotationMirror> annotationMirrors =
-                            typeFactory.getDeclAnnotations(parameter);
-                    for (AnnotationMirror anno : annotationMirrors) {
-                        if (AnnotationUtils.areSameByName(
-                                anno, "org.checkerframework.checker.mustcall.qual.Owning")) {
-                            Obligation localObligation = getObligationForVar(obligations, local);
-                            // Passing to an owning parameter is not sufficient to resolve the
-                            // obligation created from a MustCallAlias parameter, because the
-                            // containing method must actually return the value.
-                            if (!localObligation.derivedFromMustCallAlias()) {
-                                // Transfer ownership!
-                                obligations.remove(localObligation);
-                                break;
-                            }
+                    if (typeFactory.hasOwning(parameter)) {
+                        Obligation localObligation = getObligationForVar(obligations, local);
+                        // Passing to an owning parameter is not sufficient to resolve the
+                        // obligation created from a MustCallAlias parameter, because the
+                        // containing method must actually return the value.
+                        if (!localObligation.derivedFromMustCallAlias()) {
+                            // Transfer ownership!
+                            obligations.remove(localObligation);
                         }
                     }
                 }
@@ -1055,7 +1061,7 @@ class MustCallConsistencyAnalyzer {
      *     corresponding to a CFG
      */
     private boolean isTransferOwnershipAtReturn(ControlFlowGraph cfg) {
-        if (checker.hasOption(MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP)) {
+        if (noLightweightOwnership) {
             // If not using LO, default to always transfer at return, just like Eclipse does.
             return true;
         }
@@ -1066,7 +1072,7 @@ class MustCallConsistencyAnalyzer {
             //  not be transferred.
             MethodTree method = ((UnderlyingAST.CFGMethod) underlyingAST).getMethod();
             ExecutableElement executableElement = TreeUtils.elementFromDeclaration(method);
-            return typeFactory.getDeclAnnotation(executableElement, NotOwning.class) == null;
+            return !typeFactory.hasNotOwning(executableElement);
         }
         return false;
     }
@@ -1093,9 +1099,7 @@ class MustCallConsistencyAnalyzer {
 
         // Ownership transfer to @Owning field.
         if (lhsElement.getKind() == ElementKind.FIELD) {
-            boolean isOwningField =
-                    !checker.hasOption(MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP)
-                            && typeFactory.getDeclAnnotation(lhsElement, Owning.class) != null;
+            boolean isOwningField = !noLightweightOwnership && typeFactory.hasOwning(lhsElement);
             // Check that the must-call obligations of the lhs have been satisfied, if the field is
             // non-final and owning.
             if (isOwningField
@@ -1109,9 +1113,17 @@ class MustCallConsistencyAnalyzer {
                     && rhs instanceof LocalVariableNode
                     && (typeFactory.canCreateObligations() || ElementUtils.isFinal(lhsElement))) {
                 // Assigning to an owning field is sufficient to clear a must-call alias obligation
-                // in a constructor.
+                // in a constructor, if the enclosing class has at most one @Owning field. If the
+                // class had multiple owning fields, then a soundness bug would occur: the must call
+                // alias relationship would allow the whole class' obligation to be fulfilled by
+                // closing only one of the parameters passed to the constructor (but the other
+                // owning fields might not actually have had their obligations fulfilled). See test
+                // case checker/tests/resourceleak/TwoOwningMCATest.java for an example.
                 Element enclosingCtr = lhsElement.getEnclosingElement();
-                if (enclosingCtr != null && enclosingCtr.getKind() != ElementKind.CONSTRUCTOR) {
+                if (enclosingCtr != null
+                        && enclosingCtr.getKind() != ElementKind.CONSTRUCTOR
+                        && hasAtMostOneOwningField(
+                                ElementUtils.enclosingTypeElement(enclosingCtr))) {
                     removeObligationsContainingVar(obligations, (LocalVariableNode) rhs);
                 } else {
                     removeObligationsContainingVarIfNotDerivedFromMustCallAlias(
@@ -1129,6 +1141,30 @@ class MustCallConsistencyAnalyzer {
             LocalVariableNode lhsVar = (LocalVariableNode) lhs;
             updateObligationsForPseudoAssignment(obligations, assignmentNode, lhsVar, rhs);
         }
+    }
+
+    /**
+     * Returns true iff the given type element has 0 or 1 @Owning fields.
+     *
+     * @param element an element for a class
+     * @return true iff element has no more than 1 owning field
+     */
+    private boolean hasAtMostOneOwningField(TypeElement element) {
+        List<VariableElement> fields =
+                ElementUtils.getAllFieldsIn(element, typeFactory.getElementUtils());
+        // Has an owning field already been encountered?
+        boolean hasOwningField = false;
+        for (VariableElement field : fields) {
+            if (typeFactory.hasOwning(field)) {
+                if (hasOwningField) {
+                    return false;
+                } else {
+                    hasOwningField = true;
+                }
+            }
+        }
+        // We haven't seen two owning fields, so there must be 1 or 0.
+        return true;
     }
 
     /**
@@ -1629,7 +1665,7 @@ class MustCallConsistencyAnalyzer {
      *     declaration does not have a {@code @NotOwning} annotation
      */
     private boolean shouldTrackReturnType(MethodInvocationNode node) {
-        if (checker.hasOption(MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP)) {
+        if (noLightweightOwnership) {
             // Default to always transferring at return if not using LO, just like Eclipse does.
             return true;
         }
@@ -1652,7 +1688,7 @@ class MustCallConsistencyAnalyzer {
             return false;
         }
         // check for absence of @NotOwning annotation
-        return (typeFactory.getDeclAnnotation(executableElement, NotOwning.class) == null);
+        return !typeFactory.hasNotOwning(executableElement);
     }
 
     /**
@@ -1809,10 +1845,18 @@ class MustCallConsistencyAnalyzer {
                     // immediately issued, because such a parameter should not go out of scope
                     // without its obligation being resolved some other way.
                     if (obligation.derivedFromMustCallAlias()) {
-                        checker.reportError(
-                                obligation.resourceAliases.asList().get(0).tree,
-                                "mustcallalias.out.of.scope",
-                                exitReasonForErrorMessage);
+                        // MustCallAlias annotations only have meaning if the method returns
+                        // normally, so issue an error if and only if this exit is happening on a
+                        // normal exit path.
+                        if (exceptionType == null) {
+                            checker.reportError(
+                                    obligation.resourceAliases.asList().get(0).tree,
+                                    "mustcallalias.out.of.scope",
+                                    exitReasonForErrorMessage);
+                        }
+                        // Whether or not an error is issued, the check is now complete - there is
+                        // no further checking to do on a must-call-alias-derived obligation along
+                        // an exceptional path.
                         continue;
                     }
 
@@ -1943,7 +1987,7 @@ class MustCallConsistencyAnalyzer {
                 boolean hasMustCallAlias = typeFactory.hasMustCallAlias(paramElement);
                 if (hasMustCallAlias
                         || (typeFactory.declaredTypeHasMustCall(param)
-                                && !checker.hasOption(MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP)
+                                && !noLightweightOwnership
                                 && paramElement.getAnnotation(Owning.class) != null)) {
                     result.add(
                             new Obligation(
@@ -2074,7 +2118,7 @@ class MustCallConsistencyAnalyzer {
      * @param node the node being counted, to extract the type
      */
     private void incrementNumMustCall(Node node) {
-        if (checker.hasOption(ResourceLeakChecker.COUNT_MUST_CALL)) {
+        if (countMustCall) {
             TypeMirror type = node.getType();
             incrementMustCallImpl(type);
         }
@@ -2086,7 +2130,7 @@ class MustCallConsistencyAnalyzer {
      * @param elt the elt being counted, to extract the type
      */
     private void incrementNumMustCall(Element elt) {
-        if (checker.hasOption(ResourceLeakChecker.COUNT_MUST_CALL)) {
+        if (countMustCall) {
             TypeMirror type = elt.asType();
             incrementMustCallImpl(type);
         }
@@ -2113,7 +2157,7 @@ class MustCallConsistencyAnalyzer {
      * @return true iff the type's fully-qualified name starts with "java", indicating that it is
      *     from a java.* or javax.* package (probably)
      */
-    /* package-private */ static boolean isJdkClass(String qualifiedName) {
+    /*package-private*/ static boolean isJdkClass(String qualifiedName) {
         return qualifiedName.startsWith("java");
     }
 
@@ -2144,7 +2188,7 @@ class MustCallConsistencyAnalyzer {
      *
      * <p>Package-private to permit access from {@link ResourceLeakAnalysis}.
      */
-    /* package-private */ static final Set<String> ignoredExceptionTypes =
+    /*package-private*/ static final Set<String> ignoredExceptionTypes =
             new HashSet<>(
                     ImmutableSet.of(
                             // Any method call has a CFG edge for Throwable/RuntimeException/Error
@@ -2212,8 +2256,7 @@ class MustCallConsistencyAnalyzer {
      * @param mustCallVal the list of must-call strings
      * @return a formatted string
      */
-    /* package-private */
-    static String formatMissingMustCallMethods(List<String> mustCallVal) {
+    /*package-private*/ static String formatMissingMustCallMethods(List<String> mustCallVal) {
         int size = mustCallVal.size();
         if (size == 0) {
             throw new TypeSystemError("empty mustCallVal " + mustCallVal);
