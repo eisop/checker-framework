@@ -126,14 +126,12 @@ public abstract class SwitchExpressionScanner<R, P> extends TreeScanner<R, P> {
             if (tree == null) {
                 return null;
             }
-            if (SystemUtil.jreVersion >= 14) {
-                if (tree.getKind().name().equals("SWITCH_EXPRESSION")) {
-                    // Don't scan nested switch expressions.
-                    return null;
-                } else if (tree.getKind().name().equals("YIELD")) {
-                    ExpressionTree value = TreeUtils.yieldTreeGetValue(tree);
-                    return visitSwitchResultExpression(value, p);
-                }
+            if (tree.getKind().name().equals("SWITCH_EXPRESSION")) {
+                // Don't scan nested switch expressions.
+                return null;
+            } else if (tree.getKind().name().equals("YIELD")) {
+                ExpressionTree value = TreeUtils.yieldTreeGetValue(tree);
+                return visitSwitchResultExpression(value, p);
             }
             return super.scan(tree, p);
         }
