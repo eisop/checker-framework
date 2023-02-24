@@ -2658,12 +2658,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             castResult = isSafeDowncast(castType, exprType);
             if (castResult == CastSafeKind.NOT_DOWNCAST) { // fall to incomparable cast
                 return isSafeIncomparableCast(castType, exprType);
-            } else {
-                return castResult;
             }
-        } else {
             return castResult;
         }
+        return castResult;
     }
 
     /**
