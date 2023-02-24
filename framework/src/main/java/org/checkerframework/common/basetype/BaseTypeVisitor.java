@@ -2485,7 +2485,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         QualifierHierarchy qualifierHierarchy = atypeFactory.getQualifierHierarchy();
         AnnotationMirrorSet castAnnos;
         TypeKind castTypeKind = castType.getKind();
-        boolean checkCastElementType = checker.hasOption("checkCastElementType");
         if (!checkCastElementType) {
             // checkCastElementType option wasn't specified, so only check effective annotations.
             castAnnos = castType.getEffectiveAnnotations();
