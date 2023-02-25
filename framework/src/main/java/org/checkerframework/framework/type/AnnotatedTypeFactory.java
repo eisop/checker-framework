@@ -2763,15 +2763,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             if (superCon.getParameterTypes().size() == con.getParameterTypes().size()) {
                 con.setParameterTypes(superCon.getParameterTypes());
             } else {
-                // If the super class of the anonymous class has an enclosing type, then it is the
-                // first parameter of the anonymous constructor. For example,
-                // class Outer { class Inner {} }
-                //  new Inner(){};
-                // Then javac creates the following constructor:
-                //  (.Outer x0) {
-                //   x0.super();
-                //   }
-                // So the code below deals with this.
                 List<AnnotatedTypeMirror> p = new ArrayList<>(superCon.getParameterTypes().size());
                 con.setReceiverType(superCon.getReceiverType());
                 p.addAll(0, superCon.getParameterTypes());
