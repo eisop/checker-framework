@@ -1273,6 +1273,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * a list of {@link Node}s representing the arguments converted for a call of the method. This
      * method applies to both method invocations and constructor calls.
      *
+     * @param enclosingType a TypeMirror of the enclosing expression if approprate
      * @param method an ExecutableElement representing a method to be called
      * @param methodType an ExecutableType representing the type of the method call
      * @param actualExprs a List of argument expressions to a call
@@ -1280,6 +1281,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      *     to this method
      */
     protected List<Node> convertCallArguments(
+            @Nullable TypeMirror enclosingType,
             ExecutableElement method,
             ExecutableType methodType,
             List<? extends ExpressionTree> actualExprs) {
@@ -1297,6 +1299,19 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             // Create a new array argument if the actuals outnumber the formals, or if the last
             // actual is not assignable to the last formal.
             int lastArgIndex = numFormals - 1;
+            // Handle anonymous constructors that extend a class with an enclosing type.
+            if (method.getKind() == ElementKind.CONSTRUCTOR
+                    && method.getEnclosingElement().getSimpleName().contentEquals("")
+                    && enclosingType != null) {
+                TypeMirror p0tm = formals.get(0);
+                // Is the first parameter either equal to the enclosing type?
+                if (types.isSameType(enclosingType, p0tm)) {
+                    // Is the first argument the same type as the first parameter?
+                    if (!types.isSameType(TreeUtils.typeOf(actualExprs.get(0)), p0tm)) {
+                        lastArgIndex--;
+                    }
+                }
+            }
             TypeMirror lastParamType = formals.get(lastArgIndex);
             if (numActuals == numFormals
                     && types.isAssignable(
@@ -1506,7 +1521,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             // See also BaseTypeVisitor.visitMethodInvocation and QualifierPolymorphism.annotate.
             arguments = Collections.emptyList();
         } else {
-            arguments = convertCallArguments(method, TreeUtils.typeFromUse(tree), actualExprs);
+            arguments = convertCallArguments(null, method, TreeUtils.typeFromUse(tree), actualExprs);
         }
 
         // TODO: lock the receiver for synchronized methods
@@ -3499,7 +3514,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         List<? extends ExpressionTree> actualExprs = tree.getArguments();
 
         List<Node> arguments =
-                convertCallArguments(constructor, TreeUtils.typeFromUse(tree), actualExprs);
+                convertCallArguments(enclosingType, constructor, TreeUtils.typeFromUse(tree), actualExprs);
 
         // TODO: for anonymous classes, don't use the identifier alone.
         // See https://github.com/typetools/checker-framework/issues/890 .
