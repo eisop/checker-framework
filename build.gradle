@@ -1355,7 +1355,7 @@ final sharedPublicationConfiguration(publication) {
 
     scm {
       url = 'https://github.com/eisop/checker-framework.git'
-      connection = 'scm:git:git://github.com/eisop/checker-framework.git'
+      connection = 'scm:git:https://github.com/eisop/checker-framework.git'
       developerConnection = 'scm:git:ssh://git@github.com/eisop/checker-framework.git'
     }
   }
