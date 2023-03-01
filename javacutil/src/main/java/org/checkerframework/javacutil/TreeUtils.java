@@ -43,6 +43,7 @@ import com.sun.tools.javac.tree.JCTree.JCAnnotation;
 import com.sun.tools.javac.tree.JCTree.JCBinary;
 import com.sun.tools.javac.tree.JCTree.JCExpression;
 import com.sun.tools.javac.tree.JCTree.JCExpressionStatement;
+import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
 import com.sun.tools.javac.tree.JCTree.JCLambda;
 import com.sun.tools.javac.tree.JCTree.JCLambda.ParameterKind;
 import com.sun.tools.javac.tree.JCTree.JCLiteral;
@@ -144,6 +145,11 @@ public final class TreeUtils {
     /** The BindingPatternTree.getVariable method for Java 16 and higher; null otherwise. */
     private static final @Nullable Method BINDINGPATTERNTREE_GETVARIABLE;
 
+    /**
+     * The {@code TreeMaker.Select(JCExpression, Symbol)} method. Return type changes for JDK21+.
+     */
+    private static final Method TREEMAKER_SELECT;
+
     /** The value of Flags.RECORD which does not exist in Java 9 or 11. */
     private static final long Flags_RECORD = 2305843009213693952L;
 
@@ -242,6 +248,8 @@ public final class TreeUtils {
                 INSTANCEOFTREE_GETPATTERN = null;
                 BINDINGPATTERNTREE_GETVARIABLE = null;
             }
+            TREEMAKER_SELECT =
+                    TreeMaker.class.getMethod("Select", JCExpression.class, Symbol.class);
         } catch (ClassNotFoundException | NoSuchMethodException e) {
             Error err = new AssertionError("Unexpected error in TreeUtils static initializer");
             err.initCause(e);
@@ -2544,5 +2552,24 @@ public final class TreeUtils {
      */
     public static boolean isBinaryComparison(BinaryTree tree) {
         return BINARY_COMPARISON_TREE_KINDS.contains(tree.getKind());
+    }
+
+    /** Returns the result of {@code treeMaker.Select(base, sym)}. */
+    public static JCFieldAccess Select(TreeMaker treeMaker, Tree base, Symbol sym) {
+        try {
+            return (JCFieldAccess) TREEMAKER_SELECT.invoke(treeMaker, base, sym);
+        } catch (InvocationTargetException | IllegalAccessException e) {
+            throw new BugInCF("TreeUtils.Select: reflection failed for tree: %s", base, e);
+        }
+    }
+
+    /** Returns the result of {@code treeMaker.Select(base, name)}. */
+    public static JCFieldAccess Select(
+            TreeMaker treeMaker, JCExpression base, com.sun.tools.javac.util.Name name) {
+        /*
+         * There's no need for reflection here. The only reason we even declare this method is so that
+         * callers don't have to remember which overload we provide a wrapper around.
+         */
+        return treeMaker.Select(base, name);
     }
 }
