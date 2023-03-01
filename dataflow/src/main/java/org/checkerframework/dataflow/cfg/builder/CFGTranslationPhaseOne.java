@@ -139,6 +139,7 @@ import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.Pair;
+import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeAnnotationUtils;
@@ -544,18 +545,23 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             path = new TreePath(path, tree);
         }
         try {
-            // Must use String comparison to support compiling on JDK 11 and earlier.
-            //     Features added between JDK 12 and JDK 17 inclusive.
-            switch (tree.getKind().name()) {
-                case "BINDING_PATTERN":
-                    return visitBindingPattern17(path.getLeaf(), p);
-                case "SWITCH_EXPRESSION":
-                    return visitSwitchExpression17(tree, p);
-                case "YIELD":
-                    return visitYield17(tree, p);
-                default:
-                    return tree.accept(this, p);
+            // TODO: use JCP to add version-specific behavior
+            if (SystemUtil.jreVersion >= 14) {
+                // Must use String comparison to support compiling on JDK 11 and earlier.
+                // Features added between JDK 12 and JDK 17 inclusive.
+                switch (tree.getKind().name()) {
+                    case "BINDING_PATTERN":
+                        return visitBindingPattern17(path.getLeaf(), p);
+                    case "SWITCH_EXPRESSION":
+                        return visitSwitchExpression17(tree, p);
+                    case "YIELD":
+                        return visitYield17(tree, p);
+                    default:
+                        // fall through to generic behavior
+                }
             }
+
+            return tree.accept(this, p);
         } finally {
             path = prev;
         }
@@ -3469,9 +3475,22 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     public Node visitNewClass(NewClassTree tree, Void p) {
         // see JLS 15.9
 
+        DeclaredType classType = (DeclaredType) TreeUtils.typeOf(tree);
+        TypeMirror enclosingType = classType.getEnclosingType();
         Tree enclosingExpr = tree.getEnclosingExpression();
+        Node enclosingExprNode;
         if (enclosingExpr != null) {
-            scan(enclosingExpr, p);
+            enclosingExprNode = scan(enclosingExpr, p);
+        } else if (enclosingType.getKind() == TypeKind.DECLARED) {
+            // This is an inner class (instance nested class).
+            // As there is no explicit enclosing expression, create a node for the implicit this
+            // argument.
+            enclosingExprNode = new ImplicitThisNode(enclosingType);
+            extendWithNode(enclosingExprNode);
+        } else {
+            // For static nested classes, the kind would be Typekind.None.
+
+            enclosingExprNode = null;
         }
 
         // Convert constructor arguments
@@ -3490,8 +3509,9 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         // Note that getClassBody() and therefore classbody can be null.
         ClassDeclarationNode classbody = (ClassDeclarationNode) scan(tree.getClassBody(), p);
 
-        Node node = new ObjectCreationNode(tree, constructorNode, arguments, classbody);
-
+        Node node =
+                new ObjectCreationNode(
+                        tree, enclosingExprNode, constructorNode, arguments, classbody);
         List<? extends TypeMirror> thrownTypes = constructor.getThrownTypes();
         Set<TypeMirror> thrownSet =
                 ArraySet.newArraySetOrLinkedHashSet(

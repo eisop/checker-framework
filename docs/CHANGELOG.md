@@ -3,6 +3,12 @@ Version 3.31.0-eisop1 (February ?, 2023)
 
 **User-visible changes:**
 
+The new command-line argument `-AcheckEnclosingExpr` enables
+type checking for enclosing expression types of inner class instantiations. This fixes an
+unsoundness, in particular for the Nullness Initialization Checker, which did not detect the use of
+an uninitialized outer class for an inner class instantiation.
+The option is off by default to avoid many false-positive errors.
+
 **Implementation details:**
 
 Added method `AnnotatedExecutableType.getVarargType` to access the vararg type of a method/constructor.
@@ -15,7 +21,8 @@ Remove the `fastAssemble` task which is subsumed by `assembleForJavac`.
 
 **Closed issues:**
 
-eisop#310
+eisop#282, eisop#310, eisop#312.
+
 
 Version 3.31.0 (February 17, 2023)
 ----------------------------------
@@ -414,7 +421,7 @@ Moved the `-AajavaChecks` option from `CheckerFrameworkPerDirectoryTest` to
 `TypecheckExecutor.compile` to ensure the option is used for all tests.
 
 **Closed issues:**
-eisop#210.
+eisop#210, eisop#215.
 
 
 Version 3.22.0 (May 2, 2022)

@@ -107,6 +107,7 @@ import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.SwitchExpressionScanner;
 import org.checkerframework.javacutil.SwitchExpressionScanner.FunctionalSwitchExpressionScanner;
+import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
@@ -256,6 +257,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /** True if "-AwarnRedundantAnnotations" was passed on the command line */
     private final boolean warnRedundantAnnotations;
 
+    /** True if "-AcheckEnclosingExpr" was passed on the command line */
+    private final boolean checkEnclosingExpr;
+
     /** The tree of the enclosing method that is currently being visited. */
     protected @Nullable MethodTree methodTree = null;
 
@@ -292,6 +296,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         suggestPureMethods = checker.hasOption("suggestPureMethods"); // NO-AFU || infer;
         checkPurity = checker.hasOption("checkPurityAnnotations") || suggestPureMethods;
         warnRedundantAnnotations = checker.hasOption("warnRedundantAnnotations");
+        checkEnclosingExpr = checker.hasOption("checkEnclosingExpr");
         ajavaChecks = checker.hasOption("ajavaChecks");
         assumeSideEffectFree =
                 checker.hasOption("assumeSideEffectFree") || checker.hasOption("assumePure");
@@ -382,7 +387,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             this.atypeFactory.setVisitorTreePath(new TreePath(getCurrentPath(), tree));
         }
         // TODO: use JCP to add version-specific behavior
-        if (tree != null && tree.getKind().name().equals("SWITCH_EXPRESSION")) {
+        if (tree != null
+                && SystemUtil.jreVersion >= 14
+                && tree.getKind().name().equals("SWITCH_EXPRESSION")) {
             visitSwitchExpression17(tree);
             return null;
         }
@@ -2092,6 +2099,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotatedExecutableType constructorType = fromUse.executableType;
         List<AnnotatedTypeMirror> typeargs = fromUse.typeArgs;
 
+        // Type check inner class enclosing expr type
+        checkEnclosingExpr(tree, constructorType);
         List<? extends ExpressionTree> passedArguments = tree.getArguments();
         List<AnnotatedTypeMirror> params = constructorType.getParameterTypes();
 
@@ -3555,6 +3564,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      *
      * <p>Issue a warning if the annotations on the constructor invocation is a subtype of the
      * constructor result type. This is equivalent to down-casting.
+     *
+     * <p>For type checking of the enclosing expression of inner type instantiations, see {@link
+     * #checkEnclosingExpr(NewClassTree, AnnotatedExecutableType)}
+     *
+     * @param invocation the AnnotatedDeclaredType of the constructor invocation
+     * @param constructor the AnnotatedExecutableType of the constructor declaration
+     * @param newClassTree the NewClassTree
      */
     protected void checkConstructorInvocation(
             AnnotatedDeclaredType invocation,
@@ -3590,9 +3606,32 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 return;
             }
         }
+    }
 
-        // TODO: what properties should hold for constructor receivers for
-        // inner type instantiations?
+    /**
+     * Helper method to type check the enclosing expression of an inner class instantiation.
+     *
+     * @param node the NewClassTree
+     * @param constructorType the annotatedExecutableType of the constructor declaration
+     */
+    protected void checkEnclosingExpr(NewClassTree node, AnnotatedExecutableType constructorType) {
+        if (!checkEnclosingExpr) {
+            return;
+        }
+        AnnotatedTypeMirror parameterReceiverType = constructorType.getReceiverType();
+        if (parameterReceiverType != null) {
+            AnnotatedTypeMirror argumentReceiverType;
+            if (node.getEnclosingExpression() != null) {
+                argumentReceiverType = atypeFactory.getAnnotatedType(node.getEnclosingExpression());
+            } else {
+                argumentReceiverType = atypeFactory.getReceiverType(node);
+            }
+            commonAssignmentCheck(
+                    parameterReceiverType,
+                    argumentReceiverType,
+                    node,
+                    "enclosingexpr.type.incompatible");
+        }
     }
 
     /**
