@@ -323,8 +323,7 @@ public final class TypesUtils {
   }
 
   /**
-   * Checks if the type represents a boolean type, i.e., it is either boolean (primitive type) or
-   * java.lang.Boolean.
+   * Returns true if the type is either boolean (primitive type) or java.lang.Boolean.
    *
    * @param type the type to test
    * @return true iff type represents a boolean type
