@@ -21,7 +21,7 @@ public class Issue282 {
 
     public void test2() {
         // found: @H1Top @H2Top Issue282.@H1Top @H2Top Issue282Sub. required: @H1Top @H2S2 Issue282
-        // :: error: (enclosingexpr.type.incompatible)
+        // :: error: (enclosingexpr.type.incompatible) :: error: (argument.type.incompatible)
         Inner inner = new Issue282Sub().new Inner();
     }
 

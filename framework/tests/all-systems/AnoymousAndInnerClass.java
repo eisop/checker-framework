@@ -34,4 +34,11 @@ public class AnoymousAndInnerClass {
         outer.new MyInnerClass(1) {};
         outer.new MyInnerClass(1, 2, 3) {};
     }
+
+    class Top {
+        void test(AnoymousAndInnerClass outer) {
+            outer.new MyInnerClass(1) {};
+            outer.new MyInnerClass(1, 2, 3) {};
+        }
+    }
 }
