@@ -2763,6 +2763,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             if (superCon.getParameterTypes().size() == con.getParameterTypes().size()) {
                 con.setParameterTypes(superCon.getParameterTypes());
             } else {
+                // Because the anonymous constructor doesn't have annotated receiver type,
+                // we copy the receiver type from the super constructor invoked in the anonymous
+                // constructor
                 List<AnnotatedTypeMirror> p = new ArrayList<>(superCon.getParameterTypes().size());
                 con.setReceiverType(superCon.getReceiverType());
                 p.addAll(0, superCon.getParameterTypes());
