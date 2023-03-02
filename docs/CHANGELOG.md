@@ -13,6 +13,16 @@ define custom type and declaration annotation aliases for the canonical annotati
 **Closed issues:**
 
 
+Version 3.32.1 (April 1, 2023)
+------------------------------
+
+**User-visible changes:**
+
+**Implementation details:**
+
+**Closed issues:**
+
+
 Version 3.32.0-eisop1 (March 9, 2023)
 -------------------------------------
 
@@ -43,6 +53,8 @@ Successfully compiles with Java 20 and 21.
 eisop#282, eisop#310, eisop#312, typetools#5672.
 
 
+=======
+>>>>>>> 5c591a2c4 (Prep for next month's release.)
 Version 3.32.0 (March 2, 2023)
 ------------------------------
 
