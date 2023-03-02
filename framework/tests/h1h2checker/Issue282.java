@@ -7,6 +7,8 @@ public class Issue282 {
 
     public class Inner {
         Inner(@H2S2 Issue282 Issue282.this) {}
+
+        Inner(int... i) {}
     }
 
     public void test1() {
@@ -21,7 +23,7 @@ public class Issue282 {
 
     public void test2() {
         // found: @H1Top @H2Top Issue282.@H1Top @H2Top Issue282Sub. required: @H1Top @H2S2 Issue282
-        // :: error: (enclosingexpr.type.incompatible) :: error: (argument.type.incompatible)
+        // :: error: (enclosingexpr.type.incompatible)
         Inner inner = new Issue282Sub().new Inner();
     }
 
@@ -35,5 +37,12 @@ public class Issue282 {
         // found: @H1S2 @H2Top String. required: @H1S1 @H2Top String
         // :: error: (argument.type.incompatible)
         new InnerGeneric<@H1S1 String>(a, c);
+    }
+}
+
+class Top {
+    void test(@H1Top @H2S2 Issue282 outer) {
+        outer.new Inner() {};
+        outer.new Inner(1, 2, 3) {};
     }
 }

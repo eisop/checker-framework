@@ -3498,6 +3498,27 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 argumentReceiverType = atypeFactory.getAnnotatedType(node.getEnclosingExpression());
             } else {
                 argumentReceiverType = atypeFactory.getReceiverType(node);
+                /*
+                  Consider the following code:
+                  Class Outer {
+                      Class Inner{}
+                  }
+                  Class Top{
+                      void test(Outer outer) {
+                          outer.new Inner(){};
+                      }
+                  }
+                  In Java8, the argumentReceiverType of outer.new Inner(){} is Top instead of Outer, because java8 organizes
+                  newClassTree in a different: there is no enclosing expression for this newClassTree, however, there is a
+                  synthetic argument in argument list of the tree, use this synthetic argument when the underlying types are different.
+                * */
+                if (TreeUtils.hasSyntheticArgument(node)
+                        && !types.isSameType(
+                                parameterReceiverType.getUnderlyingType(),
+                                argumentReceiverType.getUnderlyingType())) {
+                    argumentReceiverType =
+                            atypeFactory.getAnnotatedType(node.getArguments().get(0));
+                }
             }
             commonAssignmentCheck(
                     parameterReceiverType,
