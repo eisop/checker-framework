@@ -27,6 +27,10 @@ public class Issue282 {
         Inner inner = new Issue282Sub().new Inner();
     }
 
+    public static void testStatic() {
+        new Issue282().new Issue282Sub() {};
+    }
+
     class InnerGeneric<T> {
         @SuppressWarnings("unchecked")
         InnerGeneric(T... t) {}
