@@ -1,4 +1,4 @@
-Version 3.32.0-eisop2 (March ?, 2023)
+Version 3.33.0-eisop1 (April ?, 2023)
 -------------------------------------
 
 **User-visible changes:**
@@ -13,7 +13,7 @@ define custom type and declaration annotation aliases for the canonical annotati
 **Closed issues:**
 
 
-Version 3.32.1 (April 1, 2023)
+Version 3.33.0 (April 3, 2023)
 ------------------------------
 
 **User-visible changes:**
