@@ -26,7 +26,7 @@ public class Issue282 {
     }
 
     public static void testStatic() {
-        new Issue282().new Issue282Sub() {};
+        new Issue282().new Inner() {};
     }
 
     class InnerGeneric<T> {
