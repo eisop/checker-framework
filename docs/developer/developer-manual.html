@@ -1,481 +1,577 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <title>Checker Framework developer manual</title>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" href="../manual/favicon-checkerframework.png" type="image/png"/>
-</head>
-<body>
-<h1 id="Checker_Framework_developer_manual">Checker Framework developer manual</h1>
+  <head>
+    <title>Checker Framework developer manual</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="icon"
+      href="../manual/favicon-checkerframework.png"
+      type="image/png"
+    />
+  </head>
+  <body>
+    <h1 id="Checker_Framework_developer_manual">
+      Checker Framework developer manual
+    </h1>
 
-<p>
-  If you wish to use the Checker Framework, see its user manual
-  (<a href="https://checkerframework.org/manual/">HTML</a>,
-  <a href="https://checkerframework.org/manual/checker-framework-manual.pdf">PDF</a>).
-</p>
+    <p>
+      If you wish to use the Checker Framework, see its user manual (<a
+        href="https://eisop.github.io/manual/"
+        >HTML</a
+      >,
+      <a href="https://eisop.github.io/manual/checker-framework-manual.pdf"
+        >PDF</a
+      >).
+    </p>
 
-<p>
-This document contains information for Checker Framework developers,
-including people who wish to edit its source code or make pull requests.
-</p>
+    <p>
+      This document contains information for Checker Framework developers,
+      including people who wish to edit its source code or make pull requests.
+    </p>
 
-<p>Contents:</p>
-<!-- start toc.  do not edit; run html-update-toc instead -->
+    <p>Contents:</p>
+    <!-- start toc.  do not edit; run html-update-toc instead -->
     <ul>
-      <li><a href="#Directory_structure">Directory structure</a>
+      <li>
+        <a href="#Directory_structure">Directory structure</a>
         <ul>
           <li><a href="#Related_repositories">Related repositories</a></li>
-        </ul></li>
+        </ul>
+      </li>
       <li><a href="#Build_tasks">Build tasks</a></li>
-      <li><a href="#tests">Testing the Checker Framework</a>
+      <li>
+        <a href="#tests">Testing the Checker Framework</a>
         <ul>
           <li><a href="#testing-optimizations">Testing optimizations</a></li>
-        </ul></li>
+        </ul>
+      </li>
       <li><a href="#code-style">Code style</a></li>
       <li><a href="#IDE_configuration">IDE configuration</a></li>
-      <li><a href="#pull-requests">Pull requests</a>
+      <li>
+        <a href="#pull-requests">Pull requests</a>
         <ul>
           <li><a href="#pull-requests-branches">Branches</a></li>
-          <li><a href="#pull-requests-maintainers">Pull request and commit notes for maintainers</a></li>
-        </ul></li>
+          <li>
+            <a href="#pull-requests-maintainers"
+              >Pull request and commit notes for maintainers</a
+            >
+          </li>
+        </ul>
+      </li>
       <li><a href="#github-configuration">GitHub configuration</a></li>
-      <li><a href="#ci">Continuous Integration</a>
+      <li>
+        <a href="#ci">Continuous Integration</a>
         <ul>
-          <li><a href="#ci-failure">What to do if a Continuous Integration build fails</a></li>
-        </ul></li>
-      <li><a href="#Documenting_refactoring_ideas">Documenting refactoring ideas</a></li>
-      <li><a href="#annotated-library-version-numbers">Version numbers for annotated libraries</a></li>
-      <li><a href="#Making_a_Checker_Framework_release">Making a Checker Framework release</a></li>
+          <li>
+            <a href="#ci-failure"
+              >What to do if a Continuous Integration build fails</a
+            >
+          </li>
+        </ul>
+      </li>
+      <li>
+        <a href="#Documenting_refactoring_ideas"
+          >Documenting refactoring ideas</a
+        >
+      </li>
+      <li>
+        <a href="#annotated-library-version-numbers"
+          >Version numbers for annotated libraries</a
+        >
+      </li>
+      <li>
+        <a href="#Making_a_Checker_Framework_release"
+          >Making a Checker Framework release</a
+        >
+      </li>
     </ul>
-<!-- end toc -->
+    <!-- end toc -->
 
+    <h2 id="Directory_structure">Directory structure</h2>
 
-<h2 id="Directory_structure">Directory structure</h2>
+    <p>
+      The
+      <a href="https://github.com/eisop/checker-framework"
+        >checker-framework repository</a
+      >
+      contains several related projects:
+    </p>
 
-<p>
-The <a href="https://github.com/eisop/checker-framework">checker-framework
-repository</a> contains several related projects:
-</p>
+    <dl>
+      <dt><code>framework</code></dt>
+      <dd>the framework that enables building pluggable type checkers</dd>
 
-<dl>
-  <dt><code>framework</code></dt>
-  <dd>the framework that enables building pluggable type checkers</dd>
+      <dt><code>checker</code></dt>
+      <dd>the type checkers provided with the Checker Framework</dd>
 
-  <dt><code>checker</code></dt>
-  <dd>the type checkers provided with the Checker Framework</dd>
+      <dt><code>javacutil</code></dt>
+      <dd>utilities for integrating with javac</dd>
 
-  <dt><code>javacutil</code></dt>
-  <dd>utilities for integrating with javac</dd>
+      <dt><code>dataflow</code></dt>
+      <dd>
+        a dataflow framework that is used by the Checker Framework,
+        <a href="https://errorprone.info">Error Prone</a>,
+        <a href="https://github.com/uber/NullAway">NullAway</a>, and other tools
+      </dd>
+    </dl>
 
-  <dt><code>dataflow</code></dt>
-  <dd>a dataflow framework that is used by the Checker Framework, <a href="https://errorprone.info">Error Prone</a>, <a href="https://github.com/uber/NullAway">NullAway</a>, and other tools</dd>
-</dl>
+    <p>The repository also contains the following directories:</p>
+    <dl>
+      <dt><code>docs</code></dt>
+      <dd>documentation: manual, tutorial, examples, developer docs</dd>
+    </dl>
 
-<p>
-The repository also contains the following directories:
-</p>
-<dl>
-  <dt><code>docs</code></dt>
-  <dd>documentation: manual, tutorial, examples, developer docs</dd>
-</dl>
+    <h3 id="Related_repositories">Related repositories</h3>
 
+    <p>
+      The
+      <a href="https://github.com/eisop/checker-framework"
+        ><code>checker-framework</code></a
+      >
+      project depends on the
+      <a href="https://github.com/eisop/jdk"><code>eisop/jdk</code></a> project,
+      the
+      <a href="https://github.com/eisop/annotation-tools"
+        ><code>annotation-tools</code></a
+      >
+      project, and the
+      <a href="https://github.com/eisop/stubparser"><code>stubparser</code></a>
+      project. When making changes to one of these projects, you may also need
+      to make changes to one or more of the others.
+    </p>
 
-<h3 id="Related_repositories">Related repositories</h3>
+    <p>
+      If you make related changes in the <code>checker-framework</code> and
+      <code>jdk</code> repositories, use the <em>same branch name</em> for each.
+      The continuous integration framework will find and use that branch when
+      running tests. For example, when continuous integration runs for branch
+      <em>B</em> of fork <em>F</em> of <code>checker-framework</code>, it will
+      use branch <em>B</em> of fork <em>F</em> of the other repositories (if
+      they exist). The same is true for the other projects.
+    </p>
 
-<p>
-  The <a href="https://github.com/eisop/checker-framework"><code>checker-framework</code></a> project
-  depends on
-  the <a href="https://github.com/eisop/jdk"><code>eisop/jdk</code></a> project,
-  the <a href="https://github.com/eisop/annotation-tools"><code>annotation-tools</code></a> project,
-  and the <a href="https://github.com/eisop/stubparser"><code>stubparser</code></a> project.
-When making changes to one of these projects, you may also need to make changes to one or more of the others.
-</p>
+    <p>
+      If a change spans multiple projects, make pull requests for all of them.
+      Each pull request description's should link to all the others.
+    </p>
 
-<p>
-If you make related changes in the <code>checker-framework</code> and <code>jdk</code>
-repositories, use the <em>same
-branch name</em> for each.  The continuous integration framework will find
-and use that branch when running tests.
-For example, when continuous integration runs for branch <em>B</em> of fork <em>F</em> of <code>checker-framework</code>, it will use branch <em>B</em> of fork <em>F</em> of the other repositories (if they exist).
-The same is true for the other projects.
-</p>
+    <p>
+      Furthermore, whenever you make a pull request from a
+      <code>checker-framework</code> branch A into branch B, if B has a
+      corresponding <code>jdk</code> branch, then A also needs one. A needs the
+      branch even if A's branch is identical to B's; in that case, beware of a
+      <a href="#azure-pipelines-bug-same-commit-hash">bug in Azure Pipelines</a
+      >.
+    </p>
 
-<p>
-If a change spans multiple projects, make pull requests for all of them.
-Each pull request description's should link to all the others.
-</p>
+    <h2 id="Build_tasks">Build tasks</h2>
 
-<p>
-Furthermore, whenever you make a pull request from
-a <code>checker-framework</code> branch A into branch B, if B has a
-corresponding <code>jdk</code>
-branch, then A also needs one.
-A needs the branch even if A's branch is identical to B's; in that case,
-beware of a <a href="#azure-pipelines-bug-same-commit-hash">bug in Azure Pipelines</a>.
-</p>
+    <p>
+      Full instructions for building the Checker Framework from sources appear
+      in the
+      <a href="https://eisop.github.io/manual/#build-source"
+        >Checker Framework manual</a
+      >. This section describes the build system (the Gradle build tasks).
+    </p>
 
+    <p>
+      Don't run the <code>gradle</code> command, which would use whatever
+      version of Gradle is installed on your computer. Instead, use the
+      <code>gradlew</code> script in the
+      <code>checker-framework</code> directory, also known as the
+      <a href="https://docs.gradle.org/current/userguide/gradle_wrapper.html"
+        >Gradle wrapper</a
+      >.
+    </p>
 
-<h2 id="Build_tasks">Build tasks</h2>
+    <p>Frequently-used tasks:</p>
+    <ul>
+      <li>
+        <code>assemble</code>: builds all artifacts, including jars and Javadoc
+        jars.
+      </li>
+      <li>
+        <code>assembleForJavac</code>: builds only the jars required to use
+        checker/bin/javac; faster than assemble.
+      </li>
+      <li>
+        <code>build</code>: <code>assemble</code>, plus runs all JUnit tests.
+      </li>
+      <li><code>allTests</code>: runs all tests.</li>
+      <li><code>spotlessApply</code>: reformats Java files.</li>
+      <li><code>spotlessCheck</code>: checks formatting of Java files.</li>
+      <li>
+        <code><em>NameOfJUnitTest</em></code
+        >: runs the JUnit test with that name; for example,
+        <code>NullnessTest</code>.
+      </li>
+      <li>
+        <code>task</code>: lists tasks; use <code>--all</code> to see all tasks.
+      </li>
+    </ul>
 
-<p>
-Full instructions for building the Checker Framework from sources appear in
-the <a href="https://checkerframework.org/manual/#build-source">Checker
-Framework manual</a>. This section describes the build system (the Gradle build tasks).
-</p>
+    <p>
+      If you run a task from the main directory, then it will run that task in
+      all subprojects with a task by that name. So, if you run
+      <code>./gradlew allTests</code> that runs all tests everywhere. But
+      <code>(cd framework &amp;&amp; ../gradlew allTests)</code> only runs tests
+      in the <code>framework</code> project. Alternatively, running
+      <code>:framework:allTests</code> from the main directory or any subproject
+      runs the <code>allTests</code> task only in the
+      <code>framework</code> project.
+    </p>
 
-<p>
-Don't run the <code>gradle</code> command, which would use whatever version
-of Gradle is installed on your computer.  Instead, use
-the <code>gradlew</code> script in the <code>checker-framework</code>
-directory, also known as
-the <a href="https://docs.gradle.org/current/userguide/gradle_wrapper.html">Gradle
-wrapper</a>.
-</p>
+    <h2 id="tests">Testing the Checker Framework</h2>
 
-<p>
-Frequently-used tasks:
-</p>
-<ul>
-  <li> <code>assemble</code>: builds all artifacts, including jars and Javadoc jars.
-  <li> <code>assembleForJavac</code>: builds only the jars required to use checker/bin/javac; faster than assemble.
-  <li> <code>build</code>: <code>assemble</code>, plus runs all JUnit tests.
-  <li> <code>allTests</code>: runs all tests.
-  <li> <code>spotlessApply</code>: reformats Java files.
-  <li> <code>spotlessCheck</code>: checks formatting of Java files.
-  <li> <code><em>NameOfJUnitTest</em></code>: runs the JUnit test with that name; for example, <code>NullnessTest</code>.
-  <li> <code>task</code>: lists tasks; use <code>--all</code> to see all tasks.
-</ul>
+    <p>
+      For writing new test cases, see file
+      <a
+        href="https://raw.githubusercontent.com/eisop/checker-framework/master/checker/tests/README"
+        ><code>checker/tests/README</code></a
+      >.
+    </p>
 
-<p>
-If you run a task from the main directory, then it will run that task in all
-subprojects with a task by that name. So, if you run <code>./gradlew
-allTests</code> that runs all tests everywhere. But <code>(cd
-framework &amp;&amp; ../gradlew allTests)</code> only runs tests in
-the <code>framework</code> project.
-Alternatively, running <code>:framework:allTests</code> from the
-main directory or any subproject runs the <code>allTests</code> task only in the <code>framework</code> project.
-</p>
+    <h3 id="testing-optimizations">Testing optimizations</h3>
 
+    <p>
+      To test an optimization that should speed up type-checking, see the
+      <code>test-daikon.sh</code> stage of the <code>daikon_jdk8</code> job of
+      the Azure Pipelines CI job. Compare the run time of this stage (or of the
+      entire <code>daikon_jdk8</code> job) between the master branch and a
+      branch with your improvements.
+    </p>
 
-<h2 id="tests">Testing the Checker Framework</h2>
+    <p>You can also compare run times of the Checker Framework test suite.</p>
 
-<p>
-For writing new test cases, see file <a href="https://raw.githubusercontent.com/eisop/checker-framework/master/checker/tests/README"><code>checker/tests/README</code></a>.
-</p>
+    <h2 id="code-style">Code style</h2>
 
+    <p>
+      Code in this project follows the
+      <a href="https://google.github.io/styleguide/javaguide.html"
+        >Google Java Style Guide</a
+      >,
+      <a href="https://homes.cs.washington.edu/~mernst/advice/coding-style.html"
+        >Michael Ernst's coding style guidelines</a
+      >, and
+      <a
+        href="https://www.oracle.com/java/technologies/javase/codeconventions-indentation.html#248"
+        >Oracle's Java code conventions</a
+      >.
+    </p>
 
-<h3 id="testing-optimizations">Testing optimizations</h3>
+    <p>
+      From the command line, you can format your code by running
+      <code>./gradlew spotlessApply</code>. You can
+      <a href="https://github.com/google/google-java-format#using-the-formatter"
+        >configure your IDE</a
+      >
+      (Eclipse or IntelliJ) to use the formatting.
+    </p>
 
-<p>
-To test an optimization that should speed up type-checking, see
-the <code>test-daikon.sh</code> stage of the <code>daikon_jdk8</code> job
-of the Azure Pipelines CI job.  Compare the run time of this stage (or of
-the entire <code>daikon_jdk8</code> job) between the master branch and a
-branch with your improvements.
-</p>
+    <p>
+      We don't use <code>@author</code> Javadoc tags in code files. Doing so
+      clutters the code, and is misleading once that individual is no longer
+      maintaining the code. Authorship (and who has made changes recently) can
+      be obtained from the version control system, such as by running
+      <code>git annotate <em>filename</em></code
+      >.
+    </p>
 
-<p>
-You can also compare run times of the Checker Framework test suite.
-</p>
+    <p>
+      Every class, method, and field (even private ones) must have a descriptive
+      Javadoc comment.
+    </p>
 
+    <p>
+      If a nested class has a very common and generic name, do not
+      <code>import</code> it. In code, write the outer and inner class name (as
+      in <code>Tree.Kind</code> or <code>Map.Entry</code>) rather than just the
+      simple name <code>Kind</code> or <code>Entry</code>.
+    </p>
 
-<h2 id="code-style">Code style</h2>
+    <h2 id="IDE_configuration">IDE configuration</h2>
 
-<p>
-Code in this project follows the
-<a href="https://google.github.io/styleguide/javaguide.html">Google Java Style
-  Guide</a>,
-<a href="https://homes.cs.washington.edu/~mernst/advice/coding-style.html">Michael
-Ernst's coding style guidelines</a>, and <a href="https://www.oracle.com/java/technologies/javase/codeconventions-indentation.html#248">Oracle's
-Java code conventions</a>.
-</p>
+    <p>
+      First clone and build all projects from their sources, from the command
+      line, using the instructions at
+      <a href="https://eisop.github.io/manual/#build-source"
+        >https://eisop.github.io/manual/#build-source</a
+      >. After that succeeds, import the projects into your IDE as Gradle
+      projects.
+    </p>
 
-<p>
-From the command line, you can format your code by running <code>./gradlew spotlessApply</code>.
-You
-can <a href="https://github.com/google/google-java-format#using-the-formatter">configure
-your IDE</a> (Eclipse or IntelliJ) to use the formatting.
-</p>
+    <p>
+      If your IDE cannot find <code>com.sun.source.*</code> packages, try
+      changing the project JDK to JDK 11 or JDK 17.
+    </p>
 
-<p>
-We don't use <code>@author</code> Javadoc tags in code files.
-Doing so clutters the code, and is misleading once that individual
-is no longer maintaining the code.
-Authorship (and who has made changes recently) can be obtained from the
-version control system, such as by running <code>git annotate <em>filename</em></code>.
-</p>
+    <p>
+      For VS Code and Eclipse, run
+      <code>./gradlew eclipseClasspath</code> before running the IDE for the
+      first time. This ensures generated files are not put in the standard
+      <code>../bin/</code> directories.
+    </p>
 
-<p>
-  Every class, method, and field (even private ones) must have a
-  descriptive Javadoc comment.
-</p>
+    <h2 id="pull-requests">Pull requests</h2>
 
-<p>
-If a nested class has a very common and generic name, do
-not <code>import</code> it.  In code, write the outer and inner class name
-(as in <code>Tree.Kind</code> or <code>Map.Entry</code>) rather than just
-the simple name <code>Kind</code> or <code>Entry</code>.
-</p>
+    <p>
+      Each pull request should address a single concern, rather than (say)
+      addressing multiple concerns such as fixing a bug, adding a feature,
+      <em>and</em>
+      changing formatting. Focusing each pull request on a single concern makes
+      the commit easier to understand and review. It also makes the commit
+      history (after the pull request is merged) easier to understand and (if
+      necessary) revert.
+    </p>
 
+    <p>
+      The pull request title should clearly explain the change. It will be used
+      as the commit message for your change. If the pull request fixes an issue
+      in the issue tracker, its title should end with "; fixes #NNN" where NNN
+      is the fixed issue.
+    </p>
 
-<h2 id="IDE_configuration">IDE configuration</h2>
+    <p>
+      Your pull request (whether it is a bug fix or a new feature) should
+      include tests that fail before your change and pass afterward.
+    </p>
 
-<p>
-First clone and build all projects from their sources, from the command line,
-using the instructions
-at <a href="https://checkerframework.org/manual/#build-source">https://checkerframework.org/manual/#build-source</a>.
-After that succeeds, import the projects into your IDE as Gradle projects.
-</p>
+    <p>
+      If you make a user-visible change, update the manual (or add a new
+      section) and add a brief description at the top of the changelog (file
+      <code>docs/CHANGELOG.md</code>).
+    </p>
 
-<p>
-If your IDE cannot find <code>com.sun.source.*</code> packages, try changing the project JDK to JDK 11 or JDK 17.
-</p>
+    <p>
+      To reduce iterations of code review, please follow the
+      <a href="#code-style">coding conventions</a>. Also enable
+      <a href="#ci">continuous integration</a> on your fork of the Checker
+      Framework and ensure that it passes before you open a pull request.
+    </p>
 
-<p>
-For VS Code and Eclipse, run <code>./gradlew eclipseClasspath</code> before running
-the IDE for the first time.
-This ensures generated files are not put in the standard <code>../bin/</code> directories.
-</p>
+    <p>
+      A pull request marked as "draft" means it should not be reviewed. To use a
+      "draft" pull request for discussions, make it in a fork. If it were in the
+      <code>eisop</code> GitHub organization, it would use CI resources and thus
+      slow down CI feedback for other pull requests.
+    </p>
 
+    <p>
+      Also see
+      <a
+        href="https://homes.cs.washington.edu/~mernst/advice/github-pull-request.html"
+        >Michael Ernst's advice about creating GitHub pull requests</a
+      >.
+    </p>
 
-<h2 id="pull-requests">Pull requests</h2>
+    <h3 id="pull-requests-branches">Branches</h3>
 
-<p>
-Each pull request should address a single concern, rather than (say)
-addressing multiple concerns such as fixing a bug, adding a feature, <em>and</em>
-changing formatting.  Focusing each pull request on a single concern makes
-the commit easier to understand and review.  It also makes the commit
-history (after the pull request is merged) easier to understand and (if
-necessary) revert.
-</p>
+    <p>
+      It is good style to create a branch (in your fork of the Checker Framework
+      GitHub repository) for each independent change. Do not make changes to
+      your <code>master</code> branch. If you have write access to the
+      <code>eisop</code> repository, don't work in a branch of it, because such
+      a branch competes for CI resources with all pull requests.
+    </p>
 
-<p>
-The pull request title should clearly explain the change.  It will be used
-as the commit message for your change.  If the pull request fixes an issue
-in the issue tracker, its title should end with "; fixes #NNN" where NNN is
-the fixed issue.
-</p>
+    <p>
+      You may need to make changes to multiple repositories. See
+      <a href="#Related_repositories">"Related repositories"</a> above.
+    </p>
 
-<p>
-  Your pull request (whether it is a bug fix or a new feature) should
-  include tests that fail before your change and pass afterward.
-</p>
+    <p id="azure-pipelines-bug-same-commit-hash">
+      Azure Pipelines has a bug: whenever two CI jobs would run code with the
+      same commit hash, it re-uses a previous execution result. This is a bug
+      because the CI job's behavior may depend on the branch name and other
+      factors that are independent of the commit hash. This means that you may
+      see spurious successes or failures when your branch of (say) the
+      <code>jdk</code> repository has the identical commit hash to some other
+      branch that Azure Pipelines previous ran a job for.
+    </p>
 
-<p>
-If you make a user-visible change, update the manual (or add a new section)
-and add a brief description at the top of the changelog
-(file <code>docs/CHANGELOG.md</code>).
-</p>
+    <h3 id="pull-requests-maintainers">
+      Pull request and commit notes for maintainers
+    </h3>
 
-<p>
-To reduce iterations of code review, please follow
-the <a href="#code-style">coding conventions</a>.
-Also enable <a href="#ci">continuous integration</a> on your fork of the Checker
-Framework and ensure that it passes before you open a pull request.
-</p>
+    <p>
+      It is acceptable to commit small, noncontroversial changes directly to
+      master. (This policy differs from some projects, which require an issue
+      tracker issue and a pull request for every change, however minor.) As with
+      pull requests, each commit should address a single concern. For any change
+      where you want feedback, or where others might have useful comments or
+      might disagree, please submit a pull request. Be conservative in your
+      judgment; others might consider something controversial that you do not.
+    </p>
 
-<p>
-A pull request marked as "draft" means it should not be reviewed.  To use a
-"draft" pull request for discussions, make it in a fork.  If it were in
-the <code>eisop</code> GitHub organization, it would use CI resources
-and thus slow down CI feedback for other pull requests.
-</p>
+    <p>
+      Try to review pull requests promptly, to avoid stalling others while
+      waiting for your feedback. If you have been waiting for more than a week
+      after the pull request was assigned with no feedback, then ping the
+      assignee, wait at least another business day, and then go ahead and push
+      your changes. It's great if reviewers can give feedback, but if they are
+      too busy to do so, you should recognize that and move on.
+    </p>
 
-<p>
-Also
-see <a href="https://homes.cs.washington.edu/~mernst/advice/github-pull-request.html">Michael
-Ernst's advice about creating GitHub pull requests</a>.
-</p>
+    <h2 id="github-configuration">GitHub configuration</h2>
 
-
-<h3 id="pull-requests-branches">Branches</h3>
-
-<p>
-  It is good style to create a branch (in your fork of the Checker
-  Framework GitHub repository) for each independent change.
-  Do not make changes to your <code>master</code> branch.
-  If you have write access to the <code>eisop</code> repository, don't
-  work in a branch of it, because such a branch competes for CI resources
-  with all pull requests.
-</p>
-
-<p>
-  You may need to make changes to multiple repositories.
-  See <a href="#Related_repositories">"Related repositories"</a> above.
-</p>
-
-<p id="azure-pipelines-bug-same-commit-hash">
-Azure Pipelines has a bug:  whenever two CI jobs would run code with the same
-commit hash, it re-uses a previous execution result.  This is a bug because the
-CI job's behavior may depend on the branch name and other factors that are
-independent of the commit hash.  This means that you may see spurious successes
-or failures when your branch of (say) the <code>jdk</code> repository has the
-identical commit hash to some other branch that Azure Pipelines previous ran a
-job for.
-</p>
-
-
-<h3 id="pull-requests-maintainers">Pull request and commit notes for maintainers</h3>
-
-<p>
-It is acceptable to commit small, noncontroversial changes directly to
-master.  (This policy differs from some projects, which require an issue
-tracker issue and a pull request for every change, however minor.)
-As with pull requests, each commit should address a single concern.
-For any change where you want feedback, or where others might have
-useful comments or might disagree, please submit a pull request.  Be
-conservative in your judgment; others might consider something
-controversial that you do not.
-</p>
-
-<p>
-Try to review pull requests promptly, to avoid stalling others while
-waiting for your feedback.  If you have been waiting for more than a week
-after the pull request was assigned with no feedback, then ping the
-assignee, wait at least another business day, and then go ahead and push
-your changes.  It's great if reviewers can give feedback, but if they are
-too busy to do so, you should recognize that and move on.
-</p>
-
-
-<h2 id="github-configuration">GitHub configuration</h2>
-
-<p>
-When you installed Git, you should have set your name and email address.  If you have not yet done so, do it now:
-</p>
-<pre>
+    <p>
+      When you installed Git, you should have set your name and email address.
+      If you have not yet done so, do it now:
+    </p>
+    <pre>
 git config --global user.name "<em>FIRST_NAME LAST_NAME</em>"
 git config --global user.email "<em>USERNAME</em>@<em>SOMEDOMAIN.COM</em>"
 </pre>
 
-<p>
-Before you make any commits (even to your own fork),
-update your GitHub account profile so it contains your complete name.
-This is necessary to include you in
-the <a href="https://checkerframework.org/manual/#credits">list of
-contributors</a>.
-</p>
+    <p>
+      Before you make any commits (even to your own fork), update your GitHub
+      account profile so it contains your complete name. This is necessary to
+      include you in the
+      <a href="https://eisop.github.io/manual/#credits">list of contributors</a
+      >.
+    </p>
 
-<p>
-You will want your own GitHub fork of any project you plan to modify.  We
-recommend that, for each fork, you configure GitHub
-to <a href="https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-the-automatic-deletion-of-branches">delete
-branches after they are merged</a>.
-</p>
+    <p>
+      You will want your own GitHub fork of any project you plan to modify. We
+      recommend that, for each fork, you configure GitHub to
+      <a
+        href="https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-the-automatic-deletion-of-branches"
+        >delete branches after they are merged</a
+      >.
+    </p>
 
+    <h2 id="ci">Continuous Integration</h2>
 
-<h2 id="ci">Continuous Integration</h2>
+    <p>
+      The Checker Framework has continuous integration jobs that run in Azure
+      Pipelines, CircleCI, and/or Travis CI on each push to GitHub. We recommend
+      Azure Pipelines.
+    </p>
 
-<p>
-The Checker Framework has continuous integration jobs that run in Azure
-Pipelines, CircleCI, and/or Travis CI on each push to GitHub.
-We recommend Azure Pipelines.
-</p>
+    <p>
+      To enable Azure Pipelines continuous integration for your fork: (This is a
+      summary of the
+      <a
+        href="https://learn.microsoft.com/en-us/azure/devops/pipelines/create-first-pipeline?view=azure-devops"
+        >Azure Pipelines getting started directions</a
+      >.)
+    </p>
+    <ul>
+      <li>
+        Browse to <a href="https://dev.azure.com/">dev.azure.com</a>. (You might
+        need to create a (free) account.)
+      </li>
+      <li>
+        Click "Create a project to get started" and enter an appropriate name
+      </li>
+      <li>Click "public".</li>
+      <li>Click "create project"</li>
+      <li>At the left, click the blue rocket labeled "pipelines"</li>
+      <li>Click "new pipeline"</li>
+      <li>Click "GitHub" (You might need to authorize the app on GitHub.)</li>
+      <li>Click "Select a repository"</li>
+      <li>Choose <em>MYUSERID</em>/checker-framework</li>
+      <li>
+        Choose the default radio button, "only selected repositories".
+        <b>Do not</b> choose "all repositories".
+      </li>
+      <li>Choose "Existing Azure Pipelines YAML file"</li>
+      <li>Select "/azure-pipelines.yml" in the dropdown menu</li>
+      <li>Approve and install.</li>
+      <li>Click "run".</li>
+    </ul>
 
-<p>
-  To enable Azure Pipelines continuous integration for your fork:
-  (This is a summary of the <a href="https://learn.microsoft.com/en-us/azure/devops/pipelines/create-first-pipeline?view=azure-devops">Azure
-  Pipelines getting started directions</a>.)
-</p>
-<ul>
-  <li>Browse to <a href="https://dev.azure.com/">dev.azure.com</a>.
-      (You might need to create a (free) account.)</li>
-  <li>Click "Create a project to get started" and enter an appropriate name</li>
-  <li>Click "public".</li>
-  <li>Click "create project"</li>
-  <li>At the left, click the blue rocket labeled "pipelines"</li>
-  <li>Click "new pipeline"</li>
-  <li>Click "GitHub"
-      (You might need to authorize the app on GitHub.)</li>
-  <li>Click "Select a repository"</li>
-  <li>Choose <em>MYUSERID</em>/checker-framework</li>
-  <li>Choose the default radio button, "only selected repositories".  <b>Do not</b> choose "all repositories".</li>
-  <li>Choose "Existing Azure Pipelines YAML file"</li>
-  <li>Select "/azure-pipelines.yml" in the dropdown menu</li>
-  <li>Approve and install.</li>
-  <li>Click "run".</li>
-</ul>
+    <p>To enable Travis CI continuous integration for your fork:</p>
+    <ul>
+      <li>Browse to <a href="https://www.travis-ci.com/">travis-ci.com</a></li>
+      <li>
+        Click the downarrow for the dropdown, near your face in the upper right
+        corner
+      </li>
+      <li>Click settings</li>
+      <li>
+        Find "checker-framework" in the list, and click the slider to enable it.
+      </li>
+    </ul>
 
-<p>
-  To enable Travis CI continuous integration for your fork:
-</p>
-<ul>
-  <li>Browse to <a href="https://www.travis-ci.com/">travis-ci.com</a></li>
-  <li>Click the downarrow for the dropdown, near your face in the upper right corner</li>
-  <li>Click settings</li>
-  <li>Find "checker-framework" in the list, and click the slider to enable it.</li>
-</ul>
+    <h3 id="ci-failure">What to do if a Continuous Integration build fails</h3>
 
+    <p>
+      Sometimes, CI tests for your pull request may fail even though your local
+      build passed. This is usually because the CI service performed more tests
+      than you ran locally.
+    </p>
 
-<h3 id="ci-failure">What to do if a Continuous Integration build fails</h3>
+    <p>
+      First, examine the CI service's logs, which contain diagnostic output from
+      the failing command. You can determine which command was run from the
+      logs, or from the CI configuration file (such as
+      <code>azure-pipelines.yml</code>).
+    </p>
 
-<p>
-Sometimes, CI tests for your pull request may fail even though your local build passed.
-This is usually because the CI service performed more tests than you ran locally.
-</p>
+    <h2 id="Documenting_refactoring_ideas">Documenting refactoring ideas</h2>
 
-<p>
-First, examine the CI service's logs, which contain diagnostic output from the
-failing command.  You can determine which command was run from the logs, or
-from the CI configuration file (such as <code>azure-pipelines.yml</code>).
-</p>
+    <p>
+      Don't open issues for code improvement ideas (such as potential
+      refactorings). If it can be described concisely and is unlikely to be
+      rediscovered by other people, write a TODO comment in the code. The code
+      comment is more likely to be noticed by someone working with the code, and
+      it is equally easy to search for. Furthermore, it doesn't clutter the
+      issue tracker. Clutter in the issue tracker reduces morale, makes it
+      harder to search, and makes the project appear lower-quality than it
+      actually is.
+    </p>
 
+    <h2 id="annotated-library-version-numbers">
+      Version numbers for annotated libraries
+    </h2>
 
-<h2 id="Documenting_refactoring_ideas">Documenting refactoring ideas</h2>
+    <p>
+      We maintain annotated versions of some third-party libraries. The source
+      code appears in a fork in the
+      <a href="https://github.com/eisop"
+        >GitHub <code>eisop</code> organization</a
+      >. Binaries are hosted at
+      <a href="https://search.maven.org/search?q=annotatedlib"
+        >Maven Central in the
+        <code>org.checkerframework.annotatedlib</code> group</a
+      >.
+    </p>
 
-<p>
-Don't open issues for code improvement ideas (such as potential refactorings).
-If it can be described concisely and is unlikely to be rediscovered by other
-people, write a TODO comment in the code.  The code comment is more likely to be
-noticed by someone
-working with the code, and it is equally easy to search for.  Furthermore,
-it doesn't clutter the issue tracker.  Clutter in the issue tracker reduces
-morale, makes it harder to search, and makes the project appear
-lower-quality than it actually is.
-</p>
+    <p>
+      Annotated libraries should be based on a released version of the upstream
+      library, not an arbitrary commit in the upstream library's version control
+      system. The library's version number is the same as the upstream version
+      number.
+    </p>
 
+    <p>
+      When making a new version of an annotated library, between upstream
+      releases, add ".0.1" to the end of the version number. For example, if we
+      already uploaded version 6.2 to Maven Central, the next version we upload
+      would be 6.2.0.1. This accommodates the possibility that the upstream
+      maintainers release 6.2.1. Our further releases increment the last number,
+      for example to 6.2.0.2.
+    </p>
 
-<h2 id="annotated-library-version-numbers">Version numbers for annotated libraries</h2>
+    <h2 id="Making_a_Checker_Framework_release">
+      Making a Checker Framework release
+    </h2>
 
-<p>
-  We maintain annotated versions of some third-party libraries.  The source
-  code appears in a fork in
-  the <a href="https://github.com/eisop">GitHub <code>eisop</code>
-  organization</a>.  Binaries are hosted
-  at <a href="https://search.maven.org/search?q=annotatedlib">Maven Central
-  in the <code>org.checkerframework.annotatedlib</code> group</a>.
-</p>
-
-<p>
-Annotated libraries should be based on a released version of the upstream
-library, not an arbitrary commit in the upstream library's version control
-system.  The library's version number is the same as the upstream version
-number.
-</p>
-
-<p>
-When making a new version of an annotated library, between upstream
-releases, add ".0.1" to the end of the version number.  For example, if we
-already uploaded version 6.2 to Maven Central, the next version we upload
-would be 6.2.0.1.  This accommodates the possibility that the upstream
-maintainers release 6.2.1.  Our further releases increment the last number,
-for example to 6.2.0.2.
-</p>
-
-
-<h2 id="Making_a_Checker_Framework_release">Making a Checker Framework release</h2>
-
-<p>
-See a separate document about the Checker Framework release process:
-<!-- This relative URL works from a clone, but not from the web. -->
-<a href="release/README-release-process.html">local version (link works from a clone)</a> or
-<a href="https://github.com/eisop/checker-framework/blob/master/docs/developer/release/README-release-process.html">web version (from previous release)</a>
-
-</p>
-
-
-</body>
+    <p>
+      See a separate document about the Checker Framework release process:
+      <!-- This relative URL works from a clone, but not from the web. -->
+      <a href="release/README-release-process.html"
+        >local version (link works from a clone)</a
+      >
+      or
+      <a
+        href="https://github.com/eisop/checker-framework/blob/master/docs/developer/release/README-release-process.html"
+        >web version (from previous release)</a
+      >
+    </p>
+  </body>
 </html>
 
 <!--  LocalWords:  TODO javacutil gradle javadoc reformats subprojects pre NullAway CircleCI travis ci downarrow dropdown MYUSERID NNN doesn

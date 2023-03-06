@@ -609,7 +609,7 @@ task ainferTestCheckerGenerateJaifs(type: Test) {
         // places annotations incorrectly on qualified types. In this test, a failure occurs because
         // the AFU prints "@Annotation Outer.Inner this", rather than "Outer.@Annotation Inner this"
         // (see an explanation of the syntax here:
-        // https://checkerframework.org/manual/#common-problems-non-typechecking).
+        // https://eisop.github.io/manual/#common-problems-non-typechecking).
         // TODO: fix this bug in the AFU, then reinstate this test.
         delete('tests/ainfer-testchecker/annotated/OverriddenMethodsTest.java')
 

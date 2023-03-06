@@ -20,7 +20,7 @@ import java.util.regex.PatternSyntaxException;
  * expression.
  *
  * <p>For an example of intended use, see section <a
- * href="https://checkerframework.org/manual/#regexutil-methods">Testing whether a string is a
+ * href="https://eisop.github.io/manual/#regexutil-methods">Testing whether a string is a
  * regular expression</a> in the Checker Framework manual.
  *
  * <p><b>Runtime Dependency</b>: If you use this class, you must distribute (or link to) {@code

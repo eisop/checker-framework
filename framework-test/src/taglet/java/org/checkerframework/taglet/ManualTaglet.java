@@ -19,16 +19,20 @@ import java.util.StringJoiner;
 import javax.lang.model.element.Element;
 
 /**
- * A taglet for processing the {@code @checker_framework.manual} javadoc block tag, which inserts
+ * A taglet for processing the {@code @checker_framework.manual} javadoc block
+ * tag, which inserts
  * references to the Checker Framework manual into javadoc.
  *
- * <p>The {@code @checker_framework.manual} tag is used as follows:
+ * <p>
+ * The {@code @checker_framework.manual} tag is used as follows:
  *
  * <ul>
- *   <li>{@code @checker_framework.manual #} expands to a top-level link to the Checker Framework
- *       manual
- *   <li>{@code @checker_framework.manual #anchor text} expands to a link with some text to a
- *       particular part of the manual
+ * <li>{@code @checker_framework.manual #} expands to a top-level link to the
+ * Checker Framework
+ * manual
+ * <li>{@code @checker_framework.manual #anchor text} expands to a link with
+ * some text to a
+ * particular part of the manual
  * </ul>
  */
 public class ManualTaglet implements Taglet {
@@ -56,8 +60,9 @@ public class ManualTaglet implements Taglet {
      * Formats a link, given an array of tokens.
      *
      * @param parts the array of tokens
-     * @return a link to the manual top-level if the array size is one, or a link to a part of the
-     *     manual if it's larger than one
+     * @return a link to the manual top-level if the array size is one, or a link to
+     *         a part of the
+     *         manual if it's larger than one
      */
     private String formatLink(String[] parts) {
         String anchor, text;
@@ -69,11 +74,12 @@ public class ManualTaglet implements Taglet {
             text = parts[1];
         }
         return String.format(
-                "<A HREF=\"https://checkerframework.org/manual/%s\">%s</A>", anchor, text);
+                "<A HREF=\"https://eisop.github.io/manual/%s\">%s</A>", anchor, text);
     }
 
     /**
-     * Formats the {@code @checker_framework.manual} tag, prepending the tag header to the tag
+     * Formats the {@code @checker_framework.manual} tag, prepending the tag header
+     * to the tag
      * content.
      *
      * @param text the tag content
