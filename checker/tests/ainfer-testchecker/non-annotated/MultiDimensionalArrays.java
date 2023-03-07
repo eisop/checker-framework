@@ -1,6 +1,7 @@
 // This test ensures that annotations on different component types of multidimensional arrays
 // are printed correctly.
 
+import java.util.List;
 import org.checkerframework.checker.testchecker.ainfer.qual.AinferSibling1;
 import org.checkerframework.checker.testchecker.ainfer.qual.AinferSibling2;
 import org.checkerframework.checker.testchecker.ainfer.qual.AinferSiblingWithFields;
@@ -8,259 +9,257 @@ import org.checkerframework.common.aliasing.qual.MaybeAliased;
 import org.checkerframework.common.aliasing.qual.NonLeaked;
 import org.checkerframework.common.aliasing.qual.Unique;
 
-import java.util.List;
-
 public class MultiDimensionalArrays {
 
-    // two dimensional arrays
+  // two dimensional arrays
 
-    void requiresS1S2(@AinferSibling1 int @AinferSibling2 [] x) {}
+  void requiresS1S2(@AinferSibling1 int @AinferSibling2 [] x) {}
 
-    int[] twoDimArray;
+  int[] twoDimArray;
 
-    void testField() {
+  void testField() {
+    // :: warning: argument.type.incompatible
+    requiresS1S2(twoDimArray);
+  }
+
+  void useField(@AinferSibling1 int @AinferSibling2 [] x) {
+    twoDimArray = x;
+  }
+
+  void testParam(int[] x) {
+    // :: warning: argument.type.incompatible
+    requiresS1S2(x);
+  }
+
+  void useParam(@AinferSibling1 int @AinferSibling2 [] x) {
+    testParam(x);
+  }
+
+  int[] useReturn(@AinferSibling1 int @AinferSibling2 [] x) {
+    return x;
+  }
+
+  void testReturn() {
+    requiresS1S2(
         // :: warning: argument.type.incompatible
-        requiresS1S2(twoDimArray);
-    }
+        useReturn(
+            // :: warning: argument.type.incompatible
+            twoDimArray));
+  }
 
-    void useField(@AinferSibling1 int @AinferSibling2 [] x) {
-        twoDimArray = x;
-    }
+  // three dimensional arrays
 
-    void testParam(int[] x) {
-        // :: warning: argument.type.incompatible
-        requiresS1S2(x);
-    }
+  void requiresS1S2S1(@AinferSibling1 int @AinferSibling2 [] @AinferSibling1 [] x) {}
 
-    void useParam(@AinferSibling1 int @AinferSibling2 [] x) {
-        testParam(x);
-    }
+  int[][] threeDimArray;
 
-    int[] useReturn(@AinferSibling1 int @AinferSibling2 [] x) {
-        return x;
-    }
+  void testField2() {
+    // :: warning: argument.type.incompatible
+    requiresS1S2S1(threeDimArray);
+  }
 
-    void testReturn() {
-        requiresS1S2(
-                // :: warning: argument.type.incompatible
-                useReturn(
-                        // :: warning: argument.type.incompatible
-                        twoDimArray));
-    }
+  void useField2(@AinferSibling1 int @AinferSibling2 [] @AinferSibling1 [] x) {
+    threeDimArray = x;
+  }
 
-    // three dimensional arrays
+  void testParam2(int[][] x) {
+    // :: warning: argument.type.incompatible
+    requiresS1S2S1(x);
+  }
 
-    void requiresS1S2S1(@AinferSibling1 int @AinferSibling2 [] @AinferSibling1 [] x) {}
+  void useParam2(@AinferSibling1 int @AinferSibling2 [] @AinferSibling1 [] x) {
+    testParam2(x);
+  }
 
-    int[][] threeDimArray;
+  int[][] useReturn2(@AinferSibling1 int @AinferSibling2 [] @AinferSibling1 [] x) {
+    return x;
+  }
 
-    void testField2() {
-        // :: warning: argument.type.incompatible
-        requiresS1S2S1(threeDimArray);
-    }
+  void testReturn2() {
+    // :: warning: argument.type.incompatible
+    requiresS1S2S1(useReturn2(threeDimArray));
+  }
 
-    void useField2(@AinferSibling1 int @AinferSibling2 [] @AinferSibling1 [] x) {
-        threeDimArray = x;
-    }
+  // three dimensional array with annotations only on two inner types
 
-    void testParam2(int[][] x) {
-        // :: warning: argument.type.incompatible
-        requiresS1S2S1(x);
-    }
+  void requiresS1S2N(@AinferSibling1 int @AinferSibling2 [][] x) {}
 
-    void useParam2(@AinferSibling1 int @AinferSibling2 [] @AinferSibling1 [] x) {
-        testParam2(x);
-    }
+  int[][] threeDimArray2;
 
-    int[][] useReturn2(@AinferSibling1 int @AinferSibling2 [] @AinferSibling1 [] x) {
-        return x;
-    }
+  void testField3() {
+    // :: warning: argument.type.incompatible
+    requiresS1S2N(threeDimArray2);
+  }
 
-    void testReturn2() {
-        // :: warning: argument.type.incompatible
-        requiresS1S2S1(useReturn2(threeDimArray));
-    }
+  void useField3(@AinferSibling1 int @AinferSibling2 [][] x) {
+    threeDimArray2 = x;
+  }
 
-    // three dimensional array with annotations only on two inner types
+  void testParam3(int[][] x) {
+    // :: warning: argument.type.incompatible
+    requiresS1S2N(x);
+  }
 
-    void requiresS1S2N(@AinferSibling1 int @AinferSibling2 [][] x) {}
+  void useParam3(@AinferSibling1 int @AinferSibling2 [][] x) {
+    testParam3(x);
+  }
 
-    int[][] threeDimArray2;
+  int[][] useReturn3(@AinferSibling1 int @AinferSibling2 [][] x) {
+    return x;
+  }
 
-    void testField3() {
-        // :: warning: argument.type.incompatible
-        requiresS1S2N(threeDimArray2);
-    }
+  void testReturn3() {
+    // :: warning: argument.type.incompatible
+    requiresS1S2N(useReturn3(threeDimArray2));
+  }
 
-    void useField3(@AinferSibling1 int @AinferSibling2 [][] x) {
-        threeDimArray2 = x;
-    }
+  // three dimensional array with annotations only on two array types, not innermost type
 
-    void testParam3(int[][] x) {
-        // :: warning: argument.type.incompatible
-        requiresS1S2N(x);
-    }
+  void requiresS2S1(int @AinferSibling2 [] @AinferSibling1 [] x) {}
 
-    void useParam3(@AinferSibling1 int @AinferSibling2 [][] x) {
-        testParam3(x);
-    }
+  int[][] threeDimArray3;
 
-    int[][] useReturn3(@AinferSibling1 int @AinferSibling2 [][] x) {
-        return x;
-    }
+  void testField4() {
+    // :: warning: argument.type.incompatible
+    requiresS2S1(threeDimArray3);
+  }
 
-    void testReturn3() {
-        // :: warning: argument.type.incompatible
-        requiresS1S2N(useReturn3(threeDimArray2));
-    }
+  void useField4(int @AinferSibling2 [] @AinferSibling1 [] x) {
+    threeDimArray3 = x;
+  }
 
-    // three dimensional array with annotations only on two array types, not innermost type
+  void testParam4(int[][] x) {
+    // :: warning: argument.type.incompatible
+    requiresS2S1(x);
+  }
 
-    void requiresS2S1(int @AinferSibling2 [] @AinferSibling1 [] x) {}
+  void useParam4(int @AinferSibling2 [] @AinferSibling1 [] x) {
+    testParam4(x);
+  }
 
-    int[][] threeDimArray3;
+  int[][] useReturn4(int @AinferSibling2 [] @AinferSibling1 [] x) {
+    return x;
+  }
 
-    void testField4() {
-        // :: warning: argument.type.incompatible
-        requiresS2S1(threeDimArray3);
-    }
+  void testReturn4() {
+    // :: warning: argument.type.incompatible
+    requiresS2S1(useReturn4(threeDimArray3));
+  }
 
-    void useField4(int @AinferSibling2 [] @AinferSibling1 [] x) {
-        threeDimArray3 = x;
-    }
+  // three-dimensional arrays with arguments in annotations
 
-    void testParam4(int[][] x) {
-        // :: warning: argument.type.incompatible
-        requiresS2S1(x);
-    }
+  void requiresSf1Sf2Sf3(
+      @AinferSiblingWithFields(value = {"test1", "test1"}) int @AinferSiblingWithFields(value = {"test2", "test2"}) []
+                  @AinferSiblingWithFields(value = {"test3"}) []
+              x) {}
 
-    void useParam4(int @AinferSibling2 [] @AinferSibling1 [] x) {
-        testParam4(x);
-    }
+  int[][] threeDimArray4;
 
-    int[][] useReturn4(int @AinferSibling2 [] @AinferSibling1 [] x) {
-        return x;
-    }
+  void testField5() {
+    // :: warning: argument.type.incompatible
+    requiresSf1Sf2Sf3(threeDimArray4);
+  }
 
-    void testReturn4() {
-        // :: warning: argument.type.incompatible
-        requiresS2S1(useReturn4(threeDimArray3));
-    }
+  void useField5(
+      @AinferSiblingWithFields(value = {"test1", "test1"}) int @AinferSiblingWithFields(value = {"test2", "test2"}) []
+                  @AinferSiblingWithFields(value = {"test3"}) []
+              x) {
+    threeDimArray4 = x;
+  }
 
-    // three-dimensional arrays with arguments in annotations
+  void testParam5(int[][] x) {
+    // :: warning: argument.type.incompatible
+    requiresSf1Sf2Sf3(x);
+  }
 
-    void requiresSf1Sf2Sf3(
-            @AinferSiblingWithFields(value = {"test1", "test1"}) int @AinferSiblingWithFields(value = {"test2", "test2"}) []
-                                    @AinferSiblingWithFields(value = {"test3"}) []
-                            x) {}
+  void useParam5(
+      @AinferSiblingWithFields(value = {"test1", "test1"}) int @AinferSiblingWithFields(value = {"test2", "test2"}) []
+                  @AinferSiblingWithFields(value = {"test3"}) []
+              x) {
+    testParam5(x);
+  }
 
-    int[][] threeDimArray4;
+  int[][] useReturn5(
+      @AinferSiblingWithFields(value = {"test1", "test1"}) int @AinferSiblingWithFields(value = {"test2", "test2"}) []
+                  @AinferSiblingWithFields(value = {"test3"}) []
+              x) {
+    return x;
+  }
 
-    void testField5() {
-        // :: warning: argument.type.incompatible
-        requiresSf1Sf2Sf3(threeDimArray4);
-    }
+  void testReturn5() {
+    // :: warning: argument.type.incompatible
+    requiresSf1Sf2Sf3(useReturn5(threeDimArray4));
+  }
 
-    void useField5(
-            @AinferSiblingWithFields(value = {"test1", "test1"}) int @AinferSiblingWithFields(value = {"test2", "test2"}) []
-                                    @AinferSiblingWithFields(value = {"test3"}) []
-                            x) {
-        threeDimArray4 = x;
-    }
+  // three dimensional array with annotations from other hierarchies that ought to be preserved
 
-    void testParam5(int[][] x) {
-        // :: warning: argument.type.incompatible
-        requiresSf1Sf2Sf3(x);
-    }
+  int[][] threeDimArray5;
 
-    void useParam5(
-            @AinferSiblingWithFields(value = {"test1", "test1"}) int @AinferSiblingWithFields(value = {"test2", "test2"}) []
-                                    @AinferSiblingWithFields(value = {"test3"}) []
-                            x) {
-        testParam5(x);
-    }
+  void testField6() {
+    // :: warning: argument.type.incompatible
+    requiresS1S2S1(threeDimArray5);
+  }
 
-    int[][] useReturn5(
-            @AinferSiblingWithFields(value = {"test1", "test1"}) int @AinferSiblingWithFields(value = {"test2", "test2"}) []
-                                    @AinferSiblingWithFields(value = {"test3"}) []
-                            x) {
-        return x;
-    }
+  void useField6(
+      @AinferSibling1 @Unique int @AinferSibling2 @NonLeaked [] @AinferSibling1 @MaybeAliased [] x) {
+    threeDimArray5 = x;
+  }
 
-    void testReturn5() {
-        // :: warning: argument.type.incompatible
-        requiresSf1Sf2Sf3(useReturn5(threeDimArray4));
-    }
+  void testParam6(int[][] x) {
+    // :: warning: argument.type.incompatible
+    requiresS1S2S1(x);
+  }
 
-    // three dimensional array with annotations from other hierarchies that ought to be preserved
+  void useParam6(
+      @AinferSibling1 @Unique int @AinferSibling2 @NonLeaked [] @AinferSibling1 @MaybeAliased [] x) {
+    testParam6(x);
+  }
 
-    int[][] threeDimArray5;
+  int[][] useReturn6(
+      @AinferSibling1 @Unique int @AinferSibling2 @NonLeaked [] @AinferSibling1 @MaybeAliased [] x) {
+    return x;
+  }
 
-    void testField6() {
-        // :: warning: argument.type.incompatible
-        requiresS1S2S1(threeDimArray5);
-    }
+  void testReturn6() {
+    // :: warning: argument.type.incompatible
+    requiresS1S2S1(useReturn6(threeDimArray));
+  }
 
-    void useField6(
-            @AinferSibling1 @Unique int @AinferSibling2 @NonLeaked [] @AinferSibling1 @MaybeAliased [] x) {
-        threeDimArray5 = x;
-    }
+  // Shenanigans with lists + arrays; commented out annotations can't be inferred by either
+  // jaif or stub based WPI for now due to limitations in generics inference.
 
-    void testParam6(int[][] x) {
-        // :: warning: argument.type.incompatible
-        requiresS1S2S1(x);
-    }
+  List<String[]>[] arrayofListsOfStringArrays;
 
-    void useParam6(
-            @AinferSibling1 @Unique int @AinferSibling2 @NonLeaked [] @AinferSibling1 @MaybeAliased [] x) {
-        testParam6(x);
-    }
+  void testField7() {
+    // :: warning: argument.type.incompatible
+    requiresS1S2L(arrayofListsOfStringArrays);
+  }
 
-    int[][] useReturn6(
-            @AinferSibling1 @Unique int @AinferSibling2 @NonLeaked [] @AinferSibling1 @MaybeAliased [] x) {
-        return x;
-    }
+  void requiresS1S2L(
+      @AinferSibling1 List</*@AinferSibling1*/ String /*@AinferSibling2*/[]> @AinferSibling2 [] la) {}
 
-    void testReturn6() {
-        // :: warning: argument.type.incompatible
-        requiresS1S2S1(useReturn6(threeDimArray));
-    }
+  void useField7(
+      @AinferSibling1 List</*@AinferSibling1*/ String /*@AinferSibling2*/[]> @AinferSibling2 [] x) {
+    arrayofListsOfStringArrays = x;
+  }
 
-    // Shenanigans with lists + arrays; commented out annotations can't be inferred by either
-    // jaif or stub based WPI for now due to limitations in generics inference.
+  void testParam7(List<String[]>[] x) {
+    // :: warning: argument.type.incompatible
+    requiresS1S2L(x);
+  }
 
-    List<String[]>[] arrayofListsOfStringArrays;
+  void useParam7(
+      @AinferSibling1 List</*@AinferSibling1*/ String /*@AinferSibling2*/[]> @AinferSibling2 [] x) {
+    testParam7(x);
+  }
 
-    void testField7() {
-        // :: warning: argument.type.incompatible
-        requiresS1S2L(arrayofListsOfStringArrays);
-    }
+  List<String[]>[] useReturn7(
+      @AinferSibling1 List</*@AinferSibling1*/ String /*@AinferSibling2*/[]> @AinferSibling2 [] x) {
+    return x;
+  }
 
-    void requiresS1S2L(
-            @AinferSibling1 List</*@AinferSibling1*/ String /*@AinferSibling2*/[]> @AinferSibling2 [] la) {}
-
-    void useField7(
-            @AinferSibling1 List</*@AinferSibling1*/ String /*@AinferSibling2*/[]> @AinferSibling2 [] x) {
-        arrayofListsOfStringArrays = x;
-    }
-
-    void testParam7(List<String[]>[] x) {
-        // :: warning: argument.type.incompatible
-        requiresS1S2L(x);
-    }
-
-    void useParam7(
-            @AinferSibling1 List</*@AinferSibling1*/ String /*@AinferSibling2*/[]> @AinferSibling2 [] x) {
-        testParam7(x);
-    }
-
-    List<String[]>[] useReturn7(
-            @AinferSibling1 List</*@AinferSibling1*/ String /*@AinferSibling2*/[]> @AinferSibling2 [] x) {
-        return x;
-    }
-
-    void testReturn7() {
-        // :: warning: argument.type.incompatible
-        requiresS1S2L(useReturn7(arrayofListsOfStringArrays));
-    }
+  void testReturn7() {
+    // :: warning: argument.type.incompatible
+    requiresS1S2L(useReturn7(arrayofListsOfStringArrays));
+  }
 }

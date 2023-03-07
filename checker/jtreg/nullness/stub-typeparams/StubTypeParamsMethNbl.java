@@ -9,7 +9,7 @@
  * @compile/fail/ref=StubTypeParamsMethNbl.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -Astubs=nullablebox-nonnull.astub -Werror StubTypeParamsMethNbl.java
  */
 public class StubTypeParamsMethNbl {
-    void use() {
-        NullableBox.of(null);
-    }
+  void use() {
+    NullableBox.of(null);
+  }
 }
