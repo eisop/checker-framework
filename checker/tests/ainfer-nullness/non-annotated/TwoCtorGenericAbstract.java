@@ -3,14 +3,14 @@
 import java.util.Set;
 
 public abstract class TwoCtorGenericAbstract<T extends Object> implements Set<T> {
-  protected T value;
+    protected T value;
 
-  protected TwoCtorGenericAbstract() {
-    // :: warning: (assignment.type.incompatible)
-    this.value = null;
-  }
+    protected TwoCtorGenericAbstract() {
+        // :: warning: (assignment.type.incompatible)
+        this.value = null;
+    }
 
-  protected TwoCtorGenericAbstract(T v) {
-    this.value = v;
-  }
+    protected TwoCtorGenericAbstract(T v) {
+        this.value = v;
+    }
 }

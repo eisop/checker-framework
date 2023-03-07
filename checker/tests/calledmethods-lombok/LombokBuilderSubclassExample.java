@@ -1,6 +1,7 @@
 import lombok.Builder;
 import lombok.NonNull;
 import lombok.Value;
+
 import org.checkerframework.checker.calledmethods.qual.CalledMethods;
 import org.checkerframework.common.returnsreceiver.qual.This;
 
@@ -8,32 +9,32 @@ import org.checkerframework.common.returnsreceiver.qual.This;
 @Value
 public class LombokBuilderSubclassExample {
 
-  @NonNull Integer attribute;
+    @NonNull Integer attribute;
 
-  public static LombokBuilderSubclassExampleBuilder builder() {
-    return new LombokBuilderSubclassExampleBuilder();
-  }
-
-  public static class LombokBuilderSubclassExampleBuilder extends BaseBuilder {
-
-    @Override
-    @This public LombokBuilderSubclassExampleBuilder attribute(@NonNull Integer attribute) {
-      return (LombokBuilderSubclassExampleBuilder) super.attribute(attribute);
+    public static LombokBuilderSubclassExampleBuilder builder() {
+        return new LombokBuilderSubclassExampleBuilder();
     }
 
-    @Override
-    public LombokBuilderSubclassExample build(
-        @CalledMethods("attribute") LombokBuilderSubclassExampleBuilder this) {
-      final LombokBuilderSubclassExample result = super.build();
-      // here result.getAttribute() is guaranteed to be non null, so we do not have to check
-      // this
-      // ourselves
+    public static class LombokBuilderSubclassExampleBuilder extends BaseBuilder {
 
-      if (result.getAttribute() < 0) {
-        throw new IllegalArgumentException("attribute must be >= 0");
-      }
+        @Override
+        @This public LombokBuilderSubclassExampleBuilder attribute(@NonNull Integer attribute) {
+            return (LombokBuilderSubclassExampleBuilder) super.attribute(attribute);
+        }
 
-      return result;
+        @Override
+        public LombokBuilderSubclassExample build(
+                @CalledMethods("attribute") LombokBuilderSubclassExampleBuilder this) {
+            final LombokBuilderSubclassExample result = super.build();
+            // here result.getAttribute() is guaranteed to be non null, so we do not have to check
+            // this
+            // ourselves
+
+            if (result.getAttribute() < 0) {
+                throw new IllegalArgumentException("attribute must be >= 0");
+            }
+
+            return result;
+        }
     }
-  }
 }

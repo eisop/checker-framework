@@ -1,10 +1,12 @@
 package org.checkerframework.checker.fenum;
 
-import java.util.NavigableSet;
-import javax.annotation.processing.SupportedOptions;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.subtyping.SubtypingChecker;
 import org.checkerframework.framework.qual.StubFiles;
+
+import java.util.NavigableSet;
+
+import javax.annotation.processing.SupportedOptions;
 
 /**
  * The main checker class for the Fake Enum Checker.
@@ -25,9 +27,9 @@ import org.checkerframework.framework.qual.StubFiles;
 @SupportedOptions({"quals", "qualDirs"})
 public class FenumChecker extends BaseTypeChecker {
 
-  @Override
-  public NavigableSet<String> getSuppressWarningsPrefixes() {
-    return SubtypingChecker.getSuppressWarningsPrefixes(
-        this.visitor, super.getSuppressWarningsPrefixes());
-  }
+    @Override
+    public NavigableSet<String> getSuppressWarningsPrefixes() {
+        return SubtypingChecker.getSuppressWarningsPrefixes(
+                this.visitor, super.getSuppressWarningsPrefixes());
+    }
 }
