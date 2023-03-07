@@ -61,11 +61,8 @@ public class AnnotationFileElementTypes {
   /** Annotations from annotation files (but not from annotated JDK files). */
   private final AnnotationFileAnnotations annotationFileAnnos;
 
-  /**
-   * Whether or not a file is currently being parsed. (If one is being parsed, don't try to parse
-   * another.)
-   */
-  private boolean parsing;
+  /** The number of ongoing parsing tasks. */
+  private int parsingCount;
 
   /** AnnotatedTypeFactory. */
   private final AnnotatedTypeFactory factory;
@@ -111,7 +108,7 @@ public class AnnotationFileElementTypes {
   public AnnotationFileElementTypes(AnnotatedTypeFactory factory) {
     this.factory = factory;
     this.annotationFileAnnos = new AnnotationFileAnnotations();
-    this.parsing = false;
+    this.parsingCount = 0;
     String release = SystemUtil.getReleaseValue(factory.getProcessingEnv());
     this.annotatedJdkVersion = release != null ? release : String.valueOf(SystemUtil.jreVersion);
 
@@ -127,7 +124,7 @@ public class AnnotationFileElementTypes {
    * @return true if files are currently being parsed; otherwise, false
    */
   public boolean isParsing() {
-    return parsing;
+    return parsingCount > 0;
   }
 
   /**
@@ -153,10 +150,16 @@ public class AnnotationFileElementTypes {
    * is requested from a class in that file.
    */
   public void parseStubFiles() {
-    parsing = true;
+    assert parsingCount == 0;
+    ++parsingCount;
     BaseTypeChecker checker = factory.getChecker();
     if (!ignorejdkastub) {
-      // 1. jdk.astub
+      // 1. Annotated JDK
+      // This preps but does not parse the JDK files (except package-info.java files).
+      // The JDK source code files will be parsed later, on demand.
+      prepJdkStubs();
+
+      // 2. jdk.astub
       // Only look in .jar files, and parse it right away.
       String jdkVersionStub = "jdk" + annotatedJdkVersion + ".astub";
       parseOneStubFile(this.getClass(), "jdk.astub");
@@ -169,14 +172,6 @@ public class AnnotationFileElementTypes {
         parseOneStubFile(this.getClass(), jdk11Stub);
         parseOneStubFile(checker.getClass(), jdk11Stub);
       }
-
-      // 2. Annotated JDK
-      // This preps but does not parse the JDK files (except package-info.java files).
-      // The JDK source code files will be parsed later, on demand.
-      prepJdkStubs();
-      // prepping the JDK parses all package-info.java files, which sets the `parsing` field
-      // to false, so re-set it to true.
-      parsing = true;
     }
 
     // 3. Stub files listed in @StubFiles annotation on the checker
@@ -197,7 +192,8 @@ public class AnnotationFileElementTypes {
           AnnotationFileType.COMMAND_LINE_STUB);
     }
 
-    parsing = false;
+    --parsingCount;
+    assert parsingCount == 0;
   }
 
   /**
@@ -229,20 +225,19 @@ public class AnnotationFileElementTypes {
 
   /** Parses the ajava files passed through the -Aajava command-line option. */
   public void parseAjavaFiles() {
-    parsing = true;
-    try {
-      // TODO: Error if this is called more than once?
-      SourceChecker checker = factory.getChecker();
-      List<String> ajavaFiles = new ArrayList<>();
-      String ajavaOption = checker.getOption("ajava");
-      if (ajavaOption != null) {
-        Collections.addAll(ajavaFiles, ajavaOption.split(File.pathSeparator));
-      }
-
-      parseAnnotationFiles(ajavaFiles, AnnotationFileType.AJAVA);
-    } finally {
-      parsing = false;
+    assert parsingCount == 0;
+    ++parsingCount;
+    // TODO: Error if this is called more than once?
+    SourceChecker checker = factory.getChecker();
+    List<String> ajavaFiles = new ArrayList<>();
+    String ajavaOption = checker.getOption("ajava");
+    if (ajavaOption != null) {
+      Collections.addAll(ajavaFiles, ajavaOption.split(File.pathSeparator));
     }
+
+    parseAnnotationFiles(ajavaFiles, AnnotationFileType.AJAVA);
+    --parsingCount;
+    assert parsingCount == 0;
   }
 
   /**
@@ -255,7 +250,8 @@ public class AnnotationFileElementTypes {
    * @param root javac tree for the compilation unit stored in {@code ajavaFile}
    */
   public void parseAjavaFileWithTree(String ajavaPath, CompilationUnitTree root) {
-    parsing = true;
+    assert parsingCount == 0;
+    ++parsingCount;
     SourceChecker checker = factory.getChecker();
     ProcessingEnvironment processingEnv = factory.getProcessingEnv();
     try (InputStream in = new FileInputStream(ajavaPath)) {
@@ -263,9 +259,10 @@ public class AnnotationFileElementTypes {
           ajavaPath, in, root, factory, processingEnv, annotationFileAnnos, this);
     } catch (IOException e) {
       checker.message(Kind.NOTE, "Could not read ajava file: " + ajavaPath);
-    } finally {
-      parsing = false;
     }
+
+    --parsingCount;
+    assert parsingCount == 0;
   }
 
   /**
@@ -677,7 +674,7 @@ public class AnnotationFileElementTypes {
    * @param path path to file to parse
    */
   private void parseJdkStubFile(Path path) {
-    parsing = true;
+    ++parsingCount;
     try (FileInputStream jdkStub = new FileInputStream(path.toFile())) {
       AnnotationFileParser.parseJdkFileAsStub(
           path.toFile().getName(),
@@ -689,7 +686,7 @@ public class AnnotationFileElementTypes {
     } catch (IOException e) {
       throw new BugInCF("cannot open the jdk stub file " + path, e);
     } finally {
-      parsing = false;
+      --parsingCount;
     }
   }
 
@@ -700,7 +697,7 @@ public class AnnotationFileElementTypes {
    */
   private void parseJdkJarEntry(String jarEntryName) {
     JarURLConnection connection = getJarURLConnectionToJdk();
-    parsing = true;
+    ++parsingCount;
     try (JarFile jarFile = connection.getJarFile()) {
       try (InputStream jdkStub = jarFile.getInputStream(jarFile.getJarEntry(jarEntryName))) {
         AnnotationFileParser.parseJdkFileAsStub(
@@ -713,7 +710,7 @@ public class AnnotationFileElementTypes {
     } catch (BugInCF e) {
       throw new BugInCF("Exception while parsing " + jarEntryName + ": " + e.getMessage(), e);
     } finally {
-      parsing = false;
+      --parsingCount;
     }
   }
 
