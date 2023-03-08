@@ -154,7 +154,8 @@ public class TreeBuilder {
             }
         }
 
-        assert hasNextMethod != null : "no hasNext method declared for expression type";
+        assert hasNextMethod != null
+                : "@AssumeAssertion(nullness): no hasNext method declared for expression type";
 
         JCTree.JCFieldAccess hasNextAccess = TreeUtils.Select(maker, iteratorExpr, hasNextMethod);
         hasNextAccess.setType(hasNextMethod.asType());

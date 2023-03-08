@@ -116,6 +116,9 @@ public final class TreeUtils {
     /** Whether we are running on at least Java 16. */
     private static final boolean atLeastJava16;
 
+    /** Whether we are running on at least Java 21. */
+    private static final boolean atLeastJava21;
+
     /** The CaseTree.getExpression method for Java up to 11; null otherwise. */
     private static final @Nullable Method CASETREE_GETEXPRESSION;
 
@@ -147,8 +150,9 @@ public final class TreeUtils {
 
     /**
      * The {@code TreeMaker.Select(JCExpression, Symbol)} method. Return type changes for JDK21+.
+     * Only needs to be used while the code is compiled with JDK below 21.
      */
-    private static final Method TREEMAKER_SELECT;
+    private static final @Nullable Method TREEMAKER_SELECT;
 
     /** The value of Flags.RECORD which does not exist in Java 9 or 11. */
     private static final long Flags_RECORD = 2305843009213693952L;
@@ -188,6 +192,14 @@ public final class TreeUtils {
             java16 = null;
         }
         atLeastJava16 = java16 != null && latestSource.ordinal() >= java16.ordinal();
+
+        SourceVersion java21;
+        try {
+            java21 = SourceVersion.valueOf("RELEASE_21");
+        } catch (IllegalArgumentException e) {
+            java21 = null;
+        }
+        atLeastJava21 = java21 != null && latestSource.ordinal() >= java21.ordinal();
 
         try {
             // TODO: profile and see whether doing all these here has a performance impact.
@@ -248,8 +260,12 @@ public final class TreeUtils {
                 INSTANCEOFTREE_GETPATTERN = null;
                 BINDINGPATTERNTREE_GETVARIABLE = null;
             }
-            TREEMAKER_SELECT =
-                    TreeMaker.class.getMethod("Select", JCExpression.class, Symbol.class);
+            if (atLeastJava21) {
+                TREEMAKER_SELECT =
+                        TreeMaker.class.getMethod("Select", JCExpression.class, Symbol.class);
+            } else {
+                TREEMAKER_SELECT = null;
+            }
         } catch (ClassNotFoundException | NoSuchMethodException e) {
             Error err = new AssertionError("Unexpected error in TreeUtils static initializer");
             err.initCause(e);
@@ -2554,22 +2570,46 @@ public final class TreeUtils {
         return BINARY_COMPARISON_TREE_KINDS.contains(tree.getKind());
     }
 
-    /** Returns the result of {@code treeMaker.Select(base, sym)}. */
+    /**
+     * Returns the result of {@code treeMaker.Select(base, sym)}.
+     *
+     * @param treeMaker the TreeMaker to use
+     * @param base the expression for the select
+     * @param sym the symbol to select
+     * @return the JCFieldAccess tree to select sym in base
+     */
     public static JCFieldAccess Select(TreeMaker treeMaker, Tree base, Symbol sym) {
-        try {
-            return (JCFieldAccess) TREEMAKER_SELECT.invoke(treeMaker, base, sym);
-        } catch (InvocationTargetException | IllegalAccessException e) {
-            throw new BugInCF("TreeUtils.Select: reflection failed for tree: %s", base, e);
+        if (atLeastJava21) {
+            try {
+                JCFieldAccess jfa = (JCFieldAccess) TREEMAKER_SELECT.invoke(treeMaker, base, sym);
+                if (jfa != null) {
+                    return jfa;
+                } else {
+                    throw new BugInCF(
+                            "TreeUtils.Select: TreeMaker.Select returned null for tree: %s", base);
+                }
+            } catch (InvocationTargetException | IllegalAccessException e) {
+                throw new BugInCF("TreeUtils.Select: reflection failed for tree: %s", base, e);
+            }
+        } else {
+            return (JCFieldAccess) treeMaker.Select((JCExpression) base, sym);
         }
     }
 
-    /** Returns the result of {@code treeMaker.Select(base, name)}. */
+    /**
+     * Returns the result of {@code treeMaker.Select(base, name)}.
+     *
+     * @param treeMaker the TreeMaker to use
+     * @param base the expression for the select
+     * @param name the name to select
+     * @return the JCFieldAccess tree to select sym in base
+     */
     public static JCFieldAccess Select(
-            TreeMaker treeMaker, JCExpression base, com.sun.tools.javac.util.Name name) {
+            TreeMaker treeMaker, Tree base, com.sun.tools.javac.util.Name name) {
         /*
          * There's no need for reflection here. The only reason we even declare this method is so that
          * callers don't have to remember which overload we provide a wrapper around.
          */
-        return treeMaker.Select(base, name);
+        return treeMaker.Select((JCExpression) base, name);
     }
 }
