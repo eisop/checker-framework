@@ -2593,7 +2593,9 @@ public final class TreeUtils {
                 throw new BugInCF("TreeUtils.Select: reflection failed for tree: %s", base, e);
             }
         } else {
-            return (JCFieldAccess) treeMaker.Select((JCExpression) base, sym);
+            @SuppressWarnings("cast") // Redundant on JDK 21+
+            JCFieldAccess jfa = (JCFieldAccess) treeMaker.Select((JCExpression) base, sym);
+            return jfa;
         }
     }
 
