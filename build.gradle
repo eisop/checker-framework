@@ -76,7 +76,7 @@ ext {
     // afu = "${annotationTools}/annotation-file-utilities"
 
     stubparser = "${parentDir}/stubparser"
-    stubparserJar = "${stubparser}/javaparser-core/target/stubparser-3.25.0.jar"
+    stubparserJar = "${stubparser}/javaparser-core/target/stubparser-3.25.1.jar"
 
     jtregHome = "${parentDir}/jtreg"
     plumeScriptsHome = "${project(':checker').projectDir}/bin-devel/.plume-scripts"
@@ -169,7 +169,7 @@ allprojects {
     // level (third number) if:
     //   * any new checkers have been added, or
     //   * backward-incompatible changes have been made to APIs or elsewhere.
-    version '3.31.0'
+    version '3.32.0'
 
     repositories {
         mavenCentral()
@@ -1351,7 +1351,7 @@ final sharedPublicationConfiguration(publication) {
 
         scm {
             url = 'https://github.com/eisop/checker-framework.git'
-            connection = 'scm:git:git://github.com/eisop/checker-framework.git'
+            connection = 'scm:git:https://github.com/eisop/checker-framework.git'
             developerConnection = 'scm:git:ssh://git@github.com/eisop/checker-framework.git'
         }
     }

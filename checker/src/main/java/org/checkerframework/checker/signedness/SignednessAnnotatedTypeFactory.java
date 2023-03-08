@@ -745,8 +745,7 @@ public class SignednessAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                 // The two annotations are incomparable
                 // TODO: Issue a warning at the proper code location.
                 // TODO: Returning bottom leads to obscure error messages.  It would probably be
-                // better
-                // to issue a warning in this method, then return lub as usual.
+                // better to issue a warning in this method, then return lub as usual.
                 return SIGNEDNESS_BOTTOM;
         }
     }
