@@ -225,10 +225,21 @@ allprojects {
 
   if (isJava11plus) {
     apply plugin: 'com.diffplug.spotless'
-
     spotless {
-      // If you add any formatters to this block that require dependencies here, then you must also
+      // If you add any formatters to this block that require dependencies, then you must also
       // add them to spotlessPredeclare block.
+      def doNotFormat = [
+        'dataflow/manual/examples/',
+        '**/nullness-javac-errors/*',
+        '**/calledmethods-delomboked/*',
+        '**/returnsreceiverdelomboked/*',
+        '**/build/**',
+        '*/dist/**',
+      ]
+      if (!isJava17plus) {
+        doNotFormat += ['**/java17/', '**/*record*/']
+      }
+
       format 'misc', {
         // define the files to apply `misc` to
         target '*.md', '.gitignore'
@@ -236,6 +247,7 @@ allprojects {
         trimTrailingWhitespace()
         indentWithSpaces(2)
         endWithNewline()
+        targetExclude doNotFormat
       }
       java {
         def targets = [
@@ -258,25 +270,7 @@ allprojects {
           ]
         }
         target targets
-
-        def doNotFormat = [
-          'dataflow/manual/examples/',
-          '**/nullness-javac-errors/*',
-          '**/calledmethods-delomboked/*',
-          '**/returnsreceiverdelomboked/*',
-          '**/build/**',
-          '*/dist/**',
-        ]
-        if (isJava16plus) {
-          targetExclude doNotFormat
-        } else if (isJava14plus) {
-          targetExclude doNotFormat, '**/*record*/'
-        } else {
-          // TODO: directories should be renamed `-switchexpr` or some such,
-          // as they  only contain examples for switch expressions, which were
-          // added in Java 14, not Java 17.
-          targetExclude doNotFormat, '**/java17/', '**/*record*/'
-        }
+        targetExclude doNotFormat
 
         googleJavaFormat() // .aosp()
         importOrder('com', 'jdk', 'lib', 'lombok', 'org', 'java', 'javax')
@@ -285,6 +279,7 @@ allprojects {
 
       groovyGradle {
         target '**/*.gradle'
+        targetExclude doNotFormat
         greclipse()  // which formatter Spotless should use to format .gradle files.
         indentWithSpaces(2) // 4)
         trimTrailingWhitespace()
