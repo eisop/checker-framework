@@ -2581,6 +2581,7 @@ public final class TreeUtils {
     public static JCFieldAccess Select(TreeMaker treeMaker, Tree base, Symbol sym) {
         if (atLeastJava21) {
             try {
+                assert TREEMAKER_SELECT != null : "@AssumeAssertion(nullness): initialization";
                 JCFieldAccess jfa = (JCFieldAccess) TREEMAKER_SELECT.invoke(treeMaker, base, sym);
                 if (jfa != null) {
                     return jfa;
