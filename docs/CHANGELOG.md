@@ -21,7 +21,7 @@ Remove the `fastAssemble` task which is subsumed by `assembleForJavac`.
 
 **Closed issues:**
 
-eisop#282, eisop#310, eisop#312.
+eisop#282, eisop#310, eisop#312, typetools#5672.
 
 
 Version 3.32.0 (March 2, 2023)
