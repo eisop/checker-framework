@@ -59,9 +59,9 @@ ext {
     isJava14plus = isJava14 || isJava15plus
     isJava11plus = JavaVersion.current() >= JavaVersion.VERSION_11
 
-    // As of mid-February 2023, lombok supports Java 19.
+    // As of mid-February 2023, lombok supports Java 19, but not higher versions.
     // Keep the variable in case we need to disable lombok for a future Java release.
-    skipDelombok = false
+    skipDelombok = JavaVersion.current() >= JavaVersion.VERSION_20
 
     // This call to `isCompatibleWith` causes a Gradle run-time failure: "No signature of method".
     // isJava17compatible = JavaVersion.isCompatibleWith(JavaVersion.VERSION_17)
