@@ -28,6 +28,7 @@ public class Issue282 {
     }
 
     public static void testStatic() {
+        // :: error: (enclosingexpr.type.incompatible)
         new Issue282().new Inner() {};
     }
 
