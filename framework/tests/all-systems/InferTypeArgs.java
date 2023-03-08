@@ -4,7 +4,7 @@
 /**
  * This test came from running the compilermsgs checker in the checker-framework/checker directory
  * It's to test the result of type argument inference. We used to have the following
- * return.type.incompatible found: FlowAnalysis[ extends @UnknownPropertyKey
+ * "return.type.incompatible" found: FlowAnalysis[ extends @UnknownPropertyKey
  * CFAbstractAnalysis<Value[ extends @UnknownPropertyKey CFAbstractValue<Value[
  * extends @UnknownPropertyKey CFAbstractValue<Value> super @UnknownPropertyKey Void]>
  * super @UnknownPropertyKey Void], Store[ extends @UnknownPropertyKey CFAbstractStore<Value[
