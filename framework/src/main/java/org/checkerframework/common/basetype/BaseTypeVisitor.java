@@ -2105,7 +2105,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         ExecutableElement constructor = constructorType.getElement();
         CharSequence constructorName = ElementUtils.getSimpleNameOrDescription(constructor);
-
         checkArguments(params, passedArguments, constructorName, constructor.getParameters());
         checkVarargs(constructorType, tree);
 
@@ -3513,9 +3512,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                   use this synthetic argument when the underlying types are different.
                 * */
                 if (TreeUtils.hasSyntheticArgument(node)
-                        && !types.isSameType(
-                                parameterReceiverType.getUnderlyingType(),
-                                argumentReceiverType.getUnderlyingType())) {
+                        && (argumentReceiverType == null
+                                || !types.isSameType(
+                                        parameterReceiverType.getUnderlyingType(),
+                                        argumentReceiverType.getUnderlyingType()))) {
                     argumentReceiverType =
                             atypeFactory.getAnnotatedType(node.getArguments().get(0));
                 }
