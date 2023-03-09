@@ -10,6 +10,7 @@ import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Names;
 
 import org.checkerframework.javacutil.Pair;
+import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.StringTokenizer;
 
@@ -119,7 +120,7 @@ public class TreeParser {
             token = delim;
             if (".".equals(delim)) {
                 token = nextToken(tokenizer);
-                tree = maker.Select(tree, names.fromString(token));
+                tree = TreeUtils.Select(maker, tree, names.fromString(token));
             } else if ("(".equals(delim)) {
                 token = nextToken(tokenizer);
                 ListBuffer<JCExpression> args = new ListBuffer<>();

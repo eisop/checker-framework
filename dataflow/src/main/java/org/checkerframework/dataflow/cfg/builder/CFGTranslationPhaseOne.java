@@ -639,14 +639,10 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
         Tree enclosingParens = parenMapping.get(tree);
         while (enclosingParens != null) {
-            Set<Node> exp = treeToCfgNodes.get(enclosingParens);
-            if (exp == null) {
-                Set<Node> newSet = new IdentityArraySet<>(1);
-                newSet.add(node);
-                treeToCfgNodes.put(enclosingParens, newSet);
-            } else if (!exp.contains(node)) {
-                exp.add(node);
-            }
+            Set<Node> exp =
+                    treeToCfgNodes.computeIfAbsent(enclosingParens, k -> new IdentityArraySet<>(1));
+            // `node` could already be in set `exp`, but it's probably as fast to just add again
+            exp.add(node);
             enclosingParens = parenMapping.get(enclosingParens);
         }
     }
