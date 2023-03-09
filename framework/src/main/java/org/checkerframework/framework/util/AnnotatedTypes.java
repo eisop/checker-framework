@@ -29,7 +29,6 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.Pair;
-import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.StringsPlume;
@@ -978,24 +977,38 @@ public class AnnotatedTypes {
             DeclaredType t =
                     TypesUtils.getSuperClassOrInterface(
                             method.getElement().getEnclosingElement().asType(), atypeFactory.types);
-            if (t.getEnclosingType() != null) {
-                if (args.isEmpty()) {
-                    // TODO: ugly hack to attempt to fix mismatch
-                    parameters = parameters.subList(1, parameters.size());
-                } else {
-                    TypeMirror p0tm = parameters.get(0).getUnderlyingType();
-                    // Is the first parameter either equal to the enclosing type?
-                    if (atypeFactory.types.isSameType(t.getEnclosingType(), p0tm)) {
-                        // Is the first argument the same type as the first parameter?
-                        if (!atypeFactory.types.isSameType(TreeUtils.typeOf(args.get(0)), p0tm)) {
-                            // Remove the first parameter.
-                            parameters = parameters.subList(1, parameters.size());
-                        }
-                    }
+            if (t.getEnclosingType() != null
+                    && System.getProperty("java.version").startsWith("1.8.")) {
+
+                if (atypeFactory.types.isSameType(
+                        t.getEnclosingType(),
+                        atypeFactory.getAnnotatedType(args.get(0)).getUnderlyingType())) {
+                    List<AnnotatedTypeMirror> p = new ArrayList<>(parameters.size() + 1);
+                    p.add(0, atypeFactory.getAnnotatedType(args.get(0)));
+                    p.addAll(1, parameters);
+                    parameters = p;
                 }
-                if (parameters.isEmpty()) {
-                    return parameters;
-                }
+
+                //                if (args.isEmpty()) {
+                //                    // TODO: ugly hack to attempt to fix mismatch
+                //                    parameters = parameters.subList(1, parameters.size());
+                //                } else {
+                //                    TypeMirror p0tm = parameters.get(0).getUnderlyingType();
+                //                    // Is the first parameter either equal to the enclosing type?
+                //                    if (atypeFactory.types.isSameType(t.getEnclosingType(), p0tm))
+                // {
+                //                        // Is the first argument the same type as the first
+                // parameter?
+                //                        if
+                // (!atypeFactory.types.isSameType(TreeUtils.typeOf(args.get(0)), p0tm)) {
+                //                            // Remove the first parameter.
+                //                            parameters = parameters.subList(1, parameters.size());
+                //                        }
+                //                    }
+                //                }
+                //                if (parameters.isEmpty()) {
+                //                    return parameters;
+                //                }
             }
         }
 

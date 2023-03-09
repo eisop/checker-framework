@@ -2105,7 +2105,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         ExecutableElement constructor = constructorType.getElement();
         CharSequence constructorName = ElementUtils.getSimpleNameOrDescription(constructor);
-
         checkArguments(params, passedArguments, constructorName, constructor.getParameters());
         checkVarargs(constructorType, tree);
 
@@ -3498,6 +3497,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 argumentReceiverType = atypeFactory.getAnnotatedType(node.getEnclosingExpression());
             } else {
                 argumentReceiverType = atypeFactory.getReceiverType(node);
+                if (TreeUtils.hasSyntheticArgument(node)
+                        && (argumentReceiverType == null
+                                || !types.isSameType(
+                                        parameterReceiverType.getUnderlyingType(),
+                                        argumentReceiverType.getUnderlyingType()))) {
+                    argumentReceiverType =
+                            atypeFactory.getAnnotatedType(node.getArguments().get(0));
+                }
             }
             commonAssignmentCheck(
                     parameterReceiverType,
