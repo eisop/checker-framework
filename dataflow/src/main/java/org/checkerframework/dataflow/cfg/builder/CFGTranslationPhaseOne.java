@@ -1318,12 +1318,11 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         && method.getEnclosingElement().getSimpleName().contentEquals("")
                         && enclosingType != null) {
                     TypeMirror p0tm = formals.get(0);
-                    // Is the first parameter either equal to the enclosing type?
-                    if (types.isSameType(enclosingType, p0tm)) {
-                        // Is the first argument the same type as the first parameter?
-                        if (!types.isSameType(TreeUtils.typeOf(actualExprs.get(0)), p0tm)) {
-                            lastArgIndex--;
-                        }
+                    // We only care about Java 11+, in which the arguments do NOT have
+                    // the enclosing expression as its first argument by default.
+                    if (types.isSameType(enclosingType, p0tm)
+                            && !System.getProperty("java.version").startsWith("1.8.")) {
+                        lastArgIndex--;
                     }
                 }
                 // Apply method invocation conversion to lastArgIndex arguments and use the
