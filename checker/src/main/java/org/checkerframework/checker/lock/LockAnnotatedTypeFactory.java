@@ -162,7 +162,7 @@ public class LockAnnotatedTypeFactory
             @Override
             protected void reportErrors(Tree errorTree, List<DependentTypesError> errors) {
                 // If the error message is NOT_EFFECTIVELY_FINAL, then report
-                // lock.expression.not.final instead of expression.unparsable.type.invalid .
+                // "lock.expression.not.final" instead of "expression.unparsable.type.invalid".
                 List<DependentTypesError> superErrors = new ArrayList<>(errors.size());
                 for (DependentTypesError error : errors) {
                     if (error.error.equals(NOT_EFFECTIVELY_FINAL)) {

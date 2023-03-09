@@ -632,6 +632,8 @@ task ainferTestCheckerGenerateJaifs(type: Test) {
         if (javas.isEmpty()) {
             throw new GradleException("no .java files found in ${javasDir}")
         }
+
+        def checkerQualJarFile = file(project(':checker-qual').tasks.getByName('jar').archiveFile)
         exec {
             executable "${afu}/scripts/insert-annotations-to-source"
             // Script argument -cp must precede Java program argument -i.
@@ -639,7 +641,7 @@ task ainferTestCheckerGenerateJaifs(type: Test) {
             // Note that "/" works on Windows as well as on Linux.
             args = [
                 '-cp',
-                "${sourceSets.test.output.asPath}:${project(':checker-qual').tasks.jar.archiveFile}:" + file('tests/build/testclasses')
+                "${sourceSets.test.output.asPath}:${checkerQualJarFile}:" + file('tests/build/testclasses')
             ]
             args += ['-i']
             for (File jaif : jaifs) {
@@ -835,6 +837,7 @@ task ainferNullnessGenerateJaifs(type: Test) {
 
         // JAIF-based WPI does not infer annotations on uses of type variables correctly.
         delete('tests/ainfer-nullness/annotated/TwoCtorGenericAbstract.java')
+        delete('tests/ainfer-nullness/annotated/TypeVarReturnAnnotated.java')
 
         // Inserting annotations from .jaif files in-place.
         String jaifsDir = 'tests/ainfer-nullness/inference-output';
@@ -851,13 +854,14 @@ task ainferNullnessGenerateJaifs(type: Test) {
         if (javas.isEmpty()) {
             throw new GradleException("no .java files found in ${javasDir}")
         }
+        def checkerQualJarFile = file(project(':checker-qual').tasks.getByName('jar').archiveFile)
         exec {
             executable "${afu}/scripts/insert-annotations-to-source"
             // Script argument -cp must precede Java program argument -i.
             // Note that "/" works on Windows as well as on Linux.
             args = [
                 '-cp',
-                "${sourceSets.test.output.asPath}:${project(':checker-qual').tasks.jar.archiveFile}:" + file('tests/build/testclasses')
+                "${sourceSets.test.output.asPath}:${checkerQualJarFile}:" + file('tests/build/testclasses')
             ]
             args += ['-i']
             for (File jaif : jaifs) {
