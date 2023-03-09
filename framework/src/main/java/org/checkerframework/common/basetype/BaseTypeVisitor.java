@@ -2105,6 +2105,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         ExecutableElement constructor = constructorType.getElement();
         CharSequence constructorName = ElementUtils.getSimpleNameOrDescription(constructor);
+
         checkArguments(params, passedArguments, constructorName, constructor.getParameters());
         checkVarargs(constructorType, tree);
 
