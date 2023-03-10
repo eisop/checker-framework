@@ -70,8 +70,8 @@ import javax.lang.model.type.TypeMirror;
  * org.checkerframework.dataflow.expression.ArrayAccess}, {@link
  * org.checkerframework.dataflow.expression.LocalVariable}, etc.
  *
- * @see <a href="https://eisop.github.io/manual/#java-expressions-as-arguments">the syntax of
- *     Java expressions supported by the Checker Framework</a>
+ * @see <a href="https://eisop.github.io/manual/#java-expressions-as-arguments">the syntax of Java
+ *     expressions supported by the Checker Framework</a>
  */
 public abstract class JavaExpression {
     /** The type of this expression. */

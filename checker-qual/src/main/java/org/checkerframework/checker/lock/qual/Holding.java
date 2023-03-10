@@ -13,8 +13,8 @@ import java.lang.annotation.Target;
  * is invoked.
  *
  * <p>The argument is a string or set of strings that indicates the expression(s) that must be held,
- * using the <a href="https://eisop.github.io/manual/#java-expressions-as-arguments">syntax of
- * Java expressions</a> described in the manual. The expressions evaluate to an intrinsic (built-in,
+ * using the <a href="https://eisop.github.io/manual/#java-expressions-as-arguments">syntax of Java
+ * expressions</a> described in the manual. The expressions evaluate to an intrinsic (built-in,
  * synchronization) monitor, or an explicit {@link java.util.concurrent.locks.Lock}.
  *
  * @see GuardedBy
@@ -29,8 +29,8 @@ public @interface Holding {
     /**
      * The Java expressions that need to be held.
      *
-     * @see <a href="https://eisop.github.io/manual/#java-expressions-as-arguments">Syntax of
-     *     Java expressions</a>
+     * @see <a href="https://eisop.github.io/manual/#java-expressions-as-arguments">Syntax of Java
+     *     expressions</a>
      */
     String[] value();
 }

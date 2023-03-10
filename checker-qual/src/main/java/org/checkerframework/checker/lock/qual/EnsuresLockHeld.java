@@ -30,8 +30,8 @@ public @interface EnsuresLockHeld {
      *
      * @return Java expressions whose values are locks that are held after successful method
      *     termination
-     * @see <a href="https://eisop.github.io/manual/#java-expressions-as-arguments">Syntax of
-     *     Java expressions</a>
+     * @see <a href="https://eisop.github.io/manual/#java-expressions-as-arguments">Syntax of Java
+     *     expressions</a>
      */
     String[] value();
 

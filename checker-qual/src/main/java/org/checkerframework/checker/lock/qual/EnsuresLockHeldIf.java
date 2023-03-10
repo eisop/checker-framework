@@ -31,8 +31,8 @@ public @interface EnsuresLockHeldIf {
      *
      * @return Java expressions whose values are locks that are held after the method returns the
      *     given result
-     * @see <a href="https://eisop.github.io/manual/#java-expressions-as-arguments">Syntax of
-     *     Java expressions</a>
+     * @see <a href="https://eisop.github.io/manual/#java-expressions-as-arguments">Syntax of Java
+     *     expressions</a>
      */
     // It would be clearer for users if this field were named "lock".
     // However, method ContractsFromMethod.getConditionalPostconditions in the CF implementation

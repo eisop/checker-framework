@@ -27,8 +27,8 @@ public @interface GuardedBy {
     /**
      * The Java expressions that need to be held.
      *
-     * @see <a href="https://eisop.github.io/manual/#java-expressions-as-arguments">Syntax of
-     *     Java expressions</a>
+     * @see <a href="https://eisop.github.io/manual/#java-expressions-as-arguments">Syntax of Java
+     *     expressions</a>
      */
     String[] value() default {};
 }

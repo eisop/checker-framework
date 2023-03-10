@@ -21,8 +21,8 @@ import java.lang.annotation.Target;
  * <p>{@code @GuardedBy({})} is the default type qualifier.
  *
  * <p>The argument is a string or set of strings that indicates the expression(s) that must be held,
- * using the <a href="https://eisop.github.io/manual/#java-expressions-as-arguments">syntax of
- * Java expressions</a> described in the manual. The expressions evaluate to an intrinsic (built-in,
+ * using the <a href="https://eisop.github.io/manual/#java-expressions-as-arguments">syntax of Java
+ * expressions</a> described in the manual. The expressions evaluate to an intrinsic (built-in,
  * synchronization) monitor or an explicit {@link java.util.concurrent.locks.Lock}. The expression
  * {@code "<self>"} is also permitted; the type {@code @GuardedBy("<self>") Object o} indicates that
  * the value referenced by {@code o} is guarded by the intrinsic (monitor) lock of the value
@@ -71,8 +71,8 @@ public @interface GuardedBy {
     /**
      * The Java value expressions that need to be held.
      *
-     * @see <a href="https://eisop.github.io/manual/#java-expressions-as-arguments">Syntax of
-     *     Java expressions</a>
+     * @see <a href="https://eisop.github.io/manual/#java-expressions-as-arguments">Syntax of Java
+     *     expressions</a>
      */
     @JavaExpression
     String[] value() default {};

@@ -96,8 +96,8 @@ public final class InterningVisitor extends BaseTypeVisitor<InterningAnnotatedTy
      * classes are checked for interning unless {@code -Acheckclass} is specified.
      *
      * @return true if interning should be verified for the input expression
-     * @see <a href="https://eisop.github.io/manual/#interning-checks">What the Interning
-     *     Checker checks</a>
+     * @see <a href="https://eisop.github.io/manual/#interning-checks">What the Interning Checker
+     *     checks</a>
      */
     private boolean shouldCheckExpression(ExpressionTree tree) {
         if (typeToCheck == null) {
