@@ -967,10 +967,6 @@ public class AnnotatedTypes {
             List<? extends ExpressionTree> args) {
         List<AnnotatedTypeMirror> parameters = method.getParameterTypes();
 
-        if (parameters.isEmpty()) {
-            return parameters;
-        }
-
         // Handle anonymous constructors that extend a class with an enclosing type.
         if (method.getElement().getKind() == ElementKind.CONSTRUCTOR
                 && method.getElement().getEnclosingElement().getSimpleName().contentEquals("")) {
@@ -980,9 +976,10 @@ public class AnnotatedTypes {
             if (t.getEnclosingType() != null
                     && System.getProperty("java.version").startsWith("1.8.")) {
 
-                if (atypeFactory.types.isSameType(
-                        t.getEnclosingType(),
-                        atypeFactory.getAnnotatedType(args.get(0)).getUnderlyingType())) {
+                if (args.size() > 0
+                        && atypeFactory.types.isSameType(
+                                t.getEnclosingType(),
+                                atypeFactory.getAnnotatedType(args.get(0)).getUnderlyingType())) {
                     List<AnnotatedTypeMirror> p = new ArrayList<>(parameters.size() + 1);
                     p.add(0, atypeFactory.getAnnotatedType(args.get(0)));
                     p.addAll(1, parameters);
@@ -1010,6 +1007,10 @@ public class AnnotatedTypes {
                 //                    return parameters;
                 //                }
             }
+        }
+
+        if (parameters.isEmpty()) {
+            return parameters;
         }
 
         // Handle vararg methods.
