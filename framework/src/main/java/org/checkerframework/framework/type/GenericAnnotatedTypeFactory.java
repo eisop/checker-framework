@@ -1702,6 +1702,15 @@ public abstract class GenericAnnotatedTypeFactory<
         return res;
     }
 
+    @Override
+    public AnnotatedTypeMirror getAnnotatedTypeWithReceiverRefinement(Tree tree) {
+        boolean oldUseFlow = useFlow;
+        useFlow = everUseFlow;
+        AnnotatedTypeMirror result = getAnnotatedType(tree);
+        useFlow = oldUseFlow;
+        return result;
+    }
+
     /**
      * Returns the type of a varargs array of a method invocation or a constructor invocation.
      * Returns null only if private field {@code useFlow} is false.

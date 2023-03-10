@@ -270,7 +270,10 @@ class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
         } else {
             // tree must be a field access, so get the type of the expression, and then call
             // asMemberOf.
-            AnnotatedTypeMirror t = f.getAnnotatedType(tree.getExpression());
+            // As long as everuseflow is true, always have flow-refinement for receiver.
+            // That means, even when using method getAnnotatedTypeLHS, receiver will have
+            // flow-refinement.
+            AnnotatedTypeMirror t = f.getAnnotatedTypeWithReceiverRefinement(tree.getExpression());
             t = f.applyCaptureConversion(t);
             return AnnotatedTypes.asMemberOf(f.types, f, t, elt).asUse();
         }
