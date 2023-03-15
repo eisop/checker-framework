@@ -2768,7 +2768,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 // constructor
                 List<AnnotatedTypeMirror> p = new ArrayList<>(superCon.getParameterTypes().size());
                 con.setReceiverType(superCon.getReceiverType());
-                p.addAll(0, superCon.getParameterTypes());
+                p.addAll(superCon.getParameterTypes());
                 con.setParameterTypes(Collections.unmodifiableList(p));
             }
             con.getReturnType().replaceAnnotations(superCon.getReturnType().getAnnotations());
