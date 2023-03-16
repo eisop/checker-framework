@@ -4,7 +4,7 @@
 
 # For usage and requirements, see the "Whole-program inference"
 # section of the Checker Framework manual:
-# https://checkerframework.org/manual/#whole-program-inference
+# https://eisop.github.io/cf/manual/#whole-program-inference
 
 set -eo pipefail
 # not set -u, because this script checks variables directly

@@ -1,6 +1,6 @@
 // This file is a workaround for https://tinyurl.com/cfissue/1326 .
 // For documentation, see
-// https://checkerframework.org/manual/#collection-object-parameters-may-be-null .
+// https://eisop.github.io/cf/manual/#collection-object-parameters-may-be-null .
 
 // This file relaxes the specifications for the following methods when they are documented to
 // possibly throw NPE.  It does not change the specifications when they are documented to definitely

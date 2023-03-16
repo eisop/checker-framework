@@ -17,7 +17,7 @@ fi
 rm -f "checker-framework-$1.zip"
 rm -rf "checker-framework-$1/"
 
-wget "https://checkerframework.org/checker-framework-$1.zip"
+wget "https://eisop.github.io/cf/checker-framework-$1.zip"
 unzip -q "checker-framework-$1.zip"
 
 export CHECKERFRAMEWORK=checker-framework-$1
