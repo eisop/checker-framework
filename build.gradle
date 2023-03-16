@@ -607,7 +607,7 @@ task htmlValidate(type: Exec, group: 'Format') {
 
 
 // `gradle allJavadoc` builds the Javadoc for all modules in `docs/api`.
-//   This is what is published to checkerframework.org.
+//   This is what is published to eisop.github.io.
 // `gradle javadoc` builds the Javadoc for each sub-project in <subproject>/build/docs/javadoc/ .
 //   It's needed to create the Javadoc jars that we release in Maven Central.
 // To make javadoc for only one subproject, run `./gradlew javadoc`
@@ -719,7 +719,7 @@ task downloadJtreg(type: Download) {
     onlyIf { !(new File("${jtregHome}/lib/jtreg.jar").exists()) }
     // src 'https://ci.adoptopenjdk.net/view/Dependencies/job/jtreg/lastSuccessfulBuild/artifact/jtreg-4.2.0-tip.tar.gz'
     // If ci.adoptopenjdk.net is down, use this copy.
-    // src 'https://checkerframework.org/jtreg-4.2.0-tip.tar.gz'
+    // src 'https://eisop.github.io/jtreg-4.2.0-tip.tar.gz'
     // dest new File(buildDir, 'jtreg-4.2.0-tip.tar.gz')
     // src 'https://builds.shipilev.net/jtreg/jtreg4.2-b16.zip'
     src 'https://builds.shipilev.net/jtreg/jtreg-6.2%2B1.zip'
@@ -849,11 +849,11 @@ subprojects {
         // For an example work-around see NullnessAnnotatedTypeFactory#NONNULL_ALIASES.
 
         // Relocate packages that might conflict with user's classpath.
-        relocate 'org.apache', 'org.checkerframework.org.apache'
-        relocate 'org.relaxng', 'org.checkerframework.org.relaxng'
-        relocate 'org.plumelib', 'org.checkerframework.org.plumelib'
-        relocate 'org.codehaus', 'org.checkerframework.org.codehaus'
-        relocate 'org.objectweb.asm', 'org.checkerframework.org.objectweb.asm'
+        relocate 'org.apache', 'org.eisop.github.io.apache'
+        relocate 'org.relaxng', 'org.eisop.github.io.relaxng'
+        relocate 'org.plumelib', 'org.eisop.github.io.plumelib'
+        relocate 'org.codehaus', 'org.eisop.github.io.codehaus'
+        relocate 'org.objectweb.asm', 'org.eisop.github.io.objectweb.asm'
         relocate 'io.github.classgraph', 'org.checkerframework.io.github.classgraph'
         relocate 'nonapi.io.github.classgraph', 'org.checkerframework.nonapi.io.github.classgraph'
         // relocate 'sun', 'org.checkerframework.sun'

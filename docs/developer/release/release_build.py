@@ -457,7 +457,7 @@ def main(argv):
     # The projects are built in the following order:
     # Annotation File Utilities and Checker Framework. Furthermore, their
     # manuals and websites are also built and placed in their relevant locations
-    # at https://checkerframework.org/dev/ .  This is the most time-consuming
+    # at https://eisop.github.io/dev/ .  This is the most time-consuming
     # piece of the release. There are no prompts from this step forward; you
     # might want to get a cup of coffee and do something else until it is done.
 
@@ -489,7 +489,7 @@ def main(argv):
     commit_to_interm_projects(cf_version)
 
     # Adds read/write/execute group permissions to all of the new dev website directories
-    # under https://checkerframework.org/dev/ These directories need group read/execute
+    # under https://eisop.github.io/dev/ These directories need group read/execute
     # permissions in order for them to be served.
 
     print_step("\n\nBuild Step 8: Add group permissions to repos.")
