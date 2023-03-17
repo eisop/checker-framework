@@ -19,26 +19,26 @@ public class LiveVariablePlayground {
      * @param args command-line arguments, not used
      */
     public static void main(String[] args) {
-	if (args.length == 0) {
-		printUsage();
-		System.exit(1);
-	}
-	String input = args[0];
-	File file = new File(input);
-	if (!file.canRead()) {
-		printError("Cannot read input file: " + file.getAbsolutePath());
-		printUsage();
-		System.exit(1);
-	}
+        if (args.length == 0) {
+            printUsage();
+            System.exit(1);
+        }
+        String input = args[0];
+        File file = new File(input);
+        if (!file.canRead()) {
+            printError("Cannot read input file: " + file.getAbsolutePath());
+            printUsage();
+            System.exit(1);
+        }
 
-	String method = "test";
-	String clas = "Test";
-	String output = ".";
-	boolean pdf = false;
-	boolean error = false;
-	boolean verbose = false;
+        String method = "test";
+        String clas = "Test";
+        String output = ".";
+        boolean pdf = false;
+        boolean error = false;
+        boolean verbose = false;
 
-	for (int i = 1; i < args.length; i++) {
+        for (int i = 1; i < args.length; i++) {
             switch (args[i]) {
                 case "--outputdir":
                     if (i >= args.length - 1) {
@@ -76,12 +76,11 @@ public class LiveVariablePlayground {
                     break;
             }
         }
-	
 
         if (error) {
-		System.exit(1);
-	}
-	
+            System.exit(1);
+        }
+
         LiveVarTransfer transfer = new LiveVarTransfer();
         BackwardAnalysis<UnusedAbstractValue, LiveVarStore, LiveVarTransfer> backwardAnalysis =
                 new BackwardAnalysisImpl<>(transfer);
@@ -90,11 +89,20 @@ public class LiveVariablePlayground {
     }
 
     private static void printUsage() {
-	System.out.println(
+        System.out.println(
+                "Generate the control flow graph of a Java method, represented as a DOT or String"
+                        + " graph.");
+        System.out.println(
                 "Parameters: <inputfile> [--outputdir <outputdir>] [--method <name>] [--class"
                         + " <name>] [--pdf] [--verbose] [--string]");
         System.out.println(
                 "    --outputdir: The output directory for the generated files (defaults to '.').");
+        System.out.println(
+                "    --method:    The method to generate the CFG for (defaults to 'test').");
+        System.out.println(
+                "    --class:     The class in which to find the method (defaults to 'Test').");
+        System.out.println("    --pdf:       Also generate the PDF by invoking 'dot'.");
+        System.out.println("    --verbose:   Show the verbose output (defaults to 'false').");
     }
 
     private static void printError(@Nullable String string) {
