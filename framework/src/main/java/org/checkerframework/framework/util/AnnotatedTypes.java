@@ -962,7 +962,6 @@ public class AnnotatedTypes {
      * @return a list of the types that the invocation arguments need to be subtype of; has the same
      *     length as {@code args}
      */
-    @SuppressWarnings("deprecation")
     public static List<AnnotatedTypeMirror> adaptParameters(
             AnnotatedTypeFactory atypeFactory,
             AnnotatedExecutableType method,
@@ -978,7 +977,7 @@ public class AnnotatedTypes {
             // Let parameterTypes and arguments match, i.e., size, and we only handle Java versions
             // below 11 since they have an extra enclosing expression argument
             if (t.getEnclosingType() != null
-                    && SystemUtil.getJreVersion() < 11
+                    && SystemUtil.jreVersion < 11
                     && args.size() > 0
                     && atypeFactory.types.isSameType(
                             t.getEnclosingType(),
