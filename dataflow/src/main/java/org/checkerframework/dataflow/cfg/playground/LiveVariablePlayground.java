@@ -4,6 +4,7 @@ import org.checkerframework.dataflow.analysis.BackwardAnalysis;
 import org.checkerframework.dataflow.analysis.BackwardAnalysisImpl;
 import org.checkerframework.dataflow.analysis.UnusedAbstractValue;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeLauncher;
+import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeArgs;
 import org.checkerframework.dataflow.livevariable.LiveVarStore;
 import org.checkerframework.dataflow.livevariable.LiveVarTransfer;
 
@@ -17,17 +18,13 @@ public class LiveVariablePlayground {
      */
     public static void main(String[] args) {
 
-        /* Configuration: change as appropriate */
-        String inputFile = "Test.java"; // input file name and path
-        String outputDir = "cfg"; // output directory
-        String method = "test"; // name of the method to analyze
-        String clazz = "Test"; // name of the class to consider
+        CFGVisualizeArgs config = CFGVisualizeArgs.parseArgs(args);
 
         // Run the analysis and create a PDF file
         LiveVarTransfer transfer = new LiveVarTransfer();
         BackwardAnalysis<UnusedAbstractValue, LiveVarStore, LiveVarTransfer> backwardAnalysis =
                 new BackwardAnalysisImpl<>(transfer);
         CFGVisualizeLauncher.generateDOTofCFG(
-                inputFile, outputDir, method, clazz, true, true, backwardAnalysis);
+                config.input, config.output, config.method, config.clas, true, true, backwardAnalysis);
     }
 }
