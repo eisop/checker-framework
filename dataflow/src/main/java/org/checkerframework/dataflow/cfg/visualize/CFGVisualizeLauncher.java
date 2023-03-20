@@ -17,7 +17,6 @@ import org.checkerframework.dataflow.cfg.CFGProcessor.CFGProcessResult;
 import org.checkerframework.dataflow.cfg.ControlFlowGraph;
 import org.plumelib.util.ArrayMap;
 
-import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -38,22 +37,28 @@ import javax.tools.JavaFileObject;
  * use it.
  */
 public final class CFGVisualizeLauncher {
-	
+
     /** Class cannot be instantiated. */
     private CFGVisualizeLauncher() {
         throw new AssertionError("Class CFGVisualizeLauncher cannot be instantiated.");
     }
 
-    /**
-     * The main entry point of CFGVisualizeLauncher.
-     */
+    /** The main entry point of CFGVisualizeLauncher. */
     public static void main(String[] args) {
         CFGVisualizeArgs config = CFGVisualizeArgs.parseArgs(args);
 
         if (!config.string) {
-            generateDOTofCFGWithoutAnalysis(config.input, config.output, config.method, config.clas, config.pdf, config.verbose);
+            generateDOTofCFGWithoutAnalysis(
+                    config.input,
+                    config.output,
+                    config.method,
+                    config.clas,
+                    config.pdf,
+                    config.verbose);
         } else {
-            String stringGraph = generateStringOfCFGWithoutAnalysis(config.input, config.method, config.clas, config.verbose);
+            String stringGraph =
+                    generateStringOfCFGWithoutAnalysis(
+                            config.input, config.method, config.clas, config.verbose);
             System.out.println(stringGraph);
         }
     }

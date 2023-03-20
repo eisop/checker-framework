@@ -3,8 +3,8 @@ package org.checkerframework.dataflow.cfg.playground;
 import org.checkerframework.dataflow.analysis.BackwardAnalysis;
 import org.checkerframework.dataflow.analysis.BackwardAnalysisImpl;
 import org.checkerframework.dataflow.analysis.UnusedAbstractValue;
-import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeLauncher;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeArgs;
+import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeLauncher;
 import org.checkerframework.dataflow.livevariable.LiveVarStore;
 import org.checkerframework.dataflow.livevariable.LiveVarTransfer;
 
@@ -25,6 +25,12 @@ public class LiveVariablePlayground {
         BackwardAnalysis<UnusedAbstractValue, LiveVarStore, LiveVarTransfer> backwardAnalysis =
                 new BackwardAnalysisImpl<>(transfer);
         CFGVisualizeLauncher.generateDOTofCFG(
-                config.input, config.output, config.method, config.clas, true, true, backwardAnalysis);
+                config.input,
+                config.output,
+                config.method,
+                config.clas,
+                true,
+                true,
+                backwardAnalysis);
     }
 }
