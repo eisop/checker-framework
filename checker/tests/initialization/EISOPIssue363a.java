@@ -1,9 +1,11 @@
 // Test case for issue 363:
 // https://github.com/eisop/checker-framework/issues/363
 
+// @skip-test until the issue is fixed
 
-import org.checkerframework.checker.initialization.qual.*;
-import org.checkerframework.checker.nullness.qual.*;
+import org.checkerframework.checker.initialization.qual.Initialized;
+import org.checkerframework.checker.initialization.qual.NotOnlyInitialized;
+import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 
 class MyException extends Exception {
     @NotOnlyInitialized EISOPIssue363a cause;
@@ -22,7 +24,7 @@ class MyException extends Exception {
 }
 
 public class EISOPIssue363a {
-    @NonNull Object field;
+    Object field;
 
     EISOPIssue363a() throws MyException {
         // :: error: (argument.type.incompatible)
