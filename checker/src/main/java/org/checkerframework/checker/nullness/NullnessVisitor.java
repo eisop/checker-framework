@@ -271,7 +271,8 @@ public class NullnessVisitor
                 || tree.getExpression().getKind() == Tree.Kind.PARAMETERIZED_TYPE
                 // case 8. static member access
                 || ElementUtils.isStatic(e))) {
-            checkForNullability(tree.getExpression(), DEREFERENCE_OF_NULLABLE);
+            AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(tree.getExpression());
+            checkForNullability(type, tree.getExpression(), DEREFERENCE_OF_NULLABLE);
         }
 
         return super.visitMemberSelect(tree, p);
@@ -743,7 +744,8 @@ public class NullnessVisitor
     public Void visitNewClass(NewClassTree tree, Void p) {
         ExpressionTree enclosingExpr = tree.getEnclosingExpression();
         if (enclosingExpr != null) {
-            checkForNullability(enclosingExpr, DEREFERENCE_OF_NULLABLE);
+            AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(enclosingExpr);
+            checkForNullability(type, enclosingExpr, DEREFERENCE_OF_NULLABLE);
         }
         AnnotatedDeclaredType type = atypeFactory.getAnnotatedType(tree);
         ExpressionTree identifier = tree.getIdentifier();
