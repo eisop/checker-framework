@@ -97,9 +97,6 @@ public class TypecheckExecutor {
                 // right thing for most test cases.
                 // However, only add it if no incompatible option is provided, in particular
                 // `detailedmsgtext` and `nomsgtext` conflict with each other.
-                // Note: Since "-Anomsgtext" is always added to the non-JVM options,
-                //  we are passing `true` as the `noMsgText` argument to all invocations
-                //  of `TestDiagnosticUtils.fromJavaxDiagnosticList`.
                 nonJvmOptions.add("-Anomsgtext");
             }
 
