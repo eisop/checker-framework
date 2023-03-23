@@ -59,9 +59,14 @@ public class TestConfigurationBuilder {
                         .setShouldEmitDebugInfo(shouldEmitDebugInfo)
                         .addProcessors(processors)
                         .addOption("-Xmaxerrs", "9999")
+                        .addOption("-Xmaxwarns", "9999")
                         .addOption("-g")
                         .addOption("-Xlint:unchecked")
+                        .addOption("-Xlint:deprecation")
                         .addOption("-XDrawDiagnostics") // use short javac diagnostics
+                        .addOption("-ApermitMissingJdk")
+                        .addOption("-Anocheckjdk") // temporary, for backward compatibility
+                        .addOption("-AnoJreVersionCheck")
                         .addSourceFiles(testSourceFiles);
 
         if (outputClassDirectory != null) {
@@ -72,6 +77,13 @@ public class TestConfigurationBuilder {
                 .addOptionIfValueNonEmpty("-sourcepath", testSourcePath)
                 .addOption("-implicit:class")
                 .addOption("-classpath", classPath);
+
+        // -Anomsgtext is needed to ensure expected errors can be matched, which is the
+        // right thing for most test cases.
+        configBuilder.addOption("-Anomsgtext");
+
+        // TODO: decide whether this would be useful
+        // configBuilder.addOption("-AajavaChecks");
 
         configBuilder.addOptions(options);
         return configBuilder;
@@ -296,6 +308,13 @@ public class TestConfigurationBuilder {
     }
 
     public TestConfigurationBuilder addOption(String option) {
+        // `detailedmsgtext` and `nomsgtext` conflict with each other,
+        // thus adding one will evict the other.
+        if (option.equals("-Adetailedmsgtext")) {
+            this.options.removeOption("-Anomsgtext");
+        } else if (option.equals("-Anomsgtext")) {
+            this.options.removeOption("-Adetailedmsgtext");
+        }
         this.options.addOption(option);
         return this;
     }

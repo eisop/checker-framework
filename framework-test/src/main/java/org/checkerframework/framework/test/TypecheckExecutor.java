@@ -75,35 +75,11 @@ public class TypecheckExecutor {
             options.add("-processor");
             options.add(String.join(",", configuration.getProcessors()));
 
-            List<String> nonJvmOptions = new ArrayList<>();
             for (String option : configuration.getFlatOptions()) {
                 if (!option.startsWith("-J-")) {
-                    nonJvmOptions.add(option);
+                    options.add(option);
                 }
             }
-            nonJvmOptions.add("-Xmaxerrs");
-            nonJvmOptions.add("100000");
-            nonJvmOptions.add("-Xmaxwarns");
-            nonJvmOptions.add("100000");
-            nonJvmOptions.add("-Xlint:deprecation");
-
-            nonJvmOptions.add("-ApermitMissingJdk");
-            nonJvmOptions.add("-Anocheckjdk"); // temporary, for backward compatibility
-
-            nonJvmOptions.add("-AnoJreVersionCheck");
-
-            if (!nonJvmOptions.contains("-Adetailedmsgtext")) {
-                // -Anomsgtext is needed to ensure expected errors can be matched, which is the
-                // right thing for most test cases.
-                // However, only add it if no incompatible option is provided, in particular
-                // `detailedmsgtext` and `nomsgtext` conflict with each other.
-                nonJvmOptions.add("-Anomsgtext");
-            }
-
-            // TODO: decide whether this would be useful
-            // nonJvmOptions.add("-AajavaChecks");
-
-            options.addAll(nonJvmOptions);
 
             if (configuration.shouldEmitDebugInfo()) {
                 System.out.println("Running test using the following invocation:");
