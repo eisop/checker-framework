@@ -4,21 +4,34 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.io.File;
 
-public class CFGVisualizeArgs {
+/**
+ * Options for running analysis on files.
+ * 
+ * <p>Usage: An instance of this class is created by calling {@link #parseArgs(String[])} with the
+ * command line arguments. The arguments are parsed and the options are stored in the instance.
+ * They can be retrieved by calling the appropriate getter method. See {@link org.checkerframework.dataflow.cfg.visualize.CFGVisualizeLauncher} for an example.
+ */
+public class CFGVisualizeOptions {
 
     private static final String DEFAULT_METHOD = "test";
     private static final String DEFAULT_CLASS = "Test";
     private static final String DEFAULT_OUTPUT_DIR = ".";
 
-    public String input;
-    public String output;
-    public String method;
-    public String clas;
-    public boolean pdf;
-    public boolean verbose;
-    public boolean string;
+    private String input;
+    private String output;
+    private String method;
+    private String clas;
+    private boolean pdf;
+    private boolean verbose;
+    private boolean string;
 
-    private CFGVisualizeArgs(
+    /** Private constructor.
+     *
+     * <p>This constructor is private to ensure that the object is only created by calling
+     * {@link #parseArgs(String[])}.
+     *
+     * */
+        private CFGVisualizeOptions(
             String input,
             String output,
             String method,
@@ -34,8 +47,17 @@ public class CFGVisualizeArgs {
         this.verbose = verbose;
         this.string = string;
     }
-
-    public static CFGVisualizeArgs parseArgs(String[] args) {
+    
+    /**
+     * Parse the command line arguments.
+     *
+     * <p>This method calls System.exit(1) if there are no arguments or if the input file cannot be
+     * read.
+     *
+     * @param args command-line arguments
+     * @return CFGVisualizeOptions object containing the parsed options
+     */
+    public static CFGVisualizeOptions parseArgs(String[] args) {
         if (args.length == 0) {
             printUsage();
             System.exit(1);
@@ -102,7 +124,42 @@ public class CFGVisualizeArgs {
             System.exit(1);
         }
 
-        return new CFGVisualizeArgs(input, output, method, clas, pdf, verbose, string);
+        return new CFGVisualizeOptions(input, output, method, clas, pdf, verbose, string);
+    }
+
+    /* @return the input file */
+    public String getInput() {
+	return input;
+    }
+
+    /* @return the output directory */
+    public String getOutput() {
+	return output;
+    }
+
+    /* @return the method name */
+    public String getMethod() {
+	return method;
+    }
+
+    /* @return the class name */
+    public String getClas() {
+	return clas;
+    }
+
+    /* @return true if the PDF should be generated */
+    public boolean isPDF() {
+	return pdf;
+    }
+
+    /* @return true if the verbose output should be generated */
+    public boolean isVerbose() {
+	return verbose;
+    }
+
+    /* @return true if the string representation should be generated */
+    public boolean isString() {
+	return string;
     }
 
     /** Print usage information. */

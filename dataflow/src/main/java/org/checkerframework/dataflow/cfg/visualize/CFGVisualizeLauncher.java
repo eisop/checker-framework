@@ -45,20 +45,20 @@ public final class CFGVisualizeLauncher {
 
     /** The main entry point of CFGVisualizeLauncher. */
     public static void main(String[] args) {
-        CFGVisualizeArgs config = CFGVisualizeArgs.parseArgs(args);
+        CFGVisualizeOptions config = CFGVisualizeOptions.parseArgs(args);
 
-        if (!config.string) {
+        if (!config.isString()) {
             generateDOTofCFGWithoutAnalysis(
-                    config.input,
-                    config.output,
-                    config.method,
-                    config.clas,
-                    config.pdf,
-                    config.verbose);
+                    config.getInput(),
+                    config.getOutput(),
+                    config.getMethod(),
+                    config.getClas(),
+                    config.isPDF(),
+                    config.isVerbose());
         } else {
             String stringGraph =
                     generateStringOfCFGWithoutAnalysis(
-                            config.input, config.method, config.clas, config.verbose);
+                            config.getInput(), config.getMethod(), config.getClas(), config.isVerbose());
             System.out.println(stringGraph);
         }
     }

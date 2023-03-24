@@ -3,7 +3,7 @@ package org.checkerframework.dataflow.cfg.playground;
 import org.checkerframework.dataflow.analysis.BackwardAnalysis;
 import org.checkerframework.dataflow.analysis.BackwardAnalysisImpl;
 import org.checkerframework.dataflow.analysis.UnusedAbstractValue;
-import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeArgs;
+import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeOptions;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeLauncher;
 import org.checkerframework.dataflow.livevariable.LiveVarStore;
 import org.checkerframework.dataflow.livevariable.LiveVarTransfer;
@@ -14,21 +14,22 @@ public class LiveVariablePlayground {
     /**
      * Run live variable analysis for a specific file and create a PDF of the CFG in the end.
      *
-     * @param args command-line arguments, not used
+     * @param args command-line arguments
      */
     public static void main(String[] args) {
 
-        CFGVisualizeArgs config = CFGVisualizeArgs.parseArgs(args);
+	/** Parse the arguments. */
+        CFGVisualizeOptions config = CFGVisualizeOptions.parseArgs(args);
 
         // Run the analysis and create a PDF file
         LiveVarTransfer transfer = new LiveVarTransfer();
         BackwardAnalysis<UnusedAbstractValue, LiveVarStore, LiveVarTransfer> backwardAnalysis =
                 new BackwardAnalysisImpl<>(transfer);
         CFGVisualizeLauncher.generateDOTofCFG(
-                config.input,
-                config.output,
-                config.method,
-                config.clas,
+                config.getInput(),
+                config.getOutput(),
+                config.getMethod(),
+                config.getClas(),
                 true,
                 true,
                 backwardAnalysis);
