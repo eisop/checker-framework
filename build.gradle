@@ -742,8 +742,8 @@ def createCloneTask(taskName, url, directory, extraArgs = []) {
 }
 
 
-createCloneTask('getPlumeScripts', 'https://github.com/eisop-plume-lib/plume-scripts.git',plumeScriptsHome)
-createCloneTask('getHtmlTools', 'https://github.com/eisop-plume-lib/html-tools.git',htmlToolsHome)
+createCloneTask('getPlumeScripts', 'https://github.com/eisop-plume-lib/plume-scripts.git', plumeScriptsHome)
+createCloneTask('getHtmlTools', 'https://github.com/eisop-plume-lib/html-tools.git', htmlToolsHome)
 
 
 // No group so it does not show up in the output of `gradlew tasks`
