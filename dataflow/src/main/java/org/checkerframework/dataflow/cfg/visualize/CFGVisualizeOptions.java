@@ -14,16 +14,26 @@ import java.io.File;
  */
 public class CFGVisualizeOptions {
 
+    /** default method name */
     private static final String DEFAULT_METHOD = "test";
+    /** default class name */
     private static final String DEFAULT_CLASS = "Test";
+    /** default output directory */
     private static final String DEFAULT_OUTPUT_DIR = ".";
 
+    /** The input file. */
     private String input;
+    /** The output directory. */
     private String output;
+    /** The method name. */
     private String method;
+    /** The class name. */
     private String clas;
+    /** True if the PDF should be generated. */
     private boolean pdf;
+    /** True if the verbose output should be generated. */
     private boolean verbose;
+    /** True if the string representation should be generated. */
     private boolean string;
 
     /**
@@ -31,6 +41,14 @@ public class CFGVisualizeOptions {
      *
      * <p>This constructor is private to ensure that the object is only created by calling {@link
      * #parseArgs(String[])}.
+     *
+     * @param input the input file
+     * @param output the output directory
+     * @param method the method name
+     * @param clas the class name
+     * @param pdf true if the PDF should be generated
+     * @param verbose true if the verbose output should be generated
+     * @param string true if the string representation should be generated
      */
     private CFGVisualizeOptions(
             String input,
@@ -55,7 +73,7 @@ public class CFGVisualizeOptions {
      * <p>This method calls System.exit(1) if there are no arguments or if the input file cannot be
      * read.
      *
-     * @param args command-line arguments
+     * @param args command-line arguments, see {@link #printUsage()}
      * @return CFGVisualizeOptions object containing the parsed options
      */
     public static CFGVisualizeOptions parseArgs(String[] args) {
@@ -128,37 +146,65 @@ public class CFGVisualizeOptions {
         return new CFGVisualizeOptions(input, output, method, clas, pdf, verbose, string);
     }
 
-    /* @return the input file */
+    /**
+     * Getter for the input file.
+     *
+     * @return the input file
+     */
     public String getInput() {
         return input;
     }
 
-    /* @return the output directory */
+    /**
+     * Getter for the output directory.
+     *
+     * @return the output directory
+     */
     public String getOutput() {
         return output;
     }
 
-    /* @return the method name */
+    /**
+     * Getter for the method name.
+     *
+     * @return the method name
+     */
     public String getMethod() {
         return method;
     }
 
-    /* @return the class name */
+    /**
+     * Getter for the class name.
+     *
+     * @return the class name
+     */
     public String getClas() {
         return clas;
     }
 
-    /* @return true if the PDF should be generated */
+    /**
+     * Getter for the PDF flag.
+     *
+     * @return true if the PDF should be generated
+     */
     public boolean isPDF() {
         return pdf;
     }
 
-    /* @return true if the verbose output should be generated */
+    /**
+     * Getter for the verbose flag.
+     *
+     * @return true if the verbose output should be generated
+     */
     public boolean isVerbose() {
         return verbose;
     }
 
-    /* @return true if the string representation should be generated */
+    /**
+     * Getter for the string flag.
+     *
+     * @return true if the string representation should be generated
+     */
     public boolean isString() {
         return string;
     }
