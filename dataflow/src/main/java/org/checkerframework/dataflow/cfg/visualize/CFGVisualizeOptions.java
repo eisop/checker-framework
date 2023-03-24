@@ -163,7 +163,11 @@ public class CFGVisualizeOptions {
         return string;
     }
 
-    /** Print usage information. */
+    /**
+     * Print usage information.
+     *
+     * <p>Sends the usage information to System.out.
+     */
     private static void printUsage() {
         System.out.println(
                 "Generate the control flow graph of a Java method, represented as a DOT or String"
@@ -186,6 +190,8 @@ public class CFGVisualizeOptions {
 
     /**
      * Print error message.
+     *
+     * <p>Sends the error message to System.err.
      *
      * @param string error message
      */
