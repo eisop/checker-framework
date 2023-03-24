@@ -887,11 +887,11 @@ public class AnnotationFileParser {
      *   <li>It is in the annotated JDK. Private constructs can't be referenced outside of the JDK
      *       and might refer to types that are not accessible.
      *   <li>It is not an ajava file and {@code -AmergeStubsWithSource} was not supplied. As
-     *       described at https://checkerframework.org/manual/#stub-multiple-specifications, source
+     *       described at https://eisop.github.io/cf/manual/#stub-multiple-specifications, source
      *       files take precedence over stub files unless {@code -AmergeStubsWithSource} is
-     *       supplied. As described at https://checkerframework.org/manual/#ajava-using, source
-     *       files do not take precedence over ajava files (when reading an ajava file, it is as if
-     *       {@code -AmergeStubsWithSource} were supplied).
+     *       supplied. As described at https://eisop.github.io/cf/manual/#ajava-using, source files
+     *       do not take precedence over ajava files (when reading an ajava file, it is as if {@code
+     *       -AmergeStubsWithSource} were supplied).
      * </ul>
      *
      * @param node a declaration

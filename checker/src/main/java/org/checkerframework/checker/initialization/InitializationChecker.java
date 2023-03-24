@@ -28,7 +28,7 @@ public abstract class InitializationChecker extends BaseTypeChecker {
         // "fbc" is for backward compatibility only.
         // Notes:
         //   * "fbc" suppresses *all* warnings, not just those related to initialization.  See
-        //     https://checkerframework.org/manual/#initialization-checking-suppressing-warnings .
+        //     https://eisop.github.io/cf/manual/#initialization-checking-suppressing-warnings .
         //   * "initialization" is not a checkername/prefix.
         result.add("fbc");
         return result;

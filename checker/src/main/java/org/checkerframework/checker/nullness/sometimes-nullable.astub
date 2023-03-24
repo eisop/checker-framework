@@ -1,6 +1,6 @@
 // This file uses `@Nullable` for methods in the JDK that sometimes, but not always, permit null as
 // an argument.  For more discussion, see section "Conservative nullness annotations on the JDK" in
-// the Checker Framework manual (https://checkerframework.org/manual/#nullness-jdk-conservative).
+// the Checker Framework manual (https://eisop.github.io/cf/manual/#nullness-jdk-conservative).
 
 // This file is very incomplete and should be expanded.
 

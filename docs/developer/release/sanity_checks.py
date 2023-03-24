@@ -100,7 +100,7 @@ def javac_sanity_check(checker_framework_website, release_version):
     )
 
     # this is a smoke test for the built-in checker shorthand feature
-    # https://checkerframework.org/manual/#shorthand-for-checkers
+    # https://eisop.github.io/cf/manual/#shorthand-for-checkers
     nullness_shorthand_output = os.path.join(deploy_dir, "output_shorthand.log")
     cmd = (
         sanity_javac
