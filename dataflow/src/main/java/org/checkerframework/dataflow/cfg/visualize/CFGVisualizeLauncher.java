@@ -43,7 +43,11 @@ public final class CFGVisualizeLauncher {
         throw new AssertionError("Class CFGVisualizeLauncher cannot be instantiated.");
     }
 
-    /** The main entry point of CFGVisualizeLauncher. */
+    /**
+     * The main entry point of CFGVisualizeLauncher.
+     *
+     * @param args command-line arguments
+     */
     public static void main(String[] args) {
         CFGVisualizeOptions config = CFGVisualizeOptions.parseArgs(args);
 
