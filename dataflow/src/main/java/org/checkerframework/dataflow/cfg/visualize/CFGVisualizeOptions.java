@@ -6,10 +6,11 @@ import java.io.File;
 
 /**
  * Options for running analysis on files.
- * 
+ *
  * <p>Usage: An instance of this class is created by calling {@link #parseArgs(String[])} with the
- * command line arguments. The arguments are parsed and the options are stored in the instance.
- * They can be retrieved by calling the appropriate getter method. See {@link org.checkerframework.dataflow.cfg.visualize.CFGVisualizeLauncher} for an example.
+ * command line arguments. The arguments are parsed and the options are stored in the instance. They
+ * can be retrieved by calling the appropriate getter method. See {@link
+ * org.checkerframework.dataflow.cfg.visualize.CFGVisualizeLauncher} for an example.
  */
 public class CFGVisualizeOptions {
 
@@ -25,13 +26,13 @@ public class CFGVisualizeOptions {
     private boolean verbose;
     private boolean string;
 
-    /** Private constructor.
+    /**
+     * Private constructor.
      *
-     * <p>This constructor is private to ensure that the object is only created by calling
-     * {@link #parseArgs(String[])}.
-     *
-     * */
-        private CFGVisualizeOptions(
+     * <p>This constructor is private to ensure that the object is only created by calling {@link
+     * #parseArgs(String[])}.
+     */
+    private CFGVisualizeOptions(
             String input,
             String output,
             String method,
@@ -47,7 +48,7 @@ public class CFGVisualizeOptions {
         this.verbose = verbose;
         this.string = string;
     }
-    
+
     /**
      * Parse the command line arguments.
      *
@@ -129,37 +130,37 @@ public class CFGVisualizeOptions {
 
     /* @return the input file */
     public String getInput() {
-	return input;
+        return input;
     }
 
     /* @return the output directory */
     public String getOutput() {
-	return output;
+        return output;
     }
 
     /* @return the method name */
     public String getMethod() {
-	return method;
+        return method;
     }
 
     /* @return the class name */
     public String getClas() {
-	return clas;
+        return clas;
     }
 
     /* @return true if the PDF should be generated */
     public boolean isPDF() {
-	return pdf;
+        return pdf;
     }
 
     /* @return true if the verbose output should be generated */
     public boolean isVerbose() {
-	return verbose;
+        return verbose;
     }
 
     /* @return true if the string representation should be generated */
     public boolean isString() {
-	return string;
+        return string;
     }
 
     /** Print usage information. */

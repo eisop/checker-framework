@@ -58,7 +58,10 @@ public final class CFGVisualizeLauncher {
         } else {
             String stringGraph =
                     generateStringOfCFGWithoutAnalysis(
-                            config.getInput(), config.getMethod(), config.getClas(), config.isVerbose());
+                            config.getInput(),
+                            config.getMethod(),
+                            config.getClas(),
+                            config.isVerbose());
             System.out.println(stringGraph);
         }
     }

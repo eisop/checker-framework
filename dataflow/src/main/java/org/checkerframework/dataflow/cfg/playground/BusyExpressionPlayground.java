@@ -5,8 +5,8 @@ import org.checkerframework.dataflow.analysis.BackwardAnalysisImpl;
 import org.checkerframework.dataflow.analysis.UnusedAbstractValue;
 import org.checkerframework.dataflow.busyexpr.BusyExprStore;
 import org.checkerframework.dataflow.busyexpr.BusyExprTransfer;
-import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeOptions;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeLauncher;
+import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeOptions;
 
 /** The playground for busy expression analysis */
 public class BusyExpressionPlayground {
@@ -19,7 +19,7 @@ public class BusyExpressionPlayground {
     public static void main(String[] args) {
 
         /** Parse the arguments. */
-	CFGVisualizeOptions config = CFGVisualizeOptions.parseArgs(args);
+        CFGVisualizeOptions config = CFGVisualizeOptions.parseArgs(args);
 
         // Run the analysis and create a PDF file
         BusyExprTransfer transfer = new BusyExprTransfer();
@@ -27,11 +27,11 @@ public class BusyExpressionPlayground {
                 new BackwardAnalysisImpl<>(transfer);
         CFGVisualizeLauncher.generateDOTofCFG(
                 config.getInput(),
-		config.getOutput(),
-		config.getMethod(),
-		config.getClas(),
-		true,
-		true,
-		backwardAnalysis);
+                config.getOutput(),
+                config.getMethod(),
+                config.getClas(),
+                true,
+                true,
+                backwardAnalysis);
     }
 }

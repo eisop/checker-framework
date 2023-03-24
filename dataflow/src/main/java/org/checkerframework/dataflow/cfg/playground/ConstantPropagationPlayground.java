@@ -2,8 +2,8 @@ package org.checkerframework.dataflow.cfg.playground;
 
 import org.checkerframework.dataflow.analysis.ForwardAnalysis;
 import org.checkerframework.dataflow.analysis.ForwardAnalysisImpl;
-import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeOptions;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeLauncher;
+import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeOptions;
 import org.checkerframework.dataflow.constantpropagation.Constant;
 import org.checkerframework.dataflow.constantpropagation.ConstantPropagationStore;
 import org.checkerframework.dataflow.constantpropagation.ConstantPropagationTransfer;
@@ -24,7 +24,7 @@ public class ConstantPropagationPlayground {
     public static void main(String[] args) {
 
         /** Parse the arguments. */
-	CFGVisualizeOptions config = CFGVisualizeOptions.parseArgs(args);
+        CFGVisualizeOptions config = CFGVisualizeOptions.parseArgs(args);
 
         // run the analysis and create a PDF file
         ConstantPropagationTransfer transfer = new ConstantPropagationTransfer();
@@ -32,11 +32,11 @@ public class ConstantPropagationPlayground {
                 forwardAnalysis = new ForwardAnalysisImpl<>(transfer);
         CFGVisualizeLauncher.generateDOTofCFG(
                 config.getInput(),
-		config.getOutput(),
-		config.getMethod(),
-		config.getClas(),
-		true,
-		true,
-		forwardAnalysis);
+                config.getOutput(),
+                config.getMethod(),
+                config.getClas(),
+                true,
+                true,
+                forwardAnalysis);
     }
 }
