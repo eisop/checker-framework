@@ -323,7 +323,7 @@ jobs:
    - typecheck_jdk17
   pool:
     vmImage: 'ubuntu-latest'
-  container: wmdietl/cf-ubuntu-jdk8-plus:latest
+  container: wmdietl/cf-ubuntu-jdk8:latest
   steps:
   - checkout: self
     fetchDepth: 1000
@@ -335,7 +335,7 @@ jobs:
    - typecheck_jdk17
   pool:
     vmImage: 'ubuntu-latest'
-  container: wmdietl/cf-ubuntu-jdk11-plus:latest
+  container: wmdietl/cf-ubuntu-jdk11:latest
   steps:
   - checkout: self
     fetchDepth: 1000
@@ -344,7 +344,7 @@ jobs:
 - job: typecheck_jdk17
   pool:
     vmImage: 'ubuntu-latest'
-  container: wmdietl/cf-ubuntu-jdk17-plus:latest
+  container: wmdietl/cf-ubuntu-jdk17:latest
   steps:
   - checkout: self
     fetchDepth: 1000
@@ -356,7 +356,7 @@ jobs:
    - typecheck_jdk17
   pool:
     vmImage: 'ubuntu-latest'
-  container: wmdietl/cf-ubuntu-jdk-latest-plus:latest
+  container: wmdietl/cf-ubuntu-jdk-latest:latest
   steps:
   - checkout: self
     fetchDepth: 1000
@@ -368,7 +368,7 @@ jobs:
    - typecheck_jdk17
   pool:
     vmImage: 'ubuntu-latest'
-  container: wmdietl/cf-ubuntu-jdk-next-plus:latest
+  container: wmdietl/cf-ubuntu-jdk-next:latest
   steps:
   - checkout: self
     fetchDepth: 1000
