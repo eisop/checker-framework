@@ -6,7 +6,7 @@
 # See releases at https://hub.docker.com/_/ubuntu for available images.
 # See https://packages.ubuntu.com/search?suite=default&section=all&arch=any&keywords=openjdk-20-jdk&searchon=names
 # to see what Ubuntu versions support a particular OpenJDK version.
-FROM ubuntu:22.10
+FROM ubuntu:23.04
 MAINTAINER Werner Dietl <wdietl@gmail.com>
 
 # According to
@@ -33,7 +33,8 @@ RUN export DEBIAN_FRONTEND=noninteractive \
   make \
   maven \
   mercurial \
-  python3-pip \
+  pipx \
+  python3-full \
   python3-requests \
   unzip \
   wget
@@ -56,8 +57,15 @@ RUN export DEBIAN_FRONTEND=noninteractive \
   junit \
   latexmk \
   librsvg2-bin \
-  libasound2-dev libcups2-dev libfontconfig1-dev \
-  libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev \
+  libasound2-dev \
+  libcups2-dev \
+  libfontconfig1-dev \
+  libx11-dev \
+  libxext-dev \
+  libxrender-dev \
+  libxrandr-dev \
+  libxtst-dev \
+  libxt-dev \
   pdf2svg \
   rsync \
   shellcheck \
@@ -67,7 +75,15 @@ RUN export DEBIAN_FRONTEND=noninteractive \
   texlive-latex-extra \
   texlive-latex-recommended
 
-RUN pip3 install --no-cache-dir black flake8 html5validator lithium-reducer PyGithub pyyaml
+ENV PATH="/root/.local/bin:$PATH"
+RUN pipx install --pip-args="--no-cache-dir" black
+RUN pipx install --pip-args="--no-cache-dir" flake8
+RUN pipx install --pip-args="--no-cache-dir" html5validator
+RUN pipx install --pip-args="--no-cache-dir" lithium-reducer
+
+RUN mkdir /python-env \
+&& python3 -m venv /python-env \
+&& /python-env/bin/pip install --no-cache-dir lithium-reducer PyGithub pyyaml
 
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get clean \
