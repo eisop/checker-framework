@@ -74,12 +74,7 @@ public class TypecheckExecutor {
             final List<String> options = new ArrayList<>();
             options.add("-processor");
             options.add(String.join(",", configuration.getProcessors()));
-
-            for (String option : configuration.getFlatOptions()) {
-                if (!option.startsWith("-J-")) {
-                    options.add(option);
-                }
-            }
+            options.addAll(configuration.getFlatOptions());
 
             if (configuration.shouldEmitDebugInfo()) {
                 System.out.println("Running test using the following invocation:");

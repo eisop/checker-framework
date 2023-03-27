@@ -240,6 +240,7 @@ public class TestConfigurationBuilder {
      *   <li>There is an output directory specified for class files
      *   <li>There is no {@code -processor} option in the optionMap (it should be added by
      *       addProcessor instead)
+     *   <li>There is no options with prefix "-J-" in the optionMap
      * </ul>
      *
      * @param requireProcessors whether or not to require that there is at least one processor
@@ -264,7 +265,25 @@ public class TestConfigurationBuilder {
             errors.add("Processors should not be added to the options list");
         }
 
+        for (String optionKey : optionMap.keySet()) {
+            if (optionKey.startsWith("-J-")) {
+                errors.add(
+                        "Jvm options (i.e., options with prefix -J-) have no effects in test "
+                                + "configuration. If needed, please add them to your build file instead.");
+                break;
+            }
+        }
+
         return errors;
+    }
+
+    /** Ensures there are no options conflicting with each other. */
+    protected void removeConflicts() {
+        final Map<String, @Nullable String> optionMap = options.getOptions();
+        if (optionMap.containsKey("-Adetailedmsgtext")) {
+            // If `detailedmsgtext` is specified, remove `nomsgtext`.
+            options.removeOption("-Anomsgtext");
+        }
     }
 
     public TestConfigurationBuilder adddToPathOption(String key, String toAppend) {
@@ -308,13 +327,6 @@ public class TestConfigurationBuilder {
     }
 
     public TestConfigurationBuilder addOption(String option) {
-        // `detailedmsgtext` and `nomsgtext` conflict with each other,
-        // thus adding one will evict the other.
-        if (option.equals("-Adetailedmsgtext")) {
-            this.options.removeOption("-Anomsgtext");
-        } else if (option.equals("-Anomsgtext")) {
-            this.options.removeOption("-Adetailedmsgtext");
-        }
         this.options.addOption(option);
         return this;
     }
@@ -424,6 +436,7 @@ public class TestConfigurationBuilder {
      * @return a TestConfiguration using the settings in this builder
      */
     public TestConfiguration validateThenBuild(boolean requireProcessors) {
+        removeConflicts();
         List<String> errors = validate(requireProcessors);
         if (errors.isEmpty()) {
             return build();
