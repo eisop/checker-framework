@@ -51,22 +51,70 @@ public final class CFGVisualizeLauncher {
     public static void main(String[] args) {
         CFGVisualizeOptions config = CFGVisualizeOptions.parseArgs(args);
 
+        performAnalysis(config, null);
+    }
+
+    /**
+     * Generate the DOT representation of the CFG for a method, with a given analysis.
+     *
+     * @param config CFGVisualizeOptions that includes input file, output directory, method name,
+     *     and class name
+     * @param analysis analysis to perform before the visualization (or {@code null} if no analysis
+     *     is to be performed)
+     */
+    public static <V extends AbstractValue<V>, S extends Store<S>, T extends TransferFunction<V, S>>
+            void performAnalysis(CFGVisualizeOptions config, @Nullable Analysis<V, S, T> analysis) {
         if (!config.isString()) {
-            generateDOTofCFGWithoutAnalysis(
-                    config.getInput(),
-                    config.getOutput(),
-                    config.getMethod(),
-                    config.getClas(),
-                    config.isPDF(),
-                    config.isVerbose());
+            if (analysis == null) {
+                generateDOTofCFGWithoutAnalysis(
+                        config.getInputFile(),
+                        config.getOutputDirectory(),
+                        config.getMethodName(),
+                        config.getClassName(),
+                        config.isPDF(),
+                        config.isVerbose());
+            } else {
+                generateDOTofCFG(
+                        config.getInputFile(),
+                        config.getOutputDirectory(),
+                        config.getMethodName(),
+                        config.getClassName(),
+                        config.isPDF(),
+                        config.isVerbose(),
+                        analysis);
+            }
         } else {
-            String stringGraph =
-                    generateStringOfCFGWithoutAnalysis(
-                            config.getInput(),
-                            config.getMethod(),
-                            config.getClas(),
-                            config.isVerbose());
-            System.out.println(stringGraph);
+            if (analysis == null) {
+                String stringGraph =
+                        generateStringOfCFGWithoutAnalysis(
+                                config.getInputFile(),
+                                config.getMethodName(),
+                                config.getClassName(),
+                                config.isVerbose());
+                System.out.println(stringGraph);
+            } else {
+                Map<String, Object> res =
+                        generateStringOfCFG(
+                                config.getInputFile(),
+                                config.getMethodName(),
+                                config.getClassName(),
+                                config.isVerbose(),
+                                analysis);
+                if (res != null) {
+                    String stringGraph = (String) res.get("stringGraph");
+                    if (stringGraph == null) {
+                        System.err.println(
+                                "Unexpected output from generating string control flow graph, shouldn't be"
+                                        + " null.");
+                        return;
+                    }
+                    System.out.println(stringGraph);
+                } else {
+                    System.err.println(
+                            "Unexpected output from generating string control flow graph, shouldn't be"
+                                    + " null.");
+                }
+            }
         }
     }
 
@@ -131,7 +179,10 @@ public final class CFGVisualizeLauncher {
      * @param analysis analysis to perform before the visualization (or {@code null} if no analysis
      *     is to be performed)
      */
-    public static <V extends AbstractValue<V>, S extends Store<S>, T extends TransferFunction<V, S>>
+    private static <
+                    V extends AbstractValue<V>,
+                    S extends Store<S>,
+                    T extends TransferFunction<V, S>>
             void generateDOTofCFG(
                     String inputFile,
                     String outputDir,
@@ -281,7 +332,10 @@ public final class CFGVisualizeLauncher {
      * @return a map which includes a key "stringGraph" and the String representation of CFG as the
      *     value
      */
-    public static <V extends AbstractValue<V>, S extends Store<S>, T extends TransferFunction<V, S>>
+    private static <
+                    V extends AbstractValue<V>,
+                    S extends Store<S>,
+                    T extends TransferFunction<V, S>>
             @Nullable Map<String, Object> generateStringOfCFG(
             String inputFile,
             String method,

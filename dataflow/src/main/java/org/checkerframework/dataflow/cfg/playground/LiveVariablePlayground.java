@@ -18,20 +18,13 @@ public class LiveVariablePlayground {
      */
     public static void main(String[] args) {
 
-        /** Parse the arguments. */
+        // Parse the arguments.
         CFGVisualizeOptions config = CFGVisualizeOptions.parseArgs(args);
 
         // Run the analysis and create a PDF file
         LiveVarTransfer transfer = new LiveVarTransfer();
         BackwardAnalysis<UnusedAbstractValue, LiveVarStore, LiveVarTransfer> backwardAnalysis =
                 new BackwardAnalysisImpl<>(transfer);
-        CFGVisualizeLauncher.generateDOTofCFG(
-                config.getInput(),
-                config.getOutput(),
-                config.getMethod(),
-                config.getClas(),
-                true,
-                true,
-                backwardAnalysis);
+        CFGVisualizeLauncher.performAnalysis(config, backwardAnalysis);
     }
 }

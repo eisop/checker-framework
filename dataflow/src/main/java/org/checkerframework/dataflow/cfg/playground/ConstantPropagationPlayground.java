@@ -23,20 +23,13 @@ public class ConstantPropagationPlayground {
      */
     public static void main(String[] args) {
 
-        /** Parse the arguments. */
+        // Parse the arguments.
         CFGVisualizeOptions config = CFGVisualizeOptions.parseArgs(args);
 
         // run the analysis and create a PDF file
         ConstantPropagationTransfer transfer = new ConstantPropagationTransfer();
         ForwardAnalysis<Constant, ConstantPropagationStore, ConstantPropagationTransfer>
                 forwardAnalysis = new ForwardAnalysisImpl<>(transfer);
-        CFGVisualizeLauncher.generateDOTofCFG(
-                config.getInput(),
-                config.getOutput(),
-                config.getMethod(),
-                config.getClas(),
-                true,
-                true,
-                forwardAnalysis);
+        CFGVisualizeLauncher.performAnalysis(config, forwardAnalysis);
     }
 }

@@ -18,20 +18,13 @@ public class BusyExpressionPlayground {
      */
     public static void main(String[] args) {
 
-        /** Parse the arguments. */
+        // Parse the arguments.
         CFGVisualizeOptions config = CFGVisualizeOptions.parseArgs(args);
 
         // Run the analysis and create a PDF file
         BusyExprTransfer transfer = new BusyExprTransfer();
         BackwardAnalysis<UnusedAbstractValue, BusyExprStore, BusyExprTransfer> backwardAnalysis =
                 new BackwardAnalysisImpl<>(transfer);
-        CFGVisualizeLauncher.generateDOTofCFG(
-                config.getInput(),
-                config.getOutput(),
-                config.getMethod(),
-                config.getClas(),
-                true,
-                true,
-                backwardAnalysis);
+        CFGVisualizeLauncher.performAnalysis(config, backwardAnalysis);
     }
 }

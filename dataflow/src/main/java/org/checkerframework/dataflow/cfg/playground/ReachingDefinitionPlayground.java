@@ -17,20 +17,13 @@ public class ReachingDefinitionPlayground {
      */
     public static void main(String[] args) {
 
-        /** Parse the arguments. */
+        // Parse the arguments.
         CFGVisualizeOptions config = CFGVisualizeOptions.parseArgs(args);
 
         // Run the analysis and create a PDF file
         ReachingDefinitionTransfer transfer = new ReachingDefinitionTransfer();
         ForwardAnalysis<UnusedAbstractValue, ReachingDefinitionStore, ReachingDefinitionTransfer>
                 forwardAnalysis = new ForwardAnalysisImpl<>(transfer);
-        CFGVisualizeLauncher.generateDOTofCFG(
-                config.getInput(),
-                config.getOutput(),
-                config.getMethod(),
-                config.getClas(),
-                true,
-                true,
-                forwardAnalysis);
+        CFGVisualizeLauncher.performAnalysis(config, forwardAnalysis);
     }
 }

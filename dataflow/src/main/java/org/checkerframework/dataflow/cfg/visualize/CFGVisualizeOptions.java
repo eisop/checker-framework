@@ -14,27 +14,27 @@ import java.io.File;
  */
 public class CFGVisualizeOptions {
 
-    /** default method name */
+    /** Default method name. */
     private static final String DEFAULT_METHOD = "test";
-    /** default class name */
+    /** Default class name. */
     private static final String DEFAULT_CLASS = "Test";
-    /** default output directory */
+    /** Default output directory. */
     private static final String DEFAULT_OUTPUT_DIR = ".";
 
     /** The input file. */
-    private String input;
+    private final String input;
     /** The output directory. */
-    private String output;
+    private final String output;
     /** The method name. */
-    private String method;
+    private final String method;
     /** The class name. */
-    private String clas;
+    private final String clas;
     /** True if the PDF should be generated. */
-    private boolean pdf;
+    private final boolean pdf;
     /** True if the verbose output should be generated. */
-    private boolean verbose;
+    private final boolean verbose;
     /** True if the string representation should be generated. */
-    private boolean string;
+    private final boolean string;
 
     /**
      * Private constructor.
@@ -151,7 +151,7 @@ public class CFGVisualizeOptions {
      *
      * @return the input file
      */
-    public String getInput() {
+    public String getInputFile() {
         return input;
     }
 
@@ -160,7 +160,7 @@ public class CFGVisualizeOptions {
      *
      * @return the output directory
      */
-    public String getOutput() {
+    public String getOutputDirectory() {
         return output;
     }
 
@@ -169,7 +169,7 @@ public class CFGVisualizeOptions {
      *
      * @return the method name
      */
-    public String getMethod() {
+    public String getMethodName() {
         return method;
     }
 
@@ -178,7 +178,7 @@ public class CFGVisualizeOptions {
      *
      * @return the class name
      */
-    public String getClas() {
+    public String getClassName() {
         return clas;
     }
 
