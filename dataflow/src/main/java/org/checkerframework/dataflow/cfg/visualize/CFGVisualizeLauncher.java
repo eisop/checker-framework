@@ -57,6 +57,9 @@ public final class CFGVisualizeLauncher {
     /**
      * Generate the DOT representation of the CFG for a method, with a given analysis.
      *
+     * @param <V> the abstract value type of the analysis
+     * @param <S> the store type of the analysis
+     * @param <T> the transfer function type of the analysis
      * @param config CFGVisualizeOptions that includes input file, output directory, method name,
      *     and class name
      * @param analysis analysis to perform before the visualization (or {@code null} if no analysis
