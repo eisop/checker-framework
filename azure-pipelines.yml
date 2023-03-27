@@ -81,6 +81,11 @@ jobs:
    - jspecify_tests_jdk17
    - jspecify_tests_jdk_latest
    # Not jspecify_tests_jdk_next
+  pool:
+    vmImage: 'ubuntu-latest'
+  steps:
+  - bash: true
+    displayName: required_jobs
 
 - job: junit_tests_jdk8
   dependsOn:
