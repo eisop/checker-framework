@@ -269,7 +269,8 @@ public class TestConfigurationBuilder {
             if (optionKey.startsWith("-J-")) {
                 errors.add(
                         "Jvm options (i.e., options with prefix -J-) have no effects in test "
-                                + "configuration. If needed, please add them to your build file instead.");
+                                + "configuration. If needed, please add them to your build file "
+                                + "instead.");
                 break;
             }
         }
