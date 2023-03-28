@@ -8,10 +8,12 @@ import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeOptions;
 import org.checkerframework.dataflow.reachingdef.ReachingDefinitionStore;
 import org.checkerframework.dataflow.reachingdef.ReachingDefinitionTransfer;
 
-/** The playground of reaching definition analysis. */
+/** The playground for reaching definition analysis.
+ * As an example, try {@code dataflow/manual/examples/ReachSimple.java}.
+ */
 public class ReachingDefinitionPlayground {
     /**
-     * Run reaching definition analysis for a specific file and create a PDF of the CFG in the end.
+     * Run reaching definition analysis on a file.
      *
      * @param args command-line arguments
      */
