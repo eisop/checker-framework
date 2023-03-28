@@ -11,9 +11,9 @@ import org.checkerframework.dataflow.constantpropagation.ConstantPropagationTran
 /** The playground for constant propagation analysis. */
 public class ConstantPropagationPlayground {
 
-    /** Do not instantiate. */
+    /** Class cannot be instantiated. */
     private ConstantPropagationPlayground() {
-        throw new Error("do not instantiate");
+        throw new AssertionError("Class ConstantPropagationPlayground cannot be instantiated.");
     }
 
     /**
