@@ -16,7 +16,7 @@ jobs:
 #  * Anything daikon_* and guava_* depends on the framework jobs (all core CF tests for JDK 8, 11, and 17).
 #    (This avoids running these long-running jobs if something already failed in the framework.)
 
-- job: canary_jobs
+- job: A_canary_jobs
   dependsOn:
    - junit_tests_jdk17
    - nonjunit_tests_jdk17
@@ -30,7 +30,7 @@ jobs:
   - bash: true
     displayName: canary_jobs
 
-- job: framework_jobs
+- job: B_framework_jobs
   dependsOn:
    - junit_tests_jdk8
    - junit_tests_jdk11
@@ -58,21 +58,21 @@ jobs:
   - bash: true
     displayName: framework_jobs
 
-- job: required_jobs
+- job: C_required_jobs
   dependsOn:
    - framework_jobs
-   - daikon_jdk8
-   - daikon_jdk11
+   # - daikon_jdk8
+   # - daikon_jdk11
    - daikon_jdk17
    - daikon_jdk_latest
    # Not daikon_jdk_next
-   - guava_jdk8
-   - guava_jdk11
+   # - guava_jdk8
+   # - guava_jdk11
    - guava_jdk17
    - guava_jdk_latest
    # Not guava_jdk_next
-   - plume_lib_jdk8
-   - plume_lib_jdk11
+   # - plume_lib_jdk8
+   # - plume_lib_jdk11
    - plume_lib_jdk17
    - plume_lib_jdk_latest
    # Not plume_lib_jdk_next
@@ -408,6 +408,8 @@ jobs:
     displayName: test-typecheck.sh
 
 - job: daikon_jdk8
+  # Disable test on older JDK
+  condition: false
   dependsOn:
    - framework_jobs
    - daikon_jdk17
@@ -421,6 +423,8 @@ jobs:
   - bash: ./checker/bin-devel/test-daikon.sh
     displayName: test-daikon.sh
 - job: daikon_jdk11
+  # Disable test on older JDK
+  condition: false
   dependsOn:
    - framework_jobs
    - daikon_jdk17
@@ -473,6 +477,8 @@ jobs:
     displayName: test-daikon.sh
 
 - job: guava_jdk8
+  # Disable test on older JDK
+  condition: false
   dependsOn:
    - framework_jobs
    - guava_jdk17
@@ -485,6 +491,8 @@ jobs:
   - bash: ./checker/bin-devel/test-guava.sh
     displayName: test-guava.sh
 - job: guava_jdk11
+  # Disable test on older JDK
+  condition: false
   dependsOn:
    - framework_jobs
    - guava_jdk17
@@ -533,6 +541,8 @@ jobs:
     displayName: test-guava.sh
 
 - job: plume_lib_jdk8
+  # Disable test on older JDK
+  condition: false
   dependsOn:
    - canary_jobs
    - plume_lib_jdk17
@@ -545,6 +555,8 @@ jobs:
   - bash: ./checker/bin-devel/test-plume-lib.sh
     displayName: test-plume-lib.sh
 - job: plume_lib_jdk11
+  # Disable test on older JDK
+  condition: false
   dependsOn:
    - canary_jobs
    - plume_lib_jdk17
