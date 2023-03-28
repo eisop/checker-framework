@@ -8,8 +8,9 @@ import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeOptions;
 import org.checkerframework.dataflow.reachingdef.ReachingDefinitionStore;
 import org.checkerframework.dataflow.reachingdef.ReachingDefinitionTransfer;
 
-/** The playground for reaching definition analysis.
- * As an example, try {@code dataflow/manual/examples/ReachSimple.java}.
+/**
+ * The playground for reaching definition analysis. As an example, try {@code
+ * dataflow/manual/examples/ReachSimple.java}.
  */
 public class ReachingDefinitionPlayground {
     /**

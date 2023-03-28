@@ -108,7 +108,8 @@ public final class CFGVisualizeLauncher {
                     if (stringGraph == null) {
                         System.err.println(
                                 "Unexpected output from generating string control flow graph, shouldn't be"
-                                        + " null. Result map: " + res);
+                                        + " null. Result map: "
+                                        + res);
                         return;
                     }
                     System.out.println(stringGraph);

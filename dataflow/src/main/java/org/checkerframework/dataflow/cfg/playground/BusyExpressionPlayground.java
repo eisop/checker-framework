@@ -8,8 +8,9 @@ import org.checkerframework.dataflow.busyexpr.BusyExprTransfer;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeLauncher;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeOptions;
 
-/** The playground for busy expression analysis.
- * As an example, try {@code dataflow/manual/examples/BusyExprSimple.java}.
+/**
+ * The playground for busy expression analysis. As an example, try {@code
+ * dataflow/manual/examples/BusyExprSimple.java}.
  */
 public class BusyExpressionPlayground {
 
