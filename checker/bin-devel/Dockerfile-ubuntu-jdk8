@@ -1,9 +1,12 @@
 # Create a Docker image that is ready to run the main Checker Framework tests,
-# using JDK 8.
+# using OpenJDK 8.
 
 # "ubuntu" is the latest LTS release.  "ubuntu:rolling" is the latest release.
-FROM ubuntu
-MAINTAINER Michael Ernst <mernst@cs.washington.edu>
+# See releases at https://hub.docker.com/_/ubuntu for available images.
+# See https://packages.ubuntu.com/search?suite=default&section=all&arch=any&keywords=openjdk-20-jdk&searchon=names
+# to see what Ubuntu versions support a particular OpenJDK version.
+FROM ubuntu:22.10
+MAINTAINER Werner Dietl <wdietl@gmail.com>
 
 # According to
 # https://docs.docker.com/engine/userguide/eng-image/dockerfile_best-practices/:
@@ -20,6 +23,8 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get -qqy update \
 && apt-get -qqy install \
   ant \
+  binutils \
+  build-essential \
   cpp \
   git \
   gradle \
@@ -32,6 +37,8 @@ RUN export DEBIAN_FRONTEND=noninteractive \
   python3-requests \
   unzip \
   wget
+
+RUN pip3 install --no-cache-dir lithium-reducer PyGithub pyyaml
 
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get clean \

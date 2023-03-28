@@ -53,11 +53,10 @@ option, the Nullness Checker unsoundly assumes that arguments passed to
 non-null parameters in an invocation remain non-null after the invocation.
 This assumption is unsound in general, but it holds for most code.
 
-(EISOP note: contrary to this description, the new option `-AinvocationPreservesArgumentNullness`
-is on by default, so one would need to provide `-AinvocationPreservesArgumentNullness=false` to
-get the conservative behavior. EISOP keeps only the `-AconservativeArgumentNullnessAfterInvocation`
-option, introduced in version 3.25.0-eisop1, which this typetools option is based on.)
-
+(EISOP note: contrary to this description, one needs to use
+`-AinvocationPreservesArgumentNullness=false` to get the unsound behavior.
+EISOP keeps only the `-AconservativeArgumentNullnessAfterInvocation` option,
+introduced in version 3.25.0-eisop1, which this typetools option is based on.)
 
 **Implementation details:**
 
