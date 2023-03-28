@@ -14,6 +14,11 @@ import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeOptions;
  */
 public class BusyExpressionPlayground {
 
+    /** Class cannot be instantiated. */
+    private BusyExpressionPlayground() {
+        throw new AssertionError("Class BusyExpressionPlayground cannot be instantiated.");
+    }
+
     /**
      * Run busy expression analysis on a file.
      *

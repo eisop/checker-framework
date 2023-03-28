@@ -11,6 +11,11 @@ import org.checkerframework.dataflow.livevariable.LiveVarTransfer;
 /** The playground of live variable analysis. */
 public class LiveVariablePlayground {
 
+    /** Do not instantiate. */
+    private LiveVariablePlayground() {
+        throw new Error("do not instantiate");
+    }
+
     /**
      * Run live variable analysis on a file.
      *

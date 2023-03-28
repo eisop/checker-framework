@@ -13,6 +13,12 @@ import org.checkerframework.dataflow.reachingdef.ReachingDefinitionTransfer;
  * dataflow/manual/examples/ReachSimple.java}.
  */
 public class ReachingDefinitionPlayground {
+
+    /** Class cannot be instantiated. */
+    private ReachingDefinitionPlayground() {
+        throw new AssertionError("Class ReachingDefinitionPlayground cannot be instantiated.");
+    }
+
     /**
      * Run reaching definition analysis on a file.
      *
