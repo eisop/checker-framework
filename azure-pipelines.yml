@@ -16,7 +16,7 @@ jobs:
 #  * Anything daikon_* and guava_* depends on the framework jobs (all core CF tests for JDK 8, 11, and 17).
 #    (This avoids running these long-running jobs if something already failed in the framework.)
 
-- job: A_canary_jobs
+- job: canary_jobs
   dependsOn:
    - junit_tests_jdk17
    - nonjunit_tests_jdk17
@@ -28,9 +28,9 @@ jobs:
     vmImage: 'ubuntu-latest'
   steps:
   - bash: true
-    displayName: canary_jobs
+    displayName: A_canary_jobs
 
-- job: B_framework_jobs
+- job: framework_jobs
   dependsOn:
    - junit_tests_jdk8
    - junit_tests_jdk11
@@ -56,9 +56,9 @@ jobs:
     vmImage: 'ubuntu-latest'
   steps:
   - bash: true
-    displayName: framework_jobs
+    displayName: B_framework_jobs
 
-- job: C_required_jobs
+- job: required_jobs
   dependsOn:
    - framework_jobs
    # - daikon_jdk8
@@ -85,7 +85,7 @@ jobs:
     vmImage: 'ubuntu-latest'
   steps:
   - bash: true
-    displayName: required_jobs
+    displayName: C_required_jobs
 
 - job: junit_tests_jdk8
   dependsOn:
