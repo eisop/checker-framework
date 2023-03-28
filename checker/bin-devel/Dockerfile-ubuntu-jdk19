@@ -4,8 +4,9 @@
 # installing a LTS release of Java.)
 
 # "ubuntu" is the latest LTS release.  "ubuntu:rolling" is the latest release.
+# See releases at https://hub.docker.com/_/ubuntu
 FROM ubuntu:22.10
-MAINTAINER Michael Ernst <mernst@cs.washington.edu>
+MAINTAINER Werner Dietl <wdietl@gmail.com>
 
 # According to
 # https://docs.docker.com/engine/userguide/eng-image/dockerfile_best-practices/:
@@ -17,12 +18,12 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get -qqy install \
   openjdk-19-jdk
 
-# Known good combinations of JTReg and the JDK appear at https://builds.shipilev.net/jtreg/ .
-
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get -qqy update \
 && apt-get -qqy install \
   ant \
+  binutils \
+  build-essential \
   cpp \
   git \
   gradle \
@@ -43,11 +44,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 && tar xzvf apache-maven-3.8.6-bin.tar.gz
 ENV PATH="/apache-maven-3.8.6/bin:$PATH"
 
-# Bug fix to make jtreg runnable: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=754942;msg=2
-RUN export DEBIAN_FRONTEND=noninteractive \
-&& apt-get -qqy update \
-&& apt-get -qqy install \
-  default-jre-headless
+RUN pip3 install --no-cache-dir lithium-reducer PyGithub pyyaml
 
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get clean \
