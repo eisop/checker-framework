@@ -17,7 +17,7 @@ public class ConstantPropagationPlayground {
     }
 
     /**
-     * Run constant propagation for a specific file and create a PDF of the CFG.
+     * Run constant propagation analysis on a file.
      *
      * @param args command-line arguments
      */

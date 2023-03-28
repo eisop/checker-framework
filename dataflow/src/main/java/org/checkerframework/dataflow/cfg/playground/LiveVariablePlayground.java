@@ -12,7 +12,7 @@ import org.checkerframework.dataflow.livevariable.LiveVarTransfer;
 public class LiveVariablePlayground {
 
     /**
-     * Run live variable analysis for a specific file and create a PDF of the CFG in the end.
+     * Run live variable analysis on a file.
      *
      * @param args command-line arguments
      */

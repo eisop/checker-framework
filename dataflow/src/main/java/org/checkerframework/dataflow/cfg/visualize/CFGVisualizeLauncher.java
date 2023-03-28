@@ -55,7 +55,7 @@ public final class CFGVisualizeLauncher {
     }
 
     /**
-     * Generate the DOT representation of the CFG for a method, with a given analysis.
+     * Generate a visualization of the CFG of a method, with an optional analysis.
      *
      * @param <V> the abstract value type of the analysis
      * @param <S> the store type of the analysis
@@ -108,7 +108,7 @@ public final class CFGVisualizeLauncher {
                     if (stringGraph == null) {
                         System.err.println(
                                 "Unexpected output from generating string control flow graph, shouldn't be"
-                                        + " null.");
+                                        + " null. Result map: " + res);
                         return;
                     }
                     System.out.println(stringGraph);
