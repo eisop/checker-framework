@@ -347,7 +347,8 @@ jobs:
   steps:
   - checkout: self
   # Run test, but do not cause overall failure
-  - bash: ./checker/bin-devel/test-misc.sh | true
+  - bash: ./checker/bin-devel/test-misc.sh
+    continueOnError: true
     displayName: test-misc.sh
 
 - job: typecheck_jdk8
@@ -475,7 +476,8 @@ jobs:
   - checkout: self
     fetchDepth: 25
   # Run test, but do not cause overall failure
-  - bash: ./checker/bin-devel/test-daikon.sh | true
+  - bash: ./checker/bin-devel/test-daikon.sh
+    continueOnError: true
     displayName: test-daikon.sh
 
 - job: guava_jdk8
@@ -540,7 +542,8 @@ jobs:
   - checkout: self
     fetchDepth: 25
   # Run test, but do not cause overall failure
-  - bash: ./checker/bin-devel/test-guava.sh | true
+  - bash: ./checker/bin-devel/test-guava.sh
+    continueOnError: true
     displayName: test-guava.sh
 
 - job: plume_lib_jdk8
@@ -605,7 +608,8 @@ jobs:
   - checkout: self
     fetchDepth: 25
   # Run test, but do not cause overall failure
-  - bash: ./checker/bin-devel/test-plume-lib.sh | true
+  - bash: ./checker/bin-devel/test-plume-lib.sh
+    continueOnError: true
     displayName: test-plume-lib.sh
 
 - job: jspecify_tests_jdk8
