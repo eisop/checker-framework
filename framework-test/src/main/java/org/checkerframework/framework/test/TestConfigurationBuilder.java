@@ -66,8 +66,16 @@ public class TestConfigurationBuilder {
                         .addOption("-XDrawDiagnostics") // use short javac diagnostics
                         .addOption("-ApermitMissingJdk")
                         .addOption("-Anocheckjdk") // temporary, for backward compatibility
-                        .addOption("-AnoJreVersionCheck")
-                        .addSourceFiles(testSourceFiles);
+                        .addOption("-AnoJreVersionCheck");
+
+        // -Anomsgtext is needed to ensure expected errors can be matched, which is the
+        // right thing for most test cases.
+        // Note that this will be removed if -Adetailedmsgtext is added to the configuration.
+        // Check `TestConfigurationBuilder#removeConflicts()` for more details.
+        configBuilder.addOption("-Anomsgtext");
+
+        // TODO: decide whether this would be useful
+        // configBuilder.addOption("-AajavaChecks");
 
         if (outputClassDirectory != null) {
             configBuilder.addOption("-d", outputClassDirectory.getAbsolutePath());
@@ -78,14 +86,9 @@ public class TestConfigurationBuilder {
                 .addOption("-implicit:class")
                 .addOption("-classpath", classPath);
 
-        // -Anomsgtext is needed to ensure expected errors can be matched, which is the
-        // right thing for most test cases.
-        configBuilder.addOption("-Anomsgtext");
-
-        // TODO: decide whether this would be useful
-        // configBuilder.addOption("-AajavaChecks");
-
         configBuilder.addOptions(options);
+
+        configBuilder.addSourceFiles(testSourceFiles);
         return configBuilder;
     }
 
@@ -265,14 +268,17 @@ public class TestConfigurationBuilder {
             errors.add("Processors should not be added to the options list");
         }
 
+        StringBuilder jvmOptionKeys = new StringBuilder();
         for (String optionKey : optionMap.keySet()) {
             if (optionKey.startsWith("-J-")) {
-                errors.add(
-                        "Jvm options (i.e., options with prefix -J-) have no effects in test "
-                                + "configuration. If needed, please add them to your build file "
-                                + "instead.");
-                break;
+                jvmOptionKeys.append(optionKey).append('\n');
             }
+        }
+        if (jvmOptionKeys.length() > 0) {
+            errors.add(
+                    "The following JVM options have no effects in a configuration.\n"
+                            + jvmOptionKeys
+                            + "If needed, please add them to your build file instead.");
         }
 
         return errors;
