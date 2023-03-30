@@ -243,7 +243,7 @@ public class TestConfigurationBuilder {
      *   <li>There is an output directory specified for class files
      *   <li>There is no {@code -processor} option in the optionMap (it should be added by
      *       addProcessor instead)
-     *   <li>There is no options with prefix "-J-" in the optionMap
+     *   <li>There is no option with prefix "-J-" in the optionMap
      * </ul>
      *
      * @param requireProcessors whether or not to require that there is at least one processor
