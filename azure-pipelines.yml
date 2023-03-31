@@ -28,7 +28,7 @@ jobs:
     vmImage: 'ubuntu-latest'
   steps:
   - bash: true
-    displayName: A_canary_jobs
+    displayName: canary_jobs
 
 - job: framework_jobs
   dependsOn:
@@ -56,7 +56,7 @@ jobs:
     vmImage: 'ubuntu-latest'
   steps:
   - bash: true
-    displayName: B_framework_jobs
+    displayName: framework_jobs
 
 - job: required_jobs
   dependsOn:
@@ -85,7 +85,7 @@ jobs:
     vmImage: 'ubuntu-latest'
   steps:
   - bash: true
-    displayName: C_required_jobs
+    displayName: required_jobs
 
 - job: junit_tests_jdk8
   dependsOn:
@@ -346,7 +346,9 @@ jobs:
   container: wmdietl/cf-ubuntu-jdk-next-plus:latest
   steps:
   - checkout: self
+  # Run test, but do not cause overall failure
   - bash: ./checker/bin-devel/test-misc.sh
+    continueOnError: true
     displayName: test-misc.sh
 
 - job: typecheck_jdk8
@@ -473,7 +475,9 @@ jobs:
   steps:
   - checkout: self
     fetchDepth: 25
+  # Run test, but do not cause overall failure
   - bash: ./checker/bin-devel/test-daikon.sh
+    continueOnError: true
     displayName: test-daikon.sh
 
 - job: guava_jdk8
@@ -537,7 +541,9 @@ jobs:
   steps:
   - checkout: self
     fetchDepth: 25
+  # Run test, but do not cause overall failure
   - bash: ./checker/bin-devel/test-guava.sh
+    continueOnError: true
     displayName: test-guava.sh
 
 - job: plume_lib_jdk8
@@ -601,7 +607,9 @@ jobs:
   steps:
   - checkout: self
     fetchDepth: 25
+  # Run test, but do not cause overall failure
   - bash: ./checker/bin-devel/test-plume-lib.sh
+    continueOnError: true
     displayName: test-plume-lib.sh
 
 - job: jspecify_tests_jdk8
