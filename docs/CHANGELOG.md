@@ -33,6 +33,8 @@ However, you can still run the Checker Framework under JDK 8.
 
 **Closed issues:**
 
+#3785, #5436, #5708, #5717, #5720, #5721, #5727, #5732.
+
 
 Version 3.32.0-eisop1 (March 9, 2023)
 -------------------------------------
@@ -123,6 +125,7 @@ Removed methods from AnnotationUtils that are no longer useful:
 `createAnnotationMap`, `createAnnotationSet`, `createUnmodifiableAnnotationSet`.
 
 **Closed issues:**
+
 #5597.
 
 
@@ -137,6 +140,7 @@ Version 3.30.0 (February 2, 2023)
 Renamed Gradle task `copyJarsToDist` to `assembleForJavac`.
 
 **Closed issues:**
+
 #5402, #5486, #5489, #5519, #5524, #5526.
 
 
