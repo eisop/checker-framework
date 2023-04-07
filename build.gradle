@@ -571,6 +571,7 @@ def createCheckTypeTask(projectName, taskName, checker, args = []) {
       '10000',
       '-ArequirePrefixInWarningSuppressions',
       '-AwarnUnneededSuppressions',
+      '-AwarnRedundantAnnotations',
       '-AnoJreVersionCheck',
     ]
     options.compilerArgs += args

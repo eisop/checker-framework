@@ -1749,10 +1749,9 @@ public final class TreeUtils {
    * @return true if the given method is a compact canonical constructor
    */
   public static boolean isCompactCanonicalRecordConstructor(final MethodTree method) {
-    Symbol s = (Symbol) elementFromTree(method);
-    if (s == null) {
-      throw new BugInCF(
-          "TreeUtils.isCompactCanonicalRecordConstructor: null symbol for method tree: " + method);
+    Element e = elementFromTree(method);
+    if (!(e instanceof Symbol)) {
+      return false;
     }
     return (s.flags() & Flags_RECORD) != 0;
   }
