@@ -5,6 +5,8 @@ public class AnoymousAndInnerClass {
         public MyInnerClass(String s) {}
 
         public MyInnerClass(int... i) {}
+
+        public MyInnerClass(AnoymousAndInnerClass... o) {}
     }
 
     static class MyClass {
@@ -28,10 +30,12 @@ public class AnoymousAndInnerClass {
         this.new MyInnerClass(tainted) {};
         this.new MyInnerClass(1) {};
         this.new MyInnerClass(1, 2, 3) {};
+        this.new MyInnerClass(outer, outer, outer, outer) {};
         outer.new MyInnerClass() {};
         outer.new MyInnerClass(tainted) {};
         outer.new MyInnerClass(tainted) {};
         outer.new MyInnerClass(1) {};
         outer.new MyInnerClass(1, 2, 3) {};
+        outer.new MyInnerClass(outer, outer, outer, outer) {};
     }
 }

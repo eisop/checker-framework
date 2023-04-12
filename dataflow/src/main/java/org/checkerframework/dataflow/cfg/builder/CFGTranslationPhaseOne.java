@@ -1269,6 +1269,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * a list of {@link Node}s representing the arguments converted for a call of the method. This
      * method applies to both method invocations and constructor calls.
      *
+     * @param enclosingType a TypeMirror of the enclosing expression if appropriate
      * @param method an ExecutableElement representing a method to be called
      * @param methodType an ExecutableType representing the type of the method call
      * @param actualExprs a List of argument expressions to a call
@@ -1276,6 +1277,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      *     to this method
      */
     protected List<Node> convertCallArguments(
+            @Nullable TypeMirror enclosingType,
             ExecutableElement method,
             ExecutableType methodType,
             List<? extends ExpressionTree> actualExprs) {
@@ -1311,6 +1313,18 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             } else {
                 assert lastParamType instanceof ArrayType
                         : "variable argument formal must be an array";
+                // Handle anonymous constructors that extend a class with an enclosing type.
+                if (method.getKind() == ElementKind.CONSTRUCTOR
+                        && method.getEnclosingElement().getSimpleName().contentEquals("")
+                        && enclosingType != null) {
+                    TypeMirror p0tm = formals.get(0);
+                    // We only care about Java 11+, in which the arguments do NOT have
+                    // the enclosing expression as its first argument by default.
+                    if (types.isSameType(enclosingType, p0tm)
+                            && !System.getProperty("java.version").startsWith("1.8.")) {
+                        lastArgIndex--;
+                    }
+                }
                 // Apply method invocation conversion to lastArgIndex arguments and use the
                 // remaining ones to initialize an array.
                 for (int i = 0; i < lastArgIndex; i++) {
@@ -1502,7 +1516,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             // See also BaseTypeVisitor.visitMethodInvocation and QualifierPolymorphism.annotate.
             arguments = Collections.emptyList();
         } else {
-            arguments = convertCallArguments(method, TreeUtils.typeFromUse(tree), actualExprs);
+            arguments =
+                    convertCallArguments(null, method, TreeUtils.typeFromUse(tree), actualExprs);
         }
 
         // TODO: lock the receiver for synchronized methods
@@ -3495,7 +3510,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         List<? extends ExpressionTree> actualExprs = tree.getArguments();
 
         List<Node> arguments =
-                convertCallArguments(constructor, TreeUtils.typeFromUse(tree), actualExprs);
+                convertCallArguments(
+                        enclosingType, constructor, TreeUtils.typeFromUse(tree), actualExprs);
 
         // TODO: for anonymous classes, don't use the identifier alone.
         // See https://github.com/typetools/checker-framework/issues/890 .
