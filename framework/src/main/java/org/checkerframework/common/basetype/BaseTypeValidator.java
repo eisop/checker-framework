@@ -242,6 +242,9 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * hierarchies. To ensure that this subtlety is not lost on users, we report
      * "bound.type.incompatible" and print the bounds along with the invalid type rather than a
      * "type.invalid".
+     *
+     * @param type the type with invalid bounds
+     * @param tree where to report the error
      */
     protected void reportInvalidBounds(final AnnotatedTypeMirror type, final Tree tree) {
         final String label;
@@ -279,6 +282,12 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         reportValidityResult("type.invalid", type, p);
     }
 
+    /**
+     * Report an "annotations.on.use" error for the given type and tree.
+     *
+     * @param type the type with invalid annotations
+     * @param p the tree where to report the error
+     */
     protected void reportInvalidAnnotationsOnUse(final AnnotatedTypeMirror type, final Tree p) {
         reportValidityResultOnUnannotatedType("type.invalid.annotations.on.use", type, p);
     }

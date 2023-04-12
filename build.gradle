@@ -6,7 +6,7 @@ buildscript {
             // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
             // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
             // Only works on JDK 11+.
-            classpath 'com.diffplug.spotless:spotless-plugin-gradle:6.16.0'
+            classpath 'com.diffplug.spotless:spotless-plugin-gradle:6.17.0'
         }
     }
 }
@@ -148,7 +148,6 @@ if (isJava11plus) {
             greclipse()
         }
     }
-
 }
 
 allprojects {
@@ -272,7 +271,8 @@ allprojects {
                         // must call toString() to convert GString to String
                         "${it}/**/*.java".toString(),
                         "${it}/**/*.ajava".toString()
-                    ]}
+                    ]
+                }
                 target targets
 
                 def doNotFormat = [
@@ -364,7 +364,6 @@ allprojects {
                 // on changed lines.  Enable -Xwerror in the future when all Javadoc exists.
                 // options.addBooleanOption('Xwerror', true)
                 options.addStringOption('Xmaxwarns', '99999')
-
             }
         }
 
@@ -1081,7 +1080,6 @@ subprojects {
                             "Skipped: ${result.skippedTestCount}, " +
                             "Time elapsed: ${seconds} sec\n"
                 }
-
             }
         }
 

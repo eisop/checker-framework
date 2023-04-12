@@ -220,7 +220,6 @@ public class TreeBuilder {
      * @return a MemberSelectTree to dereference the length of the array
      */
     public MemberSelectTree buildArrayLengthAccess(ExpressionTree expression) {
-
         return TreeUtils.Select(maker, expression, symtab.lengthVar);
     }
 
