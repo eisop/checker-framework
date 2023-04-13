@@ -17,8 +17,8 @@ import java.util.Objects;
  * A node for new object creation.
  *
  * <pre>
- *   <em>new constructor(arg1, arg2, ...)</em>
- *   <em>enclosingExpression.new constructor(arg1, arg2, ...)</em>
+ *   <em>new identifier(arg1, arg2, ...)</em>
+ *   <em>enclosingExpression.new identifier(arg1, arg2, ...)</em>
  * </pre>
  */
 public class ObjectCreationNode extends Node {
@@ -29,9 +29,8 @@ public class ObjectCreationNode extends Node {
     /** The enclosing expression of the object creation or null. */
     protected final @Nullable Node enclosingExpression;
 
-    // TODO: See issue 376
-    /** The constructor node of the object creation. */
-    protected final Node constructor;
+    /** The identifier node of the object creation. */
+    protected final Node identifier;
 
     /** The arguments of the object creation. */
     protected final List<Node> arguments;
@@ -44,32 +43,32 @@ public class ObjectCreationNode extends Node {
      *
      * @param tree the NewClassTree
      * @param enclosingExpr the enclosing expression Node if it exists, or null
-     * @param constructor the constructor node
+     * @param identifier the identifier node
      * @param arguments the passed arguments
      * @param classbody the ClassDeclarationNode
      */
     public ObjectCreationNode(
             NewClassTree tree,
             @Nullable Node enclosingExpr,
-            Node constructor,
+            Node identifier,
             List<Node> arguments,
             @Nullable ClassDeclarationNode classbody) {
         super(TreeUtils.typeOf(tree));
         this.tree = tree;
         this.enclosingExpression = enclosingExpr;
-        this.constructor = constructor;
+        this.identifier = identifier;
         this.arguments = arguments;
         this.classbody = classbody;
     }
 
     /**
-     * Returns the constructor node
+     * Returns the identifier node
      *
-     * @return the constructor node
+     * @return the identifier node
      */
     @Pure
-    public Node getConstructor() {
-        return constructor;
+    public Node getIdentifierNode() {
+        return identifier;
     }
 
     /**
@@ -132,7 +131,7 @@ public class ObjectCreationNode extends Node {
         if (enclosingExpression != null) {
             sb.append(enclosingExpression + ".");
         }
-        sb.append("new " + constructor + "(");
+        sb.append("new " + identifier + "(");
         sb.append(StringsPlume.join(", ", arguments));
         sb.append(")");
         if (classbody != null) {
@@ -149,23 +148,13 @@ public class ObjectCreationNode extends Node {
         if (!(obj instanceof ObjectCreationNode)) {
             return false;
         }
-        ObjectCreationNode other = (ObjectCreationNode) obj;
-        // TODO: See issue 376
-        if (constructor == null && other.getConstructor() != null) {
-            return false;
-        }
-
-        return getConstructor().equals(other.getConstructor())
-                && getArguments().equals(other.getArguments())
-                && (getEnclosingExpression() == null
-                        ? null == other.getEnclosingExpression()
-                        : getEnclosingExpression().equals(other.getEnclosingExpression()));
+        return tree.equals(((ObjectCreationNode) obj).getTree());
     }
 
     @Override
     @SideEffectFree
     public int hashCode() {
-        return Objects.hash(enclosingExpression, constructor, arguments);
+        return Objects.hash(enclosingExpression, identifier, arguments);
     }
 
     @Override
@@ -175,7 +164,7 @@ public class ObjectCreationNode extends Node {
         if (enclosingExpression != null) {
             list.add(enclosingExpression);
         }
-        list.add(constructor);
+        list.add(identifier);
         list.addAll(arguments);
         return list;
     }
