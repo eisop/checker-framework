@@ -371,6 +371,11 @@ public class NullnessAnnotatedTypeFactory
         NULLABLE_ALIASES.forEach(annotation -> addAliasedTypeAnnotation(annotation, NULLABLE));
         POLYNULL_ALIASES.forEach(annotation -> addAliasedTypeAnnotation(annotation, POLYNULL));
 
+        // Add compatible annotations from alias file
+        addAliasedTypeAnnotation(NonNull.class);
+        addAliasedTypeAnnotation(Nullable.class);
+        addAliasedTypeAnnotation(PolyNull.class);
+
         // Add compatibility annotations:
         addAliasedTypeAnnotation(
                 "org.checkerframework.checker.nullness.compatqual.PolyNullDecl", POLYNULL);

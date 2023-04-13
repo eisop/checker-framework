@@ -99,6 +99,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Inherited;
 import java.lang.annotation.Target;
 import java.net.URL;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -313,6 +314,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * this stores annotations on all element locations such as in anonymous class bodies.
      */
     protected @Nullable AnnotationFileElementTypes currentFileAjavaTypes;
+
+    /**
+     * Alias files provided via -Aaliases={files}
+     */
+    private List<File> aliasFiles = new ArrayList<>();
 
     /**
      * A cache used to store elements whose declaration annotations have already been stored by
@@ -587,6 +593,24 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             this.typeInformationPresenter = null;
         }
 
+        // Alias files provided via -Aaliases command-line option
+        if (checker.hasOption("aliases")) {
+            String aliasesOption = checker.getOption("aliases");
+            for (String path : Arrays.asList(aliasesOption.split(File.pathSeparator))) {
+                File file = new File(path);
+                if (file.exists()) {
+                    addAliasFilesToList(file, aliasFiles);
+                } else {
+                    // The file doesn't exist.  Maybe it is relative to the current working directory, so try
+                    // that.
+                    file = new File(System.getProperty("user.dir"), path);
+                    if (file.exists()) {
+                        addAliasFilesToList(file, aliasFiles);
+                    }
+                }
+            }
+        }
+
         /* NO-AFU
         if (checker.hasOption("infer")) {
           checkInvalidOptionsInferSignatures();
@@ -689,6 +713,25 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 ElementUtils.getTypeElement(processingEnv, EnsuresQualifierIf.List.class).asType();
 
         mergeStubsWithSource = checker.hasOption("mergeStubsWithSource");
+    }
+
+    /**
+     * Side-effects {@code aliases} by adding annotation files of the given file type to it.
+     *
+     * @param location of a file, or a directory. If a alias file, add it to the {@code aliases} list.
+     *                 If a directory, recurse on all files contained in it.
+     * @param aliases the list to add the found files to
+     */
+    private void addAliasFilesToList(
+        File location, List<File> aliases) {
+        if (location.isFile() && location.getName().endsWith(".alias")) {
+            aliases.add(location);
+        } else if (location.isDirectory()) {
+            File[] directoryContents = location.listFiles();
+            for (File enclosed : directoryContents) {
+                addAliasFilesToList(enclosed, aliases);
+            }
+        }
     }
 
     /**
@@ -3499,7 +3542,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param aliasClass the class of the aliased annotation
      * @param canonicalAnno the canonical annotation
      */
-    protected void addAliasedTypeAnnotation(Class<?> aliasClass, AnnotationMirror canonicalAnno) {
+    protected final void addAliasedTypeAnnotation(Class<?> aliasClass, AnnotationMirror canonicalAnno) {
         if (getSupportedTypeQualifiers().contains(aliasClass)) {
             throw new BugInCF(
                     "AnnotatedTypeFactory: alias %s should not be in type hierarchy for %s",
@@ -3543,10 +3586,36 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     // aliasName is annotated as @FullyQualifiedName because there is no way to confirm that the
     // name of an external annotation is a canoncal name.
-    protected void addAliasedTypeAnnotation(
+    protected final void addAliasedTypeAnnotation(
             @FullyQualifiedName String aliasName, AnnotationMirror canonicalAnno) {
 
         aliases.put(aliasName, new Alias(aliasName, canonicalAnno, false, null, null));
+    }
+
+    /**
+     * Adds the annotations specified via the -Aalises argument as an alias for the canonical annotation
+     * class {@code canonicalAnno} that will be used by the Checker Framework in the alias's place.
+     *
+     * @param canonicalAnno the canonical annotation class
+     */
+    protected final void addAliasedTypeAnnotation(Class<? extends Annotation> canonicalAnno) {
+        AnnotationMirror anno = AnnotationBuilder.fromClass(elements, canonicalAnno);
+        String annoName = canonicalAnno.getSimpleName();
+        for (File file : aliasFiles) {
+            String fileName = file.getName().replace(".alias", "");
+            if (annoName.equals(fileName)) {
+                try {
+                    List<String> lines = Files.readAllLines(file.toPath());
+                    lines.forEach(line -> {
+                        if (!line.startsWith("//")) {
+                            addAliasedTypeAnnotation(line, anno);
+                        }
+                    });
+                } catch (IOException e) {
+                    throw new BugInCF(e);
+                }
+            }
+        }
     }
 
     /**
@@ -3613,7 +3682,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param ignorableElements a list of elements that can be safely dropped when the elements are
      *     being copied over
      */
-    protected void addAliasedTypeAnnotation(
+    protected final void addAliasedTypeAnnotation(
             Class<?> aliasClass,
             Class<?> canonicalClass,
             boolean copyElements,
@@ -3645,7 +3714,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     // aliasName is annotated as @FullyQualifiedName because there is no way to confirm that the
     // name of an external annotation is a canoncal name.
-    protected void addAliasedTypeAnnotation(
+    protected final void addAliasedTypeAnnotation(
             @FullyQualifiedName String aliasName,
             Class<?> canonicalAnno,
             boolean copyElements,
