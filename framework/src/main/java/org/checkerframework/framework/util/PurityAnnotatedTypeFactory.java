@@ -2,6 +2,7 @@ package org.checkerframework.framework.util;
 
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
+import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.qual.PurityUnqualified;
 
 import java.lang.annotation.Annotation;
@@ -14,6 +15,10 @@ public class PurityAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     public PurityAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
+
+        // Add compatible annotations from alias file
+        addAliasedTypeAnnotation(Pure.class);
+
         this.postInit();
     }
 

@@ -1,6 +1,5 @@
 package org.checkerframework.checker.test.junit;
 
-import org.checkerframework.checker.nullness.NullnessChecker;
 import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
 import org.junit.runners.Parameterized.Parameters;
 
@@ -17,10 +16,10 @@ public class CustomAliasTest extends CheckerFrameworkPerDirectoryTest {
      */
     public CustomAliasTest(List<File> testFiles) {
         super(
-            testFiles,
-            org.checkerframework.checker.nullness.NullnessChecker.class,
-            "custom-alias",
-            "-Aaliases=tests/custom-alias");
+                testFiles,
+                org.checkerframework.checker.nullness.NullnessChecker.class,
+                "custom-alias",
+                "-Aaliases=tests/custom-alias");
     }
 
     @Parameters

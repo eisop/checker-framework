@@ -111,6 +111,9 @@ public class SignednessAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
         addAliasedTypeAnnotation("jdk.jfr.Unsigned", UNSIGNED);
 
+        // Add compatible annotations from alias file
+        addAliasedTypeAnnotation(Unsigned.class);
+
         postInit();
     }
 
