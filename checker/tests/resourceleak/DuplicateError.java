@@ -7,7 +7,7 @@ import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 
 public class DuplicateError {
   void m(List<?> values) {
-    @SuppressWarnings("lambda.param")
+    @SuppressWarnings("lambda.param.type.incompatible")
     List<String> stringVals = DECollectionsPlume.mapList((Object o) -> (String) o, values);
   }
 }
