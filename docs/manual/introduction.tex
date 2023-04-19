@@ -767,10 +767,15 @@ Partially-annotated libraries
   default annotations and suppress all type-checking warnings; see
   Section~\ref{compiling-libraries}.
 
-\item \<-Aaliases=\emph{aliases}>
-  Lists the fully qualified path of the aliases, separated by new line. File should end with .alias.
-  This enable user to define custom annotations to be treated as Checker Framework annotations.\item \<-Alint=>
-  The name of the alias file should be the name of the Checker Framework annotation.
+\item \<-AaliasedTypeAnnos=\emph{aliases}>
+  Lists the fully qualified path of the aliases for type annotations, separated by `;`.
+  The format should be `FQN.canonical.Qualifier1:FQN.alias1.Qual1,FQN.alias2.Qual1;FQN.canonical.Qualifier2:FQN.alias1.Qual2`.
+  This enable user to define custom type annotations to be treated as Checker Framework annotations.
+
+\item \<-AaliasedDeclAnnos=\emph{aliases}>
+  Lists the fully qualified path of the aliases for declaration annotations, separated by `;`.
+  The format should be `FQN.canonical.Qualifier1:FQN.alias1.Qual1,FQN.alias2.Qual1;FQN.canonical.Qualifier2:FQN.alias1.Qual2`.
+  This enable user to define custom declaration annotations to be treated as Checker Framework annotations.
 
 \end{itemize}
 

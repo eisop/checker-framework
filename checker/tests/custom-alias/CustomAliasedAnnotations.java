@@ -18,4 +18,12 @@ public class CustomAliasedAnnotations {
         // :: error: (dereference.of.nullable)
         nble.toString();
     }
+
+    @org.checkerframework.dataflow.qual.Pure
+    // :: warning: (purity.deterministic.void.method)
+    void setMutable1() {}
+
+    @Pure
+    // :: warning: (purity.deterministic.void.method)
+    void setMutable2() {}
 }

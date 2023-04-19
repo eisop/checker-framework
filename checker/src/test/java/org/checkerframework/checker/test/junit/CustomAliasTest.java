@@ -6,11 +6,11 @@ import org.junit.runners.Parameterized.Parameters;
 import java.io.File;
 import java.util.List;
 
-/** JUnit tests for the custom aliasing using Nullness checker. */
+/** JUnit tests for the custom aliasing. */
 public class CustomAliasTest extends CheckerFrameworkPerDirectoryTest {
 
     /**
-     * Create a CustomAliasTest with Nullness checker
+     * Create a CustomAliasTest with Nullness checker and Purity checker
      *
      * @param testFiles the files containing test code, which will be type-checked
      */
@@ -19,7 +19,10 @@ public class CustomAliasTest extends CheckerFrameworkPerDirectoryTest {
                 testFiles,
                 org.checkerframework.checker.nullness.NullnessChecker.class,
                 "custom-alias",
-                "-Aaliases=tests/custom-alias");
+                "-AaliasedTypeAnnos=org.checkerframework.checker.nullness.qual.NonNull:custom.alias.NonNull;"
+                        + "org.checkerframework.checker.nullness.qual.Nullable:custom.alias.Nullable",
+                "-AaliasedDeclAnnos=org.checkerframework.dataflow.qual.Pure:custom.alias.Pure",
+                "-AcheckPurityAnnotations");
     }
 
     @Parameters

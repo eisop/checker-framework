@@ -2,8 +2,9 @@ Version 3.32.0-eisop2 (March ?, 2023)
 -------------------------------------
 
 **User-visible changes:**
-The new command-line argument `-Aaliases={folders}` enables user to define custom annotations
-to be treat as Checker Framework annotations.
+The new command-line argument `-AaliasedTypeAnnos={aliases}` and `-AaliasedDeclAnnos={aliases}`
+enables user to define custom type and declaraction annotations to be treat as
+Checker Framework annotations.
 
 **Implementation details:**
 

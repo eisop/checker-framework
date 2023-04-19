@@ -99,7 +99,6 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Inherited;
 import java.lang.annotation.Target;
 import java.net.URL;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -314,9 +313,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * this stores annotations on all element locations such as in anonymous class bodies.
      */
     protected @Nullable AnnotationFileElementTypes currentFileAjavaTypes;
-
-    /** Alias files provided via -Aaliases={files} */
-    private List<File> aliasFiles = new ArrayList<>();
 
     /**
      * A cache used to store elements whose declaration annotations have already been stored by
@@ -591,20 +587,28 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             this.typeInformationPresenter = null;
         }
 
-        // Alias files provided via -Aaliases command-line option
-        if (checker.hasOption("aliases")) {
-            String aliasesOption = checker.getOption("aliases");
-            for (String path : Arrays.asList(aliasesOption.split(File.pathSeparator))) {
-                File file = new File(path);
-                if (file.exists()) {
-                    addAliasFilesToList(file, aliasFiles);
-                } else {
-                    // The file doesn't exist.  Maybe it is relative to the current working
-                    // directory, so try that.
-                    file = new File(System.getProperty("user.dir"), path);
-                    if (file.exists()) {
-                        addAliasFilesToList(file, aliasFiles);
-                    }
+        // Alias provided via -AaliasedTypeAnnos command-line option
+        if (checker.hasOption("aliasedTypeAnnos")) {
+            String aliasesOption = checker.getOption("aliasedTypeAnnos");
+            String[] annos = aliasesOption.split(";");
+            for (String alias : annos) {
+                Pair<Class<? extends Annotation>, String[]> aliasPair =
+                        parseAliasesFromString(alias);
+                for (String a : aliasPair.second) {
+                    addAliasedTypeAnnotation(a.trim(), aliasPair.first);
+                }
+            }
+        }
+
+        // Alias provided via -AaliasedDeclAnnos command-line option
+        if (checker.hasOption("aliasedDeclAnnos")) {
+            String aliasesOption = checker.getOption("aliasedDeclAnnos");
+            String[] annos = aliasesOption.split(";");
+            for (String alias : annos) {
+                Pair<Class<? extends Annotation>, String[]> aliasPair =
+                        parseAliasesFromString(alias);
+                for (String a : aliasPair.second) {
+                    addAliasedDeclAnnotation(a.trim(), aliasPair.first);
                 }
             }
         }
@@ -714,21 +718,31 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Side-effects {@code aliases} by adding annotation files of the given file type to it.
+     * Parse a string in the form of FQN.canonical.Qualifier:FQN.alias1.Qual1,FQN.alias2.Qual2 to a
+     * pair of (FQN.canonical.Qualifier.class, ["FQN.alias1.Qual1", "FQN.alias2.Qual2"])
      *
-     * @param location of a file, or a directory. If a alias file, add it to the {@code aliases}
-     *     list. If a directory, recurse on all files contained in it.
-     * @param aliases the list to add the found files to
+     * @param alias in the form of FQN.canonical.Qualifier:FQN.alias1.Qual1,FQN.alias2.Qual2
+     * @return a pair with the first argument being the canonical qalifier class and the second
+     *     arugment being the list of aliases with fully qualified names
      */
-    private void addAliasFilesToList(File location, List<File> aliases) {
-        if (location.isFile() && location.getName().endsWith(".alias")) {
-            aliases.add(location);
-        } else if (location.isDirectory()) {
-            File[] directoryContents = location.listFiles();
-            for (File enclosed : directoryContents) {
-                addAliasFilesToList(enclosed, aliases);
-            }
+    @SuppressWarnings("unchecked")
+    private Pair<Class<? extends Annotation>, String[]> parseAliasesFromString(String alias) {
+        String[] parts = alias.split(":");
+        if (parts.length != 2) {
+            throw new UserError(
+                    String.format(
+                            "Alias argument must be in the form of FQN.canonical.Qualifier:FQN.alias1.Qual1,FQN.alias2.Qual2, got %s instead.",
+                            alias));
         }
+        Class<? extends Annotation> canonical;
+        try {
+            canonical = (Class<? extends Annotation>) Class.forName(parts[0].trim());
+        } catch (ClassNotFoundException | ClassCastException ex) {
+            throw new UserError(
+                    String.format("The path %s is an invalid annotation path.", parts[0]));
+        }
+        String[] aliases = parts[1].trim().split("\\s*,\\s*");
+        return Pair.of(canonical, aliases);
     }
 
     /**
@@ -1193,11 +1207,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
         return getBundledTypeQualifiers();
-    }
-
-    /** Apply all aliases provided via -Aaliases to the type qualifiers supported */
-    public final void applyAliases() {
-        createSupportedTypeQualifiers().forEach(anno -> addAliasedTypeAnnotation(anno));
     }
 
     /**
@@ -3589,40 +3598,30 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     // aliasName is annotated as @FullyQualifiedName because there is no way to confirm that the
     // name of an external annotation is a canoncal name.
-    protected final void addAliasedTypeAnnotation(
+    protected void addAliasedTypeAnnotation(
             @FullyQualifiedName String aliasName, AnnotationMirror canonicalAnno) {
 
         aliases.put(aliasName, new Alias(aliasName, canonicalAnno, false, null, null));
     }
 
     /**
-     * Adds the annotations specified via the -Aalises argument as an alias for the canonical
-     * annotation class {@code canonicalAnno} that will be used by the Checker Framework in the
-     * alias's place.
+     * Adds the annotation, whose fully-qualified name is given by {@code aliasName}, as an alias
+     * for the canonical annotation {@code canonicalAnno} that will be used by the Checker Framework
+     * in the alias's place.
      *
-     * @param canonicalAnno the canonical annotation class
+     * <p>Use this method if the alias class is not necessarily on the classpath at Checker
+     * Framework compile and run time. Otherwise, use {@link #addAliasedTypeAnnotation(Class,
+     * AnnotationMirror)} which prevents the possibility of a typo in the class name.
+     *
+     * @param aliasName the canonical name of the aliased annotation
+     * @param canonicalAnno the canonical annotation
      */
-    // signature is suppressed because there is no way to reason about parsed strings
-    @SuppressWarnings("signature")
-    protected final void addAliasedTypeAnnotation(Class<? extends Annotation> canonicalAnno) {
+    // aliasName is annotated as @FullyQualifiedName because there is no way to confirm that the
+    // name of an external annotation is a canoncal name.
+    protected void addAliasedTypeAnnotation(
+            @FullyQualifiedName String aliasName, Class<? extends Annotation> canonicalAnno) {
         AnnotationMirror anno = AnnotationBuilder.fromClass(elements, canonicalAnno);
-        String annoName = canonicalAnno.getSimpleName();
-        for (File file : aliasFiles) {
-            String fileName = file.getName().replace(".alias", "");
-            if (annoName.equals(fileName)) {
-                try {
-                    List<String> lines = Files.readAllLines(file.toPath());
-                    lines.forEach(
-                            line -> {
-                                if (!line.startsWith("//")) {
-                                    addAliasedTypeAnnotation(line, anno);
-                                }
-                            });
-                } catch (IOException e) {
-                    throw new BugInCF(e);
-                }
-            }
-        }
+        addAliasedTypeAnnotation(aliasName, anno);
     }
 
     /**
@@ -3689,7 +3688,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param ignorableElements a list of elements that can be safely dropped when the elements are
      *     being copied over
      */
-    protected final void addAliasedTypeAnnotation(
+    protected void addAliasedTypeAnnotation(
             Class<?> aliasClass,
             Class<?> canonicalClass,
             boolean copyElements,
@@ -3721,7 +3720,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     // aliasName is annotated as @FullyQualifiedName because there is no way to confirm that the
     // name of an external annotation is a canoncal name.
-    protected final void addAliasedTypeAnnotation(
+    protected void addAliasedTypeAnnotation(
             @FullyQualifiedName String aliasName,
             Class<?> canonicalAnno,
             boolean copyElements,
@@ -3764,6 +3763,18 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         } else {
             return alias.canonical;
         }
+    }
+
+    /**
+     * Add the annotation {@code alias} as an alias for the declaration annotation {@code
+     * annotation}.
+     *
+     * @param alias the fully-qualified name of the alias annotation
+     * @param annotation the class of the canonical annotation
+     */
+    protected void addAliasedDeclAnnotation(String alias, Class<? extends Annotation> annotation) {
+        AnnotationMirror anno = AnnotationBuilder.fromClass(elements, annotation);
+        addAliasedDeclAnnotation(alias, annotation.getCanonicalName(), anno);
     }
 
     /**

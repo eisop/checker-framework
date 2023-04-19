@@ -127,11 +127,12 @@ import io.github.classgraph.ClassGraph;
     "skipDefs",
     "onlyDefs",
 
-    // Additional annotation allias
-    // -Aaliases={folders} containing alias files (.alias)
-    // The file name should be the name of the corresponding Checker Framework qualifier
-    // The file content should be the alias path separated by \n
-    "aliases",
+    // Additional type and decl annotation allias
+    // -AaliasedTypeAnnos={aliases} or -AaliasedDeclAnnos={aliases}
+    // with `aliases` in the form of
+    // `FQN.canonical.Qualifier1:FQN.alias1.Qual1,FQN.alias2.Qual1;FQN.canonical.Qualifier2:FQN.alias1.Qual2`
+    "aliasedTypeAnnos",
+    "aliasedDeclAnnos",
 
     // Unsoundly assume all methods have no side effects, are deterministic, or both.
     "assumeSideEffectFree",
