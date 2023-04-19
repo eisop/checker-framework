@@ -533,8 +533,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param checker the {@link SourceChecker} to which this factory belongs
      * @throws IllegalArgumentException if either argument is {@code null}
      */
-    // signature is suppressed because there is no way to reason about parsed strings
-    @SuppressWarnings("signature")
     public AnnotatedTypeFactory(BaseTypeChecker checker) {
         uid = ++uidCounter;
         this.processingEnv = checker.getProcessingEnvironment();
@@ -594,10 +592,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             String aliasesOption = checker.getOption("aliasedTypeAnnos");
             String[] annos = aliasesOption.split(";");
             for (String alias : annos) {
-                Pair<Class<? extends Annotation>, String[]> aliasPair =
+                Pair<Class<? extends Annotation>, @FullyQualifiedName String[]> aliasPair =
                         parseAliasesFromString(alias);
-                for (String a : aliasPair.second) {
-                    addAliasedTypeAnnotation(a.trim(), aliasPair.first);
+                for (@FullyQualifiedName String a : aliasPair.second) {
+                    addAliasedTypeAnnotation(a, aliasPair.first);
                 }
             }
         }
@@ -607,10 +605,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             String aliasesOption = checker.getOption("aliasedDeclAnnos");
             String[] annos = aliasesOption.split(";");
             for (String alias : annos) {
-                Pair<Class<? extends Annotation>, String[]> aliasPair =
+                Pair<Class<? extends Annotation>, @FullyQualifiedName String[]> aliasPair =
                         parseAliasesFromString(alias);
                 for (String a : aliasPair.second) {
-                    addAliasedDeclAnnotation(a.trim(), aliasPair.first);
+                    addAliasedDeclAnnotation(a, aliasPair.first);
                 }
             }
         }
@@ -727,8 +725,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return a pair with the first argument being the canonical qalifier class and the second
      *     arugment being the list of aliases with fully qualified names
      */
-    @SuppressWarnings("unchecked")
-    private Pair<Class<? extends Annotation>, String[]> parseAliasesFromString(String alias) {
+    // signature is suppressed because there is no way to reason about parsed strings
+    @SuppressWarnings({"unchecked", "signature"})
+    private Pair<Class<? extends Annotation>, @FullyQualifiedName String[]> parseAliasesFromString(
+            String alias) {
         String[] parts = alias.split(":");
         if (parts.length != 2) {
             throw new UserError(
