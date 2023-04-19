@@ -533,6 +533,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param checker the {@link SourceChecker} to which this factory belongs
      * @throws IllegalArgumentException if either argument is {@code null}
      */
+    // signature is suppressed because there is no way to reason about parsed strings
+    @SuppressWarnings("signature")
     public AnnotatedTypeFactory(BaseTypeChecker checker) {
         uid = ++uidCounter;
         this.processingEnv = checker.getProcessingEnvironment();
@@ -3553,8 +3555,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param aliasClass the class of the aliased annotation
      * @param canonicalAnno the canonical annotation
      */
-    protected final void addAliasedTypeAnnotation(
-            Class<?> aliasClass, AnnotationMirror canonicalAnno) {
+    protected void addAliasedTypeAnnotation(Class<?> aliasClass, AnnotationMirror canonicalAnno) {
         if (getSupportedTypeQualifiers().contains(aliasClass)) {
             throw new BugInCF(
                     "AnnotatedTypeFactory: alias %s should not be in type hierarchy for %s",
@@ -3772,7 +3773,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param alias the fully-qualified name of the alias annotation
      * @param annotation the class of the canonical annotation
      */
-    protected void addAliasedDeclAnnotation(String alias, Class<? extends Annotation> annotation) {
+    protected void addAliasedDeclAnnotation(
+            @FullyQualifiedName String alias, Class<? extends Annotation> annotation) {
         AnnotationMirror anno = AnnotationBuilder.fromClass(elements, annotation);
         addAliasedDeclAnnotation(alias, annotation.getCanonicalName(), anno);
     }
