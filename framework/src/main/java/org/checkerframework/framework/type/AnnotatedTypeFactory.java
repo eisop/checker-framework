@@ -5817,8 +5817,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
    * @param methodAnnos the method or constructor annotations to modify
    */
   /* NO-AFU
-  public void prepareMethodForWriting(AMethod methodAnnos) {
-      // This implementation does nothing.
+  public void wpiPrepareMethodForWriting(AMethod methodAnnos) {
+    // This implementation does nothing.
   }
   */
 
@@ -5829,9 +5829,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
    * @param methodAnnos the method or constructor annotations to modify
    */
   /* NO-AFU
-  public void prepareMethodForWriting(
-          WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos methodAnnos) {
-      // This implementation does nothing.
+  public void wpiPrepareMethodForWriting(
+      WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos methodAnnos) {
+    // This implementation does nothing.
   }
   */
 
