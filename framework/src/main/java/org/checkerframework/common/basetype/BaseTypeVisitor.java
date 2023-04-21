@@ -1567,10 +1567,15 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         AnnotatedTypeMirror defaultAtms = atypeFactory.getDefaultAnnotations(tree, type);
+        if (defaultAtms.getAnnotations().isEmpty()) {
+            // Type variable uses don't have default annotations. So, any explicit annotation is not
+            // redundant.
+            return;
+        }
         for (AnnotationMirror explicitAnno : explicitAnnos) {
-            AnnotationMirror defaultAtm = defaultAtms.getAnnotationInHierarchy(explicitAnno);
-            if (AnnotationUtils.areSame(defaultAtm, explicitAnno)) {
-                checker.reportWarning(tree, "redundant.anno", defaultAtm);
+            AnnotationMirror defaultAM = defaultAtms.getAnnotationInHierarchy(explicitAnno);
+            if (AnnotationUtils.areSame(defaultAM, explicitAnno)) {
+                checker.reportWarning(tree, "redundant.anno", defaultAM);
             }
         }
     }
