@@ -7,23 +7,23 @@ import java.io.File;
 import java.util.List;
 
 /** JUnit tests for the Interning checker when AwarnRedundantAnnotations is used. */
-public class InterningWarnRedundantAnnosTest extends CheckerFrameworkPerDirectoryTest {
+public class InterningWarnRedundantAnnotationsTest extends CheckerFrameworkPerDirectoryTest {
 
     /**
-     * Create a InterningWarnRedundantAnnosTest.
+     * Create a InterningWarnRedundantAnnotationsTest.
      *
      * @param testFiles the files containing test code, which will be type-checked
      */
-    public InterningWarnRedundantAnnosTest(List<File> testFiles) {
+    public InterningWarnRedundantAnnotationsTest(List<File> testFiles) {
         super(
                 testFiles,
                 org.checkerframework.checker.interning.InterningChecker.class,
-                "interning-warnredundantannos",
+                "interning-warnredundantannotations",
                 "-AwarnRedundantAnnotations");
     }
 
     @Parameterized.Parameters
     public static String[] getTestDirs() {
-        return new String[] {"interning-warnredundantannos"};
+        return new String[] {"interning-warnredundantannotations"};
     }
 }
