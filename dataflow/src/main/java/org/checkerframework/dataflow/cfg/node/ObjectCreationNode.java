@@ -148,7 +148,17 @@ public class ObjectCreationNode extends Node {
         if (!(obj instanceof ObjectCreationNode)) {
             return false;
         }
-        return tree.equals(((ObjectCreationNode) obj).getTree());
+        ObjectCreationNode other = (ObjectCreationNode) obj;
+        // TODO: See issue 376
+        if (identifier == null && other.getIdentifierNode() != null) {
+            return false;
+        }
+
+        return getIdentifierNode().equals(other.getIdentifierNode())
+                && getArguments().equals(other.getArguments())
+                && (getEnclosingExpression() == null
+                        ? null == other.getEnclosingExpression()
+                        : getEnclosingExpression().equals(other.getEnclosingExpression()));
     }
 
     @Override
