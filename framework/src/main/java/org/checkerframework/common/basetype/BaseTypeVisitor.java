@@ -1555,7 +1555,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      *     this type and location.
      */
     protected void warnRedundantAnnotations(Tree tree, AnnotatedTypeMirror type) {
-        if (!warnRedundantAnnotations) {
+        // Type variable uses don't have default annotations. So, any explicit annotation is not
+        // redundant.
+        if (!warnRedundantAnnotations || (type.getKind() == TypeKind.TYPEVAR)) {
             return;
         }
         AnnotationMirrorSet explicitAnnos = type.getExplicitAnnotations();
@@ -1566,11 +1568,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             throw new BugInCF("unexpected null tree argument!");
         }
 
-        AnnotatedTypeMirror defaultAtms = atypeFactory.getDefaultAnnotations(tree, type);
+        AnnotatedTypeMirror defaultType = atypeFactory.getDefaultAnnotations(tree, type);
         for (AnnotationMirror explicitAnno : explicitAnnos) {
-            AnnotationMirror defaultAtm = defaultAtms.getAnnotationInHierarchy(explicitAnno);
-            if (AnnotationUtils.areSame(defaultAtm, explicitAnno)) {
-                checker.reportWarning(tree, "redundant.anno", defaultAtm);
+            AnnotationMirror defaultAM = defaultType.getAnnotationInHierarchy(explicitAnno);
+            if (AnnotationUtils.areSame(defaultAM, explicitAnno)) {
+                checker.reportWarning(tree, "redundant.anno", defaultAM);
             }
         }
     }
