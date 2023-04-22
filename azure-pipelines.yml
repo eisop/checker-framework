@@ -503,7 +503,7 @@ jobs:
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk11:latest
-  timeoutInMinutes: 75
+  timeoutInMinutes: 80
   steps:
   - checkout: self
     fetchDepth: 25
@@ -515,7 +515,7 @@ jobs:
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk17:latest
-  timeoutInMinutes: 75
+  timeoutInMinutes: 80
   steps:
   - checkout: self
     fetchDepth: 25
@@ -528,7 +528,7 @@ jobs:
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk-latest:latest
-  timeoutInMinutes: 75
+  timeoutInMinutes: 80
   steps:
   - checkout: self
     fetchDepth: 25
