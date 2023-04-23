@@ -133,7 +133,7 @@ public class CFGProcessor extends BasicTypeProcessor {
          *
          * @param cfg control flow graph
          */
-        CFGProcessResult(final ControlFlowGraph cfg) {
+        /*package-private*/ CFGProcessResult(final ControlFlowGraph cfg) {
             this(cfg, true, null);
         }
 
@@ -142,7 +142,7 @@ public class CFGProcessor extends BasicTypeProcessor {
          *
          * @param errMsg the error message
          */
-        CFGProcessResult(final String errMsg) {
+        /*package-private*/ CFGProcessResult(final String errMsg) {
             this(null, false, errMsg);
         }
 
@@ -160,11 +160,14 @@ public class CFGProcessor extends BasicTypeProcessor {
             this.errMsg = errMsg;
         }
 
-        /** Check if the CFG process succeeded. */
+        /**
+         * Check if the CFG process succeeded.
+         *
+         * @return true if the CFG process succeeded
+         */
         @Pure
         @EnsuresNonNullIf(expression = "getCFG()", result = true)
-        // TODO: add once #1307 is fixed
-        // @EnsuresNonNullIf(expression = "getErrMsg()", result = false)
+        @EnsuresNonNullIf(expression = "getErrMsg()", result = false)
         @SuppressWarnings("nullness:contracts.conditional.postcondition.not.satisfied")
         public boolean isSuccess() {
             return isSuccess;
