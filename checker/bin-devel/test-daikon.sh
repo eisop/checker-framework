@@ -12,7 +12,7 @@ source "$SCRIPTDIR"/build.sh
 
 
 # daikon-typecheck: 15 minutes
-"$SCRIPTDIR/.plume-scripts/git-clone-related" eisop-codespecs daikon --depth 50
+"$SCRIPTDIR/.plume-scripts/git-clone-related" eisop-codespecs daikon -q --single-branch --depth 50
 cd ../daikon
 # Use a known-working commit ID. Update this in a separate PR to confirm all tests pass.
 git checkout 3848b2f9459a5012a771ed2213f18336f1509866
