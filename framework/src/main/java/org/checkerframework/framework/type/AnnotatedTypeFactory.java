@@ -613,7 +613,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 Pair<Class<? extends Annotation>, @FullyQualifiedName String[]> aliasPair =
                         parseAliasesFromString(alias);
                 for (String a : aliasPair.second) {
-                    addAliasedDeclAnnotation(a, aliasPair.first);
+                    AnnotationMirror anno = AnnotationBuilder.fromClass(elements, aliasPair.first);
+                    addAliasedDeclAnnotation(a, aliasPair.first.getCanonicalName(), anno);
                 }
             }
         }
