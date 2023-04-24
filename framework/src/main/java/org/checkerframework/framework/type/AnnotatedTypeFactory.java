@@ -605,7 +605,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         // Alias provided via -AaliasedDeclAnnos command-line option
         // This can only be used for annotations without attributes,
-        // e.g. this will not be usable to declare an alias for @Regex(2).
+        // e.g. this will not be usable to declare an alias for @EnsuresNonNull(...).
         if (checker.hasOption("aliasedDeclAnnos")) {
             String aliasesOption = checker.getOption("aliasedDeclAnnos");
             String[] annos = aliasesOption.split(";");
