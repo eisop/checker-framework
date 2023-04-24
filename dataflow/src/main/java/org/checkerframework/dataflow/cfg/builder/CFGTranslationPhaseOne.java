@@ -1363,7 +1363,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         new ArrayCreationNode(
                                 wrappedVarargs,
                                 lastParamType,
-                                /*dimensions=*/ Collections.emptyList(),
+                                /* dimensions= */ Collections.emptyList(),
                                 initializers);
                 extendWithNode(lastArgument);
 
