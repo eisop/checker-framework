@@ -596,8 +596,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             for (String alias : annos) {
                 Pair<Class<? extends Annotation>, @FullyQualifiedName String[]> aliasPair =
                         parseAliasesFromString(alias);
+                AnnotationMirror anno = AnnotationBuilder.fromClass(elements, aliasPair.first);
                 for (@FullyQualifiedName String a : aliasPair.second) {
-                    AnnotationMirror anno = AnnotationBuilder.fromClass(elements, aliasPair.first);
                     addAliasedTypeAnnotation(a, anno);
                 }
             }
@@ -612,8 +612,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             for (String alias : annos) {
                 Pair<Class<? extends Annotation>, @FullyQualifiedName String[]> aliasPair =
                         parseAliasesFromString(alias);
+                AnnotationMirror anno = AnnotationBuilder.fromClass(elements, aliasPair.first);
                 for (String a : aliasPair.second) {
-                    AnnotationMirror anno = AnnotationBuilder.fromClass(elements, aliasPair.first);
                     addAliasedDeclAnnotation(a, aliasPair.first.getCanonicalName(), anno);
                 }
             }
@@ -3751,19 +3751,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         } else {
             return alias.canonical;
         }
-    }
-
-    /**
-     * Add the annotation {@code alias} as an alias for the declaration annotation {@code
-     * annotation}.
-     *
-     * @param alias the fully-qualified name of the alias annotation
-     * @param annotation the class of the canonical annotation
-     */
-    protected void addAliasedDeclAnnotation(
-            @FullyQualifiedName String alias, Class<? extends Annotation> annotation) {
-        AnnotationMirror anno = AnnotationBuilder.fromClass(elements, annotation);
-        addAliasedDeclAnnotation(alias, annotation.getCanonicalName(), anno);
     }
 
     /**
