@@ -588,23 +588,23 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         // Alias provided via -AaliasedTypeAnnos command-line option
-        // This can only be used for annotations without attributes,
-        // e.g. this will not be usable to declare an alias for @Regex(2).
+        // This can only be used for annotations whose attribute has the same name and order as the
+        // canonical.
+        // e.g. this will not be usable to declare an alias @Regex(string) for @Regex(value).
         if (checker.hasOption("aliasedTypeAnnos")) {
             String aliasesOption = checker.getOption("aliasedTypeAnnos");
             String[] annos = aliasesOption.split(";");
             for (String alias : annos) {
                 Pair<Class<? extends Annotation>, @FullyQualifiedName String[]> aliasPair =
                         parseAliasesFromString(alias);
-                AnnotationMirror anno = AnnotationBuilder.fromClass(elements, aliasPair.first);
                 for (@FullyQualifiedName String a : aliasPair.second) {
-                    addAliasedTypeAnnotation(a, anno);
+                    addAliasedTypeAnnotation(a, aliasPair.first, true);
                 }
             }
         }
 
         // Alias provided via -AaliasedDeclAnnos command-line option
-        // This can only be used for annotations without attributes,
+        // This can only be used for annotations without attributes.
         // e.g. this will not be usable to declare an alias for @EnsuresNonNull(...).
         if (checker.hasOption("aliasedDeclAnnos")) {
             String aliasesOption = checker.getOption("aliasedDeclAnnos");
