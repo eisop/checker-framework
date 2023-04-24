@@ -588,6 +588,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         // Alias provided via -AaliasedTypeAnnos command-line option
+        // This can only be used for annotations without attributes,
+        // e.g. this will not be usable to declare an alias for @Regex(2).
         if (checker.hasOption("aliasedTypeAnnos")) {
             String aliasesOption = checker.getOption("aliasedTypeAnnos");
             String[] annos = aliasesOption.split(";");
@@ -595,12 +597,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 Pair<Class<? extends Annotation>, @FullyQualifiedName String[]> aliasPair =
                         parseAliasesFromString(alias);
                 for (@FullyQualifiedName String a : aliasPair.second) {
-                    addAliasedTypeAnnotation(a, aliasPair.first);
+                    AnnotationMirror anno = AnnotationBuilder.fromClass(elements, aliasPair.first);
+                    addAliasedTypeAnnotation(a, anno);
                 }
             }
         }
 
         // Alias provided via -AaliasedDeclAnnos command-line option
+        // This can only be used for annotations without attributes,
+        // e.g. this will not be usable to declare an alias for @Regex(2).
         if (checker.hasOption("aliasedDeclAnnos")) {
             String aliasesOption = checker.getOption("aliasedDeclAnnos");
             String[] annos = aliasesOption.split(";");
@@ -718,8 +723,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Parse a string in the form of {@code FQN.canonical.Qualifier:FQN.alias1.Qual1,FQN.alias2.Qual2} to a
-     * pair of {@code (FQN.canonical.Qualifier.class, ["FQN.alias1.Qual1", "FQN.alias2.Qual2"])}.
+     * Parse a string in the form of {@code
+     * FQN.canonical.Qualifier:FQN.alias1.Qual1,FQN.alias2.Qual2} to a pair of {@code
+     * (FQN.canonical.Qualifier.class, ["FQN.alias1.Qual1", "FQN.alias2.Qual2"])}.
      *
      * @param alias in the form of FQN.canonical.Qualifier:FQN.alias1.Qual1,FQN.alias2.Qual2
      * @return a pair with the first argument being the canonical qualifier class and the second
@@ -3603,26 +3609,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             @FullyQualifiedName String aliasName, AnnotationMirror canonicalAnno) {
 
         aliases.put(aliasName, new Alias(aliasName, canonicalAnno, false, null, null));
-    }
-
-    /**
-     * Adds the annotation, whose fully-qualified name is given by {@code aliasName}, as an alias
-     * for the canonical annotation {@code canonicalAnno} that will be used by the Checker Framework
-     * in the alias's place.
-     *
-     * <p>Use this method if the alias class is not necessarily on the classpath at Checker
-     * Framework compile and run time. Otherwise, use {@link #addAliasedTypeAnnotation(Class,
-     * AnnotationMirror)} which prevents the possibility of a typo in the class name.
-     *
-     * @param aliasName the canonical name of the aliased annotation
-     * @param canonicalAnno the canonical annotation
-     */
-    // aliasName is annotated as @FullyQualifiedName because there is no way to confirm that the
-    // name of an external annotation is a canoncal name.
-    protected void addAliasedTypeAnnotation(
-            @FullyQualifiedName String aliasName, Class<? extends Annotation> canonicalAnno) {
-        AnnotationMirror anno = AnnotationBuilder.fromClass(elements, canonicalAnno);
-        addAliasedTypeAnnotation(aliasName, anno);
     }
 
     /**

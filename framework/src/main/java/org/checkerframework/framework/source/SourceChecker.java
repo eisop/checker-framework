@@ -127,13 +127,6 @@ import io.github.classgraph.ClassGraph;
     "skipDefs",
     "onlyDefs",
 
-    // Additional type and declaration annotation aliases
-    // -AaliasedTypeAnnos={aliases} or -AaliasedDeclAnnos={aliases}
-    // where `aliases` is in the format
-    // `FQN.canonical.Qualifier1:FQN.alias1.Qual1,FQN.alias2.Qual1;FQN.canonical.Qualifier2:FQN.alias1.Qual2`
-    "aliasedTypeAnnos",
-    "aliasedDeclAnnos",
-
     // Unsoundly assume all methods have no side effects, are deterministic, or both.
     "assumeSideEffectFree",
     "assumeDeterministic",
@@ -259,6 +252,18 @@ import io.github.classgraph.ClassGraph;
     // See https://github.com/typetools/checker-framework/issues/2173
     // org.checkerframework.framework.type.ElementAnnotationApplier.apply
     "ignoreInvalidAnnotationLocations",
+
+    ///
+    /// Compatibility options
+    ///
+
+    // Additional type and declaration annotation aliases
+    // -AaliasedTypeAnnos={aliases} or -AaliasedDeclAnnos={aliases}
+    // where `aliases` is in the format
+    // `FQN.canonical.Qualifier1:FQN.alias1.Qual1,FQN.alias2.Qual1;FQN.canonical.Qualifier2:FQN.alias1.Qual2`
+    // org.checkerframework.framework.type.AnnotatedTypeFactory
+    "aliasedTypeAnnos",
+    "aliasedDeclAnnos",
 
     ///
     /// Partially-annotated libraries
