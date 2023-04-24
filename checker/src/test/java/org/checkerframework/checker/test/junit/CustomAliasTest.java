@@ -10,7 +10,7 @@ import java.util.List;
 public class CustomAliasTest extends CheckerFrameworkPerDirectoryTest {
 
     /**
-     * Create a CustomAliasTest with Nullness checker and Purity checker
+     * Create a CustomAliasTest with the Nullness Checker and the Purity Checker.
      *
      * @param testFiles the files containing test code, which will be type-checked
      */

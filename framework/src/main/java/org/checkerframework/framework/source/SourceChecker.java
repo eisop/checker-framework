@@ -127,9 +127,9 @@ import io.github.classgraph.ClassGraph;
     "skipDefs",
     "onlyDefs",
 
-    // Additional type and decl annotation allias
+    // Additional type and declaration annotation aliases
     // -AaliasedTypeAnnos={aliases} or -AaliasedDeclAnnos={aliases}
-    // with `aliases` in the form of
+    // where `aliases` is in the format
     // `FQN.canonical.Qualifier1:FQN.alias1.Qual1,FQN.alias2.Qual1;FQN.canonical.Qualifier2:FQN.alias1.Qual2`
     "aliasedTypeAnnos",
     "aliasedDeclAnnos",

@@ -718,12 +718,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Parse a string in the form of FQN.canonical.Qualifier:FQN.alias1.Qual1,FQN.alias2.Qual2 to a
-     * pair of (FQN.canonical.Qualifier.class, ["FQN.alias1.Qual1", "FQN.alias2.Qual2"])
+     * Parse a string in the form of {@code FQN.canonical.Qualifier:FQN.alias1.Qual1,FQN.alias2.Qual2} to a
+     * pair of {@code (FQN.canonical.Qualifier.class, ["FQN.alias1.Qual1", "FQN.alias2.Qual2"])}.
      *
      * @param alias in the form of FQN.canonical.Qualifier:FQN.alias1.Qual1,FQN.alias2.Qual2
-     * @return a pair with the first argument being the canonical qalifier class and the second
-     *     arugment being the list of aliases with fully qualified names
+     * @return a pair with the first argument being the canonical qualifier class and the second
+     *     argument being the list of aliases with fully qualified names
      */
     // signature is suppressed because there is no way to reason about parsed strings
     @SuppressWarnings({"unchecked", "signature"})
@@ -741,7 +741,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             canonical = (Class<? extends Annotation>) Class.forName(parts[0].trim());
         } catch (ClassNotFoundException | ClassCastException ex) {
             throw new UserError(
-                    String.format("The path %s is an invalid annotation path.", parts[0]));
+                    String.format("The name %s is an invalid annotation name.", parts[0]));
         }
         String[] aliases = parts[1].trim().split("\\s*,\\s*");
         return Pair.of(canonical, aliases);

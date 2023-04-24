@@ -768,14 +768,16 @@ Partially-annotated libraries
   Section~\ref{compiling-libraries}.
 
 \item \<-AaliasedTypeAnnos=\emph{aliases}>
-  Lists the fully qualified path of the aliases for type annotations, separated by `;`.
-  The format should be `FQN.canonical.Qualifier1:FQN.alias1.Qual1,FQN.alias2.Qual1;FQN.canonical.Qualifier2:FQN.alias1.Qual2`.
-  This enable user to define custom type annotations to be treated as Checker Framework annotations.
+  Defines custom type annotation aliases for the canonical annotations of a checker.
+  `aliases` is in the format
+  
+`FQN.canonical.Qualifier1:FQN.alias1.Qual1,FQN.alias2.Qual1;FQN.canonical.Qualifier2:FQN.alias1.Qual2`.
 
 \item \<-AaliasedDeclAnnos=\emph{aliases}>
-  Lists the fully qualified path of the aliases for declaration annotations, separated by `;`.
-  The format should be `FQN.canonical.Qualifier1:FQN.alias1.Qual1,FQN.alias2.Qual1;FQN.canonical.Qualifier2:FQN.alias1.Qual2`.
-  This enable user to define custom declaration annotations to be treated as Checker Framework annotations.
+  Defines custom declaration annotation aliases for the canonical annotations of a checker.
+  `aliases` is in the format
+  
+`FQN.canonical.Qualifier1:FQN.alias1.Qual1,FQN.alias2.Qual1;FQN.canonical.Qualifier2:FQN.alias1.Qual2`.
 
 \end{itemize}
 
