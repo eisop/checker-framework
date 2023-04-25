@@ -587,10 +587,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             this.typeInformationPresenter = null;
         }
 
-        // Alias provided via -AaliasedTypeAnnos command-line option
-        // This can only be used for annotations whose attribute has the same name and order as the
-        // canonical.
-        // e.g. this will not be usable to declare an alias @Regex(string) for @Regex(value).
+        // Alias provided via -AaliasedTypeAnnos command-line option.
+        // This can only be used for annotations whose attributes have the same names as in the
+        // canonical annotation, e.g. this will not be usable to declare an alias @Regex(index = 5) for @Regex(value = 5).
         if (checker.hasOption("aliasedTypeAnnos")) {
             String aliasesOption = checker.getOption("aliasedTypeAnnos");
             String[] annos = aliasesOption.split(";");
@@ -603,8 +602,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             }
         }
 
-        // Alias provided via -AaliasedDeclAnnos command-line option
-        // This can only be used for annotations without attributes.
+        // Alias provided via -AaliasedDeclAnnos command-line option.
+        // This can only be used for annotations without attributes,
         // e.g. this will not be usable to declare an alias for @EnsuresNonNull(...).
         if (checker.hasOption("aliasedDeclAnnos")) {
             String aliasesOption = checker.getOption("aliasedDeclAnnos");
@@ -724,7 +723,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Parse a string in the form of {@code
+     * Parse a string in the format {@code
      * FQN.canonical.Qualifier:FQN.alias1.Qual1,FQN.alias2.Qual2} to a pair of {@code
      * (FQN.canonical.Qualifier.class, ["FQN.alias1.Qual1", "FQN.alias2.Qual2"])}.
      *

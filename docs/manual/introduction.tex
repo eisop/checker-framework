@@ -842,8 +842,8 @@ Compatibility options
 
 `FQN.canonical.Qualifier1:FQN.alias1.Qual1,FQN.alias2.Qual1;FQN.canonical.Qualifier2:FQN.alias1.Qual2`.
 
-This can only be used for annotations whose attribute has the same name and order as the canonical,
-e.g. this will not be usable to declare an alias @Regex(string) for @Regex(value).
+This can only be used for annotations whose attributes have the same names as in the canonical
+annotation, e.g. this will not be usable to declare an alias `@Regex(index = 5)` for `@Regex(value = 5)`.
 When in a Unix system, `;` needs to be escaped.
 
 \item \<-AaliasedDeclAnnos=\emph{aliases}>
