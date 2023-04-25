@@ -9,7 +9,7 @@ import java.util.Map;
 
 public class Issue2247 {
 
-    static @NonNull class DeclaredClass {}
+    @NonNull static class DeclaredClass {}
 
     class ValidUseType {
 

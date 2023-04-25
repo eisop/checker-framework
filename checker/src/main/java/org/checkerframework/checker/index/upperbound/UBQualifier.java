@@ -1457,9 +1457,9 @@ public abstract class UBQualifier {
         }
     }
 
-    /** Represents the bottom upperbound qualifier. */
+    /** The bottom qualifier for the upperbound type system. */
     private static class UpperBoundBottomQualifier extends UBQualifier {
-        /** The canonical bottom upperbound qualifier. */
+        /** The canonical bottom qualifier for the upperbound type system. */
         public static final UBQualifier BOTTOM = new UpperBoundBottomQualifier();
 
         /** This class is a singleton. */

@@ -55,8 +55,8 @@ public interface TestConfiguration {
      *
      * <pre>{@code
      * Map(
-     *   "-AprintAllQualifiers" => null
-     *    "-classpath" => "myDir1:myDir2"
+     *     "-AprintAllQualifiers" => null
+     *     "-classpath" => "myDir1:myDir2"
      * )
      * }</pre>
      *

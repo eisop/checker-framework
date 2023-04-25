@@ -28,9 +28,10 @@ import java.util.Set;
  */
 public class TestConfigurationBuilder {
 
-    // Presented first are static helper methods that reduce configuration building to a method call
+    // Presented first are static helper methods that reduce configuration building to a method
+    // call.
     // However, if you need more complex configuration or custom configuration, use the
-    // constructors provided below
+    // constructors provided below.
 
     /**
      * This creates a builder for the default configuration used by Checker Framework JUnit tests.
@@ -59,10 +60,23 @@ public class TestConfigurationBuilder {
                         .setShouldEmitDebugInfo(shouldEmitDebugInfo)
                         .addProcessors(processors)
                         .addOption("-Xmaxerrs", "9999")
+                        .addOption("-Xmaxwarns", "9999")
                         .addOption("-g")
                         .addOption("-Xlint:unchecked")
+                        .addOption("-Xlint:deprecation")
                         .addOption("-XDrawDiagnostics") // use short javac diagnostics
-                        .addSourceFiles(testSourceFiles);
+                        .addOption("-ApermitMissingJdk")
+                        .addOption("-Anocheckjdk") // temporary, for backward compatibility
+                        .addOption("-AnoJreVersionCheck");
+
+        // -Anomsgtext is needed to ensure expected errors can be matched, which is the
+        // right thing for most test cases.
+        // Note that this will be removed if -Adetailedmsgtext is added to the configuration.
+        // Check `TestConfigurationBuilder#removeConflicts()` for more details.
+        configBuilder.addOption("-Anomsgtext");
+
+        // TODO: decide whether this would be useful
+        // configBuilder.addOption("-AajavaChecks");
 
         if (outputClassDirectory != null) {
             configBuilder.addOption("-d", outputClassDirectory.getAbsolutePath());
@@ -74,6 +88,8 @@ public class TestConfigurationBuilder {
                 .addOption("-classpath", classPath);
 
         configBuilder.addOptions(options);
+
+        configBuilder.addSourceFiles(testSourceFiles);
         return configBuilder;
     }
 
@@ -228,6 +244,7 @@ public class TestConfigurationBuilder {
      *   <li>There is an output directory specified for class files
      *   <li>There is no {@code -processor} option in the optionMap (it should be added by
      *       addProcessor instead)
+     *   <li>There is no option with prefix "-J-" in the optionMap
      * </ul>
      *
      * @param requireProcessors whether or not to require that there is at least one processor
@@ -252,59 +269,150 @@ public class TestConfigurationBuilder {
             errors.add("Processors should not be added to the options list");
         }
 
+        StringBuilder jvmOptionKeys = new StringBuilder();
+        for (String optionKey : optionMap.keySet()) {
+            if (optionKey.startsWith("-J-")) {
+                jvmOptionKeys.append(optionKey).append('\n');
+            }
+        }
+        if (jvmOptionKeys.length() > 0) {
+            errors.add(
+                    "The following JVM options have no effects in a configuration.\n"
+                            + jvmOptionKeys
+                            + "If needed, please add them to your build file instead.");
+        }
+
         return errors;
     }
 
+    /** Ensures there are no options conflicting with each other. */
+    protected void removeConflicts() {
+        final Map<String, @Nullable String> optionMap = options.getOptions();
+        if (optionMap.containsKey("-Adetailedmsgtext")) {
+            // If `detailedmsgtext` is specified, remove `nomsgtext`.
+            options.removeOption("-Anomsgtext");
+        }
+    }
+
+    /**
+     * Adds the given path option to {@code this}.
+     *
+     * @param key the key to add
+     * @param toAppend the path to append
+     * @return the current object {@code this}
+     */
     public TestConfigurationBuilder adddToPathOption(String key, String toAppend) {
-        options.addToPathOption(key, toAppend);
+        this.options.addToPathOption(key, toAppend);
         return this;
     }
 
+    /**
+     * Adds the given diagnostics file to {@code this}.
+     *
+     * @param diagnostics the diagnostics file to add to {@code this}
+     * @return the current object {@code this}
+     */
     public TestConfigurationBuilder addDiagnosticFile(File diagnostics) {
         this.diagnosticFiles.add(diagnostics);
         return this;
     }
 
+    /**
+     * Adds the given diagnostics files to {@code this}.
+     *
+     * @param diagnostics diagnostics files to add to {@code this}
+     * @return the current object {@code this}
+     */
     public TestConfigurationBuilder addDiagnosticFiles(Iterable<File> diagnostics) {
         this.diagnosticFiles = catListAndIterable(diagnosticFiles, diagnostics);
         return this;
     }
 
+    /**
+     * Sets the diagnostics files of {@code this}.
+     *
+     * @param diagnosticFiles diagnostics files to set on {@code this}
+     * @return the current object {@code this}
+     */
     public TestConfigurationBuilder setDiagnosticFiles(List<File> diagnosticFiles) {
         this.diagnosticFiles = new ArrayList<>(diagnosticFiles);
         return this;
     }
 
+    /**
+     * Adds the given source file to {@code this}.
+     *
+     * @param sourceFile source file to add to {@code this}
+     * @return the current object {@code this}
+     */
     public TestConfigurationBuilder addSourceFile(File sourceFile) {
-        testSourceFiles.add(sourceFile);
+        this.testSourceFiles.add(sourceFile);
         return this;
     }
 
+    /**
+     * Adds the given source files to {@code this}.
+     *
+     * @param sourceFiles source files to add to {@code this}
+     * @return the current object {@code this}
+     */
     public TestConfigurationBuilder addSourceFiles(Iterable<File> sourceFiles) {
-        testSourceFiles = catListAndIterable(testSourceFiles, sourceFiles);
+        this.testSourceFiles = catListAndIterable(testSourceFiles, sourceFiles);
         return this;
     }
 
+    /**
+     * Sets the source files of {@code this}.
+     *
+     * @param sourceFiles source files to set on {@code this}
+     * @return the current object {@code this}
+     */
     public TestConfigurationBuilder setSourceFiles(List<File> sourceFiles) {
         this.testSourceFiles = new ArrayList<>(sourceFiles);
         return this;
     }
 
+    /**
+     * Sets the given options on {@code this}.
+     *
+     * @param options options to set on {@code this}
+     * @return the current object {@code this}
+     */
     public TestConfigurationBuilder setOptions(Map<String, @Nullable String> options) {
         this.options.setOptions(options);
         return this;
     }
 
+    /**
+     * Adds the given option to {@code this}.
+     *
+     * @param option option to add to {@code this}
+     * @return the current object {@code this}
+     */
     public TestConfigurationBuilder addOption(String option) {
         this.options.addOption(option);
         return this;
     }
 
+    /**
+     * Adds the given option and value to {@code this}.
+     *
+     * @param option option to add to {@code this}
+     * @param value value to add
+     * @return the current object {@code this}
+     */
     public TestConfigurationBuilder addOption(String option, String value) {
         this.options.addOption(option, value);
         return this;
     }
 
+    /**
+     * Adds the given option to {@code this} if the value is non-empty.
+     *
+     * @param option option to add to {@code this}
+     * @param value value to add, iff it is non-empty
+     * @return the current object {@code this}
+     */
     public TestConfigurationBuilder addOptionIfValueNonEmpty(String option, String value) {
         if (value != null && !value.isEmpty()) {
             return addOption(option, value);
@@ -313,6 +421,12 @@ public class TestConfigurationBuilder {
         return this;
     }
 
+    /**
+     * Adds the given options to {@code this}.
+     *
+     * @param options options to add to {@code this}
+     * @return the current object {@code this}
+     */
     @SuppressWarnings("nullness:return.type.incompatible") // need @PolyInitialized annotation
     @RequiresNonNull("this.options")
     public TestConfigurationBuilder addOptions(
@@ -322,6 +436,12 @@ public class TestConfigurationBuilder {
         return this;
     }
 
+    /**
+     * Adds the given options to {@code this}.
+     *
+     * @param newOptions options to add to {@code this}
+     * @return the current object {@code this}
+     */
     public TestConfigurationBuilder addOptions(Iterable<String> newOptions) {
         this.options.addOptions(newOptions);
         return this;
@@ -366,16 +486,32 @@ public class TestConfigurationBuilder {
         return this;
     }
 
+    /**
+     * Sets {@code this} to output debug info.
+     *
+     * @return the current object {@code this}
+     */
     public TestConfigurationBuilder emitDebugInfo() {
         this.shouldEmitDebugInfo = true;
         return this;
     }
 
+    /**
+     * Sets {@code this} to not output debug info.
+     *
+     * @return the current object {@code this}
+     */
     public TestConfigurationBuilder dontEmitDebugInfo() {
         this.shouldEmitDebugInfo = false;
         return this;
     }
 
+    /**
+     * Sets {@code this} to output debug info depending on the parameter.
+     *
+     * @param shouldEmitDebugInfo whether to emit debug info
+     * @return the current object {@code this}
+     */
     public TestConfigurationBuilder setShouldEmitDebugInfo(boolean shouldEmitDebugInfo) {
         this.shouldEmitDebugInfo = shouldEmitDebugInfo;
         return this;
@@ -405,6 +541,7 @@ public class TestConfigurationBuilder {
      * @return a TestConfiguration using the settings in this builder
      */
     public TestConfiguration validateThenBuild(boolean requireProcessors) {
+        removeConflicts();
         List<String> errors = validate(requireProcessors);
         if (errors.isEmpty()) {
             return build();
@@ -453,8 +590,14 @@ public class TestConfigurationBuilder {
         return newList;
     }
 
+    /** The output directory for tests. */
     public static final String TESTS_OUTPUTDIR = "tests.outputDir";
 
+    /**
+     * Determine the output directory from the {@code tests.outputDir} property.
+     *
+     * @return the output directory
+     */
     public static File getOutputDirFromProperty() {
         return new File(
                 System.getProperty(
@@ -462,6 +605,11 @@ public class TestConfigurationBuilder {
                         "tests" + File.separator + "build" + File.separator + "testclasses"));
     }
 
+    /**
+     * Determine the default classpath from the {@code tests.classpath} property.
+     *
+     * @return the default classpath
+     */
     public static String getDefaultClassPath() {
         String classpath =
                 System.getProperty("tests.classpath", "tests" + File.separator + "build");
