@@ -415,7 +415,8 @@ public abstract class JavaExpression {
                             "nullness:assignment" // enclosingTypeElement(ExecutableElement):
                     // @NonNull
                     )
-                    @NonNull TypeElement methodType = ElementUtils.enclosingTypeElement(invokedMethod);
+                    @NonNull TypeElement methodType =
+                            ElementUtils.enclosingTypeElement(invokedMethod);
                     methodReceiver = new ClassName(methodType.asType());
                 } else {
                     methodReceiver = getReceiver(mn);
