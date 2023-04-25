@@ -589,7 +589,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         // Alias provided via -AaliasedTypeAnnos command-line option.
         // This can only be used for annotations whose attributes have the same names as in the
-        // canonical annotation, e.g. this will not be usable to declare an alias @Regex(index = 5) for @Regex(value = 5).
+        // canonical annotation, e.g. this will not be usable to declare an alias @Regex(index = 5)
+        // for @Regex(value = 5).
         if (checker.hasOption("aliasedTypeAnnos")) {
             String aliasesOption = checker.getOption("aliasedTypeAnnos");
             String[] annos = aliasesOption.split(";");
