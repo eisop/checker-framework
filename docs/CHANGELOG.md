@@ -3,6 +3,11 @@ Version 3.32.0-eisop2 (March ?, 2023)
 
 **User-visible changes:**
 
+The new command-line arguments `-AaliasedTypeAnnos={aliases}` and `-AaliasedDeclAnnos={aliases}`
+define custom type and declaration annotation aliases for the canonical annotations of a checker.
+`aliases` is in the format
+`FQN.canonical.Qualifier1:FQN.alias1.Qual1,FQN.alias2.Qual1;FQN.canonical.Qualifier2:FQN.alias1.Qual2`.
+
 **Implementation details:**
 
 **Closed issues:**

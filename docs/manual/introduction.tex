@@ -833,6 +833,29 @@ was compiled.
 Do not check the JRE version the Checker Framework is running on.
 \end{itemize}
 
+Compatibility options
+\begin{itemize}
+
+\item \<-AaliasedTypeAnnos=\emph{aliases}>
+  Defines custom type annotation aliases for the canonical annotations of a checker.
+  `aliases` is in the format
+
+`FQN.canonical.Qualifier1:FQN.alias1.Qual1,FQN.alias2.Qual1;FQN.canonical.Qualifier2:FQN.alias1.Qual2`.
+
+This can only be used for annotations whose attributes have the same names as in the canonical
+annotation, e.g. this will not be usable to declare an alias `@Regex(index = 5)` for `@Regex(value = 5)`.
+When in a Unix system, `;` needs to be escaped.
+
+\item \<-AaliasedDeclAnnos=\emph{aliases}>
+  Defines custom declaration annotation aliases for the canonical annotations of a checker.
+  `aliases` is in the format
+
+`FQN.canonical.Qualifier1:FQN.alias1.Qual1,FQN.alias2.Qual1;FQN.canonical.Qualifier2:FQN.alias1.Qual2`.
+
+This can only be used for annotations without attributes, e.g. this will not be usable to declare an alias for `@EnsuresNonNull(...)`.
+When in a Unix system, `;` needs to be escaped.
+
+\end{itemize}
 
 \noindent
 Some checkers support additional options, which are described in that
