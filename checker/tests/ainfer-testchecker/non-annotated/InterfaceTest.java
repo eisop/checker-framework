@@ -4,16 +4,16 @@ import org.checkerframework.checker.testchecker.ainfer.qual.AinferSibling1;
 
 @SuppressWarnings("cast.unsafe")
 public interface InterfaceTest {
-    public String toaster = getAinferSibling1();
+  public String toaster = getAinferSibling1();
 
-    public static @AinferSibling1 String getAinferSibling1() {
-        return (@AinferSibling1 String) "foo";
-    }
+  public static @AinferSibling1 String getAinferSibling1() {
+    return (@AinferSibling1 String) "foo";
+  }
 
-    default void requireAinferSibling1(@AinferSibling1 String x) {}
+  default void requireAinferSibling1(@AinferSibling1 String x) {}
 
-    default void testX() {
-        // :: warning: (argument.type.incompatible)
-        requireAinferSibling1(toaster);
-    }
+  default void testX() {
+    // :: warning: (argument.type.incompatible)
+    requireAinferSibling1(toaster);
+  }
 }

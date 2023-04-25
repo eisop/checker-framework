@@ -12,7 +12,7 @@ import java.lang.annotation.Target;
 @Target(ElementType.FIELD)
 public @interface OptionGroup {
 
-    String value();
+  String value();
 
-    boolean unpublicized() default false;
+  boolean unpublicized() default false;
 }
