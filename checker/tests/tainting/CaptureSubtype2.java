@@ -1,5 +1,6 @@
-import java.util.function.Function;
 import org.checkerframework.checker.tainting.qual.Untainted;
+
+import java.util.function.Function;
 
 public class CaptureSubtype2 {
 
