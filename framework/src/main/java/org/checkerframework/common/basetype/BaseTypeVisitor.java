@@ -302,7 +302,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         checker.hasOption("assumeDeterministic") || checker.hasOption("assumePure");
     checkCastElementType = checker.hasOption("checkCastElementType");
     conservativeUninferredTypeArguments = checker.hasOption("conservativeUninferredTypeArguments");
-    warnRedundantAnnotations = checker.hasOption("warnRedundantAnnotations");
   }
 
   /** An array containing just {@code BaseTypeChecker.class}. */
