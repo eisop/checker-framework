@@ -13,17 +13,17 @@ import java.util.List;
 
 public class FormatterLubGlbCheckerTest extends CheckerFrameworkPerDirectoryTest {
 
-  /**
-   * Create a FormatterLubGlbCheckerTest.
-   *
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public FormatterLubGlbCheckerTest(List<File> testFiles) {
-    super(testFiles, FormatterLubGlbChecker.class, "", "-AcheckPurityAnnotations");
-  }
+    /**
+     * Create a FormatterLubGlbCheckerTest.
+     *
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public FormatterLubGlbCheckerTest(List<File> testFiles) {
+        super(testFiles, FormatterLubGlbChecker.class, "", "-AcheckPurityAnnotations");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"formatter-lubglb"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"formatter-lubglb"};
+    }
 }

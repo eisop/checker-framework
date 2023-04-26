@@ -10,16 +10,16 @@ import java.net.*;
 @InheritableMustCall("close")
 class SocketContainer2 {
 
-  @Owning Socket sock = new Socket();
+    @Owning Socket sock = new Socket();
 
-  public SocketContainer2(String host, int port) throws Exception {
-    // This assignment is safe, because the only possible value of sock here is the unconnected
-    // socket in the field initializer.
-    sock = new Socket(host, port);
-  }
+    public SocketContainer2(String host, int port) throws Exception {
+        // This assignment is safe, because the only possible value of sock here is the unconnected
+        // socket in the field initializer.
+        sock = new Socket(host, port);
+    }
 
-  @EnsuresCalledMethods(value = "this.sock", methods = "close")
-  public void close() throws IOException {
-    sock.close();
-  }
+    @EnsuresCalledMethods(value = "this.sock", methods = "close")
+    public void close() throws IOException {
+        sock.close();
+    }
 }

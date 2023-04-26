@@ -20,21 +20,21 @@ import java.util.List;
 @Category(AinferNullnessAjavaTest.class)
 public class AinferNullnessAjavaTest extends AinferGeneratePerDirectoryTest {
 
-  /**
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public AinferNullnessAjavaTest(List<File> testFiles) {
-    super(
-        testFiles,
-        NullnessChecker.class,
-        "ainfer-nullness/non-annotated",
-        "-Ainfer=ajava",
-        "-Aajava=tests/ainfer-nullness/input-annotation-files/",
-        "-Awarns");
-  }
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public AinferNullnessAjavaTest(List<File> testFiles) {
+        super(
+                testFiles,
+                NullnessChecker.class,
+                "ainfer-nullness/non-annotated",
+                "-Ainfer=ajava",
+                "-Aajava=tests/ainfer-nullness/input-annotation-files/",
+                "-Awarns");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"ainfer-nullness/non-annotated"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"ainfer-nullness/non-annotated"};
+    }
 }

@@ -61,15 +61,15 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.FIELD})
 public @interface HasSubsequence {
-  /** An expression that evaluates to the subsequence. */
-  @JavaExpression
-  String subsequence();
+    /** An expression that evaluates to the subsequence. */
+    @JavaExpression
+    String subsequence();
 
-  /** The index into this where the subsequence starts. */
-  @JavaExpression
-  String from();
+    /** The index into this where the subsequence starts. */
+    @JavaExpression
+    String from();
 
-  /** The index into this, immediately past where the subsequence ends. */
-  @JavaExpression
-  String to();
+    /** The index into this, immediately past where the subsequence ends. */
+    @JavaExpression
+    String to();
 }

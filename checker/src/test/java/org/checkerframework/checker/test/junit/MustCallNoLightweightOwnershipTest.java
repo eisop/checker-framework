@@ -7,18 +7,18 @@ import java.io.File;
 import java.util.List;
 
 public class MustCallNoLightweightOwnershipTest extends CheckerFrameworkPerDirectoryTest {
-  public MustCallNoLightweightOwnershipTest(List<File> testFiles) {
-    super(
-        testFiles,
-        org.checkerframework.checker.mustcall.MustCallChecker.class,
-        "mustcall-nolightweightownership",
-        "-AnoLightweightOwnership",
-        // "-AstubDebug");
-        "-nowarn");
-  }
+    public MustCallNoLightweightOwnershipTest(List<File> testFiles) {
+        super(
+                testFiles,
+                org.checkerframework.checker.mustcall.MustCallChecker.class,
+                "mustcall-nolightweightownership",
+                "-AnoLightweightOwnership",
+                // "-AstubDebug");
+                "-nowarn");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"mustcall-nolightweightownership"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"mustcall-nolightweightownership"};
+    }
 }

@@ -17,5 +17,5 @@ import java.lang.annotation.Target;
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
 @PreconditionAnnotation(qualifier = Odd.class)
 public @interface RequiresOdd {
-  String[] value();
+    String[] value();
 }

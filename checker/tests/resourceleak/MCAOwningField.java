@@ -9,18 +9,18 @@ import java.net.Socket;
 @InheritableMustCall("stop")
 class MCAOwningField {
 
-  @Owning final Socket s;
+    @Owning final Socket s;
 
-  MCAOwningField() throws Exception {
-    s = new Socket();
-  }
+    MCAOwningField() throws Exception {
+        s = new Socket();
+    }
 
-  void simple() throws Exception {
-    s.getInputStream();
-  }
+    void simple() throws Exception {
+        s.getInputStream();
+    }
 
-  @EnsuresCalledMethods(value = "s", methods = "close")
-  void stop() throws Exception {
-    s.close();
-  }
+    @EnsuresCalledMethods(value = "s", methods = "close")
+    void stop() throws Exception {
+        s.close();
+    }
 }

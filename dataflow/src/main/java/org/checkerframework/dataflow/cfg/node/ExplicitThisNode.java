@@ -13,26 +13,26 @@ import org.checkerframework.javacutil.TreeUtils;
  */
 public class ExplicitThisNode extends ThisNode {
 
-  protected final IdentifierTree tree;
+    protected final IdentifierTree tree;
 
-  public ExplicitThisNode(IdentifierTree t) {
-    super(TreeUtils.typeOf(t));
-    assert t.getName().contentEquals("this");
-    tree = t;
-  }
+    public ExplicitThisNode(IdentifierTree t) {
+        super(TreeUtils.typeOf(t));
+        assert t.getName().contentEquals("this");
+        tree = t;
+    }
 
-  @Override
-  public IdentifierTree getTree() {
-    return tree;
-  }
+    @Override
+    public IdentifierTree getTree() {
+        return tree;
+    }
 
-  @Override
-  public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
-    return visitor.visitExplicitThis(this, p);
-  }
+    @Override
+    public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
+        return visitor.visitExplicitThis(this, p);
+    }
 
-  @Override
-  public String toString() {
-    return "this";
-  }
+    @Override
+    public String toString() {
+        return "this";
+    }
 }

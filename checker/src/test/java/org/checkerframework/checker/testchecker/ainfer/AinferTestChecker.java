@@ -13,16 +13,16 @@ import java.util.LinkedHashSet;
  */
 public class AinferTestChecker extends BaseTypeChecker {
 
-  @Override
-  protected BaseTypeVisitor<?> createSourceVisitor() {
-    return new AinferTestVisitor(this);
-  }
+    @Override
+    protected BaseTypeVisitor<?> createSourceVisitor() {
+        return new AinferTestVisitor(this);
+    }
 
-  @Override
-  protected LinkedHashSet<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
-    LinkedHashSet<Class<? extends BaseTypeChecker>> checkers =
-        super.getImmediateSubcheckerClasses();
-    checkers.add(ValueChecker.class);
-    return checkers;
-  }
+    @Override
+    protected LinkedHashSet<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
+        LinkedHashSet<Class<? extends BaseTypeChecker>> checkers =
+                super.getImmediateSubcheckerClasses();
+        checkers.add(ValueChecker.class);
+        return checkers;
+    }
 }

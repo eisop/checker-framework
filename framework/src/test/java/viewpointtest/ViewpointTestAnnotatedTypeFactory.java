@@ -16,19 +16,24 @@ import viewpointtest.quals.Top;
 
 public class ViewpointTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
-  public ViewpointTestAnnotatedTypeFactory(BaseTypeChecker checker) {
-    super(checker);
-    this.postInit();
-  }
+    public ViewpointTestAnnotatedTypeFactory(BaseTypeChecker checker) {
+        super(checker);
+        this.postInit();
+    }
 
-  @Override
-  protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
-    return getBundledTypeQualifiers(
-        A.class, B.class, Bottom.class, PolyVP.class, ReceiverDependentQual.class, Top.class);
-  }
+    @Override
+    protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
+        return getBundledTypeQualifiers(
+                A.class,
+                B.class,
+                Bottom.class,
+                PolyVP.class,
+                ReceiverDependentQual.class,
+                Top.class);
+    }
 
-  @Override
-  protected AbstractViewpointAdapter createViewpointAdapter() {
-    return new ViewpointTestViewpointAdapter(this);
-  }
+    @Override
+    protected AbstractViewpointAdapter createViewpointAdapter() {
+        return new ViewpointTestViewpointAdapter(this);
+    }
 }

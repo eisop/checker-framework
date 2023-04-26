@@ -47,61 +47,64 @@ import javax.lang.model.type.TypeKind;
  *     AnnotatedDeclaredType then this class does nothing.
  */
 public class KeyForPropagationTreeAnnotator extends TreeAnnotator {
-  private final KeyForPropagator keyForPropagator;
-  private final ExecutableElement keySetMethod;
+    private final KeyForPropagator keyForPropagator;
+    private final ExecutableElement keySetMethod;
 
-  public KeyForPropagationTreeAnnotator(
-      AnnotatedTypeFactory atypeFactory, KeyForPropagator propagationTreeAnnotator) {
-    super(atypeFactory);
-    this.keyForPropagator = propagationTreeAnnotator;
-    keySetMethod =
-        TreeUtils.getMethod("java.util.Map", "keySet", 0, atypeFactory.getProcessingEnv());
-  }
-
-  /**
-   * Returns true iff expression is a call to java.util.Map.KeySet.
-   *
-   * @return true iff expression is a call to java.util.Map.KeySet
-   */
-  public boolean isCallToKeyset(ExpressionTree expression) {
-    return TreeUtils.isMethodInvocation(expression, keySetMethod, atypeFactory.getProcessingEnv());
-  }
-
-  /**
-   * Transfers annotations on type arguments from the initializer to the variableTree, if the
-   * initializer is a call to java.util.Map.keySet.
-   */
-  @Override
-  public Void visitVariable(VariableTree variableTree, AnnotatedTypeMirror type) {
-    super.visitVariable(variableTree, type);
-
-    // This should only happen on Map.keySet();
-    if (type.getKind() == TypeKind.DECLARED) {
-      final ExpressionTree initializer = variableTree.getInitializer();
-
-      if (isCallToKeyset(initializer)) {
-        final AnnotatedDeclaredType variableType = (AnnotatedDeclaredType) type;
-        final AnnotatedTypeMirror initializerType = atypeFactory.getAnnotatedType(initializer);
-
-        // Propagate just for declared (class) types, not for array types, boxed primitives,
-        // etc.
-        if (variableType.getKind() == TypeKind.DECLARED) {
-          keyForPropagator.propagate(
-              (AnnotatedDeclaredType) initializerType,
-              variableType,
-              PropagationDirection.TO_SUPERTYPE,
-              atypeFactory);
-        }
-      }
+    public KeyForPropagationTreeAnnotator(
+            AnnotatedTypeFactory atypeFactory, KeyForPropagator propagationTreeAnnotator) {
+        super(atypeFactory);
+        this.keyForPropagator = propagationTreeAnnotator;
+        keySetMethod =
+                TreeUtils.getMethod("java.util.Map", "keySet", 0, atypeFactory.getProcessingEnv());
     }
 
-    return null;
-  }
+    /**
+     * Returns true iff expression is a call to java.util.Map.KeySet.
+     *
+     * @return true iff expression is a call to java.util.Map.KeySet
+     */
+    public boolean isCallToKeyset(ExpressionTree expression) {
+        return TreeUtils.isMethodInvocation(
+                expression, keySetMethod, atypeFactory.getProcessingEnv());
+    }
 
-  /** Transfers annotations to type if the left hand side is a variable declaration. */
-  @Override
-  public Void visitNewClass(NewClassTree tree, AnnotatedTypeMirror type) {
-    keyForPropagator.propagateNewClassTree(tree, type, (KeyForAnnotatedTypeFactory) atypeFactory);
-    return super.visitNewClass(tree, type);
-  }
+    /**
+     * Transfers annotations on type arguments from the initializer to the variableTree, if the
+     * initializer is a call to java.util.Map.keySet.
+     */
+    @Override
+    public Void visitVariable(VariableTree variableTree, AnnotatedTypeMirror type) {
+        super.visitVariable(variableTree, type);
+
+        // This should only happen on Map.keySet();
+        if (type.getKind() == TypeKind.DECLARED) {
+            final ExpressionTree initializer = variableTree.getInitializer();
+
+            if (isCallToKeyset(initializer)) {
+                final AnnotatedDeclaredType variableType = (AnnotatedDeclaredType) type;
+                final AnnotatedTypeMirror initializerType =
+                        atypeFactory.getAnnotatedType(initializer);
+
+                // Propagate just for declared (class) types, not for array types, boxed primitives,
+                // etc.
+                if (variableType.getKind() == TypeKind.DECLARED) {
+                    keyForPropagator.propagate(
+                            (AnnotatedDeclaredType) initializerType,
+                            variableType,
+                            PropagationDirection.TO_SUPERTYPE,
+                            atypeFactory);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /** Transfers annotations to type if the left hand side is a variable declaration. */
+    @Override
+    public Void visitNewClass(NewClassTree tree, AnnotatedTypeMirror type) {
+        keyForPropagator.propagateNewClassTree(
+                tree, type, (KeyForAnnotatedTypeFactory) atypeFactory);
+        return super.visitNewClass(tree, type);
+    }
 }

@@ -27,9 +27,9 @@ import javax.annotation.processing.SupportedOptions;
 @SupportedOptions({"quals", "qualDirs"})
 public class FenumChecker extends BaseTypeChecker {
 
-  @Override
-  public NavigableSet<String> getSuppressWarningsPrefixes() {
-    return SubtypingChecker.getSuppressWarningsPrefixes(
-        this.visitor, super.getSuppressWarningsPrefixes());
-  }
+    @Override
+    public NavigableSet<String> getSuppressWarningsPrefixes() {
+        return SubtypingChecker.getSuppressWarningsPrefixes(
+                this.visitor, super.getSuppressWarningsPrefixes());
+    }
 }

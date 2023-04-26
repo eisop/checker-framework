@@ -10,17 +10,17 @@ import java.net.Socket;
 @InheritableMustCall("dispose")
 public class OwningEnsuresCalledMethods {
 
-  @Owning Socket con;
+    @Owning Socket con;
 
-  @EnsuresCalledMethods(value = "this.con", methods = "close")
-  void dispose() {
-    closeCon(con);
-  }
-
-  static void closeCon(@Owning Socket con) {
-    try {
-      con.close();
-    } catch (IOException e) {
+    @EnsuresCalledMethods(value = "this.con", methods = "close")
+    void dispose() {
+        closeCon(con);
     }
-  }
+
+    static void closeCon(@Owning Socket con) {
+        try {
+            con.close();
+        } catch (IOException e) {
+        }
+    }
 }

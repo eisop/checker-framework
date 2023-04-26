@@ -12,34 +12,34 @@ import javax.lang.model.type.TypeMirror;
  * stores and abstract values.
  */
 public class NullnessAnalysis
-    extends CFAbstractAnalysis<NullnessValue, NullnessStore, NullnessTransfer> {
+        extends CFAbstractAnalysis<NullnessValue, NullnessStore, NullnessTransfer> {
 
-  /**
-   * Creates a new {@code NullnessAnalysis}.
-   *
-   * @param checker the checker
-   * @param factory the factory
-   */
-  public NullnessAnalysis(BaseTypeChecker checker, NullnessAnnotatedTypeFactory factory) {
-    super(checker, factory);
-  }
-
-  @Override
-  public NullnessStore createEmptyStore(boolean sequentialSemantics) {
-    return new NullnessStore(this, sequentialSemantics);
-  }
-
-  @Override
-  public NullnessStore createCopiedStore(NullnessStore s) {
-    return new NullnessStore(s);
-  }
-
-  @Override
-  public NullnessValue createAbstractValue(
-      AnnotationMirrorSet annotations, TypeMirror underlyingType) {
-    if (!CFAbstractValue.validateSet(annotations, underlyingType, qualifierHierarchy)) {
-      return null;
+    /**
+     * Creates a new {@code NullnessAnalysis}.
+     *
+     * @param checker the checker
+     * @param factory the factory
+     */
+    public NullnessAnalysis(BaseTypeChecker checker, NullnessAnnotatedTypeFactory factory) {
+        super(checker, factory);
     }
-    return new NullnessValue(this, annotations, underlyingType);
-  }
+
+    @Override
+    public NullnessStore createEmptyStore(boolean sequentialSemantics) {
+        return new NullnessStore(this, sequentialSemantics);
+    }
+
+    @Override
+    public NullnessStore createCopiedStore(NullnessStore s) {
+        return new NullnessStore(s);
+    }
+
+    @Override
+    public NullnessValue createAbstractValue(
+            AnnotationMirrorSet annotations, TypeMirror underlyingType) {
+        if (!CFAbstractValue.validateSet(annotations, underlyingType, qualifierHierarchy)) {
+            return null;
+        }
+        return new NullnessValue(this, annotations, underlyingType);
+    }
 }

@@ -11,12 +11,12 @@ import java.util.List;
 // See FrameworkJavacErrorsTest for tests that can contain Java errors.
 public class FrameworkTest extends CheckerFrameworkPerDirectoryTest {
 
-  public FrameworkTest(List<File> testFiles) {
-    super(testFiles, EvenOddChecker.class, "framework");
-  }
+    public FrameworkTest(List<File> testFiles) {
+        super(testFiles, EvenOddChecker.class, "framework");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"framework", "all-systems"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"framework", "all-systems"};
+    }
 }

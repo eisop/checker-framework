@@ -14,31 +14,31 @@ import java.lang.annotation.Target;
 /** Created by jburke on 9/29/14. */
 public class UpperBoundQual {
 
-  @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-  @SubtypeOf({})
-  @DefaultQualifierInHierarchy
-  @Documented
-  @Retention(RetentionPolicy.RUNTIME)
-  public static @interface UbTop {}
+    @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
+    @SubtypeOf({})
+    @DefaultQualifierInHierarchy
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    public static @interface UbTop {}
 
-  @Documented
-  @Retention(RetentionPolicy.RUNTIME)
-  @SubtypeOf(UbTop.class)
-  @DefaultFor(TypeUseLocation.IMPLICIT_UPPER_BOUND)
-  @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-  public static @interface UbImplicit {}
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @SubtypeOf(UbTop.class)
+    @DefaultFor(TypeUseLocation.IMPLICIT_UPPER_BOUND)
+    @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
+    public static @interface UbImplicit {}
 
-  @Documented
-  @Retention(RetentionPolicy.RUNTIME)
-  @SubtypeOf(UbTop.class)
-  @DefaultFor(TypeUseLocation.EXPLICIT_UPPER_BOUND)
-  @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-  public static @interface UbExplicit {}
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @SubtypeOf(UbTop.class)
+    @DefaultFor(TypeUseLocation.EXPLICIT_UPPER_BOUND)
+    @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
+    public static @interface UbExplicit {}
 
-  @Documented
-  @Retention(RetentionPolicy.RUNTIME)
-  @SubtypeOf({UbImplicit.class, UbExplicit.class})
-  @DefaultFor(TypeUseLocation.LOWER_BOUND)
-  @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-  public static @interface UbBottom {}
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @SubtypeOf({UbImplicit.class, UbExplicit.class})
+    @DefaultFor(TypeUseLocation.LOWER_BOUND)
+    @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
+    public static @interface UbBottom {}
 }

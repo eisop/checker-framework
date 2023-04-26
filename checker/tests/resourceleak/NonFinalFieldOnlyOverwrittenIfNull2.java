@@ -11,58 +11,58 @@ import java.io.*;
 
 @InheritableMustCall("close")
 class NonFinalFieldOnlyOverwrittenIfNull2 {
-  @Owning @MonotonicNonNull InputStream is;
+    @Owning @MonotonicNonNull InputStream is;
 
-  @CreatesMustCallFor
-  void set(String fn) throws FileNotFoundException {
-    if (is == null) {
-      is = new FileInputStream(fn);
+    @CreatesMustCallFor
+    void set(String fn) throws FileNotFoundException {
+        if (is == null) {
+            is = new FileInputStream(fn);
+        }
     }
-  }
 
-  @CreatesMustCallFor
-  void set_after_close(String fn, boolean b) throws IOException {
-    if (b) {
-      is.close();
-      is = new FileInputStream(fn);
+    @CreatesMustCallFor
+    void set_after_close(String fn, boolean b) throws IOException {
+        if (b) {
+            is.close();
+            is = new FileInputStream(fn);
+        }
     }
-  }
 
-  @CreatesMustCallFor
-  void set_error(String fn, boolean b) throws FileNotFoundException {
-    if (b) {
-      // :: error: required.method.not.called
-      is = new FileInputStream(fn);
+    @CreatesMustCallFor
+    void set_error(String fn, boolean b) throws FileNotFoundException {
+        if (b) {
+            // :: error: required.method.not.called
+            is = new FileInputStream(fn);
+        }
     }
-  }
 
-  /* This version of close() doesn't verify, because in the `catch` block
-     `is` isn't @CalledMethods("close"). TODO: investigate that in the CM checker
-  @EnsuresCalledMethods(value="this.is", methods="close")
-  void close_real() {
-      if (is != null) {
-          try {
-              is.close();
-          } catch (Exception ie) {
+    /* This version of close() doesn't verify, because in the `catch` block
+       `is` isn't @CalledMethods("close"). TODO: investigate that in the CM checker
+    @EnsuresCalledMethods(value="this.is", methods="close")
+    void close_real() {
+        if (is != null) {
+            try {
+                is.close();
+            } catch (Exception ie) {
 
-          }
-      }
-  } */
+            }
+        }
+    } */
 
-  @EnsuresCalledMethods(value = "this.is", methods = "close")
-  @CreatesMustCallFor
-  void close() throws Exception {
-    if (is != null) {
-      is.close();
-      is = null;
+    @EnsuresCalledMethods(value = "this.is", methods = "close")
+    @CreatesMustCallFor
+    void close() throws Exception {
+        if (is != null) {
+            is.close();
+            is = null;
+        }
     }
-  }
 
-  public static void test_leak() throws Exception {
-    // :: error: required.method.not.called
-    NonFinalFieldOnlyOverwrittenIfNull2 n = new NonFinalFieldOnlyOverwrittenIfNull2();
-    n.set("foo.txt");
-    n.close();
-    n.set("bar.txt");
-  }
+    public static void test_leak() throws Exception {
+        // :: error: required.method.not.called
+        NonFinalFieldOnlyOverwrittenIfNull2 n = new NonFinalFieldOnlyOverwrittenIfNull2();
+        n.set("foo.txt");
+        n.close();
+        n.set("bar.txt");
+    }
 }

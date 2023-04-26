@@ -9,21 +9,21 @@ import java.util.List;
 /** JUnit tests for the Nullness checker when array subtyping is invariant. */
 public class NullnessInvariantArraysTest extends CheckerFrameworkPerDirectoryTest {
 
-  /**
-   * Create a NullnessInvariantArraysTest.
-   *
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public NullnessInvariantArraysTest(List<File> testFiles) {
-    super(
-        testFiles,
-        org.checkerframework.checker.nullness.NullnessChecker.class,
-        "nullness",
-        "-AinvariantArrays");
-  }
+    /**
+     * Create a NullnessInvariantArraysTest.
+     *
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public NullnessInvariantArraysTest(List<File> testFiles) {
+        super(
+                testFiles,
+                org.checkerframework.checker.nullness.NullnessChecker.class,
+                "nullness",
+                "-AinvariantArrays");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"nullness-invariantarrays"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"nullness-invariantarrays"};
+    }
 }

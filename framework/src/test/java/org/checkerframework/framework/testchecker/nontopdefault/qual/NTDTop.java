@@ -15,8 +15,8 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @SubtypeOf({})
 @DefaultFor({
-  TypeUseLocation.LOCAL_VARIABLE,
-  TypeUseLocation.IMPLICIT_UPPER_BOUND,
-  TypeUseLocation.RECEIVER
+    TypeUseLocation.LOCAL_VARIABLE,
+    TypeUseLocation.IMPLICIT_UPPER_BOUND,
+    TypeUseLocation.RECEIVER
 })
 public @interface NTDTop {}

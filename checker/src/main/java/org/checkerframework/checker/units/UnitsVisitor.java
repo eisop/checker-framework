@@ -15,30 +15,33 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror;
  * <p>Ensure consistent use of compound assignments.
  */
 public class UnitsVisitor extends BaseTypeVisitor<UnitsAnnotatedTypeFactory> {
-  public UnitsVisitor(BaseTypeChecker checker) {
-    super(checker);
-  }
-
-  @Override
-  public Void visitCompoundAssignment(CompoundAssignmentTree tree, Void p) {
-    ExpressionTree var = tree.getVariable();
-    ExpressionTree expr = tree.getExpression();
-    AnnotatedTypeMirror varType = atypeFactory.getAnnotatedType(var);
-    AnnotatedTypeMirror exprType = atypeFactory.getAnnotatedType(expr);
-
-    Tree.Kind kind = tree.getKind();
-
-    if ((kind == Tree.Kind.PLUS_ASSIGNMENT || kind == Tree.Kind.MINUS_ASSIGNMENT)) {
-      if (!atypeFactory
-          .getQualifierHierarchy()
-          .isSubtype(exprType.getEffectiveAnnotations(), varType.getEffectiveAnnotations())) {
-        checker.reportError(tree, "compound.assignment.type.incompatible", varType, exprType);
-      }
-    } else if (!exprType.hasAnnotation(UnknownUnits.class)) {
-      // Only allow mul/div with unqualified units
-      checker.reportError(tree, "compound.assignment.type.incompatible", varType, exprType);
+    public UnitsVisitor(BaseTypeChecker checker) {
+        super(checker);
     }
 
-    return null; // super.visitCompoundAssignment(tree, p);
-  }
+    @Override
+    public Void visitCompoundAssignment(CompoundAssignmentTree tree, Void p) {
+        ExpressionTree var = tree.getVariable();
+        ExpressionTree expr = tree.getExpression();
+        AnnotatedTypeMirror varType = atypeFactory.getAnnotatedType(var);
+        AnnotatedTypeMirror exprType = atypeFactory.getAnnotatedType(expr);
+
+        Tree.Kind kind = tree.getKind();
+
+        if ((kind == Tree.Kind.PLUS_ASSIGNMENT || kind == Tree.Kind.MINUS_ASSIGNMENT)) {
+            if (!atypeFactory
+                    .getQualifierHierarchy()
+                    .isSubtype(
+                            exprType.getEffectiveAnnotations(),
+                            varType.getEffectiveAnnotations())) {
+                checker.reportError(
+                        tree, "compound.assignment.type.incompatible", varType, exprType);
+            }
+        } else if (!exprType.hasAnnotation(UnknownUnits.class)) {
+            // Only allow mul/div with unqualified units
+            checker.reportError(tree, "compound.assignment.type.incompatible", varType, exprType);
+        }
+
+        return null; // super.visitCompoundAssignment(tree, p);
+    }
 }

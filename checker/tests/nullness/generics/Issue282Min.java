@@ -8,14 +8,14 @@ import java.util.Comparator;
 import java.util.Set;
 
 public class Issue282Min {
-  static <M> Set<M> copyOf(Comparator<? super M> comparator, Collection<? extends M> elements) {
-    // :: error: (return.type.incompatible)
-    return null;
-  }
+    static <M> Set<M> copyOf(Comparator<? super M> comparator, Collection<? extends M> elements) {
+        // :: error: (return.type.incompatible)
+        return null;
+    }
 }
 
 class Example282Min {
-  <T extends @NonNull Object> Set<T> foo(Comparator<Object> ord, Collection<T> set) {
-    return Issue282Min.copyOf(ord, set);
-  }
+    <T extends @NonNull Object> Set<T> foo(Comparator<Object> ord, Collection<T> set) {
+        return Issue282Min.copyOf(ord, set);
+    }
 }

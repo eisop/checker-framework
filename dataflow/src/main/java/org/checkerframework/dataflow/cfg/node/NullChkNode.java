@@ -18,60 +18,60 @@ import java.util.Objects;
  * </pre>
  */
 public class NullChkNode extends Node {
-  /** The entire tree of the null check */
-  protected final Tree tree;
-  /** The operand of the null check */
-  protected final Node operand;
+    /** The entire tree of the null check */
+    protected final Tree tree;
+    /** The operand of the null check */
+    protected final Node operand;
 
-  /**
-   * Constructs a {@link NullChkNode}.
-   *
-   * @param tree the nullchk tree
-   * @param operand the operand of the null check
-   */
-  public NullChkNode(Tree tree, Node operand) {
-    super(TreeUtils.typeOf(tree));
-    assert tree.getKind() == Tree.Kind.OTHER;
-    this.tree = tree;
-    this.operand = operand;
-  }
-
-  public Node getOperand() {
-    return operand;
-  }
-
-  @Override
-  public Tree getTree() {
-    return tree;
-  }
-
-  @Override
-  public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
-    return visitor.visitNullChk(this, p);
-  }
-
-  @Override
-  public String toString() {
-    return "(+ " + getOperand() + ")";
-  }
-
-  @Override
-  public boolean equals(@Nullable Object obj) {
-    if (!(obj instanceof NumericalPlusNode)) {
-      return false;
+    /**
+     * Constructs a {@link NullChkNode}.
+     *
+     * @param tree the nullchk tree
+     * @param operand the operand of the null check
+     */
+    public NullChkNode(Tree tree, Node operand) {
+        super(TreeUtils.typeOf(tree));
+        assert tree.getKind() == Tree.Kind.OTHER;
+        this.tree = tree;
+        this.operand = operand;
     }
-    NumericalPlusNode other = (NumericalPlusNode) obj;
-    return getOperand().equals(other.getOperand());
-  }
 
-  @Override
-  public int hashCode() {
-    return Objects.hash(NullChkNode.class, getOperand());
-  }
+    public Node getOperand() {
+        return operand;
+    }
 
-  @Override
-  @SideEffectFree
-  public Collection<Node> getOperands() {
-    return Collections.singletonList(getOperand());
-  }
+    @Override
+    public Tree getTree() {
+        return tree;
+    }
+
+    @Override
+    public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
+        return visitor.visitNullChk(this, p);
+    }
+
+    @Override
+    public String toString() {
+        return "(+ " + getOperand() + ")";
+    }
+
+    @Override
+    public boolean equals(@Nullable Object obj) {
+        if (!(obj instanceof NumericalPlusNode)) {
+            return false;
+        }
+        NumericalPlusNode other = (NumericalPlusNode) obj;
+        return getOperand().equals(other.getOperand());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(NullChkNode.class, getOperand());
+    }
+
+    @Override
+    @SideEffectFree
+    public Collection<Node> getOperands() {
+        return Collections.singletonList(getOperand());
+    }
 }

@@ -25,10 +25,10 @@ import java.lang.annotation.Target;
 @SubtypeOf({})
 @DefaultQualifierInHierarchy
 public @interface CalledMethods {
-  /**
-   * Methods that have definitely been called on the expression whose type is annotated.
-   *
-   * @return methods that have definitely been called
-   */
-  public String[] value() default {};
+    /**
+     * Methods that have definitely been called on the expression whose type is annotated.
+     *
+     * @return methods that have definitely been called
+     */
+    public String[] value() default {};
 }

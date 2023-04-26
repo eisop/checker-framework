@@ -14,25 +14,25 @@ import javax.lang.model.element.AnnotationMirror;
  */
 public class AccumulationVisitor extends BaseTypeVisitor<AccumulationAnnotatedTypeFactory> {
 
-  /**
-   * Constructor matching super.
-   *
-   * @param checker the checker
-   */
-  public AccumulationVisitor(BaseTypeChecker checker) {
-    super(checker);
-  }
-
-  /** Checks each predicate annotation to make sure the predicate is well-formed. */
-  @Override
-  public Void visitAnnotation(final AnnotationTree tree, final Void p) {
-    AnnotationMirror anno = TreeUtils.annotationFromAnnotationTree(tree);
-    if (atypeFactory.isPredicate(anno)) {
-      String errorMessage = atypeFactory.isValidPredicate(anno);
-      if (errorMessage != null) {
-        checker.reportError(tree, "predicate.invalid", errorMessage);
-      }
+    /**
+     * Constructor matching super.
+     *
+     * @param checker the checker
+     */
+    public AccumulationVisitor(BaseTypeChecker checker) {
+        super(checker);
     }
-    return super.visitAnnotation(tree, p);
-  }
+
+    /** Checks each predicate annotation to make sure the predicate is well-formed. */
+    @Override
+    public Void visitAnnotation(final AnnotationTree tree, final Void p) {
+        AnnotationMirror anno = TreeUtils.annotationFromAnnotationTree(tree);
+        if (atypeFactory.isPredicate(anno)) {
+            String errorMessage = atypeFactory.isValidPredicate(anno);
+            if (errorMessage != null) {
+                checker.reportError(tree, "predicate.invalid", errorMessage);
+            }
+        }
+        return super.visitAnnotation(tree, p);
+    }
 }

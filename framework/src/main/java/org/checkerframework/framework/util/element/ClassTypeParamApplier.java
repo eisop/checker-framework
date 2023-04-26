@@ -19,95 +19,95 @@ import javax.lang.model.element.ElementKind;
  */
 public class ClassTypeParamApplier extends TypeParamElementAnnotationApplier {
 
-  /** Apply annotations from {@code element} to {@code type}. */
-  public static void apply(
-      AnnotatedTypeVariable type, Element element, AnnotatedTypeFactory typeFactory)
-      throws UnexpectedAnnotationLocationException {
-    new ClassTypeParamApplier(type, element, typeFactory).extractAndApply();
-  }
-
-  /**
-   * Returns true if element represents a type parameter for a class.
-   *
-   * @param type ignored
-   * @param element the element that might be a type parameter
-   * @return true if element represents a type parameter for a class
-   */
-  public static boolean accepts(final AnnotatedTypeMirror type, final Element element) {
-    return element.getKind() == ElementKind.TYPE_PARAMETER
-        && element.getEnclosingElement() instanceof Symbol.ClassSymbol;
-  }
-
-  /** The class that holds the type parameter element. */
-  private final Symbol.ClassSymbol enclosingClass;
-
-  ClassTypeParamApplier(
-      AnnotatedTypeVariable type, Element element, AnnotatedTypeFactory typeFactory) {
-    super(type, element, typeFactory);
-
-    if (!(element.getEnclosingElement() instanceof Symbol.ClassSymbol)) {
-      throw new BugInCF(
-          "TypeParameter not enclosed by class?  Type( "
-              + type
-              + " ) "
-              + "Element ( "
-              + element
-              + " ) ");
+    /** Apply annotations from {@code element} to {@code type}. */
+    public static void apply(
+            AnnotatedTypeVariable type, Element element, AnnotatedTypeFactory typeFactory)
+            throws UnexpectedAnnotationLocationException {
+        new ClassTypeParamApplier(type, element, typeFactory).extractAndApply();
     }
 
-    enclosingClass = (Symbol.ClassSymbol) element.getEnclosingElement();
-  }
+    /**
+     * Returns true if element represents a type parameter for a class.
+     *
+     * @param type ignored
+     * @param element the element that might be a type parameter
+     * @return true if element represents a type parameter for a class
+     */
+    public static boolean accepts(final AnnotatedTypeMirror type, final Element element) {
+        return element.getKind() == ElementKind.TYPE_PARAMETER
+                && element.getEnclosingElement() instanceof Symbol.ClassSymbol;
+    }
 
-  /**
-   * Returns TargetType.CLASS_TYPE_PARAMETER.
-   *
-   * @return TargetType.CLASS_TYPE_PARAMETER
-   */
-  @Override
-  protected TargetType lowerBoundTarget() {
-    return TargetType.CLASS_TYPE_PARAMETER;
-  }
+    /** The class that holds the type parameter element. */
+    private final Symbol.ClassSymbol enclosingClass;
 
-  /**
-   * Returns TargetType.CLASS_TYPE_PARAMETER_BOUND.
-   *
-   * @return TargetType.CLASS_TYPE_PARAMETER_BOUND
-   */
-  @Override
-  protected TargetType upperBoundTarget() {
-    return TargetType.CLASS_TYPE_PARAMETER_BOUND;
-  }
+    ClassTypeParamApplier(
+            AnnotatedTypeVariable type, Element element, AnnotatedTypeFactory typeFactory) {
+        super(type, element, typeFactory);
 
-  /**
-   * Returns the index of element in the type parameter list of its enclosing class.
-   *
-   * @return the index of element in the type parameter list of its enclosing class
-   */
-  @Override
-  public int getElementIndex() {
-    return enclosingClass.getTypeParameters().indexOf(element);
-  }
+        if (!(element.getEnclosingElement() instanceof Symbol.ClassSymbol)) {
+            throw new BugInCF(
+                    "TypeParameter not enclosed by class?  Type( "
+                            + type
+                            + " ) "
+                            + "Element ( "
+                            + element
+                            + " ) ");
+        }
 
-  /** The valid targets. */
-  private static final TargetType[] validTargets = new TargetType[] {TargetType.CLASS_EXTENDS};
+        enclosingClass = (Symbol.ClassSymbol) element.getEnclosingElement();
+    }
 
-  @Override
-  protected TargetType[] validTargets() {
-    return validTargets;
-  }
+    /**
+     * Returns TargetType.CLASS_TYPE_PARAMETER.
+     *
+     * @return TargetType.CLASS_TYPE_PARAMETER
+     */
+    @Override
+    protected TargetType lowerBoundTarget() {
+        return TargetType.CLASS_TYPE_PARAMETER;
+    }
 
-  /**
-   * Returns the raw type attributes of the enclosing class.
-   *
-   * @return the raw type attributes of the enclosing class
-   */
-  @Override
-  protected Iterable<Attribute.TypeCompound> getRawTypeAttributes() {
-    return enclosingClass.getRawTypeAttributes();
-  }
+    /**
+     * Returns TargetType.CLASS_TYPE_PARAMETER_BOUND.
+     *
+     * @return TargetType.CLASS_TYPE_PARAMETER_BOUND
+     */
+    @Override
+    protected TargetType upperBoundTarget() {
+        return TargetType.CLASS_TYPE_PARAMETER_BOUND;
+    }
 
-  @Override
-  protected boolean isAccepted() {
-    return accepts(type, element);
-  }
+    /**
+     * Returns the index of element in the type parameter list of its enclosing class.
+     *
+     * @return the index of element in the type parameter list of its enclosing class
+     */
+    @Override
+    public int getElementIndex() {
+        return enclosingClass.getTypeParameters().indexOf(element);
+    }
+
+    /** The valid targets. */
+    private static final TargetType[] validTargets = new TargetType[] {TargetType.CLASS_EXTENDS};
+
+    @Override
+    protected TargetType[] validTargets() {
+        return validTargets;
+    }
+
+    /**
+     * Returns the raw type attributes of the enclosing class.
+     *
+     * @return the raw type attributes of the enclosing class
+     */
+    @Override
+    protected Iterable<Attribute.TypeCompound> getRawTypeAttributes() {
+        return enclosingClass.getRawTypeAttributes();
+    }
+
+    @Override
+    protected boolean isAccepted() {
+        return accepts(type, element);
+    }
 }

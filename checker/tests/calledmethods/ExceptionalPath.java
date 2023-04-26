@@ -7,12 +7,12 @@ import java.io.IOException;
 import java.net.Socket;
 
 class ExceptionalPath {
-  void test(Socket s) {
-    try {
-      s.close();
-      @CalledMethods("close") Socket s1 = s;
-    } catch (IOException e) {
-      @CalledMethods("close") Socket s2 = s;
+    void test(Socket s) {
+        try {
+            s.close();
+            @CalledMethods("close") Socket s1 = s;
+        } catch (IOException e) {
+            @CalledMethods("close") Socket s2 = s;
+        }
     }
-  }
 }

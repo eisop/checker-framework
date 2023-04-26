@@ -16,21 +16,21 @@ import java.util.Set;
 
 public class KeyForPropagation {
 
-  {
-    List<@KeyFor("a") String> a = new ArrayList<String>();
-  }
+    {
+        List<@KeyFor("a") String> a = new ArrayList<String>();
+    }
 
-  static {
-    List<@KeyFor("b") String> b = new ArrayList<String>();
-  }
+    static {
+        List<@KeyFor("b") String> b = new ArrayList<String>();
+    }
 
-  List<@KeyFor("c") String> c = new ArrayList<String>();
+    List<@KeyFor("c") String> c = new ArrayList<String>();
 
-  void method() {
-    List<@KeyFor("d") String> d = new ArrayList<String>();
-  }
+    void method() {
+        List<@KeyFor("d") String> d = new ArrayList<String>();
+    }
 
-  void method(Map<String, String> v) {
-    Set<String> ks = v.keySet();
-  }
+    void method(Map<String, String> v) {
+        Set<String> ks = v.keySet();
+    }
 }

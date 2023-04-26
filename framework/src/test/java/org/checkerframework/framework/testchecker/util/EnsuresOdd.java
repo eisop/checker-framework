@@ -19,5 +19,5 @@ import java.lang.annotation.Target;
 @PostconditionAnnotation(qualifier = Odd.class)
 @InheritedAnnotation
 public @interface EnsuresOdd {
-  String[] value();
+    String[] value();
 }

@@ -26,11 +26,11 @@ import java.lang.annotation.Target;
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
 @PreconditionAnnotation(qualifier = LockHeld.class)
 public @interface Holding {
-  /**
-   * The Java expressions that need to be held.
-   *
-   * @see <a href="https://checkerframework.org/manual/#java-expressions-as-arguments">Syntax of
-   *     Java expressions</a>
-   */
-  String[] value();
+    /**
+     * The Java expressions that need to be held.
+     *
+     * @see <a href="https://checkerframework.org/manual/#java-expressions-as-arguments">Syntax of
+     *     Java expressions</a>
+     */
+    String[] value();
 }

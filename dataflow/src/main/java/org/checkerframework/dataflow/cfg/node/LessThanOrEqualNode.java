@@ -16,40 +16,40 @@ import java.util.Objects;
  */
 public class LessThanOrEqualNode extends BinaryOperationNode {
 
-  /**
-   * Constructs a {@link LessThanOrEqualNode}.
-   *
-   * @param tree the binary tree
-   * @param left the left operand
-   * @param right the right operand
-   */
-  public LessThanOrEqualNode(BinaryTree tree, Node left, Node right) {
-    super(tree, left, right);
-    assert tree.getKind() == Tree.Kind.LESS_THAN_EQUAL;
-  }
-
-  @Override
-  public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
-    return visitor.visitLessThanOrEqual(this, p);
-  }
-
-  @Override
-  public String toString() {
-    return "(" + getLeftOperand() + " <= " + getRightOperand() + ")";
-  }
-
-  @Override
-  public boolean equals(@Nullable Object obj) {
-    if (!(obj instanceof LessThanOrEqualNode)) {
-      return false;
+    /**
+     * Constructs a {@link LessThanOrEqualNode}.
+     *
+     * @param tree the binary tree
+     * @param left the left operand
+     * @param right the right operand
+     */
+    public LessThanOrEqualNode(BinaryTree tree, Node left, Node right) {
+        super(tree, left, right);
+        assert tree.getKind() == Tree.Kind.LESS_THAN_EQUAL;
     }
-    LessThanOrEqualNode other = (LessThanOrEqualNode) obj;
-    return getLeftOperand().equals(other.getLeftOperand())
-        && getRightOperand().equals(other.getRightOperand());
-  }
 
-  @Override
-  public int hashCode() {
-    return Objects.hash(getLeftOperand(), getRightOperand());
-  }
+    @Override
+    public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
+        return visitor.visitLessThanOrEqual(this, p);
+    }
+
+    @Override
+    public String toString() {
+        return "(" + getLeftOperand() + " <= " + getRightOperand() + ")";
+    }
+
+    @Override
+    public boolean equals(@Nullable Object obj) {
+        if (!(obj instanceof LessThanOrEqualNode)) {
+            return false;
+        }
+        LessThanOrEqualNode other = (LessThanOrEqualNode) obj;
+        return getLeftOperand().equals(other.getLeftOperand())
+                && getRightOperand().equals(other.getRightOperand());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getLeftOperand(), getRightOperand());
+    }
 }

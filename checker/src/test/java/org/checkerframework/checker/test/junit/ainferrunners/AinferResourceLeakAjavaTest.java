@@ -19,21 +19,21 @@ import java.util.List;
 @Category(AinferResourceLeakAjavaTest.class)
 public class AinferResourceLeakAjavaTest extends AinferGeneratePerDirectoryTest {
 
-  /**
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public AinferResourceLeakAjavaTest(List<File> testFiles) {
-    super(
-        testFiles,
-        ResourceLeakChecker.class,
-        "ainfer-resourceleak/non-annotated",
-        "-Ainfer=ajava",
-        // "-Aajava=tests/ainfer-resourceleak/input-annotation-files/",
-        "-Awarns");
-  }
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public AinferResourceLeakAjavaTest(List<File> testFiles) {
+        super(
+                testFiles,
+                ResourceLeakChecker.class,
+                "ainfer-resourceleak/non-annotated",
+                "-Ainfer=ajava",
+                // "-Aajava=tests/ainfer-resourceleak/input-annotation-files/",
+                "-Awarns");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"ainfer-resourceleak/non-annotated"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"ainfer-resourceleak/non-annotated"};
+    }
 }

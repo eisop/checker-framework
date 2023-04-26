@@ -24,6 +24,6 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @SubtypeOf(UnknownRegex.class)
 public @interface Regex {
-  /** The number of groups in the regular expression. Defaults to 0. */
-  int value() default 0;
+    /** The number of groups in the regular expression. Defaults to 0. */
+    int value() default 0;
 }

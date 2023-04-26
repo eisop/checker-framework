@@ -20,55 +20,56 @@ import javax.lang.model.util.Types;
  */
 public class MarkerNode extends Node {
 
-  protected final @Nullable Tree tree;
-  protected final String message;
+    protected final @Nullable Tree tree;
+    protected final String message;
 
-  public MarkerNode(@Nullable Tree tree, String message, Types types) {
-    super(types.getNoType(TypeKind.NONE));
-    this.tree = tree;
-    this.message = message;
-  }
-
-  public String getMessage() {
-    return message;
-  }
-
-  @Override
-  public @Nullable Tree getTree() {
-    return tree;
-  }
-
-  @Override
-  public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
-    return visitor.visitMarker(this, p);
-  }
-
-  @Override
-  public String toString() {
-    StringBuilder sb = new StringBuilder();
-    sb.append("marker (");
-    sb.append(message);
-    sb.append(")");
-    return sb.toString();
-  }
-
-  @Override
-  public boolean equals(@Nullable Object obj) {
-    if (!(obj instanceof MarkerNode)) {
-      return false;
+    public MarkerNode(@Nullable Tree tree, String message, Types types) {
+        super(types.getNoType(TypeKind.NONE));
+        this.tree = tree;
+        this.message = message;
     }
-    MarkerNode other = (MarkerNode) obj;
-    return Objects.equals(getTree(), other.getTree()) && getMessage().equals(other.getMessage());
-  }
 
-  @Override
-  public int hashCode() {
-    return Objects.hash(tree, getMessage());
-  }
+    public String getMessage() {
+        return message;
+    }
 
-  @Override
-  @SideEffectFree
-  public Collection<Node> getOperands() {
-    return Collections.emptyList();
-  }
+    @Override
+    public @Nullable Tree getTree() {
+        return tree;
+    }
+
+    @Override
+    public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
+        return visitor.visitMarker(this, p);
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("marker (");
+        sb.append(message);
+        sb.append(")");
+        return sb.toString();
+    }
+
+    @Override
+    public boolean equals(@Nullable Object obj) {
+        if (!(obj instanceof MarkerNode)) {
+            return false;
+        }
+        MarkerNode other = (MarkerNode) obj;
+        return Objects.equals(getTree(), other.getTree())
+                && getMessage().equals(other.getMessage());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(tree, getMessage());
+    }
+
+    @Override
+    @SideEffectFree
+    public Collection<Node> getOperands() {
+        return Collections.emptyList();
+    }
 }

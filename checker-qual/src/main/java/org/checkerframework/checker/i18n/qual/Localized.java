@@ -21,12 +21,12 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @SubtypeOf(UnknownLocalized.class)
 @QualifierForLiterals({
-  // All literals except chars and strings, which may need to be localized.
-  // (null is bottom by default.)
-  LiteralKind.INT,
-  LiteralKind.LONG,
-  LiteralKind.FLOAT,
-  LiteralKind.DOUBLE,
-  LiteralKind.BOOLEAN
+    // All literals except chars and strings, which may need to be localized.
+    // (null is bottom by default.)
+    LiteralKind.INT,
+    LiteralKind.LONG,
+    LiteralKind.FLOAT,
+    LiteralKind.DOUBLE,
+    LiteralKind.BOOLEAN
 })
 public @interface Localized {}

@@ -11,13 +11,13 @@ import java.io.File;
 // See FrameworkTest for tests that do not contain Java errors.
 public class FrameworkJavacErrorsTest extends CheckerFrameworkPerFileTest {
 
-  public FrameworkJavacErrorsTest(File testFile) {
-    super(testFile, EvenOddChecker.class, "framework");
-  }
+    public FrameworkJavacErrorsTest(File testFile) {
+        super(testFile, EvenOddChecker.class, "framework");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    // Do not include all-systems!
-    return new String[] {"framework-javac-errors"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        // Do not include all-systems!
+        return new String[] {"framework-javac-errors"};
+    }
 }

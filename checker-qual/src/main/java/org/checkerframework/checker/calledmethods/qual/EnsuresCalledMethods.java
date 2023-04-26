@@ -43,39 +43,39 @@ import java.lang.annotation.Target;
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
 @Repeatable(EnsuresCalledMethods.List.class)
 public @interface EnsuresCalledMethods {
-  /**
-   * The Java expressions to which the qualifier applies.
-   *
-   * @return the Java expressions to which the qualifier applies
-   * @see org.checkerframework.framework.qual.EnsuresQualifier
-   */
-  // Postconditions must use "value" as the name (conditional postconditions use "expression").
-  String[] value();
-
-  /**
-   * The methods guaranteed to be invoked on the expressions.
-   *
-   * @return the methods guaranteed to be invoked on the expressions
-   */
-  @QualifierArgument("value")
-  String[] methods();
-
-  /**
-   * A wrapper annotation that makes the {@link EnsuresCalledMethods} annotation repeatable.
-   *
-   * <p>Programmers generally do not need to write this. It is created by Java when a programmer
-   * writes more than one {@link EnsuresCalledMethods} annotation at the same location.
-   */
-  @Documented
-  @Retention(RetentionPolicy.RUNTIME)
-  @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
-  @InheritedAnnotation
-  public static @interface List {
     /**
-     * Return the repeatable annotations.
+     * The Java expressions to which the qualifier applies.
      *
-     * @return the repeatable annotations
+     * @return the Java expressions to which the qualifier applies
+     * @see org.checkerframework.framework.qual.EnsuresQualifier
      */
-    EnsuresCalledMethods[] value();
-  }
+    // Postconditions must use "value" as the name (conditional postconditions use "expression").
+    String[] value();
+
+    /**
+     * The methods guaranteed to be invoked on the expressions.
+     *
+     * @return the methods guaranteed to be invoked on the expressions
+     */
+    @QualifierArgument("value")
+    String[] methods();
+
+    /**
+     * A wrapper annotation that makes the {@link EnsuresCalledMethods} annotation repeatable.
+     *
+     * <p>Programmers generally do not need to write this. It is created by Java when a programmer
+     * writes more than one {@link EnsuresCalledMethods} annotation at the same location.
+     */
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
+    @InheritedAnnotation
+    public static @interface List {
+        /**
+         * Return the repeatable annotations.
+         *
+         * @return the repeatable annotations
+         */
+        EnsuresCalledMethods[] value();
+    }
 }

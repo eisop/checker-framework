@@ -9,17 +9,17 @@ public class Issue5047 {}
 
 class NumberParameterBuilder<T, U, V> {
 
-  @Nullable Object minimum;
-  @Nullable Object maximum;
+    @Nullable Object minimum;
+    @Nullable Object maximum;
 
-  public boolean equals(final @Nullable Object o) {
+    public boolean equals(final @Nullable Object o) {
 
-    if (o instanceof NumberParameterBuilder<?, ?, ?> b) {
-      return super.equals(o)
-          && Objects.equals(this.minimum, b.minimum)
-          && Objects.equals(this.maximum, b.maximum);
-    } else {
-      return false;
+        if (o instanceof NumberParameterBuilder<?, ?, ?> b) {
+            return super.equals(o)
+                    && Objects.equals(this.minimum, b.minimum)
+                    && Objects.equals(this.maximum, b.maximum);
+        } else {
+            return false;
+        }
     }
-  }
 }

@@ -18,23 +18,23 @@ import javax.lang.model.type.TypeMirror;
  */
 public abstract class ThisNode extends Node {
 
-  protected ThisNode(TypeMirror type) {
-    super(type);
-  }
+    protected ThisNode(TypeMirror type) {
+        super(type);
+    }
 
-  @Override
-  public boolean equals(@Nullable Object obj) {
-    return obj instanceof ThisNode;
-  }
+    @Override
+    public boolean equals(@Nullable Object obj) {
+        return obj instanceof ThisNode;
+    }
 
-  @Override
-  public int hashCode() {
-    return Objects.hash("this");
-  }
+    @Override
+    public int hashCode() {
+        return Objects.hash("this");
+    }
 
-  @Override
-  @SideEffectFree
-  public Collection<Node> getOperands() {
-    return Collections.emptyList();
-  }
+    @Override
+    @SideEffectFree
+    public Collection<Node> getOperands() {
+        return Collections.emptyList();
+    }
 }

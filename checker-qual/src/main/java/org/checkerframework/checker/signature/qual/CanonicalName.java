@@ -43,8 +43,8 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @SubtypeOf({
-  FullyQualifiedName.class,
-  CanonicalNameOrEmpty.class,
-  CanonicalNameOrPrimitiveType.class
+    FullyQualifiedName.class,
+    CanonicalNameOrEmpty.class,
+    CanonicalNameOrPrimitiveType.class
 })
 public @interface CanonicalName {}

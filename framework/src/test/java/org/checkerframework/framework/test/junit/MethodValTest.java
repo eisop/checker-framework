@@ -9,15 +9,18 @@ import java.util.List;
 /** Tests the MethodVal Checker. */
 public class MethodValTest extends CheckerFrameworkPerDirectoryTest {
 
-  /**
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public MethodValTest(List<File> testFiles) {
-    super(testFiles, org.checkerframework.common.reflection.MethodValChecker.class, "methodval");
-  }
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public MethodValTest(List<File> testFiles) {
+        super(
+                testFiles,
+                org.checkerframework.common.reflection.MethodValChecker.class,
+                "methodval");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"methodval"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"methodval"};
+    }
 }

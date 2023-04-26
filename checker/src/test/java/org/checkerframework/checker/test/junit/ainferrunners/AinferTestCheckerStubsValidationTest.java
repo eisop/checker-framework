@@ -15,25 +15,25 @@ import java.util.List;
 @Category(AinferTestCheckerStubsTest.class)
 public class AinferTestCheckerStubsValidationTest extends AinferValidatePerDirectoryTest {
 
-  /**
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public AinferTestCheckerStubsValidationTest(List<File> testFiles) {
-    super(
-        testFiles,
-        AinferTestChecker.class,
-        "testchecker",
-        "ainfer-testchecker/annotated",
-        AinferTestCheckerStubsTest.class,
-        astubsArgFromFiles(testFiles, "testchecker"),
-        // "-AstubDebug",
-        "-AmergeStubsWithSource",
-        "-Awarns",
-        "-AskipDefs=TestPure");
-  }
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public AinferTestCheckerStubsValidationTest(List<File> testFiles) {
+        super(
+                testFiles,
+                AinferTestChecker.class,
+                "testchecker",
+                "ainfer-testchecker/annotated",
+                AinferTestCheckerStubsTest.class,
+                astubsArgFromFiles(testFiles, "testchecker"),
+                // "-AstubDebug",
+                "-AmergeStubsWithSource",
+                "-Awarns",
+                "-AskipDefs=TestPure");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"ainfer-testchecker/annotated/"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"ainfer-testchecker/annotated/"};
+    }
 }

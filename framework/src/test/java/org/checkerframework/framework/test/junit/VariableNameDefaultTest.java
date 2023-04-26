@@ -10,15 +10,15 @@ import java.util.List;
 /** Create the VariableNameDefault test. */
 public class VariableNameDefaultTest extends CheckerFrameworkPerDirectoryTest {
 
-  /**
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public VariableNameDefaultTest(List<File> testFiles) {
-    super(testFiles, VariableNameDefaultChecker.class, "variablenamedefault");
-  }
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public VariableNameDefaultTest(List<File> testFiles) {
+        super(testFiles, VariableNameDefaultChecker.class, "variablenamedefault");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"variablenamedefault"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"variablenamedefault"};
+    }
 }

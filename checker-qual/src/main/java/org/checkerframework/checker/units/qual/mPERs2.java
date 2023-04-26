@@ -19,5 +19,5 @@ import java.lang.annotation.Target;
 @SubtypeOf(Acceleration.class)
 @SuppressWarnings("checkstyle:typename")
 public @interface mPERs2 {
-  Prefix value() default Prefix.one;
+    Prefix value() default Prefix.one;
 }

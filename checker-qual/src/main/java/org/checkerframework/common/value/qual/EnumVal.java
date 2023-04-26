@@ -20,10 +20,11 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_PARAMETER, ElementType.TYPE_USE})
 public @interface EnumVal {
-  /**
-   * The simple names of the possible enum values for an expression with the annotated type.
-   *
-   * @return the simple names of the possible enum values for an expression with the annotated type
-   */
-  String[] value();
+    /**
+     * The simple names of the possible enum values for an expression with the annotated type.
+     *
+     * @return the simple names of the possible enum values for an expression with the annotated
+     *     type
+     */
+    String[] value();
 }

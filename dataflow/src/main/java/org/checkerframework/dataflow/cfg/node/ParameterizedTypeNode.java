@@ -23,45 +23,45 @@ import java.util.Objects;
  */
 public class ParameterizedTypeNode extends Node {
 
-  protected final ParameterizedTypeTree tree;
+    protected final ParameterizedTypeTree tree;
 
-  public ParameterizedTypeNode(ParameterizedTypeTree t) {
-    super(TreeUtils.typeOf(t));
-    tree = t;
-  }
-
-  @Override
-  public ParameterizedTypeTree getTree() {
-    return tree;
-  }
-
-  @Override
-  public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
-    return visitor.visitParameterizedType(this, p);
-  }
-
-  @Override
-  public String toString() {
-    return getTree().toString();
-  }
-
-  @Override
-  public boolean equals(@Nullable Object obj) {
-    if (!(obj instanceof ParameterizedTypeNode)) {
-      return false;
+    public ParameterizedTypeNode(ParameterizedTypeTree t) {
+        super(TreeUtils.typeOf(t));
+        tree = t;
     }
-    ParameterizedTypeNode other = (ParameterizedTypeNode) obj;
-    return getTree().equals(other.getTree());
-  }
 
-  @Override
-  public int hashCode() {
-    return Objects.hash(getTree());
-  }
+    @Override
+    public ParameterizedTypeTree getTree() {
+        return tree;
+    }
 
-  @Override
-  @SideEffectFree
-  public Collection<Node> getOperands() {
-    return Collections.emptyList();
-  }
+    @Override
+    public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
+        return visitor.visitParameterizedType(this, p);
+    }
+
+    @Override
+    public String toString() {
+        return getTree().toString();
+    }
+
+    @Override
+    public boolean equals(@Nullable Object obj) {
+        if (!(obj instanceof ParameterizedTypeNode)) {
+            return false;
+        }
+        ParameterizedTypeNode other = (ParameterizedTypeNode) obj;
+        return getTree().equals(other.getTree());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getTree());
+    }
+
+    @Override
+    @SideEffectFree
+    public Collection<Node> getOperands() {
+        return Collections.emptyList();
+    }
 }

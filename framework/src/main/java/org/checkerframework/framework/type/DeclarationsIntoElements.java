@@ -26,50 +26,50 @@ import javax.lang.model.element.ExecutableElement;
  */
 public final class DeclarationsIntoElements {
 
-  /** Do not instantiate. */
-  private DeclarationsIntoElements() {
-    throw new AssertionError("Class DeclarationsIntoElements cannot be instantiated.");
-  }
-
-  /**
-   * The entry point.
-   *
-   * @param atypeFactory the type factory
-   * @param tree the ClassTree to process
-   */
-  public static void store(
-      ProcessingEnvironment env, AnnotatedTypeFactory atypeFactory, ClassTree tree) {
-    for (Tree mem : tree.getMembers()) {
-      if (mem.getKind() == Tree.Kind.METHOD) {
-        storeMethod(env, atypeFactory, (MethodTree) mem);
-      }
-    }
-  }
-
-  /**
-   * Add inherited declaration annotations from overridden methods into the corresponding Elements
-   * so they are written into bytecode.
-   *
-   * @param env ProcessingEnvironment
-   * @param atypeFactory the type factory
-   * @param meth the MethodTree to add the annotations
-   */
-  private static void storeMethod(
-      ProcessingEnvironment env, AnnotatedTypeFactory atypeFactory, MethodTree meth) {
-    ExecutableElement element = TreeUtils.elementFromDeclaration(meth);
-    MethodSymbol sym = (MethodSymbol) element;
-    java.util.List<? extends AnnotationMirror> elementAnnos = element.getAnnotationMirrors();
-
-    AnnotationMirrorSet declAnnotations = atypeFactory.getDeclAnnotations(sym);
-    List<Compound> tcs = List.nil();
-
-    for (AnnotationMirror anno : declAnnotations) {
-      // Only add the annotation if it isn't in the Element already.
-      if (!AnnotationUtils.containsSame(elementAnnos, anno)) {
-        tcs = tcs.append(TypeAnnotationUtils.createCompoundFromAnnotationMirror(anno, env));
-      }
+    /** Do not instantiate. */
+    private DeclarationsIntoElements() {
+        throw new AssertionError("Class DeclarationsIntoElements cannot be instantiated.");
     }
 
-    sym.appendAttributes(tcs);
-  }
+    /**
+     * The entry point.
+     *
+     * @param atypeFactory the type factory
+     * @param tree the ClassTree to process
+     */
+    public static void store(
+            ProcessingEnvironment env, AnnotatedTypeFactory atypeFactory, ClassTree tree) {
+        for (Tree mem : tree.getMembers()) {
+            if (mem.getKind() == Tree.Kind.METHOD) {
+                storeMethod(env, atypeFactory, (MethodTree) mem);
+            }
+        }
+    }
+
+    /**
+     * Add inherited declaration annotations from overridden methods into the corresponding Elements
+     * so they are written into bytecode.
+     *
+     * @param env ProcessingEnvironment
+     * @param atypeFactory the type factory
+     * @param meth the MethodTree to add the annotations
+     */
+    private static void storeMethod(
+            ProcessingEnvironment env, AnnotatedTypeFactory atypeFactory, MethodTree meth) {
+        ExecutableElement element = TreeUtils.elementFromDeclaration(meth);
+        MethodSymbol sym = (MethodSymbol) element;
+        java.util.List<? extends AnnotationMirror> elementAnnos = element.getAnnotationMirrors();
+
+        AnnotationMirrorSet declAnnotations = atypeFactory.getDeclAnnotations(sym);
+        List<Compound> tcs = List.nil();
+
+        for (AnnotationMirror anno : declAnnotations) {
+            // Only add the annotation if it isn't in the Element already.
+            if (!AnnotationUtils.containsSame(elementAnnos, anno)) {
+                tcs = tcs.append(TypeAnnotationUtils.createCompoundFromAnnotationMirror(anno, env));
+            }
+        }
+
+        sym.appendAttributes(tcs);
+    }
 }

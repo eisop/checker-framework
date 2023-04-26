@@ -13,19 +13,19 @@ import java.util.LinkedHashSet;
  * @checker_framework.manual #methodval-and-classval-checkers MethodVal Checker
  */
 public class MethodValChecker extends BaseTypeChecker {
-  @Override
-  protected BaseTypeVisitor<?> createSourceVisitor() {
-    return new MethodValVisitor(this);
-  }
+    @Override
+    protected BaseTypeVisitor<?> createSourceVisitor() {
+        return new MethodValVisitor(this);
+    }
 
-  @Override
-  protected LinkedHashSet<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
-    // Don't call super otherwise MethodVal will be added as a subChecker
-    // which creates a circular dependency.
-    LinkedHashSet<Class<? extends BaseTypeChecker>> subCheckers =
-        new LinkedHashSet<>(CollectionsPlume.mapCapacity(2));
-    subCheckers.add(ValueChecker.class);
-    subCheckers.add(ClassValChecker.class);
-    return subCheckers;
-  }
+    @Override
+    protected LinkedHashSet<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
+        // Don't call super otherwise MethodVal will be added as a subChecker
+        // which creates a circular dependency.
+        LinkedHashSet<Class<? extends BaseTypeChecker>> subCheckers =
+                new LinkedHashSet<>(CollectionsPlume.mapCapacity(2));
+        subCheckers.add(ValueChecker.class);
+        subCheckers.add(ClassValChecker.class);
+        return subCheckers;
+    }
 }

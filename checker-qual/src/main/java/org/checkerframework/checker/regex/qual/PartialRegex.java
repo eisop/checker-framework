@@ -25,9 +25,9 @@ import java.lang.annotation.Target;
 @SubtypeOf(org.checkerframework.checker.regex.qual.UnknownRegex.class)
 public @interface PartialRegex {
 
-  /**
-   * The String qualified by this annotation. Used to verify concatenation of partial regular
-   * expressions. Defaults to the empty String.
-   */
-  String value() default "";
+    /**
+     * The String qualified by this annotation. Used to verify concatenation of partial regular
+     * expressions. Defaults to the empty String.
+     */
+    String value() default "";
 }

@@ -16,23 +16,23 @@ import java.util.List;
 @Category(AinferTestCheckerAjavaTest.class)
 public class AinferTestCheckerAjavaValidationTest extends AinferValidatePerDirectoryTest {
 
-  /**
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public AinferTestCheckerAjavaValidationTest(List<File> testFiles) {
-    super(
-        testFiles,
-        AinferTestChecker.class,
-        "testchecker",
-        "ainfer-testchecker/annotated",
-        AinferTestCheckerAjavaTest.class,
-        ajavaArgFromFiles(testFiles, "testchecker"),
-        "-AcheckPurityAnnotations",
-        "-Awarns");
-  }
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public AinferTestCheckerAjavaValidationTest(List<File> testFiles) {
+        super(
+                testFiles,
+                AinferTestChecker.class,
+                "testchecker",
+                "ainfer-testchecker/annotated",
+                AinferTestCheckerAjavaTest.class,
+                ajavaArgFromFiles(testFiles, "testchecker"),
+                "-AcheckPurityAnnotations",
+                "-Awarns");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"ainfer-testchecker/annotated/"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"ainfer-testchecker/annotated/"};
+    }
 }

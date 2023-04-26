@@ -30,8 +30,8 @@ import java.lang.annotation.Target;
 @SubtypeOf(UnknownInitialization.class)
 @DefaultQualifierInHierarchy
 @DefaultFor({
-  TypeUseLocation.IMPLICIT_UPPER_BOUND,
-  TypeUseLocation.IMPLICIT_LOWER_BOUND,
-  TypeUseLocation.EXCEPTION_PARAMETER
+    TypeUseLocation.IMPLICIT_UPPER_BOUND,
+    TypeUseLocation.IMPLICIT_LOWER_BOUND,
+    TypeUseLocation.EXCEPTION_PARAMETER
 })
 public @interface Initialized {}

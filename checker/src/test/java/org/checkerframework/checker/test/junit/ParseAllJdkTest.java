@@ -10,17 +10,17 @@ import java.util.List;
 /** Tests {@code -AparseAllJdk} option. */
 public class ParseAllJdkTest extends CheckerFrameworkPerDirectoryTest {
 
-  /**
-   * Create a ParseAllJdkTest.
-   *
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public ParseAllJdkTest(List<File> testFiles) {
-    super(testFiles, NullnessChecker.class, "parse-all-jdk", "-AparseAllJdk");
-  }
+    /**
+     * Create a ParseAllJdkTest.
+     *
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public ParseAllJdkTest(List<File> testFiles) {
+        super(testFiles, NullnessChecker.class, "parse-all-jdk", "-AparseAllJdk");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"parse-all-jdk"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"parse-all-jdk"};
+    }
 }

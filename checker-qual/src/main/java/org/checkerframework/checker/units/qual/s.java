@@ -19,5 +19,5 @@ import java.lang.annotation.Target;
 @SubtypeOf(Time.class)
 @SuppressWarnings("checkstyle:typename")
 public @interface s {
-  Prefix value() default Prefix.one;
+    Prefix value() default Prefix.one;
 }

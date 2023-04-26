@@ -13,17 +13,17 @@ import java.util.List;
  */
 public class NullnessEnclosingExprTest extends CheckerFrameworkPerDirectoryTest {
 
-  /**
-   * Create a NullnessEnclosingExprTest.
-   *
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public NullnessEnclosingExprTest(List<File> testFiles) {
-    super(testFiles, NullnessChecker.class, "nullness", "-AcheckEnclosingExpr");
-  }
+    /**
+     * Create a NullnessEnclosingExprTest.
+     *
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public NullnessEnclosingExprTest(List<File> testFiles) {
+        super(testFiles, NullnessChecker.class, "nullness", "-AcheckEnclosingExpr");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"nullness-enclosingexpr"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"nullness-enclosingexpr"};
+    }
 }

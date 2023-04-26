@@ -18,18 +18,18 @@ import org.checkerframework.javacutil.BugInCF;
  * @see org.checkerframework.framework.type.TypeFromTree
  */
 abstract class TypeFromTreeVisitor
-    extends SimpleTreeVisitor<AnnotatedTypeMirror, AnnotatedTypeFactory> {
+        extends SimpleTreeVisitor<AnnotatedTypeMirror, AnnotatedTypeFactory> {
 
-  TypeFromTreeVisitor() {}
+    TypeFromTreeVisitor() {}
 
-  @Override
-  public AnnotatedTypeMirror defaultAction(Tree tree, AnnotatedTypeFactory f) {
-    if (tree == null) {
-      throw new BugInCF("TypeFromTree.defaultAction: null tree");
+    @Override
+    public AnnotatedTypeMirror defaultAction(Tree tree, AnnotatedTypeFactory f) {
+        if (tree == null) {
+            throw new BugInCF("TypeFromTree.defaultAction: null tree");
+        }
+        throw new BugInCF(
+                this.getClass().getCanonicalName()
+                        + ": conversion undefined for tree type "
+                        + tree.getKind());
     }
-    throw new BugInCF(
-        this.getClass().getCanonicalName()
-            + ": conversion undefined for tree type "
-            + tree.getKind());
-  }
 }

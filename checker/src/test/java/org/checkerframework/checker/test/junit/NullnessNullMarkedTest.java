@@ -12,34 +12,34 @@ import java.util.List;
 /** JUnit tests for the Nullness checker. */
 public class NullnessNullMarkedTest extends CheckerFrameworkPerDirectoryTest {
 
-  /**
-   * Create a NullnessNullMarkedTest.
-   *
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public NullnessNullMarkedTest(List<File> testFiles) {
-    super(
-        testFiles,
-        org.checkerframework.checker.nullness.NullnessChecker.class,
-        "nullness",
-        Collections.singletonList("../../jspecify/build/libs/jspecify-0.0.0-SNAPSHOT.jar"));
-  }
-
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"nullness-nullmarked"};
-  }
-
-  @Override
-  @Test
-  public void run() {
-    /*
-     * Skip under JDK8: checker/bin-devel/build.sh doesn't build JSpecify under that version
-     * (since the JSpecify build requires JDK9+), so there would be no JSpecify jar, and tests
-     * would fail on account of the missing classes.
+    /**
+     * Create a NullnessNullMarkedTest.
+     *
+     * @param testFiles the files containing test code, which will be type-checked
      */
-    if (TestUtilities.IS_AT_LEAST_9_JVM) {
-      super.run();
+    public NullnessNullMarkedTest(List<File> testFiles) {
+        super(
+                testFiles,
+                org.checkerframework.checker.nullness.NullnessChecker.class,
+                "nullness",
+                Collections.singletonList("../../jspecify/build/libs/jspecify-0.0.0-SNAPSHOT.jar"));
     }
-  }
+
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"nullness-nullmarked"};
+    }
+
+    @Override
+    @Test
+    public void run() {
+        /*
+         * Skip under JDK8: checker/bin-devel/build.sh doesn't build JSpecify under that version
+         * (since the JSpecify build requires JDK9+), so there would be no JSpecify jar, and tests
+         * would fail on account of the missing classes.
+         */
+        if (TestUtilities.IS_AT_LEAST_9_JVM) {
+            super.run();
+        }
+    }
 }

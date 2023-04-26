@@ -4,19 +4,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 class MyTop {
-  List<String> children = new ArrayList<>();
+    List<String> children = new ArrayList<>();
 }
 
 abstract class PptRelationMin {
-  abstract MyTop getPpt();
+    abstract MyTop getPpt();
 
-  void init_hierarchy_new() {
-    MyTop ppt = getPpt();
+    void init_hierarchy_new() {
+        MyTop ppt = getPpt();
 
-    @NonNull Object o1 = ppt.children;
+        @NonNull Object o1 = ppt.children;
 
-    for (String rel : ppt.children) {}
+        for (String rel : ppt.children) {}
 
-    @NonNull Object o2 = ppt.children;
-  }
+        @NonNull Object o2 = ppt.children;
+    }
 }

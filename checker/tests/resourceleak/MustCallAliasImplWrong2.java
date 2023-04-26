@@ -9,13 +9,13 @@ import java.io.*;
 
 public class MustCallAliasImplWrong2 implements Closeable {
 
-  final /*@Owning*/ Closeable foo;
+    final /*@Owning*/ Closeable foo;
 
-  // :: error: mustcallalias.out.of.scope
-  public @MustCallAlias MustCallAliasImplWrong2(@MustCallAlias Closeable foo) {
-    this.foo = foo;
-  }
+    // :: error: mustcallalias.out.of.scope
+    public @MustCallAlias MustCallAliasImplWrong2(@MustCallAlias Closeable foo) {
+        this.foo = foo;
+    }
 
-  @Override
-  public void close() {}
+    @Override
+    public void close() {}
 }

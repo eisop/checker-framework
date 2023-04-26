@@ -13,17 +13,17 @@ import java.util.List;
 
 public class NestedAggregateCheckerTest extends CheckerFrameworkPerDirectoryTest {
 
-  /**
-   * Create a NestedAggregateCheckerTest.
-   *
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public NestedAggregateCheckerTest(List<File> testFiles) {
-    super(testFiles, NestedAggregateChecker.class, "", "-AcheckPurityAnnotations");
-  }
+    /**
+     * Create a NestedAggregateCheckerTest.
+     *
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public NestedAggregateCheckerTest(List<File> testFiles) {
+        super(testFiles, NestedAggregateChecker.class, "", "-AcheckPurityAnnotations");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"aggregate", "all-systems"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"aggregate", "all-systems"};
+    }
 }

@@ -22,53 +22,53 @@ import java.util.Objects;
  */
 public class VariableDeclarationNode extends Node {
 
-  protected final VariableTree tree;
-  protected final String name;
+    protected final VariableTree tree;
+    protected final String name;
 
-  // TODO: make modifier accessible
+    // TODO: make modifier accessible
 
-  public VariableDeclarationNode(VariableTree t) {
-    super(TreeUtils.typeOf(t));
-    tree = t;
-    name = tree.getName().toString();
-  }
-
-  public String getName() {
-    return name;
-  }
-
-  @Override
-  public VariableTree getTree() {
-    return tree;
-  }
-
-  @Override
-  public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
-    return visitor.visitVariableDeclaration(this, p);
-  }
-
-  @Override
-  public String toString() {
-    return name;
-  }
-
-  @Override
-  public boolean equals(@Nullable Object obj) {
-    if (!(obj instanceof VariableDeclarationNode)) {
-      return false;
+    public VariableDeclarationNode(VariableTree t) {
+        super(TreeUtils.typeOf(t));
+        tree = t;
+        name = tree.getName().toString();
     }
-    VariableDeclarationNode other = (VariableDeclarationNode) obj;
-    return getName().equals(other.getName());
-  }
 
-  @Override
-  public int hashCode() {
-    return Objects.hash(getName());
-  }
+    public String getName() {
+        return name;
+    }
 
-  @Override
-  @SideEffectFree
-  public Collection<Node> getOperands() {
-    return Collections.emptyList();
-  }
+    @Override
+    public VariableTree getTree() {
+        return tree;
+    }
+
+    @Override
+    public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
+        return visitor.visitVariableDeclaration(this, p);
+    }
+
+    @Override
+    public String toString() {
+        return name;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object obj) {
+        if (!(obj instanceof VariableDeclarationNode)) {
+            return false;
+        }
+        VariableDeclarationNode other = (VariableDeclarationNode) obj;
+        return getName().equals(other.getName());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getName());
+    }
+
+    @Override
+    @SideEffectFree
+    public Collection<Node> getOperands() {
+        return Collections.emptyList();
+    }
 }

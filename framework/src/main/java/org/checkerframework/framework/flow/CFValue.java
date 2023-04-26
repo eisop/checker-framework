@@ -9,17 +9,17 @@ import javax.lang.model.type.TypeMirror;
  */
 public class CFValue extends CFAbstractValue<CFValue> {
 
-  /**
-   * Creates a new CFValue.
-   *
-   * @param analysis the analysis
-   * @param annotations the annotations
-   * @param underlyingType the underlying type
-   */
-  public CFValue(
-      CFAbstractAnalysis<CFValue, ?, ?> analysis,
-      AnnotationMirrorSet annotations,
-      TypeMirror underlyingType) {
-    super(analysis, annotations, underlyingType);
-  }
+    /**
+     * Creates a new CFValue.
+     *
+     * @param analysis the analysis
+     * @param annotations the annotations
+     * @param underlyingType the underlying type
+     */
+    public CFValue(
+            CFAbstractAnalysis<CFValue, ?, ?> analysis,
+            AnnotationMirrorSet annotations,
+            TypeMirror underlyingType) {
+        super(analysis, annotations, underlyingType);
+    }
 }

@@ -10,26 +10,26 @@ import java.net.*;
 
 @InheritableMustCall("close")
 class SocketContainer {
-  @Owning Socket sock;
+    @Owning Socket sock;
 
-  public SocketContainer(String host, int port) throws Exception {
-    // Assignments to owning fields should not be permitted.
-    // :: error: required.method.not.called
-    sock = new Socket(host, port);
-  }
+    public SocketContainer(String host, int port) throws Exception {
+        // Assignments to owning fields should not be permitted.
+        // :: error: required.method.not.called
+        sock = new Socket(host, port);
+    }
 
-  // No missing create obligation error is issued, since CO is disabled...
-  public void reassign(String host, int port) throws Exception {
-    sock.close();
-    // For the RHS, because the field can't take ownership
-    // :: error: required.method.not.called
-    Socket sr = new Socket(host, port);
-    // No warning for overwriting the field, since it can't take ownership!
-    sock = sr;
-  }
+    // No missing create obligation error is issued, since CO is disabled...
+    public void reassign(String host, int port) throws Exception {
+        sock.close();
+        // For the RHS, because the field can't take ownership
+        // :: error: required.method.not.called
+        Socket sr = new Socket(host, port);
+        // No warning for overwriting the field, since it can't take ownership!
+        sock = sr;
+    }
 
-  @EnsuresCalledMethods(value = "this.sock", methods = "close")
-  public void close() throws IOException {
-    sock.close();
-  }
+    @EnsuresCalledMethods(value = "this.sock", methods = "close")
+    public void close() throws IOException {
+        sock.close();
+    }
 }

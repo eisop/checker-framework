@@ -14,9 +14,9 @@ import java.lang.annotation.Target;
  * @checker_framework.manual #signature-checker Signature Checker
  */
 @SubtypeOf({
-  DotSeparatedIdentifiers.class,
-  BinaryNameWithoutPackage.class,
-  IdentifierOrPrimitiveType.class
+    DotSeparatedIdentifiers.class,
+    BinaryNameWithoutPackage.class,
+    IdentifierOrPrimitiveType.class
 })
 @Documented
 @Retention(RetentionPolicy.RUNTIME)

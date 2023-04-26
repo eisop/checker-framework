@@ -1,11 +1,11 @@
 @DefaultQualifier(
-    value = H1S1.class,
-    locations = {TypeUseLocation.LOCAL_VARIABLE},
-    applyToSubpackages = false)
+        value = H1S1.class,
+        locations = {TypeUseLocation.LOCAL_VARIABLE},
+        applyToSubpackages = false)
 @DefaultQualifier(
-    value = H2S1.class,
-    locations = {TypeUseLocation.LOCAL_VARIABLE},
-    applyToSubpackages = true)
+        value = H2S1.class,
+        locations = {TypeUseLocation.LOCAL_VARIABLE},
+        applyToSubpackages = true)
 package pkg1;
 
 import org.checkerframework.framework.qual.DefaultQualifier;

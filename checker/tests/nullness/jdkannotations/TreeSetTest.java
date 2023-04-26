@@ -9,12 +9,12 @@ import java.util.TreeSet;
 
 public class TreeSetTest {
 
-  public static void main(String[] args) {
+    public static void main(String[] args) {
 
-    // :: error: (type.argument.type.incompatible)
-    TreeSet<@Nullable Integer> ts = new TreeSet<>();
+        // :: error: (type.argument.type.incompatible)
+        TreeSet<@Nullable Integer> ts = new TreeSet<>();
 
-    // This throws a null pointer exception
-    ts.add(null);
-  }
+        // This throws a null pointer exception
+        ts.add(null);
+    }
 }

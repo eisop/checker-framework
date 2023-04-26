@@ -8,12 +8,12 @@ import javax.lang.model.element.TypeElement;
 
 public class PolySignatureTest2 {
 
-  @CanonicalNameOrEmpty Name m1(TypeElement e) {
-    return e.getQualifiedName();
-  }
+    @CanonicalNameOrEmpty Name m1(TypeElement e) {
+        return e.getQualifiedName();
+    }
 
-  @DotSeparatedIdentifiers String m2(@DotSeparatedIdentifiers Name n) {
-    // :: error: (return.type.incompatible)
-    return n.toString();
-  }
+    @DotSeparatedIdentifiers String m2(@DotSeparatedIdentifiers Name n) {
+        // :: error: (return.type.incompatible)
+        return n.toString();
+    }
 }

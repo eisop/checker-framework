@@ -17,21 +17,21 @@ import java.util.List;
  */
 @Category(AinferNullnessJaifsTest.class)
 public class AinferNullnessJaifsTest extends CheckerFrameworkPerDirectoryTest {
-  /**
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public AinferNullnessJaifsTest(List<File> testFiles) {
-    super(
-        testFiles,
-        NullnessChecker.class,
-        "nullness",
-        "-Ainfer=jaifs",
-        "-Awarns",
-        "-Aajava=tests/ainfer-nullness/input-annotation-files/");
-  }
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public AinferNullnessJaifsTest(List<File> testFiles) {
+        super(
+                testFiles,
+                NullnessChecker.class,
+                "nullness",
+                "-Ainfer=jaifs",
+                "-Awarns",
+                "-Aajava=tests/ainfer-nullness/input-annotation-files/");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"ainfer-nullness/non-annotated"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"ainfer-nullness/non-annotated"};
+    }
 }

@@ -19,49 +19,49 @@ import javax.lang.model.util.Types;
  */
 public class PrimitiveTypeNode extends Node {
 
-  protected final PrimitiveTypeTree tree;
+    protected final PrimitiveTypeTree tree;
 
-  /** For Types.isSameType. */
-  protected final Types types;
+    /** For Types.isSameType. */
+    protected final Types types;
 
-  public PrimitiveTypeNode(PrimitiveTypeTree tree, Types types) {
-    super(TreeUtils.typeOf(tree));
-    this.tree = tree;
-    this.types = types;
-  }
-
-  @Override
-  public PrimitiveTypeTree getTree() {
-    return tree;
-  }
-
-  @Override
-  public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
-    return visitor.visitPrimitiveType(this, p);
-  }
-
-  @Override
-  public String toString() {
-    return tree.toString();
-  }
-
-  @Override
-  public boolean equals(@Nullable Object obj) {
-    if (!(obj instanceof PrimitiveTypeNode)) {
-      return false;
+    public PrimitiveTypeNode(PrimitiveTypeTree tree, Types types) {
+        super(TreeUtils.typeOf(tree));
+        this.tree = tree;
+        this.types = types;
     }
-    PrimitiveTypeNode other = (PrimitiveTypeNode) obj;
-    return types.isSameType(getType(), other.getType());
-  }
 
-  @Override
-  public int hashCode() {
-    return Objects.hash(getType());
-  }
+    @Override
+    public PrimitiveTypeTree getTree() {
+        return tree;
+    }
 
-  @Override
-  @SideEffectFree
-  public Collection<Node> getOperands() {
-    return Collections.emptyList();
-  }
+    @Override
+    public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
+        return visitor.visitPrimitiveType(this, p);
+    }
+
+    @Override
+    public String toString() {
+        return tree.toString();
+    }
+
+    @Override
+    public boolean equals(@Nullable Object obj) {
+        if (!(obj instanceof PrimitiveTypeNode)) {
+            return false;
+        }
+        PrimitiveTypeNode other = (PrimitiveTypeNode) obj;
+        return types.isSameType(getType(), other.getType());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getType());
+    }
+
+    @Override
+    @SideEffectFree
+    public Collection<Node> getOperands() {
+        return Collections.emptyList();
+    }
 }

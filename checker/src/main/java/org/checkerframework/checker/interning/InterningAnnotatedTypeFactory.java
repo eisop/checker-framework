@@ -66,181 +66,181 @@ import javax.lang.model.type.TypeMirror;
  */
 public class InterningAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
-  /** The {@link UnknownInterned} annotation. */
-  final AnnotationMirror TOP = AnnotationBuilder.fromClass(elements, UnknownInterned.class);
-  /** The {@link Interned} annotation. */
-  final AnnotationMirror INTERNED = AnnotationBuilder.fromClass(elements, Interned.class);
-  /** The {@link InternedDistinct} annotation. */
-  final AnnotationMirror INTERNED_DISTINCT =
-      AnnotationBuilder.fromClass(elements, InternedDistinct.class);
+    /** The {@link UnknownInterned} annotation. */
+    final AnnotationMirror TOP = AnnotationBuilder.fromClass(elements, UnknownInterned.class);
+    /** The {@link Interned} annotation. */
+    final AnnotationMirror INTERNED = AnnotationBuilder.fromClass(elements, Interned.class);
+    /** The {@link InternedDistinct} annotation. */
+    final AnnotationMirror INTERNED_DISTINCT =
+            AnnotationBuilder.fromClass(elements, InternedDistinct.class);
 
-  /** A set containing just {@link #INTERNED}. */
-  final AnnotationMirrorSet INTERNED_SET = AnnotationMirrorSet.singleton(INTERNED);
+    /** A set containing just {@link #INTERNED}. */
+    final AnnotationMirrorSet INTERNED_SET = AnnotationMirrorSet.singleton(INTERNED);
 
-  /**
-   * Creates a new {@link InterningAnnotatedTypeFactory} that operates on a particular AST.
-   *
-   * @param checker the checker to use
-   */
-  public InterningAnnotatedTypeFactory(BaseTypeChecker checker) {
-    super(checker);
+    /**
+     * Creates a new {@link InterningAnnotatedTypeFactory} that operates on a particular AST.
+     *
+     * @param checker the checker to use
+     */
+    public InterningAnnotatedTypeFactory(BaseTypeChecker checker) {
+        super(checker);
 
-    // If you update the following, also update ../../../../../docs/manual/interning-checker.tex
-    addAliasedTypeAnnotation("com.sun.istack.internal.Interned", INTERNED);
+        // If you update the following, also update ../../../../../docs/manual/interning-checker.tex
+        addAliasedTypeAnnotation("com.sun.istack.internal.Interned", INTERNED);
 
-    this.postInit();
-  }
-
-  @Override
-  protected DefaultQualifierForUseTypeAnnotator createDefaultForUseTypeAnnotator() {
-    return new InterningDefaultQualifierForUseTypeAnnotator(this);
-  }
-
-  /**
-   * Does not add defaults for type uses on constructor results. Constructor results should be
-   * {@code @UnknownInterned} by default.
-   */
-  static class InterningDefaultQualifierForUseTypeAnnotator
-      extends DefaultQualifierForUseTypeAnnotator {
-
-    public InterningDefaultQualifierForUseTypeAnnotator(AnnotatedTypeFactory typeFactory) {
-      super(typeFactory);
+        this.postInit();
     }
 
     @Override
-    public Void visitExecutable(AnnotatedExecutableType type, Void p) {
-      MethodSymbol methodElt = (MethodSymbol) type.getElement();
-
-      if (methodElt == null || methodElt.getKind() != ElementKind.CONSTRUCTOR) {
-        // Annotate method returns, not constructors.
-        scan(type.getReturnType(), p);
-      }
-      AnnotatedTypeMirror receiverType = type.getReceiverType();
-      if (receiverType != null
-          // Intern method may be called on UnknownInterned object, so its receiver should
-          // not be annotated as @Interned.
-          && typeFactory.getDeclAnnotation(methodElt, InternMethod.class) == null) {
-        scanAndReduce(receiverType, p, null);
-      }
-      scanAndReduce(type.getParameterTypes(), p, null);
-      scanAndReduce(type.getThrownTypes(), p, null);
-      scanAndReduce(type.getTypeVariables(), p, null);
-      return null;
+    protected DefaultQualifierForUseTypeAnnotator createDefaultForUseTypeAnnotator() {
+        return new InterningDefaultQualifierForUseTypeAnnotator(this);
     }
-  }
 
-  @Override
-  public AnnotationMirrorSet getTypeDeclarationBounds(TypeMirror typeMirror) {
-    if (typeMirror.getKind() == TypeKind.DECLARED
-        && ((DeclaredType) typeMirror).asElement().getKind() == ElementKind.ENUM) {
-      return INTERNED_SET;
-    }
-    return super.getTypeDeclarationBounds(typeMirror);
-  }
+    /**
+     * Does not add defaults for type uses on constructor results. Constructor results should be
+     * {@code @UnknownInterned} by default.
+     */
+    static class InterningDefaultQualifierForUseTypeAnnotator
+            extends DefaultQualifierForUseTypeAnnotator {
 
-  @Override
-  protected TreeAnnotator createTreeAnnotator() {
-    return new ListTreeAnnotator(super.createTreeAnnotator(), new InterningTreeAnnotator(this));
-  }
+        public InterningDefaultQualifierForUseTypeAnnotator(AnnotatedTypeFactory typeFactory) {
+            super(typeFactory);
+        }
 
-  @Override
-  protected TypeAnnotator createTypeAnnotator() {
-    return new ListTypeAnnotator(new InterningTypeAnnotator(this), super.createTypeAnnotator());
-  }
+        @Override
+        public Void visitExecutable(AnnotatedExecutableType type, Void p) {
+            MethodSymbol methodElt = (MethodSymbol) type.getElement();
 
-  @Override
-  public void addComputedTypeAnnotationsForWarnRedundant(
-      Tree tree, AnnotatedTypeMirror type, boolean useFlow) {
-    // Compared to `addComputedTypeAnnotations()`,
-    // does not check whether the element is a compile-time constant.
-    super.addComputedTypeAnnotations(tree, type, useFlow);
-  }
-
-  @Override
-  public void addComputedTypeAnnotations(Element element, AnnotatedTypeMirror type) {
-    if (!type.isAnnotatedInHierarchy(INTERNED) && ElementUtils.isCompileTimeConstant(element)) {
-      type.addAnnotation(INTERNED);
-    }
-    super.addComputedTypeAnnotations(element, type);
-  }
-
-  /** A class for adding annotations based on tree. */
-  private class InterningTreeAnnotator extends TreeAnnotator {
-
-    InterningTreeAnnotator(InterningAnnotatedTypeFactory atypeFactory) {
-      super(atypeFactory);
+            if (methodElt == null || methodElt.getKind() != ElementKind.CONSTRUCTOR) {
+                // Annotate method returns, not constructors.
+                scan(type.getReturnType(), p);
+            }
+            AnnotatedTypeMirror receiverType = type.getReceiverType();
+            if (receiverType != null
+                    // Intern method may be called on UnknownInterned object, so its receiver should
+                    // not be annotated as @Interned.
+                    && typeFactory.getDeclAnnotation(methodElt, InternMethod.class) == null) {
+                scanAndReduce(receiverType, p, null);
+            }
+            scanAndReduce(type.getParameterTypes(), p, null);
+            scanAndReduce(type.getThrownTypes(), p, null);
+            scanAndReduce(type.getTypeVariables(), p, null);
+            return null;
+        }
     }
 
     @Override
-    public Void visitBinary(BinaryTree tree, AnnotatedTypeMirror type) {
-      if (TreeUtils.isCompileTimeString(tree)) {
-        type.replaceAnnotation(INTERNED);
-      } else if (TreeUtils.isStringConcatenation(tree)) {
-        type.replaceAnnotation(TOP);
-      } else if (type.getKind().isPrimitive()
-          || tree.getKind() == Tree.Kind.EQUAL_TO
-          || tree.getKind() == Tree.Kind.NOT_EQUAL_TO) {
-        type.replaceAnnotation(INTERNED);
-      } else {
-        type.replaceAnnotation(TOP);
-      }
-      return super.visitBinary(tree, type);
+    public AnnotationMirrorSet getTypeDeclarationBounds(TypeMirror typeMirror) {
+        if (typeMirror.getKind() == TypeKind.DECLARED
+                && ((DeclaredType) typeMirror).asElement().getKind() == ElementKind.ENUM) {
+            return INTERNED_SET;
+        }
+        return super.getTypeDeclarationBounds(typeMirror);
     }
 
-    /* Compound assignments never result in an interned result.
+    @Override
+    protected TreeAnnotator createTreeAnnotator() {
+        return new ListTreeAnnotator(super.createTreeAnnotator(), new InterningTreeAnnotator(this));
+    }
+
+    @Override
+    protected TypeAnnotator createTypeAnnotator() {
+        return new ListTypeAnnotator(new InterningTypeAnnotator(this), super.createTypeAnnotator());
+    }
+
+    @Override
+    public void addComputedTypeAnnotationsForWarnRedundant(
+            Tree tree, AnnotatedTypeMirror type, boolean useFlow) {
+        // Compared to `addComputedTypeAnnotations()`,
+        // does not check whether the element is a compile-time constant.
+        super.addComputedTypeAnnotations(tree, type, useFlow);
+    }
+
+    @Override
+    public void addComputedTypeAnnotations(Element element, AnnotatedTypeMirror type) {
+        if (!type.isAnnotatedInHierarchy(INTERNED) && ElementUtils.isCompileTimeConstant(element)) {
+            type.addAnnotation(INTERNED);
+        }
+        super.addComputedTypeAnnotations(element, type);
+    }
+
+    /** A class for adding annotations based on tree. */
+    private class InterningTreeAnnotator extends TreeAnnotator {
+
+        InterningTreeAnnotator(InterningAnnotatedTypeFactory atypeFactory) {
+            super(atypeFactory);
+        }
+
+        @Override
+        public Void visitBinary(BinaryTree tree, AnnotatedTypeMirror type) {
+            if (TreeUtils.isCompileTimeString(tree)) {
+                type.replaceAnnotation(INTERNED);
+            } else if (TreeUtils.isStringConcatenation(tree)) {
+                type.replaceAnnotation(TOP);
+            } else if (type.getKind().isPrimitive()
+                    || tree.getKind() == Tree.Kind.EQUAL_TO
+                    || tree.getKind() == Tree.Kind.NOT_EQUAL_TO) {
+                type.replaceAnnotation(INTERNED);
+            } else {
+                type.replaceAnnotation(TOP);
+            }
+            return super.visitBinary(tree, type);
+        }
+
+        /* Compound assignments never result in an interned result.
+         */
+        @Override
+        public Void visitCompoundAssignment(CompoundAssignmentTree tree, AnnotatedTypeMirror type) {
+            type.replaceAnnotation(TOP);
+            return super.visitCompoundAssignment(tree, type);
+        }
+
+        @Override
+        public Void visitTypeCast(TypeCastTree tree, AnnotatedTypeMirror type) {
+            if (TreeUtils.typeOf(tree.getType()).getKind().isPrimitive()) {
+                type.replaceAnnotation(INTERNED);
+            }
+            return super.visitTypeCast(tree, type);
+        }
+
+        @Override
+        public Void visitIdentifier(IdentifierTree tree, AnnotatedTypeMirror type) {
+            Element e = TreeUtils.elementFromUse(tree);
+            if (atypeFactory.getDeclAnnotation(e, FindDistinct.class) != null) {
+                // TODO: See note above about this being a poor implementation.
+                type.replaceAnnotation(INTERNED_DISTINCT);
+            }
+            return super.visitIdentifier(tree, type);
+        }
+    }
+
+    /** Adds @Interned to enum types. */
+    private class InterningTypeAnnotator extends TypeAnnotator {
+
+        InterningTypeAnnotator(InterningAnnotatedTypeFactory atypeFactory) {
+            super(atypeFactory);
+        }
+
+        @Override
+        public Void visitDeclared(AnnotatedDeclaredType t, Void p) {
+            // case 3: Enum types, and the Enum class itself, are interned
+            Element elt = t.getUnderlyingType().asElement();
+            assert elt != null;
+            if (elt.getKind() == ElementKind.ENUM) {
+                t.replaceAnnotation(INTERNED);
+            }
+            return super.visitDeclared(t, p);
+        }
+    }
+
+    /**
+     * Unbox type and replace any interning type annotations with @Interned since all primitives can
+     * safely use ==. See case 4 in the class comments.
      */
     @Override
-    public Void visitCompoundAssignment(CompoundAssignmentTree tree, AnnotatedTypeMirror type) {
-      type.replaceAnnotation(TOP);
-      return super.visitCompoundAssignment(tree, type);
+    public AnnotatedPrimitiveType getUnboxedType(AnnotatedDeclaredType type) {
+        AnnotatedPrimitiveType primitive = super.getUnboxedType(type);
+        primitive.replaceAnnotation(INTERNED);
+        return primitive;
     }
-
-    @Override
-    public Void visitTypeCast(TypeCastTree tree, AnnotatedTypeMirror type) {
-      if (TreeUtils.typeOf(tree.getType()).getKind().isPrimitive()) {
-        type.replaceAnnotation(INTERNED);
-      }
-      return super.visitTypeCast(tree, type);
-    }
-
-    @Override
-    public Void visitIdentifier(IdentifierTree tree, AnnotatedTypeMirror type) {
-      Element e = TreeUtils.elementFromUse(tree);
-      if (atypeFactory.getDeclAnnotation(e, FindDistinct.class) != null) {
-        // TODO: See note above about this being a poor implementation.
-        type.replaceAnnotation(INTERNED_DISTINCT);
-      }
-      return super.visitIdentifier(tree, type);
-    }
-  }
-
-  /** Adds @Interned to enum types. */
-  private class InterningTypeAnnotator extends TypeAnnotator {
-
-    InterningTypeAnnotator(InterningAnnotatedTypeFactory atypeFactory) {
-      super(atypeFactory);
-    }
-
-    @Override
-    public Void visitDeclared(AnnotatedDeclaredType t, Void p) {
-      // case 3: Enum types, and the Enum class itself, are interned
-      Element elt = t.getUnderlyingType().asElement();
-      assert elt != null;
-      if (elt.getKind() == ElementKind.ENUM) {
-        t.replaceAnnotation(INTERNED);
-      }
-      return super.visitDeclared(t, p);
-    }
-  }
-
-  /**
-   * Unbox type and replace any interning type annotations with @Interned since all primitives can
-   * safely use ==. See case 4 in the class comments.
-   */
-  @Override
-  public AnnotatedPrimitiveType getUnboxedType(AnnotatedDeclaredType type) {
-    AnnotatedPrimitiveType primitive = super.getUnboxedType(type);
-    primitive.replaceAnnotation(INTERNED);
-    return primitive;
-  }
 }

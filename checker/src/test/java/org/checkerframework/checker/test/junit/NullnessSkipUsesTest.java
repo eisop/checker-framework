@@ -9,21 +9,21 @@ import java.util.List;
 /** JUnit tests for the Nullness Checker -- testing {@code -AskipUses} command-line argument. */
 public class NullnessSkipUsesTest extends CheckerFrameworkPerDirectoryTest {
 
-  /**
-   * Create a NullnessSkipUsesTest.
-   *
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public NullnessSkipUsesTest(List<File> testFiles) {
-    super(
-        testFiles,
-        org.checkerframework.checker.nullness.NullnessChecker.class,
-        "nullness",
-        "-AskipUses=SkipMe");
-  }
+    /**
+     * Create a NullnessSkipUsesTest.
+     *
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public NullnessSkipUsesTest(List<File> testFiles) {
+        super(
+                testFiles,
+                org.checkerframework.checker.nullness.NullnessChecker.class,
+                "nullness",
+                "-AskipUses=SkipMe");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"nullness-skipuses"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"nullness-skipuses"};
+    }
 }

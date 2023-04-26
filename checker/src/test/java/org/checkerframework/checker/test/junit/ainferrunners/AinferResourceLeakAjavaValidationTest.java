@@ -16,22 +16,22 @@ import java.util.List;
 @Category(AinferResourceLeakAjavaTest.class)
 public class AinferResourceLeakAjavaValidationTest extends AinferValidatePerDirectoryTest {
 
-  /**
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public AinferResourceLeakAjavaValidationTest(List<File> testFiles) {
-    super(
-        testFiles,
-        ResourceLeakChecker.class,
-        "resourceleak",
-        "ainfer-resourceleak/annotated",
-        AinferResourceLeakAjavaTest.class,
-        ajavaArgFromFiles(testFiles, "resourceleak"),
-        "-Awarns");
-  }
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public AinferResourceLeakAjavaValidationTest(List<File> testFiles) {
+        super(
+                testFiles,
+                ResourceLeakChecker.class,
+                "resourceleak",
+                "ainfer-resourceleak/annotated",
+                AinferResourceLeakAjavaTest.class,
+                ajavaArgFromFiles(testFiles, "resourceleak"),
+                "-Awarns");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"ainfer-resourceleak/annotated/"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"ainfer-resourceleak/annotated/"};
+    }
 }

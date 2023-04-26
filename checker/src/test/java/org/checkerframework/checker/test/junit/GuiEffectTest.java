@@ -8,18 +8,21 @@ import java.util.List;
 
 public class GuiEffectTest extends CheckerFrameworkPerDirectoryTest {
 
-  /**
-   * Create a GuiEffectTest.
-   *
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public GuiEffectTest(List<File> testFiles) {
-    super(testFiles, org.checkerframework.checker.guieffect.GuiEffectChecker.class, "guieffect");
-    // , "-Alint=debugSpew");
-  }
+    /**
+     * Create a GuiEffectTest.
+     *
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public GuiEffectTest(List<File> testFiles) {
+        super(
+                testFiles,
+                org.checkerframework.checker.guieffect.GuiEffectChecker.class,
+                "guieffect");
+        // , "-Alint=debugSpew");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"guieffect", "all-systems"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"guieffect", "all-systems"};
+    }
 }

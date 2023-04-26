@@ -17,49 +17,49 @@ import java.util.Objects;
  */
 public class ClassDeclarationNode extends Node {
 
-  protected final ClassTree tree;
+    protected final ClassTree tree;
 
-  public ClassDeclarationNode(ClassTree tree) {
-    super(TreeUtils.typeOf(tree));
-    this.tree = tree;
-  }
-
-  @Override
-  public ClassTree getTree() {
-    return tree;
-  }
-
-  @Override
-  public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
-    return visitor.visitClassDeclaration(this, p);
-  }
-
-  @Override
-  public String toString() {
-    return tree.toString();
-  }
-
-  @Override
-  public boolean equals(@Nullable Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
+    public ClassDeclarationNode(ClassTree tree) {
+        super(TreeUtils.typeOf(tree));
+        this.tree = tree;
     }
 
-    ClassDeclarationNode that = (ClassDeclarationNode) o;
-    return Objects.equals(tree, that.tree);
-  }
+    @Override
+    public ClassTree getTree() {
+        return tree;
+    }
 
-  @Override
-  public int hashCode() {
-    return Objects.hash(tree);
-  }
+    @Override
+    public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
+        return visitor.visitClassDeclaration(this, p);
+    }
 
-  @Override
-  @SideEffectFree
-  public Collection<Node> getOperands() {
-    return Collections.emptyList();
-  }
+    @Override
+    public String toString() {
+        return tree.toString();
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        ClassDeclarationNode that = (ClassDeclarationNode) o;
+        return Objects.equals(tree, that.tree);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(tree);
+    }
+
+    @Override
+    @SideEffectFree
+    public Collection<Node> getOperands() {
+        return Collections.emptyList();
+    }
 }

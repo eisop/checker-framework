@@ -17,27 +17,27 @@ import java.util.List;
  */
 @Category(AinferTestCheckerJaifsTest.class)
 public class AinferTestCheckerJaifsTest extends AinferGeneratePerDirectoryTest {
-  /**
-   * @param testFiles the files containing test code, which will be type-checked
-   */
-  public AinferTestCheckerJaifsTest(List<File> testFiles) {
-    super(
-        testFiles,
-        AinferTestChecker.class,
-        "ainfer-testchecker/non-annotated",
-        "-Ainfer=jaifs",
-        // The AFU's JAIF reading/writing libraries don't support records.
-        "-AskipDefs=SimpleRecord",
-        // Use a stub file here, even though this is a JAIF test. This test can't pass
-        // without an external file that specifies that a method is pure, and there is no
-        // way to directly pass a JAIF file (in a real WPI run, the JAIF file's annotations
-        // would have been inserted into the source).
-        "-Astubs=tests/ainfer-testchecker/input-annotation-files/ExistingPurityAnnotations-org.checkerframework.checker.testchecker.ainfer.AinferTestChecker.astub",
-        "-Awarns");
-  }
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
+    public AinferTestCheckerJaifsTest(List<File> testFiles) {
+        super(
+                testFiles,
+                AinferTestChecker.class,
+                "ainfer-testchecker/non-annotated",
+                "-Ainfer=jaifs",
+                // The AFU's JAIF reading/writing libraries don't support records.
+                "-AskipDefs=SimpleRecord",
+                // Use a stub file here, even though this is a JAIF test. This test can't pass
+                // without an external file that specifies that a method is pure, and there is no
+                // way to directly pass a JAIF file (in a real WPI run, the JAIF file's annotations
+                // would have been inserted into the source).
+                "-Astubs=tests/ainfer-testchecker/input-annotation-files/ExistingPurityAnnotations-org.checkerframework.checker.testchecker.ainfer.AinferTestChecker.astub",
+                "-Awarns");
+    }
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"ainfer-testchecker/non-annotated"};
-  }
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"ainfer-testchecker/non-annotated"};
+    }
 }

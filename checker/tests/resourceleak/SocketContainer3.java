@@ -9,14 +9,14 @@ import java.net.*;
 
 @InheritableMustCall("close")
 class SocketContainer3 {
-  @Owning Socket sock = null;
+    @Owning Socket sock = null;
 
-  public SocketContainer3(String host, int port) throws Exception {
-    sock = new Socket(host, port);
-  }
+    public SocketContainer3(String host, int port) throws Exception {
+        sock = new Socket(host, port);
+    }
 
-  @EnsuresCalledMethods(value = "this.sock", methods = "close")
-  public void close() throws IOException {
-    sock.close();
-  }
+    @EnsuresCalledMethods(value = "this.sock", methods = "close")
+    public void close() throws IOException {
+        sock.close();
+    }
 }
