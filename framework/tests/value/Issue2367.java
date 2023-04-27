@@ -23,12 +23,6 @@ public class Issue2367 {
 
     // Outside the signed byte range, but written as a hexadecimal literal.
 
-    // As a special case, the Constant Value Checker could not issue a warning when a value is
-    // within the signed byte range AND the value was specified in hexadecimal.
-    // Such a special case is not yet implemented, and I don't see how to do so.
-    // The program element "(byte) 0x8B" has already been converted to "(byte)139" by javac before
-    // the Checker Framework gets access to it.
-
     // :: error: (cast.incomparable)
     byte b7 = (byte) 0x8B; // 0x8B == 137, and b4 == -117
 }
