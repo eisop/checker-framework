@@ -38,6 +38,7 @@ import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.DeepCopyable;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TypeKindUtils;
 import org.plumelib.util.CollectionsPlume;
@@ -55,9 +56,11 @@ import org.plumelib.util.CollectionsPlume;
  *
  * @see TypeMirror
  */
-public abstract class AnnotatedTypeMirror {
+public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeMirror> {
 
+  /** An EqualityAtmComparer. */
   protected static final EqualityAtmComparer EQUALITY_COMPARER = new EqualityAtmComparer();
+  /** A HashcodeAtmVisitor. */
   protected static final HashcodeAtmVisitor HASHCODE_VISITOR = new HashcodeAtmVisitor();
 
   /** The factory to use for lazily creating annotated types. */
@@ -96,6 +99,10 @@ public abstract class AnnotatedTypeMirror {
     assert atypeFactory != null;
     this.atypeFactory = atypeFactory;
   }
+
+  /// This class doesn't customize the clone() method; use deepCopy() instead.
+  // @Override
+  // public AnnotatedTypeMirror clone() { ... }
 
   /**
    * Creates an AnnotatedTypeMirror for the provided type. The result contains no annotations.
@@ -775,6 +782,7 @@ public abstract class AnnotatedTypeMirror {
    * @return a deep copy of this type with annotations
    * @see #deepCopy(boolean)
    */
+  @Override
   public abstract AnnotatedTypeMirror deepCopy();
 
   /**
