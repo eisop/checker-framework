@@ -115,7 +115,10 @@ public class FormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
   /* NO-AFU
   @Override
   public void wpiPrepareMethodForWriting(
-      WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos methodAnnos) {
+      WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos methodAnnos,
+      Collection<WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos> inSupertypes,
+      Collection<WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos> inSubtypes) {
+
     if (hasFormatMethodAnno(methodAnnos)) {
       AnnotatedTypeMirror atm = methodAnnos.getParameterType(0);
       atm.removeAnnotationByClass(org.checkerframework.checker.formatter.qual.Format.class);
