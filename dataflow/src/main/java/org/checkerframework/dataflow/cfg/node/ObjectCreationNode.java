@@ -18,6 +18,7 @@ import java.util.Objects;
  *
  * <pre>
  *   <em>new identifier(arg1, arg2, ...)</em>
+ *   <em>new identifier<T></>(arg1, arg2, ...)</em>
  *   <em>enclosingExpression.new identifier(arg1, arg2, ...)</em>
  * </pre>
  */
@@ -29,7 +30,10 @@ public class ObjectCreationNode extends Node {
     /** The enclosing expression of the object creation or null. */
     protected final @Nullable Node enclosingExpression;
 
-    /** The identifier node of the object creation. */
+    /**
+     * The identifier node of the object creation. A generic constructor identifier can refer to the
+     * ParameterizedTypeNode, while a non-generic constructor can refer to the ClassNameNode.
+     */
     protected final Node identifier;
 
     /** The arguments of the object creation. */
@@ -67,7 +71,7 @@ public class ObjectCreationNode extends Node {
      * @return the identifier node
      */
     @Pure
-    public Node getIdentifierNode() {
+    public Node getIdentifier() {
         return identifier;
     }
 
@@ -150,11 +154,11 @@ public class ObjectCreationNode extends Node {
         }
         ObjectCreationNode other = (ObjectCreationNode) obj;
         // TODO: See issue 376
-        if (identifier == null && other.getIdentifierNode() != null) {
+        if (identifier == null && other.getIdentifier() != null) {
             return false;
         }
 
-        return getIdentifierNode().equals(other.getIdentifierNode())
+        return getIdentifier().equals(other.getIdentifier())
                 && getArguments().equals(other.getArguments())
                 && (getEnclosingExpression() == null
                         ? null == other.getEnclosingExpression()
