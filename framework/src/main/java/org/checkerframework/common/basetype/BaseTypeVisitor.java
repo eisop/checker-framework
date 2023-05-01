@@ -4017,9 +4017,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Issue an "methodref.receiver.invalid" error if the method reference receiver is not valid.
+     * Issue a "methodref.receiver.invalid" or "methodref.receiver.bound.invalid" error if the
+     * receiver for the method reference does not satify overriding rules.
      *
-     * @return true if the method reference receiver is legal
+     * @return true if the override is legal
      */
     protected boolean checkMemberReferenceReceivers() {
       if (overriderType.getKind() == TypeKind.ARRAY) {
