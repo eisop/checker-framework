@@ -2407,11 +2407,12 @@ public abstract class GenericAnnotatedTypeFactory<
    */
   /* NO-AFU
   public List<AnnotationMirror> getContractAnnotations(AMethod m) {
-      List<AnnotationMirror> preconds = getPreconditionAnnotations(m);
-      List<AnnotationMirror> postconds = getPostconditionAnnotations(m, preconds);
-      List<AnnotationMirror> result = preconds;
-      result.addAll(postconds);
-      return result;
+    List<AnnotationMirror> preconds = getPreconditionAnnotations(m);
+    List<AnnotationMirror> postconds = getPostconditionAnnotations(m, preconds);
+
+    List<AnnotationMirror> result = preconds;
+    result.addAll(postconds);
+    return result;
   }
   */
 
@@ -2425,24 +2426,23 @@ public abstract class GenericAnnotatedTypeFactory<
    */
   /* NO-AFU
   public List<AnnotationMirror> getPreconditionAnnotations(AMethod m) {
-      List<AnnotationMirror> result = new ArrayList<>(m.getPreconditions().size());
-      for (Map.Entry<String, AField> entry : m.getPreconditions().entrySet()) {
-          WholeProgramInferenceImplementation<?> wholeProgramInference =
-                  (WholeProgramInferenceImplementation<?>) getWholeProgramInference();
-          WholeProgramInferenceScenesStorage storage =
-                  (WholeProgramInferenceScenesStorage) wholeProgramInference.getStorage();
-          TypeMirror typeMirror = entry.getValue().getTypeMirror();
-          if (typeMirror == null) {
-              throw new BugInCF(
-                      "null TypeMirror in AField inferred by WPI precondition inference. AField: "
-                              + entry.getValue().toString());
-          }
+    int size = m.getPreconditions().size();
+    List<AnnotationMirror> result = new ArrayList<>(size);
+    if (size == 0) {
+      return result;
+    }
 
-          AnnotatedTypeMirror declaredType =
-                  storage.getPreconditionDeclaredType(m, entry.getKey());
-          AnnotatedTypeMirror inferredType =
-                  storage.atmFromStorageLocation(typeMirror, entry.getValue().type);
-          result.addAll(getPreconditionAnnotations(entry.getKey(), inferredType, declaredType));
+    WholeProgramInferenceImplementation<?> wholeProgramInference =
+        (WholeProgramInferenceImplementation<?>) getWholeProgramInference();
+    WholeProgramInferenceScenesStorage storage =
+        (WholeProgramInferenceScenesStorage) wholeProgramInference.getStorage();
+
+    for (Map.Entry<String, AField> entry : m.getPreconditions().entrySet()) {
+      TypeMirror typeMirror = entry.getValue().getTypeMirror();
+      if (typeMirror == null) {
+        throw new BugInCF(
+            "null TypeMirror in AField inferred by WPI precondition inference. AField: "
+                + entry.getValue().toString());
       }
       Collections.sort(result, Ordering.usingToString());
       return result;
@@ -2461,28 +2461,24 @@ public abstract class GenericAnnotatedTypeFactory<
    */
   /* NO-AFU
   public List<AnnotationMirror> getPostconditionAnnotations(
-          AMethod m, List<AnnotationMirror> preconds) {
-      List<AnnotationMirror> result = new ArrayList<>(m.getPostconditions().size());
-      for (Map.Entry<String, AField> entry : m.getPostconditions().entrySet()) {
-          WholeProgramInferenceImplementation<?> wholeProgramInference =
-                  (WholeProgramInferenceImplementation<?>) getWholeProgramInference();
-          WholeProgramInferenceScenesStorage storage =
-                  (WholeProgramInferenceScenesStorage) wholeProgramInference.getStorage();
-          TypeMirror typeMirror = entry.getValue().getTypeMirror();
-          if (typeMirror == null) {
-              throw new BugInCF(
-                      "null TypeMirror in AField inferred by WPI postcondition inference. AField:"
-                              + " "
-                              + entry.getValue().toString());
-          }
+      AMethod m, List<AnnotationMirror> preconds) {
+    int size = m.getPostconditions().size();
+    List<AnnotationMirror> result = new ArrayList<>(size);
+    if (size == 0) {
+      return result;
+    }
 
-          AnnotatedTypeMirror declaredType =
-                  storage.getPostconditionDeclaredType(m, entry.getKey());
-          AnnotatedTypeMirror inferredType =
-                  storage.atmFromStorageLocation(typeMirror, entry.getValue().type);
-          result.addAll(
-                  getPostconditionAnnotations(
-                          entry.getKey(), inferredType, declaredType, preconds));
+    WholeProgramInferenceImplementation<?> wholeProgramInference =
+        (WholeProgramInferenceImplementation<?>) getWholeProgramInference();
+    WholeProgramInferenceScenesStorage storage =
+        (WholeProgramInferenceScenesStorage) wholeProgramInference.getStorage();
+
+    for (Map.Entry<String, AField> entry : m.getPostconditions().entrySet()) {
+      TypeMirror typeMirror = entry.getValue().getTypeMirror();
+      if (typeMirror == null) {
+        throw new BugInCF(
+            "null TypeMirror in AField inferred by WPI postcondition inference. AField: "
+                + entry.getValue().toString());
       }
       Collections.sort(result, Ordering.usingToString());
       return result;
