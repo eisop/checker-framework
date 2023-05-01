@@ -62,7 +62,7 @@ public class ObjectCreationNode extends Node {
     }
 
     /**
-     * Returns the identifier node
+     * Returns the identifier node.
      *
      * @return the identifier node
      */
