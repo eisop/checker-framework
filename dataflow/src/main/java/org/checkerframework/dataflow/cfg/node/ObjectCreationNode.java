@@ -18,7 +18,7 @@ import java.util.Objects;
  *
  * <pre>
  *   <em>new identifier(arg1, arg2, ...)</em>
- *   <em>new identifier<T></>(arg1, arg2, ...)</em>
+ *   <em>new identifier&lt;T&gt;(arg1, arg2, ...)</em>
  *   <em>enclosingExpression.new identifier(arg1, arg2, ...)</em>
  * </pre>
  */
