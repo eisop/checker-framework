@@ -2593,12 +2593,13 @@ public abstract class GenericAnnotatedTypeFactory<
    */
   /* NO-AFU
   public List<AnnotationMirror> getContractAnnotations(
-          WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos methodAnnos) {
-      List<AnnotationMirror> preconds = getPreconditionAnnotations(methodAnnos);
-      List<AnnotationMirror> postconds = getPostconditionAnnotations(methodAnnos, preconds);
-      List<AnnotationMirror> result = preconds;
-      result.addAll(postconds);
-      return result;
+      WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos methodAnnos) {
+    List<AnnotationMirror> preconds = getPreconditionAnnotations(methodAnnos);
+    List<AnnotationMirror> postconds = getPostconditionAnnotations(methodAnnos, preconds);
+
+    List<AnnotationMirror> result = preconds;
+    result.addAll(postconds);
+    return result;
   }
   */
 
