@@ -18,17 +18,14 @@ plugins {
     id 'de.undercouch.download' version '5.4.0'
     id 'java'
     // https://github.com/tbroyer/gradle-errorprone-plugin
-    id 'net.ltgt.errorprone' version '3.0.1'
+    id 'net.ltgt.errorprone' version '3.1.0'
     // https://docs.gradle.org/current/userguide/eclipse_plugin.html
     id 'eclipse'
-    // https://plugins.gradle.org/plugin/org.ajoberstar.grgit
-    id 'org.ajoberstar.grgit' version '4.1.1' apply false
     // To show task list as a tree, run: ./gradlew <taskname> taskTree
     id 'com.dorongold.task-tree' version '2.1.1'
 }
-apply plugin: 'de.undercouch.download'
 
-import org.ajoberstar.grgit.Grgit
+apply plugin: 'de.undercouch.download'
 
 // There is another `repositories { ... }` block below; if you change this one, change that one as well.
 repositories {
@@ -75,7 +72,7 @@ ext {
     // afu = "${annotationTools}/annotation-file-utilities"
 
     stubparser = "${parentDir}/stubparser"
-    stubparserJar = "${stubparser}/javaparser-core/target/stubparser-3.25.1.jar"
+    stubparserJar = "${stubparser}/javaparser-core/target/stubparser-3.25.2.jar"
 
     jtregHome = "${parentDir}/jtreg"
     plumeScriptsHome = "${project(':checker').projectDir}/bin-devel/.plume-scripts"
@@ -167,13 +164,15 @@ allprojects {
     // level (third number) if:
     //   * any new checkers have been added, or
     //   * backward-incompatible changes have been made to APIs or elsewhere.
-    version '3.32.0-eisop2-SNAPSHOT'
+    version '3.33.0'
 
+    // Keep in sync with "repositories { ... }" block above.
     repositories {
         mavenCentral()
     }
 
     configurations {
+        // This is required to run the Checker Framework on JDK 8.
         javacJar
 
         // Holds the combined classpath of all subprojects including the subprojects themselves.
@@ -241,18 +240,37 @@ allprojects {
 
     if (isJava11plus) {
         apply plugin: 'com.diffplug.spotless'
-
         spotless {
-            // If you add any formatters to this block that require dependencies here, then you must also
+            // If you add any formatters to this block that require dependencies, then you must also
             // add them to spotlessPredeclare block.
+            def doNotFormat = [
+                'dataflow/manual/examples/',
+                '**/nullness-javac-errors/*',
+                '**/calledmethods-delomboked/*',
+                '**/returnsreceiverdelomboked/*',
+                '**/build/**',
+                '*/dist/**',
+            ]
+            if (!isJava14plus) {
+                doNotFormat += ['**/*record*/']
+            }
+            if (!isJava16plus) {
+                // TODO: directories should be renamed `-switchexpr` or some such,
+                // as they  only contain examples for switch expressions, which were
+                // added in Java 14, not Java 17.
+                doNotFormat += ['**/java17/']
+            }
+
             format 'misc', {
                 // define the files to apply `misc` to
                 target '*.md', '.gitignore'
                 // define the steps to apply to those files
-                trimTrailingWhitespace()
                 indentWithSpaces(2)
-                endWithNewline()
+                trimTrailingWhitespace()
+                // endWithNewline() // Don't want to end empty files with a newline
+                targetExclude doNotFormat
             }
+
             java {
                 def targets = [
                     // add target folders here
@@ -274,25 +292,7 @@ allprojects {
                     ]
                 }
                 target targets
-
-                def doNotFormat = [
-                    'dataflow/manual/examples/',
-                    '**/nullness-javac-errors/*',
-                    '**/calledmethods-delomboked/*',
-                    '**/returnsreceiverdelomboked/*',
-                    '**/build/**',
-                    '*/dist/**',
-                ]
-                if (isJava16plus) {
-                    targetExclude doNotFormat
-                } else if (isJava14plus) {
-                    targetExclude doNotFormat, '**/*record*/'
-                } else {
-                    // TODO: directories should be renamed `-switchexpr` or some such,
-                    // as they  only contain examples for switch expressions, which were
-                    // added in Java 14, not Java 17.
-                    targetExclude doNotFormat, '**/java17/', '**/*record*/'
-                }
+                targetExclude doNotFormat
 
                 googleJavaFormat().aosp()
                 importOrder('com', 'jdk', 'lib', 'lombok', 'org', 'java', 'javax')
@@ -301,6 +301,7 @@ allprojects {
 
             groovyGradle {
                 target '**/*.gradle'
+                targetExclude doNotFormat
                 greclipse()  // which formatter Spotless should use to format .gradle files.
                 indentWithSpaces(4)
                 trimTrailingWhitespace()
@@ -308,7 +309,6 @@ allprojects {
             }
         }
     }
-
 
     // After all the tasks have been created, modify some of them.
     afterEvaluate {
@@ -414,9 +414,9 @@ allprojects {
             options.compilerArgs += [
                 '-g',
                 '-Werror',
-                // -options: To not get a warning about missing bootstrap classpath for Java 8 (once we use Java 9).
+                // -options: To not get a warning about missing bootstrap classpath (when using Java 9 and `-source 8`).
                 // -fallthrough: Don't check fallthroughs.  Instead, use Error Prone.  Its
-                // warnings are suppressible with a "// fall through" comment.
+                //   warnings are suppressible with a "// fall through" comment.
                 // -classfile: classgraph jar file and https://bugs.openjdk.org/browse/JDK-8190452
                 '-Xlint:-options,-fallthrough,-classfile',
                 '-Xlint',
@@ -736,57 +736,66 @@ task downloadJtreg(type: Download) {
     }
 }
 
-// No group so it does not show up in the output of `gradlew tasks`
-task getPlumeScripts() {
-    description 'Obtain or update plume-scripts'
-    if (file(plumeScriptsHome).exists()) {
-        exec {
-            workingDir plumeScriptsHome
-            executable 'git'
-            args = ['pull', '-q']
-            ignoreExitValue = true
-        }
-    } else {
-        exec {
-            workingDir "${plumeScriptsHome}/../"
-            executable 'git'
-            args = [
-                'clone',
-                '-q',
-                '--depth',
-                '1',
-                'https://github.com/eisop-plume-lib/plume-scripts.git',
-                '.plume-scripts'
-            ]
+/**
+ * Quietly clones the given git repository, {@code url}, to {@code directory} at a depth of 1.
+ *
+ * @param url git repository to clone
+ * @param directory where to clone
+ * @param ignoreError whether to fail the build if the clone command fails
+ * @param extraArgs any extra arguments to pass to git
+ */
+void clone(url, directory, ignoreError, extraArgs = []){
+    exec {
+        workingDir "${directory}/../"
+        executable 'git'
+        args = [
+            'clone',
+            '-q',
+            '--depth',
+            '1',
+            url,
+            file(directory).toPath().last()
+        ]
+        args += extraArgs
+        ignoreExitValue = ignoreError
+    }
+}
+
+/**
+ * Creates a task named {@code taskName} that updates or clones the git repository at
+ * {@code url} into {@code directory}.  If the clone command fails, the task waits
+ * a minute and then trys again.
+ *
+ * @param taskName name of the created task
+ * @param url location of the git repository
+ * @param directory where to clone the repository
+ * @param extraArgs arguments to pass to the git command
+ */
+def createCloneTask(taskName, url, directory, extraArgs = []) {
+    tasks.create(name: taskName) {
+        description "Obtain or update ${url}"
+
+        if (file(directory).exists()) {
+            exec {
+                workingDir directory
+                executable 'git'
+                args = ['pull', '-q']
+                ignoreExitValue = true
+            }
+        } else {
+            clone(url, directory, true, extraArgs)
+            if (!file(directory).exists()) {
+                sleep(60000) // 1 minute
+                clone(url, directory, false, extraArgs)
+            }
         }
     }
 }
 
-// No group so it does not show up in the output of `gradlew tasks`
-task getHtmlTools() {
-    description 'Obtain or update html-tools'
-    if (file(htmlToolsHome).exists()) {
-        exec {
-            workingDir htmlToolsHome
-            executable 'git'
-            args = ['pull', '-q']
-            ignoreExitValue = true
-        }
-    } else {
-        exec {
-            workingDir "${htmlToolsHome}/../"
-            executable 'git'
-            args = [
-                'clone',
-                '-q',
-                '--depth',
-                '1',
-                'https://github.com/plume-lib/html-tools.git',
-                '.html-tools'
-            ]
-        }
-    }
-}
+
+createCloneTask('getPlumeScripts', 'https://github.com/eisop-plume-lib/plume-scripts.git', plumeScriptsHome)
+createCloneTask('getHtmlTools', 'https://github.com/plume-lib/html-tools.git', htmlToolsHome)
+
 
 // No group so it does not show up in the output of `gradlew tasks`
 task pythonIsInstalled(type: Exec) {
