@@ -1030,7 +1030,7 @@ public class AnnotatedTypes {
             // below 11 since they have an extra enclosing expression argument
             if (t.getEnclosingType() != null
                     && SystemUtil.jreVersion < 11
-                    && args.size() > 0
+                    && !args.isEmpty()
                     && atypeFactory.types.isSameType(
                             t.getEnclosingType(),
                             atypeFactory.getAnnotatedType(args.get(0)).getUnderlyingType())) {
