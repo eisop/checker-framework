@@ -121,16 +121,7 @@ import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Target;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.StringJoiner;
-import java.util.Vector;
+import java.util.*;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
@@ -2644,7 +2635,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     @Override
     public Void visitThrow(ThrowTree tree, Void p) {
-        checkThrownExpression(tree);
+        MethodTree mtree = this.methodTree;
+        checkThrownExpression(tree, mtree);
         return super.visitThrow(tree, p);
     }
 
@@ -2858,16 +2850,17 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      *
      * @param tree ThrowTree to check
      */
-    protected void checkThrownExpression(ThrowTree tree) {
+    protected void checkThrownExpression(ThrowTree tree, MethodTree mtree) {
         AnnotatedTypeMirror throwType = atypeFactory.getAnnotatedType(tree.getExpression());
-        Set<? extends AnnotationMirror> required = getThrowUpperBoundAnnotations();
+        //        Set<? extends AnnotationMirror> required = getThrowUpperBoundAnnotations();
+        AnnotatedTypeMirror required = getThrowSingleLowerBoundAnnotations(mtree);
         switch (throwType.getKind()) {
             case NULL:
             case DECLARED:
                 AnnotationMirrorSet found = throwType.getAnnotations();
                 if (!atypeFactory.getQualifierHierarchy().isSubtype(found, required)) {
                     checker.reportError(
-                            tree.getExpression(), "throw.type.invalid", found, required);
+                            tree.getExpression(), "throw.type.incompatible", found, required);
                 }
                 break;
             case TYPEVAR:
@@ -2916,6 +2909,24 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     protected Set<? extends AnnotationMirror> getThrowUpperBoundAnnotations() {
         return getExceptionParameterLowerBoundAnnotations();
+    }
+
+    //    protected HashMap<? extends  AnnotationMirror, > getThrowLowerBoundAnnotations(MethodTree
+    // mtree) {
+    //        HashMap<AnnotatedTypes, ThrowExpression> annotationExpressionPair= new HashMap<>();
+    //        List<? extends ThrowTree> throwExpression = (List<ThrowTree>) mtree.getThrows();
+    //        for (ThrowTree throwTree : throwExpression) {
+    //
+    //        }
+    //    }
+
+    protected AnnotatedTypeMirror getThrowSingleLowerBoundAnnotations(MethodTree mtree) {
+        AnnotatedTypeMirror throwClauseAnnotation = null;
+        List<? extends ThrowTree> throwExpression = (List<ThrowTree>) mtree.getThrows();
+        for (ThrowTree throwTree : throwExpression) {
+            throwClauseAnnotation = atypeFactory.getAnnotatedType(throwTree.getExpression());
+        }
+        return throwClauseAnnotation;
     }
 
     /**

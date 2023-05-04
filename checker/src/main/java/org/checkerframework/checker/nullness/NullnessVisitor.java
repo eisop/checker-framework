@@ -383,7 +383,7 @@ public class NullnessVisitor
 
     /** Case 4: Check for thrown exception nullness. */
     @Override
-    protected void checkThrownExpression(ThrowTree tree) {
+    protected void checkThrownExpression(ThrowTree tree, MethodTree mtree) {
         checkForNullability(tree.getExpression(), THROWING_NULLABLE);
     }
 
