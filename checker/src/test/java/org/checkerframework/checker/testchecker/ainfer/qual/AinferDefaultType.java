@@ -15,7 +15,7 @@ import java.lang.annotation.Target;
  * @see AinferParent
  * @see AinferTop
  */
-@SubtypeOf({AinferTop.class})
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
+@SubtypeOf({AinferTop.class})
 @DefaultQualifierInHierarchy
 public @interface AinferDefaultType {}

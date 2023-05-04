@@ -149,15 +149,6 @@ public class InterningAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     @Override
-    public void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type, boolean useFlow) {
-        Element element = TreeUtils.elementFromTree(tree);
-        if (!type.isAnnotatedInHierarchy(INTERNED) && ElementUtils.isCompileTimeConstant(element)) {
-            type.addAnnotation(INTERNED);
-        }
-        super.addComputedTypeAnnotations(tree, type, useFlow);
-    }
-
-    @Override
     public void addComputedTypeAnnotations(Element element, AnnotatedTypeMirror type) {
         if (!type.isAnnotatedInHierarchy(INTERNED) && ElementUtils.isCompileTimeConstant(element)) {
             type.addAnnotation(INTERNED);

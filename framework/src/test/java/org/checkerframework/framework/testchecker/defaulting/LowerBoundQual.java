@@ -13,11 +13,11 @@ import java.lang.annotation.Target;
 
 public class LowerBoundQual {
 
+    @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
+    @SubtypeOf({})
     @DefaultQualifierInHierarchy
     @Documented
     @Retention(RetentionPolicy.RUNTIME)
-    @SubtypeOf({})
-    @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
     public static @interface LbTop {}
 
     @Documented
