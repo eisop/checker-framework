@@ -1269,7 +1269,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * a list of {@link Node}s representing the arguments converted for a call of the method. This
      * method applies to both method invocations and constructor calls. The constructor may need an
      * extra enclosingExprType parameter when it is an inner class constructor with an explicit
-     * enclosing expression. The part of "Handle anonymous constructors" is moved from
+     * enclosing expression. The part of "Handle anonymous constructors" is moved from the helper
+     * method {@code AnnotatedTypes.adaptParameters()}.
      *
      * @param enclosingExprType a TypeMirror of the enclosing expression if there is an explicit
      *     enclosing expression for the constructors of inner classes

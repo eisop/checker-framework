@@ -3,6 +3,9 @@ Version 3.33.0-eisop1 (April ?, 2023)
 
 **User-visible changes:**
 
+The format of the arguments of an `ObjectCreationNode` is correct when the node refers to an
+anonymous constructor with an explicit enclosing expression.
+
 The new command-line arguments `-AaliasedTypeAnnos={aliases}` and `-AaliasedDeclAnnos={aliases}`
 define custom type and declaration annotation aliases for the canonical annotations of a checker.
 `aliases` is in the format
@@ -11,6 +14,8 @@ define custom type and declaration annotation aliases for the canonical annotati
 **Implementation details:**
 
 **Closed issues:**
+
+#400.
 
 
 Version 3.33.0 (April 3, 2023)
