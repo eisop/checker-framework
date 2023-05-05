@@ -3570,7 +3570,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                       }
                   }
                   In Java versions below 11, the argumentReceiverType of outer.new Inner(){} is Top instead of Outer, because java8 organizes
-                  newClassTree in a different way: there is a synthetic argument. Hence, use this synthetic argument when the underlying types are different.
+                  newClassTree in a different way: there is a synthetic argument to represent the enclosing expression type. Hence, use this synthetic argument when the underlying types are different.
                 */
                 if (TreeUtils.hasSyntheticArgument(node)
                         && (argumentReceiverType == null

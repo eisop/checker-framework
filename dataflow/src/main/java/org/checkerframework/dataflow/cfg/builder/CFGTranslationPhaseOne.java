@@ -1267,9 +1267,12 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     /**
      * Given a method element, its type at the call site, and a list of argument expressions, return
      * a list of {@link Node}s representing the arguments converted for a call of the method. This
-     * method applies to both method invocations and constructor calls.
+     * method applies to both method invocations and constructor calls. The constructor may need an
+     * extra enclosingExprType parameter when it is an inner class constructor with an explicit
+     * enclosing expression. The part of "Handle anonymous constructors" is moved from
      *
-     * @param enclosingType a TypeMirror of the enclosing expression if appropriate
+     * @param enclosingExprType a TypeMirror of the enclosing expression if there is an explicit
+     *     enclosing expression for the constructors of inner classes
      * @param method an ExecutableElement representing a method to be called
      * @param methodType an ExecutableType representing the type of the method call
      * @param actualExprs a List of argument expressions to a call
@@ -1277,7 +1280,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      *     to this method
      */
     protected List<Node> convertCallArguments(
-            @Nullable TypeMirror enclosingType,
+            @Nullable TypeMirror enclosingExprType,
             ExecutableElement method,
             ExecutableType methodType,
             List<? extends ExpressionTree> actualExprs) {
@@ -1314,16 +1317,11 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 assert lastParamType instanceof ArrayType
                         : "variable argument formal must be an array";
                 // Handle anonymous constructors that extend a class with an enclosing type.
-                // The logic is borrowed from AnnotatedTypes.adaptParameters(). However,
-                // adaptParameters
-                // does not need this part anymore after mering this PR.
-                if (method.getKind() == ElementKind.CONSTRUCTOR
-                        && method.getEnclosingElement().getSimpleName().contentEquals("")
-                        && enclosingType != null) {
+                if (ElementUtils.isAnonymousConstructor(method) && enclosingExprType != null) {
                     TypeMirror p0tm = formals.get(0);
                     // We only care about Java 11+ since then the arguments do NOT include the
                     // enclosing expression.
-                    if (types.isSameType(enclosingType, p0tm) && SystemUtil.jreVersion >= 11) {
+                    if (SystemUtil.jreVersion >= 11 && types.isSameType(enclosingExprType, p0tm)) {
                         lastArgIndex--;
                     }
                 }

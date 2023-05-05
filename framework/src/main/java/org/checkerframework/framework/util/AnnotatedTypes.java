@@ -50,7 +50,6 @@ import java.util.Set;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
@@ -1021,12 +1020,12 @@ public class AnnotatedTypes {
         List<AnnotatedTypeMirror> parameters = method.getParameterTypes();
 
         // Handle anonymous constructors that extend a class with an enclosing type.
-        if (method.getElement().getKind() == ElementKind.CONSTRUCTOR
-                && method.getElement().getEnclosingElement().getSimpleName().contentEquals("")) {
+        if (ElementUtils.isAnonymousConstructor(method.getElement())) {
             DeclaredType t =
                     TypesUtils.getSuperClassOrInterface(
                             method.getElement().getEnclosingElement().asType(), atypeFactory.types);
-            // Let parameterTypes and arguments match, i.e., size, and we only handle Java versions
+            // Let the size of parameterTypes and arguments match since we make the comparison in
+            // commonAssignmentCheck later, and we only handle Java versions
             // below 11 since they have an extra enclosing expression argument
             if (t.getEnclosingType() != null
                     && SystemUtil.jreVersion < 11
@@ -1036,7 +1035,7 @@ public class AnnotatedTypes {
                             atypeFactory.getAnnotatedType(args.get(0)).getUnderlyingType())) {
                 List<AnnotatedTypeMirror> p = new ArrayList<>(parameters.size() + 1);
                 p.add(atypeFactory.getAnnotatedType(args.get(0)));
-                p.addAll(1, parameters);
+                p.addAll(parameters);
                 parameters = p;
             }
         }
