@@ -18,7 +18,7 @@ public class NullnessWarnRedundantAnnotationsTest extends CheckerFrameworkPerDir
         super(
                 testFiles,
                 org.checkerframework.checker.nullness.NullnessChecker.class,
-                "nullness",
+                "nullness-warnredundantannotations",
                 "-AwarnRedundantAnnotations");
     }
 

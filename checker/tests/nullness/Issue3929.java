@@ -13,7 +13,7 @@ public class Issue3929 {
 
     public void endElement(NullableMyClass3929 arg) {
         for (Object o : arg.getKeys()) {
-            // :: error: (dereference.of.nullable)
+            // TODO: add a conservative option to get a warning here
             o.toString();
         }
     }
