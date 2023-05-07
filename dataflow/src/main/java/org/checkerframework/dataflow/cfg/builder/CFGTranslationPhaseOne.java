@@ -1318,11 +1318,11 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 assert lastParamType instanceof ArrayType
                         : "variable argument formal must be an array";
                 // Handle anonymous constructors that extend a class with an enclosing type.
-                if (ElementUtils.isAnonymousConstructor(method) && enclosingExprType != null) {
+                // We only care about Java 11+ since then the arguments do NOT include the
+                // enclosing expression.
+                if (SystemUtil.jreVersion >= 11 && enclosingExprType != null && ElementUtils.isAnonymousConstructor(method)) {
                     TypeMirror p0tm = formals.get(0);
-                    // We only care about Java 11+ since then the arguments do NOT include the
-                    // enclosing expression.
-                    if (SystemUtil.jreVersion >= 11 && types.isSameType(enclosingExprType, p0tm)) {
+                    if (types.isSameType(enclosingExprType, p0tm)) {
                         lastArgIndex--;
                     }
                 }
