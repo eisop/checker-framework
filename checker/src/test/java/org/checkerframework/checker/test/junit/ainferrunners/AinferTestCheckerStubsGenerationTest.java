@@ -9,29 +9,25 @@ import java.io.File;
 import java.util.List;
 
 /**
- * Runs whole-program inference and inserts annotations into source code.
+ * Tests whole-program inference with the aid of stub files. This test is the first pass on the test
+ * data, which generates the stubs.
  *
  * <p>IMPORTANT: The errors captured in the tests located in tests/ainfer-testchecker/ are not
- * relevant. The meaning of this test class is to test if the generated .jaif files are similar to
+ * relevant. The meaning of this test class is to test if the generated stub files are similar to
  * the expected ones. The errors on .java files must be ignored.
  */
-@Category(AinferTestCheckerJaifsTest.class)
-public class AinferTestCheckerJaifsTest extends AinferGeneratePerDirectoryTest {
+@Category(AinferTestCheckerStubsGenerationTest.class)
+public class AinferTestCheckerStubsGenerationTest extends AinferGeneratePerDirectoryTest {
+
     /**
      * @param testFiles the files containing test code, which will be type-checked
      */
-    public AinferTestCheckerJaifsTest(List<File> testFiles) {
+    public AinferTestCheckerStubsGenerationTest(List<File> testFiles) {
         super(
                 testFiles,
                 AinferTestChecker.class,
                 "ainfer-testchecker/non-annotated",
-                "-Ainfer=jaifs",
-                // The AFU's JAIF reading/writing libraries don't support records.
-                "-AskipDefs=SimpleRecord",
-                // Use a stub file here, even though this is a JAIF test. This test can't pass
-                // without an external file that specifies that a method is pure, and there is no
-                // way to directly pass a JAIF file (in a real WPI run, the JAIF file's annotations
-                // would have been inserted into the source).
+                "-Ainfer=stubs",
                 "-Astubs=tests/ainfer-testchecker/input-annotation-files/ExistingPurityAnnotations-org.checkerframework.checker.testchecker.ainfer.AinferTestChecker.astub",
                 "-Awarns");
     }

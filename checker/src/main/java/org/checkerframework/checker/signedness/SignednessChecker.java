@@ -2,6 +2,7 @@ package org.checkerframework.checker.signedness;
 
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.value.ValueChecker;
+import org.checkerframework.framework.qual.StubFiles;
 
 import java.util.LinkedHashSet;
 
@@ -11,7 +12,11 @@ import java.util.LinkedHashSet;
  *
  * @checker_framework.manual #signedness-checker Signedness Checker
  */
+@StubFiles({"junit-assertions.astub"})
 public class SignednessChecker extends BaseTypeChecker {
+
+    /** Creates a new SignednessChecker. */
+    public SignednessChecker() {}
 
     @Override
     protected LinkedHashSet<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {

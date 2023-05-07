@@ -86,6 +86,7 @@ public class CalledMethodsAnnotatedTypeFactory extends AccumulationAnnotatedType
                 CalledMethods.class,
                 CalledMethodsBottom.class,
                 CalledMethodsPredicate.class);
+
         this.builderFrameworkSupports = new ArrayList<>(2);
         String[] disabledFrameworks;
         if (checker.hasOption(CalledMethodsChecker.DISABLE_BUILDER_FRAMEWORK_SUPPORTS)) {
@@ -427,9 +428,21 @@ public class CalledMethodsAnnotatedTypeFactory extends AccumulationAnnotatedType
      * @return a {@code @EnsuresCalledMethods("...")} annotation for the given expression
      */
     private AnnotationMirror ensuresCMAnno(String expression, List<String> calledMethods) {
+        return ensuresCMAnno(new String[] {expression}, calledMethods);
+    }
+
+    /**
+     * Returns a {@code @EnsuresCalledMethods("...")} annotation for the given expressions.
+     *
+     * @param expressions the expressions to put in the value field of the EnsuresCalledMethods
+     *     annotation
+     * @param calledMethods the methods that were definitely called on the expression
+     * @return a {@code @EnsuresCalledMethods("...")} annotation for the given expression
+     */
+    private AnnotationMirror ensuresCMAnno(String[] expressions, List<String> calledMethods) {
         AnnotationBuilder builder =
                 new AnnotationBuilder(processingEnv, EnsuresCalledMethods.class);
-        builder.setValue("value", new String[] {expression});
+        builder.setValue("value", expressions);
         builder.setValue("methods", calledMethods.toArray(new String[calledMethods.size()]));
         AnnotationMirror am = builder.build();
         return am;

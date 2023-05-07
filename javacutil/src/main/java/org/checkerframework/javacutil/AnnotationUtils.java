@@ -47,7 +47,11 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.util.ElementFilter;
 
-/** A utility class for working with annotations. */
+/**
+ * A utility class for working with annotations.
+ *
+ * <p>Note: {@code AnnotationMirror}s are immutable.
+ */
 public class AnnotationUtils {
 
     // Class cannot be instantiated.

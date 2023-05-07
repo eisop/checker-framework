@@ -67,10 +67,8 @@ import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -313,14 +311,7 @@ public abstract class CFAbstractTransfer<
             @InternedDistinct Tree enclosingTree =
                     TreePathUtil.enclosingOfKind(
                             factory.getPath(lambda.getLambdaTree()),
-                            new HashSet<>(
-                                    Arrays.asList(
-                                            Tree.Kind.METHOD,
-                                            // Tree.Kind for which TreeUtils.isClassTree is true
-                                            Tree.Kind.CLASS,
-                                            Tree.Kind.INTERFACE,
-                                            Tree.Kind.ANNOTATION_TYPE,
-                                            Tree.Kind.ENUM)));
+                            TreeUtils.classAndMethodTreeKinds());
 
             Element enclosingElement = null;
             if (enclosingTree.getKind() == Tree.Kind.METHOD) {
