@@ -2854,16 +2854,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     protected void checkThrownExpression(ThrowTree tree, MethodTree mtree) {
         AnnotatedTypeMirror throwType = atypeFactory.getAnnotatedType(tree.getExpression());
         Set<? extends AnnotationMirror> required = getThrowUpperBoundAnnotations();
-        if (getThrowSingleLowerBoundAnnotations(mtree) != null ) {
-            required = getThrowSingleLowerBoundAnnotations(mtree).getAnnotations();
-        }
         switch (throwType.getKind()) {
             case NULL:
             case DECLARED:
                 AnnotationMirrorSet found = throwType.getAnnotations();
                 if (!atypeFactory.getQualifierHierarchy().isSubtype(found, required)) {
                     checker.reportError(
-                            tree.getExpression(), "throw.type.incompatible", found, required);
+                            tree.getExpression(), "throw.type.invalid", found, required);
                 }
                 break;
             case TYPEVAR:
@@ -2912,24 +2909,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     protected Set<? extends AnnotationMirror> getThrowUpperBoundAnnotations() {
         return getExceptionParameterLowerBoundAnnotations();
-    }
-
-//    protected Map<AnnotatedTypeMirror, AnnotationMirrorSet> getThrowLowerBoundAnnotations(MethodTree mtree) {
-//        Map<AnnotatedTypeMirror, AnnotationMirrorSet> expressionAnnotationsPair = new HashMap<>();
-//        List<? extends ExpressionTree> throwExceptions = mtree.getThrows();
-//        for (ExpressionTree throwException : throwExceptions) {
-//            expressionAnnotationsPair.put(atypeFactory.getAnnotatedType(throwException), throwException.);
-//        }
-//        return expressionAnnotationsPair;
-//    }
-
-    protected AnnotatedTypeMirror getThrowSingleLowerBoundAnnotations(MethodTree mtree) {
-        AnnotatedTypeMirror throwClauseAnnotation = null;
-        List<? extends ExpressionTree> throwExpression = mtree.getThrows();
-        for (ExpressionTree throwTree : throwExpression) {
-            throwClauseAnnotation = atypeFactory.getAnnotatedType(throwTree);
-        }
-        return throwClauseAnnotation;
     }
 
     /**

@@ -40,22 +40,24 @@ class MyException2 extends Exception {
 public class EISOPIssue363b {
     Object field;
 
-    EISOPIssue363b() throws @Initialized MyException1, @Initialized MyException2{
+    EISOPIssue363b() throws @Initialized MyException1, @Initialized MyException2 {
         // :: error: (throw.type.incompatible)
         throw new MyException1(this, 0);
     }
 
-    EISOPIssue363b(int dummy) throws @Initialized MyException1, @Initialized MyException2{
+    EISOPIssue363b(int dummy) throws @Initialized MyException1, @Initialized MyException2 {
         // :: error: (throw.type.incompatible)
         throw new MyException2(this, 0);
     }
 
-    EISOPIssue363b(boolean dummy) throws @UnknowInitialization MyException1, @Initialized MyException2{
+    EISOPIssue363b(boolean dummy)
+            throws @UnknowInitialization MyException1, @Initialized MyException2 {
         // :: error: (throw.type.incompatible)
         throw new MyException2(this, 0);
     }
 
-    EISOPIssue363b(float dummy) throws @Initialized MyException1, @UnknowInitialization MyException2{
+    EISOPIssue363b(float dummy)
+            throws @Initialized MyException1, @UnknowInitialization MyException2 {
         throw new MyException2(this, 0);
     }
 }
