@@ -1,5 +1,5 @@
-Version 3.33.0-eisop1 (April ?, 2023)
--------------------------------------
+Version 3.34.0-eisop1 (May ?, 2023)
+-----------------------------------
 
 **User-visible changes:**
 
@@ -16,6 +16,28 @@ anonymous constructor invocation with an explicit enclosing expression.
 **Closed issues:**
 
 #400.
+
+
+Version 3.34.0 (May 2, 2023)
+----------------------------
+
+**User-visible changes:**
+
+The Checker Framework runs under JDK 20 -- that is, it runs on a version 20 JVM.
+
+Explicit lambda parameters are defaulted the same as method parameters.  For
+example, in `(String s) -> {...}` the type of `s` is `@NonNull String`.
+
+**Implementation details:**
+
+Renamings in `AnnotatedTypeFactory`:
+ * `prepareCompilationUnitForWriting()` => `wpiPrepareCompilationUnitForWriting()`
+ * `prepareClassForWriting()` => `wpiPrepareClassForWriting()`
+ * `prepareMethodForWriting()` => `wpiPrepareMethodForWriting()`
+   and changed its signature by adding two formal parameters
+
+**Closed issues:**
+#803, #5739, #5749, #5767, #5781, #5787.
 
 
 Version 3.33.0 (April 3, 2023)

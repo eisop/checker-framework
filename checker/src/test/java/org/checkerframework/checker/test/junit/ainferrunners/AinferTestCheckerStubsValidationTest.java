@@ -12,7 +12,7 @@ import java.util.List;
  * Tests whole-program type inference with stub files. This test is the second pass, which ensures
  * that with the stubs in place, the errors that those annotations remove are no longer issued.
  */
-@Category(AinferTestCheckerStubsTest.class)
+@Category(AinferTestCheckerStubsGenerationTest.class)
 public class AinferTestCheckerStubsValidationTest extends AinferValidatePerDirectoryTest {
 
     /**
@@ -24,7 +24,7 @@ public class AinferTestCheckerStubsValidationTest extends AinferValidatePerDirec
                 AinferTestChecker.class,
                 "testchecker",
                 "ainfer-testchecker/annotated",
-                AinferTestCheckerStubsTest.class,
+                AinferTestCheckerStubsGenerationTest.class,
                 astubsArgFromFiles(testFiles, "testchecker"),
                 // "-AstubDebug",
                 "-AmergeStubsWithSource",

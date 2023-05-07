@@ -12,7 +12,7 @@ import java.util.List;
  * Tests whole-program type inference with the aid of .jaif files. This test is the second pass,
  * which ensures that with the annotations inserted, the errors are no longer issued.
  */
-@Category(AinferTestCheckerJaifsTest.class)
+@Category(AinferTestCheckerJaifsGenerationTest.class)
 public class AinferTestCheckerJaifsValidationTest extends AinferValidatePerDirectoryTest {
     /**
      * @param testFiles the files containing test code, which will be type-checked
@@ -23,7 +23,7 @@ public class AinferTestCheckerJaifsValidationTest extends AinferValidatePerDirec
                 AinferTestChecker.class,
                 "testchecker",
                 "ainfer-testchecker/non-annotated",
-                AinferTestCheckerJaifsTest.class,
+                AinferTestCheckerJaifsGenerationTest.class,
                 "-Awarns",
                 // The AFU's JAIF reading/writing libraries don't support records.
                 "-AskipDefs=TestPure|SimpleRecord");
