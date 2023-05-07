@@ -11,7 +11,7 @@
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class StubWildcardsNbl {
-    void use(NullableBox<@Nullable String> bs) {
-        NullableBox.consume(bs);
-    }
+  void use(NullableBox<@Nullable String> bs) {
+    NullableBox.consume(bs);
+  }
 }

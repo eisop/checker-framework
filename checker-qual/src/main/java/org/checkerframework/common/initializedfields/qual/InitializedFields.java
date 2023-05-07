@@ -1,12 +1,11 @@
 package org.checkerframework.common.initializedfields.qual;
 
-import org.checkerframework.framework.qual.DefaultQualifierInHierarchy;
-import org.checkerframework.framework.qual.SubtypeOf;
-
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import org.checkerframework.framework.qual.DefaultQualifierInHierarchy;
+import org.checkerframework.framework.qual.SubtypeOf;
 
 /**
  * Indicates which fields have definitely been initialized.
@@ -18,10 +17,10 @@ import java.lang.annotation.Target;
 @SubtypeOf({})
 @DefaultQualifierInHierarchy
 public @interface InitializedFields {
-    /**
-     * Fields that have been initialized.
-     *
-     * @return the initialized fields
-     */
-    public String[] value() default {};
+  /**
+   * Fields that have been initialized.
+   *
+   * @return the initialized fields
+   */
+  public String[] value() default {};
 }
