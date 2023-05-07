@@ -51,13 +51,13 @@ public class EISOPIssue363b {
     }
 
     EISOPIssue363b(boolean dummy)
-            throws @UnknowInitialization MyException1, @Initialized MyException2 {
+            throws @UnknownInitialization MyException1, @Initialized MyException2 {
         // :: error: (throw.type.incompatible)
         throw new MyException2(this, 0);
     }
 
     EISOPIssue363b(float dummy)
-            throws @Initialized MyException1, @UnknowInitialization MyException2 {
+            throws @Initialized MyException1, @UnknownInitialization MyException2 {
         throw new MyException2(this, 0);
     }
 }

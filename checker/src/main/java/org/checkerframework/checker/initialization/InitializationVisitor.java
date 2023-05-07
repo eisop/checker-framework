@@ -22,7 +22,6 @@ import org.checkerframework.framework.util.DefaultAnnotationFormatter;
 import org.checkerframework.javacutil.*;
 
 import java.lang.annotation.Annotation;
-import java.security.PublicKey;
 import java.util.*;
 
 import javax.lang.model.element.AnnotationMirror;
@@ -476,8 +475,8 @@ public class InitializationVisitor<
     protected void checkThrownExpression(ThrowTree tree, MethodTree mtree) {
         AnnotatedTypeMirror throwType = atypeFactory.getAnnotatedType(tree.getExpression());
         Set<? extends AnnotationMirror> required = getThrowUpperBoundAnnotations();
-        if (getThrowSingleLowerBoundAnnotations(mtree) != null) {
-            required = getThrowSingleLowerBoundAnnotations(mtree).getAnnotations();
+        if (mtree != null && getThrowLowerBoundAnnotations(mtree) != null) {
+            required = getThrowLowerBoundAnnotations(mtree).getAnnotations();
         }
         switch (throwType.getKind()) {
             case NULL:
@@ -498,7 +497,8 @@ public class InitializationVisitor<
                 }
                 break;
             case UNION:
-                AnnotatedTypeMirror.AnnotatedUnionType unionType = (AnnotatedTypeMirror.AnnotatedUnionType) throwType;
+                AnnotatedTypeMirror.AnnotatedUnionType unionType =
+                        (AnnotatedTypeMirror.AnnotatedUnionType) throwType;
                 AnnotationMirrorSet foundPrimary = unionType.getAnnotations();
                 if (!atypeFactory.getQualifierHierarchy().isSubtype(foundPrimary, required)) {
                     checker.reportError(
@@ -521,7 +521,7 @@ public class InitializationVisitor<
         }
     }
 
-    protected AnnotatedTypeMirror getThrowSingleLowerBoundAnnotations(MethodTree mtree) {
+    protected AnnotatedTypeMirror getThrowLowerBoundAnnotations(MethodTree mtree) {
         AnnotatedTypeMirror throwClauseAnnotation = null;
         List<? extends ExpressionTree> throwExpression = mtree.getThrows();
         for (ExpressionTree throwTree : throwExpression) {
