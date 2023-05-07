@@ -385,6 +385,7 @@ public class NullnessVisitor
     @Override
     protected void checkThrownExpression(ThrowTree tree, MethodTree mtree) {
         checkForNullability(tree.getExpression(), THROWING_NULLABLE);
+        super.checkThrownExpression(tree, mtree);
     }
 
     /** Case 5: Check for synchronizing locks. */
