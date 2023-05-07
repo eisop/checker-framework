@@ -13,7 +13,7 @@ import java.util.List;
  * that with the ajava files in place, the errors that those annotations remove are no longer
  * issued.
  */
-@Category(AinferTestCheckerAjavaTest.class)
+@Category(AinferTestCheckerAjavaGenerationTest.class)
 public class AinferTestCheckerAjavaValidationTest extends AinferValidatePerDirectoryTest {
 
     /**
@@ -25,7 +25,7 @@ public class AinferTestCheckerAjavaValidationTest extends AinferValidatePerDirec
                 AinferTestChecker.class,
                 "testchecker",
                 "ainfer-testchecker/annotated",
-                AinferTestCheckerAjavaTest.class,
+                AinferTestCheckerAjavaGenerationTest.class,
                 ajavaArgFromFiles(testFiles, "testchecker"),
                 "-AcheckPurityAnnotations",
                 "-Awarns");

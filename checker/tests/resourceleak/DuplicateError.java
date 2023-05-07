@@ -8,7 +8,7 @@ import java.util.function.Function;
 
 public class DuplicateError {
     void m(List<?> values) {
-        @SuppressWarnings("lambda.param")
+        @SuppressWarnings("lambda.param.type.incompatible")
         List<String> stringVals = DECollectionsPlume.mapList((Object o) -> (String) o, values);
     }
 }
