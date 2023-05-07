@@ -495,8 +495,8 @@ public class InitializationVisitor<
     protected void checkThrownExpression(ThrowTree tree, MethodTree mtree) {
         AnnotatedTypeMirror throwType = atypeFactory.getAnnotatedType(tree.getExpression());
         Set<? extends AnnotationMirror> required = getThrowUpperBoundAnnotations();
-        if (mtree != null && getThrowLowerBoundAnnotations(mtree) != null) {
-            required = getThrowLowerBoundAnnotations(mtree).getAnnotations();
+        if (mtree != null && getThrowExactExpression(mtree) != null) {
+            required = getThrowExactExpression(mtree).getAnnotations();
         }
         switch (throwType.getKind()) {
             case NULL:
@@ -509,44 +509,21 @@ public class InitializationVisitor<
                 break;
             case TYPEVAR:
             case WILDCARD:
-                // TODO: this code might change after the type var changes.
-                AnnotationMirrorSet foundEffective = throwType.getEffectiveAnnotations();
-                if (!atypeFactory.getQualifierHierarchy().isSubtype(foundEffective, required)) {
-                    checker.reportError(
-                            tree.getExpression(), "throw.type.invalid", foundEffective, required);
-                }
                 break;
             case UNION:
-                AnnotatedTypeMirror.AnnotatedUnionType unionType =
-                        (AnnotatedTypeMirror.AnnotatedUnionType) throwType;
-                AnnotationMirrorSet foundPrimary = unionType.getAnnotations();
-                if (!atypeFactory.getQualifierHierarchy().isSubtype(foundPrimary, required)) {
-                    checker.reportError(
-                            tree.getExpression(), "throw.type.invalid", foundPrimary, required);
-                }
-                for (AnnotatedTypeMirror altern : unionType.getAlternatives()) {
-                    if (!atypeFactory
-                            .getQualifierHierarchy()
-                            .isSubtype(altern.getAnnotations(), required)) {
-                        checker.reportError(
-                                tree.getExpression(),
-                                "throw.type.invalid",
-                                altern.getAnnotations(),
-                                required);
-                    }
-                }
                 break;
             default:
                 throw new BugInCF("Unexpected throw expression type: " + throwType.getKind());
         }
     }
 
-    protected AnnotatedTypeMirror getThrowLowerBoundAnnotations(MethodTree mtree) {
-        AnnotatedTypeMirror throwClauseAnnotation = null;
+    protected AnnotatedTypeMirror getThrowExactExpression(MethodTree mtree) {
+        AnnotatedTypeMirror throwClauseExpression = null;
         List<? extends ExpressionTree> throwExpression = mtree.getThrows();
-        for (ExpressionTree throwTree : throwExpression) {
-            throwClauseAnnotation = atypeFactory.getAnnotatedType(throwTree);
+        if (!throwExpression.isEmpty()) {
+            ExpressionTree firstElement = throwExpression.get(0);
+            throwClauseExpression = atypeFactory.getAnnotatedType(firstElement);
         }
-        return throwClauseAnnotation;
+        return throwClauseExpression;
     }
 }
