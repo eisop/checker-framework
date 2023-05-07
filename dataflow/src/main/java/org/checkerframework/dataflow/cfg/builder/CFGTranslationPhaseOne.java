@@ -166,6 +166,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
+import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
@@ -1268,9 +1269,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * Given a method element, its type at the call site, and a list of argument expressions, return
      * a list of {@link Node}s representing the arguments converted for a call of the method. This
      * method applies to both method invocations and constructor calls. The constructor may need an
-     * extra enclosingExprType parameter when it is an inner class constructor with an explicit
-     * enclosing expression. The part of "Handle anonymous constructors" is moved from the helper
-     * method {@code AnnotatedTypes.adaptParameters()}.
+     * extra enclosingExprType parameter when it is an inner class constructor with an enclosing
+     * expression, either explicit or not.
      *
      * @param enclosingExprType a TypeMirror of the enclosing expression if there is an explicit
      *     enclosing expression for the constructors of inner classes
@@ -1319,9 +1319,17 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         : "variable argument formal must be an array";
                 // Handle anonymous constructors that extend a class with an enclosing type.
                 // We only care about Java 11+ since then the arguments do NOT include the
-                // enclosing expression.
-                if (SystemUtil.jreVersion >= 11 && enclosingExprType != null && ElementUtils.isAnonymousConstructor(method)) {
+                // enclosing expression. The enclosing expression may appear as the first parameter
+                // of the anonymous
+                // constructor invocation, so we need to adjust the lastArgIndex in order to expand
+                // varargs properly.
+                if (SystemUtil.jreVersion >= 11
+                        && enclosingExprType != null
+                        && method.getKind() == ElementKind.CONSTRUCTOR
+                        && ((TypeElement) method.getEnclosingElement()).getNestingKind()
+                                == NestingKind.ANONYMOUS) {
                     TypeMirror p0tm = formals.get(0);
+                    // Exclude the case when the enclosingExprType is an implicit this
                     if (types.isSameType(enclosingExprType, p0tm)) {
                         lastArgIndex--;
                     }

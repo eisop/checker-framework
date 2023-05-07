@@ -8,6 +8,8 @@ public class Issue282 {
     public class Inner {
         Inner(@H2S2 Issue282 Issue282.this) {}
 
+        Inner(String s) {}
+
         Inner(int... i) {}
     }
 
@@ -48,6 +50,7 @@ public class Issue282 {
 class Top {
     void test(@H1Top @H2S2 Issue282 outer) {
         outer.new Inner() {};
+        outer.new Inner("s") {};
         outer.new Inner(1, 2, 3) {};
     }
 }

@@ -3,15 +3,15 @@ Version 3.33.0-eisop1 (April ?, 2023)
 
 **User-visible changes:**
 
-The format of the arguments of an `ObjectCreationNode` is correct when the node refers to an
-anonymous constructor with an explicit enclosing expression.
-
 The new command-line arguments `-AaliasedTypeAnnos={aliases}` and `-AaliasedDeclAnnos={aliases}`
 define custom type and declaration annotation aliases for the canonical annotations of a checker.
 `aliases` is in the format
 `FQN.canonical.Qualifier1:FQN.alias1.Qual1,FQN.alias2.Qual1;FQN.canonical.Qualifier2:FQN.alias1.Qual2`.
 
 **Implementation details:**
+
+Corrected the arguments to an `ObjectCreationNode` when the node refers to an
+anonymous constructor invocation with an explicit enclosing expression.
 
 **Closed issues:**
 

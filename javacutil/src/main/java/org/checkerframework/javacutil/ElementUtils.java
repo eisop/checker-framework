@@ -36,7 +36,6 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
-import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
@@ -227,20 +226,6 @@ public class ElementUtils {
      */
     public static boolean isFinal(Element element) {
         return element.getModifiers().contains(Modifier.FINAL);
-    }
-
-    /**
-     * Returns true if the element is an anonymous constructor.
-     *
-     * @return true if the element is an anonymous constructor
-     */
-    public static boolean isAnonymousConstructor(Element element) {
-        if (element.getKind() == ElementKind.CONSTRUCTOR
-                && ((TypeElement) element.getEnclosingElement()).getNestingKind()
-                        == NestingKind.ANONYMOUS) {
-            return true;
-        }
-        return false;
     }
 
     /**

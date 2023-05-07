@@ -50,7 +50,9 @@ import java.util.Set;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.DeclaredType;
@@ -1020,7 +1022,9 @@ public class AnnotatedTypes {
         List<AnnotatedTypeMirror> parameters = method.getParameterTypes();
 
         // Handle anonymous constructors that extend a class with an enclosing type.
-        if (ElementUtils.isAnonymousConstructor(method.getElement())) {
+        if (method.getElement().getKind() == ElementKind.CONSTRUCTOR
+                && ((TypeElement) method.getElement().getEnclosingElement()).getNestingKind()
+                        == NestingKind.ANONYMOUS) {
             DeclaredType t =
                     TypesUtils.getSuperClassOrInterface(
                             method.getElement().getEnclosingElement().asType(), atypeFactory.types);
