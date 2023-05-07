@@ -3,10 +3,12 @@ package org.checkerframework.checker.initialization;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
+
+import org.checkerframework.common.basetype.BaseTypeChecker;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableSet;
-import org.checkerframework.common.basetype.BaseTypeChecker;
 
 /**
  * Tracks whether a value is initialized (all its fields are set), and checks that values are
@@ -17,39 +19,39 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
  */
 public abstract class InitializationChecker extends BaseTypeChecker {
 
-  /** Create a new InitializationChecker. */
-  protected InitializationChecker() {}
+    /** Create a new InitializationChecker. */
+    protected InitializationChecker() {}
 
-  @Override
-  public NavigableSet<String> getSuppressWarningsPrefixes() {
-    NavigableSet<String> result = super.getSuppressWarningsPrefixes();
-    // "fbc" is for backward compatibility only.
-    // Notes:
-    //   * "fbc" suppresses *all* warnings, not just those related to initialization.  See
-    //     https://checkerframework.org/manual/#initialization-checking-suppressing-warnings .
-    //   * "initialization" is not a checkername/prefix.
-    result.add("fbc");
-    return result;
-  }
-
-  /** Returns a list of all fields of the given class. */
-  public static List<VariableTree> getAllFields(ClassTree clazz) {
-    List<VariableTree> fields = new ArrayList<>();
-    for (Tree t : clazz.getMembers()) {
-      if (t.getKind() == Tree.Kind.VARIABLE) {
-        VariableTree vt = (VariableTree) t;
-        fields.add(vt);
-      }
+    @Override
+    public NavigableSet<String> getSuppressWarningsPrefixes() {
+        NavigableSet<String> result = super.getSuppressWarningsPrefixes();
+        // "fbc" is for backward compatibility only.
+        // Notes:
+        //   * "fbc" suppresses *all* warnings, not just those related to initialization.  See
+        //     https://checkerframework.org/manual/#initialization-checking-suppressing-warnings .
+        //   * "initialization" is not a checkername/prefix.
+        result.add("fbc");
+        return result;
     }
-    return fields;
-  }
 
-  @Override
-  protected boolean messageKeyMatches(
-      String messageKey, String messageKeyInSuppressWarningsString) {
-    // Also support the shorter keys used by typetools
-    return super.messageKeyMatches(messageKey, messageKeyInSuppressWarningsString)
-        || super.messageKeyMatches(
-            messageKey.replace(".invalid", ""), messageKeyInSuppressWarningsString);
-  }
+    /** Returns a list of all fields of the given class. */
+    public static List<VariableTree> getAllFields(ClassTree clazz) {
+        List<VariableTree> fields = new ArrayList<>();
+        for (Tree t : clazz.getMembers()) {
+            if (t.getKind() == Tree.Kind.VARIABLE) {
+                VariableTree vt = (VariableTree) t;
+                fields.add(vt);
+            }
+        }
+        return fields;
+    }
+
+    @Override
+    protected boolean messageKeyMatches(
+            String messageKey, String messageKeyInSuppressWarningsString) {
+        // Also support the shorter keys used by typetools
+        return super.messageKeyMatches(messageKey, messageKeyInSuppressWarningsString)
+                || super.messageKeyMatches(
+                        messageKey.replace(".invalid", ""), messageKeyInSuppressWarningsString);
+    }
 }
