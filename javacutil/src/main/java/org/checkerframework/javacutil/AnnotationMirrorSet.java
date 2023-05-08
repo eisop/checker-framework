@@ -30,7 +30,9 @@ import javax.lang.model.element.AnnotationMirror;
  * method; therefore, the existing implementations of Set cannot be used.
  */
 // TODO: Could extend AbstractSet to eliminate the need to implement a few methods.
-public class AnnotationMirrorSet implements NavigableSet<@KeyFor("this") AnnotationMirror> {
+public class AnnotationMirrorSet
+        implements NavigableSet<@KeyFor("this") AnnotationMirror>,
+                DeepCopyable<AnnotationMirrorSet> {
 
     /** Backing set. */
     // Not final because makeUnmodifiable() can reassign it.
@@ -40,7 +42,7 @@ public class AnnotationMirrorSet implements NavigableSet<@KeyFor("this") Annotat
     /** The canonical unmodifiable empty set. */
     private static final AnnotationMirrorSet emptySet = unmodifiableSet(Collections.emptySet());
 
-    /// Constructors
+    /// Constructors and factory methods
 
     /** Default constructor. */
     public AnnotationMirrorSet() {}
@@ -52,6 +54,14 @@ public class AnnotationMirrorSet implements NavigableSet<@KeyFor("this") Annotat
      */
     public AnnotationMirrorSet(Collection<? extends AnnotationMirror> annos) {
         this.addAll(annos);
+    }
+
+    @SuppressWarnings("keyfor:argument") // transferring keys from one map to another
+    @Override
+    public AnnotationMirrorSet deepCopy() {
+        AnnotationMirrorSet result = new AnnotationMirrorSet();
+        result.shadowSet.addAll(shadowSet);
+        return result;
     }
 
     /**
