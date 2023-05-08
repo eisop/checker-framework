@@ -7,6 +7,7 @@ import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewClassTree;
+import com.sun.source.tree.ThrowTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.VariableTree;
@@ -30,6 +31,7 @@ import org.checkerframework.framework.util.AnnotationFormatter;
 import org.checkerframework.framework.util.DefaultAnnotationFormatter;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
@@ -39,12 +41,14 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.StringJoiner;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.util.Types;
 
 /* NO-AFU
    import org.checkerframework.common.wholeprograminference.WholeProgramInference;
@@ -349,6 +353,13 @@ public class InitializationVisitor<
         return super.visitMethod(tree, p);
     }
 
+    @Override
+    public Void visitThrow(ThrowTree tree, Void p) {
+        MethodTree mtree = this.methodTree;
+        checkThrownExpression(tree, mtree);
+        return super.visitThrow(tree, p);
+    }
+
     /**
      * Returns the full list of annotations on the receiver.
      *
@@ -479,5 +490,63 @@ public class InitializationVisitor<
           }
         }
         */
+    }
+
+    @Override
+    protected void checkThrownExpression(ThrowTree tree, MethodTree mtree) {
+        AnnotatedTypeMirror throwType = atypeFactory.getAnnotatedType(tree.getExpression());
+        Set<? extends AnnotationMirror> required = getThrowUpperBoundAnnotations();
+        //        if (mtree != null && getThrowExactExpression(mtree) != null) {
+        //            required = getThrowExactExpression(mtree).getAnnotations();
+        //        }
+        if (mtree != null && getThrowExpressions(mtree) != null) {
+            List<AnnotatedTypeMirror> throwClauses = getThrowExpressions(mtree);
+            for (AnnotatedTypeMirror throwClause : throwClauses) {
+                Types typesUtil = atypeFactory.getProcessingEnv().getTypeUtils();
+                if (typesUtil.isSameType(
+                        throwClause.getUnderlyingType(), throwType.getUnderlyingType())) {
+                    required = throwClause.getAnnotations();
+                    break;
+                }
+            }
+        }
+        switch (throwType.getKind()) {
+            case NULL:
+            case DECLARED:
+                AnnotationMirrorSet found = throwType.getAnnotations();
+                if (!atypeFactory.getQualifierHierarchy().isSubtype(found, required)) {
+                    checker.reportError(
+                            tree.getExpression(), "throw.type.incompatible", found, required);
+                }
+                break;
+            case TYPEVAR:
+            case WILDCARD:
+                break;
+            case UNION:
+                break;
+            default:
+                throw new BugInCF("Unexpected throw expression type: " + throwType.getKind());
+        }
+    }
+
+    protected AnnotatedTypeMirror getThrowExactExpression(MethodTree mtree) {
+        AnnotatedTypeMirror throwClauseExpression = null;
+        List<? extends ExpressionTree> throwExpression = mtree.getThrows();
+        if (!throwExpression.isEmpty()) {
+            ExpressionTree firstElement = throwExpression.get(0);
+            throwClauseExpression = atypeFactory.getAnnotatedType(firstElement);
+        }
+        return throwClauseExpression;
+    }
+
+    protected List<AnnotatedTypeMirror> getThrowExpressions(MethodTree mtree) {
+        List<AnnotatedTypeMirror> throwClauseExpressions = new ArrayList<>();
+        List<? extends ExpressionTree> throwExpressions = mtree.getThrows();
+        if (!throwExpressions.isEmpty()) {
+            for (ExpressionTree throwExpression : throwExpressions) {
+                throwClauseExpressions.add(atypeFactory.getAnnotatedType(throwExpression));
+            }
+        }
+        return throwClauseExpressions;
     }
 }

@@ -2645,7 +2645,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     @Override
     public Void visitThrow(ThrowTree tree, Void p) {
-        checkThrownExpression(tree);
+        MethodTree mtree = this.methodTree;
+        checkThrownExpression(tree, mtree);
         return super.visitThrow(tree, p);
     }
 
@@ -2859,7 +2860,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      *
      * @param tree ThrowTree to check
      */
-    protected void checkThrownExpression(ThrowTree tree) {
+    protected void checkThrownExpression(ThrowTree tree, MethodTree mtree) {
         AnnotatedTypeMirror throwType = atypeFactory.getAnnotatedType(tree.getExpression());
         Set<? extends AnnotationMirror> required = getThrowUpperBoundAnnotations();
         switch (throwType.getKind()) {
