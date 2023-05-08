@@ -496,9 +496,6 @@ public class InitializationVisitor<
     protected void checkThrownExpression(ThrowTree tree, MethodTree mtree) {
         AnnotatedTypeMirror throwType = atypeFactory.getAnnotatedType(tree.getExpression());
         Set<? extends AnnotationMirror> required = getThrowUpperBoundAnnotations();
-        //        if (mtree != null && getThrowExactExpression(mtree) != null) {
-        //            required = getThrowExactExpression(mtree).getAnnotations();
-        //        }
         if (mtree != null && getThrowExpressions(mtree) != null) {
             List<AnnotatedTypeMirror> throwClauses = getThrowExpressions(mtree);
             for (AnnotatedTypeMirror throwClause : throwClauses) {
@@ -528,17 +525,14 @@ public class InitializationVisitor<
                 throw new BugInCF("Unexpected throw expression type: " + throwType.getKind());
         }
     }
-
-    protected AnnotatedTypeMirror getThrowExactExpression(MethodTree mtree) {
-        AnnotatedTypeMirror throwClauseExpression = null;
-        List<? extends ExpressionTree> throwExpression = mtree.getThrows();
-        if (!throwExpression.isEmpty()) {
-            ExpressionTree firstElement = throwExpression.get(0);
-            throwClauseExpression = atypeFactory.getAnnotatedType(firstElement);
-        }
-        return throwClauseExpression;
-    }
-
+    /**
+     * Returns a set of AnnotatedTypeMirror that is allowed throw exceptions for method.
+     *
+     * <p>Note: If the method declaration do not have any throw clauses, then return null.
+     *
+     * @return set of annotationtypemirrors, one per hierarchy, that form an upper bound of thrown
+     *     expressions
+     */
     protected List<AnnotatedTypeMirror> getThrowExpressions(MethodTree mtree) {
         List<AnnotatedTypeMirror> throwClauseExpressions = new ArrayList<>();
         List<? extends ExpressionTree> throwExpressions = mtree.getThrows();
