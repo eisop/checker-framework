@@ -1319,9 +1319,10 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         : "variable argument formal must be an array";
                 // Handle anonymous constructors that extend a class with an enclosing type.
                 // We only care about Java 11+ since then the arguments do NOT include the
-                // enclosing expression. The enclosing expression may appear as the first parameter
-                // of the anonymous
-                // constructor invocation, so we need to adjust the lastArgIndex in order to expand
+                // enclosing expression, while the enclosing expression may appear as the first
+                // parameter
+                // of the anonymous constructor invocation, so we need to adjust the lastArgIndex in
+                // order to expand
                 // varargs properly.
                 if (SystemUtil.jreVersion >= 11
                         && enclosingExprType != null
