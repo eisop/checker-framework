@@ -530,8 +530,9 @@ public class InitializationVisitor<
      *
      * <p>Note: If the method declaration do not have any throw clauses, then return null.
      *
-     * @return set of annotationtypemirrors, one per hierarchy, that form an upper bound of thrown
-     *     expressions
+     * @param mtree MethodTree to look up throw expressions
+     * @return List of AnnotationTypeMirrors, one per throw clause, that contains annotation and
+     *     java expressions
      */
     protected List<AnnotatedTypeMirror> getThrowExpressions(MethodTree mtree) {
         List<AnnotatedTypeMirror> throwClauseExpressions = new ArrayList<>();

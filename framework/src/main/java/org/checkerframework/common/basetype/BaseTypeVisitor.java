@@ -2891,7 +2891,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * #getExceptionParameterLowerBoundAnnotations}, should override {@link
      * #getThrowUpperBoundAnnotations()}.
      *
-     * @param tree ThrowTree to check, mtree MethodTree to look up annotations
+     * @param tree ThrowTree to check
+     * @param mtree MethodTree to look up annotations
      */
     protected void checkThrownExpression(ThrowTree tree, MethodTree mtree) {
         AnnotatedTypeMirror throwType = atypeFactory.getAnnotatedType(tree.getExpression());
