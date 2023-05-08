@@ -48,6 +48,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.util.Types;
 
 /* NO-AFU
    import org.checkerframework.common.wholeprograminference.WholeProgramInference;
@@ -495,8 +496,19 @@ public class InitializationVisitor<
     protected void checkThrownExpression(ThrowTree tree, MethodTree mtree) {
         AnnotatedTypeMirror throwType = atypeFactory.getAnnotatedType(tree.getExpression());
         Set<? extends AnnotationMirror> required = getThrowUpperBoundAnnotations();
-        if (mtree != null && getThrowExactExpression(mtree) != null) {
-            required = getThrowExactExpression(mtree).getAnnotations();
+        //        if (mtree != null && getThrowExactExpression(mtree) != null) {
+        //            required = getThrowExactExpression(mtree).getAnnotations();
+        //        }
+        if (mtree != null && getThrowExpressions(mtree) != null) {
+            List<AnnotatedTypeMirror> throwClauses = getThrowExpressions(mtree);
+            for (AnnotatedTypeMirror throwClause : throwClauses) {
+                Types typesUtil = atypeFactory.getProcessingEnv().getTypeUtils();
+                if (typesUtil.isSameType(
+                        throwClause.getUnderlyingType(), throwType.getUnderlyingType())) {
+                    required = throwClause.getAnnotations();
+                    break;
+                }
+            }
         }
         switch (throwType.getKind()) {
             case NULL:
@@ -525,5 +537,16 @@ public class InitializationVisitor<
             throwClauseExpression = atypeFactory.getAnnotatedType(firstElement);
         }
         return throwClauseExpression;
+    }
+
+    protected List<AnnotatedTypeMirror> getThrowExpressions(MethodTree mtree) {
+        List<AnnotatedTypeMirror> throwClauseExpressions = new ArrayList<>();
+        List<? extends ExpressionTree> throwExpressions = mtree.getThrows();
+        if (!throwExpressions.isEmpty()) {
+            for (ExpressionTree throwExpression : throwExpressions) {
+                throwClauseExpressions.add(atypeFactory.getAnnotatedType(throwExpression));
+            }
+        }
+        return throwClauseExpressions;
     }
 }
