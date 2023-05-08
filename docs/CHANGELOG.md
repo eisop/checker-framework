@@ -10,7 +10,11 @@ define custom type and declaration annotation aliases for the canonical annotati
 
 **Implementation details:**
 
+Deprecated `ObjectCreationNode#getConstructor` in favor of `ObjectCreationNode#getIdentifier()`.
+
 **Closed issues:**
+
+#376.
 
 
 Version 3.34.0 (May 2, 2023)

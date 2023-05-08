@@ -31,8 +31,8 @@ public class ObjectCreationNode extends Node {
     protected final @Nullable Node enclosingExpression;
 
     /**
-     * The identifier node of the object creation. A generic constructor identifier can refer to the
-     * ParameterizedTypeNode, while a non-generic constructor can refer to the ClassNameNode.
+     * The identifier node of the object creation. A non-generic constructor can refer to a
+     * ClassNameNode, while a generic constructor identifier can refer to a ParameterizedTypeNode.
      */
     protected final Node identifier;
 
@@ -66,7 +66,20 @@ public class ObjectCreationNode extends Node {
     }
 
     /**
-     * Returns the identifier node.
+     * Returns the constructor node.
+     *
+     * @return the constructor node
+     * @deprecated use {@link #getIdentifier()}
+     */
+    @Pure
+    @Deprecated
+    public Node getConstructor() {
+        return identifier;
+    }
+
+    /**
+     * Returns the identifier node. A non-generic constructor can refer to a ClassNameNode, while a
+     * generic constructor identifier can refer to a ParameterizedTypeNode.
      *
      * @return the identifier node
      */
