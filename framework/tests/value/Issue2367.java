@@ -14,15 +14,11 @@ public class Issue2367 {
     //   error: incompatible types: possible lossy conversion from int to byte
     // The Value Checker's `cast.incomparable` error is analogous and is desirable.
 
-    // :: error: (cast.incomparable)
     byte b4 = (byte) 139; // b4 == -117
-    // :: error: (cast.incomparable)
     byte b5 = (byte) -240;
-    // :: error: (cast.incomparable)
     byte b6 = (byte) 251;
 
     // Outside the signed byte range, but written as a hexadecimal literal.
 
-    // :: error: (cast.incomparable)
     byte b7 = (byte) 0x8B; // 0x8B == 137, and b4 == -117
 }

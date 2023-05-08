@@ -5,6 +5,16 @@ echo Entering checker/bin-devel/build.sh in "$(pwd)"
 # Fail the whole script if any command fails
 set -e
 
+DEBUG=0
+# To enable debugging, uncomment the following line.
+# DEBUG=1
+
+if [ $DEBUG -eq 0 ] ; then
+  DEBUG_FLAG=
+else
+  DEBUG_FLAG=--debug
+fi
+
 echo "initial CHECKERFRAMEWORK=$CHECKERFRAMEWORK"
 export CHECKERFRAMEWORK="${CHECKERFRAMEWORK:-$(pwd -P)}"
 echo "CHECKERFRAMEWORK=$CHECKERFRAMEWORK"
@@ -32,7 +42,7 @@ else
 fi
 
 # Clone the annotated JDK into ../jdk .
-"$PLUME_SCRIPTS/git-clone-related" eisop jdk
+"$PLUME_SCRIPTS/git-clone-related" ${DEBUG_FLAG} eisop jdk
 
 # NO-AFU
 # AFU="${AFU:-../annotation-tools/annotation-file-utilities}"
@@ -40,7 +50,7 @@ fi
 # AT=$(dirname "${AFU}")
 
 # ## Build annotation-tools (Annotation File Utilities)
-# "$PLUME_SCRIPTS/git-clone-related" eisop annotation-tools "${AT}"
+# "$PLUME_SCRIPTS/git-clone-related" ${DEBUG_FLAG} eisop annotation-tools "${AT}"
 # if [ ! -d ../annotation-tools ] ; then
 #   ln -s "${AT}" ../annotation-tools
 # fi
@@ -51,7 +61,7 @@ fi
 
 
 ## Build stubparser
-"$PLUME_SCRIPTS/git-clone-related" eisop stubparser
+"$PLUME_SCRIPTS/git-clone-related" ${DEBUG_FLAG} eisop stubparser
 echo "Running:  (cd ../stubparser/ && ./.build-without-test.sh)"
 (cd ../stubparser/ && ./.build-without-test.sh)
 echo "... done: (cd ../stubparser/ && ./.build-without-test.sh)"
@@ -69,7 +79,7 @@ else
   echo "Can't find java"
   exit 1
 fi
-version=$("$_java" -version 2>&1 | head -1 | cut -d'"' -f2 | sed '/^1\./s///' | cut -d'.' -f1)
+version=$("$_java" -version 2>&1 | head -1 | cut -d'"' -f2 | sed '/^1\./s///' | cut -d'.' -f1 | sed 's/-ea//')
 if [[ "$version" -ge 9 ]]; then
   echo "Running:  (cd ../jspecify/ && ./gradlew assemble)"
   # If failure, retry in case the failure was due to network lossage.

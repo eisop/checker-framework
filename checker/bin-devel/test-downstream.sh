@@ -12,8 +12,8 @@ source "$SCRIPTDIR"/build.sh
 
 
 ## downstream tests:  projects that depend on the Checker Framework.
-## These are here so they can be run by pull requests.  (Pull requests
-## currently don't trigger downstream jobs.)
+## (There are none currently in this file.)
+## These are here so they can be run by pull requests.
 ## Exceptions:
 ##  * plume-lib is run by test-plume-lib.sh
 ##  * daikon-typecheck is run as a separate CI project

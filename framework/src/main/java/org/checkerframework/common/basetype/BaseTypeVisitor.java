@@ -41,8 +41,6 @@ import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
 import com.sun.tools.javac.tree.JCTree.JCIdent;
-import com.sun.tools.javac.tree.JCTree.JCMemberReference;
-import com.sun.tools.javac.tree.JCTree.JCMemberReference.ReferenceKind;
 import com.sun.tools.javac.tree.TreeInfo;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
@@ -57,6 +55,7 @@ import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.expression.JavaExpressionScanner;
 import org.checkerframework.dataflow.expression.LocalVariable;
 import org.checkerframework.dataflow.qual.Deterministic;
+import org.checkerframework.dataflow.qual.Impure;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.dataflow.util.PurityChecker;
@@ -110,6 +109,7 @@ import org.checkerframework.javacutil.SwitchExpressionScanner.FunctionalSwitchEx
 import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TreeUtils.MemberReferenceKind;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.ArrayMap;
 import org.plumelib.util.ArraySet;
@@ -222,6 +222,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             AnnotationBuilder.fromClass(elements, SideEffectFree.class);
     /** The @{@link Pure} annotation. */
     protected final AnnotationMirror PURE = AnnotationBuilder.fromClass(elements, Pure.class);
+
+    /** The @{@link Impure} annotation. */
+    protected final AnnotationMirror IMPURE = AnnotationBuilder.fromClass(elements, Impure.class);
 
     /** The {@code value} element/field of the @java.lang.annotation.Target annotation. */
     protected final ExecutableElement targetValueElement;
@@ -1061,7 +1064,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         if (isDeterministic) {
             if (TreeUtils.isConstructor(tree)) {
                 checker.reportWarning(tree, "purity.deterministic.constructor");
-            } else if (TreeUtils.typeOf(tree.getReturnType()).getKind() == TypeKind.VOID) {
+            } else if (TreeUtils.isVoidReturn(tree)) {
                 checker.reportWarning(tree, "purity.deterministic.void.method");
             }
         }
@@ -1091,37 +1094,66 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             /* NO-AFU
             }
             */
-            if (TreeUtils.isConstructor(tree)) {
+            if (TreeUtils.isConstructor(tree) || TreeUtils.isVoidReturn(tree)) {
                 additionalKinds.remove(Pure.Kind.DETERMINISTIC);
             }
-            if (!additionalKinds.isEmpty()) {
-                if (additionalKinds.size() == 2) {
-                    checker.reportWarning(tree, "purity.more.pure", tree.getName());
-                } else if (additionalKinds.contains(Pure.Kind.SIDE_EFFECT_FREE)) {
-                    checker.reportWarning(tree, "purity.more.sideeffectfree", tree.getName());
-                } else if (additionalKinds.contains(Pure.Kind.DETERMINISTIC)) {
-                    checker.reportWarning(tree, "purity.more.deterministic", tree.getName());
-                } else {
-                    throw new BugInCF("Unexpected purity kind in " + additionalKinds);
-                }
-                /* NO-AFU
-                if (infer) {
-                  WholeProgramInference wpi = atypeFactory.getWholeProgramInference();
-                  ExecutableElement methodElt = TreeUtils.elementFromDeclaration(tree);
-                  if (additionalKinds.size() == 2) {
-                    wpi.addMethodDeclarationAnnotation(methodElt, PURE);
-                  } else if (additionalKinds.contains(Pure.Kind.SIDE_EFFECT_FREE)) {
-                    wpi.addMethodDeclarationAnnotation(methodElt, SIDE_EFFECT_FREE);
-                  } else if (additionalKinds.contains(Pure.Kind.DETERMINISTIC)) {
-                    wpi.addMethodDeclarationAnnotation(methodElt, DETERMINISTIC);
-                  } else {
-                    throw new BugInCF("Unexpected purity kind in " + additionalKinds);
-                  }
-                }
-                */
+            if (additionalKinds.isEmpty()) {
+                // No need to suggest @Impure, since it is equivalent to no annotation.
+            } else if (additionalKinds.size() == 2) {
+                checker.reportWarning(tree, "purity.more.pure", tree.getName());
+            } else if (additionalKinds.contains(Pure.Kind.SIDE_EFFECT_FREE)) {
+                checker.reportWarning(tree, "purity.more.sideeffectfree", tree.getName());
+            } else if (additionalKinds.contains(Pure.Kind.DETERMINISTIC)) {
+                checker.reportWarning(tree, "purity.more.deterministic", tree.getName());
+            } else {
+                throw new BugInCF("Unexpected purity kind in " + additionalKinds);
             }
+            /* NO-AFU
+              if (infer) {
+                WholeProgramInference wpi = atypeFactory.getWholeProgramInference();
+                ExecutableElement methodElt = TreeUtils.elementFromDeclaration(tree);
+                inferPurityAnno(additionalKinds, wpi, methodElt);
+                // The purity of overridden methods is impacted by the purity of this method. If a
+                // superclass method is pure, but an implementation in a subclass is not, WPI ought to treat
+                // **neither** as pure. The purity kind of the superclass method is the LUB of its own
+                // purity and the purity of all the methods that override it. Logically, this rule is the
+                // same as the WPI rule for overrides, but purity isn't a type system and therefore must be
+                // special-cased.
+                Set<? extends ExecutableElement> overriddenMethods =
+                    ElementUtils.getOverriddenMethods(methodElt, types);
+                for (ExecutableElement overriddenElt : overriddenMethods) {
+                  inferPurityAnno(additionalKinds, wpi, overriddenElt);
+                }
+              }
+            */
         }
     }
+
+    /* NO-AFU
+     * Infer a purity annotation for {@code elt} by converting {@code kinds} into a method annotation.
+     *
+     * <p>This method delegates to {@code WholeProgramInference.addMethodDeclarationAnnotation}, which
+     * special-cases purity annotations: that method lubs a purity argument with whatever purity
+     * annotation is already present on {@code elt}.
+     *
+     * @param kinds the set of purity kinds to use to infer the annotation
+     * @param wpi the whole program inference instance to use to do the inferring
+     * @param elt the element whose purity is being inferred
+     *
+    private void inferPurityAnno(
+        EnumSet<Pure.Kind> kinds, WholeProgramInference wpi, ExecutableElement elt) {
+      if (kinds.size() == 2) {
+        wpi.addMethodDeclarationAnnotation(elt, PURE, true);
+      } else if (kinds.contains(Pure.Kind.SIDE_EFFECT_FREE)) {
+        wpi.addMethodDeclarationAnnotation(elt, SIDE_EFFECT_FREE, true);
+      } else if (kinds.contains(Pure.Kind.DETERMINISTIC)) {
+        wpi.addMethodDeclarationAnnotation(elt, DETERMINISTIC, true);
+      } else {
+        assert kinds.isEmpty();
+        wpi.addMethodDeclarationAnnotation(elt, IMPURE, true);
+      }
+    }
+    */
 
     /**
      * Issue a warning if the result type of the constructor is not top. If it is a supertype of the
@@ -3052,23 +3084,38 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * emits an error message (through the compiler's messaging interface) if it is not valid.
      *
      * @param varTree the AST node for the lvalue (usually a variable)
-     * @param valueExp the AST node for the rvalue (the new value)
+     * @param valueExpTree the AST node for the rvalue (the new value)
      * @param errorKey the error message key to use if the check fails
      * @param extraArgs arguments to the error message key, before "found" and "expected" types
      */
     protected void commonAssignmentCheck(
             Tree varTree,
-            ExpressionTree valueExp,
+            ExpressionTree valueExpTree,
             @CompilerMessageKey String errorKey,
             Object... extraArgs) {
         AnnotatedTypeMirror varType = atypeFactory.getAnnotatedTypeLhs(varTree);
         assert varType != null : "no variable found for tree: " + varTree;
 
         if (!validateType(varTree, varType)) {
+            if (showchecks) {
+                long valuePos = positions.getStartPosition(root, valueExpTree);
+                System.out.printf(
+                        "%s %s (line %3d): actual tree = %s %s%n   expected: %s %s%n",
+                        this.getClass().getSimpleName(),
+                        "skipping test whether actual is a subtype of expected"
+                                + " because validateType() returned false",
+                        (root.getLineMap() != null
+                                ? root.getLineMap().getLineNumber(valuePos)
+                                : -1),
+                        valueExpTree.getKind(),
+                        valueExpTree,
+                        varType.getKind(),
+                        varType.toString());
+            }
             return;
         }
 
-        commonAssignmentCheck(varType, valueExp, errorKey, extraArgs);
+        commonAssignmentCheck(varType, valueExpTree, errorKey, extraArgs);
     }
 
     /**
@@ -3076,39 +3123,84 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * emits an error message (through the compiler's messaging interface) if it is not valid.
      *
      * @param varType the annotated type for the lvalue (usually a variable)
-     * @param valueExp the AST node for the rvalue (the new value)
+     * @param valueExpTree the AST node for the rvalue (the new value)
      * @param errorKey the error message key to use if the check fails
      * @param extraArgs arguments to the error message key, before "found" and "expected" types
      */
     protected void commonAssignmentCheck(
             AnnotatedTypeMirror varType,
-            ExpressionTree valueExp,
+            ExpressionTree valueExpTree,
             @CompilerMessageKey String errorKey,
             Object... extraArgs) {
-        if (shouldSkipUses(valueExp)) {
+        if (shouldSkipUses(valueExpTree)) {
+            if (showchecks) {
+                long valuePos = positions.getStartPosition(root, valueExpTree);
+                System.out.printf(
+                        "%s %s (line %3d): actual tree = %s %s%n   expected: %s %s%n",
+                        this.getClass().getSimpleName(),
+                        "skipping test whether actual is a subtype of expected"
+                                + " because shouldSkipUses() returned true",
+                        (root.getLineMap() != null
+                                ? root.getLineMap().getLineNumber(valuePos)
+                                : -1),
+                        valueExpTree.getKind(),
+                        valueExpTree,
+                        varType.getKind(),
+                        varType.toString());
+            }
             return;
         }
-        if (valueExp.getKind() == Tree.Kind.MEMBER_REFERENCE
-                || valueExp.getKind() == Tree.Kind.LAMBDA_EXPRESSION) {
+        if (valueExpTree.getKind() == Tree.Kind.MEMBER_REFERENCE
+                || valueExpTree.getKind() == Tree.Kind.LAMBDA_EXPRESSION) {
             // Member references and lambda expressions are type checked separately
             // and do not need to be checked again as arguments.
+            if (showchecks) {
+                long valuePos = positions.getStartPosition(root, valueExpTree);
+                System.out.printf(
+                        "%s %s (line %3d): actual tree = %s %s%n   expected: %s %s%n",
+                        this.getClass().getSimpleName(),
+                        "skipping test whether actual is a subtype of expected"
+                                + " because member reference and lambda expression are type checked separately",
+                        (root.getLineMap() != null
+                                ? root.getLineMap().getLineNumber(valuePos)
+                                : -1),
+                        valueExpTree.getKind(),
+                        valueExpTree,
+                        varType.getKind(),
+                        varType.toString());
+            }
             return;
         }
         if (varType.getKind() == TypeKind.ARRAY
-                && valueExp instanceof NewArrayTree
-                && ((NewArrayTree) valueExp).getType() == null) {
+                && valueExpTree instanceof NewArrayTree
+                && ((NewArrayTree) valueExpTree).getType() == null) {
             AnnotatedTypeMirror compType = ((AnnotatedArrayType) varType).getComponentType();
-            NewArrayTree arrayTree = (NewArrayTree) valueExp;
+            NewArrayTree arrayTree = (NewArrayTree) valueExpTree;
             assert arrayTree.getInitializers() != null
-                    : "array initializers are not expected to be null in: " + valueExp;
+                    : "array initializers are not expected to be null in: " + valueExpTree;
             checkArrayInitialization(compType, arrayTree.getInitializers());
         }
-        if (!validateTypeOf(valueExp)) {
+        if (!validateTypeOf(valueExpTree)) {
+            if (showchecks) {
+                long valuePos = positions.getStartPosition(root, valueExpTree);
+                System.out.printf(
+                        "%s %s (line %3d): actual tree = %s %s%n   expected: %s %s%n",
+                        this.getClass().getSimpleName(),
+                        "skipping test whether actual is a subtype of expected"
+                                + " because validateType() returned false",
+                        (root.getLineMap() != null
+                                ? root.getLineMap().getLineNumber(valuePos)
+                                : -1),
+                        valueExpTree.getKind(),
+                        valueExpTree,
+                        varType.getKind(),
+                        varType.toString());
+            }
             return;
         }
-        AnnotatedTypeMirror valueType = atypeFactory.getAnnotatedType(valueExp);
-        assert valueType != null : "null type for expression: " + valueExp;
-        commonAssignmentCheck(varType, valueType, valueExp, errorKey, extraArgs);
+        AnnotatedTypeMirror valueType = atypeFactory.getAnnotatedType(valueExpTree);
+        assert valueType != null : "null type for expression: " + valueExpTree;
+        commonAssignmentCheck(varType, valueType, valueExpTree, errorKey, extraArgs);
     }
 
     /**
@@ -3117,18 +3209,18 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      *
      * @param varType the annotated type of the variable
      * @param valueType the annotated type of the value
-     * @param valueTree the location to use when reporting the error message
+     * @param valueExpTree the location to use when reporting the error message
      * @param errorKey the error message key to use if the check fails
      * @param extraArgs arguments to the error message key, before "found" and "expected" types
      */
     protected void commonAssignmentCheck(
             AnnotatedTypeMirror varType,
             AnnotatedTypeMirror valueType,
-            Tree valueTree,
+            Tree valueExpTree,
             @CompilerMessageKey String errorKey,
             Object... extraArgs) {
 
-        commonAssignmentCheckStartDiagnostic(varType, valueType, valueTree);
+        commonAssignmentCheckStartDiagnostic(varType, valueType, valueExpTree);
 
         AnnotatedTypeMirror widenedValueType = atypeFactory.getWidenedType(valueType, varType);
         boolean success = atypeFactory.getTypeHierarchy().isSubtype(widenedValueType, varType);
@@ -3139,7 +3231,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     atypeFactory.getSupportedMonotonicTypeQualifiers()) {
                 if (valueType.hasAnnotation(mono) && varType.hasAnnotation(mono)) {
                     checker.reportError(
-                            valueTree,
+                            valueExpTree,
                             "monotonic.type.incompatible",
                             mono.getSimpleName(),
                             mono.getSimpleName(),
@@ -3149,7 +3241,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
         }
 
-        commonAssignmentCheckEndDiagnostic(success, null, varType, valueType, valueTree);
+        commonAssignmentCheckEndDiagnostic(success, null, varType, valueType, valueExpTree);
 
         // Use an error key only if it's overridden by a checker.
         if (!success) {
@@ -3157,7 +3249,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             String valueTypeString = pair.found;
             String varTypeString = pair.required;
             checker.reportError(
-                    valueTree,
+                    valueExpTree,
                     errorKey,
                     ArraysPlume.concatenate(extraArgs, valueTypeString, varTypeString));
         }
@@ -3168,20 +3260,20 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      *
      * @param varType the annotated type of the variable
      * @param valueType the annotated type of the value
-     * @param valueTree the location to use when reporting the error message
+     * @param valueExpTree the location to use when reporting the error message
      */
     protected final void commonAssignmentCheckStartDiagnostic(
-            AnnotatedTypeMirror varType, AnnotatedTypeMirror valueType, Tree valueTree) {
+            AnnotatedTypeMirror varType, AnnotatedTypeMirror valueType, Tree valueExpTree) {
         if (showchecks) {
-            long valuePos = positions.getStartPosition(root, valueTree);
+            long valuePos = positions.getStartPosition(root, valueExpTree);
             System.out.printf(
                     "%s %s (line %3d): actual tree = %s %s%n     actual: %s %s%n   expected: %s"
                             + " %s%n",
                     this.getClass().getSimpleName(),
                     "about to test whether actual is a subtype of expected",
                     (root.getLineMap() != null ? root.getLineMap().getLineNumber(valuePos) : -1),
-                    valueTree.getKind(),
-                    valueTree,
+                    valueExpTree.getKind(),
+                    valueExpTree,
                     valueType.getKind(),
                     valueType.toString(),
                     varType.getKind(),
@@ -3196,14 +3288,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param extraMessage information about why the result is what it is; may be null
      * @param varType the annotated type of the variable
      * @param valueType the annotated type of the value
-     * @param valueTree the location to use when reporting the error message
+     * @param valueExpTree the location to use when reporting the error message
      */
     protected final void commonAssignmentCheckEndDiagnostic(
             boolean success,
             String extraMessage,
             AnnotatedTypeMirror varType,
             AnnotatedTypeMirror valueType,
-            Tree valueTree) {
+            Tree valueExpTree) {
         if (showchecks) {
             commonAssignmentCheckEndDiagnostic(
                     (success
@@ -3212,7 +3304,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                             + (extraMessage == null ? "" : " because " + extraMessage),
                     varType,
                     valueType,
-                    valueTree);
+                    valueExpTree);
         }
     }
 
@@ -3226,21 +3318,21 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param message the result, plus information about why the result is what it is; may be null
      * @param varType the annotated type of the variable
      * @param valueType the annotated type of the value
-     * @param valueTree the location to use when reporting the error message
+     * @param valueExpTree the location to use when reporting the error message
      */
     protected final void commonAssignmentCheckEndDiagnostic(
             String message,
             AnnotatedTypeMirror varType,
             AnnotatedTypeMirror valueType,
-            Tree valueTree) {
+            Tree valueExpTree) {
         if (showchecks) {
-            long valuePos = positions.getStartPosition(root, valueTree);
+            long valuePos = positions.getStartPosition(root, valueExpTree);
             System.out.printf(
                     " %s (line %3d): actual tree = %s %s%n     actual: %s %s%n   expected: %s %s%n",
                     message,
                     (root.getLineMap() != null ? root.getLineMap().getLineNumber(valuePos) : -1),
-                    valueTree.getKind(),
-                    valueTree,
+                    valueExpTree.getKind(),
+                    valueExpTree,
                     valueType.getKind(),
                     valueType.toString(),
                     varType.getKind(),
@@ -3864,11 +3956,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         // The type of the expression or type use, <expression>::method or <type use>::method.
         final ExpressionTree qualifierExpression = memberReferenceTree.getQualifierExpression();
-        final ReferenceKind memRefKind = ((JCMemberReference) memberReferenceTree).kind;
+        final MemberReferenceKind memRefKind =
+                MemberReferenceKind.getMemberReferenceKind(memberReferenceTree);
         AnnotatedTypeMirror enclosingType;
         if (memberReferenceTree.getMode() == ReferenceMode.NEW
-                || memRefKind == ReferenceKind.UNBOUND
-                || memRefKind == ReferenceKind.STATIC) {
+                || memRefKind == MemberReferenceKind.UNBOUND
+                || memRefKind == MemberReferenceKind.STATIC) {
             // The "qualifier expression" is a type tree.
             enclosingType = atypeFactory.getAnnotatedTypeFromTypeTree(qualifierExpression);
         } else {
@@ -3883,7 +3976,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         if (enclosingType.getKind() == TypeKind.DECLARED
                 && ((AnnotatedDeclaredType) enclosingType).isUnderlyingTypeRaw()) {
-            if (memRefKind == ReferenceKind.UNBOUND) {
+            if (memRefKind == MemberReferenceKind.UNBOUND) {
                 // The method reference is of the form: Type # instMethod and Type is a raw type.
                 // If the first parameter of the function type, p1, is a subtype of type, then type
                 // should be p1.  This has the effect of "inferring" the class type parameter.
@@ -3985,7 +4078,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         || memberReferenceTree.getTypeArguments().isEmpty())) {
             // Method type args
             requiresInference = true;
-        } else if (memberReferenceTree.getMode() == ReferenceMode.NEW) {
+        } else if (memberReferenceTree.getMode() == ReferenceMode.NEW
+                || MemberReferenceKind.getMemberReferenceKind(memberReferenceTree).isUnbound()) {
             if (type.getKind() == TypeKind.DECLARED
                     && ((AnnotatedDeclaredType) type).isUnderlyingTypeRaw()) {
                 // Class type args
@@ -4186,9 +4280,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     overriderType, overriddenType, superCPostFalse2, subCPostFalse2, postfalsemsg);
         }
 
-        private boolean checkMemberReferenceReceivers() {
-            JCTree.JCMemberReference memberTree = (JCTree.JCMemberReference) overriderTree;
-
+        /**
+         * Issue a "methodref.receiver.invalid" or "methodref.receiver.bound.invalid" error if the
+         * receiver for the method reference does not satify overriding rules.
+         *
+         * @return true if the override is legal
+         */
+        protected boolean checkMemberReferenceReceivers() {
             if (overriderType.getKind() == TypeKind.ARRAY) {
                 // Assume the receiver for all method on arrays are @Top
                 // This simplifies some logic because an AnnotatedExecutableType for an array method
@@ -4196,9 +4294,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 // have to compare "Array" to "String[]".
                 return true;
             }
-
+            MemberReferenceTree memberTree = (MemberReferenceTree) overriderTree;
+            MemberReferenceKind methodRefKind =
+                    MemberReferenceKind.getMemberReferenceKind((MemberReferenceTree) overriderTree);
             // These act like a traditional override
-            if (memberTree.kind == JCTree.JCMemberReference.ReferenceKind.UNBOUND) {
+            if (methodRefKind == MemberReferenceKind.UNBOUND) {
                 AnnotatedTypeMirror overriderReceiver = overrider.getReceiverType();
                 AnnotatedTypeMirror overriddenReceiver = overridden.getParameterTypes().get(0);
                 boolean success =
@@ -4222,7 +4322,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             // The rest act like method invocations
             AnnotatedTypeMirror receiverDecl;
             AnnotatedTypeMirror receiverArg;
-            switch (memberTree.kind) {
+            switch (methodRefKind) {
                 case UNBOUND:
                     throw new BugInCF("Case UNBOUND should already be handled.");
                 case SUPER:
@@ -4331,8 +4431,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             if (isMethodReference) {
                 // The functional interface of an unbound member reference has an extra parameter
                 // (the receiver).
-                if (((JCTree.JCMemberReference) overriderTree)
-                        .hasKind(JCTree.JCMemberReference.ReferenceKind.UNBOUND)) {
+                if (MemberReferenceKind.getMemberReferenceKind((MemberReferenceTree) overriderTree)
+                        == MemberReferenceKind.UNBOUND) {
                     overriddenParams = new ArrayList<>(overriddenParams);
                     overriddenParams.remove(0);
                 }

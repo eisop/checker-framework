@@ -33,12 +33,12 @@ import javax.lang.model.element.VariableElement;
  */
 public class RegexVisitor extends BaseTypeVisitor<RegexAnnotatedTypeFactory> {
 
-    /** The method java.util.regex.MatchResult.end. */
-    private final ExecutableElement matchResultEnd;
-    /** The method java.util.regex.MatchResult.group. */
-    private final ExecutableElement matchResultGroup;
-    /** The method java.util.regex.MatchResult.start. */
-    private final ExecutableElement matchResultStart;
+    /** The method java.util.regex.MatchResult.end(int). */
+    private final ExecutableElement matchResultEndInt;
+    /** The method java.util.regex.MatchResult.group(int). */
+    private final ExecutableElement matchResultGroupInt;
+    /** The method java.util.regex.MatchResult.start(int). */
+    private final ExecutableElement matchResultStartInt;
     /** The method java.util.regex.Pattern.compile. */
     private final ExecutableElement patternCompile;
     /** The field java.util.regex.Pattern.LITERAL. */
@@ -52,10 +52,11 @@ public class RegexVisitor extends BaseTypeVisitor<RegexAnnotatedTypeFactory> {
     public RegexVisitor(BaseTypeChecker checker) {
         super(checker);
         ProcessingEnvironment env = checker.getProcessingEnvironment();
-        this.matchResultEnd = TreeUtils.getMethod("java.util.regex.MatchResult", "end", env, "int");
-        this.matchResultGroup =
+        this.matchResultEndInt =
+                TreeUtils.getMethod("java.util.regex.MatchResult", "end", env, "int");
+        this.matchResultGroupInt =
                 TreeUtils.getMethod("java.util.regex.MatchResult", "group", env, "int");
-        this.matchResultStart =
+        this.matchResultStartInt =
                 TreeUtils.getMethod("java.util.regex.MatchResult", "start", env, "int");
         this.patternCompile =
                 TreeUtils.getMethod(
@@ -85,9 +86,9 @@ public class RegexVisitor extends BaseTypeVisitor<RegexAnnotatedTypeFactory> {
                     return r;
                 }
             }
-        } else if (TreeUtils.isMethodInvocation(tree, matchResultEnd, env)
-                || TreeUtils.isMethodInvocation(tree, matchResultGroup, env)
-                || TreeUtils.isMethodInvocation(tree, matchResultStart, env)) {
+        } else if (TreeUtils.isMethodInvocation(tree, matchResultEndInt, env)
+                || TreeUtils.isMethodInvocation(tree, matchResultGroupInt, env)
+                || TreeUtils.isMethodInvocation(tree, matchResultStartInt, env)) {
             /**
              * Case 3: Checks calls to {@code MatchResult.start}, {@code MatchResult.end} and {@code
              * MatchResult.group} to ensure that a valid group number is passed.
