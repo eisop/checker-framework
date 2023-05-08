@@ -17,13 +17,13 @@ import java.util.List;
  * The meaning of this test class is to test if the generated ajava files are similar to the
  * expected ones. The errors on .java files must be ignored.
  */
-@Category(AinferIndexAjavaTest.class)
-public class AinferIndexAjavaTest extends AinferGeneratePerDirectoryTest {
+@Category(AinferIndexAjavaGenerationTest.class)
+public class AinferIndexAjavaGenerationTest extends AinferGeneratePerDirectoryTest {
 
     /**
      * @param testFiles the files containing test code, which will be type-checked
      */
-    public AinferIndexAjavaTest(List<File> testFiles) {
+    public AinferIndexAjavaGenerationTest(List<File> testFiles) {
         super(
                 testFiles,
                 IndexChecker.class,

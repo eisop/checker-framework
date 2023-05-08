@@ -17,13 +17,13 @@ import java.util.List;
  * The meaning of this test class is to test if the generated ajava files are similar to the
  * expected ones. The errors on .java files must be ignored.
  */
-@Category(AinferNullnessAjavaTest.class)
-public class AinferNullnessAjavaTest extends AinferGeneratePerDirectoryTest {
+@Category(AinferNullnessAjavaGenerationTest.class)
+public class AinferNullnessAjavaGenerationTest extends AinferGeneratePerDirectoryTest {
 
     /**
      * @param testFiles the files containing test code, which will be type-checked
      */
-    public AinferNullnessAjavaTest(List<File> testFiles) {
+    public AinferNullnessAjavaGenerationTest(List<File> testFiles) {
         super(
                 testFiles,
                 NullnessChecker.class,

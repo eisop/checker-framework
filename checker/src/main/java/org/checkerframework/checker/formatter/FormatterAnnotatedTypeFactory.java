@@ -100,16 +100,14 @@ public class FormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      */
     /* NO-AFU
     @Override
-    public void prepareMethodForWriting(AMethod method) {
-        if (hasFormatMethodAnno(method)) {
-            AField param = method.parameters.get(0);
-            if (param != null) {
-                Set<Annotation> paramTypeAnnos = param.type.tlAnnotationsHere;
-                paramTypeAnnos.removeIf(
-                        a ->
-                                a.def.name.equals(
-                                        "org.checkerframework.checker.formatter.qual.Format"));
-            }
+    public void wpiPrepareMethodForWriting(AMethod method) {
+      super.wpiPrepareMethodForWriting(method);
+      if (hasFormatMethodAnno(method)) {
+        AField param = method.parameters.get(0);
+        if (param != null) {
+          Set<Annotation> paramTypeAnnos = param.type.tlAnnotationsHere;
+          paramTypeAnnos.removeIf(
+              a -> a.def.name.equals("org.checkerframework.checker.formatter.qual.Format"));
         }
     }
     */
@@ -122,11 +120,31 @@ public class FormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      */
     /* NO-AFU
     @Override
-    public void prepareMethodForWriting(
-            WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos methodAnnos) {
-        if (hasFormatMethodAnno(methodAnnos)) {
-            AnnotatedTypeMirror atm = methodAnnos.getParameterType(0);
-            atm.removeAnnotationByClass(org.checkerframework.checker.formatter.qual.Format.class);
+    public void wpiPrepareMethodForWriting(
+        WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos methodAnnos,
+        Collection<WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos> inSupertypes,
+        Collection<WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos> inSubtypes) {
+      super.wpiPrepareMethodForWriting(methodAnnos, inSupertypes, inSubtypes);
+      if (hasFormatMethodAnno(methodAnnos)) {
+        AnnotatedTypeMirror atm = methodAnnos.getParameterType(0);
+        atm.removeAnnotationByClass(org.checkerframework.checker.formatter.qual.Format.class);
+      }
+    }
+    */
+
+    /* NO-AFU
+     * Returns true if the method has a {@code @FormatMethod} annotation.
+     *
+     * @param methodAnnos method annotations
+     * @return true if the method has a {@code @FormatMethod} annotation
+     */
+    /* NO-AFU
+    private boolean hasFormatMethodAnno(AMethod methodAnnos) {
+      for (Annotation anno : methodAnnos.tlAnnotationsHere) {
+        String annoName = anno.def.name;
+        if (annoName.equals("org.checkerframework.checker.formatter.qual.FormatMethod")
+            || anno.def.name.equals("com.google.errorprone.annotations.FormatMethod")) {
+          return true;
         }
     }
     */
