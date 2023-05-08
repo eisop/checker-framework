@@ -1,8 +1,6 @@
 // Test case for issue 363:
 // https://github.com/eisop/checker-framework/issues/363
 
-// @skip-test until the issue is fixed
-
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.initialization.qual.NotOnlyInitialized;
 import org.checkerframework.checker.initialization.qual.UnknownInitialization;
@@ -18,7 +16,7 @@ class MyException extends Exception {
         this.cause = cause;
     }
 
-    MyException(@UnknownInitialization EISOPIssue363 cause, int dummy) {
+    MyException(@UnknownInitialization EISOPIssue363a cause, int dummy) {
         this.cause = cause;
     }
 }
@@ -27,8 +25,8 @@ public class EISOPIssue363a {
     Object field;
 
     EISOPIssue363a() throws MyException {
-        // :: error: (argument.type.incompatible)
         // :: error: (throw.type.incompatible)
+        // :: error: (argument.type.incompatible)
         throw new MyException(this);
     }
 
@@ -38,6 +36,7 @@ public class EISOPIssue363a {
     }
 
     EISOPIssue363a(char dummy) throws MyException {
+        // :: error: (throw.type.incompatible)
         // :: error: (argument.type.incompatible)
         throw new MyException(this, "a");
     }
@@ -78,9 +77,8 @@ public class EISOPIssue363a {
 
     public static void test4(String[] args) {
         try {
-            // :: error: (throw.type.incompatible)
             EISOPIssue363a obj = new EISOPIssue363a(0);
-        } catch (Issue363Exception ex) {
+        } catch (MyException ex) {
             ex.cause.field.toString();
         }
     }
