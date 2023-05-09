@@ -162,7 +162,7 @@ The goal of this project is to do a large-scale case study of the Nullness
 Checker on Bazel.  The main goal is to understand how the Nullness Checker
 can be used on a large-scale industrial codebase.  How many lurking bugs
 does it find?  What
-<a href="https://eisop.github.io/cf/releases/1.9.13/api/org/checkerframework/checker/nullness/qual/Nullable.html"><code>@Nullable</code></a>
+<a href="https://eisop.github.io/cf/api/org/checkerframework/checker/nullness/qual/Nullable.html"><code>@Nullable</code></a>
 annotations are missing from the codebase because the developers failed to
 write them?  What are its limitations, such as code patterns that it cannot
 recognize as safe?  (You might create new analyses and incorporating them
@@ -312,7 +312,7 @@ Lock Checker to verify this property.
 
 <p>
   The
-  <a href="https://eisop.github.io/afu/annotation-file-utilities.html/">Annotation
+  <a href="https://eisop.github.io/afu/">Annotation
   File Utilities</a>, or AFU, insert annotations into, and extract
   annotations from, <code>.java</code> files, <code>.class</code> files,
   and text files.  These programs were written before the

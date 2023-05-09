@@ -2178,7 +2178,7 @@ get the conservative behavior.
 Version 2.1.8 (20 January 2017)
 -------------------------------
 
-The Checker Framework webpage has moved to https://eisop.github.io/.
+The Checker Framework webpage has moved to https://checkerframework.org/.
 Old URLs should redirect to the new one, but please update your links
 and let us know if any old links are broken rather than redirecting.
 
