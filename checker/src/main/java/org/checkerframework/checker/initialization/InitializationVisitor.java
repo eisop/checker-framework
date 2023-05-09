@@ -496,8 +496,8 @@ public class InitializationVisitor<
     protected void checkThrownExpression(ThrowTree tree, MethodTree mtree) {
         AnnotatedTypeMirror throwType = atypeFactory.getAnnotatedType(tree.getExpression());
         Set<? extends AnnotationMirror> required = getThrowUpperBoundAnnotations();
-        if (mtree != null && getThrowExpressions(mtree) != null) {
-            List<AnnotatedTypeMirror> throwClauses = getThrowExpressions(mtree);
+        if (mtree != null && getExceptionList(mtree) != null) {
+            List<AnnotatedTypeMirror> throwClauses = getExceptionList(mtree);
             for (AnnotatedTypeMirror throwClause : throwClauses) {
                 Types typesUtil = atypeFactory.getProcessingEnv().getTypeUtils();
                 if (typesUtil.isSameType(
@@ -531,17 +531,17 @@ public class InitializationVisitor<
      * <p>Note: If the method declaration do not have any throw clauses, then return null.
      *
      * @param mtree MethodTree to look up throw expressions
-     * @return List of AnnotationTypeMirrors, one per throw clause, that contains annotation and
-     *     java expressions
+     * @return List of AnnotationTypeMirrors, one per exception in method signature, that contains
+     *     annotation and java expressions
      */
-    protected List<AnnotatedTypeMirror> getThrowExpressions(MethodTree mtree) {
-        List<AnnotatedTypeMirror> throwClauseExpressions = new ArrayList<>();
-        List<? extends ExpressionTree> throwExpressions = mtree.getThrows();
-        if (!throwExpressions.isEmpty()) {
-            for (ExpressionTree throwExpression : throwExpressions) {
-                throwClauseExpressions.add(atypeFactory.getAnnotatedType(throwExpression));
+    protected List<AnnotatedTypeMirror> getExceptionList(MethodTree mtree) {
+        List<AnnotatedTypeMirror> ExceptionList = new ArrayList<>();
+        List<? extends ExpressionTree> ExceptionTrees = mtree.getThrows();
+        if (!ExceptionTrees.isEmpty()) {
+            for (ExpressionTree throwExpression : ExceptionTrees) {
+                ExceptionList.add(atypeFactory.getAnnotatedType(throwExpression));
             }
         }
-        return throwClauseExpressions;
+        return ExceptionList;
     }
 }
