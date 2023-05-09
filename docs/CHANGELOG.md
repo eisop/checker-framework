@@ -1,7 +1,9 @@
-Version 3.34.0-eisop1 (May ?, 2023)
+Version 3.34.0-eisop1 (May 9, 2023)
 -----------------------------------
 
 **User-visible changes:**
+
+There is now a dedicated website for the EISOP Framework at https://eisop.github.io/ .
 
 The new command-line arguments `-AaliasedTypeAnnos={aliases}` and `-AaliasedDeclAnnos={aliases}`
 define custom type and declaration annotation aliases for the canonical annotations of a checker.
@@ -10,7 +12,15 @@ define custom type and declaration annotation aliases for the canonical annotati
 
 **Implementation details:**
 
-**Closed issues:**
+The EISOP Framework continues to build and run on JDK 8.
+
+Improvements to `-AwarnRedundantAnnotations` with type variables and the Interning Checker.
+
+Refactored handling of test options and fixed the interaction between the `detailedmsgtext` and
+`nomsgtext` options.
+
+New `CFGVisualizeOptions` class for handling command-line arguments, making the
+dataflow demo `Playground` applications much easier to use.
 
 
 Version 3.34.0 (May 2, 2023)
