@@ -75,9 +75,9 @@ dependencies {
 
     // Required for checker/tests/index-initializedfields/RequireJavadoc.java
     if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
-        testImplementation 'org.plumelib:options:1.0.6'
+        testImplementation 'org.plumelib:options:2.0.3'
     } else {
-        testImplementation 'org.plumelib:options:2.0.2'
+        testImplementation 'org.plumelib:options:2.0.3'
     }
 
     testImplementation group: 'junit', name: 'junit', version: '4.13.2'
