@@ -4,16 +4,19 @@ import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Options;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.processing.ProcessingEnvironment;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.plumelib.util.CollectionsPlume;
 
 /** This file contains basic utility functions. */
 public class SystemUtil {
@@ -112,94 +115,163 @@ public class SystemUtil {
   }
 
   ///
-  /// Array and collection methods
+  /// Deprecated methods
   ///
 
   /**
-   * Returns a list that contains all the distinct elements of the two lists: that is, the union of
-   * the two arguments.
+   * Return a list of Strings, one per line of the file.
    *
-   * <p>For very short lists, this is likely more efficient than creating a set and converting back
-   * to a list.
-   *
-   * @param <T> the type of the list elements
-   * @param list1 a list
-   * @param list2 a list
-   * @return a list that contains all the distinct elements of the two lists
-   * @deprecated use CollectionsPlume.listUnion
+   * @param argFile argument file
+   * @return a list of Strings, one per line of the file
+   * @throws IOException when reading the argFile
+   * @deprecated use Files.readAllLines
    */
-  @Deprecated // 2023-01-08
-  public static <T> List<T> union(List<T> list1, List<T> list2) {
-    List<T> result = new ArrayList<>(list1.size() + list2.size());
-    addWithoutDuplicates(result, list1);
-    addWithoutDuplicates(result, list2);
-    return result;
-  }
-
-  /**
-   * Adds, to dest, all the elements of source that are not already in dest.
-   *
-   * <p>For very short lists, this is likely more efficient than creating a set and converting back
-   * to a list.
-   *
-   * @param <T> the type of the list elements
-   * @param dest a list to add to
-   * @param source a list of elements to add
-   * @deprecated use CollectionsPlume.adjoinAll
-   */
-  @SuppressWarnings(
-      "nullness:argument.type.incompatible" // true positive:  `dest` might be incompatible
-  // with null and `source` might contain null.
-  )
-  @Deprecated // 2023-01-08
-  public static <T> void addWithoutDuplicates(List<T> dest, List<? extends T> source) {
-    for (T elt : source) {
-      if (!dest.contains(elt)) {
-        dest.add(elt);
+  @Deprecated // 2021-03-10
+  public static List<String> readFile(final File argFile) throws IOException {
+    try (final BufferedReader br = new BufferedReader(new FileReader(argFile))) {
+      String line;
+      List<String> lines = new ArrayList<>();
+      while ((line = br.readLine()) != null) {
+        lines.add(line);
       }
+      return lines;
     }
   }
 
   /**
-   * Returns a list that contains all the elements that are in both lists: that is, the set
-   * difference of the two arguments.
+   * Like Thread.sleep, but does not throw any exceptions, so it is easier for clients to use.
+   * Causes the currently executing thread to sleep (temporarily cease execution) for the specified
+   * number of milliseconds.
    *
-   * <p>For very short lists, this is likely more efficient than creating a set and converting back
-   * to a list.
-   *
-   * @param <T> the type of the list elements
-   * @param list1 a list
-   * @param list2 a list
-   * @return a list that contains all the elements of {@code list1} that are not in {@code list2}
-   * @deprecated use CollectionsPlume.listIntersection
+   * @param millis the length of time to sleep in milliseconds
+   * @deprecated use SystemPlume.sleep
    */
-  @Deprecated // 2023-01-08
-  public static <T> List<T> intersection(List<? extends T> list1, List<? extends T> list2) {
-    List<T> result = new ArrayList<>(list1);
-    result.retainAll(list2);
+  @Deprecated // 2021-03-10
+  public static void sleep(long millis) {
+    try {
+      Thread.sleep(millis);
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+    }
+  }
+
+  /**
+   * Concatenates an element, an array, and an element.
+   *
+   * @param <T> the type of the array elements
+   * @param firstElt the first element
+   * @param array the array
+   * @param lastElt the last elemeent
+   * @return a new array containing first element, the array, and the last element, in that order
+   * @deprecated use PlumeUtil.concat
+   */
+  @Deprecated // 2021-03-10
+  @SuppressWarnings("unchecked")
+  public static <T> T[] concatenate(T firstElt, T[] array, T lastElt) {
+    @SuppressWarnings("nullness") // elements are not non-null yet, but will be by return stmt
+    T[] result = Arrays.copyOf(array, array.length + 2);
+    result[0] = firstElt;
+    System.arraycopy(array, 0, result, 1, array.length);
+    result[result.length - 1] = lastElt;
     return result;
   }
 
   /**
-   * Returns a list with the same contents as its argument, but sorted and without duplicates. May
-   * return its argument if its argument is sorted and has no duplicates, but is not guaranteed to
-   * do so. The argument is not modified.
+   * Return true if the system property is set to "true". Return false if the system property is not
+   * set or is set to "false". Otherwise, errs.
    *
-   * <p>This is like {@code withoutDuplicates}, but requires the list elements to implement {@link
-   * Comparable}, and thus can be more efficient.
-   *
-   * @param <T> the type of elements in {@code values}
-   * @param values a list of values
-   * @return the values, with duplicates removed
+   * @param key system property to check
+   * @return true if the system property is set to "true". Return false if the system property is
+   *     not set or is set to "false". Otherwise, errs.
+   * @deprecated use UtilPlume.getBooleanSystemProperty
    */
-  // TODO: Deprecate or delete once plume-util 1.6.6 (from which this is taken) is released.
-  public static <T extends Comparable<T>> List<T> withoutDuplicatesSorted(List<T> values) {
-    // This adds O(n) time cost, and has the benefit of sometimes avoiding allocating a TreeSet.
-    if (CollectionsPlume.isSortedNoDuplicates(values)) {
-      return values;
-    }
+  @Deprecated // 2021-03-28
+  public static boolean getBooleanSystemProperty(String key) {
+    return Boolean.parseBoolean(System.getProperty(key, "false"));
+  }
 
-    Set<T> set = new TreeSet<>(values);
-    return new ArrayList<>(set);
+  /**
+   * Return its boolean value if the system property is set. Return defaultValue if the system
+   * property is not set. Errs if the system property is set to a non-boolean value.
+   *
+   * @param key system property to check
+   * @param defaultValue value to use if the property is not set
+   * @return the boolean value of {@code key} or {@code defaultValue} if {@code key} is not set
+   * @deprecated use UtilPlume.getBooleanSystemProperty
+   */
+  @Deprecated // 2021-03-28
+  public static boolean getBooleanSystemProperty(String key, boolean defaultValue) {
+    String value = System.getProperty(key);
+    if (value == null) {
+      return defaultValue;
+    }
+    if (value.equals("true")) {
+      return true;
+    }
+    if (value.equals("false")) {
+      return false;
+    }
+    throw new UserError(
+        String.format(
+            "Value for system property %s should be boolean, but is \"%s\".", key, value));
+  }
+
+  /**
+   * Concatenates two arrays. Can be invoked varargs-style.
+   *
+   * @param <T> the type of the array elements
+   * @param array1 the first array
+   * @param array2 the second array
+   * @return a new array containing the contents of the given arrays, in order
+   * @deprecated use StringsPlume.concatenate
+   */
+  @Deprecated // 2021-03-28
+  @SuppressWarnings("unchecked")
+  public static <T> T[] concatenate(T[] array1, T... array2) {
+    @SuppressWarnings("nullness") // elements are not non-null yet, but will be by return stmt
+    T[] result = Arrays.copyOf(array1, array1.length + array2.length);
+    System.arraycopy(array2, 0, result, array1.length, array2.length);
+    return result;
+  }
+
+  /**
+   * Given an expected number of elements, returns the capacity that should be passed to a HashMap
+   * or HashSet constructor, so that the set or map will not resize.
+   *
+   * @param numElements the maximum expected number of elements in the map or set
+   * @return the initial capacity to pass to a HashMap or HashSet constructor
+   * @deprecated use CollectionsPlume.mapCapacity
+   */
+  @Deprecated // 2021-05-05
+  public static int mapCapacity(int numElements) {
+    // Equivalent to: (int) (numElements / 0.75) + 1
+    // where 0.75 is the default load factor.
+    return (numElements * 4 / 3) + 1;
+  }
+
+  /**
+   * Given an expected number of elements, returns the capacity that should be passed to a HashMap
+   * or HashSet constructor, so that the set or map will not resize.
+   *
+   * @param c a collection whose size is the maximum expected number of elements in the map or set
+   * @return the initial capacity to pass to a HashMap or HashSet constructor
+   * @deprecated use CollectionsPlume.mapCapacity
+   */
+  @Deprecated // 2021-05-05
+  public static int mapCapacity(Collection<?> c) {
+    return mapCapacity(c.size());
+  }
+
+  /**
+   * Given an expected number of elements, returns the capacity that should be passed to a HashMap
+   * or HashSet constructor, so that the set or map will not resize.
+   *
+   * @param m a map whose size is the maximum expected number of elements in the map or set
+   * @return the initial capacity to pass to a HashMap or HashSet constructor
+   * @deprecated use CollectionsPlume.mapCapacity
+   */
+  @Deprecated // 2021-05-05
+  public static int mapCapacity(Map<?, ?> m) {
+    return mapCapacity(m.size());
   }
 }
