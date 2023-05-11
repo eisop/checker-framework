@@ -51,7 +51,7 @@ public final class SubtypingChecker extends BaseTypeChecker {
       Set<Class<? extends Annotation>> annos =
           ((BaseTypeVisitor<?>) visitor).getTypeFactory().getSupportedTypeQualifiers();
       for (Class<? extends Annotation> anno : annos) {
-        result.add(anno.getSimpleName().toLowerCase(Locale.ROOT));
+        result.add(anno.getSimpleName().toLowerCase(Locale.getDefault()));
       }
     }
 

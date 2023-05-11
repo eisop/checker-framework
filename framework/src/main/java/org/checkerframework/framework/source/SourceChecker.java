@@ -2516,7 +2516,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
       indexOfChecker = className.lastIndexOf("Subchecker");
     }
     String result = (indexOfChecker == -1) ? className : className.substring(0, indexOfChecker);
-    return result.toLowerCase(Locale.ROOT);
+    return result.toLowerCase(Locale.getDefault());
   }
 
   /**
