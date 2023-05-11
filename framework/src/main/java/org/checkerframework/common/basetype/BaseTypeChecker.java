@@ -474,7 +474,6 @@ public abstract class BaseTypeChecker extends SourceChecker {
       }
 
       instance.setProcessingEnvironment(this.processingEnv);
-      instance.treePathCacher = this.getTreePathCacher();
       // Prevent the new checker from storing non-immediate subcheckers
       instance.subcheckers = Collections.emptyList();
       immediateSubcheckers.add(instance);
@@ -507,14 +506,6 @@ public abstract class BaseTypeChecker extends SourceChecker {
     }
 
     return subcheckers;
-  }
-
-  @Override
-  protected void reportJavacError(TreePath p) {
-    if (parentChecker == null) {
-      // Only the parent checker should report the "type.checking.not.run" error.
-      super.reportJavacError(p);
-    }
   }
 
   // AbstractTypeProcessor delegation

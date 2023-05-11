@@ -48,10 +48,14 @@ Changed the return types of
 eisop#297, eisop#376, eisop#400, eisop#519, eisop#532, eisop#533, typetools#1590, typetools#1919.
 
 
-Version 3.34.1 (June 1, 2023)
+Version 3.35.0 (June 1, 2023)
 ------------------------------
 
 **User-visible changes:**
+
+
+The Checker Framework no longer issues `type.checking.not.run` errors.
+This reduces clutter.
 
 Signedness Checker:
  * The receiver type of `Object.hashCode()` is now `@UnknownSignedness`.
