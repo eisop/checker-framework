@@ -1,7 +1,7 @@
 package org.checkerframework.checker.test.junit;
 
 import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
-import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
 
 import java.io.File;
 import java.util.List;
@@ -22,7 +22,7 @@ public class InterningWarnRedundantAnnotationsTest extends CheckerFrameworkPerDi
                 "-AwarnRedundantAnnotations");
     }
 
-    @Parameterized.Parameters
+    @Parameters
     public static String[] getTestDirs() {
         return new String[] {"interning-warnredundantannotations"};
     }

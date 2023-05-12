@@ -1,8 +1,8 @@
 # The Checker Framework:  pluggable type-checking for Java
 
 Please see the Checker Framework manual
-([HTML](https://checkerframework.org/manual/),
-[PDF](https://checkerframework.org/manual/checker-framework-manual.pdf)).
+([HTML](https://eisop.github.io/cf/manual/),
+[PDF](https://eisop.github.io/cf/manual/checker-framework-manual.pdf)).
 
 The history of releases and changes is in file
 [docs/CHANGELOG.md](docs/CHANGELOG.md).

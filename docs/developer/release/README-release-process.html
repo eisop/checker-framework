@@ -247,7 +247,7 @@ TreeAnnotator
 </ol>
 
   <h2 id="snapshot_release">Snapshot release</h2>
-  <p>This section explains how to release the Maven artifacts to the snapshot repository.</p>
+  <p>This section explains how to release the Maven artifacts to the Maven Central snapshot repository.</p>
   <ol>
     <li>
       Ensure that <code>~/.gradle/gradle.properties</code> includes your <code>SONATYPE_NEXUS_USERNAME</code>
@@ -273,6 +273,9 @@ dependencies {
   compileOnly "io.github.eisop:checker-qual:${checkerFrameworkVersion}"
   testCompileOnly "io.github.eisop:checker-qual:${checkerFrameworkVersion}"
   checkerFramework "io.github.eisop:checker:${checkerFrameworkVersion}"
+}
+configurations.all {
+  resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
 }
       </pre>
     </li>
@@ -527,7 +530,7 @@ git config --global user.email you@example.com</pre>
       <li>Checker Framework:
         <ul>
           <li>List all issues (in issue trackers) resolved since the previous release:
-            <a href="https://checkerframework.org/CHANGELOG.md">previous release</a>,
+            <a href="https://eisop.github.io/cf/CHANGELOG.md">previous release</a>,
             <a href="https://github.com/eisop/checker-framework/issues?q=is%3Aissue+is%3Aclosed+sort%3Aupdated-desc">issues query</a>,
             <a href="https://github.com/eisop/checker-framework/blob/master/docs/CHANGELOG.md">current changelog</a>.
           </li>
@@ -548,7 +551,7 @@ git config --global user.email you@example.com</pre>
       <li>Annotation File Utilities:
         <ul>
           <li>List all issues (in issue trackers) resolved since the previous release:
-            <a href="https://checkerframework.org/annotation-file-utilities/changelog.html">previous release</a>,
+            <a href="https://eisop.github.io/afu/changelog.html">previous release</a>,
             <a href="https://github.com/eisop/annotation-tools/issues?q=is%3Aissue+is%3Aclosed+sort%3Aupdated-desc">issues query</a>,
             <a href="https://github.com/eisop/annotation-tools/blob/master/annotation-file-utilities/changelog.html">current changelog</a>
           </li>
@@ -718,7 +721,7 @@ git config --global user.email you@example.com</pre>
 </body>
 </html>
 
-<!--  LocalWords:  serif px pre CCC JDK AFS PAG mkdir cd svn co EFEFEF ul li Changelog stubparser JavaParser jdk8 GenericAnnotatedTypeFactory CFTransfer CFAbstractTransfer CFAbstractAnalysis CFAnalysis CFAbstractStore CFStore CFAbstractValue CFValue BaseTypeVisitor BaseTypeChecker SourceChecker MultigraphQualifierHierarchy AbstractQualifierPolymorphism AnnotationUtils TreeAnnotator TODO typetools
+<!--  LocalWords:  serif px pre CCC JDK AFS PAG mkdir cd svn co EFEFEF ul li Changelog stubparser JavaParser GenericAnnotatedTypeFactory CFTransfer CFAbstractTransfer CFAbstractAnalysis CFAnalysis CFAbstractStore CFStore CFAbstractValue CFValue BaseTypeVisitor BaseTypeChecker SourceChecker MultigraphQualifierHierarchy AbstractQualifierPolymorphism AnnotationUtils TreeAnnotator TODO typetools
  -->
 <!--  LocalWords:  xml ver dev yyyyMMDD URL url diff hg buildfile kelloggm checkerframework gradle
  -->
