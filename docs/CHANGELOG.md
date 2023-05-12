@@ -5,6 +5,9 @@ Version 3.34.0-eisop2 (May ?, 2023)
 
 **Implementation details:**
 
+Remove class `StringConcatenateAssignmentNode` and its last usages.
+The class was deprecated in release 3.21.3-eisop1 (March 23, 2022) and no longer used in CFGs.
+
 **Closed issues:**
 
 
