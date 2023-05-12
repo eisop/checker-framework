@@ -236,7 +236,7 @@ allprojects {
         ]
 
         reflectionUtilVersion = '1.0.6'
-        plumeUtilVersion = '1.6.5'
+        plumeUtilVersion = '1.7.0'
     }
 
     if (isJava11plus) {
