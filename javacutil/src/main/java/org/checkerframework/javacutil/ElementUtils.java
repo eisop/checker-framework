@@ -242,7 +242,7 @@ public class ElementUtils {
         if (element.getKind() == ElementKind.METHOD) {
             return ((ExecutableElement) element).getReturnType();
         } else if (element.getKind() == ElementKind.CONSTRUCTOR) {
-            return enclosingClass(element).asType();
+            return enclosingTypeElement(element).asType();
         } else {
             return element.asType();
         }
@@ -260,7 +260,7 @@ public class ElementUtils {
             return elem.getQualifiedName();
         }
 
-        TypeElement elem = enclosingClass(element);
+        TypeElement elem = enclosingTypeElement(element);
         if (elem == null) {
             return null;
         }
@@ -397,11 +397,11 @@ public class ElementUtils {
         if (element == null) {
             return false;
         }
-        TypeElement enclosingClass = enclosingClass(element);
-        if (enclosingClass == null) {
-            throw new BugInCF("enclosingClass(%s) is null", element);
+        TypeElement enclosingTypeElement = enclosingTypeElement(element);
+        if (enclosingTypeElement == null) {
+            throw new BugInCF("enclosingTypeElement(%s) is null", element);
         }
-        return isElementFromSourceCodeImpl((Symbol.ClassSymbol) enclosingClass);
+        return isElementFromSourceCodeImpl((Symbol.ClassSymbol) enclosingTypeElement);
     }
 
     /**
@@ -803,7 +803,7 @@ public class ElementUtils {
      * @return true if the argument is a type declaration
      */
     public static boolean isTypeDeclaration(Element elt) {
-        return isClassElement(elt) || elt.getKind() == ElementKind.TYPE_PARAMETER;
+        return isTypeElement(elt) || elt.getKind() == ElementKind.TYPE_PARAMETER;
     }
 
     /** The set of kinds that represent local variables. */
