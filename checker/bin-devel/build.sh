@@ -93,8 +93,8 @@ fi
 ## Compile
 
 # Download dependencies, trying a second time if there is a failure.
-(./gradlew --write-verification-metadata sha256 help --dry-run ||
-     (sleep 60 && ./gradlew --write-verification-metadata sha256 help --dry-run))
+(TERM=dumb timeout 300 ./gradlew --write-verification-metadata sha256 help --dry-run ||
+     (sleep 1m && ./gradlew --write-verification-metadata sha256 help --dry-run))
 
 echo "running \"./gradlew assembleForJavac\" for checker-framework"
 ./gradlew assembleForJavac --console=plain --warning-mode=all -s -Dorg.gradle.internal.http.socketTimeout=60000 -Dorg.gradle.internal.http.connectionTimeout=60000
