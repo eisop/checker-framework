@@ -3133,13 +3133,19 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
           return;
         }
       }
+    } else {
+      // `success` is false.
+      // Use an error key only if it's overridden by a checker.
+      FoundRequired pair = FoundRequired.of(valueType, varType);
+      String valueTypeString = pair.found;
+      String varTypeString = pair.required;
+      checker.reportError(
+          valueExpTree,
+          errorKey,
+          ArraysPlume.concatenate(extraArgs, valueTypeString, varTypeString));
     }
 
     commonAssignmentCheckEndDiagnostic(success, null, varType, valueType, valueExpTree);
-
-    if (!success) {
-      reportCommonAssignmentError(varType, widenedValueType, valueExpTree, errorKey, extraArgs);
-    }
   }
 
   /**
