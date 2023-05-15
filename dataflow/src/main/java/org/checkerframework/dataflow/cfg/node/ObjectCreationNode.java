@@ -6,7 +6,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.TreeUtils;
-import org.plumelib.util.StringsPlume;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -21,6 +20,9 @@ import java.util.Objects;
  *   <em>new identifier&lt;T&gt;(arg1, arg2, ...)</em>
  *   <em>enclosingExpression.new identifier(arg1, arg2, ...)</em>
  * </pre>
+ *
+ * <p>We use the name "identifier" to represent the constructor. To access the annotations, we can
+ * go to the identifier node.
  */
 public class ObjectCreationNode extends Node {
 
@@ -31,8 +33,8 @@ public class ObjectCreationNode extends Node {
     protected final @Nullable Node enclosingExpression;
 
     /**
-     * The identifier node of the object creation. A non-generic constructor can refer to a
-     * ClassNameNode, while a generic constructor identifier can refer to a ParameterizedTypeNode.
+     * The identifier node of the object creation. A non-generic identifier can refer to a
+     * ClassNameNode, while a generic identifier can refer to a ParameterizedTypeNode.
      */
     protected final Node identifier;
 
@@ -45,7 +47,8 @@ public class ObjectCreationNode extends Node {
     /**
      * Constructs a {@link ObjectCreationNode}.
      *
-     * @param tree the NewClassTree
+     * @param tree the NewClassTree which can be used to get the constructor type arguments by going
+     *     through it
      * @param enclosingExpr the enclosing expression Node if it exists, or null
      * @param identifier the identifier node
      * @param arguments the passed arguments
@@ -78,7 +81,7 @@ public class ObjectCreationNode extends Node {
     }
 
     /**
-     * Returns the identifier node. A non-generic constructor can refer to a ClassNameNode, while a
+     * Returns the identifier node. A non-generic identifier can refer to a ClassNameNode, while a
      * generic constructor identifier can refer to a ParameterizedTypeNode.
      *
      * @return the identifier node
@@ -144,19 +147,7 @@ public class ObjectCreationNode extends Node {
     @Override
     @SideEffectFree
     public String toString() {
-        StringBuilder sb = new StringBuilder();
-        if (enclosingExpression != null) {
-            sb.append(enclosingExpression + ".");
-        }
-        sb.append("new " + identifier + "(");
-        sb.append(StringsPlume.join(", ", arguments));
-        sb.append(")");
-        if (classbody != null) {
-            // TODO: maybe this can be done nicer...
-            sb.append(" ");
-            sb.append(classbody.toString());
-        }
-        return sb.toString();
+        return getTree().toString();
     }
 
     @Override
