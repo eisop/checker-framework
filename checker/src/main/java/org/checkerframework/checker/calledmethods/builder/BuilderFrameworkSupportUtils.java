@@ -29,6 +29,6 @@ public class BuilderFrameworkSupportUtils {
      * @return the same String, but with the first character capitalized
      */
     public static String capitalize(String prop) {
-        return prop.substring(0, 1).toUpperCase() + prop.substring(1);
+        return Character.toUpperCase(prop.charAt(0)) + prop.substring(1);
     }
 }
