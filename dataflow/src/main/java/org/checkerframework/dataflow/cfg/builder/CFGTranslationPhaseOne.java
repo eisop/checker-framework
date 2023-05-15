@@ -1320,10 +1320,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 // Handle anonymous constructors that extend a class with an enclosing type.
                 // We only care about Java 11+ since then the arguments do NOT include the
                 // enclosing expression, while the enclosing expression may appear as the first
-                // parameter
-                // of the anonymous constructor invocation, so we need to adjust the lastArgIndex in
-                // order to expand
-                // varargs properly.
+                // parameter of the anonymous constructor invocation, so we need to adjust the lastArgIndex in
+                // order to expand varargs properly.
                 if (SystemUtil.jreVersion >= 11
                         && enclosingExprType != null
                         && method.getKind() == ElementKind.CONSTRUCTOR
