@@ -2490,7 +2490,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
   }
 
   /**
-   * If the lint option "cast:redundant" is set, this methods issues a warning if the cast is
+   * If the lint option "cast:redundant" is set, this method issues a warning if the cast is
    * redundant.
    */
   protected void checkTypecastRedundancy(TypeCastTree typeCastTree) {
@@ -3644,8 +3644,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
   /**
    * A helper method to check that each passed argument is a subtype of the corresponding required
-   * argument, and issues "argument.invalid" error for each passed argument that not a subtype of
-   * the required one.
+   * argument. Issues an "argument.invalid" error for each passed argument that not a subtype of the
+   * required one.
    *
    * <p>Note this method requires the lists to have the same length, as it does not handle cases
    * like var args.
@@ -4298,7 +4298,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
       QualifierHierarchy qualifierHierarchy = atypeFactory.getQualifierHierarchy();
       // Check the receiver type.
       // isSubtype() requires its arguments to be actual subtypes with respect to JLS, but
-      // overrider receiver is not a subtype of the overridden receiver.  So, just check
+      // an overrider receiver is not a subtype of the overridden receiver.  So, just check
       // primary annotations.
       // TODO: this will need to be improved for generic receivers.
       AnnotationMirrorSet overriderAnnos = overriderReceiver.getAnnotations();
