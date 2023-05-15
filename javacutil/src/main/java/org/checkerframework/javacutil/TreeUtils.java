@@ -59,6 +59,7 @@ import com.sun.tools.javac.tree.JCTree.JCTypeParameter;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.Position;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -2585,6 +2586,17 @@ public final class TreeUtils {
     } else {
       throw new BugInCF("TreeUtils.yieldTreeGetValue: requires at least Java 13");
     }
+  }
+
+  /**
+   * Returns true if the {@code variableTree} is declared using the {@code var} Java keyword.
+   *
+   * @param variableTree the variableTree to check
+   * @return true if the variableTree is declared using the {@code var} Java keyword
+   */
+  public static boolean isVariableTreeDeclaredUsingVar(VariableTree variableTree) {
+    JCExpression type = (JCExpression) variableTree.getType();
+    return type != null && type.pos == Position.NOPOS;
   }
 
   /**
