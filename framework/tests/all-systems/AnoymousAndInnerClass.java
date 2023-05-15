@@ -26,11 +26,13 @@ public class AnoymousAndInnerClass {
         new MyInnerClass(tainted) {};
         new MyInnerClass(1) {};
         new MyInnerClass(1, 2, 3) {};
+        new MyInnerClass(this, this, this) {};
         this.new MyInnerClass() {};
         this.new MyInnerClass(tainted) {};
         this.new MyInnerClass(1) {};
         this.new MyInnerClass(1, 2, 3) {};
         this.new MyInnerClass(outer, outer, outer, outer) {};
+        this.new MyInnerClass(this, this, this, this) {};
         outer.new MyInnerClass() {};
         outer.new MyInnerClass(tainted) {};
         outer.new MyInnerClass(tainted) {};

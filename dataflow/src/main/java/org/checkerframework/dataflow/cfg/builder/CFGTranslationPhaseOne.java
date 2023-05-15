@@ -1320,15 +1320,17 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 // Handle anonymous constructors that extend a class with an enclosing type.
                 // We only care about Java 11+ since then the arguments do NOT include the
                 // enclosing expression, while the enclosing expression may appear as the first
-                // parameter of the anonymous constructor invocation, so we need to adjust the lastArgIndex in
-                // order to expand varargs properly.
+                // parameter of the anonymous constructor invocation. In order to correctly expand
+                // the args, the lastArgIndex should backward one step to start from the first arg.
                 if (SystemUtil.jreVersion >= 11
                         && enclosingExprType != null
                         && method.getKind() == ElementKind.CONSTRUCTOR
                         && ((TypeElement) method.getEnclosingElement()).getNestingKind()
                                 == NestingKind.ANONYMOUS) {
                     TypeMirror p0tm = formals.get(0);
-                    // Exclude the case when the enclosingExprType is an implicit this
+                    // Exclude the case when the enclosingExprType is an implicit this as we
+                    // create the implicit this artificially and the first parameter is not
+                    // the enclosing expression.
                     if (types.isSameType(enclosingExprType, p0tm)) {
                         lastArgIndex--;
                     }

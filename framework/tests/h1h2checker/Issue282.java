@@ -8,6 +8,8 @@ public class Issue282 {
     public class Inner {
         Inner(@H2S2 Issue282 Issue282.this) {}
 
+        // Test anonymous constructor with a single single argument which is the second case
+        // of #issue 400.
         Inner(String s) {}
 
         Inner(int... i) {}
