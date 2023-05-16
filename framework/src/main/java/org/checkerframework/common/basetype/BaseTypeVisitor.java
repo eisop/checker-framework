@@ -2799,7 +2799,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
           ExpressionTree underlying = at.getUnderlyingType();
           List<AnnotationTree> annos = supportedAnnoTrees(at.getAnnotations());
           if (!annos.isEmpty() && !atypeFactory.isRelevant(TreeUtils.typeOf(underlying))) {
-            checker.reportError(t, "anno.on.irrelevant", annos, underlying);
+            checker.reportError(
+                t, "anno.on.irrelevant", annos, underlying, atypeFactory.relevantJavaTypes);
           }
           return;
 
