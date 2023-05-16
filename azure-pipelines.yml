@@ -232,6 +232,10 @@ jobs:
   - bash: ./checker/bin-devel/test-cftests-nonjunit.sh
     displayName: test-cftests-nonjunit.sh
 
+# Sometimes one of the invocations of wpi-many in `./gradlew wpiManyTest`
+# takes much longer to complete than normal, and this Azure job times out.
+# When there is a timeout, one cannot examine wpi or wpi-many logs.
+# So use a timeout of 90 minutes, and hope that is enough.
 - job: inference_tests_jdk8
   dependsOn:
    - canary_jobs
@@ -239,7 +243,7 @@ jobs:
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk8:latest
-  timeoutInMinutes: 70
+  timeoutInMinutes: 90
   steps:
   - checkout: self
     fetchDepth: 25
@@ -252,7 +256,7 @@ jobs:
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk11:latest
-  timeoutInMinutes: 70
+  timeoutInMinutes: 90
   steps:
   - checkout: self
     fetchDepth: 25
@@ -262,7 +266,7 @@ jobs:
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk17:latest
-  timeoutInMinutes: 70
+  timeoutInMinutes: 90
   steps:
   - checkout: self
     fetchDepth: 25
@@ -275,7 +279,7 @@ jobs:
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk-latest:latest
-  timeoutInMinutes: 70
+  timeoutInMinutes: 90
   steps:
   - checkout: self
     fetchDepth: 25
