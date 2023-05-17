@@ -38,7 +38,7 @@ if [ -d "$PLUME_SCRIPTS" ] ; then
 else
   (cd "$CHECKERFRAMEWORK/checker/bin-devel" && \
       (git clone --depth 1 -q https://github.com/eisop-plume-lib/plume-scripts.git .plume-scripts || \
-       git clone --depth 1 -q https://github.com/eisop-plume-lib/plume-scripts.git .plume-scripts))
+       (sleep 1m && git clone --depth 1 -q https://github.com/eisop-plume-lib/plume-scripts.git .plume-scripts)))
 fi
 
 # Clone the annotated JDK into ../jdk .
@@ -93,7 +93,7 @@ fi
 ## Compile
 
 # Download dependencies, trying a second time if there is a failure.
-(TERM=dumb timeout 300 ./gradlew --write-verification-metadata sha256 help --dry-run ||
+(TERM=dumb timeout 300 ./gradlew --write-verification-metadata sha256 help --dry-run || \
      (sleep 1m && ./gradlew --write-verification-metadata sha256 help --dry-run))
 
 echo "running \"./gradlew assembleForJavac\" for checker-framework"
