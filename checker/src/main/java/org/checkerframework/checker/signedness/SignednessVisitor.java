@@ -148,10 +148,10 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
           TypeMirror leftOpOriginalType = TreeUtils.typeOf(leftOp);
           TypeMirror rightOpOriginalType = TreeUtils.typeOf(rightOp);
 
-          if (!TypesUtils.isCharType(leftOpOriginalType)
+          if (!TypesUtils.isCharOrCharacter(leftOpOriginalType)
               && !atypeFactory.getQualifierHierarchy().isSubtype(leftAnno, atypeFactory.SIGNED)) {
             checker.reportError(leftOp, "unsigned.concat");
-          } else if (!TypesUtils.isCharType(rightOpOriginalType)
+          } else if (!TypesUtils.isCharOrCharacter(rightOpOriginalType)
               && !atypeFactory.getQualifierHierarchy().isSubtype(rightAnno, atypeFactory.SIGNED)) {
             checker.reportError(rightOp, "unsigned.concat");
           }
@@ -316,7 +316,7 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
         if (TreeUtils.isStringCompoundConcatenation(tree)) {
           // Note that exprType.getUnderlyingType() is always java.lang.String.
           // Please refer to compoundAssignmentTreeArgTypes for more details.
-          if (!TypesUtils.isCharType(TreeUtils.typeOf(expr))) {
+          if (!TypesUtils.isCharOrCharacter(TreeUtils.typeOf(expr))) {
             AnnotationMirror anno = exprType.getEffectiveAnnotations().iterator().next();
             if (!atypeFactory.getQualifierHierarchy().isSubtype(anno, atypeFactory.SIGNED)) {
               checker.reportError(tree.getExpression(), "unsigned.concat");
