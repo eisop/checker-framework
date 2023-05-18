@@ -15,6 +15,7 @@ import com.sun.tools.javac.tree.JCTree;
 import org.checkerframework.checker.initialization.qual.FBCBottom;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.initialization.qual.NotOnlyInitialized;
+import org.checkerframework.checker.initialization.qual.PolyInitialized;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 import org.checkerframework.checker.nullness.NullnessAnnotatedTypeFactory;
@@ -89,6 +90,9 @@ public abstract class InitializationAnnotatedTypeFactory<
     /** {@link NotOnlyInitialized} or null. */
     protected final AnnotationMirror NOT_ONLY_INITIALIZED;
 
+    /** {@link PolyInitialized}. */
+    protected final AnnotationMirror POLY_INITIALIZED;
+
     /** {@link FBCBottom}. */
     protected final AnnotationMirror FBCBOTTOM;
 
@@ -109,7 +113,7 @@ public abstract class InitializationAnnotatedTypeFactory<
      * String representation of all initialization annotations.
      *
      * <p>{@link UnknownInitialization} {@link UnderInitialization} {@link Initialized} {@link
-     * FBCBottom}
+     * FBCBottom} {@link PolyInitialized}
      *
      * <p>This is used to quickly check of an AnnotationMirror is one of the initialization
      * annotations without having to repeatedly convert them to strings.
@@ -129,6 +133,7 @@ public abstract class InitializationAnnotatedTypeFactory<
         UNDER_INITALIZATION = AnnotationBuilder.fromClass(elements, UnderInitialization.class);
         NOT_ONLY_INITIALIZED = AnnotationBuilder.fromClass(elements, NotOnlyInitialized.class);
         FBCBOTTOM = AnnotationBuilder.fromClass(elements, FBCBottom.class);
+        POLY_INITIALIZED = AnnotationBuilder.fromClass(elements, PolyInitialized.class);
 
         objectTypeMirror =
                 processingEnv.getElementUtils().getTypeElement("java.lang.Object").asType();
@@ -138,19 +143,21 @@ public abstract class InitializationAnnotatedTypeFactory<
         unknownInitializationValueElement =
                 TreeUtils.getMethod(UnknownInitialization.class, "value", 0, processingEnv);
 
-        Set<Class<? extends Annotation>> tempInitAnnos = new LinkedHashSet<>(4);
+        Set<Class<? extends Annotation>> tempInitAnnos = new LinkedHashSet<>(5);
         tempInitAnnos.add(UnderInitialization.class);
         tempInitAnnos.add(Initialized.class);
         tempInitAnnos.add(UnknownInitialization.class);
         tempInitAnnos.add(FBCBottom.class);
+        tempInitAnnos.add(PolyInitialized.class);
 
         initAnnos = Collections.unmodifiableSet(tempInitAnnos);
 
-        Set<String> tempInitAnnoNames = new HashSet<>(4);
+        Set<String> tempInitAnnoNames = new HashSet<>(5);
         tempInitAnnoNames.add(AnnotationUtils.annotationName(UNKNOWN_INITIALIZATION));
         tempInitAnnoNames.add(AnnotationUtils.annotationName(UNDER_INITALIZATION));
         tempInitAnnoNames.add(AnnotationUtils.annotationName(INITIALIZED));
         tempInitAnnoNames.add(AnnotationUtils.annotationName(FBCBOTTOM));
+        tempInitAnnoNames.add(AnnotationUtils.annotationName(POLY_INITIALIZED));
 
         initAnnoNames = Collections.unmodifiableSet(tempInitAnnoNames);
 

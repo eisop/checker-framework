@@ -20,6 +20,7 @@ import com.sun.source.util.TreePath;
 import org.checkerframework.checker.initialization.InitializationAnnotatedTypeFactory;
 import org.checkerframework.checker.initialization.qual.FBCBottom;
 import org.checkerframework.checker.initialization.qual.Initialized;
+import org.checkerframework.checker.initialization.qual.PolyInitialized;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
@@ -436,7 +437,8 @@ public class NullnessAnnotatedTypeFactory
                         Initialized.class,
                         UnknownInitialization.class,
                         FBCBottom.class,
-                        PolyNull.class));
+                        PolyNull.class,
+                        PolyInitialized.class));
     }
 
     /**
