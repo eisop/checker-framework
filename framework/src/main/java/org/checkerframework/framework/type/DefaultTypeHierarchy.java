@@ -89,8 +89,8 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
    *     component types
    */
   public DefaultTypeHierarchy(
-      final BaseTypeChecker checker,
-      final QualifierHierarchy qualifierHierarchy,
+      BaseTypeChecker checker,
+      QualifierHierarchy qualifierHierarchy,
       boolean ignoreRawTypes,
       boolean invariantArrayComponents) {
     this.checker = checker;
@@ -128,8 +128,8 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
    * @return true if subtype is a subtype of supertype or equal to it
    */
   @Override
-  public boolean isSubtype(final AnnotatedTypeMirror subtype, final AnnotatedTypeMirror supertype) {
-    for (final AnnotationMirror top : qualifierHierarchy.getTopAnnotations()) {
+  public boolean isSubtype(AnnotatedTypeMirror subtype, AnnotatedTypeMirror supertype) {
+    for (AnnotationMirror top : qualifierHierarchy.getTopAnnotations()) {
       if (!isSubtype(subtype, supertype, top)) {
         return false;
       }
@@ -149,9 +149,7 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
    *     qualifier hierarchy whose top is {@code top}
    */
   protected boolean isSubtype(
-      final AnnotatedTypeMirror subtype,
-      final AnnotatedTypeMirror supertype,
-      final AnnotationMirror top) {
+      AnnotatedTypeMirror subtype, AnnotatedTypeMirror supertype, AnnotationMirror top) {
     assert top != null;
     currentTop = top;
     return AtmCombo.accept(subtype, supertype, null, this);
@@ -164,7 +162,7 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
    */
   @Override
   protected String defaultErrorMessage(
-      final AnnotatedTypeMirror subtype, final AnnotatedTypeMirror supertype, final Void p) {
+      AnnotatedTypeMirror subtype, AnnotatedTypeMirror supertype, Void p) {
     return "Incomparable types ("
         + subtype
         + ", "
@@ -183,8 +181,8 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
    *     for the current top.
    */
   protected boolean isPrimarySubtype(AnnotatedTypeMirror subtype, AnnotatedTypeMirror supertype) {
-    final AnnotationMirror subtypeAnno = subtype.getAnnotationInHierarchy(currentTop);
-    final AnnotationMirror supertypeAnno = supertype.getAnnotationInHierarchy(currentTop);
+    AnnotationMirror subtypeAnno = subtype.getAnnotationInHierarchy(currentTop);
+    AnnotationMirror supertypeAnno = supertype.getAnnotationInHierarchy(currentTop);
     if (checker.getTypeFactory().hasQualifierParameterInHierarchy(supertype, currentTop)
         && checker.getTypeFactory().hasQualifierParameterInHierarchy(subtype, currentTop)) {
       // If the types have a class qualifier parameter, the qualifiers must be equivalent.
@@ -203,8 +201,7 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
    * @param supertype a type that may be a supertype
    * @return true if subtype {@literal <:} supertype
    */
-  protected boolean isSubtypeCaching(
-      final AnnotatedTypeMirror subtype, final AnnotatedTypeMirror supertype) {
+  protected boolean isSubtypeCaching(AnnotatedTypeMirror subtype, AnnotatedTypeMirror supertype) {
     if (isSubtypeVisitHistory.contains(subtype, supertype, currentTop)) {
       // visitHistory only contains pairs in a subtype relationship.
       return true;
@@ -223,8 +220,8 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
    * mirror of {@code supertype}.
    */
   protected boolean areAllSubtypes(
-      final Iterable<? extends AnnotatedTypeMirror> subtypes, final AnnotatedTypeMirror supertype) {
-    for (final AnnotatedTypeMirror subtype : subtypes) {
+      Iterable<? extends AnnotatedTypeMirror> subtypes, AnnotatedTypeMirror supertype) {
+    for (AnnotatedTypeMirror subtype : subtypes) {
       if (!isSubtype(subtype, supertype, currentTop)) {
         return false;
       }
@@ -233,8 +230,7 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
     return true;
   }
 
-  protected boolean areEqualInHierarchy(
-      final AnnotatedTypeMirror type1, final AnnotatedTypeMirror type2) {
+  protected boolean areEqualInHierarchy(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
     return equalityComparer.areEqualInHierarchy(type1, type2, currentTop);
   }
 
@@ -446,7 +442,7 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
       return true;
     }
 
-    final boolean result =
+    boolean result =
         visitTypeArgs(
             subtype, supertype, subtype.isUnderlyingTypeRaw(), supertype.isUnderlyingTypeRaw());
     isSubtypeVisitHistory.put(subtype, supertype, currentTop, result);
@@ -468,8 +464,8 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
   protected boolean visitTypeArgs(
       AnnotatedDeclaredType subtype,
       AnnotatedDeclaredType supertype,
-      final boolean subtypeRaw,
-      final boolean supertypeRaw) {
+      boolean subtypeRaw,
+      boolean supertypeRaw) {
     AnnotatedTypeFactory typeFactory = subtype.atypeFactory;
 
     // JLS 11: 4.10.2. Subtyping among Class and Interface Types
@@ -481,8 +477,8 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
       return true;
     }
 
-    final List<? extends AnnotatedTypeMirror> subtypeTypeArgs = subtypeAsSuper.getTypeArguments();
-    final List<? extends AnnotatedTypeMirror> supertypeTypeArgs = supertype.getTypeArguments();
+    List<? extends AnnotatedTypeMirror> subtypeTypeArgs = subtypeAsSuper.getTypeArguments();
+    List<? extends AnnotatedTypeMirror> supertypeTypeArgs = supertype.getTypeArguments();
 
     if (subtypeTypeArgs.size() != supertypeTypeArgs.size()) {
       throw new BugInCF("Type arguments are not the same size: %s %s", subtypeAsSuper, supertype);
@@ -492,7 +488,7 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
       return true;
     }
 
-    final TypeElement supertypeElem = (TypeElement) supertype.getUnderlyingType().asElement();
+    TypeElement supertypeElem = (TypeElement) supertype.getUnderlyingType().asElement();
     AnnotationMirror covariantAnno = typeFactory.getDeclAnnotation(supertypeElem, Covariant.class);
 
     List<Integer> covariantArgIndexes =
@@ -568,7 +564,7 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
       AnnotatedDeclaredType subtype, AnnotatedPrimitiveType supertype, Void p) {
     // We do an asSuper first because in some cases unboxing implies a more specific annotation
     // e.g. @UnknownInterned Integer => @Interned int  because primitives are always interned
-    final AnnotatedPrimitiveType subAsSuper =
+    AnnotatedPrimitiveType subAsSuper =
         AnnotatedTypes.castedAsSuper(subtype.atypeFactory, subtype, supertype);
     if (subAsSuper == null) {
       return isPrimarySubtype(subtype, supertype);
@@ -721,7 +717,7 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
   public Boolean visitPrimitive_Declared(
       AnnotatedPrimitiveType subtype, AnnotatedDeclaredType supertype, Void p) {
     // see comment in visitDeclared_Primitive
-    final AnnotatedDeclaredType subAsSuper =
+    AnnotatedDeclaredType subAsSuper =
         AnnotatedTypes.castedAsSuper(subtype.atypeFactory, subtype, supertype);
     if (subAsSuper == null) {
       return isPrimarySubtype(subtype, supertype);

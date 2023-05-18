@@ -318,7 +318,7 @@ public class DOTCFGVisualizer<
    * @param str the string to be escaped
    * @return the escaped version of the string
    */
-  private static String escapeString(final String str) {
+  private static String escapeString(String str) {
     return str.replace("\"", "\\\"").replace("\r", "\\\\r").replace("\n", "\\\\n");
   }
 
@@ -328,7 +328,7 @@ public class DOTCFGVisualizer<
    * @param obj an object
    * @return an escaped version of the string representation of the object
    */
-  private static String escapeString(final Object obj) {
+  private static String escapeString(Object obj) {
     return escapeString(String.valueOf(obj));
   }
 

@@ -232,7 +232,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
             store.addInitializedField(fieldInitialValue.fieldDecl.getField());
           }
         }
-        final List<VariableTree> init = atypeFactory.getInitializedFields(store, getCurrentPath());
+        List<VariableTree> init = atypeFactory.getInitializedFields(store, getCurrentPath());
         initializedFields.addAll(init);
       }
     }

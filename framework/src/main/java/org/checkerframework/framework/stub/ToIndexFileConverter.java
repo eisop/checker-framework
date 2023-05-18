@@ -445,7 +445,7 @@ public class ToIndexFileConverter extends GenericVisitorAdapter<Void, AElement> 
   }
 
   /** Copies information from an AST type node to an {@link ATypeElement}. */
-  private Void visitType(Type type, final ATypeElement elem) {
+  private Void visitType(Type type, ATypeElement elem) {
     List<AnnotationExpr> exprs = type.getAnnotations();
     if (exprs != null) {
       for (AnnotationExpr expr : exprs) {
@@ -465,7 +465,7 @@ public class ToIndexFileConverter extends GenericVisitorAdapter<Void, AElement> 
    * @param type AST Type node to inspect
    * @param elem destination type element
    */
-  private static Void visitInnerTypes(Type type, final ATypeElement elem) {
+  private static Void visitInnerTypes(Type type, ATypeElement elem) {
     return type.accept(
         new GenericVisitorAdapter<Void, List<TypePathEntry>>() {
           @Override

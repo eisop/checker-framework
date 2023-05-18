@@ -585,7 +585,7 @@ public class AnnotationFileParser {
           )
           @FullyQualifiedName String imported = importDecl.getNameAsString();
 
-          final TypeElement importType = elements.getTypeElement(imported);
+          TypeElement importType = elements.getTypeElement(imported);
           if (importType == null && !importDecl.isStatic()) {
             // Class or nested class (according to JSL), but we can't resolve
 
@@ -1034,8 +1034,8 @@ public class AnnotationFileParser {
     Pair<Map<Element, BodyDeclaration<?>>, Map<Element, List<BodyDeclaration<?>>>> members =
         getMembers(typeDecl, typeElt, typeDecl);
     for (Map.Entry<Element, BodyDeclaration<?>> entry : members.first.entrySet()) {
-      final Element elt = entry.getKey();
-      final BodyDeclaration<?> decl = entry.getValue();
+      Element elt = entry.getKey();
+      BodyDeclaration<?> decl = entry.getValue();
       switch (elt.getKind()) {
         case FIELD:
           processField((FieldDeclaration) decl, (VariableElement) elt);
@@ -1122,8 +1122,8 @@ public class AnnotationFileParser {
     AnnotatedDeclaredType type = atypeFactory.fromElement(elt);
     annotate(type, decl.getAnnotations(), decl);
 
-    final List<? extends AnnotatedTypeMirror> typeArguments = type.getTypeArguments();
-    final List<TypeParameter> typeParameters;
+    List<? extends AnnotatedTypeMirror> typeArguments = type.getTypeArguments();
+    List<TypeParameter> typeParameters;
     if (decl instanceof NodeWithTypeParameters) {
       typeParameters = ((NodeWithTypeParameters<?>) decl).getTypeParameters();
     } else {
@@ -2222,7 +2222,7 @@ public class AnnotationFileParser {
    *     element is not found
    */
   private @Nullable Element findElement(TypeElement typeElt, ClassOrInterfaceDeclaration ciDecl) {
-    final String wantedClassOrInterfaceName = ciDecl.getNameAsString();
+    String wantedClassOrInterfaceName = ciDecl.getNameAsString();
     for (TypeElement typeElement : ElementUtils.getAllTypeElementsIn(typeElt)) {
       if (wantedClassOrInterfaceName.equals(typeElement.getSimpleName().toString())) {
         return typeElement;
@@ -2251,7 +2251,7 @@ public class AnnotationFileParser {
    *     element is not found
    */
   private @Nullable Element findElement(TypeElement typeElt, EnumDeclaration enumDecl) {
-    final String wantedEnumName = enumDecl.getNameAsString();
+    String wantedEnumName = enumDecl.getNameAsString();
     for (TypeElement typeElement : ElementUtils.getAllTypeElementsIn(typeElt)) {
       if (wantedEnumName.equals(typeElement.getSimpleName().toString())) {
         return typeElement;
@@ -2280,7 +2280,7 @@ public class AnnotationFileParser {
    */
   private @Nullable VariableElement findElement(
       TypeElement typeElt, EnumConstantDeclaration enumConstDecl, NodeWithRange<?> astNode) {
-    final String enumConstName = enumConstDecl.getNameAsString();
+    String enumConstName = enumConstDecl.getNameAsString();
     return findFieldElement(typeElt, enumConstName, astNode);
   }
 
@@ -2301,10 +2301,10 @@ public class AnnotationFileParser {
     if (skipNode(methodDecl)) {
       return null;
     }
-    final String wantedMethodName = methodDecl.getNameAsString();
-    final int wantedMethodParams =
+    String wantedMethodName = methodDecl.getNameAsString();
+    int wantedMethodParams =
         (methodDecl.getParameters() == null) ? 0 : methodDecl.getParameters().size();
-    final String wantedMethodString = AnnotationFileUtil.toString(methodDecl);
+    String wantedMethodString = AnnotationFileUtil.toString(methodDecl);
     for (ExecutableElement method : ElementFilter.methodsIn(typeElt.getEnclosedElements())) {
       if (wantedMethodParams == method.getParameters().size()
           && wantedMethodName.contentEquals(method.getSimpleName().toString())
@@ -2356,9 +2356,9 @@ public class AnnotationFileParser {
     if (skipNode(constructorDecl)) {
       return null;
     }
-    final int wantedMethodParams =
+    int wantedMethodParams =
         (constructorDecl.getParameters() == null) ? 0 : constructorDecl.getParameters().size();
-    final String wantedMethodString = AnnotationFileUtil.toString(constructorDecl);
+    String wantedMethodString = AnnotationFileUtil.toString(constructorDecl);
     for (ExecutableElement method : ElementFilter.constructorsIn(typeElt.getEnclosedElements())) {
       if (wantedMethodParams == method.getParameters().size()
           && ElementUtils.getSimpleSignature(method).equals(wantedMethodString)) {
@@ -2384,7 +2384,7 @@ public class AnnotationFileParser {
    * @return the element for the given variable
    */
   private VariableElement findElement(TypeElement typeElt, VariableDeclarator variable) {
-    final String fieldName = variable.getNameAsString();
+    String fieldName = variable.getNameAsString();
     return findFieldElement(typeElt, fieldName, variable);
   }
 

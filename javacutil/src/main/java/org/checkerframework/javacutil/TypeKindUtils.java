@@ -99,7 +99,7 @@ public final class TypeKindUtils {
    * @return a primitive type kind, or null
    */
   public static @Nullable TypeKind primitiveOrBoxedToTypeKind(TypeMirror type) {
-    final TypeKind typeKind = type.getKind();
+    TypeKind typeKind = type.getKind();
     if (typeKind.isPrimitive()) {
       return typeKind;
     }
@@ -119,7 +119,7 @@ public final class TypeKindUtils {
       return null;
     }
 
-    final String typeString = TypesUtils.getQualifiedName((DeclaredType) type);
+    String typeString = TypesUtils.getQualifiedName((DeclaredType) type);
     return boxedToPrimitiveType.get(typeString);
   }
 
