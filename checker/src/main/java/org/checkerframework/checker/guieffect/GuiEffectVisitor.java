@@ -246,7 +246,7 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
   }
 
   @Override
-  protected void checkExtendsImplements(ClassTree classTree) {
+  protected void checkExtendsAndImplements(ClassTree classTree) {
     // Skip this check
   }
 
