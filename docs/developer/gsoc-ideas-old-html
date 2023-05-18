@@ -96,7 +96,7 @@ error and to prevent users from suffering the bad consequences.
 
 <p>
 This project will be a substantial case study with
-the <a href="https://checkerframework.org/manual/#index-checker">Index
+the <a href="https://eisop.github.io/cf/manual/#index-checker">Index
 Checker</a>.  The first goal is to identify its merits and limitations.
 Does it scale up to big,
 interesting programs?  Are there common, important code patterns that it
@@ -150,8 +150,8 @@ pointer exceptions will occur at run time.
 
 <p>
 Such a tool already exists:  the
-<a href="https://checkerframework.org/manual/#nullness-checker">Nullness
-Checker</a> of the <a href="https://checkerframework.org/">Checker
+<a href="https://eisop.github.io/cf/manual/#nullness-checker">Nullness
+Checker</a> of the <a href="https://eisop.github.io/">Checker
 Framework</a>.  It runs as a compiler plug-in, and it issues a warning at
 every possible null pointer dereference.  If it issues no warnings, the
 code is guaranteed not to throw a <code>NullPointerException</code> at run time.
@@ -162,7 +162,7 @@ The goal of this project is to do a large-scale case study of the Nullness
 Checker on Bazel.  The main goal is to understand how the Nullness Checker
 can be used on a large-scale industrial codebase.  How many lurking bugs
 does it find?  What
-<a href="https://checkerframework.org/releases/1.9.13/api/org/checkerframework/checker/nullness/qual/Nullable.html"><code>@Nullable</code></a>
+<a href="https://eisop.github.io/cf/api/org/checkerframework/checker/nullness/qual/Nullable.html"><code>@Nullable</code></a>
 annotations are missing from the codebase because the developers failed to
 write them?  What are its limitations, such as code patterns that it cannot
 recognize as safe?  (You might create new analyses and incorporating them
@@ -285,7 +285,7 @@ or list of strings.
 <h2 id="lock-ordering">Lock ordering</h2>
 
 <p>
-The <a href="https://checkerframework.org/manual/#lock-checker">Lock
+The <a href="https://eisop.github.io/cf/manual/#lock-checker">Lock
 Checker</a> prevents race conditions by ensuring that locks are held when
 they need to be.  It does not prevent deadlocks that can result from locks
 being acquired in the wrong order.  This project would extend the Lock
@@ -312,7 +312,7 @@ Lock Checker to verify this property.
 
 <p>
   The
-  <a href="https://checkerframework.org/annotation-file-utilities/">Annotation
+  <a href="https://eisop.github.io/afu/">Annotation
   File Utilities</a>, or AFU, insert annotations into, and extract
   annotations from, <code>.java</code> files, <code>.class</code> files,
   and text files.  These programs were written before the
@@ -337,7 +337,7 @@ Lock Checker to verify this property.
 
 <p>
 This project is to improve support for
-<a href="https://checkerframework.org/manual/#typestate-checker">typestate checking</a>
+<a href="https://eisop.github.io/cf/manual/#typestate-checker">typestate checking</a>
 </p>
 
 <p>
@@ -355,7 +355,7 @@ is applicable to many other types of software properties as well.
 </p>
 
 <p>
-Two <a href="https://checkerframework.org/manual/">typestate checking frameworks</a>
+Two <a href="https://eisop.github.io/cf/manual/">typestate checking frameworks</a>
 exist for the Checker Framework.  Neither is being maintained; a new one
 needs to be written.
 </p>
@@ -382,7 +382,7 @@ needs to be written.
   <li>
     Bug detection tools. such
     as <a href="https://findbugs.sourceforge.net/">FindBugs</a> or
-    the <a href="https://checkerframework.org/">Checker Framework</a>, have
+    the <a href="https://eisop.github.io/">Checker Framework</a>, have
     extremely verbose output when first run on a program.  Programmers
     could examine and fix only the warnings about code they have changed
     (and that they are currently thinking about).
@@ -468,7 +468,7 @@ This is a good way to learn about performance tuning for Java applications.
   such as stub files that do not produce <code>Element</code>s.  Interning
   could save time when doing comparisons.  You can verify the correctness
   of the optimization by running the
-  <a href="https://checkerframework.org/manual/#interning-checker">Interning
+  <a href="https://eisop.github.io/cf/manual/#interning-checker">Interning
     Checker</a> on the Checker Framework code.  Compare the run time of the
   Checker Framework before and after this optimization.
   </li>
@@ -555,7 +555,7 @@ better long-term implementation strategy.
 
 <p>
 The Checker Framework comes with support for
-<a href="https://checkerframework.org/manual/#external-tools">external tools</a>,
+<a href="https://eisop.github.io/cf/manual/#external-tools">external tools</a>,
 including both IDEs (such as an Eclipse plug-in) and build tools
 (instructions for Maven, etc.).
 </p>
