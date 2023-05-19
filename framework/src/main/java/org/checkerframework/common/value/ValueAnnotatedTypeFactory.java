@@ -396,7 +396,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             (Integer minlen) -> createArrayLenRangeAnnotation(minlen, Integer.MAX_VALUE), minlens);
 
     FieldInvariants superInvariants = super.getFieldInvariants(element);
-    return new FieldInvariants(superInvariants, fields, qualifiers);
+    return new FieldInvariants(superInvariants, fields, qualifiers, this);
   }
 
   /**
