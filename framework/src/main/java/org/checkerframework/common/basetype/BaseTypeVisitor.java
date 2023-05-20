@@ -18,6 +18,7 @@ import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.InstanceOfTree;
 import com.sun.source.tree.IntersectionTypeTree;
 import com.sun.source.tree.LambdaExpressionTree;
+import com.sun.source.tree.LineMap;
 import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MemberReferenceTree.ReferenceMode;
 import com.sun.source.tree.MemberSelectTree;
@@ -47,6 +48,7 @@ import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Target;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -3017,13 +3019,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     if (!validateType(varTree, varType)) {
       if (showchecks) {
-        long valuePos = positions.getStartPosition(root, valueExpTree);
         System.out.printf(
-            "%s %s (line %3d): actual tree = %s %s%n   expected: %s %s%n",
+            "%s %s (at %s): actual tree = %s %s%n   expected: %s %s%n",
             this.getClass().getSimpleName(),
             "skipping test whether actual is a subtype of expected"
                 + " because validateType() returned false",
-            (root.getLineMap() != null ? root.getLineMap().getLineNumber(valuePos) : -1),
+            fileAndLineNumber(valueExpTree),
             valueExpTree.getKind(),
             valueExpTree,
             varType.getKind(),
@@ -3051,13 +3052,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
       Object... extraArgs) {
     if (shouldSkipUses(valueExpTree)) {
       if (showchecks) {
-        long valuePos = positions.getStartPosition(root, valueExpTree);
         System.out.printf(
-            "%s %s (line %3d): actual tree = %s %s%n   expected: %s %s%n",
+            "%s %s (at %s): actual tree = %s %s%n   expected: %s %s%n",
             this.getClass().getSimpleName(),
             "skipping test whether actual is a subtype of expected"
                 + " because shouldSkipUses() returned true",
-            (root.getLineMap() != null ? root.getLineMap().getLineNumber(valuePos) : -1),
+            fileAndLineNumber(valueExpTree),
             valueExpTree.getKind(),
             valueExpTree,
             varType.getKind(),
@@ -3070,13 +3070,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
       // Member references and lambda expressions are type checked separately
       // and do not need to be checked again as arguments.
       if (showchecks) {
-        long valuePos = positions.getStartPosition(root, valueExpTree);
         System.out.printf(
-            "%s %s (line %3d): actual tree = %s %s%n   expected: %s %s%n",
+            "%s %s (at %s): actual tree = %s %s%n   expected: %s %s%n",
             this.getClass().getSimpleName(),
             "skipping test whether actual is a subtype of expected"
                 + " because member reference and lambda expression are type checked separately",
-            (root.getLineMap() != null ? root.getLineMap().getLineNumber(valuePos) : -1),
+            fileAndLineNumber(valueExpTree),
             valueExpTree.getKind(),
             valueExpTree,
             varType.getKind(),
@@ -3095,13 +3094,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
     if (!validateTypeOf(valueExpTree)) {
       if (showchecks) {
-        long valuePos = positions.getStartPosition(root, valueExpTree);
         System.out.printf(
-            "%s %s (line %3d): actual tree = %s %s%n   expected: %s %s%n",
+            "%s %s (at %s): actual tree = %s %s%n   expected: %s %s%n",
             this.getClass().getSimpleName(),
             "skipping test whether actual is a subtype of expected"
                 + " because validateType() returned false",
-            (root.getLineMap() != null ? root.getLineMap().getLineNumber(valuePos) : -1),
+            fileAndLineNumber(valueExpTree),
             valueExpTree.getKind(),
             valueExpTree,
             varType.getKind(),
@@ -3199,12 +3197,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
   protected final void commonAssignmentCheckStartDiagnostic(
       AnnotatedTypeMirror varType, AnnotatedTypeMirror valueType, Tree valueExpTree) {
     if (showchecks) {
-      long valuePos = positions.getStartPosition(root, valueExpTree);
       System.out.printf(
-          "%s %s (line %3d): actual tree = %s %s%n     actual: %s %s%n   expected: %s" + " %s%n",
+          "%s %s (at %s): actual tree = %s %s%n     actual: %s %s%n   expected: %s %s%n",
           this.getClass().getSimpleName(),
           "about to test whether actual is a subtype of expected",
-          (root.getLineMap() != null ? root.getLineMap().getLineNumber(valuePos) : -1),
+          fileAndLineNumber(valueExpTree),
           valueExpTree.getKind(),
           valueExpTree,
           valueType.getKind(),
@@ -3259,11 +3256,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
       AnnotatedTypeMirror valueType,
       Tree valueExpTree) {
     if (showchecks) {
-      long valuePos = positions.getStartPosition(root, valueExpTree);
       System.out.printf(
-          " %s (line %3d): actual tree = %s %s%n     actual: %s %s%n   expected: %s %s%n",
+          " %s  (at %s): actual tree = %s %s%n     actual: %s %s%n   expected: %s %s%n",
           message,
-          (root.getLineMap() != null ? root.getLineMap().getLineNumber(valuePos) : -1),
+          fileAndLineNumber(valueExpTree),
           valueExpTree.getKind(),
           valueExpTree,
           valueType.getKind(),
@@ -3271,6 +3267,28 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
           varType.getKind(),
           varType.toString());
     }
+  }
+
+  /**
+   * Returns "filename:linenumber:columnnumber" for the given tree. For brevity, the filename is
+   * given as a simple name, without any directory components. If the line and column numbers are
+   * unknown, they are omitted.
+   *
+   * @param tree a tree
+   * @return the location of the given tree in source code
+   */
+  private String fileAndLineNumber(Tree tree) {
+    StringBuilder result = new StringBuilder();
+    result.append(Paths.get(root.getSourceFile().getName()).getFileName().toString());
+    long valuePos = positions.getStartPosition(root, tree);
+    LineMap lineMap = root.getLineMap();
+    if (valuePos != -1 && lineMap != null) {
+      result.append(":");
+      result.append(lineMap.getLineNumber(valuePos));
+      result.append(":");
+      result.append(lineMap.getColumnNumber(valuePos));
+    }
+    return result.toString();
   }
 
   /**
@@ -4395,11 +4413,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
       }
 
       String msgKey = isMethodReference ? "methodref.param.invalid" : "override.param.invalid";
-      long valuePos =
-          overriderTree instanceof MethodTree
-              ? positions.getStartPosition(
-                  root, ((MethodTree) overriderTree).getParameters().get(index))
-              : positions.getStartPosition(root, overriderTree);
       Tree posTree =
           overriderTree instanceof MethodTree
               ? ((MethodTree) overriderTree).getParameters().get(index)
@@ -4407,14 +4420,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
       if (showchecks) {
         System.out.printf(
-            " %s (line %3d):%n"
+            " %s (at %s):%n"
                 + "     overrider: %s %s (parameter %d type %s)%n"
                 + "    overridden: %s %s"
                 + " (parameter %d type %s)%n",
             (success
                 ? "success: overridden parameter type is subtype of overriding"
-                : "FAILURE: overridden parameter type is not subtype of" + " overriding"),
-            (root.getLineMap() != null ? root.getLineMap().getLineNumber(valuePos) : -1),
+                : "FAILURE: overridden parameter type is not subtype of overriding"),
+            fileAndLineNumber(posTree),
             overrider,
             overriderType,
             index,
@@ -4490,10 +4503,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
       }
 
       String msgKey = isMethodReference ? "methodref.return.invalid" : "override.return.invalid";
-      long valuePos =
-          overriderTree instanceof MethodTree
-              ? positions.getStartPosition(root, ((MethodTree) overriderTree).getReturnType())
-              : positions.getStartPosition(root, overriderTree);
       Tree posTree =
           overriderTree instanceof MethodTree
               ? ((MethodTree) overriderTree).getReturnType()
@@ -4505,13 +4514,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
       if (showchecks) {
         System.out.printf(
-            " %s (line %3d):%n"
+            " %s (at %s):%n"
                 + "     overrider: %s %s (return type %s)%n"
                 + "    overridden: %s %s (return type %s)%n",
             (success
                 ? "success: overriding return type is subtype of overridden"
                 : "FAILURE: overriding return type is not subtype of overridden"),
-            (root.getLineMap() != null ? root.getLineMap().getLineNumber(valuePos) : -1),
+            fileAndLineNumber(posTree),
             overrider,
             overriderType,
             overrider.getReturnType().toString(),
