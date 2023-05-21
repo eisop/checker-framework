@@ -19,15 +19,15 @@ jobs:
 # misc_jdk20 because JDK 20 adds more strict checking (e.g., Javadoc)
 - job: canary_jobs
   dependsOn:
-   - junit_tests_jdk17
-   - nonjunit_tests_jdk17
-   - inference_tests_jdk17_part1
-   - inference_tests_jdk17_part2
-   - jspecify_tests_jdk17
-   - typecheck_jdk17_part1
-   - typecheck_jdk17_part2
+   - junit_jdk17
+   - nonjunit_jdk17
+   - inference_part1_jdk17
+   - inference_part2_jdk17
+   - typecheck_part1_jdk17
+   - typecheck_part2_jdk17
 #   - misc_jdk17
 #   - misc_jdk20
+   - jspecify_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   steps:
@@ -36,21 +36,21 @@ jobs:
 
 - job: framework_jobs
   dependsOn:
-   - junit_tests_jdk8
-   - junit_tests_jdk11
-   - junit_tests_jdk17
-   - junit_tests_jdk_latest
-   # - junit_tests_jdk_next
-   - nonjunit_tests_jdk8
-   - nonjunit_tests_jdk11
-   - nonjunit_tests_jdk17
-   - nonjunit_tests_jdk_latest
-   # - nonjunit_tests_jdk_next
-   - inference_tests_jdk8
-   - inference_tests_jdk11
-   - inference_tests_jdk17
-   - inference_tests_jdk_latest
-   # - inference_tests_jdk_next
+   - junit_jdk8
+   - junit_jdk11
+   - junit_jdk17
+   - junit_jdk_latest
+   # - junit_jdk_next
+   - nonjunit_jdk8
+   - nonjunit_jdk11
+   - nonjunit_jdk17
+   - nonjunit_jdk_latest
+   # - nonjunit_jdk_next
+   - inference_jdk8
+   - inference_jdk11
+   - inference_jdk17
+   - inference_jdk_latest
+   # - inference_jdk_next
    - typecheck_jdk8
    - typecheck_jdk11
    - typecheck_jdk17
@@ -80,21 +80,21 @@ jobs:
    - plume_lib_jdk17
    - plume_lib_jdk_latest
    # Not plume_lib_jdk_next
-   - jspecify_tests_jdk8
-   - jspecify_tests_jdk11
-   - jspecify_tests_jdk17
-   - jspecify_tests_jdk_latest
-   # Not jspecify_tests_jdk_next
+   - jspecify_jdk8
+   - jspecify_jdk11
+   - jspecify_jdk17
+   - jspecify_jdk_latest
+   # Not jspecify_jdk_next
   pool:
     vmImage: 'ubuntu-latest'
   steps:
   - bash: true
     displayName: required_jobs
 
-- job: junit_tests_jdk8
+- job: junit_jdk8
   dependsOn:
    - canary_jobs
-   - junit_tests_jdk17
+   - junit_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk8:latest
@@ -109,10 +109,10 @@ jobs:
       targetPath: ./checker/dist
       artifactName: cf_jdk8
       artifactType: pipeline
-- job: junit_tests_jdk11
+- job: junit_jdk11
   dependsOn:
    - canary_jobs
-   - junit_tests_jdk17
+   - junit_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk11:latest
@@ -126,7 +126,7 @@ jobs:
       targetPath: ./checker/dist
       artifactName: cf_jdk11
       artifactType: pipeline
-- job: junit_tests_jdk17
+- job: junit_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk17:latest
@@ -141,10 +141,10 @@ jobs:
       targetPath: ./checker/dist
       artifactName: cf_jdk17
       artifactType: pipeline
-- job: junit_tests_jdk_latest
+- job: junit_jdk_latest
   dependsOn:
    - canary_jobs
-   - junit_tests_jdk17
+   - junit_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk-latest:latest
@@ -159,10 +159,10 @@ jobs:
       targetPath: ./checker/dist
       artifactName: cf_jdk_latest
       artifactType: pipeline
-- job: junit_tests_jdk_next
+- job: junit_jdk_next
   dependsOn:
    - canary_jobs
-   - junit_tests_jdk17
+   - junit_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk-next:latest
@@ -178,10 +178,10 @@ jobs:
       artifactName: cf_jdk_next
       artifactType: pipeline
 
-- job: nonjunit_tests_jdk8
+- job: nonjunit_jdk8
   dependsOn:
    - canary_jobs
-   - nonjunit_tests_jdk17
+   - nonjunit_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk8:latest
@@ -190,10 +190,10 @@ jobs:
     fetchDepth: 25
   - bash: ./checker/bin-devel/test-cftests-nonjunit.sh
     displayName: test-cftests-nonjunit.sh
-- job: nonjunit_tests_jdk11
+- job: nonjunit_jdk11
   dependsOn:
    - canary_jobs
-   - nonjunit_tests_jdk17
+   - nonjunit_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk11:latest
@@ -202,7 +202,7 @@ jobs:
     fetchDepth: 25
   - bash: ./checker/bin-devel/test-cftests-nonjunit.sh
     displayName: test-cftests-nonjunit.sh
-- job: nonjunit_tests_jdk17
+- job: nonjunit_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk17:latest
@@ -211,10 +211,10 @@ jobs:
     fetchDepth: 25
   - bash: ./checker/bin-devel/test-cftests-nonjunit.sh
     displayName: test-cftests-nonjunit.sh
-- job: nonjunit_tests_jdk_latest
+- job: nonjunit_jdk_latest
   dependsOn:
    - canary_jobs
-   - nonjunit_tests_jdk17
+   - nonjunit_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk-latest:latest
@@ -223,10 +223,10 @@ jobs:
     fetchDepth: 25
   - bash: ./checker/bin-devel/test-cftests-nonjunit.sh
     displayName: test-cftests-nonjunit.sh
-- job: nonjunit_tests_jdk_next
+- job: nonjunit_jdk_next
   dependsOn:
    - canary_jobs
-   - nonjunit_tests_jdk17
+   - nonjunit_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk-next:latest
@@ -240,10 +240,10 @@ jobs:
 # takes much longer to complete than normal, and this Azure job times out.
 # When there is a timeout, one cannot examine wpi or wpi-many logs.
 # So use a timeout of 90 minutes, and hope that is enough.
-- job: inference_tests_jdk8
+- job: inference_jdk8
   dependsOn:
    - canary_jobs
-   - inference_tests_jdk17
+   - inference_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk8:latest
@@ -253,11 +253,11 @@ jobs:
     fetchDepth: 25
   - bash: ./checker/bin-devel/test-cftests-inference.sh
     displayName: test-cftests-inference.sh
-- job: inference_tests_jdk11
+- job: inference_jdk11
   dependsOn:
    - canary_jobs
-   - inference_tests_jdk17_part1
-   - inference_tests_jdk17_part2
+   - inference_part1_jdk17
+   - inference_part2_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk11:latest
@@ -268,7 +268,7 @@ jobs:
   - bash: ./checker/bin-devel/test-cftests-inference.sh
     displayName: test-cftests-inference.sh
 # Split into part1 and part2 only for the inference job that "canary_jobs" depends on.
-- job: inference_tests_jdk17_part1
+- job: inference_part1_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk17:latest
@@ -278,7 +278,7 @@ jobs:
     fetchDepth: 25
   - bash: ./checker/bin-devel/test-cftests-inference-part1.sh
     displayName: test-cftests-inference-part1.sh
-- job: inference_tests_jdk17_part2
+- job: inference_part2_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk17:latest
@@ -288,11 +288,11 @@ jobs:
     fetchDepth: 25
   - bash: ./checker/bin-devel/test-cftests-inference-part2.sh
     displayName: test-cftests-inference-part2.sh
-- job: inference_tests_jdk_latest
+- job: inference_jdk_latest
   dependsOn:
    - canary_jobs
-   - inference_tests_jdk17_part1
-   - inference_tests_jdk17_part2
+   - inference_part1_jdk17
+   - inference_part2_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk-latest:latest
@@ -302,10 +302,10 @@ jobs:
     fetchDepth: 25
   - bash: ./checker/bin-devel/test-cftests-inference.sh
     displayName: test-cftests-inference.sh
-- job: inference_tests_jdk_next
+- job: inference_jdk_next
   dependsOn:
    - canary_jobs
-   - inference_tests_jdk17
+   - inference_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk-next:latest
@@ -387,8 +387,8 @@ jobs:
 - job: typecheck_jdk11
   dependsOn:
    - canary_jobs
-   - typecheck_jdk17_part1
-   - typecheck_jdk17_part2
+   - typecheck_part1_jdk17
+   - typecheck_part2_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk11:latest
@@ -398,7 +398,7 @@ jobs:
   - bash: ./checker/bin-devel/test-typecheck.sh
     displayName: test-typecheck.sh
 # Split into part1 and part2 only for the type-checking job that "canary_jobs" depends on.
-- job: typecheck_jdk17_part1
+- job: typecheck_part1_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk17:latest
@@ -407,7 +407,7 @@ jobs:
     fetchDepth: 1000
   - bash: ./checker/bin-devel/test-typecheck.sh
     displayName: test-typecheck-part1.sh
-- job: typecheck_jdk17_part2
+- job: typecheck_part2_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk17-plus:latest
@@ -419,8 +419,8 @@ jobs:
 - job: typecheck_jdk_latest
   dependsOn:
    - canary_jobs
-   - typecheck_jdk17_part1
-   - typecheck_jdk17_part2
+   - typecheck_part1_jdk17
+   - typecheck_part2_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk-latest:latest
@@ -473,7 +473,7 @@ jobs:
     fetchDepth: 25
   - bash: ./checker/bin-devel/test-daikon.sh
     displayName: test-daikon.sh
-- job: daikon_jdk17_part1
+- job: daikon_part1_jdk17
   dependsOn:
    - canary_jobs
   pool:
@@ -485,7 +485,7 @@ jobs:
     fetchDepth: 25
   - bash: ./checker/bin-devel/test-daikon-part1.sh
     displayName: test-daikon.sh
-- job: daikon_jdk17_part2
+- job: daikon_part2_jdk17
   dependsOn:
    - framework_jobs
   pool:
@@ -500,8 +500,8 @@ jobs:
 - job: daikon_jdk_latest
   dependsOn:
    - canary_jobs
-   - daikon_jdk17_part1
-   - daikon_jdk17_part2
+   - daikon_part1_jdk17
+   - daikon_part2_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk-latest:latest
@@ -667,10 +667,10 @@ jobs:
     continueOnError: true
     displayName: test-plume-lib.sh
 
-- job: jspecify_tests_jdk8
+- job: jspecify_jdk8
   dependsOn:
    - canary_jobs
-   - jspecify_tests_jdk17
+   - jspecify_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk8:latest
@@ -680,10 +680,10 @@ jobs:
     fetchDepth: 25
   - bash: ./checker/bin-devel/test-jspecify.sh
     displayName: test-jspecify.sh
-- job: jspecify_tests_jdk11
+- job: jspecify_jdk11
   dependsOn:
    - canary_jobs
-   - jspecify_tests_jdk17
+   - jspecify_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk11:latest
@@ -692,7 +692,7 @@ jobs:
     fetchDepth: 25
   - bash: ./checker/bin-devel/test-jspecify.sh
     displayName: test-jspecify.sh
-- job: jspecify_tests_jdk17
+- job: jspecify_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk17:latest
@@ -702,10 +702,10 @@ jobs:
     fetchDepth: 25
   - bash: ./checker/bin-devel/test-jspecify.sh
     displayName: test-jspecify.sh
-- job: jspecify_tests_jdk_latest
+- job: jspecify_jdk_latest
   dependsOn:
    - canary_jobs
-   - jspecify_tests_jdk17
+   - jspecify_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk-latest:latest
@@ -715,10 +715,10 @@ jobs:
     fetchDepth: 25
   - bash: ./checker/bin-devel/test-jspecify.sh
     displayName: test-jspecify.sh
-- job: jspecify_tests_jdk_next
+- job: jspecify_jdk_next
   dependsOn:
    - canary_jobs
-   - jspecify_tests_jdk17
+   - jspecify_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk-next:latest
