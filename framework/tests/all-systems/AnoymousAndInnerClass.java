@@ -6,6 +6,8 @@ public class AnoymousAndInnerClass {
 
         public MyInnerClass(int... i) {}
 
+        public MyInnerClass(AnoymousAndInnerClass c) {}
+
         public MyInnerClass(AnoymousAndInnerClass... o) {}
     }
 
@@ -26,18 +28,21 @@ public class AnoymousAndInnerClass {
         new MyInnerClass(tainted) {};
         new MyInnerClass(1) {};
         new MyInnerClass(1, 2, 3) {};
+        new MyInnerClass(this) {};
         new MyInnerClass(this, this, this) {};
         this.new MyInnerClass() {};
         this.new MyInnerClass(tainted) {};
         this.new MyInnerClass(1) {};
         this.new MyInnerClass(1, 2, 3) {};
-        this.new MyInnerClass(outer, outer, outer, outer) {};
-        this.new MyInnerClass(this, this, this, this) {};
+        this.new MyInnerClass(this) {};
+        this.new MyInnerClass(outer, outer, outer) {};
+        this.new MyInnerClass(this, this, this) {};
         outer.new MyInnerClass() {};
         outer.new MyInnerClass(tainted) {};
         outer.new MyInnerClass(tainted) {};
         outer.new MyInnerClass(1) {};
         outer.new MyInnerClass(1, 2, 3) {};
-        outer.new MyInnerClass(outer, outer, outer, outer) {};
+        outer.new MyInnerClass(outer) {};
+        outer.new MyInnerClass(outer, outer, outer) {};
     }
 }

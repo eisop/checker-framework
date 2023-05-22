@@ -1031,12 +1031,7 @@ public class AnnotatedTypes {
             // Let the size of parameterTypes and arguments match since we make the comparison in
             // commonAssignmentCheck later, and we only handle Java versions
             // below 11 since they have an extra enclosing expression argument
-            if (t.getEnclosingType() != null
-                    && SystemUtil.jreVersion < 11
-                    && !args.isEmpty()
-                    && atypeFactory.types.isSameType(
-                            t.getEnclosingType(),
-                            atypeFactory.getAnnotatedType(args.get(0)).getUnderlyingType())) {
+            if (t.getEnclosingType() != null && SystemUtil.jreVersion < 11 && !args.isEmpty()) {
                 List<AnnotatedTypeMirror> p = new ArrayList<>(parameters.size() + 1);
                 p.add(atypeFactory.getAnnotatedType(args.get(0)));
                 p.addAll(parameters);
