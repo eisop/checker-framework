@@ -127,7 +127,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
   }
 
   @Override
-  protected void commonAssignmentCheck(
+  protected boolean commonAssignmentCheck(
       Tree varTree,
       ExpressionTree valueExp,
       @CompilerMessageKey String errorKey,
@@ -156,11 +156,11 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
             err = COMMITMENT_INVALID_FIELD_WRITE_UNKNOWN_INITIALIZATION;
           }
           checker.reportError(varTree, err, varTree);
-          return; // prevent issuing another error about subtyping
+          return false; // prevent issuing another error about subtyping
         }
       }
     }
-    super.commonAssignmentCheck(varTree, valueExp, errorKey, extraArgs);
+    return super.commonAssignmentCheck(varTree, valueExp, errorKey, extraArgs);
   }
 
   @Override

@@ -188,7 +188,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
   }
 
   @Override
-  protected void commonAssignmentCheck(
+  protected boolean commonAssignmentCheck(
       Tree varTree,
       ExpressionTree valueExp,
       @CompilerMessageKey String errorKey,
@@ -203,9 +203,9 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         && !checker.getLintOption(
             NullnessChecker.LINT_NOINITFORMONOTONICNONNULL,
             NullnessChecker.LINT_DEFAULT_NOINITFORMONOTONICNONNULL)) {
-      return;
+      return true;
     }
-    super.commonAssignmentCheck(varTree, valueExp, errorKey, extraArgs);
+    return super.commonAssignmentCheck(varTree, valueExp, errorKey, extraArgs);
   }
 
   /**
@@ -248,7 +248,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
   }
 
   @Override
-  protected void commonAssignmentCheck(
+  protected boolean commonAssignmentCheck(
       AnnotatedTypeMirror varType,
       ExpressionTree valueExp,
       @CompilerMessageKey String errorKey,
@@ -261,12 +261,12 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     // hack. Both should be undone, by properly resolving polymorphic qualifiers in the
     // ATF/transfer.
     atypeFactory.replacePolyQualifier(varType, valueExp);
-    super.commonAssignmentCheck(varType, valueExp, errorKey, extraArgs);
+    return super.commonAssignmentCheck(varType, valueExp, errorKey, extraArgs);
   }
 
   @Override
   @FormatMethod
-  protected void commonAssignmentCheck(
+  protected boolean commonAssignmentCheck(
       AnnotatedTypeMirror varType,
       AnnotatedTypeMirror valueType,
       Tree valueTree,
@@ -277,10 +277,10 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
       boolean succeed = checkForNullability(valueType, valueTree, UNBOXING_OF_NULLABLE);
       if (!succeed) {
         // Only issue the unboxing of nullable error.
-        return;
+        return false;
       }
     }
-    super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);
+    return super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);
   }
 
   /** Case 1: Check for null dereferencing. */
