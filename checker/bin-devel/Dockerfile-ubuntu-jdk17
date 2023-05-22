@@ -15,24 +15,29 @@ MAINTAINER Werner Dietl <wdietl@gmail.com>
 
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get -qqy update \
-&& apt-get -qqy install \
+&& apt-get -y install aptitude \
+&& aptitude -y install \
+  apt-utils
+
+RUN export DEBIAN_FRONTEND=noninteractive \
+&& apt-get -qqy update \
+&& aptitude -y install \
   openjdk-17-jdk
 
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get -qqy update \
-&& apt-get -qqy install \
+&& aptitude -y install \
   ant \
   binutils \
   build-essential \
   cpp \
   git \
-  gradle \
   jq \
   libcurl3-gnutls \
   make \
   maven \
   mercurial \
-  python3-pip \
+  python3-distutils \
   python3-requests \
   unzip \
   wget
@@ -40,12 +45,13 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 # Maven 3.6.3 (the default on Ubuntu 22.10) does not run under JDK 17.
 # (Don't try to use a variable here for the Maven version.)
 RUN export DEBIAN_FRONTEND=noninteractive \
-&& wget https://mirrors.sonic.net/apache/maven/maven-3/3.9.1/binaries/apache-maven-3.9.1-bin.tar.gz \
-&& tar xzvf apache-maven-3.9.1-bin.tar.gz
-ENV PATH="/apache-maven-3.9.1/bin:$PATH"
+&& wget https://mirrors.sonic.net/apache/maven/maven-3/3.9.2/binaries/apache-maven-3.9.2-bin.tar.gz \
+&& tar xzvf apache-maven-3.9.2-bin.tar.gz
+ENV PATH="/apache-maven-3.9.2/bin:$PATH"
 
 RUN pip3 install --no-cache-dir lithium-reducer PyGithub pyyaml
 
 RUN export DEBIAN_FRONTEND=noninteractive \
+&& apt-get autoremove \
 && apt-get clean \
 && rm -rf /var/lib/apt/lists/*
