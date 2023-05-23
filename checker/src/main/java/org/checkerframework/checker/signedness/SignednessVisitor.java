@@ -145,13 +145,12 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
           // Here, the original types of operands can be something different from string.
           // For example, "123" + obj is a string concatenation in which the original type
           // of the right operand is java.lang.Object.
-          TypeMirror leftOpOriginalType = TreeUtils.typeOf(leftOp);
-          TypeMirror rightOpOriginalType = TreeUtils.typeOf(rightOp);
-
-          if (!TypesUtils.isCharOrCharacter(leftOpOriginalType)
+          TypeMirror leftOpTM = TreeUtils.typeOf(leftOp);
+          TypeMirror rightOpTM = TreeUtils.typeOf(rightOp);
+          if (!TypesUtils.isCharOrCharacter(leftOpTM)
               && !atypeFactory.getQualifierHierarchy().isSubtype(leftAnno, atypeFactory.SIGNED)) {
             checker.reportError(leftOp, "unsigned.concat");
-          } else if (!TypesUtils.isCharOrCharacter(rightOpOriginalType)
+          } else if (!TypesUtils.isCharOrCharacter(rightOpTM)
               && !atypeFactory.getQualifierHierarchy().isSubtype(rightAnno, atypeFactory.SIGNED)) {
             checker.reportError(rightOp, "unsigned.concat");
           }
