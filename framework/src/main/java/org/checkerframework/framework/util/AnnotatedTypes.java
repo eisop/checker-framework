@@ -1030,8 +1030,16 @@ public class AnnotatedTypes {
                             method.getElement().getEnclosingElement().asType(), atypeFactory.types);
             // Let the size of parameterTypes and arguments match since we make the comparison in
             // commonAssignmentCheck later, and we only handle Java versions
-            // below 11 since they have an extra enclosing expression argument
-            if (t.getEnclosingType() != null && SystemUtil.jreVersion < 11 && !args.isEmpty()) {
+            // below 11 since they have an extra enclosing expression argument.
+            // A new anonymous inner class may have an enclosing type which is implicit, so
+            // we need to compare the first argument and the enclosing type.
+            if (t.getEnclosingType() != null
+                    && SystemUtil.jreVersion < 11
+                    && !args.isEmpty()
+                    && parameters.size() != args.size()
+                    && atypeFactory.types.isSameType(
+                            t.getEnclosingType(),
+                            atypeFactory.getAnnotatedType(args.get(0)).getUnderlyingType())) {
                 List<AnnotatedTypeMirror> p = new ArrayList<>(parameters.size() + 1);
                 p.add(atypeFactory.getAnnotatedType(args.get(0)));
                 p.addAll(parameters);
