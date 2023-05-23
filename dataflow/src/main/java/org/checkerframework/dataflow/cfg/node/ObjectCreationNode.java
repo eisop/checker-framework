@@ -6,6 +6,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.TreeUtils;
+import org.plumelib.util.StringsPlume;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -21,8 +22,10 @@ import java.util.Objects;
  *   <em>enclosingExpression.new identifier(arg1, arg2, ...)</em>
  * </pre>
  *
- * <p>We use the name "identifier" to represent the constructor. To access the annotations, we can
- * go to the identifier node.
+ * <p>We use the name "typeToInstantiate" to represent the "identifier" in the NewClassTree, and the
+ * "ClassOrInterfaceTypeToInstantiate" of ClassInstanceCreationExpression in JLS. Users can get the
+ * class type arguments by going through this field, and get the constructor type arguments by going
+ * through the NewClassTree.
  */
 public class ObjectCreationNode extends Node {
 
@@ -33,10 +36,11 @@ public class ObjectCreationNode extends Node {
     protected final @Nullable Node enclosingExpression;
 
     /**
-     * The identifier node of the object creation. A non-generic identifier can refer to a
-     * ClassNameNode, while a generic identifier can refer to a ParameterizedTypeNode.
+     * The typeToInstantiate node of the object creation. A non-generic typeToInstantiate node can
+     * refer to a ClassNameNode, while a generic typeToInstantiate node can refer to a
+     * ParameterizedTypeNode.
      */
-    protected final Node identifier;
+    protected final Node typeToInstantiate;
 
     /** The arguments of the object creation. */
     protected final List<Node> arguments;
@@ -47,23 +51,22 @@ public class ObjectCreationNode extends Node {
     /**
      * Constructs a {@link ObjectCreationNode}.
      *
-     * @param tree the NewClassTree which can be used to get the constructor type arguments by going
-     *     through it
+     * @param tree the NewClassTree
      * @param enclosingExpr the enclosing expression Node if it exists, or null
-     * @param identifier the identifier node
+     * @param typeToInstantiate the typeToInstantiate node
      * @param arguments the passed arguments
      * @param classbody the ClassDeclarationNode
      */
     public ObjectCreationNode(
             NewClassTree tree,
             @Nullable Node enclosingExpr,
-            Node identifier,
+            Node typeToInstantiate,
             List<Node> arguments,
             @Nullable ClassDeclarationNode classbody) {
         super(TreeUtils.typeOf(tree));
         this.tree = tree;
         this.enclosingExpression = enclosingExpr;
-        this.identifier = identifier;
+        this.typeToInstantiate = typeToInstantiate;
         this.arguments = arguments;
         this.classbody = classbody;
     }
@@ -72,23 +75,23 @@ public class ObjectCreationNode extends Node {
      * Returns the constructor node.
      *
      * @return the constructor node
-     * @deprecated use {@link #getIdentifier()}
+     * @deprecated use {@link #getTypeToInstantiate()}
      */
     @Pure
     @Deprecated
     public Node getConstructor() {
-        return identifier;
+        return typeToInstantiate;
     }
 
     /**
-     * Returns the identifier node. A non-generic identifier can refer to a ClassNameNode, while a
-     * generic constructor identifier can refer to a ParameterizedTypeNode.
+     * Returns the typeToInstantiate node. A non-generic typeToInstantiate node can refer to a
+     * ClassNameNode, while a generic typeToInstantiate node can refer to a ParameterizedTypeNode.
      *
-     * @return the identifier node
+     * @return the typeToInstantiate node
      */
     @Pure
-    public Node getIdentifier() {
-        return identifier;
+    public Node getTypeToInstantiate() {
+        return typeToInstantiate;
     }
 
     /**
@@ -147,7 +150,26 @@ public class ObjectCreationNode extends Node {
     @Override
     @SideEffectFree
     public String toString() {
-        return getTree().toString();
+        StringBuilder sb = new StringBuilder();
+        if (enclosingExpression != null) {
+            sb.append(enclosingExpression + ".");
+        }
+        sb.append("new ");
+        // output constructor type arguments
+        if (!tree.getTypeArguments().isEmpty()) {
+            sb.append("<");
+            sb.append(StringsPlume.join(", ", tree.getTypeArguments()));
+            sb.append(">");
+        }
+        sb.append(typeToInstantiate + "(");
+        sb.append(StringsPlume.join(", ", arguments));
+        sb.append(")");
+        if (classbody != null) {
+            // TODO: maybe this can be done nicer...
+            sb.append(" ");
+            sb.append(classbody.toString());
+        }
+        return sb.toString();
     }
 
     @Override
@@ -158,11 +180,11 @@ public class ObjectCreationNode extends Node {
         }
         ObjectCreationNode other = (ObjectCreationNode) obj;
         // TODO: See issue 376
-        if (identifier == null && other.getIdentifier() != null) {
+        if (typeToInstantiate == null && other.getTypeToInstantiate() != null) {
             return false;
         }
 
-        return getIdentifier().equals(other.getIdentifier())
+        return getTypeToInstantiate().equals(other.getTypeToInstantiate())
                 && getArguments().equals(other.getArguments())
                 && (getEnclosingExpression() == null
                         ? null == other.getEnclosingExpression()
@@ -172,7 +194,7 @@ public class ObjectCreationNode extends Node {
     @Override
     @SideEffectFree
     public int hashCode() {
-        return Objects.hash(enclosingExpression, identifier, arguments);
+        return Objects.hash(enclosingExpression, typeToInstantiate, arguments);
     }
 
     @Override
@@ -182,7 +204,7 @@ public class ObjectCreationNode extends Node {
         if (enclosingExpression != null) {
             list.add(enclosingExpression);
         }
-        list.add(identifier);
+        list.add(typeToInstantiate);
         list.addAll(arguments);
         return list;
     }
