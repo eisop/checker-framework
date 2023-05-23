@@ -236,6 +236,7 @@ allprojects {
     ]
 
     // plume-util includes a version of reflection-util. When updating ensure the versions are consistent.
+    hashmapUtilVersion = '0.0.1'
     reflectionUtilVersion = '1.1.0'
     plumeUtilVersion = '1.8.1'
 
