@@ -271,6 +271,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
    */
 
   /** Represent the annotation relations. */
+  // This field cannot be final because it is set in `postInit()`.
   protected QualifierHierarchy qualHierarchy;
 
   /** Represent the type relations. */

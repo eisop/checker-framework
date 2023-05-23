@@ -33,6 +33,9 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
   /** The type factory. */
   private final AnnotatedTypeFactory atypeFactory;
 
+  /** The qualifier hierarchy. */
+  private final QualifierHierarchy qualHierarchy;
+
   /**
    * Whether or not the type being visited is an uninferred type argument. If true, then the
    * underlying type may not have the correct relationship with the supertype.
@@ -46,7 +49,8 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
    */
   public AsSuperVisitor(AnnotatedTypeFactory atypeFactory) {
     this.atypeFactory = atypeFactory;
-    types = atypeFactory.types;
+    this.types = atypeFactory.types;
+    this.qualHierarchy = atypeFactory.getQualifierHierarchy();
   }
 
   /**
@@ -116,7 +120,7 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
           AnnotationMirrorSet newLubs = new AnnotationMirrorSet();
           for (AnnotationMirror lub : lubs) {
             AnnotationMirror anno = altern.getAnnotationInHierarchy(lub);
-            newLubs.add(atypeFactory.getQualifierHierarchy().leastUpperBound(anno, lub));
+            newLubs.add(qualHierarchy.leastUpperBound(anno, lub));
           }
           lubs = newLubs;
         }
@@ -197,8 +201,7 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
       AnnotatedTypeMirror type, Void p, AnnotatedTypeMirror lowerBound) {
     if (lowerBound.getKind() == TypeKind.NULL) {
       AnnotationMirrorSet typeLowerBound =
-          AnnotatedTypes.findEffectiveLowerBoundAnnotations(
-              atypeFactory.getQualifierHierarchy(), type);
+          AnnotatedTypes.findEffectiveLowerBoundAnnotations(qualHierarchy, type);
       lowerBound.replaceAnnotations(typeLowerBound);
       return lowerBound;
     }

@@ -197,7 +197,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
       isSubtype = true;
     } else {
       assert exprAnno != null && castAnno != null;
-      isSubtype = atypeFactory.getQualifierHierarchy().isSubtype(exprAnno, castAnno);
+      isSubtype = qualHierarchy.isSubtype(exprAnno, castAnno);
     }
 
     if (!isSubtype) {
