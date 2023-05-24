@@ -4348,7 +4348,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
       AnnotatedDeclaredType overriderReceiver = overrider.getReceiverType();
       AnnotatedDeclaredType overriddenReceiver = overridden.getReceiverType();
       // Check the receiver type.
-      // isSubtype() requires its arguments to be actual subtypes with respect to JLS, but
+      // isSubtype() requires its arguments to be actual subtypes with respect to the JLS, but
       // an overrider receiver is not a subtype of the overridden receiver.  So, just check
       // primary annotations.
       // TODO: this will need to be improved for generic receivers.
@@ -4603,6 +4603,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
       Set<Pair<JavaExpression, AnnotationMirror>> mustSubset,
       Set<Pair<JavaExpression, AnnotationMirror>> set,
       @CompilerMessageKey String messageKey) {
+
     for (Pair<JavaExpression, AnnotationMirror> weak : mustSubset) {
       JavaExpression jexpr = weak.first;
       boolean found = false;
@@ -4861,8 +4862,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     // Don't use isSubtype(ATM, ATM) because it will return false if the types have qualifier
     // parameters.
     AnnotationMirrorSet tops = qualHierarchy.getTopAnnotations();
-    AnnotationMirrorSet upperBounds =
-        atypeFactory.getTypeDeclarationBounds(declarationType.getUnderlyingType());
+    TypeMirror declarationTM = declarationType.getUnderlyingType();
+    AnnotationMirrorSet upperBounds = atypeFactory.getTypeDeclarationBounds(declarationTM);
     for (AnnotationMirror top : tops) {
       AnnotationMirror upperBound = qualHierarchy.findAnnotationInHierarchy(upperBounds, top);
       AnnotationMirror qualifier = useType.getAnnotationInHierarchy(top);
