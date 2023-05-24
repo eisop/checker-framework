@@ -82,8 +82,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
     this.annotations = annotations;
     this.underlyingType = underlyingType;
 
-    assert validateSet(
-            this.getAnnotations(), this.getUnderlyingType(), atypeFactory.getQualifierHierarchy())
+    assert validateSet(this.getAnnotations(), this.getUnderlyingType(), atypeFactory)
         : "Encountered invalid type: "
             + underlyingType
             + " annotations: "
@@ -96,11 +95,11 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
    *
    * @param annos set of annotations
    * @param typeMirror where the annotations are written
-   * @param qualHierarchy the qualifier hierarchy
+   * @param atypeFactory the type factory
    * @return true if no annotations are missing
    */
   public static boolean validateSet(
-      AnnotationMirrorSet annos, TypeMirror typeMirror, QualifierHierarchy qualHierarchy) {
+      AnnotationMirrorSet annos, TypeMirror typeMirror, AnnotatedTypeFactory atypeFactory) {
 
     if (canBeMissingAnnotations(typeMirror)) {
       return true;
@@ -113,6 +112,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
 
     // The size of the set matches, but maybe it contains multiple annos of one
     // hierarchy and none of another.
+    QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
     for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
       AnnotationMirror anno = qualHierarchy.findAnnotationInHierarchy(annos, top);
       if (anno == null) {
