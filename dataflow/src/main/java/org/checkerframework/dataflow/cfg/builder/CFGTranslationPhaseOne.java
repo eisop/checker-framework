@@ -218,7 +218,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
   /** TreeBuilder instance. */
   protected final TreeBuilder treeBuilder;
 
-  /** AnnotationProvider instance. */
+  /** The annotation provider, e.g., a type factory. */
   protected final AnnotationProvider annotationProvider;
 
   /** Can assertions be assumed to be disabled? */
