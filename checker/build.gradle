@@ -231,6 +231,7 @@ clean {
     delete('tests/ainfer-index/inference-output')
     delete('tests/ainfer-resourceleak/annotated')
     delete('tests/ainfer-resourceleak/inference-output')
+    delete('tests/build')
 }
 
 clean.doLast {

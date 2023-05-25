@@ -234,6 +234,7 @@ task loaderTests(dependsOn: 'shadowJar', group: 'Verification') {
 clean {
     delete('tests/returnsreceiverdelomboked')
     delete('dist')
+    delete('tests/build')
 }
 
 
