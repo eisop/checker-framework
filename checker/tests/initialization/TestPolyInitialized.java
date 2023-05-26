@@ -1,3 +1,4 @@
+import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.initialization.qual.NotOnlyInitialized;
 import org.checkerframework.checker.initialization.qual.PolyInitialized;
 import org.checkerframework.checker.initialization.qual.UnknownInitialization;
@@ -23,5 +24,14 @@ public class TestPolyInitialized {
 
     void test2() {
         identity(test);
+    }
+
+    @Initialized String test3(@UnknownInitialization String str) {
+        // :: error: (return.type.incompatible)
+        return identity(str);
+    }
+
+    @UnknownInitialization String test4(@Initialized String str) {
+        return identity(str);
     }
 }
