@@ -14,6 +14,7 @@ import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.nullness.NullnessChecker;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.dataflow.expression.ClassName;
@@ -31,7 +32,6 @@ import org.checkerframework.framework.util.AnnotationFormatter;
 import org.checkerframework.framework.util.DefaultAnnotationFormatter;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
-import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
@@ -41,14 +41,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import java.util.StringJoiner;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.util.Types;
 
 /* NO-AFU
    import org.checkerframework.common.wholeprograminference.WholeProgramInference;
@@ -493,55 +491,64 @@ public class InitializationVisitor<
     }
 
     @Override
-    protected void checkThrownExpression(ThrowTree tree, MethodTree mtree) {
-        AnnotatedTypeMirror throwType = atypeFactory.getAnnotatedType(tree.getExpression());
-        Set<? extends AnnotationMirror> required = getThrowUpperBoundAnnotations();
-        if (mtree != null && getExceptionList(mtree) != null) {
-            List<AnnotatedTypeMirror> throwClauses = getExceptionList(mtree);
-            for (AnnotatedTypeMirror throwClause : throwClauses) {
-                Types typesUtil = atypeFactory.getProcessingEnv().getTypeUtils();
-                if (typesUtil.isSameType(
-                        throwClause.getUnderlyingType(), throwType.getUnderlyingType())) {
-                    required = throwClause.getAnnotations();
-                    break;
-                }
-            }
-        }
-        switch (throwType.getKind()) {
-            case NULL:
-            case DECLARED:
-                AnnotationMirrorSet found = throwType.getAnnotations();
-                if (!atypeFactory.getQualifierHierarchy().isSubtype(found, required)) {
-                    checker.reportError(
-                            tree.getExpression(), "throw.type.incompatible", found, required);
-                }
-                break;
-            case TYPEVAR:
-            case WILDCARD:
-                break;
-            case UNION:
-                break;
-            default:
-                throw new BugInCF("Unexpected throw expression type: " + throwType.getKind());
-        }
+    protected void checkThrownExpression(ThrowTree tree, @Nullable MethodTree mtree) {
+        super.checkThrownExpression(tree, mtree);
+        //        AnnotatedTypeMirror throwType =
+        // atypeFactory.getAnnotatedType(tree.getExpression());
+        //        Set<? extends AnnotationMirror> required = getThrowUpperBoundAnnotations();
+        //        Boolean ExceptionInListFlag = false;
+        //        if (mtree != null && getExceptionList(mtree) != null) {
+        //            List<AnnotatedTypeMirror> ExceptionList = getExceptionList(mtree);
+        //            for (AnnotatedTypeMirror Exception : ExceptionList) {
+        //                Types typesUtil = atypeFactory.getProcessingEnv().getTypeUtils();
+        //                if (typesUtil.isSameType(
+        //                        Exception.getUnderlyingType(), throwType.getUnderlyingType())) {
+        //                    required = Exception.getAnnotations();
+        //                    ExceptionInListFlag = true;
+        //                    break;
+        //                }
+        //            }
+        //        }
+        //        if (!ExceptionInListFlag) {throw new BugInCF("Unexpected throw expression type: "
+        // + throwType.getUnderlyingType());}
+        //        switch (throwType.getKind()) {
+        //            case NULL:
+        //            case DECLARED:
+        //                AnnotationMirrorSet found = throwType.getAnnotations();
+        //                if (!atypeFactory.getQualifierHierarchy().isSubtype(found, required)) {
+        //                    checker.reportError(
+        //                            tree.getExpression(), "throw.type.incompatible", found,
+        // required);
+        //                }
+        //                break;
+        //            case TYPEVAR:
+        //            case WILDCARD:
+        //                break;
+        //            case UNION:
+        //                break;
+        //            default:
+        //                throw new BugInCF("Unexpected throw expression type: " +
+        // throwType.getKind());
+        //        }
     }
-    /**
-     * Returns a set of AnnotatedTypeMirror that is allowed throw exceptions for method.
-     *
-     * <p>Note: If the method declaration do not have any throw clauses, then return null.
-     *
-     * @param mtree MethodTree to look up throw expressions
-     * @return List of AnnotationTypeMirrors, one per exception in method signature, that contains
-     *     annotation and java expressions
-     */
-    protected List<AnnotatedTypeMirror> getExceptionList(MethodTree mtree) {
-        List<AnnotatedTypeMirror> ExceptionList = new ArrayList<>();
-        List<? extends ExpressionTree> ExceptionTrees = mtree.getThrows();
-        if (!ExceptionTrees.isEmpty()) {
-            for (ExpressionTree throwExpression : ExceptionTrees) {
-                ExceptionList.add(atypeFactory.getAnnotatedType(throwExpression));
-            }
-        }
-        return ExceptionList;
-    }
+    //    /**
+    //     * Returns a set of AnnotatedTypeMirror that is allowed throw exceptions for method.
+    //     *
+    //     * <p>Note: If the method declaration do not have any throw clauses, then return null.
+    //     *
+    //     * @param mtree MethodTree to look up throw expressions
+    //     * @return List of AnnotationTypeMirrors, one per exception in method signature, that
+    // contains
+    //     *     annotation and java expressions
+    //     */
+    //    protected List<AnnotatedTypeMirror> getExceptionList(MethodTree mtree) {
+    //        List<AnnotatedTypeMirror> ExceptionList = new ArrayList<>();
+    //        List<? extends ExpressionTree> ExceptionTrees = mtree.getThrows();
+    //        if (!ExceptionTrees.isEmpty()) {
+    //            for (ExpressionTree throwExpression : ExceptionTrees) {
+    //                ExceptionList.add(atypeFactory.getAnnotatedType(throwExpression));
+    //            }
+    //        }
+    //        return ExceptionList;
+    //    }
 }
