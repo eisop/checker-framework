@@ -2898,7 +2898,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     protected void checkThrownExpression(ThrowTree tree, @Nullable MethodTree mtree) {
         AnnotatedTypeMirror throwType = atypeFactory.getAnnotatedType(tree.getExpression());
         Set<? extends AnnotationMirror> required = getThrowUpperBoundAnnotations();
-        Boolean ExceptionInListFlag = false;
         if (mtree != null && getExceptionList(mtree) != null) {
             List<AnnotatedTypeMirror> ExceptionList = getExceptionList(mtree);
             for (AnnotatedTypeMirror Exception : ExceptionList) {
@@ -2906,13 +2905,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 if (typesUtil.isSameType(
                         Exception.getUnderlyingType(), throwType.getUnderlyingType())) {
                     required = Exception.getAnnotations();
-                    ExceptionInListFlag = true;
                     break;
                 }
             }
-        }
-        if (!ExceptionInListFlag) {
-            throw new BugInCF("Unexpected throw expression type: " + throwType.getUnderlyingType());
         }
         switch (throwType.getKind()) {
             case NULL:
@@ -2929,7 +2924,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 AnnotationMirrorSet foundEffective = throwType.getEffectiveAnnotations();
                 if (!atypeFactory.getQualifierHierarchy().isSubtype(foundEffective, required)) {
                     checker.reportError(
-                            tree.getExpression(), "throw.type.invalid", foundEffective, required);
+                            tree.getExpression(),
+                            "throw.type.incompatible",
+                            foundEffective,
+                            required);
                 }
                 break;
             case UNION:
@@ -2937,7 +2935,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 AnnotationMirrorSet foundPrimary = unionType.getAnnotations();
                 if (!atypeFactory.getQualifierHierarchy().isSubtype(foundPrimary, required)) {
                     checker.reportError(
-                            tree.getExpression(), "throw.type.invalid", foundPrimary, required);
+                            tree.getExpression(),
+                            "throw.type.incompatible",
+                            foundPrimary,
+                            required);
                 }
                 for (AnnotatedTypeMirror altern : unionType.getAlternatives()) {
                     if (!atypeFactory
@@ -2945,7 +2946,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                             .isSubtype(altern.getAnnotations(), required)) {
                         checker.reportError(
                                 tree.getExpression(),
-                                "throw.type.invalid",
+                                "throw.type.incompatible",
                                 altern.getAnnotations(),
                                 required);
                     }
