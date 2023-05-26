@@ -1,4 +1,4 @@
-public class AnoymousAndInnerClass {
+public class AnonymousAndInnerClass {
     class MyInnerClass {
         public MyInnerClass() {}
 
@@ -6,9 +6,9 @@ public class AnoymousAndInnerClass {
 
         public MyInnerClass(int... i) {}
 
-        public MyInnerClass(AnoymousAndInnerClass c) {}
+        public MyInnerClass(AnonymousAndInnerClass c) {}
 
-        public MyInnerClass(AnoymousAndInnerClass... o) {}
+        public MyInnerClass(AnonymousAndInnerClass... o) {}
     }
 
     static class MyClass {
@@ -19,7 +19,7 @@ public class AnoymousAndInnerClass {
         public MyClass(int... i) {}
     }
 
-    void test(AnoymousAndInnerClass outer, String tainted) {
+    void test(AnonymousAndInnerClass outer, String tainted) {
         new MyClass() {};
         new MyClass(tainted) {};
         new MyClass(1, 2, 3) {};
