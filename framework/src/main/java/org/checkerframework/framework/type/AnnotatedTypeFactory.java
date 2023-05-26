@@ -1404,7 +1404,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return the annotated type of {@code tree}
      */
     public AnnotatedTypeMirror getAnnotatedType(Tree tree) {
-
         if (tree == null) {
             throw new BugInCF("AnnotatedTypeFactory.getAnnotatedType: null tree");
         }
@@ -2636,7 +2635,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             AnnotatedExecutableType getClassType,
             AnnotatedTypeMirror receiverType,
             ExpressionTree tree) {
-
         TypeMirror type = TreeUtils.typeOf(tree);
         AnnotatedTypeMirror returnType = AnnotatedTypeMirror.createType(type, this, false);
 
@@ -3606,10 +3604,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param canonicalAnno the canonical annotation
      */
     // aliasName is annotated as @FullyQualifiedName because there is no way to confirm that the
-    // name of an external annotation is a canoncal name.
+    // name of an external annotation is a canonical name.
     protected void addAliasedTypeAnnotation(
             @FullyQualifiedName String aliasName, AnnotationMirror canonicalAnno) {
-
         aliases.put(aliasName, new Alias(aliasName, canonicalAnno, false, null, null));
     }
 
@@ -4569,7 +4566,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     public List<Pair<AnnotationMirror, AnnotationMirror>> getAnnotationWithMetaAnnotation(
             Element element, Class<? extends Annotation> metaAnnotationClass) {
-
         AnnotationMirrorSet annotationMirrors = new AnnotationMirrorSet();
         // Consider real annotations.
         annotationMirrors.addAll(getAnnotatedType(element).getAnnotations());
@@ -4907,7 +4903,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *     targets
      */
     public Pair<AnnotatedTypeMirror, AnnotatedExecutableType> getFnInterfaceFromTree(Tree tree) {
-
         // Functional interface
         AnnotatedTypeMirror functionalInterfaceType = getFunctionalInterfaceType(tree);
         if (functionalInterfaceType.getKind() == TypeKind.DECLARED) {
@@ -4938,7 +4933,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return the functional interface type or an uninferred type argument
      */
     private AnnotatedTypeMirror getFunctionalInterfaceType(Tree tree) {
-
         Tree parentTree = getPath(tree).getParentPath().getLeaf();
         switch (parentTree.getKind()) {
             case PARENTHESIZED:
@@ -5296,7 +5290,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     public AnnotatedTypeMirror applyCaptureConversion(
             AnnotatedTypeMirror type, TypeMirror typeMirror) {
-
         // If the type contains uninferred type arguments, don't capture, but mark all wildcards
         // that should have been captured as "uninferred" before it is returned.
         if (type.containsUninferredTypeArguments()
@@ -5439,7 +5432,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
          */
         private void copy(
                 AnnotatedDeclaredType uncapturedType, AnnotatedDeclaredType capturedType) {
-
             // The name "originalToCopy" means a mapping from the original to the copy, not an
             // original that needs to be copied.
             IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy =
@@ -5577,7 +5569,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             AnnotatedWildcardType wildcard,
             AnnotatedTypeVariable typeVariable,
             AnnotatedTypeVariable capturedTypeVar) {
-
         AnnotatedTypeMirror typeVarUpperBound =
                 typeVarSubstitutor.substituteWithoutCopyingTypeArguments(
                         typeVarToAnnotatedTypeArg, typeVariable.getUpperBound());
