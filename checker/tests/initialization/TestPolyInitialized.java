@@ -13,8 +13,7 @@ public class TestPolyInitialized {
         this.testStr = str;
     }
 
-    @PolyInitialized
-    String identity(@PolyInitialized String str) {
+    @PolyInitialized String identity(@PolyInitialized String str) {
         return str;
     }
 
