@@ -306,7 +306,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
       if (backup != null) {
         this.backupSet = backup.getAnnotations();
         // this.backupTypeMirror = backup.getUnderlyingType();
-        // this.backupAtv = getEffectTypeVar(backupTypeMirror);
+        // this.backupAtv = getEffectiveTypeVar(backupTypeMirror);
       } else {
         // this.backupAtv = null;
         // this.backupTypeMirror = null;
@@ -660,8 +660,8 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
         AnnotationMirrorSet bSet,
         boolean canCombinedSetBeMissingAnnos) {
 
-      AnnotatedTypeVariable aAtv = getEffectTypeVar(aTypeMirror);
-      AnnotatedTypeVariable bAtv = getEffectTypeVar(bTypeMirror);
+      AnnotatedTypeVariable aAtv = getEffectiveTypeVar(aTypeMirror);
+      AnnotatedTypeVariable bAtv = getEffectiveTypeVar(bTypeMirror);
       AnnotationMirrorSet tops = qualHierarchy.getTopAnnotations();
       AnnotationMirrorSet combinedSets = new AnnotationMirrorSet();
       for (AnnotationMirror top : tops) {
@@ -743,11 +743,11 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
    * @param typeMirror a type mirror
    * @return the AnnotatedTypeVariable associated with the given TypeMirror or null
    */
-  private @Nullable AnnotatedTypeVariable getEffectTypeVar(@Nullable TypeMirror typeMirror) {
+  private @Nullable AnnotatedTypeVariable getEffectiveTypeVar(@Nullable TypeMirror typeMirror) {
     if (typeMirror == null) {
       return null;
     } else if (typeMirror.getKind() == TypeKind.WILDCARD) {
-      return getEffectTypeVar(((WildcardType) typeMirror).getExtendsBound());
+      return getEffectiveTypeVar(((WildcardType) typeMirror).getExtendsBound());
 
     } else if (typeMirror.getKind() == TypeKind.TYPEVAR) {
       TypeVariable typevar = ((TypeVariable) typeMirror);
