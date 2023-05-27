@@ -941,8 +941,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
   protected void checkDefaultConstructor(ClassTree tree) {}
 
   /**
-   * Checks that the method obeys override and subtype rules to all overridden methods. (Uses the
-   * pseudo-assignment logic to do so.)
+   * Checks that the method or constructor obeys override and subtype rules to all overridden
+   * methods. (Uses the pseudo-assignment logic to do so.)
    *
    * <p>The override rule specifies that a method, m1, may override a method m2 only if:
    *
@@ -1165,8 +1165,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
   */
 
   /**
-   * Issue a warning if the result type of the constructor is not top. If it is a supertype of the
-   * class, then a type.invalid.conflicting.annos error will also be issued by {@link
+   * Issue a warning if the result type of the constructor declaration is not top. If it is a
+   * supertype of the class, then a type.invalid.conflicting.annos error will also be issued by
+   * {@link
    * #isValidUse(AnnotatedTypeMirror.AnnotatedDeclaredType,AnnotatedTypeMirror.AnnotatedDeclaredType,Tree)}.
    *
    * @param constructorType AnnotatedExecutableType for the constructor
@@ -4907,7 +4908,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
    * the return type.
    *
    * @param tree the AST type supplied by the user
-   * @return true if the type is valid
+   * @return true if the tree is a valid type
    */
   public boolean validateTypeOf(Tree tree) {
     AnnotatedTypeMirror type;

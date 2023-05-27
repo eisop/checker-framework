@@ -2423,10 +2423,7 @@ public abstract class GenericAnnotatedTypeFactory<
    * Returns true if users can write type annotations from this type system directly on the given
    * Java type.
    *
-   * <p>May return false for a compound type (for which it it possible to write type qualifiers on
-   * elements of the type).
-   *
-   * <p>May return false for a compound type (for which it it possible to write type qualifiers on
+   * <p>May return false for a compound type (for which it is possible to write type qualifiers on
    * elements of the type).
    *
    * <p>Subclasses should override {@code #isRelevantImpl} instead of this method.
@@ -2452,7 +2449,7 @@ public abstract class GenericAnnotatedTypeFactory<
    * Returns true if users can write type annotations from this type system directly on the given
    * Java type.
    *
-   * <p>May return false for a compound type (for which it it possible to write type qualifiers on
+   * <p>May return false for a compound type (for which it is possible to write type qualifiers on
    * elements of the type).
    *
    * <p>Subclasses should override {@code #isRelevantImpl} instead of this method.
