@@ -414,13 +414,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
   @Override
   public Void scan(@Nullable Tree tree, Void p) {
-    if (tree != null && getCurrentPath() != null) {
+    if (tree == null) {
+      return null;
+    }
+    if (getCurrentPath() != null) {
       this.atypeFactory.setVisitorTreePath(new TreePath(getCurrentPath(), tree));
     }
     // TODO: use JCP to add version-specific behavior
-    if (tree != null
-        && SystemUtil.jreVersion >= 14
-        && tree.getKind().name().equals("SWITCH_EXPRESSION")) {
+    if (SystemUtil.jreVersion >= 14 && tree.getKind().name().equals("SWITCH_EXPRESSION")) {
       visitSwitchExpression17(tree);
       return null;
     }
