@@ -221,8 +221,8 @@ artifacts {
 }
 
 clean {
-    delete "${projectDir}/dist"
-    delete 'tests/calledmethods-delomboked'
+    delete('${projectDir}/dist')
+    delete('tests/calledmethods-delomboked')
     delete('tests/ainfer-testchecker/annotated')
     delete('tests/ainfer-testchecker/inference-output')
     delete('tests/ainfer-nullness/annotated')
