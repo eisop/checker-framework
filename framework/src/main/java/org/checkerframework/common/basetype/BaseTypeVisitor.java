@@ -1169,8 +1169,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
    * {@link
    * #isValidUse(AnnotatedTypeMirror.AnnotatedDeclaredType,AnnotatedTypeMirror.AnnotatedDeclaredType,Tree)}.
    *
-   * @param constructorType AnnotatedExecutableType for the constructor
-   * @param constructorElement element that declares the constructor
+   * @param constructorType the AnnotatedExecutableType for the constructor
+   * @param constructorElement the element that declares the constructor
    */
   protected void checkConstructorResult(
       AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {
@@ -2887,7 +2887,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
    * to enforce that exception parameter be annotated with other annotations can just override
    * {@link #getExceptionParameterLowerBoundAnnotations()}.
    *
-   * @param tree CatchTree to check
+   * @param tree a CatchTree to check
    */
   protected void checkExceptionParameter(CatchTree tree) {
 
@@ -2944,7 +2944,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
    * #getExceptionParameterLowerBoundAnnotations}, should override {@link
    * #getThrowUpperBoundAnnotations()}.
    *
-   * @param tree ThrowTree to check
+   * @param tree a ThrowTree to check
    */
   protected void checkThrownExpression(ThrowTree tree) {
     AnnotatedTypeMirror throwType = atypeFactory.getAnnotatedType(tree.getExpression());
