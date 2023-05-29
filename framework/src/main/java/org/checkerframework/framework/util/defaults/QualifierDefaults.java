@@ -929,6 +929,7 @@ public class QualifierDefaults {
          * not apply defaults to void types, packages, wildcards, and type variables.
          *
          * @param type type to which qual would be applied
+         * @param applyToTypeVar whether to apply to type variables
          * @return true if this application should proceed
          */
         protected boolean shouldBeAnnotated(
