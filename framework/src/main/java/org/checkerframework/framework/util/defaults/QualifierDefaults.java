@@ -1297,7 +1297,7 @@ public class QualifierDefaults {
 
     /**
      * Returns the BoundType of wildcardType. If it is unbounded, use the type parameter to which
-     * its an argument.
+     * it is an argument.
      *
      * @param wildcardType the annotated wildcard type
      * @return the BoundType of annotatedWildcard. If it is unbounded, use the type parameter to
