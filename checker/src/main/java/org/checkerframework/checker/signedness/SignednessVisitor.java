@@ -315,11 +315,12 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
         if (TreeUtils.isStringCompoundConcatenation(tree)) {
           // Note that exprType.getUnderlyingType() is always java.lang.String.
           // Please refer to compoundAssignmentTreeArgTypes for more details.
-          if (!TypesUtils.isCharOrCharacter(TreeUtils.typeOf(expr))) {
-            AnnotationMirror anno = exprType.getEffectiveAnnotations().iterator().next();
-            if (!qualHierarchy.isSubtype(anno, atypeFactory.SIGNED)) {
-              checker.reportError(tree.getExpression(), "unsigned.concat");
-            }
+          if (TypesUtils.isCharOrCharacter(TreeUtils.typeOf(expr))) {
+            break;
+          }
+          AnnotationMirror anno = exprType.getEffectiveAnnotations().iterator().next();
+          if (!qualHierarchy.isSubtype(anno, atypeFactory.SIGNED)) {
+            checker.reportError(tree.getExpression(), "unsigned.concat");
           }
           break;
         }
