@@ -16,7 +16,7 @@ import java.lang.annotation.Target;
  * which every instance of {@link PolyInitialized} has been replaced by {@link
  * UnknownInitialization}.
  *
- * @checker_framework.manual #nullness-checker Initialization Checker
+ * @checker_framework.manual #initialization-checker Initialization Checker
  * @checker_framework.manual #qualifier-polymorphism Qualifier polymorphism
  */
 @Documented
