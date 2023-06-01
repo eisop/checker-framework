@@ -10,7 +10,8 @@ public class TestPolyInitialized {
     String test = "test";
 
     TestPolyInitialized(@UnknownInitialization String str) {
-        this.testStr = str;
+        // :: error: (method.invocation.invalid)
+        this.testStr = identity(str);
     }
 
     @PolyInitialized String identity(@PolyInitialized String str) {
@@ -18,11 +19,11 @@ public class TestPolyInitialized {
     }
 
     void test1() {
-        identity(testStr);
+        @UnknownInitialization String receiver = identity(testStr);
     }
 
     void test2() {
-        identity(test);
+        @Initialized String receiver = identity(test);
     }
 
     @Initialized String test3(@UnknownInitialization String str) {

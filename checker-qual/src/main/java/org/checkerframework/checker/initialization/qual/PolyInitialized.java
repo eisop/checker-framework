@@ -11,12 +11,13 @@ import java.lang.annotation.Target;
 /**
  * A polymorphic qualifier for the freedom-before-commitment initialization tracking type-system.
  *
- * <p>Any method written using {@link PolyInitialized} conceptually has two versions: one in which
- * every instance of {@link PolyInitialized} has been replaced by {@link Initialized}, and one in
- * which every instance of {@link PolyInitialized} has been replaced by {@link
+ * <p>Any method written using {@link PolyInitialized} conceptually has three versions: one in which
+ * every instance of {@link PolyInitialized} has been replaced by {@link Initialized}, one in which
+ * every instance of {@link PolyInitialized} has been replaced by {@link UnderInitialization}and one
+ * in which every instance of {@link PolyInitialized} has been replaced by {@link
  * UnknownInitialization}.
  *
- * @checker_framework.manual #nullness-checker Initialization Checker
+ * @checker_framework.manual #initialization-checker Initialization Checker
  * @checker_framework.manual #qualifier-polymorphism Qualifier polymorphism
  */
 @Documented

@@ -112,8 +112,8 @@ public abstract class InitializationAnnotatedTypeFactory<
     /**
      * String representation of all initialization annotations.
      *
-     * <p>{@link UnknownInitialization} {@link UnderInitialization} {@link Initialized} {@link
-     * FBCBottom} {@link PolyInitialized}
+     * <p>{@link UnknownInitialization}, {@link UnderInitialization}, {@link Initialized}, {@link
+     * FBCBottom}, {@link PolyInitialized}.
      *
      * <p>This is used to quickly check of an AnnotationMirror is one of the initialization
      * annotations without having to repeatedly convert them to strings.
