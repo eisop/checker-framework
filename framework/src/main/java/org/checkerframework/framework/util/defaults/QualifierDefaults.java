@@ -232,7 +232,7 @@ public class QualifierDefaults {
         Set<? extends AnnotationMirror> bottoms = qualHierarchy.getBottomAnnotations();
 
         for (TypeUseLocation loc : STANDARD_UNCHECKED_DEFAULTS_TOP) {
-            // Only add standard defaults in locations where a default has not be specified
+            // Only add standard defaults in locations where a default has not be specified.
             for (AnnotationMirror top : tops) {
                 if (!conflictsWithExistingDefaults(uncheckedCodeDefaults, top, loc)) {
                     addUncheckedCodeDefault(top, loc);
@@ -242,7 +242,7 @@ public class QualifierDefaults {
 
         for (TypeUseLocation loc : STANDARD_UNCHECKED_DEFAULTS_BOTTOM) {
             for (AnnotationMirror bottom : bottoms) {
-                // Only add standard defaults in locations where a default has not be specified
+                // Only add standard defaults in locations where a default has not be specified.
                 if (!conflictsWithExistingDefaults(uncheckedCodeDefaults, bottom, loc)) {
                     addUncheckedCodeDefault(bottom, loc);
                 }
@@ -260,7 +260,7 @@ public class QualifierDefaults {
             for (AnnotationMirror top : tops) {
                 if (!conflictsWithExistingDefaults(checkedCodeDefaults, top, loc)) {
                     // Only add standard defaults in locations where a default has not been
-                    // specified
+                    // specified.
                     addCheckedCodeDefault(top, loc);
                 }
             }
@@ -270,7 +270,7 @@ public class QualifierDefaults {
             for (AnnotationMirror bottom : bottoms) {
                 if (!conflictsWithExistingDefaults(checkedCodeDefaults, bottom, loc)) {
                     // Only add standard defaults in locations where a default has not been
-                    // specified
+                    // specified.
                     addCheckedCodeDefault(bottom, loc);
                 }
             }
@@ -554,7 +554,6 @@ public class QualifierDefaults {
      *     org.checkerframework.framework.type.AnnotatedTypeMirror)
      */
     private void applyDefaults(Tree tree, AnnotatedTypeMirror type) {
-
         // The location to take defaults from.
         Element elt;
         switch (tree.getKind()) {
@@ -930,11 +929,11 @@ public class QualifierDefaults {
          * not apply defaults to void types, packages, wildcards, and type variables.
          *
          * @param type type to which qual would be applied
+         * @param applyToTypeVar whether to apply to type variables
          * @return true if this application should proceed
          */
         protected boolean shouldBeAnnotated(
                 final AnnotatedTypeMirror type, final boolean applyToTypeVar) {
-
             return !(type == null
                     // TODO: executables themselves should not be annotated
                     // For some reason h1h2checker-tests fails with this.
@@ -1018,7 +1017,6 @@ public class QualifierDefaults {
                                         || scope.getKind() == ElementKind.CONSTRUCTOR)
                                 && t.getKind() == TypeKind.EXECUTABLE
                                 && isTopLevelType) {
-
                             for (AnnotatedTypeMirror atm :
                                     ((AnnotatedExecutableType) t).getParameterTypes()) {
                                 if (shouldBeAnnotated(atm, false)) {
@@ -1040,7 +1038,6 @@ public class QualifierDefaults {
                                 && (scope.getKind() == ElementKind.METHOD)
                                 && t.getKind() == TypeKind.EXECUTABLE
                                 && isTopLevelType) {
-
                             final AnnotatedDeclaredType receiver =
                                     ((AnnotatedExecutableType) t).getReceiverType();
                             if (shouldBeAnnotated(receiver, false)) {
@@ -1076,12 +1073,13 @@ public class QualifierDefaults {
                         break;
                     case IMPLICIT_LOWER_BOUND:
                         if (isLowerBound
-                                && boundType.isOneOf(BoundType.UNBOUNDED, BoundType.UPPER)) {
+                                && (boundType == BoundType.UNBOUNDED
+                                        || boundType == BoundType.UPPER)) {
                             addAnnotation(t, qual);
                         }
                         break;
                     case EXPLICIT_LOWER_BOUND:
-                        if (isLowerBound && boundType.isOneOf(BoundType.LOWER)) {
+                        if (isLowerBound && boundType == BoundType.LOWER) {
                             addAnnotation(t, qual);
                         }
                         break;
@@ -1092,17 +1090,18 @@ public class QualifierDefaults {
                         break;
                     case IMPLICIT_UPPER_BOUND:
                         if (isUpperBound
-                                && boundType.isOneOf(BoundType.UNBOUNDED, BoundType.LOWER)) {
+                                && (boundType == BoundType.UNBOUNDED
+                                        || boundType == BoundType.LOWER)) {
                             addAnnotation(t, qual);
                         }
                         break;
                     case EXPLICIT_UPPER_BOUND:
-                        if (isUpperBound && boundType.isOneOf(BoundType.UPPER)) {
+                        if (isUpperBound && boundType == BoundType.UPPER) {
                             addAnnotation(t, qual);
                         }
                         break;
                     case UPPER_BOUND:
-                        if (this.isUpperBound) {
+                        if (isUpperBound) {
                             addAnnotation(t, qual);
                         }
                         break;
@@ -1167,7 +1166,6 @@ public class QualifierDefaults {
                     AnnotatedTypeMirror upperBound,
                     AnnotatedTypeMirror lowerBound,
                     AnnotationMirror qual) {
-
                 final boolean prevIsUpperBound = isUpperBound;
                 final boolean prevIsLowerBound = isLowerBound;
                 final BoundType prevBoundType = boundType;
@@ -1186,7 +1184,6 @@ public class QualifierDefaults {
                     scanAndReduce(upperBound, qual, null);
 
                     visitedNodes.put(type, null);
-
                 } finally {
                     isUpperBound = prevIsUpperBound;
                     isLowerBound = prevIsLowerBound;
@@ -1214,16 +1211,6 @@ public class QualifierDefaults {
          * bound was not explicitly written in source code.)
          */
         UNBOUNDED;
-
-        public boolean isOneOf(final BoundType... choices) {
-            for (final BoundType choice : choices) {
-                if (this == choice) {
-                    return true;
-                }
-            }
-
-            return false;
-        }
     }
 
     /**
@@ -1285,7 +1272,6 @@ public class QualifierDefaults {
                 // type variable has an upper bound.
                 boundType = BoundType.UPPER;
             }
-
         } else {
             if (typeParamDecl.getKind() == Tree.Kind.TYPE_PARAMETER) {
                 final TypeParameterTree tptree = (TypeParameterTree) typeParamDecl;
@@ -1310,8 +1296,8 @@ public class QualifierDefaults {
     }
 
     /**
-     * Returns the BoundType of annotatedWildcard. If it is unbounded, use the type parameter to
-     * which its an argument.
+     * Returns the BoundType of wildcardType. If it is unbounded, use the type parameter to which it
+     * is an argument.
      *
      * @param wildcardType the annotated wildcard type
      * @return the BoundType of annotatedWildcard. If it is unbounded, use the type parameter to
