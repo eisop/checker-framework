@@ -854,6 +854,9 @@ All classes are in package \code{org.checkerframework.dataflow.cfg.node}.
         \nodetype{GreaterThanOrEqualNode} & & \code{x >= y} \\
         \nodetype{LessThanNode} & & \code{x < y} \\
         \nodetype{LessThanOrEqualNode} & & \code{x <= y} \\
+        \midrule
+
+        \code{SwitchExpression} & A switch expression (not statement!) & \\
 
         \nodetype{CaseNode} & Case of a switch.  Acts as an equality test. & \\
         \midrule
@@ -873,9 +876,9 @@ All classes are in package \code{org.checkerframework.dataflow.cfg.node}.
         \midrule
 
         & Conversion nodes & \\
-        \nodetype{NarrowingConversionNode} & Implicit conversion & \\
-        \nodetype{StringConversionNode} & Might be implicit & \code{obj.toString()} \\
-        \nodetype{WideningConversionNode} & Implicit conversion & \\
+        \nodetype{NarrowingConversionNode} & Implicit conversion. & \\
+        \nodetype{StringConversionNode} & Might be implicit. & \code{obj.toString()} \\
+        \nodetype{WideningConversionNode} & Implicit conversion. & \\
         \midrule
 
         \midrule
