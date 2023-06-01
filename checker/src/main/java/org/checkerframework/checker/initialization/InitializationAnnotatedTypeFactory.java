@@ -115,7 +115,7 @@ public abstract class InitializationAnnotatedTypeFactory<
      * <p>{@link UnknownInitialization}, {@link UnderInitialization}, {@link Initialized}, {@link
      * FBCBottom}, {@link PolyInitialized}.
      *
-     * <p>This is used to quickly check of an AnnotationMirror is one of the initialization
+     * <p>This is used to quickly check if an AnnotationMirror is one of the initialization
      * annotations without having to repeatedly convert them to strings.
      */
     protected final Set<String> initAnnoNames;
