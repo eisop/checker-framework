@@ -2766,7 +2766,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
   /**
    * Build a pair of {@link IdentifierTree} and {@link LocalVariableNode} to represent a use of some
-   * variable
+   * variable. Does not add the node to the CFG.
    *
    * @param varTree tree for the variable
    * @return a pair whose first element is the synthetic {@link IdentifierTree} for the use, and
@@ -2777,7 +2777,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     handleArtificialTree(condExprVarUseTree);
     LocalVariableNode condExprVarUseNode = new LocalVariableNode(condExprVarUseTree);
     condExprVarUseNode.setInSource(false);
-    // Do not actually add the node to the CFG
+    // Do not actually add the node to the CFG.
     return Pair.of(condExprVarUseTree, condExprVarUseNode);
   }
 
