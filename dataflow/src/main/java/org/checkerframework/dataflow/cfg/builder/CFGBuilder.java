@@ -46,8 +46,8 @@ import org.checkerframework.javacutil.trees.TreeBuilder;
  */
 public abstract class CFGBuilder {
 
-  /** This class should never be instantiated. Protected to still allow subclasses. */
-  protected CFGBuilder() {}
+  /** Creates a CFGBuilder. */
+  public CFGBuilder() {}
 
   /**
    * Build the control flow graph of some code.
@@ -124,6 +124,10 @@ public abstract class CFGBuilder {
     }
     return result.toString();
   }
+
+  /* --------------------------------------------------------- */
+  /* Utility routines for debugging CFG building */
+  /* --------------------------------------------------------- */
 
   /**
    * Print a set of {@link Block}s and the edges between them. This is useful for examining the

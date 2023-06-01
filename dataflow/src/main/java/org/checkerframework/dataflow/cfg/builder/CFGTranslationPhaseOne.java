@@ -2842,7 +2842,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
   @Override
   public Node visitErroneous(ErroneousTree tree, Void p) {
-    throw new BugInCF("ErroneousTree is unexpected in AST to CFG translation");
+    throw new BugInCF("ErroneousTree is unexpected in AST to CFG translation: " + tree);
   }
 
   @Override
@@ -3296,7 +3296,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
   @Override
   public Node visitImport(ImportTree tree, Void p) {
-    throw new BugInCF("ImportTree is unexpected in AST to CFG translation");
+    throw new BugInCF("ImportTree is unexpected in AST to CFG translation: " + tree);
   }
 
   @Override
@@ -3561,6 +3561,15 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     throw new BugInCF("CompilationUnitTree is unexpected in AST to CFG translation");
   }
 
+  /**
+   * Return the first argument if it is non-null, otherwise return the second argument. Throws an
+   * exception if both arguments are null.
+   *
+   * @param <A> the type of the arguments
+   * @param first a reference
+   * @param second a reference
+   * @return the first argument that is non-null
+   */
   private static <A> A firstNonNull(A first, A second) {
     if (first != null) {
       return first;
@@ -3860,7 +3869,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
   @Override
   public Node visitUnionType(UnionTypeTree tree, Void p) {
-    throw new BugInCF("UnionTypeTree is unexpected in AST to CFG translation");
+    throw new BugInCF("UnionTypeTree is unexpected in AST to CFG translation: " + tree);
   }
 
   @Override
