@@ -553,7 +553,7 @@ We have released a new version of the Checker Framework.
 The Checker Framework lets you create and/or run pluggable type checkers, in order to detect and prevent bugs in your code.
 
 You can find documentation and download links at:
-http://CheckerFramework.org/
+http://eisop.github.io/
 
 Changes for Checker Framework version %s:
 

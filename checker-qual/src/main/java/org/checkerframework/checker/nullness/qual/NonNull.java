@@ -24,7 +24,7 @@ import java.lang.annotation.Target;
  * NonNull} annotation indicates that this field is never {@code null} <em>after the containing
  * class is initialized</em>. "Fully initialized" essentially means that the Java constructor has
  * completed. See the <a
- * href="https://checkerframework.org/manual/#initialization-checker">Initialization Checker
+ * href="https://eisop.github.io/cf/manual/#initialization-checker">Initialization Checker
  * documentation</a> for more details.
  *
  * <p>This annotation is rarely written in source code, because it is the default.
