@@ -493,43 +493,6 @@ public class InitializationVisitor<
     @Override
     protected void checkThrownExpression(ThrowTree tree, @Nullable MethodTree mtree) {
         super.checkThrownExpression(tree, mtree);
-        //        AnnotatedTypeMirror throwType =
-        // atypeFactory.getAnnotatedType(tree.getExpression());
-        //        Set<? extends AnnotationMirror> required = getThrowUpperBoundAnnotations();
-        //        Boolean ExceptionInListFlag = false;
-        //        if (mtree != null && getExceptionList(mtree) != null) {
-        //            List<AnnotatedTypeMirror> ExceptionList = getExceptionList(mtree);
-        //            for (AnnotatedTypeMirror Exception : ExceptionList) {
-        //                Types typesUtil = atypeFactory.getProcessingEnv().getTypeUtils();
-        //                if (typesUtil.isSameType(
-        //                        Exception.getUnderlyingType(), throwType.getUnderlyingType())) {
-        //                    required = Exception.getAnnotations();
-        //                    ExceptionInListFlag = true;
-        //                    break;
-        //                }
-        //            }
-        //        }
-        //        if (!ExceptionInListFlag) {throw new BugInCF("Unexpected throw expression type: "
-        // + throwType.getUnderlyingType());}
-        //        switch (throwType.getKind()) {
-        //            case NULL:
-        //            case DECLARED:
-        //                AnnotationMirrorSet found = throwType.getAnnotations();
-        //                if (!atypeFactory.getQualifierHierarchy().isSubtype(found, required)) {
-        //                    checker.reportError(
-        //                            tree.getExpression(), "throw.type.incompatible", found,
-        // required);
-        //                }
-        //                break;
-        //            case TYPEVAR:
-        //            case WILDCARD:
-        //                break;
-        //            case UNION:
-        //                break;
-        //            default:
-        //                throw new BugInCF("Unexpected throw expression type: " +
-        // throwType.getKind());
-        //        }
     }
     //    /**
     //     * Returns a set of AnnotatedTypeMirror that is allowed throw exceptions for method.
