@@ -2899,12 +2899,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotatedTypeMirror throwType = atypeFactory.getAnnotatedType(tree.getExpression());
         Set<? extends AnnotationMirror> required = getThrowUpperBoundAnnotations();
         if (mtree != null && getExceptionList(mtree) != null) {
-            List<AnnotatedTypeMirror> ExceptionList = getExceptionList(mtree);
-            for (AnnotatedTypeMirror Exception : ExceptionList) {
+            List<AnnotatedTypeMirror> exceptionList = getExceptionList(mtree);
+            for (AnnotatedTypeMirror exception : exceptionList) {
                 Types typesUtil = atypeFactory.getProcessingEnv().getTypeUtils();
+                // isSameType is not good enough
                 if (typesUtil.isSameType(
-                        Exception.getUnderlyingType(), throwType.getUnderlyingType())) {
-                    required = Exception.getAnnotations();
+                        exception.getUnderlyingType(), throwType.getUnderlyingType())) {
+                    required = exception.getAnnotations();
                     break;
                 }
             }
