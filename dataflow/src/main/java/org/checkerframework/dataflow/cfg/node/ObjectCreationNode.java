@@ -17,9 +17,9 @@ import java.util.Objects;
  * A node for new object creation.
  *
  * <pre>
- *   <em>new identifier(arg1, arg2, ...)</em>
- *   <em>new identifier&lt;T&gt;(arg1, arg2, ...)</em>
- *   <em>enclosingExpression.new identifier(arg1, arg2, ...)</em>
+ *   <em>new typeToInstantiate(arg1, arg2, ...)</em>
+ *   <em>new typeToInstantiate&lt;T&gt;(arg1, arg2, ...)</em>
+ *   <em>enclosingExpression.new typeToInstantiate(arg1, arg2, ...)</em>
  * </pre>
  *
  * <p>We use the name "typeToInstantiate" to represent the "identifier" in the NewClassTree, and the
