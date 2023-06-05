@@ -91,7 +91,7 @@ public class Issue3622 {
     // else-store after `false` should be propagated to the else-store of the merge point.
     // TODO: adapt the way of store propagation for boolean variables. i.e. for `true`, only
     // then-store is propagated; and for `false`, only else-store is propagated.
-    @SuppressWarnings("contracts.conditional.postcondition.not.satisfied")
+    @SuppressWarnings("contracts.conditional.postcondition")
     public boolean equals(@Nullable Object obj) {
       return obj instanceof ImmutableIntList9 ? true : false;
     }
