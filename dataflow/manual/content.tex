@@ -323,17 +323,18 @@ class NullnessValue extends CFAbstractValue<NullnessValue>
 \subsubsection{UnusedAbstractValue}
 \label{sec:unused_abstract_value_class}
 
-UnusedAbstractValue, as the name suggests, is an AbstractValue that is
-not involved in any computation during dataflow analysis. This class should
-only be used as a type argument in transfer functions. It is implemented because some
-analyses do not need and do not have their own AbstractValue classes.
+UnusedAbstractValue is an AbstractValue that is
+not used during dataflow analysis. This class should
+only be used as a type argument in transfer functions, for
+analyses that do not need and do not have their own AbstractValue classes.
 
-For example, in LiveVariable analysis (\autoref{sec:live_variable}),
-we need to compute the least upper bound of successors' stores, and
+For example, LiveVariable analysis (\autoref{sec:live_variable}),
+needs to compute the least upper bound of successors' stores, and
 it is meaningless to further calculate the least upper bound of two
 individual live variables at a smaller granularity.
-Since there is no computation between two AbstractValues, using the UnusedAbstractValue
-is sufficient and we do not have to implement a specific AbstractValue for this analysis.
+Since there is no computation between two AbstractValues, LiveVariable
+analysis uses the UnusedAbstractValue rather than
+implementing a specific AbstractValue for this analysis.
 
 \begin{verbatim}
 package org.checkerframework.dataflow.analysis;
