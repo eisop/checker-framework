@@ -14,18 +14,22 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * A node for new object creation.
+ * A node for a new object creation.
  *
  * <pre>
  *   <em>new typeToInstantiate(arg1, arg2, ...)</em>
- *   <em>new typeToInstantiate&lt;T&gt;(arg1, arg2, ...)</em>
  *   <em>enclosingExpression.new typeToInstantiate(arg1, arg2, ...)</em>
+ *   <em>enclosingExpression.new &lt;Ts&gt;typeToInstantiate(arg1, arg2, ...)</em>
  * </pre>
  *
- * <p>We use the name "typeToInstantiate" to represent the "identifier" in the NewClassTree, and the
- * "ClassOrInterfaceTypeToInstantiate" of ClassInstanceCreationExpression in JLS. Users can get the
- * class type arguments by going through this field, and get the constructor type arguments by going
- * through the NewClassTree.
+ * <p>We use the term "typeToInstantiate" to represent what is called the "identifier" in {@link
+ * NewClassTree} and what is called "ClassOrInterfaceTypeToInstantiate" in the
+ * "ClassInstanceCreationExpression" in the JLS. The former term "identifier" is misleading, as this
+ * can be a type with type arguments. The latter term "ClassOrInterfaceTypeToInstantiate" is rather
+ * long and we shortened it to "typeToInstantiate".
+ *
+ * <p>Class type arguments can be accessed through the "typeToInstantiate" node. To access
+ * constructor type arguments one needs to use the {@link NewClassTree}.
  */
 public class ObjectCreationNode extends Node {
 
@@ -36,9 +40,9 @@ public class ObjectCreationNode extends Node {
     protected final @Nullable Node enclosingExpression;
 
     /**
-     * The typeToInstantiate node of the object creation. A non-generic typeToInstantiate node can
-     * refer to a ClassNameNode, while a generic typeToInstantiate node can refer to a
-     * ParameterizedTypeNode.
+     * The type to instantiate node of the object creation. A non-generic typeToInstantiate node
+     * will refer to a {@link ClassNameNode}, while a generic typeToInstantiate node will refer to a
+     * {@link ParameterizedTypeNode}.
      */
     protected final Node typeToInstantiate;
 
@@ -155,7 +159,6 @@ public class ObjectCreationNode extends Node {
             sb.append(enclosingExpression + ".");
         }
         sb.append("new ");
-        // output constructor type arguments
         if (!tree.getTypeArguments().isEmpty()) {
             sb.append("<");
             sb.append(StringsPlume.join(", ", tree.getTypeArguments()));
@@ -179,7 +182,7 @@ public class ObjectCreationNode extends Node {
             return false;
         }
         ObjectCreationNode other = (ObjectCreationNode) obj;
-        // TODO: See issue 376
+        // TODO: See issue 470.
         if (typeToInstantiate == null && other.getTypeToInstantiate() != null) {
             return false;
         }
