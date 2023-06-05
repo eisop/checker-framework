@@ -1247,8 +1247,8 @@ public abstract class CFAbstractTransfer<
    * Returns the abstract value of {@code (value1, value2)} that is more specific. If the two are
    * incomparable, then {@code value1} is returned.
    *
-   * @param value1 an abstract value to be compared with
-   * @param value2 an abstract value to be compared with
+   * @param value1 an abstract value
+   * @param value2 another abstract value
    * @return the more specific value of the two parameters, or, if they are incomparable, {@code
    *     value1}
    */
