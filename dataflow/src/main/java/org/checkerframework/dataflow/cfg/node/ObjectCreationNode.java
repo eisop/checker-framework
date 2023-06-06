@@ -89,7 +89,8 @@ public class ObjectCreationNode extends Node {
 
     /**
      * Returns the typeToInstantiate node. A non-generic typeToInstantiate node can refer to a
-     * {@link ClassNameNode}, while a generic typeToInstantiate node can refer to a {@link ParameterizedTypeNode}.
+     * {@link ClassNameNode}, while a generic typeToInstantiate node can refer to a {@link
+     * ParameterizedTypeNode}.
      *
      * @return the typeToInstantiate node
      */
