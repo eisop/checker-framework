@@ -238,14 +238,14 @@ The requirements to run \<wpi.sh> and \<wpi-many.sh> are the same:
 \item The project on which inference is run must contain an Ant, Gradle,
   or Maven buildfile that compiles the project.
 \item At least one of the \verb|JAVA_HOME|,
-  \verb|JAVA8_HOME|, \verb|JAVA11_HOME|, \verb|JAVA17_HOME|, or \verb|JAVA19_HOME|
+  \verb|JAVA8_HOME|, \verb|JAVA11_HOME|, \verb|JAVA17_HOME|, or \verb|JAVA20_HOME|
   environment variables must be set.
 \item If set, the \verb|JAVA_HOME| environment variable must point to a
-  Java 8, 11, 17, or 19 JDK.
+  Java 8, 11, 17, or 20 JDK.
 \item If set, the \verb|JAVA8_HOME| environment variable must point to a Java 8 JDK.
 \item If set, the \verb|JAVA11_HOME| environment variable must point to a Java 11 JDK.
 \item If set, the \verb|JAVA17_HOME| environment variable must point to a Java 17 JDK.
-\item If set, the \verb|JAVA19_HOME| environment variable must point to a Java 19 JDK.
+\item If set, the \verb|JAVA20_HOME| environment variable must point to a Java 20 JDK.
 \item \<CHECKERFRAMEWORK> environment variable must point to a built copy of the Checker Framework.
 \item If set, the \verb|DLJC| environment variable must point to a copy of the \<dljc> script
 from \ahreforurl{https://github.com/kelloggm/do-like-javac}{do-like-javac}. (If this variable is not
@@ -391,7 +391,7 @@ Its command-line arguments are:
 
 \begin{enumerate}
 \item Optional: Command-line arguments to
-  \href{https://checkerframework.org/annotation-file-utilities/#insert-annotations-to-source}{\<insert-annotations-to-source>}.
+  \href{https://eisop.github.io/afu/#insert-annotations-to-source}{\<insert-annotations-to-source>}.
 \item Processor's name.
 \item Target program's classpath.  This argument is required; pass "" if it
   is empty.
@@ -552,7 +552,7 @@ Each script adds the inferred annotation to the next run, so that the checker ta
 account (and checks them). \<wpi.sh> does this by updating the set of \<.ajava> files that are passed
 to the checker via the \<-Aajava> command-line argument;
 \<infer-and-annotate.sh> inserts the inferred annotations in the program using the
-\ahreforurl{https://checkerframework.org/annotation-file-utilities/}{Annotation File Utilities}.
+\ahreforurl{https://eisop.github.io/afu/}{Annotation File Utilities}.
 
 On each
 iteration through the process, there may be new annotations in the \<.jaif> or \<.ajava>

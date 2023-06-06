@@ -380,7 +380,7 @@ public class SupertypesSolver {
             throw new BugInCF("Calling LUB on empty list.");
         }
 
-        /**
+        /*
          * If a constraint implies that a type parameter Ti is a supertype of an annotated type
          * mirror Ai but only in a subset of all qualifier hierarchies then for all other qualifier
          * hierarchies replace the primary annotation on Ai with the lowest possible annotation

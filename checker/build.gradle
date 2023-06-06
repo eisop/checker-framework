@@ -67,7 +67,7 @@ dependencies {
     testImplementation 'com.amazonaws:aws-java-sdk-ec2'
     testImplementation 'com.amazonaws:aws-java-sdk-kms'
     // The AWS SDK is used for testing the Called Methods Checker.
-    testImplementation platform('com.amazonaws:aws-java-sdk-bom:1.12.293')
+    testImplementation platform('com.amazonaws:aws-java-sdk-bom:1.12.466')
     // For the Resource Leak Checker's support for JavaEE.
     testImplementation 'javax.servlet:javax.servlet-api:4.0.1'
     // For the Resource Leak Checker's support for IOUtils.
@@ -77,7 +77,7 @@ dependencies {
     if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
         testImplementation 'org.plumelib:options:1.0.6'
     } else {
-        testImplementation 'org.plumelib:options:2.0.2'
+        testImplementation 'org.plumelib:options:2.0.3'
     }
 
     testImplementation group: 'junit', name: 'junit', version: '4.13.2'
@@ -135,6 +135,7 @@ task assembleForJavac(dependsOn: shadowJar, group: 'Build') {
         }
 
         copy {
+            // This is required to *run* the Checker Framework on JDK 8.
             from configurations.javacJar
             into "${projectDir}/dist"
             rename { String fileName ->
@@ -232,6 +233,14 @@ clean {
     delete('tests/ainfer-resourceleak/inference-output')
 }
 
+clean.doLast {
+    while (buildDir.exists()) {
+        sleep(10000)                // wait 10 seconds
+        buildDir.deleteDir()
+    }
+}
+
+
 // Add non-junit tests
 createCheckTypeTask(project.name, 'CompilerMessages',
         'org.checkerframework.checker.compilermsgs.CompilerMessagesChecker')
@@ -277,35 +286,31 @@ task exampleTests(type: Exec, dependsOn: assembleForJavac, group: 'Verification'
 task demosTests(dependsOn: assembleForJavac, group: 'Verification') {
     description 'Test that the demos are working as expected.'
     doLast {
-        if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
-            File demosDir = new File(projectDir, '../../checker-framework.demos');
-            if (!demosDir.exists()) {
-                exec {
-                    workingDir file(demosDir.toString() + '/../')
-                    executable 'git'
-                    args = [
-                        'clone',
-                        '--depth',
-                        '1',
-                        'https://github.com/eisop/checker-framework.demos.git'
-                    ]
-                }
-            } else {
-                exec {
-                    workingDir demosDir
-                    executable 'git'
-                    args = [
-                        'pull',
-                        'https://github.com/eisop/checker-framework.demos.git'
-                    ]
-                    ignoreExitValue = true
-                }
+        File demosDir = new File(projectDir, '../../checker-framework.demos');
+        if (!demosDir.exists()) {
+            exec {
+                workingDir file(demosDir.toString() + '/../')
+                executable 'git'
+                args = [
+                    'clone',
+                    '--depth',
+                    '1',
+                    'https://github.com/eisop/checker-framework.demos.git'
+                ]
             }
-            ant.properties.put('checker.lib', file("${projectDir}/dist/checker.jar").absolutePath)
-            ant.ant(dir: demosDir.toString())
         } else {
-            println('Skipping demosTests because they only work with Java 8.')
+            exec {
+                workingDir demosDir
+                executable 'git'
+                args = [
+                    'pull',
+                    'https://github.com/eisop/checker-framework.demos.git'
+                ]
+                ignoreExitValue = true
+            }
         }
+        ant.properties.put('checker.lib', file("${projectDir}/dist/checker.jar").absolutePath)
+        ant.ant(dir: demosDir.toString())
     }
 }
 
@@ -406,13 +411,13 @@ if (skipDelombok) {
 test {
     useJUnit {
         // These are run in task ainferTest.
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerJaifsTest'
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerStubsTest'
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerAjavaTest'
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferNullnessJaifsTest'
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferNullnessAjavaTest'
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferIndexAjavaTest'
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferResourceLeakAjavaTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerJaifsGenerationTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerStubsGenerationTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerAjavaGenerationTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferNullnessJaifsGenerationTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferNullnessAjavaGenerationTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferIndexAjavaGenerationTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferResourceLeakAjavaGenerationTest'
     }
 }
 
@@ -425,7 +430,7 @@ task ainferTestCheckerGenerateStubs(type: Test) {
         delete("${buildDir}/ainfer-testchecker/")
     }
     outputs.upToDateWhen { false }
-    include '**/AinferTestCheckerStubsTest.class'
+    include '**/AinferTestCheckerStubsGenerationTest.class'
     testLogging {
         // Always run the tests
         outputs.upToDateWhen { false }
@@ -481,7 +486,7 @@ task ainferTestCheckerGenerateAjava(type: Test) {
         delete("${buildDir}/ainfer-testchecker/")
     }
     outputs.upToDateWhen { false }
-    include '**/AinferTestCheckerAjavaTest.class'
+    include '**/AinferTestCheckerAjavaGenerationTest.class'
     testLogging {
         // Always run the tests
         outputs.upToDateWhen { false }
@@ -586,7 +591,7 @@ task ainferTestCheckerGenerateJaifs(type: Test) {
         delete('tests/ainfer-testchecker/annotated')
     }
     outputs.upToDateWhen { false }
-    include '**/AinferTestCheckerJaifsTest.class'
+    include '**/AinferTestCheckerJaifsGenerationTest.class'
     testLogging {
         // Always run the tests
         outputs.upToDateWhen { false }
@@ -609,7 +614,7 @@ task ainferTestCheckerGenerateJaifs(type: Test) {
         // places annotations incorrectly on qualified types. In this test, a failure occurs because
         // the AFU prints "@Annotation Outer.Inner this", rather than "Outer.@Annotation Inner this"
         // (see an explanation of the syntax here:
-        // https://checkerframework.org/manual/#common-problems-non-typechecking).
+        // https://eisop.github.io/cf/manual/#common-problems-non-typechecking).
         // TODO: fix this bug in the AFU, then reinstate this test.
         delete('tests/ainfer-testchecker/annotated/OverriddenMethodsTest.java')
 
@@ -685,7 +690,7 @@ task ainferIndexGenerateAjava(type: Test) {
         delete("${buildDir}/ainfer-index/")
     }
     outputs.upToDateWhen { false }
-    include '**/AinferIndexAjavaTest.class'
+    include '**/AinferIndexAjavaGenerationTest.class'
     testLogging {
         // Always run the tests
         outputs.upToDateWhen { false }
@@ -731,7 +736,7 @@ task ainferNullnessGenerateAjava(type: Test) {
         delete("${buildDir}/ainfer-nullness/")
     }
     outputs.upToDateWhen { false }
-    include '**/AinferNullnessAjavaTest.class'
+    include '**/AinferNullnessAjavaGenerationTest.class'
     testLogging {
         // Always run the tests
         outputs.upToDateWhen { false }
@@ -777,7 +782,7 @@ task ainferResourceLeakGenerateAjava(type: Test) {
         delete("${buildDir}/ainfer-resourceleak/")
     }
     outputs.upToDateWhen { false }
-    include '**/AinferResourceLeakAjavaTest.class'
+    include '**/AinferResourceLeakAjavaGenerationTest.class'
     testLogging {
         // Always run the tests
         outputs.upToDateWhen { false }
@@ -822,7 +827,7 @@ task ainferNullnessGenerateJaifs(type: Test) {
         delete('tests/ainfer-nullness/annotated')
     }
     outputs.upToDateWhen { false }
-    include '**/AinferNullnessJaifsTest.class'
+    include '**/AinferNullnessJaifsGenerationTest.class'
     testLogging {
         // Always run the tests
         outputs.upToDateWhen { false }
@@ -943,13 +948,15 @@ task wpiManyTest(group: 'Verification') {
             println('Failure: Running wpi-many.sh failed with a non-zero exit code.')
             File wpiOut = new File("${typecheckFilesDir}/wpi-out")
             if (wpiOut.exists()) {
-                println("========= Output from last run of wpi.sh (${typecheckFilesDir}/wpi-out): ========")
+                println("========= Start of output from last run of wpi.sh (${typecheckFilesDir}/wpi-out): ========")
                 exec {
                     commandLine 'cat', "${typecheckFilesDir}/wpi-out"
                 }
                 println("========= End of output from last run of wpi.sh (${typecheckFilesDir}/wpi-out): ========")
-                throw e
+            } else {
+                println("========= File ${typecheckFilesDir}/wpi-out does not exist. ========")
             }
+            throw e
         }
 
         // collect the logs from running WPI
@@ -971,7 +978,7 @@ task wpiManyTest(group: 'Verification') {
             exec {
                 commandLine 'cat', "${project.projectDir}/tests/wpi-many/testin.txt"
             }
-            println("========= Output from last run of wpi.sh (${typecheckFilesDir}/wpi-out): ========")
+            println("========= Start of output from last run of wpi.sh (${typecheckFilesDir}/wpi-out): ========")
             exec {
                 commandLine 'cat', "${typecheckFilesDir}/wpi-out"
             }
@@ -981,7 +988,7 @@ task wpiManyTest(group: 'Verification') {
             }
             logFiles.visit { FileVisitDetails details ->
                 def filename = "${typecheckFilesDir}" + details.getName()
-                println("======== printing contents of ${filename} ========")
+                println("======== start of contents of ${filename} ========")
                 details.getFile().eachLine { line -> println(line) }
                 println("======== end of contents of ${filename} ========")
             }
@@ -993,7 +1000,7 @@ task wpiManyTest(group: 'Verification') {
             }
             cannotRunWpiFiles.visit { FileVisitDetails details ->
                 def filename = "${typecheckFilesDir}" + details.getName()
-                println("======== printing contents of ${filename} ========")
+                println("======== start of contents of ${filename} ========")
                 details.getFile().eachLine { line -> println(line) }
                 println("======== end of contents of ${filename} ========")
             }
@@ -1025,7 +1032,7 @@ task wpiManyTest(group: 'Verification') {
                     return;
                 }
                 if (!line.trim().equals('')) {
-                    println("======== printing contents of ${filename} ========")
+                    println("======== start of contents of ${filename} ========")
                     details.getFile().eachLine { l -> println(l) }
                     println("======== end of contents of ${filename} ========")
                     throw new GradleException('Failure: WPI scripts produced an unexpected output in ' + filename + '. ' +

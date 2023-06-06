@@ -21,6 +21,7 @@ import org.plumelib.util.StringsPlume;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.StringJoiner;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -66,7 +67,7 @@ public final class TypesUtils {
         if (clazz == void.class) {
             return types.getNoType(TypeKind.VOID);
         } else if (clazz.isPrimitive()) {
-            String primitiveName = clazz.getName().toUpperCase();
+            String primitiveName = clazz.getName().toUpperCase(Locale.ROOT);
             TypeKind primitiveKind = TypeKind.valueOf(primitiveName);
             return types.getPrimitiveType(primitiveKind);
         } else if (clazz.isArray()) {
@@ -142,7 +143,7 @@ public final class TypesUtils {
 
                 try {
                     return Class.forName(typeString);
-                } catch (ClassNotFoundException | UnsupportedClassVersionError e) {
+                } catch (ClassNotFoundException | LinkageError e) {
                     return Object.class;
                 }
 
@@ -713,21 +714,6 @@ public final class TypesUtils {
      */
     public static boolean isErasedSubtype(TypeMirror subtype, TypeMirror supertype, Types types) {
         return types.isSubtype(types.erasure(subtype), types.erasure(supertype));
-    }
-
-    /**
-     * Returns true if {@code type} is a type variable created during capture conversion.
-     *
-     * @param type a type mirror
-     * @return true if {@code type} is a type variable created during capture conversion
-     * @deprecated use {@link #isCapturedTypeVariable(TypeMirror)} instead
-     */
-    @Deprecated // 2021-07-06
-    public static boolean isCaptured(TypeMirror type) {
-        if (type.getKind() != TypeKind.TYPEVAR) {
-            return false;
-        }
-        return ((Type.TypeVar) TypeAnnotationUtils.unannotatedType(type)).isCaptured();
     }
 
     /**

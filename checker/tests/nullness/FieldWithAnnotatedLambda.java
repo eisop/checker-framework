@@ -11,8 +11,8 @@ class FieldWithAnnotatedLambda {
 
     Function<Outer.Inner, @Nullable Object> f2 = (Outer.@Nullable Inner in) -> in;
 
-    // Lambda parameter is inferred to also be @Nullable, raising an error
-    // for the return expression here.
-    // :: error: (return.type.incompatible)
+    // Lambda parameter is defaulted to be @NonNull, raising an error
+    // for the lambda parameter type.
+    // :: error: (lambda.param.type.incompatible)
     Function<Outer.@Nullable Inner, Object> f3 = (Outer.Inner in) -> in;
 }
