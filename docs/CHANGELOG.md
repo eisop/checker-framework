@@ -8,12 +8,14 @@ Version 3.34.0-eisop2 (May ?, 2023)
 Corrected the arguments to an `ObjectCreationNode` when the node refers to an
 anonymous constructor invocation with an explicit enclosing expression.
 
+Deprecated `ObjectCreationNode#getConstructor` in favor of new `ObjectCreationNode#getTypeToInstantiate()`.
+
 Remove class `StringConcatenateAssignmentNode` and its last usages.
 The class was deprecated in release 3.21.3-eisop1 (March 23, 2022) and no longer used in CFGs.
 
 **Closed issues:**
 
-#400.
+eisop#376, eisop#400.
 
 
 Version 3.34.0-eisop1 (May 9, 2023)
