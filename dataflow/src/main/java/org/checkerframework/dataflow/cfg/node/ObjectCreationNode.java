@@ -82,14 +82,14 @@ public class ObjectCreationNode extends Node {
      * @deprecated use {@link #getTypeToInstantiate()}
      */
     @Pure
-    @Deprecated
+    @Deprecated // 2023-06-06
     public Node getConstructor() {
         return typeToInstantiate;
     }
 
     /**
      * Returns the typeToInstantiate node. A non-generic typeToInstantiate node can refer to a
-     * ClassNameNode, while a generic typeToInstantiate node can refer to a ParameterizedTypeNode.
+     * {@link ClassNameNode}, while a generic typeToInstantiate node can refer to a {@link ParameterizedTypeNode}.
      *
      * @return the typeToInstantiate node
      */
