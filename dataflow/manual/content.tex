@@ -1774,7 +1774,7 @@ update the live variable values in the stores.
 
 \section{Example: Very Busy Expression Analysis}
 
-Very busy expression analysis infers an expression to be very busy if no matter what path is taken,
+An expression is ``very busy'' if no matter what path is taken,
 the expression is used before any variables occurring in it are redefined.
 This analysis is a backward analysis that intersects abstract states from successors.
 \\
@@ -1782,13 +1782,13 @@ The main class is \code{org.checkerframework.dataflow.cfg.playground.BusyExpress
 
 \textbf{Abstract values.} The \code{BusyExprValue} is a very busy expression, represented by a node.
 The node can be any \code{BinaryOperationNode}, such as \code{NumericalAdditionNode}
-and \code{LeftShiftNode}.
+or \code{LeftShiftNode}.
 
 \textbf{The store.} The busy expression store \code{BusyExprStore} has a field
 \code{busyExprValueSet} which contains a set of \code{BusyExprValue}s.
 If a node is a \code{BinaryOperationNode}, \code{addUseInExpression(Node)}
 will recursively analyze the subexpressions of the node to determine
-if they are nested \code{BinaryOperationNode}s. We then use \code{putBusyExpr(BusyExprValue)}
+if they are nested \code{BinaryOperationNode}s. It then uses \code{putBusyExpr(BusyExprValue)}
 to put the expression in the set. \code{killBusyExpr(Node)} is used when a variable is re-assigned.
 
 \textbf{The transfer function.} The transfer function \code{BusyExprTransfer}
