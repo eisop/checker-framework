@@ -237,7 +237,7 @@ allprojects {
 
         // plume-util includes a version of reflection-util. When updating ensure the versions are consistent.
         reflectionUtilVersion = '1.1.0'
-        plumeUtilVersion = '1.7.0'
+        plumeUtilVersion = '1.8.1'
     }
 
     if (isJava11plus) {
