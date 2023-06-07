@@ -63,6 +63,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
 
     /** An EqualityAtmComparer. */
     protected static final EqualityAtmComparer EQUALITY_COMPARER = new EqualityAtmComparer();
+
     /** A HashcodeAtmVisitor. */
     protected static final HashcodeAtmVisitor HASHCODE_VISITOR = new HashcodeAtmVisitor();
 
@@ -1139,10 +1140,13 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
 
         /** The parameter types; an unmodifiable list. */
         private List<AnnotatedTypeMirror> paramTypes;
+
         /** Whether {@link paramTypes} has been computed. */
         private boolean paramTypesComputed = false;
+
         /** The receiver type. */
         private AnnotatedDeclaredType receiverType;
+
         /**
          * The varargs type is the last element of {@link paramTypes} if the method or constructor
          * accepts a variable number of arguments and the {@link paramTypes} has not been expanded
@@ -1150,18 +1154,25 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          * AnnotatedTypes#adaptParameters(AnnotatedTypeFactory, AnnotatedExecutableType, List)}.
          */
         private @MonotonicNonNull AnnotatedArrayType varargType = null;
+
         /** Whether {@link receiverType} has been computed. */
         private boolean receiverTypeComputed = false;
+
         /** The return type. */
         private AnnotatedTypeMirror returnType;
+
         /** Whether {@link returnType} has been computed. */
         private boolean returnTypeComputed = false;
+
         /** The thrown types; an unmodifiable list. */
         private List<AnnotatedTypeMirror> thrownTypes;
+
         /** Whether {@link thrownTypes} has been computed. */
         private boolean thrownTypesComputed = false;
+
         /** The type variables; an unmodifiable list. */
         private List<AnnotatedTypeVariable> typeVarTypes;
+
         /** Whether {@link typeVarTypes} has been computed. */
         private boolean typeVarTypesComputed = false;
 

@@ -66,8 +66,10 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
 
     /** BaseTypeChecker. */
     protected final BaseTypeChecker checker;
+
     /** BaseTypeVisitor. */
     protected final BaseTypeVisitor<?> visitor;
+
     /** AnnotatedTypeFactory. */
     protected final AnnotatedTypeFactory atypeFactory;
 
