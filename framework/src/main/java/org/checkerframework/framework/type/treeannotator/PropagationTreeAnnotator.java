@@ -10,6 +10,7 @@ import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.UnaryTree;
+import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
 import java.util.Map;
 import java.util.Set;
@@ -104,7 +105,9 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
         Tree var = ((AssignmentTree) parentTree).getVariable();
         contextType = atypeFactory.getAnnotatedType(var);
       } else if (parentTree.getKind() == Tree.Kind.VARIABLE) {
-        contextType = atypeFactory.getAnnotatedType(parentTree);
+        if (!TreeUtils.isVariableTreeDeclaredUsingVar((VariableTree) parentTree)) {
+          contextType = atypeFactory.getAnnotatedType(parentTree);
+        }
       } else if (parentTree instanceof CompoundAssignmentTree) {
         Tree var = ((CompoundAssignmentTree) parentTree).getVariable();
         contextType = atypeFactory.getAnnotatedType(var);
