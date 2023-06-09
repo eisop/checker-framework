@@ -13,7 +13,7 @@ import java.lang.annotation.Target;
  *
  * <p>Any method written using {@link PolyInitialized} conceptually has three versions: one in which
  * every instance of {@link PolyInitialized} has been replaced by {@link Initialized}, one in which
- * every instance of {@link PolyInitialized} has been replaced by {@link UnderInitialization}and one
+ * every instance of {@link PolyInitialized} has been replaced by {@link UnderInitialization}, and one
  * in which every instance of {@link PolyInitialized} has been replaced by {@link
  * UnknownInitialization}.
  *
