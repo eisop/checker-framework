@@ -17,8 +17,10 @@ public class BinaryOperation extends JavaExpression {
 
     /** The binary operation kind. */
     protected final Tree.Kind operationKind;
+
     /** The left operand. */
     protected final JavaExpression left;
+
     /** The right operand. */
     protected final JavaExpression right;
 

@@ -20,8 +20,10 @@ public class Subsequence {
 
     /** Name of the Subsequence. */
     public final String array;
+
     /** First index of the subsequence in the backing sequence. */
     public final String from;
+
     /** Last index of the subsequence in the backing sequence. */
     public final String to;
 

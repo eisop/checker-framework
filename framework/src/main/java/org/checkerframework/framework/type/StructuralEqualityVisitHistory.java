@@ -17,6 +17,7 @@ public class StructuralEqualityVisitHistory {
      * AnnotationMirrorSet>})
      */
     private final SubtypeVisitHistory trueHistory;
+
     /**
      * Types in this history are not structurally equal. (Use {@link SubtypeVisitHistory} because it
      * implements a {@code Map<Pair<AnnotatedTypeMirror, AnnotatedTypeMirror>,
