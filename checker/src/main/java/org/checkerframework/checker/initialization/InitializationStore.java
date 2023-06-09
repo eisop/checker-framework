@@ -46,10 +46,10 @@ public class InitializationStore<V extends CFAbstractValue<V>, S extends Initial
      *
      * @param analysis the analysis class this store belongs to
      * @param sequentialSemantics should the analysis use sequential Java semantics?
-     *     <p>The initialCapacity of two fields are set to an arbitrary value
      */
     public InitializationStore(CFAbstractAnalysis<V, S, ?> analysis, boolean sequentialSemantics) {
         super(analysis, sequentialSemantics);
+//      The initialCapacity of two fields are set to an arbitrary value
         initializedFields = new HashSet<>(4);
         invariantFields = new HashMap<>(4);
     }

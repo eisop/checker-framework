@@ -118,7 +118,8 @@ public abstract class InitializationAnnotatedTypeFactory<
      * FBCBottom}, {@link PolyInitialized}.
      *
      * <p>This is used to quickly check if an AnnotationMirror is one of the initialization
-     * annotations without having to repeatedly convert them to strings.
+     * annotations without having to repeatedly convert them to strings. This field is initialized
+     * within the constructor.gi
      */
     protected final Set<String> initAnnoNames;
 

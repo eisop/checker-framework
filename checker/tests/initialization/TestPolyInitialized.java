@@ -1,17 +1,20 @@
 import org.checkerframework.checker.initialization.qual.Initialized;
-import org.checkerframework.checker.initialization.qual.NotOnlyInitialized;
 import org.checkerframework.checker.initialization.qual.PolyInitialized;
 import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 
 public class TestPolyInitialized {
 
-    @NotOnlyInitialized String testStr;
+    @UnknownInitialization String testStr;
 
     String test = "test";
 
     TestPolyInitialized(@UnknownInitialization String str) {
         // :: error: (method.invocation.invalid)
         this.testStr = identity(str);
+    }
+
+    TestPolyInitialized(@Initialized String str, String foo) {
+        this.testStr = str;
     }
 
     @PolyInitialized String identity(@PolyInitialized String str) {
