@@ -75,24 +75,32 @@ public class NullnessVisitor
     // "assignment.type.incompatible";
     /** Error message key. */
     private static final @CompilerMessageKey String UNBOXING_OF_NULLABLE = "unboxing.of.nullable";
+
     /** Error message key. */
     private static final @CompilerMessageKey String LOCKING_NULLABLE = "locking.nullable";
+
     /** Error message key. */
     private static final @CompilerMessageKey String THROWING_NULLABLE = "throwing.nullable";
+
     /** Error message key. */
     private static final @CompilerMessageKey String ACCESSING_NULLABLE = "accessing.nullable";
+
     /** Error message key. */
     private static final @CompilerMessageKey String CONDITION_NULLABLE = "condition.nullable";
+
     /** Error message key. */
     private static final @CompilerMessageKey String ITERATING_NULLABLE = "iterating.over.nullable";
+
     /** Error message key. */
     private static final @CompilerMessageKey String SWITCHING_NULLABLE = "switching.nullable";
+
     /** Error message key. */
     private static final @CompilerMessageKey String DEREFERENCE_OF_NULLABLE =
             "dereference.of.nullable";
 
     /** Annotation mirrors for nullness annotations. */
     private final AnnotationMirror NONNULL, NULLABLE, MONOTONIC_NONNULL;
+
     /** TypeMirror for java.lang.String. */
     private final TypeMirror stringType;
 

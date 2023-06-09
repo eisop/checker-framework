@@ -23,8 +23,10 @@ import javax.tools.Diagnostic.Kind;
 public class DiagMessage {
     /** The kind of message. */
     private final Kind kind;
+
     /** The message key. */
     private final @CompilerMessageKey String messageKey;
+
     /** The arguments that will be interpolated into the localized message. */
     private final Object[] args;
 

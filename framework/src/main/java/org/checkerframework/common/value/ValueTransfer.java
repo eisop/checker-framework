@@ -75,6 +75,7 @@ import javax.lang.model.type.TypeMirror;
 public class ValueTransfer extends CFTransfer {
     /** The Value type factory. */
     protected final ValueAnnotatedTypeFactory atypeFactory;
+
     /** The Value qualifier hierarchy. */
     protected final QualifierHierarchy hierarchy;
 

@@ -16,6 +16,7 @@ import javax.lang.model.type.TypeMirror;
 /*package-private*/ class TryStack {
     /** The exit label. */
     protected final Label exitLabel;
+
     /** The try frames. */
     protected final ArrayDeque<TryFrame> frames;
 
