@@ -11,9 +11,6 @@ public class TestPolyInitialized {
 
     TestPolyInitialized(@UnknownInitialization String str) {
         this.testStr = identity(str);
-    }
-
-    TestPolyInitialized(@UnknownInitialization String str, String foo) {
         // :: error: (assignment.type.incompatible)
         this.test = identity(str);
     }
