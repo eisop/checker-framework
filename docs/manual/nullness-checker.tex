@@ -332,6 +332,7 @@ been assigned.
 \item[\refqualclass{checker/initialization/qual}{Initialized}]
 \item[\refqualclass{checker/initialization/qual}{UnknownInitialization}]
 \item[\refqualclass{checker/initialization/qual}{UnderInitialization}]
+\item[\refqualclass{checker/initialization/qual}{PolyInitialized}]
 \end{description}
 
 \noindent
@@ -1508,6 +1509,11 @@ The initialization hierarchy contains these qualifiers:
   constructor, \code{this} has
   \refqualclass{checker/initialization/qual}{UnderInitialization} type until
   all the \code{@NonNull} fields have been assigned.
+
+\item[\refqualclass{checker/nullness/qual}{PolyInitialized}]
+indicates qualifier polymorphism.
+For a description of qualifier polymorphism, see
+Section~\ref{method-qualifier-polymorphism}.
 
 \end{description}
 
