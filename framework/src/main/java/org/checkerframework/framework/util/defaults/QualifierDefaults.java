@@ -941,8 +941,8 @@ public class QualifierDefaults {
      */
     protected void addAnnotation(AnnotatedTypeMirror type, AnnotationMirror qual) {
       // Add the default annotation, but only if no other annotation is present.
-      if (!type.isAnnotatedInHierarchy(qual) && type.getKind() != TypeKind.EXECUTABLE) {
-        type.addAnnotation(qual);
+      if (type.getKind() != TypeKind.EXECUTABLE) {
+        type.addMissingAnnotation(qual);
       }
     }
   }
