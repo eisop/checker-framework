@@ -10,7 +10,6 @@ import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
-import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
 import java.lang.annotation.Annotation;
@@ -44,7 +43,6 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
-import org.checkerframework.framework.util.AnnotationFormatter;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
@@ -64,8 +62,6 @@ import org.plumelib.util.ArraysPlume;
 public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotatedTypeFactory> {
 
   // Error message keys
-  private static final @CompilerMessageKey String COMMITMENT_INVALID_CAST =
-      "initialization.invalid.cast";
   private static final @CompilerMessageKey String COMMITMENT_INVALID_FIELD_TYPE =
       "initialization.invalid.field.type";
   private static final @CompilerMessageKey String COMMITMENT_INVALID_CONSTRUCTOR_RETURN_TYPE =
@@ -75,6 +71,9 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
           "initialization.invalid.field.write.unknown";
   private static final @CompilerMessageKey String COMMITMENT_INVALID_FIELD_WRITE_INITIALIZED =
       "initialization.invalid.field.write.initialized";
+
+  /** List of fields in the current compilation unit that have been initialized. */
+  protected final List<VariableTree> initializedFields;
 
   /**
    * Create an InitializationVisitor.
@@ -168,52 +167,6 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
     // TODO Issue 363
     // https://github.com/eisop/checker-framework/issues/363
   }
-
-  @Override
-  public Void visitTypeCast(TypeCastTree tree, Void p) {
-    AnnotatedTypeMirror exprType = atypeFactory.getAnnotatedType(tree.getExpression());
-    AnnotatedTypeMirror castType = atypeFactory.getAnnotatedType(tree);
-    AnnotationMirror exprAnno = null, castAnno = null;
-
-    // find commitment annotation
-    for (Class<? extends Annotation> a : atypeFactory.getSupportedTypeQualifiers()) {
-      if (castType.hasAnnotation(a)) {
-        assert castAnno == null;
-        castAnno = castType.getAnnotation(a);
-      }
-      if (exprType.hasAnnotation(a)) {
-        assert exprAnno == null;
-        exprAnno = exprType.getAnnotation(a);
-      }
-    }
-
-    // TODO: this is most certainly unsafe!! (and may be hiding some problems)
-    // If we don't find a commitment annotation, then we just assume that
-    // the subtyping is alright.
-    // The case that has come up is with wildcards not getting a type for
-    // some reason, even though the default is @Initialized.
-    boolean isSubtype;
-    if (exprAnno == null || castAnno == null) {
-      isSubtype = true;
-    } else {
-      assert exprAnno != null && castAnno != null;
-      isSubtype = qualHierarchy.isSubtype(exprAnno, castAnno);
-    }
-
-    if (!isSubtype) {
-      AnnotationFormatter annotationFormatter = atypeFactory.getAnnotationFormatter();
-      checker.reportError(
-          tree,
-          COMMITMENT_INVALID_CAST,
-          annotationFormatter.formatAnnotationMirror(exprAnno),
-          annotationFormatter.formatAnnotationMirror(castAnno));
-      return p; // suppress cast.unsafe warning
-    }
-
-    return super.visitTypeCast(tree, p);
-  }
-
-  protected final List<VariableTree> initializedFields;
 
   @Override
   public void processClassTree(ClassTree tree) {
