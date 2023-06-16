@@ -281,7 +281,7 @@ public class NullnessNoInitTransfer
         return false;
       }
 
-      if (varType.hasAnnotation(POLYNULL)) {
+      if (varType.hasPrimaryAnnotation(POLYNULL)) {
         NullnessNoInitValue v = s.getValue(new LocalVariable(var));
         if (!AnnotationUtils.containsSameByName(v.getAnnotations(), NONNULL)) {
           return false;
@@ -314,7 +314,7 @@ public class NullnessNoInitTransfer
         isTopLevel = false;
         return false;
       } else {
-        return type.hasAnnotation(POLYNULL);
+        return type.hasPrimaryAnnotation(POLYNULL);
       }
     }
   }
@@ -423,7 +423,7 @@ public class NullnessNoInitTransfer
     List<AnnotatedTypeMirror> methodParams = methodType.getParameterTypes();
     List<? extends ExpressionTree> methodArgs = tree.getArguments();
     for (int i = 0; i < methodParams.size() && i < methodArgs.size(); ++i) {
-      if (methodParams.get(i).hasAnnotation(NONNULL)
+      if (methodParams.get(i).hasPrimaryAnnotation(NONNULL)
           && (nonNullAssumptionAfterInvocation
               || isMethodSideEffectFree
               || JavaExpression.fromTree(methodArgs.get(i)).isUnassignableByOtherCode())) {
@@ -467,7 +467,7 @@ public class NullnessNoInitTransfer
       throw new TypeSystemError("Wrong number %d of type arguments: %s", numTypeArguments, mapType);
     }
     AnnotatedTypeMirror valueType = mapType.getTypeArguments().get(1);
-    return valueType.hasAnnotation(NULLABLE);
+    return valueType.hasPrimaryAnnotation(NULLABLE);
   }
 
   @Override

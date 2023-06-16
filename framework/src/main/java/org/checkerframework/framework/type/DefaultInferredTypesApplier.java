@@ -67,7 +67,7 @@ public class DefaultInferredTypesApplier {
       AnnotationMirror inferred,
       TypeMirror inferredTypeMirror,
       AnnotationMirror top) {
-    AnnotationMirror primary = type.getAnnotationInHierarchy(top);
+    AnnotationMirror primary = type.getPrimaryAnnotationInHierarchy(top);
     if (inferred == null) {
 
       if (primary == null) {
@@ -126,14 +126,14 @@ public class DefaultInferredTypesApplier {
     AnnotationMirror upperBound = typeVariableDecl.getEffectiveAnnotationInHierarchy(top);
     if (omitSubtypingCheck || hierarchy.isSubtype(upperBound, previousAnnotation)) {
       // TODO: clean up this method and whole class.
-      AnnotationMirror ub = typeVariableDecl.getUpperBound().getAnnotationInHierarchy(top);
-      AnnotationMirror lb = typeVariableDecl.getLowerBound().getAnnotationInHierarchy(top);
+      AnnotationMirror ub = typeVariableDecl.getUpperBound().getPrimaryAnnotationInHierarchy(top);
+      AnnotationMirror lb = typeVariableDecl.getLowerBound().getPrimaryAnnotationInHierarchy(top);
       AnnotatedTypeMirror atvUB = annotatedTypeVariable.getUpperBound();
       AnnotatedTypeMirror atvLB = annotatedTypeVariable.getLowerBound();
-      AnnotationMirror atvUBAnno = atvUB.getAnnotationInHierarchy(top);
-      AnnotationMirror atvLBAnno = atvLB.getAnnotationInHierarchy(top);
+      AnnotationMirror atvUBAnno = atvUB.getPrimaryAnnotationInHierarchy(top);
+      AnnotationMirror atvLBAnno = atvLB.getPrimaryAnnotationInHierarchy(top);
 
-      annotatedTypeVariable.removeAnnotationInHierarchy(top);
+      annotatedTypeVariable.removePrimaryAnnotationInHierarchy(top);
       atvUB.addAnnotation(atvUBAnno);
       atvLB.addAnnotation(atvLBAnno);
       apply(atvUB, ub, typeVar.getUpperBound(), top);

@@ -141,7 +141,8 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
       AnnotatedTypeMirror yType = atypeFactory.getAnnotatedType(y);
       // the special FBC rules do not apply if there is an explicit
       // UnknownInitialization annotation
-      AnnotationMirrorSet fieldAnnotations = atypeFactory.getAnnotatedType(el).getAnnotations();
+      AnnotationMirrorSet fieldAnnotations =
+          atypeFactory.getAnnotatedType(el).getPrimaryAnnotations();
       if (!AnnotationUtils.containsSameByName(
           fieldAnnotations, atypeFactory.UNKNOWN_INITIALIZATION)) {
         if (!ElementUtils.isStatic(el)
@@ -324,7 +325,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
     }
 
     // If the required type is Initialized, we always need to report an error.
-    if (varType.getAnnotation(Initialized.class) != null) {
+    if (varType.getPrimaryAnnotation(Initialized.class) != null) {
       super.reportCommonAssignmentError(varType, valueType, valueTree, errorKey, extraArgs);
       return;
     }
@@ -357,8 +358,8 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
       return;
     }
 
-    AnnotationMirror unknownInit = expected.getAnnotation(UnknownInitialization.class);
-    AnnotationMirror underInit = expected.getAnnotation(UnderInitialization.class);
+    AnnotationMirror unknownInit = expected.getPrimaryAnnotation(UnknownInitialization.class);
+    AnnotationMirror underInit = expected.getPrimaryAnnotation(UnderInitialization.class);
     TypeMirror frame;
     if (unknownInit != null) {
       frame = atypeFactory.getTypeFrameFromAnnotation(unknownInit);

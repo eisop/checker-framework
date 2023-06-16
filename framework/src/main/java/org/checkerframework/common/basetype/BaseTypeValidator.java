@@ -178,7 +178,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
   // a list.
   protected List<DiagMessage> isTopLevelValidType(AnnotatedTypeMirror type) {
     // multiple annotations from the same hierarchy
-    AnnotationMirrorSet annotations = type.getAnnotations();
+    AnnotationMirrorSet annotations = type.getPrimaryAnnotations();
     AnnotationMirrorSet seenTops = new AnnotationMirrorSet();
     for (AnnotationMirror anno : annotations) {
       AnnotationMirror top = qualHierarchy.getTopAnnotation(anno);
@@ -203,7 +203,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
 
   protected void reportValidityResult(
       @CompilerMessageKey String errorType, AnnotatedTypeMirror type, Tree p) {
-    checker.reportError(p, errorType, type.getAnnotations(), type.toString());
+    checker.reportError(p, errorType, type.getPrimaryAnnotations(), type.toString());
     isValid = false;
   }
 
@@ -219,7 +219,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
       @CompilerMessageKey String errorType, AnnotatedTypeMirror type, Tree p) {
     TypeMirror underlying =
         TypeAnnotationUtils.unannotatedType(type.getErased().getUnderlyingType());
-    checker.reportError(p, errorType, type.getAnnotations(), underlying.toString());
+    checker.reportError(p, errorType, type.getPrimaryAnnotations(), underlying.toString());
     isValid = false;
   }
 
@@ -294,7 +294,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
       AnnotationMirrorSet bounds = atypeFactory.getTypeDeclarationBounds(type.getUnderlyingType());
 
       AnnotatedDeclaredType elemType = type.deepCopy();
-      elemType.clearAnnotations();
+      elemType.clearPrimaryAnnotations();
       elemType.addAnnotations(bounds);
 
       if (!visitor.isValidUse(elemType, type, tree)) {
@@ -619,7 +619,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         // For example, Set<@1 ? super @2 Object> will collapse into Set<@2 Object>.
         // So, issue a warning if the annotations on the extends bound are not the
         // same as the annotations on the super bound.
-        AnnotationMirrorSet extendsBoundAnnos = wildcard.getExtendsBound().getAnnotations();
+        AnnotationMirrorSet extendsBoundAnnos = wildcard.getExtendsBound().getPrimaryAnnotations();
         AnnotationMirrorSet superBoundAnnos = wildcard.getSuperBound().getEffectiveAnnotations();
         if (!(qualHierarchy.isSubtype(extendsBoundAnnos, superBoundAnnos)
             && qualHierarchy.isSubtype(superBoundAnnos, extendsBoundAnnos))) {
@@ -708,7 +708,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
       return;
     }
 
-    for (AnnotationMirror am : type.getSuperBound().getAnnotations()) {
+    for (AnnotationMirror am : type.getSuperBound().getPrimaryAnnotations()) {
       List<TypeUseLocation> locations =
           visitor.qualAllowedLocations.get(AnnotationUtils.annotationName(am));
       // @Target({ElementType.TYPE_USE})} together with no @TargetLocations(...) means
@@ -728,11 +728,11 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
       checker.reportError(
           tree,
           "type.invalid.annotations.on.location",
-          type.getSuperBound().getAnnotations().toString(),
+          type.getSuperBound().getPrimaryAnnotations().toString(),
           "SUPER_WILDCARD");
     }
 
-    for (AnnotationMirror am : type.getExtendsBound().getAnnotations()) {
+    for (AnnotationMirror am : type.getExtendsBound().getPrimaryAnnotations()) {
       List<TypeUseLocation> locations =
           visitor.qualAllowedLocations.get(AnnotationUtils.annotationName(am));
       List<TypeUseLocation> upperLocations =
@@ -748,7 +748,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
       checker.reportError(
           tree,
           "type.invalid.annotations.on.location",
-          type.getExtendsBound().getAnnotations().toString(),
+          type.getExtendsBound().getPrimaryAnnotations().toString(),
           "EXTENDS_WILDCARD");
     }
   }

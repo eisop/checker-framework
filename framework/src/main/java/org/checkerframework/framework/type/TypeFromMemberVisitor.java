@@ -43,7 +43,7 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
         && variableTree.getInitializer() != null) {
       result = f.getAnnotatedType(variableTree.getInitializer());
       // Let normal defaulting happen for the primary annotation.
-      result.clearAnnotations();
+      result.clearPrimaryAnnotations();
     } else {
       // (variableTree.getType() does not include the annotation before the type, so those
       // are added to the type below).
@@ -169,7 +169,7 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
           funcTypeParam.underlyingType, lambdaParam.underlyingType, f.types)) {
         return AnnotatedTypes.asSuper(f, funcTypeParam, lambdaParam);
       }
-      lambdaParam.addMissingAnnotations(funcTypeParam.getAnnotations());
+      lambdaParam.addMissingAnnotations(funcTypeParam.getPrimaryAnnotations());
       return lambdaParam;
     }
     return null;

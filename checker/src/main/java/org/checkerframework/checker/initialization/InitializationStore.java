@@ -176,7 +176,7 @@ public class InitializationStore extends CFAbstractStore<CFValue, Initialization
     AnnotatedTypeMirror declaredType =
         AnnotatedTypes.asMemberOf(
             atypeFactory.types, atypeFactory, receiverType, fieldAccess.getField());
-    return declaredType.hasAnnotation(atypeFactory.INITIALIZED);
+    return declaredType.hasPrimaryAnnotation(atypeFactory.INITIALIZED);
   }
 
   @Override

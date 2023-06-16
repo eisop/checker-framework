@@ -1433,7 +1433,7 @@ public class AnnotationFileParser {
     // TODO: only produce output if the removed annotation isn't the top or default
     // annotation in the type hierarchy.  See https://tinyurl.com/cfissue/2759 .
     /*
-    if (!atype.getAnnotations().isEmpty()) {
+    if (!atype.getPrimaryAnnotations().isEmpty()) {
         stubWarnOverwritesBytecode(
                 String.format(
                         "in file %s at line %s removed existing annotations on type: %s",
@@ -1444,7 +1444,7 @@ public class AnnotationFileParser {
     */
     // Clear existing annotations, which only makes a difference for
     // type variables, but doesn't hurt in other cases.
-    atype.clearAnnotations();
+    atype.clearPrimaryAnnotations();
   }
 
   /**
@@ -1602,13 +1602,15 @@ public class AnnotationFileParser {
         } else if (primaryAnnotations.isEmpty()) {
           // Unannotated unbounded wildcard "?": remove any existing annotations and
           // add the annotations from the type variable corresponding to the wildcard.
-          wildcardType.getExtendsBound().clearAnnotations();
-          wildcardType.getSuperBound().clearAnnotations();
+          wildcardType.getExtendsBound().clearPrimaryAnnotations();
+          wildcardType.getSuperBound().clearPrimaryAnnotations();
           AnnotatedTypeVariable atv =
               (AnnotatedTypeVariable)
                   atypeFactory.getAnnotatedType(wildcardType.getTypeVariable().asElement());
-          wildcardType.getExtendsBound().addAnnotations(atv.getUpperBound().getAnnotations());
-          wildcardType.getSuperBound().addAnnotations(atv.getLowerBound().getAnnotations());
+          wildcardType
+              .getExtendsBound()
+              .addAnnotations(atv.getUpperBound().getPrimaryAnnotations());
+          wildcardType.getSuperBound().addAnnotations(atv.getLowerBound().getPrimaryAnnotations());
         } else {
           // Annotated unbounded wildcard "@A ?": use annotations.
           annotate(atype, primaryAnnotations, astNode);
@@ -1895,7 +1897,7 @@ public class AnnotationFileParser {
           // If there is an explicit "T extends Object" type parameter bound,
           // treat it like an explicit use of "Object" in code.
           AnnotatedTypeMirror ub = atypeFactory.getAnnotatedType(Object.class);
-          paramType.getUpperBound().replaceAnnotations(ub.getAnnotations());
+          paramType.getUpperBound().replaceAnnotations(ub.getPrimaryAnnotations());
         }
       }
 
