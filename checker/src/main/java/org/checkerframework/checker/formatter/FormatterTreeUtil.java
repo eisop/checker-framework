@@ -44,13 +44,16 @@ import javax.lang.model.util.SimpleTypeVisitor8;
 public class FormatterTreeUtil {
     /** The checker. */
     public final BaseTypeChecker checker;
+
     /** The processing environment. */
     public final ProcessingEnvironment processingEnv;
 
     /** The value() element/field of an @Format annotation. */
     protected final ExecutableElement formatValueElement;
+
     /** The value() element/field of an @InvalidFormat annotation. */
     protected final ExecutableElement invalidFormatValueElement;
+
     // private final ExecutableElement formatArgTypesElement;
 
     public FormatterTreeUtil(BaseTypeChecker checker) {
@@ -219,12 +222,16 @@ public class FormatterTreeUtil {
     public class FormatCall {
         /** The call itself. */
         /*package-private*/ final MethodInvocationTree invocationTree;
+
         /** The format string argument. */
         private final ExpressionTree formatStringTree;
+
         /** The type of the format string argument. */
         private final AnnotatedTypeMirror formatStringType;
+
         /** The arguments that follow the format string argument. */
         private final List<? extends ExpressionTree> args;
+
         /** The type factory. */
         private final AnnotatedTypeFactory atypeFactory;
 

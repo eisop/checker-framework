@@ -59,13 +59,16 @@ import javax.lang.model.util.SimpleTypeVisitor8;
 public class I18nFormatterTreeUtil {
     /** The checker. */
     public final BaseTypeChecker checker;
+
     /** The processing environment. */
     public final ProcessingEnvironment processingEnv;
 
     /** The value() element/field of an @I18nFormat annotation. */
     protected final ExecutableElement i18nFormatValueElement;
+
     /** The value() element/field of an @I18nFormatFor annotation. */
     protected final ExecutableElement i18nFormatForValueElement;
+
     /** The value() element/field of an @I18nInvalidFormat annotation. */
     protected final ExecutableElement i18nInvalidFormatValueElement;
 
@@ -295,12 +298,16 @@ public class I18nFormatterTreeUtil {
 
         /** The AST node for the call. */
         private final MethodInvocationTree tree;
+
         /** The format string argument. */
         private ExpressionTree formatArg;
+
         /** The type factory. */
         private final AnnotatedTypeFactory atypeFactory;
+
         /** The arguments to the format string. */
         private List<? extends ExpressionTree> args;
+
         /** Extra description for error messages. */
         private String invalidMessage;
 

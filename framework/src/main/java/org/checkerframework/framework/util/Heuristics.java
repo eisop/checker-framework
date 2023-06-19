@@ -173,6 +173,7 @@ public class Heuristics {
     public static class WithinTrueBranch extends Matcher {
         /** conditionMatcher for the condition */
         private final Matcher matcher;
+
         /**
          * @param conditionMatcher for the condition
          */

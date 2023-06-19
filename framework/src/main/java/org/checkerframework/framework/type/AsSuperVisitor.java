@@ -31,8 +31,10 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
 
     /** Type utilities. */
     private final Types types;
+
     /** The type factory. */
     private final AnnotatedTypeFactory atypeFactory;
+
     /**
      * Whether or not the type being visited is an uninferred type argument. If true, then the
      * underlying type may not have the correct relationship with the supertype.
@@ -316,6 +318,7 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
 
         return copyPrimaryAnnos(type, superType);
     }
+
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="visitDeclared_Other methods">
@@ -592,6 +595,7 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
             AnnotatedPrimitiveType type, AnnotatedWildcardType superType, Void p) {
         return visitPrimitive_Other(type, superType, p);
     }
+
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="visitTypevar_Other methods">
@@ -671,6 +675,7 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
 
         return copyPrimaryAnnos(type, superType);
     }
+
     // </editor-fold>
 
     /* The primary annotation on a union type is the LUB of the primary annotations on its alternatives. #ensurePrimaryIsCorrectForUnions ensures that this is the case.
@@ -725,6 +730,7 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
             AnnotatedUnionType type, AnnotatedWildcardType superType, Void p) {
         return visitUnion_Other(type, superType, p);
     }
+
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="visitWildCard_Other methods">

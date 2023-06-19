@@ -55,11 +55,13 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
 
     /** The qualifier hierarchy that is associated with this. */
     protected final QualifierHierarchy qualifierHierarchy;
+
     /** The equality comparer. */
     protected final StructuralEqualityComparer equalityComparer;
 
     /** Whether to ignore raw types. */
     protected final boolean ignoreRawTypes;
+
     /** Whether to make array subtyping invariant with respect to array component types. */
     protected final boolean invariantArrayComponents;
 

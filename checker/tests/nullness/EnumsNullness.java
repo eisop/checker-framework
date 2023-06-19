@@ -8,6 +8,7 @@ public class EnumsNullness {
         C,
         D
     }
+
     // :: error: (assignment.type.incompatible)
     MyEnum myEnum = null; // invalid
     @Nullable MyEnum myNullableEnum = null;

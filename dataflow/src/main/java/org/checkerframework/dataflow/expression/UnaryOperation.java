@@ -17,6 +17,7 @@ public class UnaryOperation extends JavaExpression {
 
     /** The unary operation kind. */
     protected final Tree.Kind operationKind;
+
     /** The operand. */
     protected final JavaExpression operand;
 
