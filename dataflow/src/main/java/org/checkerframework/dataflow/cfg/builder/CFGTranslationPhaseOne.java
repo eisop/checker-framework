@@ -1268,12 +1268,12 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     /**
      * Given a method element, its type at the call site, and a list of argument expressions, return
      * a list of {@link Node}s representing the arguments converted for a call of the method. This
-     * method applies to both method invocations and constructor calls. The constructor may need an
-     * extra enclosingExprType parameter when it is an inner class constructor with an enclosing
-     * expression, either explicit or not.
+     * method applies to both method invocations and constructor calls. The constructor takes an
+     * extra enclosingExprType argument when it is an inner class constructor with an enclosing
+     * expression.
      *
-     * @param enclosingExprType a TypeMirror of the enclosing expression if there is an explicit
-     *     enclosing expression for the constructors of inner classes
+     * @param enclosingExprType a TypeMirror of the enclosing expression if there is an enclosing
+     *     expression for the constructors of inner classes
      * @param method an ExecutableElement representing a method to be called
      * @param methodType an ExecutableType representing the type of the method call
      * @param actualExprs a List of argument expressions to a call
@@ -1328,11 +1328,10 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         && method.getKind() == ElementKind.CONSTRUCTOR
                         && ((TypeElement) method.getEnclosingElement()).getNestingKind()
                                 == NestingKind.ANONYMOUS) {
-                    TypeMirror p0tm = formals.get(0);
                     // Exclude the case when the enclosingExprType is an implicit this as we
                     // create the implicit this artificially and the first parameter is not
                     // the enclosing expression.
-                    if (types.isSameType(enclosingExprType, p0tm)) {
+                    if (types.isSameType(enclosingExprType, formals.get(0))) {
                         lastArgIndex--;
                     }
                 }
