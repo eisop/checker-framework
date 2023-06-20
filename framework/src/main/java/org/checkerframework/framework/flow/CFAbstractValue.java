@@ -57,6 +57,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
 
     /** The underlying (Java) type in this abstract value. */
     protected final TypeMirror underlyingType;
+
     /** The annotations in this abstract value. */
     protected final AnnotationMirrorSet annotations;
 

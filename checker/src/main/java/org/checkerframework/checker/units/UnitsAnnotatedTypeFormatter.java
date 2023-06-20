@@ -17,6 +17,7 @@ import javax.lang.model.util.Elements;
 public class UnitsAnnotatedTypeFormatter extends DefaultAnnotatedTypeFormatter {
     /** The checker. */
     protected final BaseTypeChecker checker;
+
     /** Javac element utilities. */
     protected final Elements elements;
 

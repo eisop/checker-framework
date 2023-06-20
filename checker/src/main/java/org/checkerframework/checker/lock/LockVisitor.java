@@ -76,6 +76,7 @@ import javax.lang.model.type.TypeMirror;
 public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
     /** The class of GuardedBy */
     private static final Class<? extends Annotation> checkerGuardedByClass = GuardedBy.class;
+
     /** The class of GuardSatisfied */
     private static final Class<? extends Annotation> checkerGuardSatisfiedClass =
             GuardSatisfied.class;
