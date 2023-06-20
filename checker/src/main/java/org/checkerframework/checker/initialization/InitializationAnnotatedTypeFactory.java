@@ -113,7 +113,7 @@ public abstract class InitializationAnnotatedTypeFactory<
     protected final Set<Class<? extends Annotation>> initAnnos;
 
     /**
-     * CanonicalName String representation of all initialization annotations.
+     * The canonical names of all initialization annotations.
      *
      * <p>{@link UnknownInitialization}, {@link UnderInitialization}, {@link Initialized}, {@link
      * FBCBottom}, {@link PolyInitialized}.
