@@ -139,6 +139,7 @@ public final class TreeUtils {
 
     /** The {@code CaseTree.getKind()} method for Java 12 and higher; null otherwise. */
     private static final @Nullable Method CASETREE_GETKIND;
+
     /** The {@code CaseTree.CaseKind.RULE} enum value for Java 12 and higher; null otherwise. */
     private static final @Nullable Enum<?> CASETREE_CASEKIND_RULE;
 
@@ -926,6 +927,7 @@ public final class TreeUtils {
         }
         return false;
     }
+
     /**
      * Returns the name of the invoked method.
      *
@@ -2031,6 +2033,7 @@ public final class TreeUtils {
             }
         }
     }
+
     /**
      * Determine whether an expression {@link ExpressionTree} has the constant value true, according
      * to the compiler logic.

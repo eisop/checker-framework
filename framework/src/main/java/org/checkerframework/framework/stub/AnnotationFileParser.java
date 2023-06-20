@@ -318,6 +318,7 @@ public class AnnotationFileParser {
          * order: the order that they are declared in the record header.
          */
         public final Map<String, RecordComponentStub> componentsByName;
+
         /**
          * If the canonical constructor is given in the stubs, the annotated types (in component
          * declaration order) for the constructor. Null if not present in the stubs.

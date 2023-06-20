@@ -68,8 +68,10 @@ public class InterningAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     /** The {@link UnknownInterned} annotation. */
     final AnnotationMirror TOP = AnnotationBuilder.fromClass(elements, UnknownInterned.class);
+
     /** The {@link Interned} annotation. */
     final AnnotationMirror INTERNED = AnnotationBuilder.fromClass(elements, Interned.class);
+
     /** The {@link InternedDistinct} annotation. */
     final AnnotationMirror INTERNED_DISTINCT =
             AnnotationBuilder.fromClass(elements, InternedDistinct.class);

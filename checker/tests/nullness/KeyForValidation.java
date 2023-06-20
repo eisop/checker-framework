@@ -48,28 +48,36 @@ public class KeyForValidation {
 
     // :: error: (expression.unparsable.type.invalid)
     void foo2(@KeyFor("ALSOBAD") Object o) {}
+
     // :: error: (expression.unparsable.type.invalid)
     void foo3(@KeyFor("ALSOBAD") Object[] o) {}
+
     // :: error: (expression.unparsable.type.invalid)
     void foo4(Map<@KeyFor("ALSOBAD") Object, Object> o) {}
+
     // :: error: (expression.unparsable.type.invalid)
     @KeyFor("ALSOBAD") Object[] foo5() {
         throw new RuntimeException();
     }
+
     // :: error: (expression.unparsable.type.invalid)
     @KeyFor("ALSOBAD") Object foo6() {
         throw new RuntimeException();
     }
+
     // :: error: (expression.unparsable.type.invalid)
     Map<@KeyFor("ALSOBAD") Object, Object> foo7() {
         throw new RuntimeException();
     }
+
     // :: error: (expression.unparsable.type.invalid)
     <@KeyFor("ALSOBAD") T> void foo8() {
         throw new RuntimeException();
     }
+
     // :: error: (expression.unparsable.type.invalid)
     <@KeyForBottom T extends @KeyFor("ALSOBAD") Object> void foo9() {}
+
     // :: error: (expression.unparsable.type.invalid)
     void foo10(@KeyFor("ALSOBAD") KeyForValidation this) {}
 
@@ -90,26 +98,33 @@ public class KeyForValidation {
 
     // :: error: (expression.unparsable.type.invalid)
     static void bar2(@KeyFor("this.instanceField") Object o) {}
+
     // :: error: (expression.unparsable.type.invalid)
     static void bar3(@KeyFor("this.instanceField") Object[] o) {}
+
     // :: error: (expression.unparsable.type.invalid)
     static void bar4(Map<@KeyFor("this.instanceField") Object, Object> o) {}
+
     // :: error: (expression.unparsable.type.invalid)
     static @KeyFor("this.instanceField") Object[] bar5() {
         throw new RuntimeException();
     }
+
     // :: error: (expression.unparsable.type.invalid)
     static @KeyFor("this.instanceField") Object bar6() {
         throw new RuntimeException();
     }
+
     // :: error: (expression.unparsable.type.invalid)
     static Map<@KeyFor("this.instanceField") Object, Object> bar7() {
         throw new RuntimeException();
     }
+
     // :: error: (expression.unparsable.type.invalid)
     static <@KeyFor("this.instanceField") T> void bar8() {
         throw new RuntimeException();
     }
+
     // :: error: (expression.unparsable.type.invalid)
     static <@KeyForBottom T extends @KeyFor("this.instanceField") Object> void bar9() {}
 
