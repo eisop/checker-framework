@@ -17,7 +17,7 @@ The class was deprecated in release 3.21.3-eisop1 (March 23, 2022) and no longer
 
 **Closed issues:**
 
-eisop#376, eisop#494
+eisop#376, eisop#494.
 
 
 Version 3.34.0-eisop1 (May 9, 2023)
