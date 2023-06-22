@@ -2911,19 +2911,19 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         Set<? extends AnnotationMirror> required = getThrowUpperBoundAnnotations();
         if (mtree != null && getExceptionList(mtree) != null) {
             List<AnnotatedTypeMirror> exceptionList = getExceptionList(mtree);
-            boolean exceptionFound = false;
+            //            boolean exceptionFound = false;
             for (AnnotatedTypeMirror exception : exceptionList) {
                 Types typesUtil = atypeFactory.getProcessingEnv().getTypeUtils();
                 if (typesUtil.isSubtype(
                         exception.getUnderlyingType(), throwType.getUnderlyingType())) {
                     required = exception.getAnnotations();
-                    exceptionFound = true;
+                    //                    exceptionFound = true;
                     break;
                 }
             }
-            if (!exceptionFound) {
-                throw new BugInCF("Exception type is not in method signature");
-            }
+            //            if (!exceptionFound) {
+            //                throw new BugInCF("Exception type is not in method signature");
+            //            }
         }
         switch (throwType.getKind()) {
             case NULL:
