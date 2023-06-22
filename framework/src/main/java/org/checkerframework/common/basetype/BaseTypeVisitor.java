@@ -2674,8 +2674,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     /**
      * Checks the type of a thrown exception. Subclasses should override
-     * checkThrownExpression(ThrowTree tree) rather than this method to change the behavior of this
-     * check.
+     * checkThrownExpression(ThrowTree tree, MethodTree mtree) rather than this method to change
+     * the behavior of this check.
      */
     @Override
     public Void visitThrow(ThrowTree tree, Void p) {
@@ -2900,14 +2900,18 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         Set<? extends AnnotationMirror> required = getThrowUpperBoundAnnotations();
         if (mtree != null && getExceptionList(mtree) != null) {
             List<AnnotatedTypeMirror> exceptionList = getExceptionList(mtree);
+            boolean exceptionFound = false;
             for (AnnotatedTypeMirror exception : exceptionList) {
                 Types typesUtil = atypeFactory.getProcessingEnv().getTypeUtils();
-                // isSameType is not good enough
-                if (typesUtil.isSameType(
+                if (typesUtil.isSubtype(
                         exception.getUnderlyingType(), throwType.getUnderlyingType())) {
                     required = exception.getAnnotations();
+                    exceptionFound = true;
                     break;
                 }
+            }
+            if (!exceptionFound) {
+                throw new BugInCF("Exception type is not in method signature");
             }
         }
         switch (throwType.getKind()) {
