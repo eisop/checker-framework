@@ -113,13 +113,16 @@ public abstract class InitializationAnnotatedTypeFactory<
     protected final Set<Class<? extends Annotation>> initAnnos;
 
     /**
-     * The canonical names of all initialization annotations.
+     * This is used to quickly check of an AnnotationMirror is one of the initialization annotations
+     * without having to repeatedly convert them to strings.
      *
-     * <p>{@link UnknownInitialization}, {@link UnderInitialization}, {@link Initialized}, {@link
-     * FBCBottom}, {@link PolyInitialized}.
+     * <p>The canonical names of all initialization annotations.
      *
-     * <p>This is used to quickly check of an AnnotationMirror is one of the initialization
-     * annotations without having to repeatedly convert them to strings.
+     * @see UnknownInitialization
+     * @see UnderInitialization
+     * @see Initialized
+     * @see FBCBottom
+     * @see PolyInitialized
      */
     protected final Set<@CanonicalName String> initAnnoNames;
 

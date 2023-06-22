@@ -28,6 +28,7 @@ public class TestPolyInitialized {
     }
 
     @Initialized String test3(@UnknownInitialization String str) {
+        @UnknownInitialization String localStr = str;
         // :: error: (return.type.incompatible)
         return identity(str);
     }
