@@ -29,7 +29,6 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.Pair;
-import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.StringsPlume;
@@ -50,9 +49,7 @@ import java.util.Set;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.DeclaredType;
@@ -1021,34 +1018,23 @@ public class AnnotatedTypes {
             List<? extends ExpressionTree> args) {
         List<AnnotatedTypeMirror> parameters = method.getParameterTypes();
 
-        // Handle anonymous constructors that extend a class with an enclosing type.
-        if (method.getElement().getKind() == ElementKind.CONSTRUCTOR
-                && ((TypeElement) method.getElement().getEnclosingElement()).getNestingKind()
-                        == NestingKind.ANONYMOUS) {
-            DeclaredType t =
-                    TypesUtils.getSuperClassOrInterface(
-                            method.getElement().getEnclosingElement().asType(), atypeFactory.types);
-            // Let the size of parameterTypes and arguments match since we make the comparison in
-            // commonAssignmentCheck later, and we only handle Java versions
-            // below 11 since they have an extra enclosing expression argument.
-            // A new anonymous inner class may have an enclosing type which is implicit, so
-            // we need to compare the first argument and the enclosing type.
-            if (t.getEnclosingType() != null
-                    && SystemUtil.jreVersion < 11
-                    && !args.isEmpty()
-                    && parameters.size() != args.size()
-                    && atypeFactory.types.isSameType(
-                            t.getEnclosingType(),
-                            atypeFactory.getAnnotatedType(args.get(0)).getUnderlyingType())) {
-                List<AnnotatedTypeMirror> p = new ArrayList<>(parameters.size() + 1);
-                p.add(atypeFactory.getAnnotatedType(args.get(0)));
-                p.addAll(parameters);
-                parameters = p;
-            }
-        }
-
         if (parameters.isEmpty()) {
             return parameters;
+        }
+
+        // Handle anonymous constructors that extend a class with an enclosing type.
+        // Let the size of parameterTypes and arguments match as we make the comparison in
+        // commonAssignmentCheck later.
+        if (!TypesUtils.isAligned(
+                method.getElement(),
+                null,
+                parameters.get(0).getUnderlyingType(),
+                atypeFactory.types)) {
+            if (parameters.size() != args.size() || args.isEmpty()) {
+                List<AnnotatedTypeMirror> p = new ArrayList<>(parameters.size());
+                p.addAll(parameters.subList(1, parameters.size()));
+                parameters = p;
+            }
         }
 
         // Handle vararg methods.

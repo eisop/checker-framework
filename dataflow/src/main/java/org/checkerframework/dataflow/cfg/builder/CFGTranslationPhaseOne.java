@@ -166,7 +166,6 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
-import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
@@ -1318,23 +1317,13 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 assert lastParamType instanceof ArrayType
                         : "variable argument formal must be an array";
                 // Handle anonymous constructors that extend a class with an enclosing type.
-                // In Java11+, we need to modify `lastArgIndex`. This is because the arguments do
-                // NOT include the enclosing expression, whereas the parameters incorporate it as
-                // its first parameter. To ensure we organize the varargs at the correct index,
-                // `lastArgIndex` should be decremented by one, compensating for the additional
-                // parameter of the enclosing expression.
-                if (SystemUtil.jreVersion >= 11
-                        && enclosingExprType != null
-                        && method.getKind() == ElementKind.CONSTRUCTOR
-                        && ((TypeElement) method.getEnclosingElement()).getNestingKind()
-                                == NestingKind.ANONYMOUS) {
-                    // Exclude the case when the enclosingExprType is an implicit this as we
-                    // create the implicit this artificially and the first parameter is not
-                    // the enclosing expression.
-                    if (types.isSameType(enclosingExprType, formals.get(0))) {
-                        lastArgIndex--;
-                    }
+                if (!TypesUtils.isAligned(method, enclosingExprType, formals.get(0), types)) {
+                    lastArgIndex--;
                 }
+                // Exclude the case when the enclosingExprType is an implicit this as we
+                // create the implicit this artificially and the first parameter is not
+                // the enclosing expression.
+
                 // Apply method invocation conversion to lastArgIndex arguments and use the
                 // remaining ones to initialize an array.
                 for (int i = 0; i < lastArgIndex; i++) {
