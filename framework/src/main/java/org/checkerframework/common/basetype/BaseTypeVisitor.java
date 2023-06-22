@@ -2674,8 +2674,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     /**
      * Checks the type of a thrown exception. Subclasses should override
-     * checkThrownExpression(ThrowTree tree, MethodTree mtree) rather than this method to change
-     * the behavior of this check.
+     * checkThrownExpression(ThrowTree tree, MethodTree mtree) rather than this method to change the
+     * behavior of this check.
      */
     @Override
     public Void visitThrow(ThrowTree tree, Void p) {
