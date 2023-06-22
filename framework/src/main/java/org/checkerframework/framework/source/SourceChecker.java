@@ -2668,8 +2668,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
    * @param ce the type system error to output
    */
   private void logTypeSystemError(TypeSystemError ce) {
-    String msg = ce.getMessage();
-    printMessage(msg);
+    logBug(
+        ce, "A type system implementation is buggy.  Please report the crash to the maintainer.");
   }
 
   /**
@@ -2678,6 +2678,16 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
    * @param ce the internal error to output
    */
   private void logBugInCF(BugInCF ce) {
+    logBug(ce, "The Checker Framework crashed.  Please report the crash.");
+  }
+
+  /**
+   * Log (that is, print) an internal error in the framework or a checker.
+   *
+   * @param ce the internal error to output
+   * @param culprit a message to print about the cause
+   */
+  private void logBug(Throwable ce, String culprit) {
     StringJoiner msg = new StringJoiner(System.lineSeparator());
     if (ce.getCause() != null && ce.getCause() instanceof OutOfMemoryError) {
       msg.add(
@@ -2693,7 +2703,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
               && processingEnv.getOptions() != null
               && processingEnv.getOptions().containsKey("noPrintErrorStack"));
 
-      msg.add("; The Checker Framework crashed.  Please report the crash.");
+      msg.add("; " + culprit);
       if (noPrintErrorStack) {
         msg.add(
             " To see the full stack trace, don't invoke the compiler with"
@@ -2722,19 +2732,21 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
       }
     }
 
-    msg.add("Exception: " + ce.getCause() + "; " + UtilPlume.stackTraceToString(ce.getCause()));
-    boolean printClasspath = ce.getCause() instanceof NoClassDefFoundError;
-    Throwable cause = ce.getCause().getCause();
-    while (cause != null) {
-      msg.add("Underlying Exception: " + cause + "; " + UtilPlume.stackTraceToString(cause));
-      printClasspath |= cause instanceof NoClassDefFoundError;
-      cause = cause.getCause();
-    }
+    if (ce.getCause() != null) {
+      msg.add("Exception: " + ce.getCause() + "; " + UtilPlume.stackTraceToString(ce.getCause()));
+      boolean printClasspath = ce.getCause() instanceof NoClassDefFoundError;
+      Throwable cause = ce.getCause().getCause();
+      while (cause != null) {
+        msg.add("Underlying Exception: " + cause + "; " + UtilPlume.stackTraceToString(cause));
+        printClasspath |= cause instanceof NoClassDefFoundError;
+        cause = cause.getCause();
+      }
 
-    if (printClasspath) {
-      msg.add("Classpath:");
-      for (URI uri : new ClassGraph().getClasspathURIs()) {
-        msg.add(uri.toString());
+      if (printClasspath) {
+        msg.add("Classpath:");
+        for (URI uri : new ClassGraph().getClasspathURIs()) {
+          msg.add(uri.toString());
+        }
       }
     }
 
