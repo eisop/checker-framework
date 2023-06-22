@@ -29,17 +29,22 @@ import java.util.regex.Pattern;
 public class OffsetEquation {
     /** The equation for 0 (zero). */
     public static final OffsetEquation ZERO = createOffsetForInt(0);
+
     /** The equation for -1. */
     public static final OffsetEquation NEG_1 = createOffsetForInt(-1);
+
     /** The equation for 1. */
     public static final OffsetEquation ONE = createOffsetForInt(1);
 
     /** Mutable list of terms that have been added to this. */
     private final List<String> addedTerms;
+
     /** Mutable list of terms that have been subtracted from this. */
     private final List<String> subtractedTerms;
+
     /** The integer offset. */
     private int intValue;
+
     /** Non-null if an error has occurred. */
     private @Nullable String error;
 
@@ -159,6 +164,7 @@ public class OffsetEquation {
         }
         return simplified ? copy : null;
     }
+
     /**
      * Adds or subtracts the other equation to a copy of this one.
      *
@@ -311,6 +317,7 @@ public class OffsetEquation {
         }
         return null;
     }
+
     /**
      * Creates an offset equation that is only the int value specified.
      *

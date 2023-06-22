@@ -24,6 +24,7 @@ public class QualifierUpperBounds {
 
     /** Map from {@link TypeKind} to annotations. */
     private final Map<TypeKind, AnnotationMirrorSet> typeKinds;
+
     /** Map from canonical class name strings to annotations. */
     private final Map<@CanonicalName String, AnnotationMirrorSet> types;
 

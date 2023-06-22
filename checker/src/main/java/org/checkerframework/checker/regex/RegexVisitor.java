@@ -35,12 +35,16 @@ public class RegexVisitor extends BaseTypeVisitor<RegexAnnotatedTypeFactory> {
 
     /** The method java.util.regex.MatchResult.end(int). */
     private final ExecutableElement matchResultEndInt;
+
     /** The method java.util.regex.MatchResult.group(int). */
     private final ExecutableElement matchResultGroupInt;
+
     /** The method java.util.regex.MatchResult.start(int). */
     private final ExecutableElement matchResultStartInt;
+
     /** The method java.util.regex.Pattern.compile. */
     private final ExecutableElement patternCompile;
+
     /** The field java.util.regex.Pattern.LITERAL. */
     private final VariableElement patternLiteral;
 
@@ -89,7 +93,7 @@ public class RegexVisitor extends BaseTypeVisitor<RegexAnnotatedTypeFactory> {
         } else if (TreeUtils.isMethodInvocation(tree, matchResultEndInt, env)
                 || TreeUtils.isMethodInvocation(tree, matchResultGroupInt, env)
                 || TreeUtils.isMethodInvocation(tree, matchResultStartInt, env)) {
-            /**
+            /*
              * Case 3: Checks calls to {@code MatchResult.start}, {@code MatchResult.end} and {@code
              * MatchResult.group} to ensure that a valid group number is passed.
              */
@@ -124,7 +128,7 @@ public class RegexVisitor extends BaseTypeVisitor<RegexAnnotatedTypeFactory> {
         return super.visitMethodInvocation(tree, p);
     }
 
-    /** Case 2: Check String compound concatenation for valid Regex use. */
+    /* Case 2: Check String compound concatenation for valid Regex use. */
     // TODO: Remove this. This should be handled by flow.
     /*
     @Override

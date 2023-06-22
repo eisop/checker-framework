@@ -65,19 +65,6 @@ public class ElementUtils {
     private static final long Flags_GENERATED_MEMBER = 16777216;
 
     /**
-     * Returns the innermost type element enclosing the given element. Returns the element itself if
-     * it is a type element.
-     *
-     * @param elem the enclosed element of a class
-     * @return the innermost type element, or null if no type element encloses {@code elem}
-     * @deprecated use {@link #enclosingTypeElement}
-     */
-    @Deprecated // 2021-01-16
-    public static @Nullable TypeElement enclosingClass(final Element elem) {
-        return enclosingTypeElement(elem);
-    }
-
-    /**
      * Returns the innermost type element that is, or encloses, the given element.
      *
      * <p>Note that in this code:
@@ -255,7 +242,7 @@ public class ElementUtils {
         if (element.getKind() == ElementKind.METHOD) {
             return ((ExecutableElement) element).getReturnType();
         } else if (element.getKind() == ElementKind.CONSTRUCTOR) {
-            return enclosingClass(element).asType();
+            return enclosingTypeElement(element).asType();
         } else {
             return element.asType();
         }
@@ -273,7 +260,7 @@ public class ElementUtils {
             return elem.getQualifiedName();
         }
 
-        TypeElement elem = enclosingClass(element);
+        TypeElement elem = enclosingTypeElement(element);
         if (elem == null) {
             return null;
         }
@@ -410,11 +397,11 @@ public class ElementUtils {
         if (element == null) {
             return false;
         }
-        TypeElement enclosingClass = enclosingClass(element);
-        if (enclosingClass == null) {
-            throw new BugInCF("enclosingClass(%s) is null", element);
+        TypeElement enclosingTypeElement = enclosingTypeElement(element);
+        if (enclosingTypeElement == null) {
+            throw new BugInCF("enclosingTypeElement(%s) is null", element);
         }
-        return isElementFromSourceCodeImpl((Symbol.ClassSymbol) enclosingClass);
+        return isElementFromSourceCodeImpl((Symbol.ClassSymbol) enclosingTypeElement);
     }
 
     /**
@@ -794,32 +781,9 @@ public class ElementUtils {
      * Return the set of kinds that represent classes.
      *
      * @return the set of kinds that represent classes
-     * @deprecated use {@link #typeElementKinds()}
-     */
-    @Deprecated // 2020-12-11
-    public static Set<ElementKind> classElementKinds() {
-        return typeElementKinds();
-    }
-
-    /**
-     * Return the set of kinds that represent classes.
-     *
-     * @return the set of kinds that represent classes
      */
     public static Set<ElementKind> typeElementKinds() {
         return typeElementKinds;
-    }
-
-    /**
-     * Is the given element kind a type, i.e., a class, enum, interface, or annotation type.
-     *
-     * @param element the element to test
-     * @return true, iff the given kind is a class kind
-     * @deprecated use {@link #isTypeElement}
-     */
-    @Deprecated // 2020-12-11
-    public static boolean isClassElement(Element element) {
-        return isTypeElement(element);
     }
 
     /**
@@ -839,7 +803,7 @@ public class ElementUtils {
      * @return true if the argument is a type declaration
      */
     public static boolean isTypeDeclaration(Element elt) {
-        return isClassElement(elt) || elt.getKind() == ElementKind.TYPE_PARAMETER;
+        return isTypeElement(elt) || elt.getKind() == ElementKind.TYPE_PARAMETER;
     }
 
     /** The set of kinds that represent local variables. */

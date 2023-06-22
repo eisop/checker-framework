@@ -26,6 +26,7 @@ public class DefaultQualifierForUseTypeAnnotator extends TypeAnnotator {
 
     /** The DefaultQualifierForUse.value field/element. */
     private final ExecutableElement defaultQualifierForUseValueElement;
+
     /** The NoDefaultQualifierForUse.value field/element. */
     private final ExecutableElement noDefaultQualifierForUseValueElement;
 
@@ -154,24 +155,6 @@ public class DefaultQualifierForUseTypeAnnotator extends TypeAnnotator {
         return supportedAnnosFromAnnotationMirror(
                 AnnotationUtils.getElementValueClassNames(
                         noDefaultQualifier, noDefaultQualifierForUseValueElement));
-    }
-
-    /**
-     * Returns the set of qualifiers supported by this type system from the value element of {@code
-     * annotationMirror}.
-     *
-     * @param annotationMirror a non-null annotation with a value element that is an array of
-     *     annotation classes
-     * @return the set of qualifiers supported by this type system from the value element of {@code
-     *     annotationMirror}
-     * @deprecated use {@link #supportedAnnosFromAnnotationMirror(List)}
-     */
-    @SuppressWarnings("deprecation") // This method is itself deprecated.
-    @Deprecated // 2021-03-21
-    protected final AnnotationMirrorSet supportedAnnosFromAnnotationMirror(
-            AnnotationMirror annotationMirror) {
-        return supportedAnnosFromAnnotationMirror(
-                AnnotationUtils.getElementValueClassNames(annotationMirror, "value", true));
     }
 
     /**
