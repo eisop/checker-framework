@@ -86,7 +86,7 @@ dependencies {
     testImplementation "org.projectlombok:lombok:${versions.lombok}"
 }
 
-task cloneTypetoolsJdk() {
+task cloneAnnotatedJdk() {
     description 'Obtain or update the annotated JDK.'
     doLast {
         if (file(annotatedJdkHome).exists()) {
@@ -115,7 +115,7 @@ task cloneTypetoolsJdk() {
 }
 
 
-task copyAndMinimizeAnnotatedJdkFiles(dependsOn: cloneTypetoolsJdk, group: 'Build') {
+task copyAndMinimizeAnnotatedJdkFiles(dependsOn: cloneAnnotatedJdk, group: 'Build') {
     dependsOn ':framework:compileJava'
     def inputDir = "${annotatedJdkHome}/src"
     def outputDir = "${buildDir}/generated/resources/annotated-jdk/"
