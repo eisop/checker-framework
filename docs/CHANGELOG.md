@@ -5,8 +5,8 @@ Version 3.34.0-eisop2 (May ?, 2023)
 
 The Initialization Checker supports new qualifier: `@PolyInitialized`.
 
-By using the `@PolyInitialized` qualifier, the Initialization Checker acknowledges that the variable or object has a set
-of potential initial values, and the code that follows must handle each possibility correctly.
+By using the `@PolyInitialized` qualifier, the Initialization Checker indicates that the field or class has a set of
+potential values, and the code using it must handle each possibility correctly.
 
 **Implementation details:**
 
