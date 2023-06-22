@@ -405,7 +405,7 @@ public class AnnotationFileElementTypes {
    *     the annotation file and in the element. {@code null} is returned if {@code element} does
    *     not appear in an annotation file.
    */
-  public AnnotationMirrorSet getDeclAnnotations(Element elt) {
+  public @Nullable AnnotationMirrorSet getDeclAnnotations(Element elt) {
     maybeParseEnclosingJdkClass(elt);
     String eltName = ElementUtils.getQualifiedName(elt);
     if (annotationFileAnnos.declAnnos.containsKey(eltName)) {
@@ -657,7 +657,7 @@ public class AnnotationFileElementTypes {
    * @return the canonical name of the outermost enclosing class of {@code e} or {@code null} if no
    *     class encloses {@code e}
    */
-  private @CanonicalNameOrEmpty String getOutermostEnclosingClass(Element e) {
+  private @Nullable @CanonicalNameOrEmpty String getOutermostEnclosingClass(Element e) {
     TypeElement enclosingClass = ElementUtils.enclosingTypeElement(e);
     if (enclosingClass == null) {
       return null;

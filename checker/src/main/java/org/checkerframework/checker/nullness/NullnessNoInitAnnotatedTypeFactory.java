@@ -775,7 +775,7 @@ public class NullnessNoInitAnnotatedTypeFactory
    * @return true if some annotation is a nullness annotation
    */
   protected boolean containsNullnessAnnotation(
-      List<? extends AnnotationTree> annoTrees, Tree typeTree) {
+      @Nullable List<? extends AnnotationTree> annoTrees, Tree typeTree) {
     List<? extends AnnotationTree> annos =
         TreeUtils.getExplicitAnnotationTrees(annoTrees, typeTree);
     return containsNullnessAnnotation(annos);

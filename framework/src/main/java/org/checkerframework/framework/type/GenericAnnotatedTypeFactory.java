@@ -41,6 +41,7 @@ import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import org.checkerframework.checker.formatter.qual.FormatMethod;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
@@ -391,7 +392,8 @@ public abstract class GenericAnnotatedTypeFactory<
   }
 
   @Override
-  protected void postInit() {
+  protected void postInit(
+      @UnderInitialization(GenericAnnotatedTypeFactory.class) GenericAnnotatedTypeFactory<Value, Store, TransferFunction, FlowAnalysis> this) {
     super.postInit();
 
     this.dependentTypesHelper = createDependentTypesHelper();
@@ -938,7 +940,7 @@ public abstract class GenericAnnotatedTypeFactory<
    * @return the annotation on expression or null if one does not exist
    * @throws JavaExpressionParseException thrown if the expression cannot be parsed
    */
-  public AnnotationMirror getAnnotationFromJavaExpressionString(
+  public @Nullable AnnotationMirror getAnnotationFromJavaExpressionString(
       String expression, Tree tree, TreePath path, Class<? extends Annotation> clazz)
       throws JavaExpressionParseException {
     JavaExpression expressionObj = parseJavaExpressionString(expression, path);
@@ -953,7 +955,7 @@ public abstract class GenericAnnotatedTypeFactory<
    * @param clazz the Class of the annotation
    * @return the annotation on expression or null if one does not exist
    */
-  public AnnotationMirror getAnnotationFromJavaExpression(
+  public @Nullable AnnotationMirror getAnnotationFromJavaExpression(
       JavaExpression expr, Tree tree, Class<? extends Annotation> clazz) {
     return getAnnotationByClass(getAnnotationsFromJavaExpression(expr, tree), clazz);
   }
@@ -965,7 +967,8 @@ public abstract class GenericAnnotatedTypeFactory<
    * @param tree current tree
    * @return the annotation on expression or null if one does not exist
    */
-  public AnnotationMirrorSet getAnnotationsFromJavaExpression(JavaExpression expr, Tree tree) {
+  public @Nullable AnnotationMirrorSet getAnnotationsFromJavaExpression(
+      JavaExpression expr, Tree tree) {
 
     // Look in the store
     if (CFAbstractStore.canInsertJavaExpression(expr)) {
@@ -1042,7 +1045,7 @@ public abstract class GenericAnnotatedTypeFactory<
    * @return an AnnotationMirror representing the type in the store at the given location from this
    *     type factory's type system, or null if one is not available
    */
-  public AnnotationMirror getAnnotationMirrorFromJavaExpressionString(
+  public @Nullable AnnotationMirror getAnnotationMirrorFromJavaExpressionString(
       String expression, Tree tree, TreePath currentPath) throws JavaExpressionParseException {
     JavaExpression je = parseJavaExpressionString(expression, currentPath);
     if (je == null || !CFAbstractStore.canInsertJavaExpression(je)) {
@@ -1180,7 +1183,7 @@ public abstract class GenericAnnotatedTypeFactory<
    * @param node a node whose pre-store to return
    * @return the store immediately before {@code node}
    */
-  public Store getStoreBefore(Node node) {
+  public @Nullable Store getStoreBefore(Node node) {
     if (!analysis.isRunning()) {
       return flowResult.getStoreBefore(node);
     }
@@ -1206,7 +1209,7 @@ public abstract class GenericAnnotatedTypeFactory<
    * @param tree the tree whose post-store to return
    * @return the store immediately after a given tree
    */
-  public Store getStoreAfter(Tree tree) {
+  public @Nullable Store getStoreAfter(Tree tree) {
     if (!analysis.isRunning()) {
       return flowResult.getStoreAfter(tree);
     }
@@ -1280,7 +1283,7 @@ public abstract class GenericAnnotatedTypeFactory<
    * @see #getStoreBefore(Tree)
    * @see #getStoreAfter(Tree)
    */
-  public <T extends Node> T getFirstNodeOfKindForTree(Tree tree, Class<T> kind) {
+  public <T extends Node> @Nullable T getFirstNodeOfKindForTree(Tree tree, Class<T> kind) {
     Set<Node> nodes = getNodesForTree(tree);
     for (Node node : nodes) {
       if (node.getClass() == kind) {
@@ -3020,7 +3023,7 @@ public abstract class GenericAnnotatedTypeFactory<
    * @return the {@code result} element of {@code contractAnnotation}, or null if it doesn't have a
    *     {@code result} element
    */
-  public Boolean getEnsuresQualifierIfResult(
+  public @Nullable Boolean getEnsuresQualifierIfResult(
       Contract.Kind kind, AnnotationMirror contractAnnotation) {
     if (kind == Contract.Kind.CONDITIONALPOSTCONDITION) {
       if (contractAnnotation instanceof EnsuresQualifierIf) {
@@ -3051,7 +3054,7 @@ public abstract class GenericAnnotatedTypeFactory<
    * @return the {@code result} element of {@code contractAnnotation}, or null if it doesn't have a
    *     {@code result} element
    */
-  public List<String> getContractExpressions(
+  public @Nullable List<String> getContractExpressions(
       Contract.Kind kind, AnnotationMirror contractAnnotation) {
     // First, handle framework annotations.
     if (contractAnnotation instanceof RequiresQualifier) {

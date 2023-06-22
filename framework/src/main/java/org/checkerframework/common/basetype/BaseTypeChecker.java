@@ -120,11 +120,11 @@ public abstract class BaseTypeChecker extends SourceChecker {
    * be run in. This list will only be non-empty for the one checker that runs all other
    * subcheckers. Do not read this field directly. Instead, retrieve it via {@link #getSubcheckers}.
    *
-   * <p>If the list still null when {@link #getSubcheckers} is called, then getSubcheckers() will
-   * call {@link #instantiateSubcheckers}. However, if the current object was itself instantiated by
-   * a prior call to instantiateSubcheckers, this field will have been initialized to an empty list
-   * before getSubcheckers() is called, thereby ensuring that this list is non-empty only for one
-   * checker.
+   * <p>If the list still null when {@link #getSubcheckers} is called, then {@code getSubcheckers()}
+   * will call {@link #instantiateSubcheckers}. However, if the current object was itself
+   * instantiated by a prior call to instantiateSubcheckers, this field will have been initialized
+   * to an empty list before {@code getSubcheckers()} is called, thereby ensuring that this list is
+   * non-empty only for one checker.
    */
   private @MonotonicNonNull List<BaseTypeChecker> subcheckers = null;
 
@@ -133,7 +133,7 @@ public abstract class BaseTypeChecker extends SourceChecker {
    * non-empty for any checker that has at least one subchecker.
    *
    * <p>Does not need to be initialized to null or an empty list because it is always initialized
-   * via calls to instantiateSubcheckers.
+   * via calls to {@link #instantiateSubcheckers}.
    */
   // Set to non-null when subcheckers is.
   private @MonotonicNonNull List<BaseTypeChecker> immediateSubcheckers = null;
@@ -314,7 +314,7 @@ public abstract class BaseTypeChecker extends SourceChecker {
    *     exist
    */
   @SuppressWarnings({"unchecked", "TypeParameterUnusedInFormals"}) // Intentional abuse
-  public static <T> T invokeConstructorFor(
+  public static <T> @Nullable T invokeConstructorFor(
       @ClassGetName String name, Class<?>[] paramTypes, Object[] args) {
 
     // Load the class.
@@ -406,7 +406,7 @@ public abstract class BaseTypeChecker extends SourceChecker {
    * @return the requested subchecker or null if not found
    */
   @SuppressWarnings("unchecked")
-  public <T extends BaseTypeChecker> T getSubchecker(Class<T> checkerClass) {
+  public <T extends BaseTypeChecker> @Nullable T getSubchecker(Class<T> checkerClass) {
     for (BaseTypeChecker checker : immediateSubcheckers) {
       if (checker.getClass() == checkerClass) {
         return (T) checker;
