@@ -525,7 +525,7 @@ public class NullnessNoInitAnnotatedTypeFactory
   @Override
   public boolean isNotFullyInitializedReceiver(MethodTree methodDeclTree) {
     InitializationFieldAccessAnnotatedTypeFactory initFactory =
-        getChecker().getTypeFactoryOfSubchecker(InitializationFieldAccessSubchecker.class);
+        getChecker().getTypeFactoryOfSubcheckerOrNull(InitializationFieldAccessSubchecker.class);
     if (initFactory == null) {
       // init checker is deactivated.
       return super.isNotFullyInitializedReceiver(methodDeclTree);
@@ -536,7 +536,7 @@ public class NullnessNoInitAnnotatedTypeFactory
   @Override
   public AnnotatedTypeMirror getAnnotatedTypeBefore(JavaExpression expr, ExpressionTree tree) {
     InitializationFieldAccessAnnotatedTypeFactory initFactory =
-        getChecker().getTypeFactoryOfSubchecker(InitializationFieldAccessSubchecker.class);
+        getChecker().getTypeFactoryOfSubcheckerOrNull(InitializationFieldAccessSubchecker.class);
     if (initFactory == null) {
       // init checker is deactivated.
       return super.getAnnotatedTypeBefore(expr, tree);

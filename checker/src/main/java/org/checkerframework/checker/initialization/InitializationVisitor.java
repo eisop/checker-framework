@@ -45,6 +45,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
@@ -523,8 +524,13 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
     }
 
     GenericAnnotatedTypeFactory<?, ?, ?, ?> factory =
-        checker.getTypeFactoryOfSubchecker(
+        checker.getTypeFactoryOfSubcheckerOrNull(
             ((InitializationChecker) checker).getTargetCheckerClass());
+    if (factory == null) {
+      throw new BugInCF(
+          "Did not find target type factory for checker "
+              + ((InitializationChecker) checker).getTargetCheckerClass());
+    }
 
     CFAbstractStore<?, ?> store =
         storeBefore ? factory.getStoreBefore(tree) : factory.getRegularExitStore(tree);

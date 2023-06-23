@@ -68,7 +68,8 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
   protected @Nullable InitializationFieldAccessAnnotatedTypeFactory getFieldAccessFactory() {
     InitializationChecker checker = getChecker();
     BaseTypeChecker targetChecker = checker.getSubchecker(checker.getTargetCheckerClass());
-    return targetChecker.getTypeFactoryOfSubchecker(InitializationFieldAccessSubchecker.class);
+    return targetChecker.getTypeFactoryOfSubcheckerOrNull(
+        InitializationFieldAccessSubchecker.class);
   }
 
   @Override

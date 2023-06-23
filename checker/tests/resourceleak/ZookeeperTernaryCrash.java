@@ -15,10 +15,8 @@ final class ZookeeperTernaryCrash {
       for (List<?> entry : entries) {
         // the need to add this annotation is annoying, but it's better than the
         // alternative, which would be to prevent boxed primitives from having must-call
-        // types at all
-        final Integer type =
-            // :: warning: cast.unsafe
-            entry.size() >= 2 ? (@MustCall({}) Integer) entry.get(0) : null;
+        // types at all.
+        final Integer type = entry.size() >= 2 ? (@MustCall({}) Integer) entry.get(0) : null;
         if (type != null) {
           if (type == SubjectName.DNS || type == SubjectName.IP) {
             final Object o = entry.get(1);
