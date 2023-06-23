@@ -1320,9 +1320,6 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 if (!TypesUtils.isAligned(method, enclosingExprType, formals.get(0), types)) {
                     lastArgIndex--;
                 }
-                // Exclude the case when the enclosingExprType is an implicit this as we
-                // create the implicit this artificially and the first parameter is not
-                // the enclosing expression.
 
                 // Apply method invocation conversion to lastArgIndex arguments and use the
                 // remaining ones to initialize an array.
