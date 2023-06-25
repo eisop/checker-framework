@@ -3,10 +3,7 @@ Version 3.34.0-eisop2 (May ?, 2023)
 
 **User-visible changes:**
 
-The Initialization Checker supports new qualifier: `@PolyInitialized`.
-
-By using the `@PolyInitialized` qualifier, the Initialization Checker indicates that the field or class has a set of
-potential values, and the code using it must handle each possibility correctly.
+The Initialization Checker supports the new qualifier `@PolyInitialized` to express qualifier polymorphism.
 
 **Implementation details:**
 

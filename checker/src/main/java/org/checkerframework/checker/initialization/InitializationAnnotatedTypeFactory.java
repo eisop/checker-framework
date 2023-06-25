@@ -113,10 +113,11 @@ public abstract class InitializationAnnotatedTypeFactory<
     protected final Set<Class<? extends Annotation>> initAnnos;
 
     /**
-     * This is used to quickly check of an AnnotationMirror is one of the initialization annotations
-     * without having to repeatedly convert them to strings.
+     * The canonical names of all initialization annotations.
      *
-     * <p>The canonical names of all initialization annotations.
+     * <p>This is used to quickly check if an AnnotationMirror is one of the initialization annotations
+     * without having to repeatedly convert them to strings.
+
      *
      * @see UnknownInitialization
      * @see UnderInitialization
