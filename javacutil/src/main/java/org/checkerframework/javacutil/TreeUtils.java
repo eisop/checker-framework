@@ -1773,7 +1773,7 @@ public final class TreeUtils {
             return true;
         }
 
-        return true;
+        return false;
     }
 
     /**
