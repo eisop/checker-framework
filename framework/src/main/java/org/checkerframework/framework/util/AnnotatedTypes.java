@@ -24,7 +24,14 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcard
 import org.checkerframework.framework.type.AsSuperVisitor;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.SyntheticArrays;
-import org.checkerframework.javacutil.*;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
+import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.Pair;
+import org.checkerframework.javacutil.SystemUtil;
+import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.StringsPlume;
 
@@ -1026,7 +1033,7 @@ public class AnnotatedTypes {
         // 2. the method is an anonymous constructor
         // 3. the constructor is invoked with an explicit enclosing expression
         // In the case, we should remove the first parameter.
-        if (SystemUtil.jreVersion < 11
+        if (SystemUtil.jreVersion >= 11
                 && tree != null
                 && TreeUtils.isAnonymousConstructorWithExplicitEnclosingExpression(
                         method.getElement(), tree)) {
