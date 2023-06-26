@@ -3610,9 +3610,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             //   }
             // }
             // the argumentReceiverType of outer.new Inner(){} is Top instead of Outer,
-            // because Java below 11 organizes newClassTree in a different way: there is a synthetic
-            // argument representing the enclosing expression type. Hence, use this synthetic
-            // argument directly.
+            // because Java below 11 organizes newClassTree of an anonymous class in a different
+            // way: there is a synthetic argument representing the enclosing expression type.
+            // Hence, use this synthetic argument directly.
             if (TreeUtils.hasSyntheticArgument(node)) {
                 argumentReceiverType = atypeFactory.getAnnotatedType(node.getArguments().get(0));
             }
