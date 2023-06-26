@@ -1020,13 +1020,15 @@ public class AnnotatedTypes {
         }
 
         // Handle anonymous constructors that extend a class with an enclosing type.
-        // In Java11+, the arguments of an anonymous class instantiation does NOT have an enclosing
-        // expression argument,
-        // while the parameters does. Let the size of parameterTypes and arguments match as we make
-        // the comparison in
-        // commonAssignmentCheck later.
+        // There is a mismatch between the number of parameters and arguments when
+        // following conditions are met:
+        // 1. Java version >= 11
+        // 2. the method is an anonymous constructor
+        // 3. the constructor is invoked with an explicit enclosing expression
+        // In the case, we should remove the first parameter.
         if (SystemUtil.jreVersion < 11
-                && TreeUtils.isAnonymousAndHasExplicitEnclosingExpression(
+                && tree != null
+                && TreeUtils.isAnonymousConstructorWithExplicitEnclosingExpression(
                         method.getElement(), tree)) {
             if (parameters.size() != args.size() || args.isEmpty()) {
                 List<AnnotatedTypeMirror> p = new ArrayList<>(parameters.size());

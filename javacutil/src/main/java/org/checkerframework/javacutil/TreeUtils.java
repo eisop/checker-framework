@@ -1756,24 +1756,17 @@ public final class TreeUtils {
     /**
      * Returns true if the passed constructor is anonymous and has explicit enclosing expression.
      *
-     * @param con an ExecutableElement of an anonymous constructor declaration
-     * @param tree the NewClassTree of the anonymous constructor declaration
+     * @param con an ExecutableElement of a constructor declaration
+     * @param tree the NewClassTree of a constructor declaration
      * @return true if there is an extra enclosing expression
      */
-    public static boolean isAnonymousAndHasExplicitEnclosingExpression(
+    public static boolean isAnonymousConstructorWithExplicitEnclosingExpression(
             ExecutableElement con, NewClassTree tree) {
 
-        if (!(con.getKind() == ElementKind.CONSTRUCTOR
+        return (tree.getEnclosingExpression() != null)
+                && con.getKind() == ElementKind.CONSTRUCTOR
                 && ((TypeElement) con.getEnclosingElement()).getNestingKind()
-                        == NestingKind.ANONYMOUS)) {
-            return false;
-        }
-
-        if (tree.getEnclosingExpression() != null) {
-            return true;
-        }
-
-        return false;
+                        == NestingKind.ANONYMOUS;
     }
 
     /**
