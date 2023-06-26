@@ -2352,36 +2352,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
     }
 
-    //    /**
-    //     * Returns the correct receiver type of the constructor. Consider the following code:
-    // Class
-    //     * Outer { Class Inner{} } Class Top{ void test(Outer outer) { outer.new Inner(){}; } } In
-    // Java
-    //     * versions below 11, the argumentReceiverType of outer.new Inner(){} is Top instead of
-    // Outer,
-    //     * because Java below 11 organizes newClassTree in a different way: there is a synthetic
-    //     * argument representing the enclosing expression type. Hence, use this synthetic argument
-    // when
-    //     * the underlying types are different.
-    //     *
-    //     * @param newClassTree the newClassTree for which to determine the receiver type
-    //     *     constructor
-    //     * @return the type of the receiver of expression
-    //     */
-    //    public final AnnotatedTypeMirror getReceiverType(
-    //            NewClassTree newClassTree) {
-    //        AnnotatedTypeMirror receiverType = getReceiverType(newClassTree);
-    //        if (TreeUtils.hasSyntheticArgument(newClassTree)) {
-    ////        if (TreeUtils.hasSyntheticArgument(newClassTree)
-    ////                && (receiverType == null
-    ////                        || !types.isSameType(
-    ////                                formalReceiverType.getUnderlyingType(),
-    ////                                receiverType.getUnderlyingType()))) {
-    //            receiverType = getAnnotatedType(newClassTree.getArguments().get(0));
-    //        }
-    //        return receiverType;
-    //    }
-
     /** The type for an instantiated generic method or constructor. */
     public static class ParameterizedExecutableType {
         /** The method's/constructor's type. */

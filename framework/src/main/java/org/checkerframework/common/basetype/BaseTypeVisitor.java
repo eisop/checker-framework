@@ -3600,6 +3600,19 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         if (parameterReceiverType != null) {
             AnnotatedTypeMirror argumentReceiverType;
             argumentReceiverType = atypeFactory.getReceiverType(node);
+            // In Java versions below 11, consider the following code:
+            // class Outer {
+            //   class Inner{}
+            // }
+            // class Top {
+            //   void test(Outer outer) {
+            //     outer.new Inner(){};
+            //   }
+            // }
+            // the argumentReceiverType of outer.new Inner(){} is Top instead of Outer,
+            // because Java below 11 organizes newClassTree in a different way: there is a synthetic
+            // argument representing the enclosing expression type. Hence, use this synthetic
+            // argument directly.
             if (TreeUtils.hasSyntheticArgument(node)) {
                 argumentReceiverType = atypeFactory.getAnnotatedType(node.getArguments().get(0));
             }
