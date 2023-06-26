@@ -24,12 +24,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcard
 import org.checkerframework.framework.type.AsSuperVisitor;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.SyntheticArrays;
-import org.checkerframework.javacutil.AnnotationMirrorSet;
-import org.checkerframework.javacutil.AnnotationUtils;
-import org.checkerframework.javacutil.BugInCF;
-import org.checkerframework.javacutil.ElementUtils;
-import org.checkerframework.javacutil.Pair;
-import org.checkerframework.javacutil.TypesUtils;
+import org.checkerframework.javacutil.*;
 import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.StringsPlume;
 
@@ -995,7 +990,7 @@ public class AnnotatedTypes {
             AnnotatedTypeFactory atypeFactory,
             AnnotatedExecutableType method,
             List<? extends ExpressionTree> args) {
-        return adaptParameters(atypeFactory, method, args);
+        return adaptParameters(atypeFactory, method, args, null);
     }
 
     /**
@@ -1009,13 +1004,15 @@ public class AnnotatedTypes {
      * @param atypeFactory the type factory to use for fetching annotated types
      * @param method the method or constructor's type
      * @param args the arguments to the method or constructor invocation
+     * @param tree the NewClassTree if method is a constructor
      * @return a list of the types that the invocation arguments need to be subtype of; has the same
      *     length as {@code args}
      */
     public static List<AnnotatedTypeMirror> adaptParameters(
             AnnotatedTypeFactory atypeFactory,
             AnnotatedExecutableType method,
-            List<? extends ExpressionTree> args) {
+            List<? extends ExpressionTree> args,
+            @Nullable NewClassTree tree) {
         List<AnnotatedTypeMirror> parameters = method.getParameterTypes();
 
         if (parameters.isEmpty()) {
@@ -1025,11 +1022,7 @@ public class AnnotatedTypes {
         // Handle anonymous constructors that extend a class with an enclosing type.
         // Let the size of parameterTypes and arguments match as we make the comparison in
         // commonAssignmentCheck later.
-        if (!TypesUtils.isAligned(
-                method.getElement(),
-                null,
-                parameters.get(0).getUnderlyingType(),
-                atypeFactory.types)) {
+        if (TreeUtils.hasExtraEnclosingExpressionParameter(method.getElement(), tree)) {
             if (parameters.size() != args.size() || args.isEmpty()) {
                 List<AnnotatedTypeMirror> p = new ArrayList<>(parameters.size());
                 p.addAll(parameters.subList(1, parameters.size()));

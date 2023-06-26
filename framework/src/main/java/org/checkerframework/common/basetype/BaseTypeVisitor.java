@@ -3599,7 +3599,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotatedTypeMirror parameterReceiverType = constructorType.getReceiverType();
         if (parameterReceiverType != null) {
             AnnotatedTypeMirror argumentReceiverType;
-            argumentReceiverType = atypeFactory.getReceiverType(node, parameterReceiverType);
+            argumentReceiverType = atypeFactory.getReceiverType(node);
+            if (TreeUtils.hasSyntheticArgument(node)) {
+                argumentReceiverType = atypeFactory.getAnnotatedType(node.getArguments().get(0));
+            }
             commonAssignmentCheck(
                     parameterReceiverType,
                     argumentReceiverType,

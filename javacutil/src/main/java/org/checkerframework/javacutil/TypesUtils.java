@@ -26,8 +26,6 @@ import java.util.StringJoiner;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.TypeElement;
@@ -729,51 +727,6 @@ public final class TypesUtils {
             return false;
         }
         return ((Type.TypeVar) TypeAnnotationUtils.unannotatedType(type)).isCaptured();
-    }
-
-    /**
-     * Returns true if the parameters and args of an anonymous constructor are aligned.
-     *
-     * <p>In Java11+, the number of the parameters and args of an anonymous may be different. This
-     * is because the arguments do NOT include the enclosing expression, whereas the parameters
-     * incorporate it as its first parameter.
-     *
-     * @param method an ExecutableElement
-     * @param enclosingExprType the TypeMirror of an enclosingExprType
-     * @param p0tm the first parameter
-     * @param types a Types object
-     * @return true if the parameters and arguments are aligned
-     */
-    public static boolean isAligned(
-            ExecutableElement method,
-            @Nullable TypeMirror enclosingExprType,
-            TypeMirror p0tm,
-            Types types) {
-
-        if (SystemUtil.jreVersion < 11) {
-            return true;
-        }
-
-        if (!(method.getKind() == ElementKind.CONSTRUCTOR
-                && ((TypeElement) method.getEnclosingElement()).getNestingKind()
-                        == NestingKind.ANONYMOUS)) {
-            return true;
-        }
-
-        if (enclosingExprType == null) {
-            DeclaredType t =
-                    TypesUtils.getSuperClassOrInterface(
-                            method.getEnclosingElement().asType(), types);
-            if (t != null) {
-                enclosingExprType = t.getEnclosingType();
-            }
-        }
-
-        if (enclosingExprType != null && types.isSameType(enclosingExprType, p0tm)) {
-            return false;
-        }
-
-        return true;
     }
 
     /**

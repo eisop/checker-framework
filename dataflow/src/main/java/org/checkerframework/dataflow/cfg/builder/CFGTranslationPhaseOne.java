@@ -1276,6 +1276,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * @param method an ExecutableElement representing a method to be called
      * @param methodType an ExecutableType representing the type of the method call
      * @param actualExprs a List of argument expressions to a call
+     * @param tree the NewClassTree if the method is a constructor
      * @return a List of {@link Node}s representing arguments after conversions required by a call
      *     to this method
      */
@@ -1283,7 +1284,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             @Nullable TypeMirror enclosingExprType,
             ExecutableElement method,
             ExecutableType methodType,
-            List<? extends ExpressionTree> actualExprs) {
+            List<? extends ExpressionTree> actualExprs,
+            @Nullable NewClassTree tree) {
         // NOTE: It is important to convert one method argument before generating CFG nodes for the
         // next argument, since label binding expects nodes to be generated in execution order.
         // Therefore, this method first determines which conversions need to be applied and then
@@ -1317,7 +1319,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 assert lastParamType instanceof ArrayType
                         : "variable argument formal must be an array";
                 // Handle anonymous constructors that extend a class with an enclosing type.
-                if (!TypesUtils.isAligned(method, enclosingExprType, formals.get(0), types)) {
+                if (TreeUtils.hasExtraEnclosingExpressionParameter(method, tree)) {
                     lastArgIndex--;
                 }
 
@@ -1513,7 +1515,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             arguments = Collections.emptyList();
         } else {
             arguments =
-                    convertCallArguments(null, method, TreeUtils.typeFromUse(tree), actualExprs);
+                    convertCallArguments(
+                            null, method, TreeUtils.typeFromUse(tree), actualExprs, null);
         }
 
         // TODO: lock the receiver for synchronized methods
@@ -3507,7 +3510,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
         List<Node> arguments =
                 convertCallArguments(
-                        enclosingType, constructor, TreeUtils.typeFromUse(tree), actualExprs);
+                        enclosingType, constructor, TreeUtils.typeFromUse(tree), actualExprs, tree);
 
         // TODO: for anonymous classes, don't use the identifier alone.
         // See https://github.com/typetools/checker-framework/issues/890 .
