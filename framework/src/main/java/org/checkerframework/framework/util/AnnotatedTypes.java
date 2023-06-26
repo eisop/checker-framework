@@ -24,13 +24,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcard
 import org.checkerframework.framework.type.AsSuperVisitor;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.SyntheticArrays;
-import org.checkerframework.javacutil.AnnotationMirrorSet;
-import org.checkerframework.javacutil.AnnotationUtils;
-import org.checkerframework.javacutil.BugInCF;
-import org.checkerframework.javacutil.ElementUtils;
-import org.checkerframework.javacutil.Pair;
-import org.checkerframework.javacutil.TreeUtils;
-import org.checkerframework.javacutil.TypesUtils;
+import org.checkerframework.javacutil.*;
 import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.StringsPlume;
 
@@ -1026,9 +1020,14 @@ public class AnnotatedTypes {
         }
 
         // Handle anonymous constructors that extend a class with an enclosing type.
-        // Let the size of parameterTypes and arguments match as we make the comparison in
+        // In Java11+, the arguments of an anonymous class instantiation does NOT have an enclosing
+        // expression argument,
+        // while the parameters does. Let the size of parameterTypes and arguments match as we make
+        // the comparison in
         // commonAssignmentCheck later.
-        if (TreeUtils.hasExtraEnclosingExpressionParameter(method.getElement(), tree)) {
+        if (SystemUtil.jreVersion < 11
+                && TreeUtils.anonymousConstructorHasExplicitEnclosingExpression(
+                        method.getElement(), tree)) {
             if (parameters.size() != args.size() || args.isEmpty()) {
                 List<AnnotatedTypeMirror> p = new ArrayList<>(parameters.size());
                 p.addAll(parameters.subList(1, parameters.size()));

@@ -1754,24 +1754,14 @@ public final class TreeUtils {
     }
 
     /**
-     * Returns true if an anonymous constructor has an extra enclosing expression parameter.
-     *
-     * <p>In Java11+, an anonymous class incorporate an enclosing expression as its first parameter
-     * if it has an EXPLICIT enclosing expression. However, the arguments of the instantiation do
-     * not contain this enclosing expression argument. We use this method to determine whether there
-     * is a mismatch between the number of the parameters of an anonymous declaration and the
-     * arguments of the instantiation.
+     * Returns true if an anonymous constructor has an explicit enclosing expression.
      *
      * @param con an ExecutableElement of an anonymous constructor declaration
      * @param tree the NewClassTree of the anonymous constructor declaration
-     * @return true if the parameters and arguments are aligned
+     * @return true if there is an extra enclosing expression
      */
-    public static boolean hasExtraEnclosingExpressionParameter(
+    public static boolean anonymousConstructorHasExplicitEnclosingExpression(
             ExecutableElement con, NewClassTree tree) {
-
-        if (SystemUtil.jreVersion < 11) {
-            return false;
-        }
 
         if (!(con.getKind() == ElementKind.CONSTRUCTOR
                 && ((TypeElement) con.getEnclosingElement()).getNestingKind()
@@ -1779,16 +1769,11 @@ public final class TreeUtils {
             return false;
         }
 
-        // If the enclosing expression is implicit, e.., new Inner(){}, then the anonymous
-        // constructor declaration
-        // does not have this extra enclosing expression parameter. We exclude it by checking
-        // whether there is
-        // an enclosing expression in the tree
         if (tree.getEnclosingExpression() != null) {
             return true;
         }
 
-        return false;
+        return true;
     }
 
     /**
