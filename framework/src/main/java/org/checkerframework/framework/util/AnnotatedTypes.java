@@ -1026,7 +1026,7 @@ public class AnnotatedTypes {
         // the comparison in
         // commonAssignmentCheck later.
         if (SystemUtil.jreVersion < 11
-                && TreeUtils.anonymousConstructorHasExplicitEnclosingExpression(
+                && TreeUtils.isAnonymousAndHasExplicitEnclosingExpression(
                         method.getElement(), tree)) {
             if (parameters.size() != args.size() || args.isEmpty()) {
                 List<AnnotatedTypeMirror> p = new ArrayList<>(parameters.size());

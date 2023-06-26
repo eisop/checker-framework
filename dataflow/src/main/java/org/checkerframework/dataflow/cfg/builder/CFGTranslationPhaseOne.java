@@ -1323,8 +1323,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 // enclosing expression argument,
                 // while the parameters does.
                 if (SystemUtil.jreVersion < 11
-                        && TreeUtils.anonymousConstructorHasExplicitEnclosingExpression(
-                                method, tree)) {
+                        && TreeUtils.isAnonymousAndHasExplicitEnclosingExpression(method, tree)) {
                     lastArgIndex--;
                 }
 

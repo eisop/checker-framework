@@ -1754,13 +1754,13 @@ public final class TreeUtils {
     }
 
     /**
-     * Returns true if an anonymous constructor has an explicit enclosing expression.
+     * Returns true if the passed constructor is anonymous and has explicit enclosing expression.
      *
      * @param con an ExecutableElement of an anonymous constructor declaration
      * @param tree the NewClassTree of the anonymous constructor declaration
      * @return true if there is an extra enclosing expression
      */
-    public static boolean anonymousConstructorHasExplicitEnclosingExpression(
+    public static boolean isAnonymousAndHasExplicitEnclosingExpression(
             ExecutableElement con, NewClassTree tree) {
 
         if (!(con.getKind() == ElementKind.CONSTRUCTOR
