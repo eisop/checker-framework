@@ -19,7 +19,7 @@ import org.checkerframework.framework.source.SuppressWarningsPrefix;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.HashSet;
-import java.util.LinkedHashSet;
+import java.util.Set;
 
 import javax.lang.model.element.ExecutableElement;
 
@@ -107,9 +107,8 @@ public class UpperBoundChecker extends BaseTypeChecker {
     }
 
     @Override
-    protected LinkedHashSet<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
-        LinkedHashSet<Class<? extends BaseTypeChecker>> checkers =
-                super.getImmediateSubcheckerClasses();
+    protected Set<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
+        Set<Class<? extends BaseTypeChecker>> checkers = super.getImmediateSubcheckerClasses();
         checkers.add(SubstringIndexChecker.class);
         checkers.add(SearchIndexChecker.class);
         checkers.add(SameLenChecker.class);
