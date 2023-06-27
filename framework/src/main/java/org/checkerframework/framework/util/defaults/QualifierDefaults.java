@@ -913,7 +913,7 @@ public class QualifierDefaults {
             this.atypeFactory = atypeFactory;
             this.scope = scope;
             this.type = type;
-            this.impl = new DefaultApplierElementImpl();
+            this.impl = new DefaultApplierElementImpl(this);
             this.defaultableTypeVar = applyToTypeVar ? (AnnotatedTypeVariable) type : null;
         }
 
@@ -955,243 +955,245 @@ public class QualifierDefaults {
          * @param qual annotation to add
          */
         protected void addAnnotation(AnnotatedTypeMirror type, AnnotationMirror qual) {
-            // Add the default annotation, but only if no other
-            // annotation is present.
+            // Add the default annotation, but only if no other annotation is present.
             if (!type.isAnnotatedInHierarchy(qual) && type.getKind() != TypeKind.EXECUTABLE) {
                 type.addAnnotation(qual);
             }
         }
+    }
 
-        protected class DefaultApplierElementImpl
-                extends AnnotatedTypeScanner<Void, AnnotationMirror> {
+    // Only reason this cannot be `static` is call to `getBoundType`.
+    protected class DefaultApplierElementImpl extends AnnotatedTypeScanner<Void, AnnotationMirror> {
+        private final DefaultApplierElement outer;
 
-            @Override
-            public Void scan(@FindDistinct AnnotatedTypeMirror t, AnnotationMirror qual) {
-                if (!shouldBeAnnotated(t, t == defaultableTypeVar)) {
-                    return super.scan(t, qual);
-                }
+        protected DefaultApplierElementImpl(DefaultApplierElement outer) {
+            this.outer = outer;
+        }
 
-                // Some defaults only apply to the top level type.
-                boolean isTopLevelType = t == type;
-                switch (location) {
-                    case FIELD:
-                        if (scope != null
-                                && scope.getKind() == ElementKind.FIELD
-                                && isTopLevelType) {
-                            addAnnotation(t, qual);
-                        }
-                        break;
-                    case LOCAL_VARIABLE:
-                        if (scope != null
-                                && scope.getKind() == ElementKind.LOCAL_VARIABLE
-                                && isTopLevelType) {
-                            // TODO: how do we determine that we are in a cast or instanceof type?
-                            addAnnotation(t, qual);
-                        }
-                        break;
-                    case RESOURCE_VARIABLE:
-                        if (scope != null
-                                && scope.getKind() == ElementKind.RESOURCE_VARIABLE
-                                && isTopLevelType) {
-                            addAnnotation(t, qual);
-                        }
-                        break;
-                    case EXCEPTION_PARAMETER:
-                        if (scope != null
-                                && scope.getKind() == ElementKind.EXCEPTION_PARAMETER
-                                && isTopLevelType) {
-                            addAnnotation(t, qual);
-                            if (t.getKind() == TypeKind.UNION) {
-                                AnnotatedUnionType aut = (AnnotatedUnionType) t;
-                                // Also apply the default to the alternative types
-                                for (AnnotatedDeclaredType anno : aut.getAlternatives()) {
-                                    addAnnotation(anno, qual);
-                                }
-                            }
-                        }
-                        break;
-                    case PARAMETER:
-                        if (scope != null
-                                && scope.getKind() == ElementKind.PARAMETER
-                                && isTopLevelType) {
-                            addAnnotation(t, qual);
-                        } else if (scope != null
-                                && (scope.getKind() == ElementKind.METHOD
-                                        || scope.getKind() == ElementKind.CONSTRUCTOR)
-                                && t.getKind() == TypeKind.EXECUTABLE
-                                && isTopLevelType) {
-                            for (AnnotatedTypeMirror atm :
-                                    ((AnnotatedExecutableType) t).getParameterTypes()) {
-                                if (shouldBeAnnotated(atm, false)) {
-                                    addAnnotation(atm, qual);
-                                }
-                            }
-                        }
-                        break;
-                    case RECEIVER:
-                        if (scope != null
-                                && scope.getKind() == ElementKind.PARAMETER
-                                && isTopLevelType
-                                && scope.getSimpleName().contentEquals("this")) {
-                            // TODO: comparison against "this" is ugly, won't work
-                            // for all possible names for receiver parameter.
-                            // Comparison to Names._this might be a bit faster.
-                            addAnnotation(t, qual);
-                        } else if (scope != null
-                                && (scope.getKind() == ElementKind.METHOD)
-                                && t.getKind() == TypeKind.EXECUTABLE
-                                && isTopLevelType) {
-                            final AnnotatedDeclaredType receiver =
-                                    ((AnnotatedExecutableType) t).getReceiverType();
-                            if (shouldBeAnnotated(receiver, false)) {
-                                addAnnotation(receiver, qual);
-                            }
-                        }
-                        break;
-                    case RETURN:
-                        if (scope != null
-                                && scope.getKind() == ElementKind.METHOD
-                                && t.getKind() == TypeKind.EXECUTABLE
-                                && isTopLevelType) {
-                            final AnnotatedTypeMirror returnType =
-                                    ((AnnotatedExecutableType) t).getReturnType();
-                            if (shouldBeAnnotated(returnType, false)) {
-                                addAnnotation(returnType, qual);
-                            }
-                        }
-                        break;
-                    case CONSTRUCTOR_RESULT:
-                        if (scope != null
-                                && scope.getKind() == ElementKind.CONSTRUCTOR
-                                && t.getKind() == TypeKind.EXECUTABLE
-                                && isTopLevelType) {
-                            // This is the return type of a constructor declaration (not a
-                            // constructor invocation).
-                            final AnnotatedTypeMirror returnType =
-                                    ((AnnotatedExecutableType) t).getReturnType();
-                            if (shouldBeAnnotated(returnType, false)) {
-                                addAnnotation(returnType, qual);
-                            }
-                        }
-                        break;
-                    case IMPLICIT_LOWER_BOUND:
-                        if (isLowerBound
-                                && (boundType == BoundType.UNBOUNDED
-                                        || boundType == BoundType.UPPER)) {
-                            addAnnotation(t, qual);
-                        }
-                        break;
-                    case EXPLICIT_LOWER_BOUND:
-                        if (isLowerBound && boundType == BoundType.LOWER) {
-                            addAnnotation(t, qual);
-                        }
-                        break;
-                    case LOWER_BOUND:
-                        if (isLowerBound) {
-                            addAnnotation(t, qual);
-                        }
-                        break;
-                    case IMPLICIT_UPPER_BOUND:
-                        if (isUpperBound
-                                && (boundType == BoundType.UNBOUNDED
-                                        || boundType == BoundType.LOWER)) {
-                            addAnnotation(t, qual);
-                        }
-                        break;
-                    case EXPLICIT_UPPER_BOUND:
-                        if (isUpperBound && boundType == BoundType.UPPER) {
-                            addAnnotation(t, qual);
-                        }
-                        break;
-                    case UPPER_BOUND:
-                        if (isUpperBound) {
-                            addAnnotation(t, qual);
-                        }
-                        break;
-                    case OTHERWISE:
-                    case ALL:
-                        // TODO: forbid ALL if anything else was given.
-                        addAnnotation(t, qual);
-                        break;
-                    default:
-                        throw new BugInCF(
-                                "QualifierDefaults.DefaultApplierElement: unhandled location: "
-                                        + location);
-                }
-
+        @Override
+        public Void scan(@FindDistinct AnnotatedTypeMirror t, AnnotationMirror qual) {
+            if (!outer.shouldBeAnnotated(t, t == outer.defaultableTypeVar)) {
                 return super.scan(t, qual);
             }
 
-            @Override
-            public void reset() {
-                super.reset();
-                impl.isLowerBound = false;
-                impl.isUpperBound = false;
-                impl.boundType = BoundType.UNBOUNDED;
+            // Some defaults only apply to the top level type.
+            boolean isTopLevelType = t == outer.type;
+            switch (outer.location) {
+                case FIELD:
+                    if (outer.scope != null
+                            && outer.scope.getKind() == ElementKind.FIELD
+                            && isTopLevelType) {
+                        outer.addAnnotation(t, qual);
+                    }
+                    break;
+                case LOCAL_VARIABLE:
+                    if (outer.scope != null
+                            && outer.scope.getKind() == ElementKind.LOCAL_VARIABLE
+                            && isTopLevelType) {
+                        // TODO: how do we determine that we are in a cast or instanceof type?
+                        outer.addAnnotation(t, qual);
+                    }
+                    break;
+                case RESOURCE_VARIABLE:
+                    if (outer.scope != null
+                            && outer.scope.getKind() == ElementKind.RESOURCE_VARIABLE
+                            && isTopLevelType) {
+                        outer.addAnnotation(t, qual);
+                    }
+                    break;
+                case EXCEPTION_PARAMETER:
+                    if (outer.scope != null
+                            && outer.scope.getKind() == ElementKind.EXCEPTION_PARAMETER
+                            && isTopLevelType) {
+                        outer.addAnnotation(t, qual);
+                        if (t.getKind() == TypeKind.UNION) {
+                            AnnotatedUnionType aut = (AnnotatedUnionType) t;
+                            // Also apply the default to the alternative types
+                            for (AnnotatedDeclaredType anno : aut.getAlternatives()) {
+                                outer.addAnnotation(anno, qual);
+                            }
+                        }
+                    }
+                    break;
+                case PARAMETER:
+                    if (outer.scope != null
+                            && outer.scope.getKind() == ElementKind.PARAMETER
+                            && isTopLevelType) {
+                        outer.addAnnotation(t, qual);
+                    } else if (outer.scope != null
+                            && (outer.scope.getKind() == ElementKind.METHOD
+                                    || outer.scope.getKind() == ElementKind.CONSTRUCTOR)
+                            && t.getKind() == TypeKind.EXECUTABLE
+                            && isTopLevelType) {
+                        for (AnnotatedTypeMirror atm :
+                                ((AnnotatedExecutableType) t).getParameterTypes()) {
+                            if (outer.shouldBeAnnotated(atm, false)) {
+                                outer.addAnnotation(atm, qual);
+                            }
+                        }
+                    }
+                    break;
+                case RECEIVER:
+                    if (outer.scope != null
+                            && outer.scope.getKind() == ElementKind.PARAMETER
+                            && isTopLevelType
+                            && outer.scope.getSimpleName().contentEquals("this")) {
+                        // TODO: comparison against "this" is ugly, won't work
+                        // for all possible names for receiver parameter.
+                        // Comparison to Names._this might be a bit faster.
+                        outer.addAnnotation(t, qual);
+                    } else if (outer.scope != null
+                            && (outer.scope.getKind() == ElementKind.METHOD)
+                            && t.getKind() == TypeKind.EXECUTABLE
+                            && isTopLevelType) {
+                        final AnnotatedDeclaredType receiver =
+                                ((AnnotatedExecutableType) t).getReceiverType();
+                        if (outer.shouldBeAnnotated(receiver, false)) {
+                            outer.addAnnotation(receiver, qual);
+                        }
+                    }
+                    break;
+                case RETURN:
+                    if (outer.scope != null
+                            && outer.scope.getKind() == ElementKind.METHOD
+                            && t.getKind() == TypeKind.EXECUTABLE
+                            && isTopLevelType) {
+                        final AnnotatedTypeMirror returnType =
+                                ((AnnotatedExecutableType) t).getReturnType();
+                        if (outer.shouldBeAnnotated(returnType, false)) {
+                            outer.addAnnotation(returnType, qual);
+                        }
+                    }
+                    break;
+                case CONSTRUCTOR_RESULT:
+                    if (outer.scope != null
+                            && outer.scope.getKind() == ElementKind.CONSTRUCTOR
+                            && t.getKind() == TypeKind.EXECUTABLE
+                            && isTopLevelType) {
+                        // This is the return type of a constructor declaration (not a
+                        // constructor invocation).
+                        final AnnotatedTypeMirror returnType =
+                                ((AnnotatedExecutableType) t).getReturnType();
+                        if (outer.shouldBeAnnotated(returnType, false)) {
+                            outer.addAnnotation(returnType, qual);
+                        }
+                    }
+                    break;
+                case IMPLICIT_LOWER_BOUND:
+                    if (isLowerBound
+                            && (boundType == BoundType.UNBOUNDED || boundType == BoundType.UPPER)) {
+                        outer.addAnnotation(t, qual);
+                    }
+                    break;
+                case EXPLICIT_LOWER_BOUND:
+                    if (isLowerBound && boundType == BoundType.LOWER) {
+                        outer.addAnnotation(t, qual);
+                    }
+                    break;
+                case LOWER_BOUND:
+                    if (isLowerBound) {
+                        outer.addAnnotation(t, qual);
+                    }
+                    break;
+                case IMPLICIT_UPPER_BOUND:
+                    if (isUpperBound
+                            && (boundType == BoundType.UNBOUNDED || boundType == BoundType.LOWER)) {
+                        outer.addAnnotation(t, qual);
+                    }
+                    break;
+                case EXPLICIT_UPPER_BOUND:
+                    if (isUpperBound && boundType == BoundType.UPPER) {
+                        outer.addAnnotation(t, qual);
+                    }
+                    break;
+                case UPPER_BOUND:
+                    if (isUpperBound) {
+                        outer.addAnnotation(t, qual);
+                    }
+                    break;
+                case OTHERWISE:
+                case ALL:
+                    // TODO: forbid ALL if anything else was given.
+                    outer.addAnnotation(t, qual);
+                    break;
+                default:
+                    throw new BugInCF(
+                            "QualifierDefaults.DefaultApplierElement: unhandled location: "
+                                    + outer.location);
             }
 
-            // are we currently defaulting the lower bound of a type variable or wildcard
-            private boolean isLowerBound = false;
+            return super.scan(t, qual);
+        }
 
-            // are we currently defaulting the upper bound of a type variable or wildcard
-            private boolean isUpperBound = false;
+        @Override
+        public void reset() {
+            super.reset();
+            isLowerBound = false;
+            isUpperBound = false;
+            boundType = BoundType.UNBOUNDED;
+        }
 
-            // the bound type of the current wildcard or type variable being defaulted
-            private BoundType boundType = BoundType.UNBOUNDED;
+        // are we currently defaulting the lower bound of a type variable or wildcard
+        private boolean isLowerBound = false;
 
-            @Override
-            public Void visitTypeVariable(AnnotatedTypeVariable type, AnnotationMirror qual) {
-                if (visitedNodes.containsKey(type)) {
-                    return visitedNodes.get(type);
-                }
+        // are we currently defaulting the upper bound of a type variable or wildcard
+        private boolean isUpperBound = false;
 
-                visitBounds(type, type.getUpperBound(), type.getLowerBound(), qual);
-                return null;
+        // the bound type of the current wildcard or type variable being defaulted
+        private BoundType boundType = BoundType.UNBOUNDED;
+
+        @Override
+        public Void visitTypeVariable(AnnotatedTypeVariable type, AnnotationMirror qual) {
+            if (visitedNodes.containsKey(type)) {
+                return visitedNodes.get(type);
             }
 
-            @Override
-            public Void visitWildcard(AnnotatedWildcardType type, AnnotationMirror qual) {
-                if (visitedNodes.containsKey(type)) {
-                    return visitedNodes.get(type);
-                }
+            visitBounds(type, type.getUpperBound(), type.getLowerBound(), qual);
+            return null;
+        }
 
-                visitBounds(type, type.getExtendsBound(), type.getSuperBound(), qual);
-                return null;
+        @Override
+        public Void visitWildcard(AnnotatedWildcardType type, AnnotationMirror qual) {
+            if (visitedNodes.containsKey(type)) {
+                return visitedNodes.get(type);
             }
 
-            /**
-             * Visit the bounds of a type variable or a wildcard and potentially apply qual to those
-             * bounds. This method will also update the boundType, isLowerBound, and isUpperbound
-             * fields.
-             */
-            protected void visitBounds(
-                    AnnotatedTypeMirror boundedType,
-                    AnnotatedTypeMirror upperBound,
-                    AnnotatedTypeMirror lowerBound,
-                    AnnotationMirror qual) {
-                final boolean prevIsUpperBound = isUpperBound;
-                final boolean prevIsLowerBound = isLowerBound;
-                final BoundType prevBoundType = boundType;
+            visitBounds(type, type.getExtendsBound(), type.getSuperBound(), qual);
+            return null;
+        }
 
-                boundType = getBoundType(boundedType);
+        /**
+         * Visit the bounds of a type variable or a wildcard and potentially apply qual to those
+         * bounds. This method will also update the boundType, isLowerBound, and isUpperbound
+         * fields.
+         */
+        protected void visitBounds(
+                AnnotatedTypeMirror boundedType,
+                AnnotatedTypeMirror upperBound,
+                AnnotatedTypeMirror lowerBound,
+                AnnotationMirror qual) {
+            final boolean prevIsUpperBound = isUpperBound;
+            final boolean prevIsLowerBound = isLowerBound;
+            final BoundType prevBoundType = boundType;
 
-                try {
-                    isLowerBound = true;
-                    isUpperBound = false;
-                    scanAndReduce(lowerBound, qual, null);
+            boundType = getBoundType(boundedType);
 
-                    visitedNodes.put(type, null);
+            try {
+                isLowerBound = true;
+                isUpperBound = false;
+                scanAndReduce(lowerBound, qual, null);
 
-                    isLowerBound = false;
-                    isUpperBound = true;
-                    scanAndReduce(upperBound, qual, null);
+                visitedNodes.put(boundedType, null);
 
-                    visitedNodes.put(type, null);
-                } finally {
-                    isUpperBound = prevIsUpperBound;
-                    isLowerBound = prevIsLowerBound;
-                    boundType = prevBoundType;
-                }
+                isLowerBound = false;
+                isUpperBound = true;
+                scanAndReduce(upperBound, qual, null);
+
+                visitedNodes.put(boundedType, null);
+            } finally {
+                isUpperBound = prevIsUpperBound;
+                isLowerBound = prevIsLowerBound;
+                boundType = prevBoundType;
             }
         }
     }
