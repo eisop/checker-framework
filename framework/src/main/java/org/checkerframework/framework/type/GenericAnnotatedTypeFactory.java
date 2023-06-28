@@ -1703,7 +1703,6 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /* As long as everUseFlow is true, always enable flow refinement for the receiver. */
-    @Override
     public AnnotatedTypeMirror getAnnotatedTypeWithReceiverRefinement(Tree tree) {
         boolean oldUseFlow = useFlow;
         useFlow = everUseFlow;

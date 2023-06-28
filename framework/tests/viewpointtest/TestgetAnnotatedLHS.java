@@ -22,6 +22,12 @@ class TestgetAnnotatedLHS {
         TestgetAnnotatedLHS a = new @A TestgetAnnotatedLHS();
         TestgetAnnotatedLHS top = new @Top TestgetAnnotatedLHS();
         top = a;
+        // When checking the below assignment, GenericAnnotatedTypeFactory#getAnnotatedTypeLhs()
+        // will be called to get the type of the lhs tree (top.f).
+        // Previously this method will completely disable flow refinment, and top.f will have type
+        // @Top and thus accept the below assingment. But we should reject it, as top
+        // is refined to be @A before. As long as top is still pointing to the @A object, top.f
+        // will have type @A, which is not the supertype of @B.
         // :: error: (assignment.type.incompatible)
         top.f = new @B Object();
         top.f = new @A Object(); // no error here
