@@ -115,9 +115,8 @@ public abstract class InitializationAnnotatedTypeFactory<
     /**
      * The canonical names of all initialization annotations.
      *
-     * <p>This is used to quickly check if an AnnotationMirror is one of the initialization annotations
-     * without having to repeatedly convert them to strings.
-
+     * <p>This is used to quickly check if an AnnotationMirror is one of the initialization
+     * annotations without having to repeatedly convert them to strings.
      *
      * @see UnknownInitialization
      * @see UnderInitialization

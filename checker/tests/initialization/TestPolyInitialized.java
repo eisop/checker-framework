@@ -1,7 +1,6 @@
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.initialization.qual.NotOnlyInitialized;
 import org.checkerframework.checker.initialization.qual.PolyInitialized;
-import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 
 public class TestPolyInitialized {
@@ -9,10 +8,6 @@ public class TestPolyInitialized {
     @NotOnlyInitialized String testStr;
 
     String test = "test";
-
-    @UnderInitialization(Object.class) String str1;
-
-    @UnknownInitialization(Object.class) String str2;
 
     TestPolyInitialized(@UnknownInitialization String str) {
         this.testStr = identity(str);
