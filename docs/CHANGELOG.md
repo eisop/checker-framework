@@ -12,8 +12,14 @@ potential values, and the code using it must handle each possibility correctly.
 
 Deprecated `ObjectCreationNode#getConstructor` in favor of new `ObjectCreationNode#getTypeToInstantiate()`.
 
-Remove class `StringConcatenateAssignmentNode` and its last usages.
+Removed class `StringConcatenateAssignmentNode` and its last usages.
 The class was deprecated in release 3.21.3-eisop1 (March 23, 2022) and no longer used in CFGs.
+
+Changed the return types of
+- `BaseTypeChecker#getImmediateSubcheckerClasses()` and overrides to
+  `Set<Class<? extends BaseTypeChecker>>`,
+- `AnalysisResult#getFinalLocalValues()` to `Map<VariableElement, V>`, and
+- `GenericAnnotatedTypeFactory#getFinalLocalValues()` to `Map<VariableElement, Value>`.
 
 **Closed issues:**
 

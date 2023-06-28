@@ -4,7 +4,7 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.value.ValueChecker;
 import org.checkerframework.framework.qual.StubFiles;
 
-import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * A type-checker that prevents mixing of unsigned and signed values, and prevents meaningless
@@ -19,9 +19,8 @@ public class SignednessChecker extends BaseTypeChecker {
     public SignednessChecker() {}
 
     @Override
-    protected LinkedHashSet<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
-        LinkedHashSet<Class<? extends BaseTypeChecker>> checkers =
-                super.getImmediateSubcheckerClasses();
+    protected Set<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
+        Set<Class<? extends BaseTypeChecker>> checkers = super.getImmediateSubcheckerClasses();
         checkers.add(ValueChecker.class);
         return checkers;
     }
