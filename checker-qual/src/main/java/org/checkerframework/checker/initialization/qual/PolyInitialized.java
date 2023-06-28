@@ -11,8 +11,9 @@ import java.lang.annotation.Target;
 /**
  * A polymorphic qualifier for the freedom-before-commitment initialization tracking type-system.
  *
- * <p>Any method written using {@link PolyInitialized} takes a class argument and is instantiated
- * for its possible value.
+ * <p>Any method written using {@link PolyInitialized} can have the following possible values and
+ * {@link UnknownInitialization} and {@link UnderInitialization} can take a class argument for
+ * different instantiation.
  *
  * <p>The possible value could be:
  *
