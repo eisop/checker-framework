@@ -2343,10 +2343,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     @Override
     public Void visitConditionalExpression(ConditionalExpressionTree tree, Void p) {
-        AnnotatedTypeMirror cond = atypeFactory.getAnnotatedType(tree);
-        this.commonAssignmentCheck(cond, tree.getTrueExpression(), "conditional.type.incompatible");
+        AnnotatedTypeMirror condTrue = atypeFactory.getAnnotatedType(tree);
+        AnnotatedTypeMirror condFalse = atypeFactory.getAnnotatedType(tree);
         this.commonAssignmentCheck(
-                cond, tree.getFalseExpression(), "conditional.type.incompatible");
+                condTrue, tree.getTrueExpression(), "conditional.type.incompatible");
+        this.commonAssignmentCheck(
+                condFalse, tree.getFalseExpression(), "conditional.type.incompatible");
         return super.visitConditionalExpression(tree, p);
     }
 
