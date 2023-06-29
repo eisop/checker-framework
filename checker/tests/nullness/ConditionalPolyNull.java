@@ -7,7 +7,7 @@ class ConditionalPolyNull {
         return text == null ? null : text.toLowerCase();
     }
 
-    public static @PolyNull String toLowerCaseB(@PolyNull String text) {
+    @PolyNull String toLowerCaseB(@PolyNull String text) {
         return text != null ? text.toLowerCase() : null;
     }
 }
