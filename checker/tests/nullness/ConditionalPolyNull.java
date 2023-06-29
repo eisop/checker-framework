@@ -13,7 +13,7 @@ class ConditionalPolyNull {
 
     @PolyNull String toLowerCaseC(@PolyNull String text) {
         // :: error: (dereference.of.nullable)
-        return text == null ? text.toLowerCase() : null ;
+        return text == null ? text.toLowerCase() : null;
     }
 
     @PolyNull String toLowerCaseD(@PolyNull String text) {
