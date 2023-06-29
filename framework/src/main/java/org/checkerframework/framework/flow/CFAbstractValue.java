@@ -102,18 +102,20 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
             return true;
         }
 
-        AnnotationMirrorSet missingHierarchy = null;
+        if (annos.size() != hierarchy.getTopAnnotations().size()) {
+            return false;
+        }
+
+        // The size of the set matches, but maybe it contains multiple annos of one
+        // hierarchy and none of another.
         for (AnnotationMirror top : hierarchy.getTopAnnotations()) {
             AnnotationMirror anno = hierarchy.findAnnotationInHierarchy(annos, top);
             if (anno == null) {
-                if (missingHierarchy == null) {
-                    missingHierarchy = new AnnotationMirrorSet();
-                }
-                missingHierarchy.add(top);
+                return false;
             }
         }
 
-        return missingHierarchy == null;
+        return true;
     }
 
     /**
