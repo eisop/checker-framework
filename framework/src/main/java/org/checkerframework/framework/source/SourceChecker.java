@@ -2711,6 +2711,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                         " To see the full stack trace, don't invoke the compiler with"
                                 + " -AnoPrintErrorStack");
             } else {
+                msg.add("Checker: " + this.getClass());
+                if (this.visitor != null) {
+                    msg.add("Visitor: " + this.visitor.getClass());
+                }
                 if (this.currentRoot != null && this.currentRoot.getSourceFile() != null) {
                     msg.add("Compilation unit: " + this.currentRoot.getSourceFile().getName());
                 }
