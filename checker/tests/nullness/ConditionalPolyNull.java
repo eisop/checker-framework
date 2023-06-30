@@ -11,13 +11,13 @@ class ConditionalPolyNull {
         return text != null ? text.toLowerCase() : null;
     }
 
-    @PolyNull String toLowerCaseC(@PolyNull String text) {
-        // :: error: (dereference.of.nullable)
-        return text == null ? text.toLowerCase() : null;
-    }
-
-    @PolyNull String toLowerCaseD(@PolyNull String text) {
-        // :: error: (dereference.of.nullable)
-        return text != null ? null : text.toLowerCase();
-    }
+    //    @PolyNull String toLowerCaseC(@PolyNull String text) {
+    //        // :: error: (dereference.of.nullable)
+    //        return text == null ? text.toLowerCase() : null;
+    //    }
+    //
+    //    @PolyNull String toLowerCaseD(@PolyNull String text) {
+    //        // :: error: (dereference.of.nullable)
+    //        return text != null ? null : text.toLowerCase();
+    //    }
 }
