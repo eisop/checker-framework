@@ -2336,20 +2336,39 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return the type of the receiver of expression
      */
     public final AnnotatedTypeMirror getReceiverType(ExpressionTree expression) {
+        AnnotatedTypeMirror receiverType;
         ExpressionTree receiver = TreeUtils.getReceiverTree(expression);
         if (receiver != null) {
-            return getAnnotatedType(receiver);
-        }
-
-        Element element = TreeUtils.elementFromTree(expression);
-        if (element != null && ElementUtils.hasReceiver(element)) {
-            // The tree references an element that has a receiver, but the tree does not have an
-            // explicit receiver. So, the tree must have an implicit receiver of "this" or
-            // "Outer.this".
-            return getImplicitReceiverType(expression);
+            receiverType = getAnnotatedType(receiver);
         } else {
-            return null;
+            Element element = TreeUtils.elementFromTree(expression);
+            if (element != null && ElementUtils.hasReceiver(element)) {
+                // The tree references an element that has a receiver, but the tree does not have an
+                // explicit receiver. So, the tree must have an implicit receiver of "this" or
+                // "Outer.this".
+                receiverType = getImplicitReceiverType(expression);
+            } else {
+                receiverType = null;
+            }
         }
+        // In Java versions below 11, consider the following code:
+        // class Outer {
+        //   class Inner{}
+        // }
+        // class Top {
+        //   void test(Outer outer) {
+        //     outer.new Inner(){};
+        //   }
+        // }
+        // the receiverType of outer.new Inner(){} is Top instead of Outer,
+        // because Java below 11 organizes newClassTree of an anonymous class in a different
+        // way: there is a synthetic argument representing the enclosing expression type.
+        // In such case, use the synthetic argument as its receiver type.
+        if ((expression instanceof NewClassTree)
+                && TreeUtils.hasSyntheticArgument((NewClassTree) expression)) {
+            receiverType = getAnnotatedType(((NewClassTree) expression).getArguments().get(0));
+        }
+        return receiverType;
     }
 
     /** The type for an instantiated generic method or constructor. */
