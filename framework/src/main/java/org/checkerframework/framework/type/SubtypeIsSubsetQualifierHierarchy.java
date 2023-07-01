@@ -10,6 +10,7 @@ import java.lang.annotation.Annotation;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
@@ -123,7 +124,7 @@ public class SubtypeIsSubsetQualifierHierarchy extends MostlyNoElementQualifierH
      * @return an annotation of the given kind and values
      */
     private AnnotationMirror createAnnotationMirrorWithValue(
-            QualifierKind kind, LinkedHashSet<String> values) {
+            QualifierKind kind, Set<String> values) {
         AnnotationBuilder builder = new AnnotationBuilder(processingEnv, kind.getAnnotationClass());
         builder.setValue("value", values.toArray());
         return builder.build();

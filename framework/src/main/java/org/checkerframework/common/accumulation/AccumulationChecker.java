@@ -5,7 +5,7 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.returnsreceiver.ReturnsReceiverChecker;
 
 import java.util.EnumSet;
-import java.util.LinkedHashSet;
+import java.util.Set;
 
 // TODO: This Javadoc comment should reference the Checker Framework manual, once the Accumulation
 // Checker chapter is uncommented in the manual's LaTeX source.
@@ -34,9 +34,8 @@ public abstract class AccumulationChecker extends BaseTypeChecker {
     }
 
     @Override
-    protected LinkedHashSet<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
-        LinkedHashSet<Class<? extends BaseTypeChecker>> checkers =
-                super.getImmediateSubcheckerClasses();
+    protected Set<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
+        Set<Class<? extends BaseTypeChecker>> checkers = super.getImmediateSubcheckerClasses();
         if (isEnabled(AliasAnalysis.RETURNS_RECEIVER)) {
             checkers.add(ReturnsReceiverChecker.class);
         }

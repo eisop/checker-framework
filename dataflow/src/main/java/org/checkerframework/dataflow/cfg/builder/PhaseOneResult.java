@@ -11,7 +11,6 @@ import org.checkerframework.dataflow.cfg.builder.ExtendedNode.ExtendedNodeType;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.ReturnNode;
 
-import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,7 +42,7 @@ public class PhaseOneResult {
     /*package-private*/ final IdentityHashMap<UnaryTree, BinaryTree> postfixTreeToCfgNodes;
 
     /** The list of extended nodes. */
-    /*package-private*/ final ArrayList<ExtendedNode> nodeList;
+    /*package-private*/ final List<ExtendedNode> nodeList;
 
     /** The bindings of labels to positions (i.e., indices) in the {@code nodeList}. */
     /*package-private*/ final Map<Label, Integer> bindings;
@@ -96,7 +95,7 @@ public class PhaseOneResult {
             IdentityHashMap<Tree, Set<Node>> treeToCfgNodes,
             IdentityHashMap<Tree, Set<Node>> treeToConvertedCfgNodes,
             IdentityHashMap<UnaryTree, BinaryTree> postfixTreeToCfgNodes,
-            ArrayList<ExtendedNode> nodeList,
+            List<ExtendedNode> nodeList,
             Map<Label, Integer> bindings,
             Set<Integer> leaders,
             List<ReturnNode> returnNodes,
