@@ -48,7 +48,7 @@ Changed the return types of
 eisop#297, eisop#376, eisop#400, eisop#519, eisop#532, eisop#533, typetools#1590, typetools#1919.
 
 
-Version 3.36.0 (July 5, 2023)
+Version 3.36.0 (July 3, 2023)
 -----------------------------
 
 **User-visible changes:**
@@ -100,6 +100,7 @@ Renamed methods in `CFAbstractValue`:
  * `combineNoAnnotations()` => `combineTwoTypeVars()`
 
 **Closed issues:**
+#5908, #5936, #5971, #6019, #6025, #6028, #6030, #6039, #6053, #6060, #6069.
 
 
 Version 3.35.0 (June 1, 2023)
