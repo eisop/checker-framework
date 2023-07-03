@@ -102,9 +102,10 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
             return true;
         }
 
-        if (annos.size() != hierarchy.getTopAnnotations().size()) {
-            return false;
-        }
+        // TODO: temporarily disable stricter size comparison.
+        // if (annos.size() != hierarchy.getTopAnnotations().size()) {
+        //     return false;
+        // }
 
         // The size of the set matches, but maybe it contains multiple annos of one
         // hierarchy and none of another.
