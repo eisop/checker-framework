@@ -683,7 +683,6 @@ public class NullnessVisitor
             AnnotatedTypeMirror treeReceiver = methodReceiver.shallowCopy(false);
             AnnotatedTypeMirror rcv = atypeFactory.getReceiverType(tree);
             treeReceiver.addAnnotations(rcv.getEffectiveAnnotations());
-            atypeFactory.replacePolyQualifier(treeReceiver, tree);
             // If receiver is Nullable, then we don't want to issue a warning about method
             // invocability (we'd rather have only the "dereference.of.nullable" message).
             if (treeReceiver.hasAnnotation(NULLABLE) || receiverAnnos.contains(MONOTONIC_NONNULL)) {
