@@ -1267,21 +1267,18 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     /**
      * Given a method element, its type at the call site, and a list of argument expressions, return
      * a list of {@link Node}s representing the arguments converted for a call of the method. This
-     * method applies to both method invocations and constructor calls. The constructor takes an
-     * extra enclosingExprType argument when it is an inner class constructor with an enclosing
-     * expression.
+     * method applies to both method invocations and constructor calls. When this method is being
+     * called by the invocation of a constructor, a NewClassTree will be passed as an argument to
+     * determine whether the constructor is anonymous and with explicit enclosing expression.
      *
-     * @param enclosingExprType a TypeMirror of the enclosing expression if there is an enclosing
-     *     expression for the constructors of inner classes
      * @param method an ExecutableElement representing a method to be called
      * @param methodType an ExecutableType representing the type of the method call
      * @param actualExprs a List of argument expressions to a call
-     * @param tree the NewClassTree if the method is a constructor
+     * @param tree the NewClassTree if the method is the invocation of a constructor
      * @return a List of {@link Node}s representing arguments after conversions required by a call
      *     to this method
      */
     protected List<Node> convertCallArguments(
-            @Nullable TypeMirror enclosingExprType,
             ExecutableElement method,
             ExecutableType methodType,
             List<? extends ExpressionTree> actualExprs,
@@ -1321,10 +1318,12 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 // Handle anonymous constructors with an explicit enclosing expression.
                 // There is a mismatch between the number of parameters and arguments
                 // when following conditions are met:
-                // 1. Java version >= 11
-                // 2. the method is an anonymous constructor
-                // 3. the constructor is invoked with an explicit enclosing expression
-                // In the case, we should decrease the lastArgIndex.
+                // 1. Java version >= 11,
+                // 2. the method is an anonymous constructor,
+                // 3. the constructor is invoked with an explicit enclosing expression.
+                // In the case, the parameters have an enclosing expression as its first parameter,
+                // while the arguments do not have such element. Hence, decrease the lastArgIndex
+                // to organize the arguments from the correct index later.
                 if (SystemUtil.jreVersion >= 11
                         && tree != null
                         && TreeUtils.isAnonymousConstructorWithExplicitEnclosingExpression(
@@ -1524,8 +1523,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             arguments = Collections.emptyList();
         } else {
             arguments =
-                    convertCallArguments(
-                            null, method, TreeUtils.typeFromUse(tree), actualExprs, null);
+                    convertCallArguments(method, TreeUtils.typeFromUse(tree), actualExprs, null);
         }
 
         // TODO: lock the receiver for synchronized methods
@@ -3518,8 +3516,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         List<? extends ExpressionTree> actualExprs = tree.getArguments();
 
         List<Node> arguments =
-                convertCallArguments(
-                        enclosingType, constructor, TreeUtils.typeFromUse(tree), actualExprs, tree);
+                convertCallArguments(constructor, TreeUtils.typeFromUse(tree), actualExprs, tree);
 
         // TODO: for anonymous classes, don't use the identifier alone.
         // See https://github.com/typetools/checker-framework/issues/890 .

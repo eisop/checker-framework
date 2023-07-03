@@ -6,7 +6,8 @@ Version 3.34.0-eisop2 (May ?, 2023)
 **Implementation details:**
 
 Corrected the arguments to an `ObjectCreationNode` when the node refers to an
-anonymous constructor invocation with an explicit enclosing expression.
+anonymous constructor invocation with an explicit enclosing expression in Java11+.
+Now the first argument is not treated as an enclosing expression if it is not.
 
 Deprecated `ObjectCreationNode#getConstructor` in favor of new `ObjectCreationNode#getTypeToInstantiate()`.
 
