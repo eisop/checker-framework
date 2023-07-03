@@ -3598,8 +3598,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
         AnnotatedTypeMirror formalReceiverType = constructorType.getReceiverType();
         if (formalReceiverType != null) {
-            AnnotatedTypeMirror passedReceiverType;
-            passedReceiverType = atypeFactory.getReceiverType(node);
+            AnnotatedTypeMirror passedReceiverType = atypeFactory.getReceiverType(node);
             commonAssignmentCheck(
                     formalReceiverType,
                     passedReceiverType,
