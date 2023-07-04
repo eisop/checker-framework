@@ -18,7 +18,7 @@ Changed the return types of
 
 **Closed issues:**
 
-eisop#376.
+eisop#376, eisop#532.
 
 
 Version 3.34.0-eisop1 (May 9, 2023)
