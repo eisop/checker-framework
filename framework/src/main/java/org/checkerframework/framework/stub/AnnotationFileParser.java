@@ -318,6 +318,7 @@ public class AnnotationFileParser {
          * order: the order that they are declared in the record header.
          */
         public final Map<String, RecordComponentStub> componentsByName;
+
         /**
          * If the canonical constructor is given in the stubs, the annotated types (in component
          * declaration order) for the constructor. Null if not present in the stubs.
@@ -887,11 +888,11 @@ public class AnnotationFileParser {
      *   <li>It is in the annotated JDK. Private constructs can't be referenced outside of the JDK
      *       and might refer to types that are not accessible.
      *   <li>It is not an ajava file and {@code -AmergeStubsWithSource} was not supplied. As
-     *       described at https://checkerframework.org/manual/#stub-multiple-specifications, source
+     *       described at https://eisop.github.io/cf/manual/#stub-multiple-specifications, source
      *       files take precedence over stub files unless {@code -AmergeStubsWithSource} is
-     *       supplied. As described at https://checkerframework.org/manual/#ajava-using, source
-     *       files do not take precedence over ajava files (when reading an ajava file, it is as if
-     *       {@code -AmergeStubsWithSource} were supplied).
+     *       supplied. As described at https://eisop.github.io/cf/manual/#ajava-using, source files
+     *       do not take precedence over ajava files (when reading an ajava file, it is as if {@code
+     *       -AmergeStubsWithSource} were supplied).
      * </ul>
      *
      * @param node a declaration
@@ -3104,7 +3105,7 @@ public class AnnotationFileParser {
             if (fileType != AnnotationFileType.JDK_STUB) {
                 atypeFactory.replaceAnnotations(newType, existingType);
             }
-            m.put(key, existingType);
+            // existingType is already in the map, so no need to put into m.
         } else {
             m.put(key, newType);
         }

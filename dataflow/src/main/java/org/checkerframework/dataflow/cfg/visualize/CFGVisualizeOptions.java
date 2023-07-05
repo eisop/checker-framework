@@ -16,23 +16,31 @@ public class CFGVisualizeOptions {
 
     /** Default method name. */
     private static final String DEFAULT_METHOD = "test";
+
     /** Default class name. */
     private static final String DEFAULT_CLASS = "Test";
+
     /** Default output directory. */
     private static final String DEFAULT_OUTPUT_DIR = ".";
 
     /** The input file. */
     private final String input;
+
     /** The output directory. */
     private final String output;
+
     /** The method name. */
     private final String method;
+
     /** The class name. */
     private final String clas;
+
     /** True if the PDF should be generated. */
     private final boolean pdf;
+
     /** True if the verbose output should be generated. */
     private final boolean verbose;
+
     /** True if the string representation should be generated. */
     private final boolean string;
 

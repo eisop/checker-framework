@@ -6,6 +6,7 @@ import org.checkerframework.common.value.ValueChecker;
 import org.plumelib.util.CollectionsPlume;
 
 import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * The ClassVal Checker provides a sound estimate of the binary name of Class objects.
@@ -20,9 +21,10 @@ public class ClassValChecker extends BaseTypeChecker {
     }
 
     @Override
-    protected LinkedHashSet<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
+    protected Set<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
         // Don't call super otherwise MethodVal will be added as a subChecker
         // which creates a circular dependency.
+        // Use the same Set implementation as super.
         LinkedHashSet<Class<? extends BaseTypeChecker>> subCheckers =
                 new LinkedHashSet<>(CollectionsPlume.mapCapacity(2));
         subCheckers.add(ValueChecker.class);

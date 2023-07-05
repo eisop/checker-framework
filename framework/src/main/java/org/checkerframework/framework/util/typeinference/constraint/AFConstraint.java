@@ -36,6 +36,7 @@ import javax.lang.model.type.TypeVariable;
 public abstract class AFConstraint {
     /** The argument type. */
     public final AnnotatedTypeMirror argument;
+
     /** The formal parameter type. */
     public final AnnotatedTypeMirror formalParameter;
 

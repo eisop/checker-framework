@@ -66,6 +66,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Objects;
@@ -586,14 +587,19 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /** True if the -Afilenames command-line argument was passed. */
     private boolean printFilenames;
+
     /** True if the -Awarns command-line argument was passed. */
     private boolean warns;
+
     /** True if the -AshowSuppressWarningsStrings command-line argument was passed. */
     private boolean showSuppressWarningsStrings;
+
     /** True if the -ArequirePrefixInWarningSuppressions command-line argument was passed. */
     private boolean requirePrefixInWarningSuppressions;
+
     /** True if the -AshowPrefixInWarningMessages command-line argument was passed. */
     private boolean showPrefixInWarningMessages;
+
     /** True if the -AwarnUnneededSuppressions command-line argument was passed. */
     private boolean warnUnneededSuppressions;
 
@@ -2122,6 +2128,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /** The name of the @SuppressWarnings annotation. */
     private static final @CanonicalName String suppressWarningsClassName =
             SuppressWarnings.class.getCanonicalName();
+
     /**
      * Finds the tree that is a {@code @SuppressWarnings} annotation.
      *
@@ -2546,7 +2553,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             indexOfChecker = className.lastIndexOf("Subchecker");
         }
         String result = (indexOfChecker == -1) ? className : className.substring(0, indexOfChecker);
-        return result.toLowerCase();
+        return result.toLowerCase(Locale.ROOT);
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -2704,6 +2711,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                         " To see the full stack trace, don't invoke the compiler with"
                                 + " -AnoPrintErrorStack");
             } else {
+                msg.add("Checker: " + this.getClass());
+                if (this.visitor != null) {
+                    msg.add("Visitor: " + this.visitor.getClass());
+                }
                 if (this.currentRoot != null && this.currentRoot.getSourceFile() != null) {
                     msg.add("Compilation unit: " + this.currentRoot.getSourceFile().getName());
                 }

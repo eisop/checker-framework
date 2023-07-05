@@ -83,12 +83,15 @@ public class NullnessAnnotatedTypeFactory
 
     /** The @{@link NonNull} annotation. */
     protected final AnnotationMirror NONNULL = AnnotationBuilder.fromClass(elements, NonNull.class);
+
     /** The @{@link Nullable} annotation. */
     protected final AnnotationMirror NULLABLE =
             AnnotationBuilder.fromClass(elements, Nullable.class);
+
     /** The @{@link PolyNull} annotation. */
     protected final AnnotationMirror POLYNULL =
             AnnotationBuilder.fromClass(elements, PolyNull.class);
+
     /** The @{@link MonotonicNonNull} annotation. */
     protected final AnnotationMirror MONOTONIC_NONNULL =
             AnnotationBuilder.fromClass(elements, MonotonicNonNull.class);
@@ -101,6 +104,7 @@ public class NullnessAnnotatedTypeFactory
 
     /** The Class.getCanonicalName() method. */
     protected final ExecutableElement classGetCanonicalName;
+
     /** The Arrays.copyOf() methods that operate on arrays of references. */
     private final List<ExecutableElement> copyOfMethods;
 
@@ -899,8 +903,8 @@ public class NullnessAnnotatedTypeFactory
     }
 
     /**
-     * Returns true if the given annotation is a nullness annotation such
-     * as @NonNull, @Nullable, @MonotonicNonNull, etc.
+     * Returns true if the given annotation is a nullness annotation such as {@code @NonNull},
+     * {@code @Nullable}, {@code @MonotonicNonNull}, {@code @PolyNull}, or an alias thereof.
      *
      * @param am an annotation
      * @return true if the given annotation is a nullness annotation
@@ -909,14 +913,14 @@ public class NullnessAnnotatedTypeFactory
         return isNonNullOrAlias(am)
                 || isNullableOrAlias(am)
                 || AnnotationUtils.areSameByName(am, MONOTONIC_NONNULL)
-                || AnnotationUtils.areSameByName(am, POLYNULL);
+                || isPolyNullOrAlias(am);
     }
 
     /**
-     * Returns true if the given annotation is @NonNull or an alias for it.
+     * Returns true if the given annotation is {@code @NonNull} or an alias for it.
      *
      * @param am an annotation
-     * @return true if the given annotation is @NonNull or an alias for it
+     * @return true if the given annotation is {@code @NonNull} or an alias for it
      */
     protected boolean isNonNullOrAlias(AnnotationMirror am) {
         AnnotationMirror canonical = canonicalAnnotation(am);
@@ -927,10 +931,10 @@ public class NullnessAnnotatedTypeFactory
     }
 
     /**
-     * Returns true if the given annotation is @Nullable or an alias for it.
+     * Returns true if the given annotation is {@code @Nullable} or an alias for it.
      *
      * @param am an annotation
-     * @return true if the given annotation is @Nullable or an alias for it
+     * @return true if the given annotation is {@code @Nullable} or an alias for it
      */
     protected boolean isNullableOrAlias(AnnotationMirror am) {
         AnnotationMirror canonical = canonicalAnnotation(am);
@@ -938,6 +942,20 @@ public class NullnessAnnotatedTypeFactory
             am = canonical;
         }
         return AnnotationUtils.areSameByName(am, NULLABLE);
+    }
+
+    /**
+     * Returns true if the given annotation is {@code @PolyNull} or an alias for it.
+     *
+     * @param am an annotation
+     * @return true if the given annotation is {@code @PolyNull} or an alias for it
+     */
+    protected boolean isPolyNullOrAlias(AnnotationMirror am) {
+        AnnotationMirror canonical = canonicalAnnotation(am);
+        if (canonical != null) {
+            am = canonical;
+        }
+        return AnnotationUtils.areSameByName(am, POLYNULL);
     }
 
     // If a reference field has no initializer, then its default value is null.  Treat that as

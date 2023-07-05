@@ -333,7 +333,7 @@ public class ReflectiveEvaluator {
     }
 
     public List<?> evaluteConstructorCall(
-            ArrayList<List<?>> argValues, NewClassTree tree, TypeMirror typeToCreate) {
+            List<List<?>> argValues, NewClassTree tree, TypeMirror typeToCreate) {
         Constructor<?> constructor;
         try {
             // get the constructor
@@ -384,6 +384,7 @@ public class ReflectiveEvaluator {
         Constructor<?> constructor = recClass.getConstructor(paramClasses.toArray(new Class<?>[0]));
         return constructor;
     }
+
     /**
      * Returns the boxed primitive type if the passed type is an (unboxed) primitive. Otherwise it
      * returns the passed type.

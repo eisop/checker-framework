@@ -7,8 +7,8 @@ import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.qual.StubFiles;
 import org.checkerframework.framework.source.SupportedLintOptions;
 
-import java.util.LinkedHashSet;
 import java.util.NavigableSet;
+import java.util.Set;
 
 import javax.annotation.processing.SupportedOptions;
 
@@ -25,7 +25,7 @@ import javax.annotation.processing.SupportedOptions;
     // Temporary option to forbid non-null array component types, which is allowed by default.
     // Forbidding is sound and will eventually be the default.
     // Allowing is unsound, as described in Section 3.3.4, "Nullness and arrays":
-    //     https://checkerframework.org/manual/#nullness-arrays
+    //     https://eisop.github.io/cf/manual/#nullness-arrays
     // It is the default temporarily, until we improve the analysis to reduce false positives or we
     // learn what advice to give programmers about avoid false positive warnings.
     // See issue #986: https://github.com/typetools/checker-framework/issues/986
@@ -80,9 +80,8 @@ public class NullnessChecker extends InitializationChecker {
     public NullnessChecker() {}
 
     @Override
-    protected LinkedHashSet<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
-        LinkedHashSet<Class<? extends BaseTypeChecker>> checkers =
-                super.getImmediateSubcheckerClasses();
+    protected Set<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
+        Set<Class<? extends BaseTypeChecker>> checkers = super.getImmediateSubcheckerClasses();
         if (!hasOptionNoSubcheckers("assumeKeyFor")) {
             checkers.add(KeyForSubchecker.class);
         }

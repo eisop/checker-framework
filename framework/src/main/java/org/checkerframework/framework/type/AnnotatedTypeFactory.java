@@ -199,45 +199,64 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     // These variables cannot be static because they depend on the ProcessingEnvironment.
     /** The AnnotatedFor.value argument/element. */
     protected final ExecutableElement annotatedForValueElement;
+
     /** The EnsuresQualifier.expression field/element. */
     protected final ExecutableElement ensuresQualifierExpressionElement;
+
     /** The EnsuresQualifier.List.value field/element. */
     protected final ExecutableElement ensuresQualifierListValueElement;
+
     /** The EnsuresQualifierIf.expression field/element. */
     protected final ExecutableElement ensuresQualifierIfExpressionElement;
+
     /** The EnsuresQualifierIf.result argument/element. */
     protected final ExecutableElement ensuresQualifierIfResultElement;
+
     /** The EnsuresQualifierIf.List.value field/element. */
     protected final ExecutableElement ensuresQualifierIfListValueElement;
+
     /** The FieldInvariant.field argument/element. */
     protected final ExecutableElement fieldInvariantFieldElement;
+
     /** The FieldInvariant.qualifier argument/element. */
     protected final ExecutableElement fieldInvariantQualifierElement;
+
     /** The HasQualifierParameter.value field/element. */
     protected final ExecutableElement hasQualifierParameterValueElement;
+
     /** The MethodVal.className argument/element. */
     public final ExecutableElement methodValClassNameElement;
+
     /** The MethodVal.methodName argument/element. */
     public final ExecutableElement methodValMethodNameElement;
+
     /** The MethodVal.params argument/element. */
     public final ExecutableElement methodValParamsElement;
+
     /** The NoQualifierParameter.value field/element. */
     protected final ExecutableElement noQualifierParameterValueElement;
+
     /** The RequiresQualifier.expression field/element. */
     protected final ExecutableElement requiresQualifierExpressionElement;
+
     /** The RequiresQualifier.List.value field/element. */
     protected final ExecutableElement requiresQualifierListValueElement;
 
     /** The RequiresQualifier type. */
     protected final TypeMirror requiresQualifierTM;
+
     /** The RequiresQualifier.List type. */
     protected final TypeMirror requiresQualifierListTM;
+
     /** The EnsuresQualifier type. */
     protected final TypeMirror ensuresQualifierTM;
+
     /** The EnsuresQualifier.List type. */
     protected final TypeMirror ensuresQualifierListTM;
+
     /** The EnsuresQualifierIf type. */
     protected final TypeMirror ensuresQualifierIfTM;
+
     /** The EnsuresQualifierIf.List type. */
     protected final TypeMirror ensuresQualifierIfListTM;
 
@@ -358,12 +377,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     private final Map<@FullyQualifiedName String, Alias> aliases = new HashMap<>();
 
     /**
-     * A map from the canonical name of an annotation to the set of canonical names of annotations
-     * with the same meaning, as well as the annotation mirror that should be used.
+     * A map from the canonical name of a declaration annotation to the mapping of the canonical
+     * name of a declaration annotation with the same meaning (an alias) to the annotation mirror
+     * that should be used instead (an instance of the canonical declaration annotation).
      */
-    private final Map<
-                    @FullyQualifiedName String,
-                    Pair<AnnotationMirror, Set<@FullyQualifiedName String>>>
+    // A further generalization is to do something similar to `aliases`, where we allow copying
+    // elements from the alias to the canonical annotation.
+    private final Map<@FullyQualifiedName String, Map<@FullyQualifiedName String, AnnotationMirror>>
             declAliases = new HashMap<>();
 
     /**
@@ -375,10 +395,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     private static class Alias {
         /** The canonical annotation (or null if copyElements == true). */
         final AnnotationMirror canonical;
+
         /** Whether elements should be copied over when translating to the canonical annotation. */
         final boolean copyElements;
+
         /** The canonical annotation name (or null if copyElements == false). */
         final @CanonicalName String canonicalName;
+
         /** Which elements should not be copied over (or null if copyElements == false). */
         final String[] ignorableElements;
 
@@ -1403,7 +1426,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return the annotated type of {@code tree}
      */
     public AnnotatedTypeMirror getAnnotatedType(Tree tree) {
-
         if (tree == null) {
             throw new BugInCF("AnnotatedTypeFactory.getAnnotatedType: null tree");
         }
@@ -2334,8 +2356,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     public static class ParameterizedExecutableType {
         /** The method's/constructor's type. */
         public final AnnotatedExecutableType executableType;
+
         /** The types of the generic type arguments. */
         public final List<AnnotatedTypeMirror> typeArgs;
+
         /** Create a ParameterizedExecutableType. */
         public ParameterizedExecutableType(
                 AnnotatedExecutableType executableType, List<AnnotatedTypeMirror> typeArgs) {
@@ -2635,7 +2659,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             AnnotatedExecutableType getClassType,
             AnnotatedTypeMirror receiverType,
             ExpressionTree tree) {
-
         TypeMirror type = TreeUtils.typeOf(tree);
         AnnotatedTypeMirror returnType = AnnotatedTypeMirror.createType(type, this, false);
 
@@ -3605,10 +3628,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param canonicalAnno the canonical annotation
      */
     // aliasName is annotated as @FullyQualifiedName because there is no way to confirm that the
-    // name of an external annotation is a canoncal name.
+    // name of an external annotation is a canonical name.
     protected void addAliasedTypeAnnotation(
             @FullyQualifiedName String aliasName, AnnotationMirror canonicalAnno) {
-
         aliases.put(aliasName, new Alias(aliasName, canonicalAnno, false, null, null));
     }
 
@@ -3789,18 +3811,18 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             @FullyQualifiedName String alias,
             @FullyQualifiedName String annotation,
             AnnotationMirror annotationToUse) {
-        Pair<AnnotationMirror, Set<@FullyQualifiedName String>> pair = declAliases.get(annotation);
-        if (pair != null) {
-            if (!AnnotationUtils.areSame(annotationToUse, pair.first)) {
-                throw new BugInCF(
-                        "annotationToUse should be the same: %s %s", pair.first, annotationToUse);
-            }
-        } else {
-            pair = Pair.of(annotationToUse, new HashSet<>());
-            declAliases.put(annotation, pair);
+        Map<@FullyQualifiedName String, AnnotationMirror> mapping = declAliases.get(annotation);
+        if (mapping == null) {
+            mapping = new HashMap<>(1);
+            declAliases.put(annotation, mapping);
         }
-        Set<@FullyQualifiedName String> aliases = pair.second;
-        aliases.add(alias);
+        AnnotationMirror prev = mapping.put(alias, annotationToUse);
+        // There already was a mapping. Raise an error.
+        if (prev != null && !AnnotationUtils.areSame(prev, annotationToUse)) {
+            throw new TypeSystemError(
+                    "Multiple aliases for %s: %s cannot map to %s and %s.",
+                    annotation, alias, prev, annotationToUse);
+        }
     }
 
     /**
@@ -4276,16 +4298,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             return null;
         }
         // Look through aliases.
-        Pair<AnnotationMirror, Set<@FullyQualifiedName String>> aliases = declAliases.get(annoName);
+        Map<@FullyQualifiedName String, AnnotationMirror> aliases = declAliases.get(annoName);
         if (aliases == null) {
             return null;
         }
-        for (@FullyQualifiedName String alias : aliases.second) {
-            for (AnnotationMirror am : declAnnos) {
-                if (AnnotationUtils.areSameByName(am, alias)) {
-                    // TODO: need to copy over elements/fields
-                    return aliases.first;
-                }
+        for (AnnotationMirror am : declAnnos) {
+            AnnotationMirror match = aliases.get(AnnotationUtils.annotationName(am));
+            if (match != null) {
+                return match;
             }
         }
 
@@ -4570,7 +4590,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     public List<Pair<AnnotationMirror, AnnotationMirror>> getAnnotationWithMetaAnnotation(
             Element element, Class<? extends Annotation> metaAnnotationClass) {
-
         AnnotationMirrorSet annotationMirrors = new AnnotationMirrorSet();
         // Consider real annotations.
         annotationMirrors.addAll(getAnnotatedType(element).getAnnotations());
@@ -4908,7 +4927,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *     targets
      */
     public Pair<AnnotatedTypeMirror, AnnotatedExecutableType> getFnInterfaceFromTree(Tree tree) {
-
         // Functional interface
         AnnotatedTypeMirror functionalInterfaceType = getFunctionalInterfaceType(tree);
         if (functionalInterfaceType.getKind() == TypeKind.DECLARED) {
@@ -4939,7 +4957,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return the functional interface type or an uninferred type argument
      */
     private AnnotatedTypeMirror getFunctionalInterfaceType(Tree tree) {
-
         Tree parentTree = getPath(tree).getParentPath().getLeaf();
         switch (parentTree.getKind()) {
             case PARENTHESIZED:
@@ -5297,7 +5314,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     public AnnotatedTypeMirror applyCaptureConversion(
             AnnotatedTypeMirror type, TypeMirror typeMirror) {
-
         // If the type contains uninferred type arguments, don't capture, but mark all wildcards
         // that should have been captured as "uninferred" before it is returned.
         if (type.containsUninferredTypeArguments()
@@ -5440,7 +5456,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
          */
         private void copy(
                 AnnotatedDeclaredType uncapturedType, AnnotatedDeclaredType capturedType) {
-
             // The name "originalToCopy" means a mapping from the original to the copy, not an
             // original that needs to be copied.
             IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy =
@@ -5578,7 +5593,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             AnnotatedWildcardType wildcard,
             AnnotatedTypeVariable typeVariable,
             AnnotatedTypeVariable capturedTypeVar) {
-
         AnnotatedTypeMirror typeVarUpperBound =
                 typeVarSubstitutor.substituteWithoutCopyingTypeArguments(
                         typeVarToAnnotatedTypeArg, typeVariable.getUpperBound());
@@ -5744,6 +5758,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     /** Matches addition of a constant. */
     private static final Pattern plusConstant = Pattern.compile(" *\\+ *(-?[0-9]+)$");
+
     /** Matches subtraction of a constant. */
     private static final Pattern minusConstant = Pattern.compile(" *- *(-?[0-9]+)$");
 

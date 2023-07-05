@@ -71,9 +71,11 @@ public final class InterningVisitor extends BaseTypeVisitor<InterningAnnotatedTy
 
     /** The @Interned annotation. */
     private final AnnotationMirror INTERNED = AnnotationBuilder.fromClass(elements, Interned.class);
+
     /** The @InternedDistinct annotation. */
     private final AnnotationMirror INTERNED_DISTINCT =
             AnnotationBuilder.fromClass(elements, InternedDistinct.class);
+
     /**
      * The declared type of which the equality tests should be tested, if the user explicitly passed
      * one. The user can pass the class name via the {@code -Acheckclass=...} option. Null if no
@@ -96,7 +98,7 @@ public final class InterningVisitor extends BaseTypeVisitor<InterningAnnotatedTy
      * classes are checked for interning unless {@code -Acheckclass} is specified.
      *
      * @return true if interning should be verified for the input expression
-     * @see <a href="https://checkerframework.org/manual/#interning-checks">What the Interning
+     * @see <a href="https://eisop.github.io./cf/manual/#interning-checks">What the Interning
      *     Checker checks</a>
      */
     private boolean shouldCheckExpression(ExpressionTree tree) {

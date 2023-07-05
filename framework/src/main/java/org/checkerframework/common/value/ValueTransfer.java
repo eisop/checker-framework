@@ -75,6 +75,7 @@ import javax.lang.model.type.TypeMirror;
 public class ValueTransfer extends CFTransfer {
     /** The Value type factory. */
     protected final ValueAnnotatedTypeFactory atypeFactory;
+
     /** The Value qualifier hierarchy. */
     protected final QualifierHierarchy hierarchy;
 
@@ -601,15 +602,6 @@ public class ValueTransfer extends CFTransfer {
         }
         JavaExpression receiver = JavaExpression.fromNode(receiverNode);
         store.insertValue(receiver, combinedRecAnno);
-    }
-
-    @Override
-    @Deprecated // 2022-03-22
-    public TransferResult<CFValue, CFStore> visitStringConcatenateAssignment(
-            org.checkerframework.dataflow.cfg.node.StringConcatenateAssignmentNode n,
-            TransferInput<CFValue, CFStore> p) {
-        TransferResult<CFValue, CFStore> result = super.visitStringConcatenateAssignment(n, p);
-        return stringConcatenation(n.getLeftOperand(), n.getRightOperand(), p, result);
     }
 
     @Override

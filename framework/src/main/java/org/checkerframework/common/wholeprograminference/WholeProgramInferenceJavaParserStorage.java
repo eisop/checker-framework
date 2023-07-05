@@ -1248,6 +1248,7 @@ public class WholeProgramInferenceJavaParserStorage
     private static class CompilationUnitAnnos implements DeepCopyable<CompilationUnitAnnos> {
         /** Compilation unit being wrapped. */
         public final CompilationUnit compilationUnit;
+
         /** Wrappers for classes and interfaces in {@code compilationUnit}. */
         public final List<ClassOrInterfaceAnnos> types;
 
@@ -1332,8 +1333,10 @@ public class WholeProgramInferenceJavaParserStorage
          * executable.
          */
         public Map<String, CallableDeclarationAnnos> callableDeclarations = new HashMap<>();
+
         /** Mapping from field names to wrappers for those fields. */
         public Map<String, FieldAnnos> fields = new HashMap<>(2);
+
         /** Collection of declared enum constants (empty if not an enum). */
         public Set<String> enumConstants = new HashSet<>(2);
 
@@ -1444,16 +1447,19 @@ public class WholeProgramInferenceJavaParserStorage
     public class CallableDeclarationAnnos implements DeepCopyable<CallableDeclarationAnnos> {
         /** Wrapped method or constructor declaration. */
         public final CallableDeclaration<?> declaration;
+
         /**
          * Inferred annotations for the return type, if the declaration represents a method.
          * Initialized on first usage.
          */
         private @MonotonicNonNull AnnotatedTypeMirror returnType = null;
+
         /**
          * Inferred annotations for the receiver type, if the declaration represents a method.
          * Initialized on first usage.
          */
         private @MonotonicNonNull AnnotatedTypeMirror receiverType = null;
+
         /**
          * Inferred annotations for parameter types. The list is initialized the first time any
          * parameter is accessed, and each parameter is initialized the first time it's accessed.
@@ -1476,6 +1482,7 @@ public class WholeProgramInferenceJavaParserStorage
          */
         private @MonotonicNonNull Map<String, Pair<AnnotatedTypeMirror, AnnotatedTypeMirror>>
                 preconditions = null;
+
         /**
          * Mapping from expression strings to pairs of (inferred postcondition, declared type). The
          * okeys are strings representing JavaExpressions, using the same format as a user would in
@@ -1888,8 +1895,10 @@ public class WholeProgramInferenceJavaParserStorage
     private static class FieldAnnos implements DeepCopyable<FieldAnnos> {
         /** Wrapped field declaration. */
         public final VariableDeclarator declaration;
+
         /** Inferred type for field, initialized the first time it's accessed. */
         private @MonotonicNonNull AnnotatedTypeMirror type = null;
+
         /** Annotations on the field declaration. */
         private @MonotonicNonNull AnnotationMirrorSet declarationAnnotations = null;
 
