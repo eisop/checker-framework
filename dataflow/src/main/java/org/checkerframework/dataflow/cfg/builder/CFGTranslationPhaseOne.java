@@ -1271,8 +1271,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * is null when we visit {@link MethodInvocationTree}, and is non-null when we visit {@link
      * NewClassTree}.
      *
-     * @param excutable an ExecutableElement representing a method to be called
-     * @param excutableType an ExecutableType representing the type of the method call
+     * @param excutable an ExecutableElement representing a method/constructor to be called
+     * @param excutableType an ExecutableType representing the type of the method/constructor call
      * @param actualExprs a List of argument expressions to a call
      * @param newClassTree the NewClassTree if the method is the invocation of a constructor
      * @return a List of {@link Node}s representing arguments after conversions required by a call
