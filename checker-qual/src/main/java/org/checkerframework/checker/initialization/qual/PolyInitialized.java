@@ -14,7 +14,7 @@ import java.lang.annotation.Target;
  *
  * <p>Any type annotated by {@link PolyInitialized} conceptually can be replaced by the following
  * qualifiers: {@link Initialized}; {@link UnknownRegex}; {@link UnderInitialization}, which can
- * take a class and instantiate to different type frames.
+ * take a class argument and instantiate to different type frames.
  *
  * @checker_framework.manual #initialization-checker Initialization Checker
  * @checker_framework.manual #qualifier-polymorphism Qualifier polymorphism
