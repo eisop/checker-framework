@@ -1267,33 +1267,33 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     /**
      * Given a method element, its type at the call site, and a list of argument expressions, return
      * a list of {@link Node}s representing the arguments converted for a call of the method. This
-     * method applies to both method invocations and constructor calls. When this method is being
-     * called by the invocation of a constructor, a NewClassTree will be passed as an argument to
-     * determine whether the constructor is anonymous and with explicit enclosing expression.
+     * method applies to both method invocations and constructor calls. The argument of newClassTree
+     * is null when we visit {@link MethodInvocationTree}, and is non-null when we visit {@link
+     * NewClassTree}.
      *
-     * @param method an ExecutableElement representing a method to be called
-     * @param methodType an ExecutableType representing the type of the method call
+     * @param excutable an ExecutableElement representing a method to be called
+     * @param excutableType an ExecutableType representing the type of the method call
      * @param actualExprs a List of argument expressions to a call
-     * @param tree the NewClassTree if the method is the invocation of a constructor
+     * @param newClassTree the NewClassTree if the method is the invocation of a constructor
      * @return a List of {@link Node}s representing arguments after conversions required by a call
      *     to this method
      */
     protected List<Node> convertCallArguments(
-            ExecutableElement method,
-            ExecutableType methodType,
+            ExecutableElement excutable,
+            ExecutableType excutableType,
             List<? extends ExpressionTree> actualExprs,
-            @Nullable NewClassTree tree) {
+            @Nullable NewClassTree newClassTree) {
         // NOTE: It is important to convert one method argument before generating CFG nodes for the
         // next argument, since label binding expects nodes to be generated in execution order.
         // Therefore, this method first determines which conversions need to be applied and then
         // iterates over the actual arguments.
-        List<? extends TypeMirror> formals = methodType.getParameterTypes();
+        List<? extends TypeMirror> formals = excutableType.getParameterTypes();
         int numFormals = formals.size();
 
         ArrayList<Node> convertedNodes = new ArrayList<>(numFormals);
 
         int numActuals = actualExprs.size();
-        if (method.isVarArgs()) {
+        if (excutable.isVarArgs()) {
             // Create a new array argument if the actuals outnumber the formals, or if the last
             // actual is not assignable to the last formal.
             int lastArgIndex = numFormals - 1;
@@ -1320,14 +1320,15 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 // when following conditions are met:
                 // 1. Java version >= 11,
                 // 2. the method is an anonymous constructor,
-                // 3. the constructor is invoked with an explicit enclosing expression.
-                // In the case, the parameters have an enclosing expression as its first parameter,
+                // 3. the excutable element has varargs,
+                // 4. the constructor is invoked with an explicit enclosing expression.
+                // In this case, the parameters have an enclosing expression as its first parameter,
                 // while the arguments do not have such element. Hence, decrease the lastArgIndex
                 // to organize the arguments from the correct index later.
                 if (SystemUtil.jreVersion >= 11
-                        && tree != null
+                        && newClassTree != null
                         && TreeUtils.isAnonymousConstructorWithExplicitEnclosingExpression(
-                                method, tree)) {
+                                excutable, newClassTree)) {
                     lastArgIndex--;
                 }
 
