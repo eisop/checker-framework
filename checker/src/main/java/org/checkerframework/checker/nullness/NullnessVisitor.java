@@ -99,7 +99,7 @@ public class NullnessVisitor
             "dereference.of.nullable";
 
     /** Annotation mirrors for nullness annotations. */
-    private final AnnotationMirror NONNULL, NULLABLE, MONOTONIC_NONNULL;
+    private final AnnotationMirror NONNULL, NULLABLE, MONOTONIC_NONNULL, POLYNULL;
 
     /** TypeMirror for java.lang.String. */
     private final TypeMirror stringType;
@@ -136,6 +136,7 @@ public class NullnessVisitor
         NONNULL = atypeFactory.NONNULL;
         NULLABLE = atypeFactory.NULLABLE;
         MONOTONIC_NONNULL = atypeFactory.MONOTONIC_NONNULL;
+        POLYNULL = atypeFactory.POLYNULL;
         stringType = elements.getTypeElement(String.class.getCanonicalName()).asType();
 
         ProcessingEnvironment env = checker.getProcessingEnvironment();
@@ -685,7 +686,9 @@ public class NullnessVisitor
             treeReceiver.addAnnotations(rcv.getEffectiveAnnotations());
             // If receiver is Nullable, then we don't want to issue a warning about method
             // invocability (we'd rather have only the "dereference.of.nullable" message).
-            if (treeReceiver.hasAnnotation(NULLABLE) || receiverAnnos.contains(MONOTONIC_NONNULL)) {
+            if (treeReceiver.hasAnnotation(NULLABLE)
+                    || receiverAnnos.contains(MONOTONIC_NONNULL)
+                    || treeReceiver.hasAnnotation(POLYNULL)) {
                 return;
             }
         }
