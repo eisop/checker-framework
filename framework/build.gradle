@@ -41,12 +41,6 @@ jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
-
-def versions = [
-    autoValue       : '1.10.1',
-    lombok          : '1.18.28',
-]
-
 configurations {
     implementation.extendsFrom(annotatedGuava)
 }
@@ -74,16 +68,16 @@ dependencies {
     implementation "org.plumelib:reflection-util:${reflectionUtilVersion}"
     implementation 'io.github.classgraph:classgraph:4.8.160'
 
-    testImplementation group: 'junit', name: 'junit', version: '4.13.2'
+    testImplementation "junit:junit:${junitVersion}"
     testImplementation project(':framework-test')
     testImplementation sourceSets.testannotations.output
 
     // AutoValue support in Returns Receiver Checker
-    testImplementation "com.google.auto.value:auto-value-annotations:${versions.autoValue}"
-    testImplementation "com.google.auto.value:auto-value:${versions.autoValue}"
+    testImplementation "com.google.auto.value:auto-value-annotations:${autoValueVersion}"
+    testImplementation "com.google.auto.value:auto-value:${autoValueVersion}"
 
     // Lombok support in Returns Receiver Checker
-    testImplementation "org.projectlombok:lombok:${versions.lombok}"
+    testImplementation "org.projectlombok:lombok:${lombokVersion}"
 }
 
 task cloneAnnotatedJdk() {
