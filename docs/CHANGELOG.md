@@ -49,9 +49,11 @@ eisop#297, eisop#376, eisop#400, eisop#519, eisop#532, eisop#533, typetools#1590
 
 
 Version 3.36.1 (July ?, 2023)
-
 -----------------------------
+
 **User-visible changes:**
+
+Removed support for deprecated option `-AuseDefaultsForUncheckedCode`.
 
 **Implementation details:**
 
