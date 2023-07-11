@@ -11,11 +11,11 @@ import java.lang.annotation.Target;
 /**
  * A polymorphic qualifier for the Regex type system.
  *
- * <p>Any type annotated by {@link PolyRegex} in the method signature conceptually can be replaced
- * by the same following qualifiers: {@link Regex}, which can take an integer argument and
- * instantiate to different capturing group argument; {@link UnknownRegex}; {@link PartialRegex},
- * which can take string argument and instantiate to different partial regex; {@link UnknownRegex};
- * {@link RegexBottom}.
+ * <p>All types annotated by {@link PolyRegex} in the method signature conceptually can be replaced
+ * by a same qualifier: {@link Regex}, which can take an integer argument and instantiate to
+ * different capturing group argument; {@link UnknownRegex}; {@link PartialRegex}, which can take
+ * string argument and instantiate to different partial regex; {@link UnknownRegex}; {@link
+ * RegexBottom}.
  *
  * @checker_framework.manual #regex-checker Regex Checker
  * @checker_framework.manual #qualifier-polymorphism Qualifier polymorphism
