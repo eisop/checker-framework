@@ -1,6 +1,5 @@
 package org.checkerframework.checker.initialization.qual;
 
-import org.checkerframework.checker.regex.qual.UnknownRegex;
 import org.checkerframework.framework.qual.PolymorphicQualifier;
 
 import java.lang.annotation.Documented;
@@ -12,9 +11,10 @@ import java.lang.annotation.Target;
 /**
  * A polymorphic qualifier for the freedom-before-commitment initialization tracking type-system.
  *
- * <p>Any type annotated by {@link PolyInitialized} conceptually can be replaced by the following
- * qualifiers: {@link Initialized}; {@link UnknownRegex}; {@link UnderInitialization}, which can
- * take a class argument and instantiate to different type frames.
+ * <p>All types annotated by {@link PolyInitialized} conceptually can be replaced by a same
+ * qualifier: {@link Initialized}; {@link UnknownInitialization}; {@link UnderInitialization};
+ * {@link FBCBottom}. Both @UnknownInitialization and @UnderInitialization take a class argument and
+ * instantiate to different type frames.
  *
  * @checker_framework.manual #initialization-checker Initialization Checker
  * @checker_framework.manual #qualifier-polymorphism Qualifier polymorphism
