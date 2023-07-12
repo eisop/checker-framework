@@ -566,7 +566,11 @@ public class NullnessNoInitAnnotatedTypeFactory
         // it also has its refined annotation.
         // We thus use the GLB of those two annotations.
         res.addAnnotations(
-            qualHierarchy.greatestLowerBounds(declared.getAnnotations(), refined.getAnnotations()));
+            qualHierarchy.greatestLowerBoundsShallow(
+                declared.getAnnotations(),
+                declared.getUnderlyingType(),
+                refined.getAnnotations(),
+                refined.getUnderlyingType()));
         return res;
       }
     }
@@ -757,7 +761,7 @@ public class NullnessNoInitAnnotatedTypeFactory
 
   @Override
   protected QualifierHierarchy createQualifierHierarchy() {
-    return new NoElementQualifierHierarchy(getSupportedTypeQualifiers(), elements);
+    return new NoElementQualifierHierarchy(getSupportedTypeQualifiers(), elements, this);
   }
 
   /**

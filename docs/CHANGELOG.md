@@ -1,4 +1,4 @@
-Version 3.35.0-eisop1 (October ?, 2023)
+Version 3.37.0-eisop1 (October ?, 2023)
 ---------------------------------------
 
 **User-visible changes:**
@@ -48,7 +48,7 @@ Changed the return types of
 eisop#297, eisop#376, eisop#400, eisop#519, eisop#532, eisop#533, typetools#1590, typetools#1919.
 
 
-Version 3.36.1 (July ?, 2023)
+Version 3.37.0 (July ?, 2023)
 -----------------------------
 
 **User-visible changes:**
@@ -56,6 +56,16 @@ Version 3.36.1 (July ?, 2023)
 Removed support for deprecated option `-AuseDefaultsForUncheckedCode`.
 
 **Implementation details:**
+
+`QualifierHierarchy`:
+ * The constructor takes an `AnnotatedTypeFactory`.
+ * Changes to `isSubtype()`:
+    * `isSubtype()` has been renamed to `isSubypeQualifiers()` and made protected.
+      Clients that are not in a qualifier hierarchy should call `isSubtypeShallow()`
+      or, rarely, new method `isSubtypeQualifiersOnly()`.
+    * New public method `isSubtypeShallow()' that takes two more arguments than
+      `isSubypeQualifiers()`.
+ * Similar changes to `greatestLowerBound()` and `leastUpperBound()`.
 
 **Closed issues:**
 
@@ -133,7 +143,7 @@ Signedness Checker:
 
 Instead of overriding `isRelevant()`, a type factory implementation should
 override `isRelevantImpl()`.  Clients should continue to call `isRelevant()`;
-never call `isRelevantImpl()`.
+never call `isRelevantImpl()` except as `super.isRelevantImpl()`.
 
 Methods that now return a `boolean` rather than `void`:
  * `commonAssignmentCheck()`

@@ -1090,7 +1090,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
    * @return a QualifierHierarchy for this type system
    */
   protected QualifierHierarchy createQualifierHierarchy() {
-    return new NoElementQualifierHierarchy(this.getSupportedTypeQualifiers(), elements);
+    return new NoElementQualifierHierarchy(
+        this.getSupportedTypeQualifiers(),
+        elements,
+        (GenericAnnotatedTypeFactory<?, ?, ?, ?>) this);
   }
 
   /**
@@ -1524,7 +1527,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
       AnnotationMirror boundAnno = qualHierarchy.findAnnotationInSameHierarchy(boundAnnos, anno);
       assert boundAnno != null;
 
-      if (!qualHierarchy.isSubtype(anno, boundAnno)) {
+      if (!qualHierarchy.isSubtypeQualifiersOnly(anno, boundAnno)) {
         results.add(boundAnno);
       } else {
         results.add(anno);
@@ -2678,11 +2681,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     AnnotationMirrorSet newAnnos = new AnnotationMirrorSet();
     AnnotationMirrorSet receiverTypeBoundAnnos =
         getTypeDeclarationBounds(receiverType.getErased().getUnderlyingType());
-    AnnotationMirrorSet wildcardBoundAnnos = classWildcardArg.getExtendsBound().getAnnotations();
+    AnnotationMirrorSet wildcardBoundAnnos = classWildcardArg.getEffectiveAnnotations();
     for (AnnotationMirror receiverTypeBoundAnno : receiverTypeBoundAnnos) {
       AnnotationMirror wildcardAnno =
           qualHierarchy.findAnnotationInSameHierarchy(wildcardBoundAnnos, receiverTypeBoundAnno);
-      if (qualHierarchy.isSubtype(receiverTypeBoundAnno, wildcardAnno)) {
+      if (typeHierarchy.isSubtypeShallowEffective(receiverTypeBoundAnno, classWildcardArg)) {
         newAnnos.add(receiverTypeBoundAnno);
       } else {
         newAnnos.add(wildcardAnno);

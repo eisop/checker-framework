@@ -337,7 +337,9 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
               .getQualifierHierarchy()
               .findAnnotationInHierarchy(value.getAnnotations(), monotonicAnnotation);
       if (actual != null
-          && atypeFactory.getQualifierHierarchy().isSubtype(actual, monotonicAnnotation)) {
+          && atypeFactory
+              .getQualifierHierarchy()
+              .isSubtypeQualifiersOnly(actual, monotonicAnnotation)) {
         newValue =
             analysis
                 .createSingleAnnotationValue(monotonicAnnotation, value.getUnderlyingType())

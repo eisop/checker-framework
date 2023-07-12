@@ -84,7 +84,9 @@ public class DefaultInferredTypesApplier {
             AnnotatedTypes.findEffectiveLowerBoundAnnotations(hierarchy, type);
         primary = hierarchy.findAnnotationInHierarchy(lowerbounds, top);
       }
-      if ((omitSubtypingCheck || hierarchy.isSubtype(inferred, primary))) {
+      if ((omitSubtypingCheck
+          || hierarchy.isSubtypeShallow(
+              inferred, inferredTypeMirror, primary, type.getUnderlyingType()))) {
         type.replaceAnnotation(inferred);
       }
     }
@@ -107,7 +109,8 @@ public class DefaultInferredTypesApplier {
         (AnnotatedTypeVariable) atypeFactory.getAnnotatedType(typeVar.asElement());
     AnnotationMirror upperBound = typeVariableDecl.getEffectiveAnnotationInHierarchy(top);
 
-    if (omitSubtypingCheck || hierarchy.isSubtype(upperBound, notInferred)) {
+    if (omitSubtypingCheck
+        || hierarchy.isSubtypeShallow(upperBound, typeVar, notInferred, type.getUnderlyingType())) {
       type.replaceAnnotation(upperBound);
     }
   }
@@ -124,20 +127,17 @@ public class DefaultInferredTypesApplier {
     AnnotatedTypeVariable typeVariableDecl =
         (AnnotatedTypeVariable) atypeFactory.getAnnotatedType(typeVar.asElement());
     AnnotationMirror upperBound = typeVariableDecl.getEffectiveAnnotationInHierarchy(top);
-    if (omitSubtypingCheck || hierarchy.isSubtype(upperBound, previousAnnotation)) {
-      // TODO: clean up this method and whole class.
-      AnnotationMirror ub = typeVariableDecl.getUpperBound().getAnnotationInHierarchy(top);
-      AnnotationMirror lb = typeVariableDecl.getLowerBound().getAnnotationInHierarchy(top);
-      AnnotatedTypeMirror atvUB = annotatedTypeVariable.getUpperBound();
-      AnnotatedTypeMirror atvLB = annotatedTypeVariable.getLowerBound();
-      AnnotationMirror atvUBAnno = atvUB.getAnnotationInHierarchy(top);
-      AnnotationMirror atvLBAnno = atvLB.getAnnotationInHierarchy(top);
-
+    if (omitSubtypingCheck
+        || hierarchy.isSubtypeShallow(
+            upperBound,
+            typeVariableDecl.getUnderlyingType(),
+            previousAnnotation,
+            annotatedTypeVariable.getUnderlyingType())) {
       annotatedTypeVariable.removeAnnotationInHierarchy(top);
-      atvUB.addAnnotation(atvUBAnno);
-      atvLB.addAnnotation(atvLBAnno);
-      apply(atvUB, ub, typeVar.getUpperBound(), top);
-      apply(atvLB, lb, typeVar.getLowerBound(), top);
+      AnnotationMirror ub = typeVariableDecl.getUpperBound().getAnnotationInHierarchy(top);
+      apply(annotatedTypeVariable.getUpperBound(), ub, typeVar.getUpperBound(), top);
+      AnnotationMirror lb = typeVariableDecl.getLowerBound().getAnnotationInHierarchy(top);
+      apply(annotatedTypeVariable.getLowerBound(), lb, typeVar.getLowerBound(), top);
     }
   }
 }
