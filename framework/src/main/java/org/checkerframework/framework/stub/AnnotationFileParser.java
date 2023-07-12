@@ -3105,7 +3105,7 @@ public class AnnotationFileParser {
             if (fileType != AnnotationFileType.JDK_STUB) {
                 atypeFactory.replaceAnnotations(newType, existingType);
             }
-            m.put(key, existingType);
+            // existingType is already in the map, so no need to put into m.
         } else {
             m.put(key, newType);
         }
