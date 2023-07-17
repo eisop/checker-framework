@@ -793,10 +793,22 @@ public class NullnessVisitor
         return super.visitDoWhileLoop(tree, p);
     }
 
+    /**
+     * Note: we pass a copy of condThen as an argument for the second invocation of
+     * commonAssignmentCheck because the method has side effect. A better way is remove
+     * replacePolyQualifier in common assignmentCheck and handle two conditional branches properly
+     * in Nullness transfer.
+     */
     @Override
     public Void visitConditionalExpression(ConditionalExpressionTree tree, Void p) {
         checkForNullability(tree.getCondition(), CONDITION_NULLABLE);
-        return super.visitConditionalExpression(tree, p);
+        AnnotatedTypeMirror condThen = atypeFactory.getAnnotatedType(tree);
+        AnnotatedTypeMirror condElse = condThen.deepCopy(true);
+        this.commonAssignmentCheck(
+                condThen, tree.getTrueExpression(), "conditional.type.incompatible");
+        this.commonAssignmentCheck(
+                condElse, tree.getFalseExpression(), "conditional.type.incompatible");
+        return null;
     }
 
     @Override

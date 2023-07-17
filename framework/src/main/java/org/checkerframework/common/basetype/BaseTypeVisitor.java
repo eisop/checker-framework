@@ -2340,18 +2340,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * org.checkerframework.framework.type.TypeFromTree.TypeFromExpression.visitConditionalExpression(ConditionalExpressionTree,
      * AnnotatedTypeFactory) is correct, the following checks are redundant. However, let's add
      * another failsafe guard and do the checks.
-     *
-     * <p>Note we pass a copy of condThen as an argument for the second invocation of
-     * commonAssignmentCheck because the method has side effect.
      */
     @Override
     public Void visitConditionalExpression(ConditionalExpressionTree tree, Void p) {
-        AnnotatedTypeMirror condThen = atypeFactory.getAnnotatedType(tree);
-        AnnotatedTypeMirror condElse = condThen.deepCopy(true);
+        AnnotatedTypeMirror cond = atypeFactory.getAnnotatedType(tree);
+        this.commonAssignmentCheck(cond, tree.getTrueExpression(), "conditional.type.incompatible");
         this.commonAssignmentCheck(
-                condThen, tree.getTrueExpression(), "conditional.type.incompatible");
-        this.commonAssignmentCheck(
-                condElse, tree.getFalseExpression(), "conditional.type.incompatible");
+                cond, tree.getFalseExpression(), "conditional.type.incompatible");
         return super.visitConditionalExpression(tree, p);
     }
 
