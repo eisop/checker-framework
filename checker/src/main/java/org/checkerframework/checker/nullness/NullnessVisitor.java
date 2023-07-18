@@ -797,7 +797,7 @@ public class NullnessVisitor
      * Note: we pass a copy of condThen as an argument for the second invocation of
      * commonAssignmentCheck because the method has side effect. A better way is remove
      * replacePolyQualifier in common assignmentCheck and handle two conditional branches properly
-     * in Nullness transfer.
+     * in NullnessTransfer.
      */
     @Override
     public Void visitConditionalExpression(ConditionalExpressionTree tree, Void p) {
