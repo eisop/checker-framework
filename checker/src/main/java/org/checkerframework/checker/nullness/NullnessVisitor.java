@@ -803,12 +803,15 @@ public class NullnessVisitor
     public Void visitConditionalExpression(ConditionalExpressionTree tree, Void p) {
         checkForNullability(tree.getCondition(), CONDITION_NULLABLE);
         AnnotatedTypeMirror condThen = atypeFactory.getAnnotatedType(tree);
-        AnnotatedTypeMirror condElse = condThen.deepCopy(true);
+        AnnotatedTypeMirror condElse = condThen.deepCopy();
         this.commonAssignmentCheck(
                 condThen, tree.getTrueExpression(), "conditional.type.incompatible");
         this.commonAssignmentCheck(
                 condElse, tree.getFalseExpression(), "conditional.type.incompatible");
-        return null;
+        Void r = scan(tree.getCondition(), p);
+        r = reduce(scan(tree.getTrueExpression(), p), r);
+        r = reduce(scan(tree.getFalseExpression(), p), r);
+        return r;
     }
 
     @Override

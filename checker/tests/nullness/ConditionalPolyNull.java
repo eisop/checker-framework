@@ -12,8 +12,8 @@ class ConditionalPolyNull {
     }
 
     @PolyNull String toLowerCaseC(@PolyNull String text) {
-        // :: error: (return.type.incompatible)
         // :: error: (dereference.of.nullable)
+        // :: error: (return.type.incompatible)
         return text == null ? text.toLowerCase() : null;
     }
 
