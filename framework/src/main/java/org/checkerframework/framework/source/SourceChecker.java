@@ -28,6 +28,7 @@ import org.checkerframework.checker.signature.qual.CanonicalName;
 import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.sarif.SarifFacade;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.util.CheckerMain;
 import org.checkerframework.framework.util.OptionConfiguration;
@@ -57,6 +58,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.net.URI;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -345,6 +347,10 @@ import io.github.classgraph.ClassGraph;
     // org.checkerframework.framework.source.SourceChecker.message(Kind, Object, String, Object...)
     "detailedmsgtext",
 
+    // SARIF output: Specify a path where the sarif file should be written (JSON)
+    // Useful for further processing!
+    "sarif",
+
     /// Stub and JDK libraries
 
     // Ignore the standard jdk.astub file; primarily for testing or debugging.
@@ -584,6 +590,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /** Default constructor. */
     protected SourceChecker() {}
+
+    /**
+     * If not null, initialize the {@link SarifFacade} and dump a sarif output to the given path.
+     */
+    @Nullable private Path sarifOutput;
 
     /** True if the -Afilenames command-line argument was passed. */
     private boolean printFilenames;
@@ -986,12 +997,20 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             this.activeLints = createActiveLints(getOptions());
         }
 
+        final String sarif = getOption("sarif");
+        if (sarif != null) {
+            sarifOutput = Paths.get(sarif);
+        }
         printFilenames = hasOption("filenames");
         warns = hasOption("warns");
         showSuppressWarningsStrings = hasOption("showSuppressWarningsStrings");
         requirePrefixInWarningSuppressions = hasOption("requirePrefixInWarningSuppressions");
         showPrefixInWarningMessages = hasOption("showPrefixInWarningMessages");
         warnUnneededSuppressions = hasOption("warnUnneededSuppressions");
+
+        if (sarifOutput != null) {
+            SarifFacade.initialize(sarifOutput);
+        }
     }
 
     /** Output the warning about source level at most once. */
@@ -1236,8 +1255,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         }
 
         if (preciseSource instanceof Element) {
+            SarifFacade.addResult(kind, messageText, (Element) preciseSource);
             messager.printMessage(kind, messageText, (Element) preciseSource);
         } else if (preciseSource instanceof Tree) {
+            SarifFacade.addResult(kind, messageText, (Tree) preciseSource, currentRoot);
             printOrStoreMessage(kind, messageText, (Tree) preciseSource, currentRoot);
         } else {
             throw new BugInCF("invalid position source, class=" + preciseSource.getClass());
@@ -1679,7 +1700,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @param name the name of the lint option to set
      * @param val the option value
      * @see SourceChecker#getLintOption(String)
-     * @see SourceChecker#getLintOption(String,boolean)
+     * @see SourceChecker#getLintOption(String, boolean)
      */
     protected final void setLintOption(String name, boolean val) {
         if (!this.getSupportedLintOptions().contains(name)) {
@@ -1864,7 +1885,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /**
      * {@inheritDoc}
      *
-     * @see SourceChecker#getLintOption(String,boolean)
+     * @see SourceChecker#getLintOption(String, boolean)
      */
     @Override
     public final String getOption(String name) {
@@ -1874,7 +1895,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /**
      * {@inheritDoc}
      *
-     * @see SourceChecker#getLintOption(String,boolean)
+     * @see SourceChecker#getLintOption(String, boolean)
      */
     @Override
     public final boolean getBooleanOption(String name) {
@@ -1884,7 +1905,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /**
      * {@inheritDoc}
      *
-     * @see SourceChecker#getLintOption(String,boolean)
+     * @see SourceChecker#getLintOption(String, boolean)
      */
     @Override
     public final boolean getBooleanOption(String name, boolean defaultValue) {
@@ -1914,7 +1935,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /**
      * {@inheritDoc}
      *
-     * @see SourceChecker#getLintOption(String,boolean)
+     * @see SourceChecker#getLintOption(String, boolean)
      */
     @Override
     public final String getOption(String name, String defaultValue) {
