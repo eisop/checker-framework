@@ -67,6 +67,8 @@ dependencies {
     implementation "org.plumelib:plume-util:${plumeUtilVersion}"
     implementation "org.plumelib:reflection-util:${reflectionUtilVersion}"
     implementation 'io.github.classgraph:classgraph:4.8.161'
+    implementation 'de.jcup.sarif.java:sarif-2.1.0:1.1.0' // support for sarif files
+
 
     testImplementation "junit:junit:${junitVersion}"
     testImplementation project(':framework-test')
