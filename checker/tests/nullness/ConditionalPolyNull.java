@@ -22,4 +22,19 @@ class ConditionalPolyNull {
         // :: error: (dereference.of.nullable)
         return text != null ? null : text.toLowerCase();
     }
+
+    @PolyNull String foo(@PolyNull String param) {
+        if (param != null) {
+            // @PolyNull is really @NonNull, so change
+            // the type of param to @NonNull.
+            return param.toString();
+        }
+        if (param == null) {
+            // @PolyNull is really @Nullable, so change
+            // the type of param to @Nullable.
+            param = null;
+            return null;
+        }
+        return param;
+    }
 }
