@@ -803,7 +803,7 @@ public class NullnessVisitor
         // replacePolyQualifier from commonAssignmentCheck, and then managing the two branches
         // separately within Nullnesstransfer.
         checkForNullability(tree.getCondition(), CONDITION_NULLABLE);
-        // This check's logic should be kept in same with the super method in the future
+        // This check's logic should be kept in same with the super method in the future.
         AnnotatedTypeMirror condThen = atypeFactory.getAnnotatedType(tree);
         AnnotatedTypeMirror condElse = condThen.deepCopy();
         this.commonAssignmentCheck(
