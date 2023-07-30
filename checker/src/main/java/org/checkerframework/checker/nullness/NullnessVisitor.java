@@ -811,7 +811,7 @@ public class NullnessVisitor
         this.commonAssignmentCheck(
                 condElse, tree.getFalseExpression(), "conditional.type.incompatible");
         // Avoid calling super, as it will trigger an incorrect warning. Instead, manually implement
-        // the logic from TreeScanning#visitConditionalExpression to finalize the check.
+        // the logic from TreeScanner#visitConditionalExpression to finalize the check.
         Void r = scan(tree.getCondition(), p);
         r = reduce(scan(tree.getTrueExpression(), p), r);
         r = reduce(scan(tree.getFalseExpression(), p), r);
