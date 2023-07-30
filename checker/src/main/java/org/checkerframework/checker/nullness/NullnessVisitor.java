@@ -245,6 +245,7 @@ public class NullnessVisitor
         // Use the valueExp as the context because data flow will have a value for that tree.  It
         // might not have a value for the var tree.  This is sound because if data flow has
         // determined @PolyNull is @Nullable at the RHS, then it is also @Nullable for the LHS.
+        // TODO: Hack here, remove replacePolyQualifier as referred in visitConditionalExpression.
         atypeFactory.replacePolyQualifier(varType, valueExp);
         super.commonAssignmentCheck(varType, valueExp, errorKey, extraArgs);
     }
@@ -793,14 +794,14 @@ public class NullnessVisitor
         return super.visitDoWhileLoop(tree, p);
     }
 
-    /**
-     * Note: we pass a copy of condThen as an argument for the second invocation of
-     * commonAssignmentCheck because the method has side effect. A better way is remove
-     * replacePolyQualifier in common assignmentCheck and handle two conditional branches properly
-     * in Nullness transfer.
-     */
     @Override
     public Void visitConditionalExpression(ConditionalExpressionTree tree, Void p) {
+        // Note: A copy of condThen is provided as an argument to the second invocation of
+        // NullnessVisitor#commonAssignmentCheck. This approach is taken due to the method's side
+        // effects now.
+        // A more appropriate handling of the conditional expression would involve removing
+        // replacePolyQualifier from commonAssignmentCheck, and then managing the two branches
+        // separately within Nullnesstransfer.
         checkForNullability(tree.getCondition(), CONDITION_NULLABLE);
         AnnotatedTypeMirror condThen = atypeFactory.getAnnotatedType(tree);
         AnnotatedTypeMirror condElse = condThen.deepCopy();
