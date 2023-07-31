@@ -14,7 +14,7 @@ import java.lang.annotation.Target;
  * <p>Any method written using {@link PolyInitialized} conceptually has multiple versions: one in
  * which all instances of {@link PolyInitialized} in the method signature have been replaced by one
  * of the following qualifiers: {@link Initialized}; {@link UnknownInitialization} and {@link
- * UnderInitialization}, which take a class argument to represent different type frames; {@link
+ * UnderInitialization}, which take a class argument to represent different type frames; and {@link
  * FBCBottom}.
  *
  * @checker_framework.manual #initialization-checker Initialization Checker
