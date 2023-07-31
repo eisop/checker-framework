@@ -15,7 +15,7 @@ import java.lang.annotation.Target;
  * all instances of {@link PolyRegex} in the method signature have been replaced by one of the
  * following qualifiers: {@link Regex}, which takes an integer argument to represent different
  * capturing groups; {@link PartialRegex}, which takes a string argument to represent different
- * partial regexes; {@link UnknownRegex} and {@link RegexBottom}.
+ * partial regexes; {@link UnknownRegex}; and {@link RegexBottom}.
  *
  * @checker_framework.manual #regex-checker Regex Checker
  * @checker_framework.manual #qualifier-polymorphism Qualifier polymorphism
