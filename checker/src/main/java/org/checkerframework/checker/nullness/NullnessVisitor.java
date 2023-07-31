@@ -245,7 +245,9 @@ public class NullnessVisitor
         // Use the valueExp as the context because data flow will have a value for that tree.  It
         // might not have a value for the var tree.  This is sound because if data flow has
         // determined @PolyNull is @Nullable at the RHS, then it is also @Nullable for the LHS.
-        // TODO: Hack here, remove replacePolyQualifier as referred in visitConditionalExpression.
+        // TODO: replacePolyQualifier is a temporary hack as it produce side effect to polymorphic
+        // qualifier. In future revision, remove replacePolyQualifier in this method, as referred
+        // to in NullnessVisitor#visitConditionalExpression.
         atypeFactory.replacePolyQualifier(varType, valueExp);
         super.commonAssignmentCheck(varType, valueExp, errorKey, extraArgs);
     }
@@ -796,22 +798,23 @@ public class NullnessVisitor
 
     @Override
     public Void visitConditionalExpression(ConditionalExpressionTree tree, Void p) {
+        checkForNullability(tree.getCondition(), CONDITION_NULLABLE);
         // Note: A copy of condThen is provided as an argument to the second invocation of
         // NullnessVisitor#commonAssignmentCheck. This approach is taken due to the method's side
         // effects now.
         // A more appropriate handling of the conditional expression would involve removing
         // replacePolyQualifier from commonAssignmentCheck, and then managing the two branches
         // separately within Nullnesstransfer.
-        checkForNullability(tree.getCondition(), CONDITION_NULLABLE);
-        // This check's logic should be kept in same with the super method in the future.
+        // This check's logic should be kept in sync with the super method.
         AnnotatedTypeMirror condThen = atypeFactory.getAnnotatedType(tree);
         AnnotatedTypeMirror condElse = condThen.deepCopy();
         this.commonAssignmentCheck(
                 condThen, tree.getTrueExpression(), "conditional.type.incompatible");
         this.commonAssignmentCheck(
                 condElse, tree.getFalseExpression(), "conditional.type.incompatible");
-        // Avoid calling super, as it will trigger an incorrect warning. Instead, manually implement
-        // the logic from TreeScanner#visitConditionalExpression to finalize the check.
+        // Avoid calling super, as it will trigger a false negative in the false branch of super
+        // method. Instead, manually implement the logic from TreeScanner#visitConditionalExpression
+        // to traverse the subtree.
         Void r = scan(tree.getCondition(), p);
         r = reduce(scan(tree.getTrueExpression(), p), r);
         r = reduce(scan(tree.getFalseExpression(), p), r);
