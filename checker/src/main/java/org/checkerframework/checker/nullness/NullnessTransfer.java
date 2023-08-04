@@ -10,6 +10,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
+import org.checkerframework.dataflow.analysis.RegularTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
 import org.checkerframework.dataflow.cfg.node.ArrayAccessNode;
@@ -351,6 +352,14 @@ public class NullnessTransfer
     @Override
     public TransferResult<NullnessValue, NullnessStore> visitFieldAccess(
             FieldAccessNode n, TransferInput<NullnessValue, NullnessStore> p) {
+        if (n.getFieldName().equals("class")) {
+            NullnessStore store = p.getRegularStore();
+            NullnessValue storeValue = store.getValue(n);
+            TransferResult<NullnessValue, NullnessStore> result =
+                    new RegularTransferResult<NullnessValue, NullnessStore>(storeValue, store);
+            makeNonNull(result, n.getReceiver());
+            return result;
+        }
         TransferResult<NullnessValue, NullnessStore> result = super.visitFieldAccess(n, p);
         makeNonNull(result, n.getReceiver());
         return result;
