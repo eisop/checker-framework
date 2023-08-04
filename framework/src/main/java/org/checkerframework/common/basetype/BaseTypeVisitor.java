@@ -3103,12 +3103,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             Tree valueExpTree,
             @CompilerMessageKey String errorKey,
             Object... extraArgs) {
-
-        commonAssignmentCheckStartDiagnostic(varType, valueType, valueExpTree);
-
-        AnnotatedTypeMirror widenedValueType = atypeFactory.getWidenedType(valueType, varType);
-        boolean success = atypeFactory.getTypeHierarchy().isSubtype(widenedValueType, varType);
-
+        boolean success;
+        if (valueExpTree.toString().endsWith(".class")) {
+            success = true;
+        } else {
+            commonAssignmentCheckStartDiagnostic(varType, valueType, valueExpTree);
+            AnnotatedTypeMirror widenedValueType = atypeFactory.getWidenedType(valueType, varType);
+             success = atypeFactory.getTypeHierarchy().isSubtype(widenedValueType, varType);
+        }
         // TODO: integrate with subtype test.
         if (success) {
             for (Class<? extends Annotation> mono :
