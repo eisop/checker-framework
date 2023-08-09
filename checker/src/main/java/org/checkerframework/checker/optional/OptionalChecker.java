@@ -14,5 +14,6 @@ import java.util.Optional;
 // type @Present.  Make Optional Checker a subchecker of the Nullness Checker.
 @RelevantJavaTypes(Optional.class)
 public class OptionalChecker extends BaseTypeChecker {
+    // Below is an empty constructor for OptionalChecker.
     public OptionalChecker() {}
 }
