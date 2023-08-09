@@ -13,4 +13,6 @@ import java.util.Optional;
 // TODO: For a call to of Nullable, if the argument has type @NonNull, make the return type have
 // type @Present.  Make Optional Checker a subchecker of the Nullness Checker.
 @RelevantJavaTypes(Optional.class)
-public class OptionalChecker extends BaseTypeChecker {}
+public class OptionalChecker extends BaseTypeChecker {
+    public OptionalChecker() {}
+}
