@@ -6,6 +6,7 @@ import com.sun.source.tree.Tree;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.Collection;
@@ -28,8 +29,6 @@ public class MethodAccessNode extends Node {
     protected final ExpressionTree tree;
     protected final ExecutableElement method;
     protected final Node receiver;
-
-    // TODO: add method to get modifiers (static, access level, ..)
 
     /**
      * Create a new MethodAccessNode.
@@ -100,5 +99,14 @@ public class MethodAccessNode extends Node {
      */
     public Set<Modifier> getMethodModifiers() {
         return method.getModifiers();
+    }
+
+    /**
+     * Check the method is a static or not.
+     *
+     * @return A boolean indicates whether the method is static.
+     */
+    public boolean isStatic() {
+        return ElementUtils.isStatic(getMethod());
     }
 }

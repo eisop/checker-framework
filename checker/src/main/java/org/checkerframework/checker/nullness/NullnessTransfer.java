@@ -42,7 +42,6 @@ import java.util.Map;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Modifier;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -343,9 +342,9 @@ public class NullnessTransfer
     public TransferResult<NullnessValue, NullnessStore> visitMethodAccess(
             MethodAccessNode n, TransferInput<NullnessValue, NullnessStore> p) {
         TransferResult<NullnessValue, NullnessStore> result = super.visitMethodAccess(n, p);
-        // In contrast to the conditional makeNonNull in visitMethodInvocation, this
-        // makeNonNull is unconditional, as the receiver is definitely non-null after the access.
-        if (!n.getMethodModifiers().contains(Modifier.STATIC)) {
+        // MethodAccess makeNonNull should be conditional and only for accessing method is an
+        // instance method, not static method.
+        if (!n.isStatic()) {
             makeNonNull(result, n.getReceiver());
         }
         return result;
@@ -355,7 +354,9 @@ public class NullnessTransfer
     public TransferResult<NullnessValue, NullnessStore> visitFieldAccess(
             FieldAccessNode n, TransferInput<NullnessValue, NullnessStore> p) {
         TransferResult<NullnessValue, NullnessStore> result = super.visitFieldAccess(n, p);
-        if (!n.getMethodModifiers().contains(Modifier.STATIC)) {
+        // FieldAccess makeNonNull should be conditional and only for accessing field is an instance
+        // field, not static field.
+        if (!n.isStatic()) {
             makeNonNull(result, n.getReceiver());
         }
         return result;

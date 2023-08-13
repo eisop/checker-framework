@@ -32,8 +32,6 @@ public class FieldAccessNode extends Node {
     protected final String field;
     protected final Node receiver;
 
-    // TODO: add method to get modifiers (static, access level, ..)
-
     /**
      * Creates a new FieldAccessNode.
      *
@@ -95,7 +93,11 @@ public class FieldAccessNode extends Node {
         return getReceiver() + "." + field;
     }
 
-    /** Is this a static field? */
+    /**
+     * Check the field is a static or not.
+     *
+     * @return A boolean indicates whether the field is static.
+     */
     public boolean isStatic() {
         return ElementUtils.isStatic(getElement());
     }
