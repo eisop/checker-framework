@@ -42,6 +42,7 @@ import java.util.Map;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -344,7 +345,9 @@ public class NullnessTransfer
         TransferResult<NullnessValue, NullnessStore> result = super.visitMethodAccess(n, p);
         // In contrast to the conditional makeNonNull in visitMethodInvocation, this
         // makeNonNull is unconditional, as the receiver is definitely non-null after the access.
-        makeNonNull(result, n.getReceiver());
+        if (!n.getMethodModifiers().contains(Modifier.STATIC)) {
+            makeNonNull(result, n.getReceiver());
+        }
         return result;
     }
 
@@ -352,7 +355,9 @@ public class NullnessTransfer
     public TransferResult<NullnessValue, NullnessStore> visitFieldAccess(
             FieldAccessNode n, TransferInput<NullnessValue, NullnessStore> p) {
         TransferResult<NullnessValue, NullnessStore> result = super.visitFieldAccess(n, p);
-        makeNonNull(result, n.getReceiver());
+        if (!n.getMethodModifiers().contains(Modifier.STATIC)) {
+            makeNonNull(result, n.getReceiver());
+        }
         return result;
     }
 

@@ -11,8 +11,10 @@ import org.checkerframework.javacutil.TreeUtils;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
+import java.util.Set;
 
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
 
 /**
  * A node for a method access, including a receiver:
@@ -89,5 +91,14 @@ public class MethodAccessNode extends Node {
     @SideEffectFree
     public Collection<Node> getOperands() {
         return Collections.singletonList(receiver);
+    }
+
+    /**
+     * Retrieves the modifiers of the method.
+     *
+     * @return the set of modifiers of the method
+     */
+    public Set<Modifier> getMethodModifiers() {
+        return method.getModifiers();
     }
 }
