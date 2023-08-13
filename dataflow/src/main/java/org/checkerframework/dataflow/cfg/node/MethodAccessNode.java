@@ -104,7 +104,7 @@ public class MethodAccessNode extends Node {
     /**
      * Check the method is a static or not.
      *
-     * @return A boolean indicates whether the method is static.
+     * @return a boolean indicates whether the method is static
      */
     public boolean isStatic() {
         return ElementUtils.isStatic(getMethod());
