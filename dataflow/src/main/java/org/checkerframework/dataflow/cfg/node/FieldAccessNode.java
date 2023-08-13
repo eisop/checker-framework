@@ -26,10 +26,16 @@ import javax.lang.model.element.VariableElement;
  * </pre>
  */
 public class FieldAccessNode extends Node {
-
+    /** The corresponding tree for fieldaccessnode. */
     protected final Tree tree;
+
+    /** The VariableElement. */
     protected final VariableElement element;
+
+    /** The name of the field accessed by the tree. */
     protected final String field;
+
+    /** The receiver node for field being accessed. */
     protected final Node receiver;
 
     /**
