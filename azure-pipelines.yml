@@ -342,6 +342,7 @@ jobs:
   container: wmdietl/cf-ubuntu-jdk11-plus:latest
   steps:
   - checkout: self
+    fetchDepth: 25
   - bash: ./checker/bin-devel/test-misc.sh
     displayName: test-misc.sh
 - job: misc_jdk17
@@ -350,6 +351,7 @@ jobs:
   container: wmdietl/cf-ubuntu-jdk17-plus:latest
   steps:
   - checkout: self
+    fetchDepth: 25
   - bash: ./checker/bin-devel/test-misc.sh
     displayName: test-misc.sh
 - job: misc_jdk_latest
@@ -361,6 +363,7 @@ jobs:
   container: wmdietl/cf-ubuntu-jdk-latest-plus:latest
   steps:
   - checkout: self
+    fetchDepth: 25
   - bash: ./checker/bin-devel/test-misc.sh
     displayName: test-misc.sh
 - job: misc_jdk_next
