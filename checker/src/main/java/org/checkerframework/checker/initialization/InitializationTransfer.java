@@ -168,7 +168,7 @@ public class InitializationTransfer<
     }
 
     /**
-     * If an invariant field is initialized and has the invariant annotation, than it has at least
+     * If an invariant field is initialized and has the invariant annotation, then it has at least
      * the invariant annotation. Note that only fields of the 'this' receiver are tracked for
      * initialization.
      */

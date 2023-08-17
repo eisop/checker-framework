@@ -1,6 +1,6 @@
 plugins {
     id 'java-library'
-
+    id 'base'
     // https://github.com/n0mer/gradle-git-properties ; target is: generateGitProperties
     id 'com.gorylenko.gradle-git-properties' version '2.4.1'
 }
@@ -172,7 +172,9 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 task checkerJar(type: ShadowJar, dependsOn: compileJava, group: 'Build') {
     description "Builds checker-${project.version}.jar with all dependencies except checker-qual and checker-util."
     includeEmptyDirs = false
-    archivesBaseName = 'checker'
+    base {
+        archivesName = 'checker'
+    }
     archiveClassifier = ''
 
     from shadowJar.source
