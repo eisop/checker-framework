@@ -239,7 +239,7 @@ allprojects {
         reflectionUtilVersion = '1.1.0'
         plumeUtilVersion = '1.8.1'
 
-        autoValueVersion = '1.10.2'
+        autoValueVersion = '1.10.3'
         junitVersion = '4.13.2'
         lombokVersion = '1.18.28'
     }
