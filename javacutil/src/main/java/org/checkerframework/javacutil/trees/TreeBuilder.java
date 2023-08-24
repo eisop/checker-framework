@@ -36,6 +36,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
+import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.CollectionsPlume;
@@ -142,11 +143,13 @@ public class TreeBuilder {
     for (ExecutableElement method : ElementFilter.methodsIn(elements.getAllMembers(exprElement))) {
       if (method.getParameters().isEmpty() && method.getSimpleName().contentEquals("hasNext")) {
         hasNextMethod = (Symbol.MethodSymbol) method;
+        break;
       }
     }
 
-    assert hasNextMethod != null
-        : "@AssumeAssertion(nullness): no hasNext method declared for expression type";
+    if (hasNextMethod == null) {
+      throw new BugInCF("no hasNext method declared for " + exprElement);
+    }
 
     JCTree.JCFieldAccess hasNextAccess = TreeUtils.Select(maker, iteratorExpr, hasNextMethod);
     hasNextAccess.setType(hasNextMethod.asType());
