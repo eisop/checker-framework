@@ -2893,13 +2893,30 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
       // Reset the enclosing type because it can be substituted incorrectly.
       ((AnnotatedDeclaredType) con.getReturnType()).setEnclosingType(enclosingType);
     }
+
+    if (ctor.getEnclosingElement().getKind() == ElementKind.ENUM) {
+      Set<AnnotationMirror> enumAnnos = getEnumConstructorQualifiers();
+      con.getReturnType().replaceAnnotations(enumAnnos);
+    }
+
     // Adapt parameters, which makes parameters and arguments be the same size for later
     // checking. The vararg type of con has been already computed and stored when calling
     // typeVarSubstitutor.substitute.
     List<AnnotatedTypeMirror> parameters =
         AnnotatedTypes.adaptParameters(this, con, tree.getArguments(), tree);
     con.setParameterTypes(parameters);
+
     return new ParameterizedExecutableType(con, typeargs);
+  }
+
+  /**
+   * Returns the annotations that should be applied to enum constructors. This implementation
+   * returns an empty set. Subclasses can override to return a different set.
+   *
+   * @return the annotations that should be applied to enum constructors
+   */
+  protected Set<AnnotationMirror> getEnumConstructorQualifiers() {
+    return Collections.emptySet();
   }
 
   /**
