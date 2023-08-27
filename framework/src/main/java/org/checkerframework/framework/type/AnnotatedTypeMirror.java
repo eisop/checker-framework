@@ -538,10 +538,10 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
   }
 
   /**
-   * Determines whether this type contains the given annotation explicitly written at declaration.
-   * This method considers the annotation's values. If the type is {@code @A("s") @B(3) Object}, a
-   * call with {@code @A("t")} or {@code @A} will return false, whereas a call with {@code @B(3)}
-   * will return true.
+   * Returns true if this type contains the given annotation explicitly written at declaration. This
+   * method considers the annotation's values. If the type is {@code @A("s") @B(3) Object}, a call
+   * with {@code @A("t")} or {@code @A} will return false, whereas a call with {@code @B(3)} will
+   * return true.
    *
    * <p>In contrast to {@link #hasExplicitAnnotationRelaxed(AnnotationMirror)} this method also
    * compares annotation values.
@@ -594,7 +594,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
   }
 
   /**
-   * Determines whether this type contains an explicitly written annotation with the same annotation
+   * Returns true if this type contains an explicitly written annotation with the same annotation
    * type as a particular annotation. This method does not consider an annotation's values.
    *
    * <p>See the documentation for {@link #getExplicitAnnotations()} for details on which explicit
