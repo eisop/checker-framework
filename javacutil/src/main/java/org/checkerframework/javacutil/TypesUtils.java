@@ -21,6 +21,7 @@ import org.plumelib.util.StringsPlume;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.StringJoiner;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -66,7 +67,7 @@ public final class TypesUtils {
         if (clazz == void.class) {
             return types.getNoType(TypeKind.VOID);
         } else if (clazz.isPrimitive()) {
-            String primitiveName = clazz.getName().toUpperCase();
+            String primitiveName = clazz.getName().toUpperCase(Locale.ROOT);
             TypeKind primitiveKind = TypeKind.valueOf(primitiveName);
             return types.getPrimitiveType(primitiveKind);
         } else if (clazz.isArray()) {
@@ -142,7 +143,7 @@ public final class TypesUtils {
 
                 try {
                     return Class.forName(typeString);
-                } catch (ClassNotFoundException | UnsupportedClassVersionError e) {
+                } catch (ClassNotFoundException | LinkageError e) {
                     return Object.class;
                 }
 
@@ -298,9 +299,9 @@ public final class TypesUtils {
     /// Predicates
 
     /**
-     * Checks if the type represents a java.lang.Object declared type.
+     * Returns true iff the type represents a java.lang.Object declared type.
      *
-     * @param type the type
+     * @param type the type to check
      * @return true iff type represents java.lang.Object
      */
     public static boolean isObject(TypeMirror type) {
@@ -308,9 +309,9 @@ public final class TypesUtils {
     }
 
     /**
-     * Checks if the type represents the java.lang.Class declared type.
+     * Return true iff the type represents a java.lang.Class declared type.
      *
-     * @param type the type
+     * @param type the type to check
      * @return true iff type represents java.lang.Class
      */
     public static boolean isClass(TypeMirror type) {
@@ -318,9 +319,9 @@ public final class TypesUtils {
     }
 
     /**
-     * Checks if the type represents a java.lang.String declared type.
+     * Returns true iff the type represents a java.lang.String declared type.
      *
-     * @param type the type
+     * @param type the type to check
      * @return true iff type represents java.lang.String
      */
     public static boolean isString(TypeMirror type) {
@@ -328,10 +329,10 @@ public final class TypesUtils {
     }
 
     /**
-     * Checks if the type represents a boolean type, i.e., it is either boolean (primitive type) or
-     * java.lang.Boolean.
+     * Returns true iff the type represents either boolean (primitive type) or a java.lang.Boolean
+     * declared type.
      *
-     * @param type the type to test
+     * @param type the type to check
      * @return true iff type represents a boolean type
      */
     public static boolean isBooleanType(TypeMirror type) {
@@ -339,10 +340,10 @@ public final class TypesUtils {
     }
 
     /**
-     * Checks if the type represents a character type, i.e., it is either char (primitive type) or
-     * java.lang.Character.
+     * Returns true iff the type represents either char (primitive type) or a java.lang.Character
+     * declared type.
      *
-     * @param type the type to test
+     * @param type the type to check
      * @return true iff type represents a character type
      */
     public static boolean isCharType(TypeMirror type) {
@@ -350,9 +351,9 @@ public final class TypesUtils {
     }
 
     /**
-     * Check if the type represents a declared type of the given qualified name.
+     * Returns true iff the type represents a declared type of the given qualified name.
      *
-     * @param type the type
+     * @param type the type to check
      * @return type iff type represents a declared type of the qualified name
      */
     public static boolean isDeclaredOfName(TypeMirror type, CharSequence qualifiedName) {
@@ -361,7 +362,7 @@ public final class TypesUtils {
     }
 
     /**
-     * Check if the {@code type} represents a boxed primitive type.
+     * Returns true iff the {@code type} represents a boxed primitive type.
      *
      * @param type the type to check
      * @return true iff type represents a boxed primitive type
@@ -371,10 +372,13 @@ public final class TypesUtils {
     }
 
     /**
-     * Return true if this is an immutable type in the JDK.
+     * Returns true iff this is an immutable type in the JDK.
      *
      * <p>This does not use immutability annotations and always returns false for user-defined
      * classes.
+     *
+     * @param type the type to check
+     * @return true iff this is an immutable type in the JDK
      */
     public static boolean isImmutableTypeInJdk(TypeMirror type) {
         return isPrimitive(type)
@@ -383,9 +387,10 @@ public final class TypesUtils {
     }
 
     /**
-     * Returns true if type represents a Throwable type (e.g. Exception, Error).
+     * Returns true iff type represents a Throwable type (e.g. Exception, Error).
      *
-     * @return true if type represents a Throwable type (e.g. Exception, Error)
+     * @param type the type to check
+     * @return true iff type represents a Throwable type (e.g. Exception, Error)
      */
     public static boolean isThrowable(TypeMirror type) {
         while (type != null && type.getKind() == TypeKind.DECLARED) {
@@ -403,6 +408,7 @@ public final class TypesUtils {
     /**
      * Returns true iff the argument is an anonymous type.
      *
+     * @param type the type to check
      * @return whether the argument is an anonymous type
      */
     public static boolean isAnonymous(TypeMirror type) {
@@ -414,7 +420,7 @@ public final class TypesUtils {
     /**
      * Returns true iff the argument is a primitive type.
      *
-     * @param type a type
+     * @param type the type to check
      * @return whether the argument is a primitive type
      */
     public static boolean isPrimitive(TypeMirror type) {
@@ -589,6 +595,18 @@ public final class TypesUtils {
      * Get the type parameter for this wildcard from the underlying type's bound field This field is
      * sometimes null, in that case this method will return null.
      *
+     * @param wildcard wildcard type
+     * @return the TypeParameterElement the wildcard is an argument to, {@code null} otherwise
+     */
+    public static @Nullable TypeParameterElement wildcardToTypeParam(final WildcardType wildcard) {
+        return wildcardToTypeParam((Type.WildcardType) wildcard);
+    }
+
+    /**
+     * Get the type parameter for this wildcard from the underlying type's bound field This field is
+     * sometimes null, in that case this method will return null.
+     *
+     * @param wildcard wildcard type
      * @return the TypeParameterElement the wildcard is an argument to, {@code null} otherwise
      */
     public static @Nullable TypeParameterElement wildcardToTypeParam(
@@ -696,21 +714,6 @@ public final class TypesUtils {
      */
     public static boolean isErasedSubtype(TypeMirror subtype, TypeMirror supertype, Types types) {
         return types.isSubtype(types.erasure(subtype), types.erasure(supertype));
-    }
-
-    /**
-     * Returns true if {@code type} is a type variable created during capture conversion.
-     *
-     * @param type a type mirror
-     * @return true if {@code type} is a type variable created during capture conversion
-     * @deprecated use {@link #isCapturedTypeVariable(TypeMirror)} instead
-     */
-    @Deprecated // 2021-07-06
-    public static boolean isCaptured(TypeMirror type) {
-        if (type.getKind() != TypeKind.TYPEVAR) {
-            return false;
-        }
-        return ((Type.TypeVar) TypeAnnotationUtils.unannotatedType(type)).isCaptured();
     }
 
     /**

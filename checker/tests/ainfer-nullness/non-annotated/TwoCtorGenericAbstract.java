@@ -6,7 +6,7 @@ public abstract class TwoCtorGenericAbstract<T extends Object> implements Set<T>
     protected T value;
 
     protected TwoCtorGenericAbstract() {
-        // :: warning: assignment
+        // :: warning: (assignment.type.incompatible)
         this.value = null;
     }
 

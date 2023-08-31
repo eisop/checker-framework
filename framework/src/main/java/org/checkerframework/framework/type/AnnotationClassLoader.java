@@ -23,6 +23,8 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Target;
 import java.net.JarURLConnection;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
@@ -78,22 +80,27 @@ public class AnnotationClassLoader implements Closeable {
     // For loading from a source package directory
     /** The package name. */
     private final @DotSeparatedIdentifiers String packageName;
+
     /** The package name, with periods replaced by slashes. */
     private final String packageNameWithSlashes;
+
     /** The atomic package names (the package name split at dots). */
     private final List<@Identifier String> fullyQualifiedPackageNameSegments;
+
     /** The name of a Checker's qualifier package. */
     private static final String QUAL_PACKAGE = "qual";
 
     // For loading from a Jar file
     /** The suffix for a .jar file. */
     private static final String JAR_SUFFIX = ".jar";
+
     /** The suffix for a .class file. */
     private static final String CLASS_SUFFIX = ".class";
 
     // Constants
     /** The package separator. */
     private static final char DOT = '.';
+
     /** The path separator, in .jar files, binary names, etc. */
     private static final char SLASH = '/';
 
@@ -403,8 +410,8 @@ public class AnnotationClassLoader implements Closeable {
         URL jarURL = null;
 
         try {
-            jarURL = new URL("jar:file:" + absolutePathToJarFile + "!/");
-        } catch (MalformedURLException e) {
+            jarURL = new URI("jar:file:" + absolutePathToJarFile + "!/").toURL();
+        } catch (MalformedURLException | URISyntaxException e) {
             processingEnv
                     .getMessager()
                     .printMessage(Kind.NOTE, "Jar URL " + absolutePathToJarFile + " is malformed");

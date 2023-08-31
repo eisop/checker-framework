@@ -38,7 +38,8 @@ def getAndAppend(name, append):
 def execute(command_args, halt_if_fail=True, capture_output=False, working_dir=None):
     """Execute the given command.
     If capture_output is true, then return the output (and ignore the halt_if_fail argument).
-    If capture_output is not true, return the return code of the subprocess call (0 for success)."""
+    If capture_output is not true, return the return code of the subprocess call (0 for success).
+    """
 
     if working_dir is not None:
         print("Executing in %s: %s" % (working_dir, command_args))
@@ -55,7 +56,9 @@ def execute(command_args, halt_if_fail=True, capture_output=False, working_dir=N
     else:
         result = subprocess.call(args, cwd=working_dir)
         if halt_if_fail and result:
-            raise Exception("Error %s while executing %s in %s" % (result, args, working_dir))
+            raise Exception(
+                "Error %s while executing %s in %s" % (result, args, working_dir)
+            )
         return result
 
 
@@ -168,4 +171,15 @@ PATH = PATH + ":."
 os.environ["PATH"] = PATH
 
 # Tools that must be on your PATH (besides common Unix ones like grep)
-TOOLS = ["hevea", "perl", "java", "latex", "mvn", "hg", "git", "html5validator", "dot", EDITOR]
+TOOLS = [
+    "hevea",
+    "perl",
+    "java",
+    "latex",
+    "mvn",
+    "hg",
+    "git",
+    "html5validator",
+    "dot",
+    EDITOR,
+]

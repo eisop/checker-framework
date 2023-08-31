@@ -131,6 +131,15 @@ public class SimpleOptionMap {
     }
 
     /**
+     * Removes the specified option.
+     *
+     * @param option the option to be removed from this object
+     */
+    public void removeOption(String option) {
+        this.options.remove(option);
+    }
+
+    /**
      * Returns the map that backs this SimpleOptionMap.
      *
      * @return the options in this object

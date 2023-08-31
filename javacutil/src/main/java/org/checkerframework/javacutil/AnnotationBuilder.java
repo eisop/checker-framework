@@ -6,6 +6,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.CanonicalName;
 import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.plumelib.reflection.ReflectionPlume;
 import org.plumelib.util.ArrayMap;
 import org.plumelib.util.StringsPlume;
 
@@ -60,13 +61,16 @@ public class AnnotationBuilder {
 
     /** The element utilities to use. */
     private final Elements elements;
+
     /** The type utilities to use. */
     private final Types types;
 
     /** The type element of the annotation. */
     private final TypeElement annotationElt;
+
     /** The type of the annotation. */
     private final DeclaredType annotationType;
+
     /** A mapping from element to AnnotationValue. */
     private final Map<ExecutableElement, AnnotationValue> elementValues;
 
@@ -181,10 +185,13 @@ public class AnnotationBuilder {
         assert name != null : "@AssumeAssertion(nullness): assumption";
         AnnotationMirror res = fromName(elements, name, elementNamesValues);
         if (res == null) {
-            throw new UserError(
-                    "AnnotationBuilder: error: fromClass can't load Class %s%n"
-                            + "ensure the class is on the compilation classpath",
-                    name);
+            String extra =
+                    name.startsWith("org.checkerframework.")
+                            ? "Is the class in checker-qual.jar?"
+                            : "Is the class on the compilation classpath, which is:"
+                                    + System.lineSeparator()
+                                    + ReflectionPlume.classpathToString();
+            throw new UserError("AnnotationBuilder: fromClass can't load class %s%n" + extra, name);
         }
         return res;
     }
@@ -683,10 +690,13 @@ public class AnnotationBuilder {
     static class CheckerFrameworkAnnotationMirror implements AnnotationMirror {
         /** The interned toString value. */
         private @Nullable @Interned String toStringVal;
+
         /** The annotation type. */
         private final DeclaredType annotationType;
+
         /** The element values. */
         private final Map<ExecutableElement, AnnotationValue> elementValues;
+
         /** The annotation name. */
         // default visibility to allow access from within package.
         final @Interned @CanonicalName String annotationName;
@@ -757,6 +767,7 @@ public class AnnotationBuilder {
     private static class CheckerFrameworkAnnotationValue implements AnnotationValue {
         /** The value. */
         private final Object value;
+
         /** The interned value of toString. */
         private @Nullable @Interned String toStringVal;
 

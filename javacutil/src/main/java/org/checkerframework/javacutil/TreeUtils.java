@@ -14,6 +14,8 @@ import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.InstanceOfTree;
 import com.sun.source.tree.LiteralTree;
+import com.sun.source.tree.MemberReferenceTree;
+import com.sun.source.tree.MemberReferenceTree.ReferenceMode;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
@@ -24,6 +26,7 @@ import com.sun.source.tree.ParenthesizedTree;
 import com.sun.source.tree.PrimitiveTypeTree;
 import com.sun.source.tree.StatementTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TreeVisitor;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.TypeParameterTree;
@@ -43,6 +46,7 @@ import com.sun.tools.javac.tree.JCTree.JCAnnotation;
 import com.sun.tools.javac.tree.JCTree.JCBinary;
 import com.sun.tools.javac.tree.JCTree.JCExpression;
 import com.sun.tools.javac.tree.JCTree.JCExpressionStatement;
+import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
 import com.sun.tools.javac.tree.JCTree.JCLambda;
 import com.sun.tools.javac.tree.JCTree.JCLambda.ParameterKind;
 import com.sun.tools.javac.tree.JCTree.JCLiteral;
@@ -115,6 +119,9 @@ public final class TreeUtils {
     /** Whether we are running on at least Java 16. */
     private static final boolean atLeastJava16;
 
+    /** Whether we are running on at least Java 21. */
+    private static final boolean atLeastJava21;
+
     /** The CaseTree.getExpression method for Java up to 11; null otherwise. */
     private static final @Nullable Method CASETREE_GETEXPRESSION;
 
@@ -132,6 +139,7 @@ public final class TreeUtils {
 
     /** The {@code CaseTree.getKind()} method for Java 12 and higher; null otherwise. */
     private static final @Nullable Method CASETREE_GETKIND;
+
     /** The {@code CaseTree.CaseKind.RULE} enum value for Java 12 and higher; null otherwise. */
     private static final @Nullable Enum<?> CASETREE_CASEKIND_RULE;
 
@@ -143,6 +151,12 @@ public final class TreeUtils {
 
     /** The BindingPatternTree.getVariable method for Java 16 and higher; null otherwise. */
     private static final @Nullable Method BINDINGPATTERNTREE_GETVARIABLE;
+
+    /**
+     * The {@code TreeMaker.Select(JCExpression, Symbol)} method. Return type changes for JDK21+.
+     * Only needs to be used while the code is compiled with JDK below 21.
+     */
+    private static final @Nullable Method TREEMAKER_SELECT;
 
     /** The value of Flags.RECORD which does not exist in Java 9 or 11. */
     private static final long Flags_RECORD = 2305843009213693952L;
@@ -182,6 +196,14 @@ public final class TreeUtils {
             java16 = null;
         }
         atLeastJava16 = java16 != null && latestSource.ordinal() >= java16.ordinal();
+
+        SourceVersion java21;
+        try {
+            java21 = SourceVersion.valueOf("RELEASE_21");
+        } catch (IllegalArgumentException e) {
+            java21 = null;
+        }
+        atLeastJava21 = java21 != null && latestSource.ordinal() >= java21.ordinal();
 
         try {
             // TODO: profile and see whether doing all these here has a performance impact.
@@ -241,6 +263,12 @@ public final class TreeUtils {
             } else {
                 INSTANCEOFTREE_GETPATTERN = null;
                 BINDINGPATTERNTREE_GETVARIABLE = null;
+            }
+            if (atLeastJava21) {
+                TREEMAKER_SELECT =
+                        TreeMaker.class.getMethod("Select", JCExpression.class, Symbol.class);
+            } else {
+                TREEMAKER_SELECT = null;
             }
         } catch (ClassNotFoundException | NoSuchMethodException e) {
             Error err = new AssertionError("Unexpected error in TreeUtils static initializer");
@@ -899,6 +927,7 @@ public final class TreeUtils {
         }
         return false;
     }
+
     /**
      * Returns the name of the invoked method.
      *
@@ -1037,6 +1066,16 @@ public final class TreeUtils {
     }
 
     /**
+     * Is this method's declared return type "void"?
+     *
+     * @param tree a method declaration
+     * @return true iff method's declared return type is "void"
+     */
+    public static boolean isVoidReturn(MethodTree tree) {
+        return typeOf(tree.getReturnType()).getKind() == TypeKind.VOID;
+    }
+
+    /**
      * Returns true if the tree is a constant-time expression.
      *
      * <p>A tree is a constant-time expression if it is:
@@ -1130,6 +1169,23 @@ public final class TreeUtils {
                 classTreeKinds.add(kind);
             }
         }
+    }
+
+    /** Kinds that represent a class or method tree. */
+    private static final Set<Tree.Kind> classAndMethodTreeKinds;
+
+    static {
+        classAndMethodTreeKinds = EnumSet.copyOf(classTreeKinds());
+        classAndMethodTreeKinds.add(Kind.METHOD);
+    }
+
+    /**
+     * Returns the set of kinds that represent classes and methods.
+     *
+     * @return the set of kinds that represent classes and methods
+     */
+    public static Set<Tree.Kind> classAndMethodTreeKinds() {
+        return classAndMethodTreeKinds;
     }
 
     /**
@@ -1903,6 +1959,82 @@ public final class TreeUtils {
     }
 
     /**
+     * This is a duplication of {@code
+     * com.sun.tools.javac.tree.JCTree.JCMemberReference.ReferenceKind}, which is not part of the
+     * supported javac API.
+     */
+    public enum MemberReferenceKind {
+        /** super # instMethod */
+        SUPER(ReferenceMode.INVOKE, false),
+        /** Type # instMethod */
+        UNBOUND(ReferenceMode.INVOKE, true),
+        /** Type # staticMethod */
+        STATIC(ReferenceMode.INVOKE, false),
+        /** Expr # instMethod */
+        BOUND(ReferenceMode.INVOKE, false),
+        /** Inner # new */
+        IMPLICIT_INNER(ReferenceMode.NEW, false),
+        /** Toplevel # new */
+        TOPLEVEL(ReferenceMode.NEW, false),
+        /** ArrayType # new */
+        ARRAY_CTOR(ReferenceMode.NEW, false);
+
+        /** Whether this kind is a method reference or a constructor reference. */
+        final ReferenceMode mode;
+
+        /** Whether this kind is unbound. */
+        final boolean unbound;
+
+        /**
+         * Creates a MemberReferenceKind.
+         *
+         * @param mode whether this kind is a method reference or a constructor reference
+         * @param unbound whether the kind is not bound
+         */
+        MemberReferenceKind(ReferenceMode mode, boolean unbound) {
+            this.mode = mode;
+            this.unbound = unbound;
+        }
+
+        /**
+         * Whether this kind is unbound.
+         *
+         * @return Whether this kind is unbound
+         */
+        public boolean isUnbound() {
+            return unbound;
+        }
+
+        /**
+         * Returns the kind of member reference {@code tree} is.
+         *
+         * @param tree a member reference tree
+         * @return the kind of member reference {@code tree} is
+         */
+        public static MemberReferenceKind getMemberReferenceKind(MemberReferenceTree tree) {
+            JCMemberReference memberTree = (JCMemberReference) tree;
+            switch (memberTree.kind) {
+                case SUPER:
+                    return SUPER;
+                case UNBOUND:
+                    return UNBOUND;
+                case STATIC:
+                    return STATIC;
+                case BOUND:
+                    return BOUND;
+                case IMPLICIT_INNER:
+                    return IMPLICIT_INNER;
+                case TOPLEVEL:
+                    return TOPLEVEL;
+                case ARRAY_CTOR:
+                    return ARRAY_CTOR;
+                default:
+                    throw new BugInCF("Unexpected ReferenceKind: %s", memberTree.kind);
+            }
+        }
+    }
+
+    /**
      * Determine whether an expression {@link ExpressionTree} has the constant value true, according
      * to the compiler logic.
      *
@@ -2544,5 +2676,51 @@ public final class TreeUtils {
      */
     public static boolean isBinaryComparison(BinaryTree tree) {
         return BINARY_COMPARISON_TREE_KINDS.contains(tree.getKind());
+    }
+
+    /**
+     * Returns the result of {@code treeMaker.Select(base, sym)}.
+     *
+     * @param treeMaker the TreeMaker to use
+     * @param base the expression for the select
+     * @param sym the symbol to select
+     * @return the JCFieldAccess tree to select sym in base
+     */
+    public static JCFieldAccess Select(TreeMaker treeMaker, Tree base, Symbol sym) {
+        if (atLeastJava21) {
+            try {
+                assert TREEMAKER_SELECT != null : "@AssumeAssertion(nullness): initialization";
+                JCFieldAccess jfa = (JCFieldAccess) TREEMAKER_SELECT.invoke(treeMaker, base, sym);
+                if (jfa != null) {
+                    return jfa;
+                } else {
+                    throw new BugInCF(
+                            "TreeUtils.Select: TreeMaker.Select returned null for tree: %s", base);
+                }
+            } catch (InvocationTargetException | IllegalAccessException e) {
+                throw new BugInCF("TreeUtils.Select: reflection failed for tree: %s", base, e);
+            }
+        } else {
+            @SuppressWarnings("cast") // Redundant on JDK 21+
+            JCFieldAccess jfa = (JCFieldAccess) treeMaker.Select((JCExpression) base, sym);
+            return jfa;
+        }
+    }
+
+    /**
+     * Returns the result of {@code treeMaker.Select(base, name)}.
+     *
+     * @param treeMaker the TreeMaker to use
+     * @param base the expression for the select
+     * @param name the name to select
+     * @return the JCFieldAccess tree to select sym in base
+     */
+    public static JCFieldAccess Select(
+            TreeMaker treeMaker, Tree base, com.sun.tools.javac.util.Name name) {
+        /*
+         * There's no need for reflection here. The only reason we even declare this method is so that
+         * callers don't have to remember which overload we provide a wrapper around.
+         */
+        return treeMaker.Select((JCExpression) base, name);
     }
 }

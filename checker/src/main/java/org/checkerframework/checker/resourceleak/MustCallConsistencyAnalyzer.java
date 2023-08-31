@@ -140,7 +140,7 @@ import javax.lang.model.type.TypeMirror;
  * expressions, method calls (for the return value), and ternary expressions. Other types of
  * expressions may also be supported in the future.
  */
-/* package-private */
+/*package-private*/
 class MustCallConsistencyAnalyzer {
 
     /** True if errors related to static owning fields should be suppressed. */
@@ -181,6 +181,12 @@ class MustCallConsistencyAnalyzer {
      */
     private final CFAnalysis analysis;
 
+    /** True if -AnoLightweightOwnership was passed on the command line. */
+    private final boolean noLightweightOwnership;
+
+    /** True if -AcountMustCall was passed on the command line. */
+    private final boolean countMustCall;
+
     /**
      * An Obligation is a dataflow fact: a set of resource aliases. Abstractly, each Obligation
      * represents a resource that the analyzed program which might have a must-call obligation. Each
@@ -195,7 +201,7 @@ class MustCallConsistencyAnalyzer {
      * alias is certainly a null pointer, or if the must-call obligation is the empty set), the
      * analysis can discard the Obligation.
      */
-    /* package-private */ static class Obligation {
+    /*package-private*/ static class Obligation {
 
         /**
          * The set of resource aliases through which a must-call obligation can be satisfied.
@@ -401,7 +407,7 @@ class MustCallConsistencyAnalyzer {
      * (the "reference" through which the must-call obligations for the alias set to which it
      * belongs can be satisfied) and a tree that "assigns" the reference.
      */
-    /* package-private */ static class ResourceAlias {
+    /*package-private*/ static class ResourceAlias {
 
         /**
          * A local variable defined in the source code or a temporary variable for an expression.
@@ -483,13 +489,15 @@ class MustCallConsistencyAnalyzer {
      * @param analysis the analysis from the type factory. Usually this would have protected access,
      *     so this constructor cannot get it directly.
      */
-    /* package-private */
+    /*package-private*/
     MustCallConsistencyAnalyzer(ResourceLeakAnnotatedTypeFactory typeFactory, CFAnalysis analysis) {
         this.typeFactory = typeFactory;
         this.checker = (ResourceLeakChecker) typeFactory.getChecker();
         this.analysis = analysis;
         this.permitStaticOwning = checker.hasOption("permitStaticOwning");
         this.permitInitializationLeak = checker.hasOption("permitInitializationLeak");
+        this.noLightweightOwnership = checker.hasOption(MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP);
+        this.countMustCall = checker.hasOption(ResourceLeakChecker.COUNT_MUST_CALL);
     }
 
     /**
@@ -510,8 +518,7 @@ class MustCallConsistencyAnalyzer {
      */
     // TODO: This analysis is currently implemented directly using a worklist; in the future, it
     // should be rewritten to use the dataflow framework of the Checker Framework.
-    /* package-private */
-    void analyze(ControlFlowGraph cfg) {
+    /*package-private*/ void analyze(ControlFlowGraph cfg) {
         // The `visited` set contains everything that has been added to the worklist, even if it has
         // not yet been removed and analyzed.
         Set<BlockWithObligations> visited = new HashSet<>();
@@ -653,7 +660,8 @@ class MustCallConsistencyAnalyzer {
      *   <li>2) the expression already has a tracked Obligation (i.e. there is already a resource
      *       alias in some Obligation's resource alias set that refers to the expression), or
      *   <li>3) the method in which the invocation occurs also has an @CreatesMustCallFor
-     *       annotation, with the same expression.
+     *       annotation, with the same expression, or
+     *   <li>4) the expression is a resource variable.
      * </ul>
      *
      * @param obligations the currently-tracked Obligations; this value is side-effected if there is
@@ -667,20 +675,22 @@ class MustCallConsistencyAnalyzer {
             Set<Obligation> obligations, JavaExpression expression, TreePath invocationPath) {
         if (expression instanceof FieldAccess) {
             Element elt = ((FieldAccess) expression).getField();
-            if (!checker.hasOption(MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP)
-                    && typeFactory.hasOwning(elt)) {
+            if (!noLightweightOwnership && typeFactory.hasOwning(elt)) {
                 // The expression is an Owning field.  This satisfies case 1.
                 return true;
             }
         } else if (expression instanceof LocalVariable) {
             Element elt = ((LocalVariable) expression).getElement();
-            if (!checker.hasOption(MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP)
-                    && typeFactory.hasOwning(elt)) {
+            if (!noLightweightOwnership && typeFactory.hasOwning(elt)) {
                 // The expression is an Owning formal parameter. Note that this cannot actually
                 // be a local variable (despite expressions's type being LocalVariable) because
                 // the @Owning annotation can only be written on methods, parameters, and fields;
                 // formal parameters are also represented by LocalVariable in the bodies of methods.
                 // This satisfies case 1.
+                return true;
+            } else if (ElementUtils.isResourceVariable(elt)) {
+                // The expression is a resource variable, and therefore will be closed, so we can
+                // treat it as owning (case 4).
                 return true;
             } else {
                 Obligation toRemove = null;
@@ -969,7 +979,7 @@ class MustCallConsistencyAnalyzer {
     private void removeObligationsAtOwnershipTransferToParameters(
             Set<Obligation> obligations, Node node) {
 
-        if (checker.hasOption(MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP)) {
+        if (noLightweightOwnership) {
             // Never transfer ownership to parameters, matching the default in the analysis built
             // into Eclipse.
             return;
@@ -1056,7 +1066,7 @@ class MustCallConsistencyAnalyzer {
      *     corresponding to a CFG
      */
     private boolean isTransferOwnershipAtReturn(ControlFlowGraph cfg) {
-        if (checker.hasOption(MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP)) {
+        if (noLightweightOwnership) {
             // If not using LO, default to always transfer at return, just like Eclipse does.
             return true;
         }
@@ -1094,9 +1104,7 @@ class MustCallConsistencyAnalyzer {
 
         // Ownership transfer to @Owning field.
         if (lhsElement.getKind() == ElementKind.FIELD) {
-            boolean isOwningField =
-                    !checker.hasOption(MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP)
-                            && typeFactory.hasOwning(lhsElement);
+            boolean isOwningField = !noLightweightOwnership && typeFactory.hasOwning(lhsElement);
             // Check that the must-call obligations of the lhs have been satisfied, if the field is
             // non-final and owning.
             if (isOwningField
@@ -1662,7 +1670,7 @@ class MustCallConsistencyAnalyzer {
      *     declaration does not have a {@code @NotOwning} annotation
      */
     private boolean shouldTrackReturnType(MethodInvocationNode node) {
-        if (checker.hasOption(MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP)) {
+        if (noLightweightOwnership) {
             // Default to always transferring at return if not using LO, just like Eclipse does.
             return true;
         }
@@ -1842,10 +1850,18 @@ class MustCallConsistencyAnalyzer {
                     // immediately issued, because such a parameter should not go out of scope
                     // without its obligation being resolved some other way.
                     if (obligation.derivedFromMustCallAlias()) {
-                        checker.reportError(
-                                obligation.resourceAliases.asList().get(0).tree,
-                                "mustcallalias.out.of.scope",
-                                exitReasonForErrorMessage);
+                        // MustCallAlias annotations only have meaning if the method returns
+                        // normally, so issue an error if and only if this exit is happening on a
+                        // normal exit path.
+                        if (exceptionType == null) {
+                            checker.reportError(
+                                    obligation.resourceAliases.asList().get(0).tree,
+                                    "mustcallalias.out.of.scope",
+                                    exitReasonForErrorMessage);
+                        }
+                        // Whether or not an error is issued, the check is now complete - there is
+                        // no further checking to do on a must-call-alias-derived obligation along
+                        // an exceptional path.
                         continue;
                     }
 
@@ -1976,7 +1992,7 @@ class MustCallConsistencyAnalyzer {
                 boolean hasMustCallAlias = typeFactory.hasMustCallAlias(paramElement);
                 if (hasMustCallAlias
                         || (typeFactory.declaredTypeHasMustCall(param)
-                                && !checker.hasOption(MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP)
+                                && !noLightweightOwnership
                                 && paramElement.getAnnotation(Owning.class) != null)) {
                     result.add(
                             new Obligation(
@@ -2107,7 +2123,7 @@ class MustCallConsistencyAnalyzer {
      * @param node the node being counted, to extract the type
      */
     private void incrementNumMustCall(Node node) {
-        if (checker.hasOption(ResourceLeakChecker.COUNT_MUST_CALL)) {
+        if (countMustCall) {
             TypeMirror type = node.getType();
             incrementMustCallImpl(type);
         }
@@ -2119,7 +2135,7 @@ class MustCallConsistencyAnalyzer {
      * @param elt the elt being counted, to extract the type
      */
     private void incrementNumMustCall(Element elt) {
-        if (checker.hasOption(ResourceLeakChecker.COUNT_MUST_CALL)) {
+        if (countMustCall) {
             TypeMirror type = elt.asType();
             incrementMustCallImpl(type);
         }
@@ -2146,7 +2162,7 @@ class MustCallConsistencyAnalyzer {
      * @return true iff the type's fully-qualified name starts with "java", indicating that it is
      *     from a java.* or javax.* package (probably)
      */
-    /* package-private */ static boolean isJdkClass(String qualifiedName) {
+    /*package-private*/ static boolean isJdkClass(String qualifiedName) {
         return qualifiedName.startsWith("java");
     }
 
@@ -2177,7 +2193,7 @@ class MustCallConsistencyAnalyzer {
      *
      * <p>Package-private to permit access from {@link ResourceLeakAnalysis}.
      */
-    /* package-private */ static final Set<String> ignoredExceptionTypes =
+    /*package-private*/ static final Set<String> ignoredExceptionTypes =
             new HashSet<>(
                     ImmutableSet.of(
                             // Any method call has a CFG edge for Throwable/RuntimeException/Error
@@ -2245,8 +2261,7 @@ class MustCallConsistencyAnalyzer {
      * @param mustCallVal the list of must-call strings
      * @return a formatted string
      */
-    /* package-private */
-    static String formatMissingMustCallMethods(List<String> mustCallVal) {
+    /*package-private*/ static String formatMissingMustCallMethods(List<String> mustCallVal) {
         int size = mustCallVal.size();
         if (size == 0) {
             throw new TypeSystemError("empty mustCallVal " + mustCallVal);

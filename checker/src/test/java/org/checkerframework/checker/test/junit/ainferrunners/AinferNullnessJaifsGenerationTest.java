@@ -15,13 +15,19 @@ import java.util.List;
  * relevant. The meaning of this test class is to test if the generated .jaif files are similar to
  * the expected ones. The errors on .java files must be ignored.
  */
-@Category(AinferNullnessJaifsTest.class)
-public class AinferNullnessJaifsTest extends CheckerFrameworkPerDirectoryTest {
+@Category(AinferNullnessJaifsGenerationTest.class)
+public class AinferNullnessJaifsGenerationTest extends CheckerFrameworkPerDirectoryTest {
     /**
      * @param testFiles the files containing test code, which will be type-checked
      */
-    public AinferNullnessJaifsTest(List<File> testFiles) {
-        super(testFiles, NullnessChecker.class, "nullness", "-Ainfer=jaifs", "-Awarns");
+    public AinferNullnessJaifsGenerationTest(List<File> testFiles) {
+        super(
+                testFiles,
+                NullnessChecker.class,
+                "nullness",
+                "-Ainfer=jaifs",
+                "-Awarns",
+                "-Aajava=tests/ainfer-nullness/input-annotation-files/");
     }
 
     @Parameters

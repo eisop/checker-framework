@@ -114,6 +114,8 @@ public abstract class BaseTypeChecker extends SourceChecker {
         }
 
         super.initChecker();
+
+        warnUnneededSuppressions = hasOption("warnUnneededSuppressions");
     }
 
     /**
@@ -153,6 +155,19 @@ public abstract class BaseTypeChecker extends SourceChecker {
      */
     private @MonotonicNonNull Collection<String> suppressWarningsPrefixesOfSubcheckers = null;
 
+    /** True if -AwarnUnneededSuppressions was supplied on the command line. */
+    // Not final because it is set in `init()`.
+    private boolean warnUnneededSuppressions;
+
+    @Override
+    protected void setRoot(CompilationUnitTree newRoot) {
+        super.setRoot(newRoot);
+        if (parentChecker == null) {
+            // Only clear the path cache if this is the main checker.
+            treePathCacher.clear();
+        }
+    }
+
     /**
      * Returns the set of subchecker classes on which this checker depends. Returns an empty set if
      * this checker does not depend on any others.
@@ -179,14 +194,17 @@ public abstract class BaseTypeChecker extends SourceChecker {
      * <p>This method is protected so it can be overridden, but it should only be called internally
      * by the BaseTypeChecker.
      *
-     * <p>The BaseTypeChecker will not modify the list returned by this method, but other clients do
-     * modify the list.
+     * <p>The BaseTypeChecker will not modify the set returned by this method, but clients that
+     * override the method do modify the set.
      *
-     * @return the subchecker classes on which this checker depends; will be modified by callees
+     * @return the subchecker classes on which this checker depends; will be modified by callees in
+     *     overriding methods
      */
-    protected LinkedHashSet<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
+    // This is never looked up in, but it is iterated over (and added to, which does a lookup).
+    protected Set<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
         // This must return a modifiable set because clients modify it.
         // Most checkers have 1 or fewer subcheckers.
+        // Use a LinkedHashSet for deterministic ordering.
         LinkedHashSet<Class<? extends BaseTypeChecker>> result =
                 new LinkedHashSet<>(CollectionsPlume.mapCapacity(2));
         if (shouldResolveReflection()) {
@@ -328,7 +346,15 @@ public abstract class BaseTypeChecker extends SourceChecker {
                     // Don't add more information about the constructor invocation.
                     throw (RuntimeException) err;
                 }
+            } else if (t instanceof NoSuchMethodException) {
+                // Note: it's possible that NoSuchMethodException was caused by
+                // `ctor.newInstance(args)`, if
+                // the constructor itself uses reflection.  But this case is unlikely.
+                throw new TypeSystemError(
+                        "Could not find constructor %s(%s)",
+                        name, StringsPlume.join(", ", paramTypes));
             }
+
             Throwable cause;
             String causeMessage;
             if (t instanceof InvocationTargetException) {
@@ -431,7 +457,7 @@ public abstract class BaseTypeChecker extends SourceChecker {
     private List<BaseTypeChecker> instantiateSubcheckers(
             Map<Class<? extends BaseTypeChecker>, BaseTypeChecker>
                     alreadyInitializedSubcheckerMap) {
-        LinkedHashSet<Class<? extends BaseTypeChecker>> classesOfImmediateSubcheckers =
+        Set<Class<? extends BaseTypeChecker>> classesOfImmediateSubcheckers =
                 getImmediateSubcheckerClasses();
         if (classesOfImmediateSubcheckers.isEmpty()) {
             return Collections.emptyList();
@@ -595,7 +621,7 @@ public abstract class BaseTypeChecker extends SourceChecker {
             return;
         }
 
-        if (!hasOption("warnUnneededSuppressions")) {
+        if (!warnUnneededSuppressions) {
             return;
         }
         Set<Element> elementsWithSuppressedWarnings =
@@ -663,10 +689,13 @@ public abstract class BaseTypeChecker extends SourceChecker {
     private static class CheckerMessage {
         /** The severity of the message. */
         final Diagnostic.Kind kind;
+
         /** The message itself. */
         final String message;
+
         /** The source code that the message is about. */
         final @InternedDistinct Tree source;
+
         /** Stores the stack trace when the message is created. */
         final StackTraceElement[] trace;
 

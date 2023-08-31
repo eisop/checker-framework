@@ -6,11 +6,11 @@ import org.checkerframework.checker.units.qual.Prefix;
 import org.checkerframework.checker.units.qual.UnknownUnits;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.javacutil.AnnotationBuilder;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 
 import java.lang.annotation.Annotation;
 import java.util.Map;
-import java.util.Set;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
@@ -205,7 +205,7 @@ public class UnitsRelationsTools {
         AnnotatedTypeMirror result = annoType.deepCopy(false);
 
         // get all of the original Annotations in the Annotated Type
-        Set<AnnotationMirror> annos = annoType.getAnnotations();
+        AnnotationMirrorSet annos = annoType.getAnnotations();
 
         // loop through all the Annotations to see if they use Prefix.one, remove Prefix.one if it
         // does

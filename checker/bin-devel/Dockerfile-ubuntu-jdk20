@@ -1,26 +1,35 @@
 # Create a Docker image that is ready to run the main Checker Framework tests,
-# using JDK 19.
+# using JDK 20.
 # (This is OpenJDK, not Oracle JDK.  There are different instructions for
 # installing a LTS release of Java.)
+# To convert this file to use a newer JDK, search (from the top level of the
+# Checker Framework and Annotation Tools repositories) for: (java|jdk).?20
 
 # "ubuntu" is the latest LTS release.  "ubuntu:rolling" is the latest release.
+# See releases at https://hub.docker.com/_/ubuntu
 FROM ubuntu:22.10
-MAINTAINER Michael Ernst <mernst@cs.washington.edu>
+MAINTAINER Werner Dietl <wdietl@gmail.com>
 
 # According to
 # https://docs.docker.com/engine/userguide/eng-image/dockerfile_best-practices/:
 #  * Put "apt-get update" and "apt-get install" and "apt cleanup" in the same RUN command.
 #  * Do not run "apt-get upgrade"; instead get upstream to update.
 
+# ca-certificates-java is a dependency of openjdk-20-jdk, but the installation
+# process seems to fail sometimes when only openjdk-20-jdk is specified.
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get -qqy update \
 && apt-get -qqy install \
-  openjdk-19-jdk
+  ca-certificates-java \
+&& apt-get -qqy install \
+  openjdk-20-jdk
 
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get -qqy update \
 && apt-get -qqy install \
   ant \
+  binutils \
+  build-essential \
   cpp \
   git \
   gradle \
@@ -34,18 +43,14 @@ RUN export DEBIAN_FRONTEND=noninteractive \
   unzip \
   wget
 
-# Maven 3.6.3 (the default on Ubuntu 22.04) does not run under JDK 19.
+# Maven 3.6.3 (the default on Ubuntu 22.10) does not run under JDK 20.
 # (Don't try to use a variable here for the Maven version.)
 RUN export DEBIAN_FRONTEND=noninteractive \
-&& wget https://mirrors.sonic.net/apache/maven/maven-3/3.8.6/binaries/apache-maven-3.8.6-bin.tar.gz \
-&& tar xzvf apache-maven-3.8.6-bin.tar.gz
-ENV PATH="/apache-maven-3.8.6/bin:$PATH"
+&& wget https://mirrors.sonic.net/apache/maven/maven-3/3.9.1/binaries/apache-maven-3.9.1-bin.tar.gz \
+&& tar xzvf apache-maven-3.9.1-bin.tar.gz
+ENV PATH="/apache-maven-3.9.1/bin:$PATH"
 
-# Bug fix to make jtreg runnable: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=754942;msg=2
-RUN export DEBIAN_FRONTEND=noninteractive \
-&& apt-get -qqy update \
-&& apt-get -qqy install \
-  default-jre-headless
+RUN pip3 install --no-cache-dir lithium-reducer PyGithub pyyaml
 
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get clean \

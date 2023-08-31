@@ -12,10 +12,10 @@ import org.checkerframework.framework.flow.CFAnalysis;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFTransfer;
 import org.checkerframework.framework.flow.CFValue;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 
@@ -80,7 +80,7 @@ public class AccumulationTransfer extends CFTransfer {
         if (CFAbstractStore.canInsertJavaExpression(target)) {
             CFValue flowValue = result.getRegularStore().getValue(target);
             if (flowValue != null) {
-                Set<AnnotationMirror> flowAnnos = flowValue.getAnnotations();
+                AnnotationMirrorSet flowAnnos = flowValue.getAnnotations();
                 assert flowAnnos.size() <= 1;
                 for (AnnotationMirror anno : flowAnnos) {
                     if (atypeFactory.isAccumulatorAnnotation(anno)) {

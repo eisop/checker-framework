@@ -5,7 +5,7 @@ import org.checkerframework.common.value.ValueChecker;
 import org.checkerframework.framework.qual.RelevantJavaTypes;
 import org.checkerframework.framework.source.SuppressWarningsPrefix;
 
-import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * An internal checker that estimates which expression's values are less than other expressions'
@@ -28,9 +28,8 @@ import java.util.LinkedHashSet;
 })
 public class LessThanChecker extends BaseTypeChecker {
     @Override
-    protected LinkedHashSet<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
-        LinkedHashSet<Class<? extends BaseTypeChecker>> checkers =
-                super.getImmediateSubcheckerClasses();
+    protected Set<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
+        Set<Class<? extends BaseTypeChecker>> checkers = super.getImmediateSubcheckerClasses();
         checkers.add(ValueChecker.class);
         return checkers;
     }

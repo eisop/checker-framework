@@ -70,7 +70,7 @@ import javax.lang.model.type.TypeMirror;
  * org.checkerframework.dataflow.expression.ArrayAccess}, {@link
  * org.checkerframework.dataflow.expression.LocalVariable}, etc.
  *
- * @see <a href="https://checkerframework.org/manual/#java-expressions-as-arguments">the syntax of
+ * @see <a href="https://eisop.github.io/cf/manual/#java-expressions-as-arguments">the syntax of
  *     Java expressions supported by the Checker Framework</a>
  */
 public abstract class JavaExpression {
@@ -415,7 +415,8 @@ public abstract class JavaExpression {
                             "nullness:assignment" // enclosingTypeElement(ExecutableElement):
                     // @NonNull
                     )
-                    @NonNull TypeElement methodType = ElementUtils.enclosingTypeElement(invokedMethod);
+                    @NonNull TypeElement methodType =
+                            ElementUtils.enclosingTypeElement(invokedMethod);
                     methodReceiver = new ClassName(methodType.asType());
                 } else {
                     methodReceiver = getReceiver(mn);

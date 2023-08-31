@@ -77,6 +77,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcard
 import org.checkerframework.framework.util.JavaParserUtil;
 import org.checkerframework.framework.util.element.ElementAnnotationUtil.ErrorTypeKindException;
 import org.checkerframework.javacutil.AnnotationBuilder;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
@@ -296,7 +297,7 @@ public class AnnotationFileParser {
          * files than in the real files. So, map keys are the verbose element name, as returned by
          * ElementUtils.getQualifiedName.
          */
-        public final Map<String, Set<AnnotationMirror>> declAnnos = new HashMap<>(1);
+        public final Map<String, AnnotationMirrorSet> declAnnos = new HashMap<>(1);
 
         /**
          * Map from a method element to all the fake overrides of it. Given a key {@code ee}, the
@@ -317,6 +318,7 @@ public class AnnotationFileParser {
          * order: the order that they are declared in the record header.
          */
         public final Map<String, RecordComponentStub> componentsByName;
+
         /**
          * If the canonical constructor is given in the stubs, the annotated types (in component
          * declaration order) for the constructor. Null if not present in the stubs.
@@ -364,7 +366,7 @@ public class AnnotationFileParser {
          * these will be copied to the corresponding field, accessor method, and compact canonical
          * constructor parameter.
          */
-        private final Set<AnnotationMirror> allAnnotations;
+        private final AnnotationMirrorSet allAnnotations;
 
         /** Whether this component has an accessor of exactly the same name in the stubs file. */
         private boolean hasAccessorInStubs = false;
@@ -375,7 +377,7 @@ public class AnnotationFileParser {
          * @param type the type of the record component
          * @param allAnnotations the declaration annotations on the component
          */
-        public RecordComponentStub(AnnotatedTypeMirror type, Set<AnnotationMirror> allAnnotations) {
+        public RecordComponentStub(AnnotatedTypeMirror type, AnnotationMirrorSet allAnnotations) {
             this.type = type;
             this.allAnnotations = allAnnotations;
         }
@@ -386,8 +388,8 @@ public class AnnotationFileParser {
          * @param elementKind the element kind to apply to (e.g., FIELD, METHOD)
          * @return the set of annotations from the component that apply
          */
-        public Set<AnnotationMirror> getAnnotationsForTarget(ElementKind elementKind) {
-            Set<AnnotationMirror> filtered = AnnotationUtils.createAnnotationSet();
+        public AnnotationMirrorSet getAnnotationsForTarget(ElementKind elementKind) {
+            AnnotationMirrorSet filtered = new AnnotationMirrorSet();
             for (AnnotationMirror annoMirror : allAnnotations) {
                 Target target =
                         annoMirror.getAnnotationType().asElement().getAnnotation(Target.class);
@@ -886,11 +888,11 @@ public class AnnotationFileParser {
      *   <li>It is in the annotated JDK. Private constructs can't be referenced outside of the JDK
      *       and might refer to types that are not accessible.
      *   <li>It is not an ajava file and {@code -AmergeStubsWithSource} was not supplied. As
-     *       described at https://checkerframework.org/manual/#stub-multiple-specifications, source
+     *       described at https://eisop.github.io/cf/manual/#stub-multiple-specifications, source
      *       files take precedence over stub files unless {@code -AmergeStubsWithSource} is
-     *       supplied. As described at https://checkerframework.org/manual/#ajava-using, source
-     *       files do not take precedence over ajava files (when reading an ajava file, it is as if
-     *       {@code -AmergeStubsWithSource} were supplied).
+     *       supplied. As described at https://eisop.github.io/cf/manual/#ajava-using, source files
+     *       do not take precedence over ajava files (when reading an ajava file, it is as if {@code
+     *       -AmergeStubsWithSource} were supplied).
      * </ul>
      *
      * @param node a declaration
@@ -1733,7 +1735,7 @@ public class AnnotationFileParser {
 
         annotate(fieldType, decl.getType(), decl.getAnnotations(), decl);
         putMerge(annotationFileAnnos.atypes, elt, fieldType);
-        Set<AnnotationMirror> annos = AnnotationUtils.createAnnotationSet();
+        AnnotationMirrorSet annos = new AnnotationMirrorSet();
         for (AnnotationExpr annotation : decl.getAnnotations()) {
             AnnotationMirror annoMirror = getAnnotation(annotation, allAnnotations);
             annos.add(annoMirror);
@@ -1823,7 +1825,7 @@ public class AnnotationFileParser {
         if (annotations == null || annotations.isEmpty()) {
             return;
         }
-        Set<AnnotationMirror> annos = AnnotationUtils.createAnnotationSet();
+        AnnotationMirrorSet annos = new AnnotationMirrorSet();
         for (AnnotationExpr annotation : annotations) {
             AnnotationMirror annoMirror = getAnnotation(annotation, allAnnotations);
             if (annoMirror != null) {
@@ -1856,7 +1858,8 @@ public class AnnotationFileParser {
             return;
         }
         putOrAddToDeclAnnos(
-                ElementUtils.getQualifiedName(elt), Collections.singleton(fromStubFileAnno));
+                ElementUtils.getQualifiedName(elt),
+                AnnotationMirrorSet.singleton(fromStubFileAnno));
     }
 
     private void annotateTypeParameters(
@@ -2049,14 +2052,14 @@ public class AnnotationFileParser {
             NodeWithRange<?> astNode) {
         if (member instanceof MethodDeclaration) {
             MethodDeclaration method = (MethodDeclaration) member;
-            Element elt = findElement(typeElt, method, /*noWarn=*/ true);
+            Element elt = findElement(typeElt, method, /* noWarn= */ true);
             if (elt != null) {
                 putIfAbsent(elementsToDecl, elt, method);
             } else {
                 ExecutableElement overriddenMethod = fakeOverriddenMethod(typeElt, method);
                 if (overriddenMethod == null) {
                     // Didn't find the element and it isn't a fake override.  Issue a warning.
-                    findElement(typeElt, method, /*noWarn=*/ false);
+                    findElement(typeElt, method, /* noWarn= */ false);
                 } else {
                     List<BodyDeclaration<?>> l =
                             fakeOverrideDecls.computeIfAbsent(
@@ -3051,23 +3054,24 @@ public class AnnotationFileParser {
      * the map value. Otherwise put the key and the annos in the map.
      *
      * @param key a name (actually declaration element string)
-     * @param annos the set of declaration annotations on it, as written in the annotation file
+     * @param annos the set of declaration annotations on it, as written in the annotation file; is
+     *     not modified
      */
-    private void putOrAddToDeclAnnos(String key, Set<AnnotationMirror> annos) {
-        Set<AnnotationMirror> stored = annotationFileAnnos.declAnnos.get(key);
+    private void putOrAddToDeclAnnos(String key, AnnotationMirrorSet annos) {
+        AnnotationMirrorSet stored = annotationFileAnnos.declAnnos.get(key);
         if (stored == null) {
-            annotationFileAnnos.declAnnos.put(key, new HashSet<>(annos));
+            annotationFileAnnos.declAnnos.put(key, new AnnotationMirrorSet(annos));
         } else {
             // TODO: Currently, we assume there can be at most one annotation of the same name
             //  in both `stored` and `annos`. Maybe we should consider the situation of multiple
             //  entries having the same name.
-            Set<AnnotationMirror> annotationsToAdd = annos;
+            AnnotationMirrorSet annotationsToAdd = annos;
             if (fileType == AnnotationFileType.JDK_STUB) {
                 // JDK annotations should not replace any annotation of the same type.
                 annotationsToAdd =
                         annos.stream()
                                 .filter(am -> !AnnotationUtils.containsSameByName(stored, am))
-                                .collect(Collectors.toSet());
+                                .collect(Collectors.toCollection(AnnotationMirrorSet::new));
             } else {
                 // Annotations that are not from the annotated JDK may replace existing
                 // annotations of the same type.
@@ -3101,7 +3105,7 @@ public class AnnotationFileParser {
             if (fileType != AnnotationFileType.JDK_STUB) {
                 atypeFactory.replaceAnnotations(newType, existingType);
             }
-            m.put(key, existingType);
+            // existingType is already in the map, so no need to put into m.
         } else {
             m.put(key, newType);
         }

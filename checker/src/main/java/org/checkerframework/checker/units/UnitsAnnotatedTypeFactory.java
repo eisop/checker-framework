@@ -81,9 +81,11 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     /** The UnitsMultiple.prefix argument/element. */
     private final ExecutableElement unitsMultiplePrefixElement =
             TreeUtils.getMethod(UnitsMultiple.class, "prefix", 0, processingEnv);
+
     /** The UnitsMultiple.quantity argument/element. */
     private final ExecutableElement unitsMultipleQuantityElement =
             TreeUtils.getMethod(UnitsMultiple.class, "quantity", 0, processingEnv);
+
     /** The UnitsRelations.value argument/element. */
     private final ExecutableElement unitsRelationsValueElement =
             TreeUtils.getMethod(
@@ -430,13 +432,13 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
         // Handled completely by UnitsTreeAnnotator
         @Override
-        public Void visitBinary(BinaryTree node, AnnotatedTypeMirror type) {
+        public Void visitBinary(BinaryTree tree, AnnotatedTypeMirror type) {
             return null;
         }
 
         // Handled completely by UnitsTreeAnnotator
         @Override
-        public Void visitCompoundAssignment(CompoundAssignmentTree node, AnnotatedTypeMirror type) {
+        public Void visitCompoundAssignment(CompoundAssignmentTree tree, AnnotatedTypeMirror type) {
             return null;
         }
     }
@@ -449,10 +451,10 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         @Override
-        public Void visitBinary(BinaryTree node, AnnotatedTypeMirror type) {
-            AnnotatedTypeMirror lht = getAnnotatedType(node.getLeftOperand());
-            AnnotatedTypeMirror rht = getAnnotatedType(node.getRightOperand());
-            Tree.Kind kind = node.getKind();
+        public Void visitBinary(BinaryTree tree, AnnotatedTypeMirror type) {
+            AnnotatedTypeMirror lht = getAnnotatedType(tree.getLeftOperand());
+            AnnotatedTypeMirror rht = getAnnotatedType(tree.getRightOperand());
+            Tree.Kind kind = tree.getKind();
 
             // Remove Prefix.one
             if (UnitsRelationsTools.getPrefix(lht) == Prefix.one) {
@@ -473,7 +475,7 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                                     + bestres
                                     + " and current: "
                                     + res);
-                    return null; // super.visitBinary(node, type);
+                    return null; // super.visitBinary(tree, type);
                 }
 
                 if (res != null) {
@@ -544,8 +546,8 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         @Override
-        public Void visitCompoundAssignment(CompoundAssignmentTree node, AnnotatedTypeMirror type) {
-            ExpressionTree var = node.getVariable();
+        public Void visitCompoundAssignment(CompoundAssignmentTree tree, AnnotatedTypeMirror type) {
+            ExpressionTree var = tree.getVariable();
             AnnotatedTypeMirror varType = getAnnotatedType(var);
 
             type.replaceAnnotations(varType.getAnnotations());

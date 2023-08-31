@@ -1,35 +1,30 @@
 # Create a Docker image that is ready to run the full Checker Framework tests,
 # including building the manual and Javadoc, using the latest JDK release,
-# currently JDK 16.
+# currently JDK 19.
 
 # "ubuntu" is the latest LTS release.  "ubuntu:rolling" is the latest release.
-FROM ubuntu
+# See releases at https://hub.docker.com/_/ubuntu for available images.
+# See https://packages.ubuntu.com/search?suite=default&section=all&arch=any&keywords=openjdk-20-jdk&searchon=names
+# to see what Ubuntu versions support a particular OpenJDK version.
+FROM ubuntu:22.10
 MAINTAINER Werner Dietl <wdietl@gmail.com>
-
-## Keep this file in sync with ../../docs/manual/troubleshooting.tex
 
 # According to
 # https://docs.docker.com/engine/userguide/eng-image/dockerfile_best-practices/:
-#  * Put "apt-get update" and "apt-get install" and apt cleanup in the same RUN command.
+#  * Put "apt-get update" and "apt-get install" and "apt cleanup" in the same RUN command.
 #  * Do not run "apt-get upgrade"; instead get upstream to update.
 
-# Instructions for installing Java 16 on Ubuntu:
-# https://www.linuxuprising.com/2021/03/how-to-install-oracle-java-16-on-debian.html
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get -qqy update \
-&& apt-get -qqy install software-properties-common \
-&& add-apt-repository ppa:linuxuprising/java
-
-RUN export DEBIAN_FRONTEND=noninteractive \
-&& apt-get -qqy update \
-&& echo oracle-java16-installer shared/accepted-oracle-license-v1-2 select true | /usr/bin/debconf-set-selections \
 && apt-get -qqy install \
-  oracle-java16-installer --install-recommends
+  openjdk-19-jdk
 
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get -qqy update \
 && apt-get -qqy install \
   ant \
+  binutils \
+  build-essential \
   cpp \
   git \
   gradle \
@@ -43,20 +38,33 @@ RUN export DEBIAN_FRONTEND=noninteractive \
   unzip \
   wget
 
+# Maven 3.6.3 (the default on Ubuntu 22.04) does not run under JDK 19.
+# (Don't try to use a variable here for the Maven version.)
 RUN export DEBIAN_FRONTEND=noninteractive \
-&& wget https://mirrors.sonic.net/apache/maven/maven-3/3.8.1/binaries/apache-maven-3.8.1-bin.tar.gz \
-&& tar xzvf apache-maven-3.8.1-bin.tar.gz
-ENV PATH="/apache-maven-3.8.1/bin:$PATH"
+&& wget https://mirrors.sonic.net/apache/maven/maven-3/3.9.1/binaries/apache-maven-3.9.1-bin.tar.gz \
+&& tar xzvf apache-maven-3.9.1-bin.tar.gz
+ENV PATH="/apache-maven-3.9.1/bin:$PATH"
 
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get -qqy update \
 && apt-get -qqy install \
+  autoconf \
   devscripts \
   dia \
   hevea \
   imagemagick \
+  junit \
   latexmk \
   librsvg2-bin \
+  libasound2-dev \
+  libcups2-dev \
+  libfontconfig1-dev \
+  libx11-dev \
+  libxext-dev \
+  libxrender-dev \
+  libxrandr-dev \
+  libxtst-dev \
+  libxt-dev \
   pdf2svg \
   rsync \
   shellcheck \
@@ -66,7 +74,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
   texlive-latex-extra \
   texlive-latex-recommended
 
-RUN pip3 install black flake8 html5validator
+RUN pip3 install --no-cache-dir black flake8 html5validator lithium-reducer PyGithub pyyaml
 
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get clean \

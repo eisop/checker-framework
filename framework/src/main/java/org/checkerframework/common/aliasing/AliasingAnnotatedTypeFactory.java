@@ -34,11 +34,14 @@ public class AliasingAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     /** The @{@link MaybeAliased} annotation. */
     protected final AnnotationMirror MAYBE_ALIASED =
             AnnotationBuilder.fromClass(elements, MaybeAliased.class);
+
     /** The @{@link NonLeaked} annotation. */
     protected final AnnotationMirror NON_LEAKED =
             AnnotationBuilder.fromClass(elements, NonLeaked.class);
+
     /** The @{@link Unique} annotation. */
     protected final AnnotationMirror UNIQUE = AnnotationBuilder.fromClass(elements, Unique.class);
+
     /** The @{@link MaybeLeaked} annotation. */
     protected final AnnotationMirror MAYBE_LEAKED =
             AnnotationBuilder.fromClass(elements, MaybeLeaked.class);
@@ -73,9 +76,9 @@ public class AliasingAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         @Override
-        public Void visitNewArray(NewArrayTree node, AnnotatedTypeMirror type) {
+        public Void visitNewArray(NewArrayTree tree, AnnotatedTypeMirror type) {
             type.replaceAnnotation(UNIQUE);
-            return super.visitNewArray(node, type);
+            return super.visitNewArray(tree, type);
         }
     }
 

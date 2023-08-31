@@ -335,7 +335,7 @@ public class DefaultReflectionResolver implements ReflectionResolver {
     /**
      * Resolves a reflective method call and returns all possible corresponding method calls.
      *
-     * @param tree the MethodInvocationTree node that is to be resolved (Method.invoke)
+     * @param tree the MethodInvocationTree AST node that is to be resolved (Method.invoke)
      * @return a (potentially empty) list of all resolved MethodInvocationTrees
      */
     private List<MethodInvocationTree> resolveReflectiveMethod(
@@ -395,7 +395,7 @@ public class DefaultReflectionResolver implements ReflectionResolver {
                     debugReflection("Resolved non-public method: " + symbol.owner + "." + symbol);
                 }
 
-                JCExpression method = make.Select(receiver, symbol);
+                JCExpression method = TreeUtils.Select(make, receiver, symbol);
                 args = getCorrectedArgs(symbol, args);
                 // Build method invocation tree depending on the number of
                 // parameters
@@ -439,7 +439,8 @@ public class DefaultReflectionResolver implements ReflectionResolver {
      * Resolves a reflective constructor call and returns all possible corresponding constructor
      * calls.
      *
-     * @param tree the MethodInvocationTree node that is to be resolved (Constructor.newInstance)
+     * @param tree the MethodInvocationTree AST node that is to be resolved
+     *     (Constructor.newInstance)
      * @return a (potentially empty) list of all resolved MethodInvocationTrees
      */
     private List<JCNewClass> resolveReflectiveConstructor(

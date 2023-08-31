@@ -8,7 +8,7 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.SortedSet;
+import java.util.NavigableSet;
 
 /**
  * Tracks whether a value is initialized (all its fields are set), and checks that values are
@@ -23,12 +23,12 @@ public abstract class InitializationChecker extends BaseTypeChecker {
     protected InitializationChecker() {}
 
     @Override
-    public SortedSet<String> getSuppressWarningsPrefixes() {
-        SortedSet<String> result = super.getSuppressWarningsPrefixes();
+    public NavigableSet<String> getSuppressWarningsPrefixes() {
+        NavigableSet<String> result = super.getSuppressWarningsPrefixes();
         // "fbc" is for backward compatibility only.
         // Notes:
         //   * "fbc" suppresses *all* warnings, not just those related to initialization.  See
-        //     https://checkerframework.org/manual/#initialization-checking-suppressing-warnings .
+        //     https://eisop.github.io/cf/manual/#initialization-checking-suppressing-warnings .
         //   * "initialization" is not a checkername/prefix.
         result.add("fbc");
         return result;

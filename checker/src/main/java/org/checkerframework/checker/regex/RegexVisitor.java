@@ -24,8 +24,7 @@ import javax.lang.model.element.VariableElement;
  * <ol>
  *   <li value="1">Allows any String to be passed to Pattern.compile if the Pattern.LITERAL flag is
  *       passed.
- *   <li value="2">Checks compound String concatenation to ensure correct usage of Regex Strings.
- *   <li value="3">Checks calls to {@code MatchResult.start}, {@code MatchResult.end} and {@code
+ *   <li value="2">Checks calls to {@code MatchResult.start}, {@code MatchResult.end} and {@code
  *       MatchResult.group} to ensure that a valid group number is passed.
  * </ol>
  *
@@ -33,14 +32,18 @@ import javax.lang.model.element.VariableElement;
  */
 public class RegexVisitor extends BaseTypeVisitor<RegexAnnotatedTypeFactory> {
 
-    /** The method java.util.regex.MatchResult.end. */
-    private final ExecutableElement matchResultEnd;
-    /** The method java.util.regex.MatchResult.group. */
-    private final ExecutableElement matchResultGroup;
-    /** The method java.util.regex.MatchResult.start. */
-    private final ExecutableElement matchResultStart;
+    /** The method java.util.regex.MatchResult.end(int). */
+    private final ExecutableElement matchResultEndInt;
+
+    /** The method java.util.regex.MatchResult.group(int). */
+    private final ExecutableElement matchResultGroupInt;
+
+    /** The method java.util.regex.MatchResult.start(int). */
+    private final ExecutableElement matchResultStartInt;
+
     /** The method java.util.regex.Pattern.compile. */
     private final ExecutableElement patternCompile;
+
     /** The field java.util.regex.Pattern.LITERAL. */
     private final VariableElement patternLiteral;
 
@@ -52,22 +55,27 @@ public class RegexVisitor extends BaseTypeVisitor<RegexAnnotatedTypeFactory> {
     public RegexVisitor(BaseTypeChecker checker) {
         super(checker);
         ProcessingEnvironment env = checker.getProcessingEnvironment();
-        this.matchResultEnd = TreeUtils.getMethod("java.util.regex.MatchResult", "end", 1, env);
-        this.matchResultGroup = TreeUtils.getMethod("java.util.regex.MatchResult", "group", 1, env);
-        this.matchResultStart = TreeUtils.getMethod("java.util.regex.MatchResult", "start", 1, env);
-        this.patternCompile = TreeUtils.getMethod("java.util.regex.Pattern", "compile", 2, env);
+        this.matchResultEndInt =
+                TreeUtils.getMethod("java.util.regex.MatchResult", "end", env, "int");
+        this.matchResultGroupInt =
+                TreeUtils.getMethod("java.util.regex.MatchResult", "group", env, "int");
+        this.matchResultStartInt =
+                TreeUtils.getMethod("java.util.regex.MatchResult", "start", env, "int");
+        this.patternCompile =
+                TreeUtils.getMethod(
+                        "java.util.regex.Pattern", "compile", env, "java.lang.String", "int");
         this.patternLiteral = TreeUtils.getField("java.util.regex.Pattern", "LITERAL", env);
     }
 
-    /**
-     * Case 1: Don't require a Regex annotation on the String argument to Pattern.compile if the
-     * Pattern.LITERAL flag is passed.
-     */
     @Override
-    public Void visitMethodInvocation(MethodInvocationTree node, Void p) {
+    public Void visitMethodInvocation(MethodInvocationTree tree, Void p) {
         ProcessingEnvironment env = checker.getProcessingEnvironment();
-        if (TreeUtils.isMethodInvocation(node, patternCompile, env)) {
-            ExpressionTree flagParam = node.getArguments().get(1);
+        if (TreeUtils.isMethodInvocation(tree, patternCompile, env)) {
+            /*
+             * Case 1: Don't require a Regex annotation on the String argument to Pattern.compile if the
+             * Pattern.LITERAL flag is passed.
+             */
+            ExpressionTree flagParam = tree.getArguments().get(1);
             if (flagParam.getKind() == Tree.Kind.MEMBER_SELECT) {
                 MemberSelectTree memSelect = (MemberSelectTree) flagParam;
                 if (TreeUtils.isSpecificFieldAccess(memSelect, patternLiteral)) {
@@ -75,31 +83,31 @@ public class RegexVisitor extends BaseTypeVisitor<RegexAnnotatedTypeFactory> {
                     // parameter doesn't need to be a @Regex String. Don't call the super method to
                     // skip checking if the first parameter is a @Regex String, but make sure to
                     // still recurse on all of the different parts of the method call.
-                    Void r = scan(node.getTypeArguments(), p);
-                    r = reduce(scan(node.getMethodSelect(), p), r);
-                    r = reduce(scan(node.getArguments(), p), r);
+                    Void r = scan(tree.getTypeArguments(), p);
+                    r = reduce(scan(tree.getMethodSelect(), p), r);
+                    r = reduce(scan(tree.getArguments(), p), r);
                     return r;
                 }
             }
-        } else if (TreeUtils.isMethodInvocation(node, matchResultEnd, env)
-                || TreeUtils.isMethodInvocation(node, matchResultGroup, env)
-                || TreeUtils.isMethodInvocation(node, matchResultStart, env)) {
-            /**
-             * Case 3: Checks calls to {@code MatchResult.start}, {@code MatchResult.end} and {@code
+        } else if (TreeUtils.isMethodInvocation(tree, matchResultEndInt, env)
+                || TreeUtils.isMethodInvocation(tree, matchResultGroupInt, env)
+                || TreeUtils.isMethodInvocation(tree, matchResultStartInt, env)) {
+            /*
+             * Case 2: Checks calls to {@code MatchResult.start}, {@code MatchResult.end} and {@code
              * MatchResult.group} to ensure that a valid group number is passed.
              */
-            ExpressionTree group = node.getArguments().get(0);
+            ExpressionTree group = tree.getArguments().get(0);
             if (group.getKind() == Tree.Kind.INT_LITERAL) {
                 LiteralTree literal = (LiteralTree) group;
                 int paramGroups = (Integer) literal.getValue();
-                ExpressionTree receiver = TreeUtils.getReceiverTree(node);
+                ExpressionTree receiver = TreeUtils.getReceiverTree(tree);
                 if (receiver == null) {
                     // When checking implementations of java.util.regex.MatcherResult, calls to
                     // group (and other methods) don't have a receiver tree.  So, just do the
                     // regular checking.
                     // Verifying an implemenation of a subclass of MatcherResult is out of the scope
                     // of this checker.
-                    return super.visitMethodInvocation(node, p);
+                    return super.visitMethodInvocation(tree, p);
                 }
                 int annoGroups = 0;
                 AnnotatedTypeMirror receiverType = atypeFactory.getAnnotatedType(receiver);
@@ -116,16 +124,6 @@ public class RegexVisitor extends BaseTypeVisitor<RegexAnnotatedTypeFactory> {
                 checker.reportWarning(group, "group.count.unknown");
             }
         }
-        return super.visitMethodInvocation(node, p);
+        return super.visitMethodInvocation(tree, p);
     }
-
-    /** Case 2: Check String compound concatenation for valid Regex use. */
-    // TODO: Remove this. This should be handled by flow.
-    /*
-    @Override
-    public Void visitCompoundAssignment(CompoundAssignmentTree node, Void p) {
-        // Default behavior from superclass
-    }
-    */
-
 }

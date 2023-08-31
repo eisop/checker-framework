@@ -11,6 +11,7 @@ import org.checkerframework.framework.flow.CFAbstractStore;
 import org.checkerframework.framework.flow.CFAbstractValue;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.QualifierHierarchy;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.ToStringComparator;
@@ -36,6 +37,7 @@ public class InitializationStore<V extends CFAbstractValue<V>, S extends Initial
 
     /** The set of fields that are initialized. */
     protected final Set<VariableElement> initializedFields;
+
     /** The set of fields that have the 'invariant' annotation, and their value. */
     protected final Map<FieldAccess, V> invariantFields;
 
@@ -72,7 +74,7 @@ public class InitializationStore<V extends CFAbstractValue<V>, S extends Initial
         if (je instanceof FieldAccess) {
             FieldAccess fieldAccess = (FieldAccess) je;
             if (!fieldValues.containsKey(je)) {
-                Set<AnnotationMirror> declaredAnnos =
+                AnnotationMirrorSet declaredAnnos =
                         atypeFactory.getAnnotatedType(fieldAccess.getField()).getAnnotations();
                 if (AnnotationUtils.containsSame(declaredAnnos, invariantAnno)) {
                     if (!invariantFields.containsKey(fieldAccess)) {

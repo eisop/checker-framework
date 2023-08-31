@@ -59,6 +59,7 @@ import org.checkerframework.framework.util.Contract.Precondition;
 import org.checkerframework.framework.util.ContractsFromMethod;
 import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
 import org.checkerframework.framework.util.StringToJavaExpression;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
@@ -66,10 +67,8 @@ import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -312,14 +311,7 @@ public abstract class CFAbstractTransfer<
             @InternedDistinct Tree enclosingTree =
                     TreePathUtil.enclosingOfKind(
                             factory.getPath(lambda.getLambdaTree()),
-                            new HashSet<>(
-                                    Arrays.asList(
-                                            Tree.Kind.METHOD,
-                                            // Tree.Kind for which TreeUtils.isClassTree is true
-                                            Tree.Kind.CLASS,
-                                            Tree.Kind.INTERFACE,
-                                            Tree.Kind.ANNOTATION_TYPE,
-                                            Tree.Kind.ENUM)));
+                            TreeUtils.classAndMethodTreeKinds());
 
             Element enclosingElement = null;
             if (enclosingTree.getKind() == Tree.Kind.METHOD) {
@@ -530,7 +522,7 @@ public abstract class CFAbstractTransfer<
             String stringExpr = p.expressionString;
             AnnotationMirror annotation =
                     p.viewpointAdaptDependentTypeAnnotation(
-                            analysis.atypeFactory, stringToJavaExpr, /*errorTree=*/ null);
+                            analysis.atypeFactory, stringToJavaExpr, /* errorTree= */ null);
             JavaExpression exprJe;
             try {
                 // TODO: currently, these expressions are parsed at the declaration (i.e. here) and
@@ -597,7 +589,7 @@ public abstract class CFAbstractTransfer<
      *
      * @param value the value; possibly null
      * @param in the TransferResult to copy
-     * @return the input informatio
+     * @return the input information
      */
     @SideEffectFree
     protected TransferResult<V, S> recreateTransferResult(
@@ -928,36 +920,6 @@ public abstract class CFAbstractTransfer<
         return n.getResult().accept(this, in);
     }
 
-    @Override
-    @Deprecated // 2022-03-22
-    public TransferResult<V, S> visitStringConcatenateAssignment(
-            org.checkerframework.dataflow.cfg.node.StringConcatenateAssignmentNode n,
-            TransferInput<V, S> in) {
-        // This gets the type of LHS + RHS
-        TransferResult<V, S> result = super.visitStringConcatenateAssignment(n, in);
-        Node lhs = n.getLeftOperand();
-        Node rhs = n.getRightOperand();
-
-        // update the results store if the assignment target is something we can process
-        S store = result.getRegularStore();
-        // ResultValue is the type of LHS + RHS
-        V resultValue = result.getResultValue();
-
-        /* NO-AFU
-               if (lhs instanceof FieldAccessNode
-                       && shouldPerformWholeProgramInference(n.getTree(), lhs.getTree())) {
-                   // Updates inferred field type
-                   analysis.atypeFactory
-                           .getWholeProgramInference()
-                           .updateFromFieldAssignment((FieldAccessNode) lhs, rhs);
-               }
-        */
-
-        processCommonAssignment(in, lhs, rhs, store, resultValue);
-
-        return new RegularTransferResult<>(finishValue(resultValue, store), store);
-    }
-
     /**
      * Determine abstract value of right-hand side and update the store accordingly.
      *
@@ -1127,16 +1089,20 @@ public abstract class CFAbstractTransfer<
     /**
      * Add information from the postconditions of a method to the store after an invocation.
      *
-     * @param n a method call or an object creation
+     * @param invocationNode a method call or an object creation
      * @param store a store; is side-effected by this method
      * @param executableElement the method or constructor being called
-     * @param tree the tree for the method call or for the object creation
+     * @param invocationTree the tree for the method call or for the object creation
      */
     protected void processPostconditions(
-            Node n, S store, ExecutableElement executableElement, ExpressionTree tree) {
+            Node invocationNode,
+            S store,
+            ExecutableElement executableElement,
+            ExpressionTree invocationTree) {
         ContractsFromMethod contractsUtils = analysis.atypeFactory.getContractsFromMethod();
         Set<Postcondition> postconditions = contractsUtils.getPostconditions(executableElement);
-        processPostconditionsAndConditionalPostconditions(n, tree, store, null, postconditions);
+        processPostconditionsAndConditionalPostconditions(
+                invocationNode, invocationTree, store, null, postconditions);
     }
 
     /**
@@ -1166,43 +1132,45 @@ public abstract class CFAbstractTransfer<
      * Add information from the postconditions and conditional postconditions of a method to the
      * stores after an invocation.
      *
-     * @param n a method call node or an object creation node
-     * @param tree the tree for the method call or for the object creation
+     * @param invocationNode a method call node or an object creation node
+     * @param invocationTree the tree for the method call or for the object creation
      * @param thenStore the "then" store; is side-effected by this method
      * @param elseStore the "else" store; is side-effected by this method
      * @param postconditions the postconditions
      */
     private void processPostconditionsAndConditionalPostconditions(
-            Node n,
-            ExpressionTree tree,
+            Node invocationNode,
+            ExpressionTree invocationTree,
             S thenStore,
             S elseStore,
             Set<? extends Contract> postconditions) {
 
         StringToJavaExpression stringToJavaExpr = null;
-        if (n instanceof MethodInvocationNode) {
+        if (invocationNode instanceof MethodInvocationNode) {
             stringToJavaExpr =
                     stringExpr ->
                             StringToJavaExpression.atMethodInvocation(
-                                    stringExpr, (MethodInvocationNode) n, analysis.checker);
-        } else if (n instanceof ObjectCreationNode) {
+                                    stringExpr,
+                                    (MethodInvocationNode) invocationNode,
+                                    analysis.checker);
+        } else if (invocationNode instanceof ObjectCreationNode) {
             stringToJavaExpr =
                     stringExpr ->
                             StringToJavaExpression.atConstructorInvocation(
-                                    stringExpr, (NewClassTree) tree, analysis.checker);
+                                    stringExpr, (NewClassTree) invocationTree, analysis.checker);
         } else {
             throw new BugInCF(
-                    "processPostconditionsAndConditionalPostconditions in CFAbstractTransfer"
-                            + " expects a MethodInvocationNode or ObjectCreationNode argument; received"
-                            + " a "
-                            + n.getClass().getSimpleName());
+                    "CFAbstractTransfer.processPostconditionsAndConditionalPostconditions"
+                            + " expects a MethodInvocationNode or ObjectCreationNode argument;"
+                            + " received a "
+                            + invocationNode.getClass().getSimpleName());
         }
 
         for (Contract p : postconditions) {
             // Viewpoint-adapt to the method use (the call site).
             AnnotationMirror anno =
                     p.viewpointAdaptDependentTypeAnnotation(
-                            analysis.atypeFactory, stringToJavaExpr, /*errorTree=*/ null);
+                            analysis.atypeFactory, stringToJavaExpr, /* errorTree= */ null);
 
             String expressionString = p.expressionString;
             try {
@@ -1227,11 +1195,12 @@ public abstract class CFAbstractTransfer<
                     Object[] args = new Object[e.args.length + 1];
                     args[0] =
                             ElementUtils.getSimpleSignature(
-                                    (ExecutableElement) TreeUtils.elementFromUse(tree));
+                                    (ExecutableElement) TreeUtils.elementFromUse(invocationTree));
                     System.arraycopy(e.args, 0, args, 1, e.args.length);
-                    analysis.checker.reportError(tree, "flowexpr.parse.error.postcondition", args);
+                    analysis.checker.reportError(
+                            invocationTree, "flowexpr.parse.error.postcondition", args);
                 } else {
-                    analysis.checker.report(tree, e.getDiagMessage());
+                    analysis.checker.report(invocationTree, e.getDiagMessage());
                 }
             }
         }
@@ -1358,7 +1327,7 @@ public abstract class CFAbstractTransfer<
         if (annotatedValue == null) {
             return null;
         }
-        Set<AnnotationMirror> narrowedAnnos =
+        AnnotationMirrorSet narrowedAnnos =
                 analysis.atypeFactory.getNarrowedAnnotations(
                         annotatedValue.getAnnotations(),
                         annotatedValue.getUnderlyingType().getKind(),
@@ -1381,7 +1350,7 @@ public abstract class CFAbstractTransfer<
         if (annotatedValue == null) {
             return null;
         }
-        Set<AnnotationMirror> widenedAnnos =
+        AnnotationMirrorSet widenedAnnos =
                 analysis.atypeFactory.getWidenedAnnotations(
                         annotatedValue.getAnnotations(),
                         annotatedValue.getUnderlyingType().getKind(),

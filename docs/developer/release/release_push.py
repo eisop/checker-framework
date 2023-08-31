@@ -372,7 +372,6 @@ def main(argv):
 
     print_step("Push Step 3: Run development sanity tests")  # SEMIAUTO
     if prompt_yes_no("Perform this step?", True):
-
         print_step("3a: Run javac sanity test on development release.")
         if prompt_yes_no("Run javac sanity test on development release?", True):
             javac_sanity_check(dev_checker_website, new_cf_version)
@@ -474,7 +473,7 @@ def main(argv):
         print("Test mode: Skipping javac sanity tests on the live release.")
 
     # Runs the link the checker on all websites at:
-    # https://checkerframework.org/
+    # https://eisop.github.io/
     # The output of the link checker is written to files in the /tmp/$USER/cf-release directory whose locations
     # will be output at the command prompt. Review the link checker output.
 
@@ -551,10 +550,10 @@ def main(argv):
             "\n"
             + "Download the following files to your local machine."
             + "\n"
-            + "  https://checkerframework.org/checker-framework-"
+            + "  https://eisop.github.io/cf/checker-framework-"
             + new_cf_version
             + ".zip\n"
-            + "  https://checkerframework.org/annotation-file-utilities/annotation-tools-"
+            + "  https://eisop.github.io/afu/annotation-tools-"
             + new_cf_version
             + ".zip\n"
             + "\n"
@@ -566,7 +565,7 @@ def main(argv):
             + "* For the release title, enter: Checker Framework "
             + new_cf_version
             + "\n"
-            + "* For the description, insert the latest Checker Framework changelog entry (available at https://checkerframework.org/CHANGELOG.md). Please include the first line with the release version and date.\n"
+            + "* For the description, insert the latest Checker Framework changelog entry (available at https://eisop.github.io/cf/CHANGELOG.md). Please include the first line with the release version and date.\n"
             + '* Find the link below "Attach binaries by dropping them here or selecting them." Click on "selecting them" and upload checker-framework-'
             + new_cf_version
             + ".zip from your machine.\n"
@@ -580,7 +579,7 @@ def main(argv):
             + "* For the release title, enter: Annotation File Utilities "
             + new_cf_version
             + "\n"
-            + "* For the description, insert the latest Annotation File Utilities changelog entry (available at https://checkerframework.org/annotation-file-utilities/changelog.html). Please include the first line with the release version and date. For bullet points, use the * Markdown character.\n"
+            + "* For the description, insert the latest Annotation File Utilities changelog entry (available at https://eisop.github.io/afu/changelog.html). Please include the first line with the release version and date. For bullet points, use the * Markdown character.\n"
             + '* Find the link below "Attach binaries by dropping them here or selecting them." Click on "selecting them" and upload annotation-tools-'
             + new_cf_version
             + ".zip from your machine.\n"

@@ -20,6 +20,8 @@ import org.checkerframework.javacutil.TypesUtils;
 import java.util.List;
 
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.VariableElement;
 
 /** The transfer function for the resource-leak extension to the called-methods type system. */
 public class ResourceLeakTransfer extends CalledMethodsTransfer {
@@ -84,6 +86,20 @@ public class ResourceLeakTransfer extends CalledMethodsTransfer {
             methodName =
                     rlTypeFactory.adjustMethodNameUsingValueChecker(methodName, node.getTree());
             accumulate(accumulationTarget, result, methodName);
+        }
+
+        // If the invoked method has @Owning parameters, treat them as if their must-call
+        // methods have all been called.
+        ExecutableElement methodElt = node.getTarget().getMethod();
+        // Have to use an indexed for-loop, because the loop accesses both the variable element
+        // (to check for @Owning) and the corresponding Node (to call accumulate()).
+        for (int i = 0; i < methodElt.getParameters().size(); i++) {
+            VariableElement param = methodElt.getParameters().get(i);
+            if (rlTypeFactory.hasOwning(param) && !rlTypeFactory.noLightweightOwnership) {
+                List<String> mcMethods = rlTypeFactory.getMustCallValue(param);
+                Node correspondingArgument = node.getArgument(i);
+                accumulate(correspondingArgument, result, mcMethods.toArray(new String[0]));
+            }
         }
 
         return result;

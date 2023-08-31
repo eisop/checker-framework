@@ -5,9 +5,12 @@ import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Log;
 
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -38,8 +41,16 @@ public abstract class AggregateChecker extends SourceChecker {
     /**
      * Returns the list of supported checkers to be run together. Subclasses need to override this
      * method.
+     *
+     * @return the list of checkers to be run
      */
     protected abstract Collection<Class<? extends SourceChecker>> getSupportedCheckers();
+
+    /** Supported options for this checker. */
+    private @MonotonicNonNull Set<String> supportedOptions = null;
+
+    /** Options passed to this checker. */
+    private @MonotonicNonNull Map<String, String> options = null;
 
     /** Create a new AggregateChecker. */
     protected AggregateChecker() {
@@ -134,24 +145,30 @@ public abstract class AggregateChecker extends SourceChecker {
 
     @Override
     public final Set<String> getSupportedOptions() {
-        Set<String> options = new HashSet<>();
-        for (SourceChecker checker : checkers) {
-            options.addAll(checker.getSupportedOptions());
+        if (this.supportedOptions == null) {
+            Set<String> options = new HashSet<>();
+            for (SourceChecker checker : checkers) {
+                options.addAll(checker.getSupportedOptions());
+            }
+            options.addAll(
+                    expandCFOptions(
+                            Arrays.asList(this.getClass()),
+                            options.toArray(new String[options.size()])));
+            this.supportedOptions = options;
         }
-        options.addAll(
-                expandCFOptions(
-                        Arrays.asList(this.getClass()),
-                        options.toArray(new String[options.size()])));
-        return options;
+        return this.supportedOptions;
     }
 
     @Override
     public final Map<String, String> getOptions() {
-        Map<String, String> options = new HashMap<>(super.getOptions());
-        for (SourceChecker checker : checkers) {
-            options.putAll(checker.getOptions());
+        if (this.options == null) {
+            Map<String, String> options = new HashMap<>(super.getOptions());
+            for (SourceChecker checker : checkers) {
+                options.putAll(checker.getOptions());
+            }
+            this.options = Collections.unmodifiableMap(options);
         }
-        return options;
+        return this.options;
     }
 
     @Override

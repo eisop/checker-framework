@@ -76,9 +76,11 @@ public class SameLenAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     /** The @{@link SameLenUnknown} annotation. */
     public final AnnotationMirror UNKNOWN =
             AnnotationBuilder.fromClass(elements, SameLenUnknown.class);
+
     /** The @{@link SameLenBottom} annotation. */
     private final AnnotationMirror BOTTOM =
             AnnotationBuilder.fromClass(elements, SameLenBottom.class);
+
     /** The @{@link PolySameLen} annotation. */
     private final AnnotationMirror POLY = AnnotationBuilder.fromClass(elements, PolySameLen.class);
 
@@ -317,9 +319,9 @@ public class SameLenAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
         // Case "new array" for "new T[a.length]"
         @Override
-        public Void visitNewArray(NewArrayTree node, AnnotatedTypeMirror type) {
-            if (node.getDimensions().size() == 1) {
-                Tree dimensionTree = node.getDimensions().get(0);
+        public Void visitNewArray(NewArrayTree tree, AnnotatedTypeMirror type) {
+            if (tree.getDimensions().size() == 1) {
+                Tree dimensionTree = tree.getDimensions().get(0);
                 ExpressionTree sequenceTree =
                         IndexUtil.getLengthSequenceTree(dimensionTree, imf, processingEnv);
                 if (sequenceTree != null) {

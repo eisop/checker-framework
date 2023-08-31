@@ -48,14 +48,17 @@ public class JavaCodeStatistics extends SourceChecker {
 
     /** The number of type parameter declarations and uses. */
     int generics = 0;
+
     /** The number of array accesses and dimensions in array creations. */
     int arrayAccesses = 0;
+
     /** The number of type casts. */
     int typecasts = 0;
 
     String[] warningKeys = {
         "index", "lowerbound", "samelen", "searchindex", "substringindex", "upperbound"
     };
+
     /**
      * The number of warning suppressions with at least one key that matches one of the Index
      * Checker subcheckers.
@@ -101,8 +104,8 @@ public class JavaCodeStatistics extends SourceChecker {
         }
 
         @Override
-        public Void visitAnnotation(AnnotationTree node, Void aVoid) {
-            AnnotationMirror annotationMirror = TreeUtils.annotationFromAnnotationTree(node);
+        public Void visitAnnotation(AnnotationTree tree, Void aVoid) {
+            AnnotationMirror annotationMirror = TreeUtils.annotationFromAnnotationTree(tree);
             if (AnnotationUtils.annotationName(annotationMirror)
                     .equals(SuppressWarnings.class.getCanonicalName())) {
                 List<String> keys =
@@ -112,12 +115,12 @@ public class JavaCodeStatistics extends SourceChecker {
                     for (String indexKey : warningKeys) {
                         if (foundKey.startsWith(indexKey)) {
                             numberOfIndexWarningSuppressions++;
-                            return super.visitAnnotation(node, aVoid);
+                            return super.visitAnnotation(tree, aVoid);
                         }
                     }
                 }
             }
-            return super.visitAnnotation(node, aVoid);
+            return super.visitAnnotation(tree, aVoid);
         }
 
         @Override
@@ -148,31 +151,31 @@ public class JavaCodeStatistics extends SourceChecker {
         }
 
         @Override
-        public Void visitNewArray(NewArrayTree node, Void aVoid) {
-            arrayAccesses += node.getDimensions().size();
+        public Void visitNewArray(NewArrayTree tree, Void aVoid) {
+            arrayAccesses += tree.getDimensions().size();
 
-            return super.visitNewArray(node, aVoid);
+            return super.visitNewArray(tree, aVoid);
         }
 
         @Override
-        public Void visitNewClass(NewClassTree node, Void aVoid) {
-            if (TreeUtils.isDiamondTree(node)) {
+        public Void visitNewClass(NewClassTree tree, Void aVoid) {
+            if (TreeUtils.isDiamondTree(tree)) {
                 generics++;
             }
-            generics += node.getTypeArguments().size();
-            return super.visitNewClass(node, aVoid);
+            generics += tree.getTypeArguments().size();
+            return super.visitNewClass(tree, aVoid);
         }
 
         @Override
-        public Void visitMethodInvocation(MethodInvocationTree node, Void aVoid) {
-            generics += node.getTypeArguments().size();
-            return super.visitMethodInvocation(node, aVoid);
+        public Void visitMethodInvocation(MethodInvocationTree tree, Void aVoid) {
+            generics += tree.getTypeArguments().size();
+            return super.visitMethodInvocation(tree, aVoid);
         }
 
         @Override
-        public Void visitMethod(MethodTree node, Void aVoid) {
-            generics += node.getTypeParameters().size();
-            return super.visitMethod(node, aVoid);
+        public Void visitMethod(MethodTree tree, Void aVoid) {
+            generics += tree.getTypeParameters().size();
+            return super.visitMethod(tree, aVoid);
         }
 
         @Override
@@ -182,15 +185,15 @@ public class JavaCodeStatistics extends SourceChecker {
         }
 
         @Override
-        public Void visitArrayAccess(ArrayAccessTree node, Void aVoid) {
+        public Void visitArrayAccess(ArrayAccessTree tree, Void aVoid) {
             arrayAccesses++;
-            return super.visitArrayAccess(node, aVoid);
+            return super.visitArrayAccess(tree, aVoid);
         }
 
         @Override
-        public Void visitTypeCast(TypeCastTree node, Void aVoid) {
+        public Void visitTypeCast(TypeCastTree tree, Void aVoid) {
             typecasts++;
-            return super.visitTypeCast(node, aVoid);
+            return super.visitTypeCast(tree, aVoid);
         }
     }
 

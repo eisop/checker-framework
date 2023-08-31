@@ -1,8 +1,8 @@
 package org.checkerframework.framework.util.typeinference.solver;
 
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
-import org.checkerframework.framework.util.AnnotationMirrorMap;
-import org.checkerframework.framework.util.AnnotationMirrorSet;
+import org.checkerframework.javacutil.AnnotationMirrorMap;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

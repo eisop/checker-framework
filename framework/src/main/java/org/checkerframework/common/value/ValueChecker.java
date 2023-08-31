@@ -6,6 +6,7 @@ import org.checkerframework.common.value.util.Range;
 import org.checkerframework.framework.source.SupportedOptions;
 
 import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * The Constant Value Checker is a constant propagation analysis: for each variable, it determines
@@ -29,8 +30,10 @@ public class ValueChecker extends BaseTypeChecker {
      * compile time.
      */
     public static final String REPORT_EVAL_WARNS = "reportEvalWarns";
+
     /** Command-line option to ignore the possibility of overflow for range annotations. */
     public static final String IGNORE_RANGE_OVERFLOW = "ignoreRangeOverflow";
+
     /** Command-line option that assumes most expressions in String concatenations can be null. */
     public static final String NON_NULL_STRINGS_CONCATENATION = "nonNullStringsConcatenation";
 
@@ -40,9 +43,10 @@ public class ValueChecker extends BaseTypeChecker {
     }
 
     @Override
-    protected LinkedHashSet<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
+    protected Set<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
         // Don't call super otherwise MethodVal will be added as a subChecker
         // which creates a circular dependency.
+        // Use the same Set implementation as super.
         return new LinkedHashSet<>(0);
     }
 

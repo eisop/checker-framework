@@ -151,6 +151,7 @@ def continue_or_exit(msg):
 # =========================================================================================
 # Version Utils
 
+
 # From http://stackoverflow.com/a/1714190/173852, but doesn't strip trailing zeroes
 def version_number_to_array(version_num):
     """Given a version number, return an array of the elements, as integers."""
@@ -552,7 +553,7 @@ We have released a new version of the Checker Framework.
 The Checker Framework lets you create and/or run pluggable type checkers, in order to detect and prevent bugs in your code.
 
 You can find documentation and download links at:
-http://CheckerFramework.org/
+http://eisop.github.io/
 
 Changes for Checker Framework version %s:
 

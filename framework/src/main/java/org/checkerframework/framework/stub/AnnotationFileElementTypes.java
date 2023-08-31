@@ -13,6 +13,7 @@ import org.checkerframework.framework.stub.AnnotationFileUtil.AnnotationFileType
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.Pair;
@@ -46,7 +47,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.annotation.processing.ProcessingEnvironment;
-import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -92,6 +92,12 @@ public class AnnotationFileElementTypes {
     /** Parse all JDK files at startup rather than as needed. */
     private final boolean parseAllJdkFiles;
 
+    /** True if -ApermitMissingJdk was passed on the command line. */
+    private final boolean permitMissingJdk;
+
+    /** True if -Aignorejdkastub was passed on the command line. */
+    private final boolean ignorejdkastub;
+
     /**
      * Stores the fully qualified name of top-level classes (from any type of stub file) that are
      * currently being parsed. This can stop recursively parsing an annotated JDK class that is
@@ -114,6 +120,8 @@ public class AnnotationFileElementTypes {
 
         this.shouldParseJdk = !factory.getChecker().hasOption("ignorejdkastub");
         this.parseAllJdkFiles = factory.getChecker().hasOption("parseAllJdk");
+        this.permitMissingJdk = factory.getChecker().hasOption("permitMissingJdk");
+        this.ignorejdkastub = factory.getChecker().hasOption("ignorejdkastub");
     }
 
     /**
@@ -151,7 +159,7 @@ public class AnnotationFileElementTypes {
         assert parsingCount == 0;
         ++parsingCount;
         BaseTypeChecker checker = factory.getChecker();
-        if (!checker.hasOption("ignorejdkastub")) {
+        if (!ignorejdkastub) {
             // 1. Annotated JDK
             // This preps but does not parse the JDK files (except package-info.java files).
             // The JDK source code files will be parsed later, on demand.
@@ -408,7 +416,7 @@ public class AnnotationFileElementTypes {
      *     in the annotation file and in the element. {@code null} is returned if {@code element}
      *     does not appear in an annotation file.
      */
-    public Set<AnnotationMirror> getDeclAnnotations(Element elt) {
+    public AnnotationMirrorSet getDeclAnnotations(Element elt) {
         parseEnclosingJdkClass(elt);
         String eltName = ElementUtils.getQualifiedName(elt);
         if (annotationFileAnnos.declAnnos.containsKey(eltName)) {
@@ -457,7 +465,7 @@ public class AnnotationFileElementTypes {
                 }
             }
         }
-        return Collections.emptySet();
+        return AnnotationMirrorSet.emptySet();
     }
 
     /**
@@ -774,7 +782,7 @@ public class AnnotationFileElementTypes {
         }
         URL resourceURL = factory.getClass().getResource("/annotated-jdk");
         if (resourceURL == null) {
-            if (factory.getChecker().hasOption("permitMissingJdk")
+            if (permitMissingJdk
                     // temporary, for backward compatibility
                     || factory.getChecker().hasOption("nocheckjdk")) {
                 return;
@@ -785,7 +793,7 @@ public class AnnotationFileElementTypes {
         } else if (resourceURL.getProtocol().contentEquals("file")) {
             prepJdkFromFile(resourceURL);
         } else {
-            if (factory.getChecker().hasOption("permitMissingJdk")
+            if (permitMissingJdk
                     // temporary, for backward compatibility
                     || factory.getChecker().hasOption("nocheckjdk")) {
                 return;

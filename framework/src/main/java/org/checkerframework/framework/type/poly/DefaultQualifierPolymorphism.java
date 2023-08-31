@@ -2,7 +2,7 @@ package org.checkerframework.framework.type.poly;
 
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
-import org.checkerframework.framework.util.AnnotationMirrorMap;
+import org.checkerframework.javacutil.AnnotationMirrorMap;
 
 import java.util.Map;
 

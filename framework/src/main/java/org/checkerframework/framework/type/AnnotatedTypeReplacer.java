@@ -158,7 +158,7 @@ public class AnnotatedTypeReplacer extends DoubleAnnotatedTypeScanner<Void> {
                     if (from.getAnnotationInHierarchy(toPrimaryAnno) == null) {
                         // Doing the removal here directly can lead to a
                         // ConcurrentModificationException,
-                        // because this loop is iterating over the annotations in to.
+                        // because this loop is iterating over the annotations in `to`.
                         toRemove.add(toPrimaryAnno);
                     }
                 }

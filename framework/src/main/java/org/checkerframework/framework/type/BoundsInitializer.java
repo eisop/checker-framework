@@ -17,6 +17,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVari
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeVisitor;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TypeAnnotationUtils;
@@ -26,12 +27,9 @@ import org.plumelib.util.StringsPlume;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
-import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.DeclaredType;
@@ -172,7 +170,7 @@ public class BoundsInitializer {
      */
     private static void initializeBounds(
             final AnnotatedTypeVariable typeVar, Map<TypeVariable, AnnotatedTypeMirror> map) {
-        final Set<AnnotationMirror> annos = saveAnnotations(typeVar);
+        final AnnotationMirrorSet annos = saveAnnotations(typeVar);
 
         InitializerVisitor visitor =
                 new InitializerVisitor(new TypeVariableStructure(typeVar), map);
@@ -204,9 +202,9 @@ public class BoundsInitializer {
      * @param type a type whose annotations to read, clear, and return
      * @return the original primary annotations on {@code type}, or null if none
      */
-    private static @Nullable Set<AnnotationMirror> saveAnnotations(final AnnotatedTypeMirror type) {
+    private static @Nullable AnnotationMirrorSet saveAnnotations(final AnnotatedTypeMirror type) {
         if (!type.getAnnotationsField().isEmpty()) {
-            final Set<AnnotationMirror> annos = new HashSet<>(type.getAnnotations());
+            final AnnotationMirrorSet annos = new AnnotationMirrorSet(type.getAnnotations());
             type.clearAnnotations();
             return annos;
         }
@@ -215,7 +213,7 @@ public class BoundsInitializer {
     }
 
     private static void restoreAnnotations(
-            final AnnotatedTypeMirror type, final Set<AnnotationMirror> annos) {
+            final AnnotatedTypeMirror type, final AnnotationMirrorSet annos) {
         if (annos != null) {
             type.addAnnotations(annos);
         }
@@ -240,7 +238,7 @@ public class BoundsInitializer {
      */
     private static void initializeSuperBound(
             final AnnotatedWildcardType wildcard, Map<TypeVariable, AnnotatedTypeMirror> map) {
-        final Set<AnnotationMirror> annos = saveAnnotations(wildcard);
+        final AnnotationMirrorSet annos = saveAnnotations(wildcard);
 
         InitializerVisitor visitor = new InitializerVisitor(new RecursiveTypeStructure(), map);
         visitor.initializeSuperBound(wildcard);
@@ -268,7 +266,7 @@ public class BoundsInitializer {
      */
     private static void initializeExtendsBound(
             final AnnotatedWildcardType wildcard, Map<TypeVariable, AnnotatedTypeMirror> map) {
-        final Set<AnnotationMirror> annos = saveAnnotations(wildcard);
+        final AnnotationMirrorSet annos = saveAnnotations(wildcard);
         InitializerVisitor visitor = new InitializerVisitor(new RecursiveTypeStructure(), map);
         visitor.initializeExtendsBound(wildcard);
         visitor.resolveTypeVarReferences(wildcard);

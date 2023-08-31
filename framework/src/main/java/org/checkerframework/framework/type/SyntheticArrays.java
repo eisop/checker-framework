@@ -14,7 +14,7 @@ import javax.lang.model.type.TypeKind;
  */
 public final class SyntheticArrays {
 
-    // Class cannot be instantiated.
+    /** Do not instantiate. */
     private SyntheticArrays() {
         throw new AssertionError("Class SyntheticArrays cannot be instantiated.");
     }

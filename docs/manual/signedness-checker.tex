@@ -22,7 +22,7 @@ Floating-point types \<float>, \<double>, \<Float>, and \<Double> are always sig
 
 Signedness is primarily about how the bits of the representation are
 \emph{interpreted}, not about the values that it can represent.  An unsigned value
-is always positive, but just because a variable's value is positive does
+is always non-negative, but just because a variable's value is non-negative does
 not mean that it should be marked as \<@Unsigned>.  If variable $v$ will be
 compared to a signed value, or used in arithmetic operations with a signed
 value, then $v$ should have signed type.
@@ -35,6 +35,9 @@ Checker (see \chapterpageref{constant-value-checker}).
 Additional details appear in the paper
 ``Preventing signedness errors in numerical computations in
 Java''~\cite{Mackie2016} (FSE 2016).
+
+To run the Signedness Checker, run javac with
+\<-processor org.checkerframework.checker.signedness.SignednessChecker>.
 
 
 \sectionAndLabel{Annotations}{signedness-checker-annotations}
@@ -66,7 +69,7 @@ These are the qualifiers in the signedness type system:
     This is the default annotation.
 
 \item[\refqualclass{checker/signedness/qual}{SignedPositive}]
-    indicates that a value is known at compile time to be in the positive
+    indicates that a value is known at compile time to be in the non-negative
     signed range, so it has the same interpretation as signed or unsigned
     and may be used with either interpretation.  (Equivalently, the most
     significant bit is guaranteed to be 0.)  Programmers should usually
@@ -74,7 +77,7 @@ These are the qualifiers in the signedness type system:
     \refqualclass{checker/signedness/qual}{Unsigned} instead.
 
 \item[\refqualclass{checker/signedness/qual}{SignedPositiveFromUnsigned}]
-    indicates that a value is in the positive signed range, as with
+    indicates that a value is in the non-negative signed range, as with
     \refqualclass{checker/signedness/qual}{SignedPositive}.  Furthermore,
     the value was derived from values that can be interpreted as
     \refqualclass{checker/signedness/qual}{Unsigned}.  Programmers should
@@ -85,8 +88,8 @@ These are the qualifiers in the signedness type system:
     covers the same cases as
     \refqualclass{checker/signedness/qual}{SignedPositive}, plus manifest literals, to
     prevent the programmer from having to annotate them all explicitly.
-    \emph{This annotation should almost never be written by the
-    programmer.}
+    \emph{Programmers should rarely write this annotation,
+    except on fields whose value is a negative manifest literal.}
 
  \item[\refqualclass{checker/signedness/qual}{PolySigned}]
    indicates qualifier polymorphism.
@@ -266,10 +269,9 @@ unsigned type may not participate in a division, as shown in
 Sections~\ref{signedness-checker-prohibited-operations}
 and~\ref{signedness-checker-rationale}.  However, if a constant is assigned
 to a variable that was declared with \<@Unsigned> type, then --- just like
-the constant --- the variable may be treated as either signed or unsigned.
-For example, it can participate in division.  Since the result of the
-division is signed, you cannot accidentally assign the division result to
-an \<@Unsigned> variable.
+the constant --- the variable may be treated as either signed or unsigned,
+due to local type refinement (Section~\ref{type-refinement}).
+For example, it can participate in division.
 
 \begin{Verbatim}
     void useLocalVariables() {
@@ -285,6 +287,11 @@ an \<@Unsigned> variable.
     }
 \end{Verbatim}
 
+To prevent local type refinement, use a cast:
+\begin{Verbatim}
+        @Unsigned int u1 = (@Unsigned int) 2147483646;
+\end{Verbatim}
+
 Note that type-checking produces a different result for \<int x = u1 / u2;>
 here than in the similar example in
 Section~\ref{signedness-checker-rationale}.  In
@@ -292,6 +299,18 @@ Section~\ref{signedness-checker-rationale}, the method is reading fields,
 and all it knows is the declared type of the field.  In 20.4, the method is
 reading a local variable, and dataflow (that is, flow-sensitive type
 refinement) refines the types of local variables.
+
+
+\sectionAndLabel{Instantiating polymorphism}{signedness-instantiating-polymorphism}
+
+When calling a method with formal parameters annotated as
+\refqualclass{checker/signedness/qual}{PolySigned}, all arguments for
+\<@PolySigned> formal parameters must have comparable types.  (One way to
+do this is for all types to be the same.)  This is different than the usual
+rules for polymorphic qualifiers.  If you violate this rule, then the
+Signedness Checker's error messages can be obscure, because they are about
+\<@SignednessBottom>.  You can fix the signedness error messages by casting
+the arguments.
 
 
 \sectionAndLabel{Other signedness annotations}{signedness-other-annotations}

@@ -1,6 +1,6 @@
-Java files in this directory are allowed to contain Java errors
-(that is, to cause javac without a processor to issue an error).
-This is an exception to the rules in ../../../checker/tests/README .
+This directory contains framework tests that are valid Java.
+Framework tests that are allowed to contain Java errors can be found
+in ../framework-javac-errors.
 
 To run the tests, do
   cd $CHECKERFRAMEWORK/framework

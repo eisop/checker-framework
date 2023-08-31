@@ -2,10 +2,8 @@ package org.checkerframework.framework.type.visitor;
 
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.QualifierHierarchy;
-import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
-
-import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 
@@ -62,7 +60,7 @@ public class AnnotatedTypeCombiner extends DoubleAnnotatedTypeScanner<Void> {
     protected void combineAnnotations(
             final AnnotatedTypeMirror from, final AnnotatedTypeMirror to) {
 
-        Set<AnnotationMirror> combinedAnnotations = AnnotationUtils.createAnnotationSet();
+        AnnotationMirrorSet combinedAnnotations = new AnnotationMirrorSet();
 
         for (AnnotationMirror top : hierarchy.getTopAnnotations()) {
             AnnotationMirror aFrom = from.getAnnotationInHierarchy(top);

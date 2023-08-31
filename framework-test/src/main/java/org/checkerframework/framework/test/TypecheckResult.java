@@ -145,10 +145,10 @@ public class TypecheckResult {
             CompilationResult result,
             List<TestDiagnostic> expectedDiagnostics) {
 
-        // We are passing `true` as the `noMsgText` argument because "-Anomsgtext"
-        // is always added to the non-JVM options in `TypecheckExecutor.compile`.
+        boolean usingAnomsgtxt = configuration.getOptions().containsKey("-Anomsgtext");
         final Set<TestDiagnostic> actualDiagnostics =
-                TestDiagnosticUtils.fromJavaxDiagnosticList(result.getDiagnostics(), true);
+                TestDiagnosticUtils.fromJavaxDiagnosticList(
+                        result.getDiagnostics(), usingAnomsgtxt);
 
         final Set<TestDiagnostic> unexpectedDiagnostics = new LinkedHashSet<>();
         unexpectedDiagnostics.addAll(actualDiagnostics);

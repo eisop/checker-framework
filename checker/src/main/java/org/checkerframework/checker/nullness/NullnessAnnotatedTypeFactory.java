@@ -54,6 +54,7 @@ import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.QualifierKind;
 import org.checkerframework.javacutil.AnnotationBuilder;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
@@ -82,12 +83,15 @@ public class NullnessAnnotatedTypeFactory
 
     /** The @{@link NonNull} annotation. */
     protected final AnnotationMirror NONNULL = AnnotationBuilder.fromClass(elements, NonNull.class);
+
     /** The @{@link Nullable} annotation. */
     protected final AnnotationMirror NULLABLE =
             AnnotationBuilder.fromClass(elements, Nullable.class);
+
     /** The @{@link PolyNull} annotation. */
     protected final AnnotationMirror POLYNULL =
             AnnotationBuilder.fromClass(elements, PolyNull.class);
+
     /** The @{@link MonotonicNonNull} annotation. */
     protected final AnnotationMirror MONOTONIC_NONNULL =
             AnnotationBuilder.fromClass(elements, MonotonicNonNull.class);
@@ -100,6 +104,7 @@ public class NullnessAnnotatedTypeFactory
 
     /** The Class.getCanonicalName() method. */
     protected final ExecutableElement classGetCanonicalName;
+
     /** The Arrays.copyOf() methods that operate on arrays of references. */
     private final List<ExecutableElement> copyOfMethods;
 
@@ -175,6 +180,7 @@ public class NullnessAnnotatedTypeFactory
                     "net.bytebuddy.agent.utility.nullability.NeverNull",
                     // https://github.com/raphw/byte-buddy/blob/master/byte-buddy-dep/src/main/java/net/bytebuddy/utility/nullability/NeverNull.java
                     "net.bytebuddy.utility.nullability.NeverNull",
+                    // Removed in ANTLR 4.6.
                     // https://github.com/antlr/antlr4/blob/master/runtime/Java/src/org/antlr/v4/runtime/misc/NotNull.java
                     "org.antlr.v4.runtime.misc.NotNull",
                     // https://search.maven.org/artifact/org.checkerframework/checker-compat-qual/2.5.5/jar
@@ -609,27 +615,27 @@ public class NullnessAnnotatedTypeFactory
         }
 
         @Override
-        public Void visitBinary(BinaryTree node, AnnotatedTypeMirror type) {
+        public Void visitBinary(BinaryTree tree, AnnotatedTypeMirror type) {
             return null;
         }
 
         @Override
-        public Void visitUnary(UnaryTree node, AnnotatedTypeMirror type) {
+        public Void visitUnary(UnaryTree tree, AnnotatedTypeMirror type) {
             return null;
         }
 
         @Override
-        public Void visitTypeCast(TypeCastTree node, AnnotatedTypeMirror type) {
+        public Void visitTypeCast(TypeCastTree tree, AnnotatedTypeMirror type) {
             if (type.getKind().isPrimitive()) {
                 AnnotationMirror NONNULL = ((NullnessAnnotatedTypeFactory) atypeFactory).NONNULL;
                 // If a @Nullable expression is cast to a primitive, then an unboxing.of.nullable
                 // error is issued.  Treat the cast as if it were annotated as @NonNull to avoid an
-                // type.invalid.annotations.on.use error.
+                // "type.invalid.annotations.on.use" error.
                 if (!type.isAnnotatedInHierarchy(NONNULL)) {
                     type.addAnnotation(NONNULL);
                 }
             }
-            return super.visitTypeCast(node, type);
+            return super.visitTypeCast(tree, type);
         }
     }
 
@@ -641,16 +647,16 @@ public class NullnessAnnotatedTypeFactory
         }
 
         @Override
-        public Void visitMemberSelect(MemberSelectTree node, AnnotatedTypeMirror type) {
+        public Void visitMemberSelect(MemberSelectTree tree, AnnotatedTypeMirror type) {
 
-            Element elt = TreeUtils.elementFromUse(node);
+            Element elt = TreeUtils.elementFromUse(tree);
             assert elt != null;
             return null;
         }
 
         @Override
-        public Void visitVariable(VariableTree node, AnnotatedTypeMirror type) {
-            Element elt = TreeUtils.elementFromDeclaration(node);
+        public Void visitVariable(VariableTree tree, AnnotatedTypeMirror type) {
+            Element elt = TreeUtils.elementFromDeclaration(tree);
             if (elt.getKind() == ElementKind.EXCEPTION_PARAMETER) {
                 if (!type.isAnnotatedInHierarchy(NONNULL)) {
                     // case 9. exception parameter
@@ -661,9 +667,9 @@ public class NullnessAnnotatedTypeFactory
         }
 
         @Override
-        public Void visitIdentifier(IdentifierTree node, AnnotatedTypeMirror type) {
+        public Void visitIdentifier(IdentifierTree tree, AnnotatedTypeMirror type) {
 
-            Element elt = TreeUtils.elementFromUse(node);
+            Element elt = TreeUtils.elementFromUse(tree);
             assert elt != null;
 
             if (elt.getKind() == ElementKind.EXCEPTION_PARAMETER) {
@@ -678,14 +684,14 @@ public class NullnessAnnotatedTypeFactory
 
         // The result of a binary operation is always non-null.
         @Override
-        public Void visitBinary(BinaryTree node, AnnotatedTypeMirror type) {
+        public Void visitBinary(BinaryTree tree, AnnotatedTypeMirror type) {
             type.replaceAnnotation(NONNULL);
             return null;
         }
 
         // The result of a compound operation is always non-null.
         @Override
-        public Void visitCompoundAssignment(CompoundAssignmentTree node, AnnotatedTypeMirror type) {
+        public Void visitCompoundAssignment(CompoundAssignmentTree tree, AnnotatedTypeMirror type) {
             type.replaceAnnotation(NONNULL);
             // Commitment will run after for initialization defaults
             return null;
@@ -693,20 +699,20 @@ public class NullnessAnnotatedTypeFactory
 
         // The result of a unary operation is always non-null.
         @Override
-        public Void visitUnary(UnaryTree node, AnnotatedTypeMirror type) {
+        public Void visitUnary(UnaryTree tree, AnnotatedTypeMirror type) {
             type.replaceAnnotation(NONNULL);
             return null;
         }
 
         // The result of newly allocated structures is always non-null.
         @Override
-        public Void visitNewClass(NewClassTree node, AnnotatedTypeMirror type) {
+        public Void visitNewClass(NewClassTree tree, AnnotatedTypeMirror type) {
             type.replaceAnnotation(NONNULL);
             return null;
         }
 
         @Override
-        public Void visitNewArray(NewArrayTree node, AnnotatedTypeMirror type) {
+        public Void visitNewArray(NewArrayTree tree, AnnotatedTypeMirror type) {
             // The result of newly allocated structures is always non-null.
             if (!type.isAnnotatedInHierarchy(NONNULL)) {
                 type.replaceAnnotation(NONNULL);
@@ -784,7 +790,7 @@ public class NullnessAnnotatedTypeFactory
     protected boolean hasFieldInvariantAnnotation(
             AnnotatedTypeMirror type, VariableElement fieldElement) {
         AnnotationMirror invariant = getFieldInvariantAnnotation();
-        Set<AnnotationMirror> lowerBounds =
+        AnnotationMirrorSet lowerBounds =
                 AnnotatedTypes.findEffectiveLowerBoundAnnotations(qualHierarchy, type);
         return AnnotationUtils.containsSame(lowerBounds, invariant);
     }
@@ -897,8 +903,8 @@ public class NullnessAnnotatedTypeFactory
     }
 
     /**
-     * Returns true if the given annotation is a nullness annotation such
-     * as @NonNull, @Nullable, @MonotonicNonNull, etc.
+     * Returns true if the given annotation is a nullness annotation such as {@code @NonNull},
+     * {@code @Nullable}, {@code @MonotonicNonNull}, {@code @PolyNull}, or an alias thereof.
      *
      * @param am an annotation
      * @return true if the given annotation is a nullness annotation
@@ -907,14 +913,14 @@ public class NullnessAnnotatedTypeFactory
         return isNonNullOrAlias(am)
                 || isNullableOrAlias(am)
                 || AnnotationUtils.areSameByName(am, MONOTONIC_NONNULL)
-                || AnnotationUtils.areSameByName(am, POLYNULL);
+                || isPolyNullOrAlias(am);
     }
 
     /**
-     * Returns true if the given annotation is @NonNull or an alias for it.
+     * Returns true if the given annotation is {@code @NonNull} or an alias for it.
      *
      * @param am an annotation
-     * @return true if the given annotation is @NonNull or an alias for it
+     * @return true if the given annotation is {@code @NonNull} or an alias for it
      */
     protected boolean isNonNullOrAlias(AnnotationMirror am) {
         AnnotationMirror canonical = canonicalAnnotation(am);
@@ -925,10 +931,10 @@ public class NullnessAnnotatedTypeFactory
     }
 
     /**
-     * Returns true if the given annotation is @Nullable or an alias for it.
+     * Returns true if the given annotation is {@code @Nullable} or an alias for it.
      *
      * @param am an annotation
-     * @return true if the given annotation is @Nullable or an alias for it
+     * @return true if the given annotation is {@code @Nullable} or an alias for it
      */
     protected boolean isNullableOrAlias(AnnotationMirror am) {
         AnnotationMirror canonical = canonicalAnnotation(am);
@@ -936,6 +942,20 @@ public class NullnessAnnotatedTypeFactory
             am = canonical;
         }
         return AnnotationUtils.areSameByName(am, NULLABLE);
+    }
+
+    /**
+     * Returns true if the given annotation is {@code @PolyNull} or an alias for it.
+     *
+     * @param am an annotation
+     * @return true if the given annotation is {@code @PolyNull} or an alias for it
+     */
+    protected boolean isPolyNullOrAlias(AnnotationMirror am) {
+        AnnotationMirror canonical = canonicalAnnotation(am);
+        if (canonical != null) {
+            am = canonical;
+        }
+        return AnnotationUtils.areSameByName(am, POLYNULL);
     }
 
     // If a reference field has no initializer, then its default value is null.  Treat that as
@@ -1083,7 +1103,7 @@ public class NullnessAnnotatedTypeFactory
     /**
      * Returns true if {@code node} is an invocation of Map.get.
      *
-     * @param node a node
+     * @param node a CFG node
      * @return true if {@code node} is an invocation of Map.get
      */
     public boolean isMapGet(Node node) {

@@ -1,5 +1,5 @@
-Version 3.30.0-eisop1 (February ?, 2023)
-----------------------------------------
+Version 3.34.0-eisop2 (May ?, 2023)
+-----------------------------------
 
 **User-visible changes:**
 
@@ -11,13 +11,185 @@ applied on everywhere.
 
 **Implementation details:**
 
-A `VariableDeclarationNode` is now correctly added to the CFG for the binding variable
-in a `BindingPatternTree`.
+Deprecated `ObjectCreationNode#getConstructor` in favor of new `ObjectCreationNode#getTypeToInstantiate()`.
+
+Removed class `StringConcatenateAssignmentNode` and its last usages.
+The class was deprecated in release 3.21.3-eisop1 (March 23, 2022) and no longer used in CFGs.
+
+Changed the return types of
+- `BaseTypeChecker#getImmediateSubcheckerClasses()` and overrides to
+  `Set<Class<? extends BaseTypeChecker>>`,
+- `AnalysisResult#getFinalLocalValues()` to `Map<VariableElement, V>`, and
+- `GenericAnnotatedTypeFactory#getFinalLocalValues()` to `Map<VariableElement, Value>`.
+
+**Closed issues:**
+
+eisop#376, eisop#532, typetools#1919.
+
+
+Version 3.34.0-eisop1 (May 9, 2023)
+-----------------------------------
+
+**User-visible changes:**
+
+There is now a dedicated website for the EISOP Framework at https://eisop.github.io/ .
+
+The new command-line arguments `-AaliasedTypeAnnos={aliases}` and `-AaliasedDeclAnnos={aliases}`
+define custom type and declaration annotation aliases for the canonical annotations of a checker.
+`aliases` is in the format
+`FQN.canonical.Qualifier1:FQN.alias1.Qual1,FQN.alias2.Qual1;FQN.canonical.Qualifier2:FQN.alias1.Qual2`.
+
+**Implementation details:**
+
+The EISOP Framework continues to build and run on JDK 8.
+
+Improvements to `-AwarnRedundantAnnotations` with type variables and the Interning Checker.
+
+Refactored handling of test options and fixed the interaction between the `detailedmsgtext` and
+`nomsgtext` options.
+
+New `CFGVisualizeOptions` class for handling command-line arguments, making the
+dataflow demo `Playground` applications much easier to use.
+
+
+Version 3.34.0 (May 2, 2023)
+----------------------------
+
+**User-visible changes:**
+
+The Checker Framework runs under JDK 20 -- that is, it runs on a version 20 JVM.
+
+Explicit lambda parameters are defaulted the same as method parameters.  For
+example, in `(String s) -> {...}` the type of `s` is `@NonNull String`.
+
+**Implementation details:**
+
+Renamings in `AnnotatedTypeFactory`:
+ * `prepareCompilationUnitForWriting()` => `wpiPrepareCompilationUnitForWriting()`
+ * `prepareClassForWriting()` => `wpiPrepareClassForWriting()`
+ * `prepareMethodForWriting()` => `wpiPrepareMethodForWriting()`
+   and changed its signature by adding two formal parameters
+
+**Closed issues:**
+
+#803, #5739, #5749, #5767, #5781, #5787.
+
+
+Version 3.33.0 (April 3, 2023)
+------------------------------
+
+**User-visible changes:**
+
+The new command-line argument `-AwarnRedundantAnnotations` warns about redundant
+annotations.  With this flag, a warning is issued if an explicitly written
+annotation on a type is the same as the default annotation.  This feature does
+not warn about all redundant annotations, only some.
+(EISOP note: this was implemented in Version 3.27.0-eisop1.)
+
+The Value Checker is cognizant of signedness annotations.  This eliminates some
+false positive warnings.
+
+**Implementation details:**
+
+The Checker Framework no longer builds under JDK 8.
+However, you can still run the Checker Framework under JDK 8.
+(EISOP note: the EISOP Framework continues to build and run on JDK 8.)
+
+**Closed issues:**
+
+#3785, #5436, #5708, #5717, #5720, #5721, #5727, #5732.
+
+
+Version 3.32.0-eisop1 (March 9, 2023)
+-------------------------------------
+
+**User-visible changes:**
+
+The new command-line argument `-AcheckEnclosingExpr` enables type checking for
+enclosing expression types of inner class instantiations. This fixes an
+unsoundness, in particular for the Nullness Initialization Checker, which did
+not detect the use of an uninitialized outer class for an inner class
+instantiation.
+The option is off by default to avoid many false-positive errors.
+
+**Implementation details:**
+
+Added method `AnnotatedExecutableType.getVarargType` to access the vararg type
+of a method/constructor.
+This allows us to remove usages of `AnnotatedTypes.adaptParameters()`.
+
+A `VariableDeclarationNode` is now correctly added to the CFG for the binding
+variable in a `BindingPatternTree`.
 
 Remove the `fastAssemble` task which is subsumed by `assembleForJavac`.
 
+Successfully compiles with Java 20 and 21.
+
 **Closed issues:**
-typetools#1919
+
+eisop#282, eisop#310, eisop#312, typetools#5672.
+
+
+Version 3.32.0 (March 2, 2023)
+------------------------------
+
+**User-visible changes:**
+
+Fixed a bug in the Nullness Checker where a call to a side-effecting method did
+not make some formal parameters possibly-null.  The Nullness Checker is likely
+to issue more warnings for your code.  For ways to eliminate the new warnings,
+see https://eisop.github.io/cf/manual/#type-refinement-side-effects .
+
+If you supply the `-AinvocationPreservesArgumentNullness` command-line
+option, the Nullness Checker unsoundly assumes that arguments passed to
+non-null parameters in an invocation remain non-null after the invocation.
+This assumption is unsound in general, but it holds for most code.
+
+(EISOP note: contrary to this description, one needs to use
+`-AinvocationPreservesArgumentNullness=false` to get the unsound behavior.
+EISOP keeps only the `-AconservativeArgumentNullnessAfterInvocation` option,
+introduced in version 3.25.0-eisop1, which this typetools option is based on.)
+
+**Implementation details:**
+
+Moved `TreeUtils.isAutoGeneratedRecordMember(Element)` to `ElementUtils`.
+(EISOP note: originally introduced the method in the correct location in Version 3.27.0-eisop1.)
+
+Renamed `TreeUtils.instanceOfGetPattern()` to `TreeUtils.instanceOfTreeGetPattern()`.
+(EISOP note: EISOP performed this renaming in Version 3.21.2-eisop1.)
+
+Deprecated `AnnotatedTypes#isExplicitlySuperBounded` and `AnnotatedTypes#isExplicitlyExtendsBounded`
+because they are duplicates of `#hasExplicitSuperBound` and `#hasExplicitExtendsBound`.
+
+
+Version 3.31.0 (February 17, 2023)
+----------------------------------
+
+**User-visible changes:**
+
+Command-line argument `-AshowPrefixInWarningMessages` puts the checker name
+on the first line of each warning and error message.
+
+Signedness Checker changes:
+ * Cast expressions are not subject to type refinement.  When a programmer
+   writes a cast such as `(@Signed int) 2`, it is not refined to
+   `@SignednessGlb` and cannot be used in an unsigned context.
+ * When incompatible arguments are passed to `@PolySigned` formal parameters,
+   the error is expressed in terms of `@SignednessBottom` rather than the
+   greatest lower bound of the argument types.
+
+**Implementation details:**
+
+Moved `AnnotationMirrorSet` and `AnnotationMirrorMap` from
+`org.checkerframework.framework.util` to `org.checkerframework.javacutil`.
+Changed uses of `Set<AnnotationMirror>` to `AnnotationMirrorSet` including in APIs.
+Removed methods from AnnotationUtils that are no longer useful:
+`createAnnotationMap`, `createAnnotationSet`, `createUnmodifiableAnnotationSet`.
+
+**Closed issues:**
+
+#5597.
+
 
 Version 3.30.0 (February 2, 2023)
 ---------------------------------
@@ -27,9 +199,10 @@ Version 3.30.0 (February 2, 2023)
 `getQualifierKind()` throws an exception rather than returning null.
 (EISOP note: this method is in `ElementQualifierHierarchy` and `QualifierKindHierarchy`.)
 
-Renamed gradle task `copyJarsToDist` to `assembleForJavac`.
+Renamed Gradle task `copyJarsToDist` to `assembleForJavac`.
 
 **Closed issues:**
+
 #5402, #5486, #5489, #5519, #5524, #5526.
 
 
@@ -388,7 +561,7 @@ Moved the `-AajavaChecks` option from `CheckerFrameworkPerDirectoryTest` to
 `TypecheckExecutor.compile` to ensure the option is used for all tests.
 
 **Closed issues:**
-eisop#210.
+eisop#210, eisop#215.
 
 
 Version 3.22.0 (May 2, 2022)
@@ -2300,7 +2473,7 @@ Documentation:
 For type-system developers:
  * The org.checkerframework.framework.qual.TypeQualifier{s} annotations are
    now deprecated.  To indicate which annotations a checker supports, see
-   https://checkerframework.org/manual/#creating-indicating-supported-annotations .
+   https://eisop.github.io/cf/manual/#creating-indicating-supported-annotations .
    Support for TypeQualifier{s} will be removed in the next release.
  * Renamed
    org.checkerframework.framework.qual.Default{,Qualifier}ForUnannotatedCode to
@@ -2898,7 +3071,7 @@ Adapt to underlying jsr308-langtools changes.
   JDK 7 is now required.  The Checker Framework does not build or run on JDK 6.
 
 Documentation:
-  A new tutorial is available at https://checkerframework.org/tutorial/
+  A new tutorial is available at https://eisop.github.io/cf/tutorial/
 
 
 Version 1.5.0 (14 Jan 2013)
@@ -4216,7 +4389,7 @@ Manual
     8  Annotating libraries
     9  How to create a new checker plugin
   Javadoc for the Checker Framework is included in its distribution and is
-    available online at https://checkerframework.org/api/ .
+    available online at https://eisop.github.io/cf/api/ .
 
 
 Version 0.6.4 (9 June 2008)

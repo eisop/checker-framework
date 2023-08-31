@@ -68,7 +68,8 @@ public abstract class SwitchExpressionScanner<R, P> extends TreeScanner<R, P> {
      */
     public R scanSwitchExpression(Tree switchExpression, P p) {
         // TODO: use JCP to add version-specific behavior
-        assert switchExpression.getKind().name().equals("SWITCH_EXPRESSION");
+        assert SystemUtil.jreVersion >= 14
+                && switchExpression.getKind().name().equals("SWITCH_EXPRESSION");
         List<? extends CaseTree> caseTrees =
                 TreeUtils.switchExpressionTreeGetCases(switchExpression);
         R result = null;
@@ -155,6 +156,7 @@ public abstract class SwitchExpressionScanner<R, P> extends TreeScanner<R, P> {
 
         /** The function to use for {@link #visitSwitchResultExpression(ExpressionTree, Object)}. */
         private final BiFunction<ExpressionTree, P1, R1> switchValueExpressionFunction;
+
         /** The function to use for {@link #visitSwitchResultExpression(ExpressionTree, Object)}. */
         private final BiFunction<@Nullable R1, @Nullable R1, R1> combineResultFunc;
 

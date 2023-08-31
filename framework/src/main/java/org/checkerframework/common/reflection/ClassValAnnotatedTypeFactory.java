@@ -54,6 +54,7 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     /** The ClassBound.value argument/element. */
     private final ExecutableElement classBoundValueElement =
             TreeUtils.getMethod(ClassBound.class, "value", 0, processingEnv);
+
     /** The ClassVal.value argument/element. */
     private final ExecutableElement classValValueElement =
             TreeUtils.getMethod(ClassVal.class, "value", 0, processingEnv);

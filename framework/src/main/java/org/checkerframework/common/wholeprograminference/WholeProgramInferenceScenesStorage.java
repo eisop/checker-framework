@@ -41,6 +41,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayTyp
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedNullType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.Pair;
@@ -175,6 +176,9 @@ public class WholeProgramInferenceScenesStorage
             case CLASS:
                 className = ElementUtils.getBinaryName((TypeElement) elt);
                 break;
+            case PARAMETER:
+                className = ElementUtils.getEnclosingClassName((VariableElement) elt);
+                break;
             default:
                 throw new BugInCF("What element? %s %s", elt.getKind(), elt);
         }
@@ -260,6 +264,27 @@ public class WholeProgramInferenceScenesStorage
             AnnotatedTypeFactory atypeFactory) {
         AMethod methodAnnos = getMethodAnnos(methodElt);
         return methodAnnos.receiver.type;
+    }
+
+    @Override
+    public AnnotationMirrorSet getMethodDeclarationAnnotations(ExecutableElement elt) {
+        AMethod methodAnnos = getMethodAnnos(elt);
+        Set<Annotation> annos = methodAnnos.tlAnnotationsHere;
+        AnnotationMirrorSet result = new AnnotationMirrorSet();
+        for (Annotation anno : annos) {
+            result.add(
+                    AnnotationConverter.annotationToAnnotationMirror(
+                            anno, atypeFactory.getProcessingEnv()));
+        }
+        return result;
+    }
+
+    @Override
+    public boolean removeMethodDeclarationAnnotation(
+            ExecutableElement methodElt, AnnotationMirror anno) {
+        AMethod methodAnnos = getMethodAnnos(methodElt);
+        return methodAnnos.tlAnnotationsHere.remove(
+                AnnotationConverter.annotationMirrorToAnnotation(anno));
     }
 
     @Override
@@ -570,7 +595,7 @@ public class WholeProgramInferenceScenesStorage
         AnnotatedTypeMirror atmFromScene = atmFromStorageLocation(rhsATM.getUnderlyingType(), type);
         updateAtmWithLub(rhsATM, atmFromScene);
         if (lhsATM instanceof AnnotatedTypeVariable) {
-            Set<AnnotationMirror> upperAnnos =
+            AnnotationMirrorSet upperAnnos =
                     ((AnnotatedTypeVariable) lhsATM).getUpperBound().getEffectiveAnnotations();
             // If the inferred type is a subtype of the upper bounds of the
             // current type on the source code, halt.
@@ -629,7 +654,7 @@ public class WholeProgramInferenceScenesStorage
         }
 
         // LUB primary annotations
-        Set<AnnotationMirror> annosToReplace = new HashSet<>(sourceCodeATM.getAnnotations().size());
+        AnnotationMirrorSet annosToReplace = new AnnotationMirrorSet();
         for (AnnotationMirror amSource : sourceCodeATM.getAnnotations()) {
             AnnotationMirror amJaif = jaifATM.getAnnotationInHierarchy(amSource);
             // amJaif only contains annotations from the jaif, so it might be missing
@@ -813,7 +838,7 @@ public class WholeProgramInferenceScenesStorage
      */
     public void prepareSceneForWriting(AScene compilationUnitAnnos) {
         for (Map.Entry<String, AClass> classEntry : compilationUnitAnnos.classes.entrySet()) {
-            prepareClassForWriting(classEntry.getValue());
+            wpiPrepareClassForWriting(classEntry.getValue());
         }
     }
 
@@ -822,9 +847,9 @@ public class WholeProgramInferenceScenesStorage
      *
      * @param classAnnos the class annotations to modify
      */
-    public void prepareClassForWriting(AClass classAnnos) {
+    public void wpiPrepareClassForWriting(AClass classAnnos) {
         for (Map.Entry<String, AMethod> methodEntry : classAnnos.methods.entrySet()) {
-            prepareMethodForWriting(methodEntry.getValue());
+            wpiPrepareMethodForWriting(methodEntry.getValue());
         }
     }
 
@@ -834,8 +859,8 @@ public class WholeProgramInferenceScenesStorage
      *
      * @param methodAnnos the method or constructor annotations to modify
      */
-    public void prepareMethodForWriting(AMethod methodAnnos) {
-        atypeFactory.prepareMethodForWriting(methodAnnos);
+    public void wpiPrepareMethodForWriting(AMethod methodAnnos) {
+        atypeFactory.wpiPrepareMethodForWriting(methodAnnos);
     }
 
     @Override

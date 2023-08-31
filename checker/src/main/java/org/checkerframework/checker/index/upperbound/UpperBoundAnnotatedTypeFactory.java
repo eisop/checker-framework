@@ -64,6 +64,7 @@ import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
 import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
 import org.checkerframework.javacutil.AnnotationBuilder;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
@@ -113,22 +114,27 @@ public class UpperBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
     /** The @{@link UpperBoundUnknown} annotation. */
     public final AnnotationMirror UNKNOWN =
             AnnotationBuilder.fromClass(elements, UpperBoundUnknown.class);
+
     /** The @{@link UpperBoundBottom} annotation. */
     public final AnnotationMirror BOTTOM =
             AnnotationBuilder.fromClass(elements, UpperBoundBottom.class);
+
     /** The @{@link PolyUpperBound} annotation. */
     public final AnnotationMirror POLY =
             AnnotationBuilder.fromClass(elements, PolyUpperBound.class);
+
     /** The @{@link UpperBoundLiteral}(-1) annotation. */
     public final AnnotationMirror NEGATIVEONE =
             new AnnotationBuilder(getProcessingEnv(), UpperBoundLiteral.class)
                     .setValue("value", -1)
                     .build();
+
     /** The @{@link UpperBoundLiteral}(0) annotation. */
     public final AnnotationMirror ZERO =
             new AnnotationBuilder(getProcessingEnv(), UpperBoundLiteral.class)
                     .setValue("value", 0)
                     .build();
+
     /** The @{@link UpperBoundLiteral}(1) annotation. */
     public final AnnotationMirror ONE =
             new AnnotationBuilder(getProcessingEnv(), UpperBoundLiteral.class)
@@ -138,12 +144,15 @@ public class UpperBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
     /** The NegativeIndexFor.value element/field. */
     public final ExecutableElement negativeIndexForValueElement =
             TreeUtils.getMethod(NegativeIndexFor.class, "value", 0, processingEnv);
+
     /** The SameLen.value element/field. */
     public final ExecutableElement sameLenValueElement =
             TreeUtils.getMethod(SameLen.class, "value", 0, processingEnv);
+
     /** The LTLengthOf.value element/field. */
     public final ExecutableElement ltLengthOfValueElement =
             TreeUtils.getMethod(LTLengthOf.class, "value", 0, processingEnv);
+
     /** The LTLengthOf.offset element/field. */
     public final ExecutableElement ltLengthOfOffsetElement =
             TreeUtils.getMethod(LTLengthOf.class, "offset", 0, processingEnv);
@@ -555,7 +564,7 @@ public class UpperBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
          */
         private boolean definitelyIsNotTheEmptyString(
                 AnnotatedTypeMirror atm, ValueAnnotatedTypeFactory vatf) {
-            Set<AnnotationMirror> annos = atm.getAnnotations();
+            AnnotationMirrorSet annos = atm.getAnnotations();
             for (AnnotationMirror anno : annos) {
                 switch (AnnotationUtils.annotationName(anno)) {
                     case ValueAnnotatedTypeFactory.STRINGVAL_NAME:
@@ -582,26 +591,26 @@ public class UpperBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
         }
 
         @Override
-        public Void visitLiteral(LiteralTree node, AnnotatedTypeMirror type) {
+        public Void visitLiteral(LiteralTree tree, AnnotatedTypeMirror type) {
             // Could also handle long literals, but array indexes are always ints.
-            if (node.getKind() == Tree.Kind.INT_LITERAL) {
-                type.addAnnotation(createLiteral(((Integer) node.getValue()).intValue()));
+            if (tree.getKind() == Tree.Kind.INT_LITERAL) {
+                type.addAnnotation(createLiteral(((Integer) tree.getValue()).intValue()));
             }
-            return super.visitLiteral(node, type);
+            return super.visitLiteral(tree, type);
         }
 
         /* Handles case 3. */
         @Override
-        public Void visitUnary(UnaryTree node, AnnotatedTypeMirror type) {
+        public Void visitUnary(UnaryTree tree, AnnotatedTypeMirror type) {
             // Dataflow refines this type if possible
-            if (node.getKind() == Tree.Kind.BITWISE_COMPLEMENT) {
+            if (tree.getKind() == Tree.Kind.BITWISE_COMPLEMENT) {
                 addAnnotationForBitwiseComplement(
-                        getSearchIndexAnnotatedTypeFactory().getAnnotatedType(node.getExpression()),
+                        getSearchIndexAnnotatedTypeFactory().getAnnotatedType(tree.getExpression()),
                         type);
             } else {
                 type.addAnnotation(UNKNOWN);
             }
-            return super.visitUnary(node, type);
+            return super.visitUnary(tree, type);
         }
 
         /**
@@ -643,10 +652,10 @@ public class UpperBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
         }
 
         @Override
-        public Void visitCompoundAssignment(CompoundAssignmentTree node, AnnotatedTypeMirror type) {
+        public Void visitCompoundAssignment(CompoundAssignmentTree tree, AnnotatedTypeMirror type) {
             // Dataflow refines this type if possible
             type.addAnnotation(UNKNOWN);
-            return super.visitCompoundAssignment(node, type);
+            return super.visitCompoundAssignment(tree, type);
         }
 
         @Override

@@ -39,8 +39,10 @@ public class AssignmentNode extends Node {
 
     /** The underlying assignment tree. */
     protected final Tree tree;
+
     /** The node for the LHS of the assignment tree. */
     protected final Node lhs;
+
     /** The node for the RHS of the assignment tree. */
     protected final Node rhs;
 
@@ -141,6 +143,7 @@ public class AssignmentNode extends Node {
     }
 
     @Override
+    @Pure
     public int hashCode() {
         return Objects.hash(getTarget(), getExpression());
     }

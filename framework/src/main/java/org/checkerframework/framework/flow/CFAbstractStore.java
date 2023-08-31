@@ -112,8 +112,12 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      */
     protected final boolean sequentialSemantics;
 
+    /** True if -AassumeSideEffectFree or -AassumePure was passed on the command line. */
+    private final boolean assumeSideEffectFree;
+
     /** The unique ID for the next-created object. */
     private static final AtomicLong nextUid = new AtomicLong(0);
+
     /** The unique ID of this object. */
     private final transient long uid = nextUid.getAndIncrement();
 
@@ -141,9 +145,16 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         arrayValues = new HashMap<>();
         classValues = new HashMap<>();
         this.sequentialSemantics = sequentialSemantics;
+        assumeSideEffectFree =
+                analysis.checker.hasOption("assumeSideEffectFree")
+                        || analysis.checker.hasOption("assumePure");
     }
 
-    /** Copy constructor. */
+    /**
+     * Copy constructor.
+     *
+     * @param other a CFAbstractStore to copy into this
+     */
     protected CFAbstractStore(CFAbstractStore<V, S> other) {
         this.analysis = other.analysis;
         localVariableValues = new HashMap<>(other.localVariableValues);
@@ -153,6 +164,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         arrayValues = new HashMap<>(other.arrayValues);
         classValues = new HashMap<>(other.classValues);
         sequentialSemantics = other.sequentialSemantics;
+        assumeSideEffectFree = other.assumeSideEffectFree;
     }
 
     /**
@@ -223,9 +235,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         ExecutableElement method = methodInvocationNode.getTarget().getMethod();
 
         // case 1: remove information if necessary
-        if (!(analysis.checker.hasOption("assumeSideEffectFree")
-                || analysis.checker.hasOption("assumePure")
-                || atypeFactory.isSideEffectFree(method))) {
+        if (!(assumeSideEffectFree || atypeFactory.isSideEffectFree(method))) {
 
             boolean sideEffectsUnrefineAliases =
                     ((GenericAnnotatedTypeFactory) atypeFactory).sideEffectsUnrefineAliases;
@@ -451,6 +461,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
     public final void insertValue(JavaExpression expr, @Nullable V value) {
         insertValue(expr, value, false);
     }
+
     /**
      * Like {@link #insertValue(JavaExpression, CFAbstractValue)}, but updates the store even if
      * {@code expr} is nondeterministic.

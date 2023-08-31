@@ -18,7 +18,7 @@ Preliminaries:
 Create the Docker image:
 
 # Alias to create the Docker image, in an empty directory, and upload to Docker Hub.
-# Takes about 12 minutes for jdk8 or jdk11, about 1 hour for jdk8-plus or jdk11-plus.
+# Takes about 12 minutes for jdk*, about 1 hour for jdk*-plus.
 alias create_upload_docker_image=' \
   rm -rf dockerdir && \
   mkdir -p dockerdir && \
@@ -59,12 +59,12 @@ export PROJECT=cf
 create_upload_docker_image
 
 export OS=ubuntu
-export JDKVER=jdk19
+export JDKVER=jdk-latest
 export PROJECT=cf
 create_upload_docker_image
 
 export OS=ubuntu
-export JDKVER=jdk19-plus
+export JDKVER=jdk-latest-plus
 export PROJECT=cf
 create_upload_docker_image
 
@@ -92,3 +92,5 @@ To stop and remove/delete all docker containers:
   docker stop $(docker ps -a -q)
   docker rm $(docker ps -a -q)
 or you can just remove some of them.
+To really clean up the whole docker system:
+  docker system prune --all --volumes

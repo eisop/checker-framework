@@ -44,13 +44,16 @@ import javax.lang.model.util.SimpleTypeVisitor8;
 public class FormatterTreeUtil {
     /** The checker. */
     public final BaseTypeChecker checker;
+
     /** The processing environment. */
     public final ProcessingEnvironment processingEnv;
 
     /** The value() element/field of an @Format annotation. */
     protected final ExecutableElement formatValueElement;
+
     /** The value() element/field of an @InvalidFormat annotation. */
     protected final ExecutableElement invalidFormatValueElement;
+
     // private final ExecutableElement formatArgTypesElement;
 
     public FormatterTreeUtil(BaseTypeChecker checker) {
@@ -165,15 +168,15 @@ public class FormatterTreeUtil {
     }
 
     /**
-     * Returns true if {@code node} is a call to a method annotated with {@code @FormatMethod}.
+     * Returns true if {@code tree} is a call to a method annotated with {@code @FormatMethod}.
      *
-     * @param node a method call
+     * @param tree a method call
      * @param atypeFactory a type factory
-     * @return true if {@code node} is a call to a method annotated with {@code @FormatMethod}
+     * @return true if {@code tree} is a call to a method annotated with {@code @FormatMethod}
      */
     public boolean isFormatMethodCall(
-            MethodInvocationTree node, AnnotatedTypeFactory atypeFactory) {
-        ExecutableElement method = TreeUtils.elementFromUse(node);
+            MethodInvocationTree tree, AnnotatedTypeFactory atypeFactory) {
+        ExecutableElement method = TreeUtils.elementFromUse(tree);
         AnnotationMirror anno = atypeFactory.getDeclAnnotation(method, FormatMethod.class);
         return anno != null;
     }
@@ -219,12 +222,16 @@ public class FormatterTreeUtil {
     public class FormatCall {
         /** The call itself. */
         /*package-private*/ final MethodInvocationTree invocationTree;
+
         /** The format string argument. */
         private final ExpressionTree formatStringTree;
+
         /** The type of the format string argument. */
         private final AnnotatedTypeMirror formatStringType;
+
         /** The arguments that follow the format string argument. */
         private final List<? extends ExpressionTree> args;
+
         /** The type factory. */
         private final AnnotatedTypeFactory atypeFactory;
 
@@ -300,18 +307,18 @@ public class FormatterTreeUtil {
                                                         InvocationType, Class<Void>>() {
                                                     @Override
                                                     protected InvocationType defaultAction(
-                                                            Tree node, Class<Void> p) {
+                                                            Tree tree, Class<Void> p) {
                                                         // just a normal array
                                                         return InvocationType.ARRAY;
                                                     }
 
                                                     @Override
                                                     public InvocationType visitTypeCast(
-                                                            TypeCastTree node, Class<Void> p) {
+                                                            TypeCastTree tree, Class<Void> p) {
                                                         // it's a (Object[])null
                                                         return atypeFactory
                                                                                 .getAnnotatedType(
-                                                                                        node
+                                                                                        tree
                                                                                                 .getExpression())
                                                                                 .getUnderlyingType()
                                                                                 .getKind()
@@ -455,8 +462,8 @@ public class FormatterTreeUtil {
      * @param invalidFormatString an invalid formatter string
      * @return an {@link InvalidFormat} annotation with the given string as its value
      */
-    /* package-private */
-    AnnotationMirror stringToInvalidFormatAnnotation(String invalidFormatString) {
+    /*package-private*/ AnnotationMirror stringToInvalidFormatAnnotation(
+            String invalidFormatString) {
         AnnotationBuilder builder = new AnnotationBuilder(processingEnv, InvalidFormat.class);
         builder.setValue("value", invalidFormatString);
         return builder.build();

@@ -9,6 +9,7 @@ import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFValue;
 import org.checkerframework.framework.type.QualifierHierarchy;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.TypeSystemError;
 
 import java.util.Set;
@@ -25,6 +26,7 @@ public class IndexRefinementInfo {
 
     /** The left operand. */
     public final Node left;
+
     /** The right operand. */
     public final Node right;
 
@@ -33,6 +35,7 @@ public class IndexRefinementInfo {
      * expression.
      */
     public final @Nullable AnnotationMirror leftAnno;
+
     /**
      * Annotation for right expressions. Might be null if dataflow doesn't have a value for the
      * expression.
@@ -41,8 +44,10 @@ public class IndexRefinementInfo {
 
     /** The then store. */
     public final CFStore thenStore;
+
     /** The else store. */
     public final CFStore elseStore;
+
     /** The new result, after refinement. */
     public final ConditionalTransferResult<CFValue, CFStore> newResult;
 
@@ -86,8 +91,7 @@ public class IndexRefinementInfo {
         this(result, analysis, node.getRightOperand(), node.getLeftOperand());
     }
 
-    private static AnnotationMirror getAnno(
-            Set<AnnotationMirror> set, QualifierHierarchy hierarchy) {
+    private static AnnotationMirror getAnno(AnnotationMirrorSet set, QualifierHierarchy hierarchy) {
         Set<? extends AnnotationMirror> tops = hierarchy.getTopAnnotations();
         if (tops.size() != 1) {
             throw new TypeSystemError(
