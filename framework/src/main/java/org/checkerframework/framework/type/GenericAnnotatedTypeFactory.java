@@ -1703,12 +1703,14 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * As long as everUseFlow is true, always enable flow refinement for the receiver.
+     * As long as everUseFlow is true, always enable flow refinement for the receiver. This method
+     * is an implementation detail and visible inside the package only.
      *
+     * @see #getAnnotatedType(Tree), which should be used to get the annotated type.
      * @param tree an expression tree
      * @return the refined type of the expression tree
      */
-    public AnnotatedTypeMirror getAnnotatedTypeWithReceiverRefinement(Tree tree) {
+    AnnotatedTypeMirror getAnnotatedTypeWithReceiverRefinement(Tree tree) {
         boolean oldUseFlow = useFlow;
         useFlow = everUseFlow;
         AnnotatedTypeMirror result = getAnnotatedType(tree);
