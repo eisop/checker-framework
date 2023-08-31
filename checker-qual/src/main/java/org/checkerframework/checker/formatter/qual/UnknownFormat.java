@@ -18,8 +18,8 @@ import java.lang.annotation.Target;
  * <p>A type annotation indicating that the run-time value might or might not be a valid format
  * string.
  *
- * <p>This annotation may not be explicitly written in source code; it is an implementation detail
- * of the checker.
+ * <p>It's usually not necessary writing this annotation in the source code. It is an implementation
+ * detail of the checker.
  *
  * @checker_framework.manual #formatter-checker Format String Checker
  */
