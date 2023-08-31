@@ -24,5 +24,5 @@ import org.checkerframework.framework.qual.TypeUseLocation;
   TypeUseLocation.LOWER_BOUND,
   TypeUseLocation.UPPER_BOUND,
 })
-@SubtypeOf({SignedPositiveFromUnsigned.class})
+@SubtypeOf({SignedPositive.class})
 public @interface SignednessBottom {}
