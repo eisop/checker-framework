@@ -48,12 +48,14 @@ Changed the return types of
 eisop#297, eisop#376, eisop#400, eisop#519, eisop#532, eisop#533, typetools#1590, typetools#1919.
 
 
-Version 3.37.1 (September 1, 2023)
------------------------------
+Version 3.38.0 (September 1, 2023)
+----------------------------------
 
 **User-visible changes:**
 
 **Implementation details:**
+
+Renamed `SourceChecker.processArg()' to `processErrorMessageArg()`.
 
 **Closed issues:**
 

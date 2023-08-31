@@ -459,7 +459,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
   /**
    * Maps error keys to localized/custom error messages. Do not use directly; call {@link
-   * #fullMessageOf} or {@link #processArg}. Is set in {@link #initChecker}.
+   * #fullMessageOf} or {@link #processErrorMessageArg}. Is set in {@link #initChecker}.
    */
   protected Properties messagesProperties;
 
@@ -1191,7 +1191,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     if (args != null) {
       for (int i = 0; i < args.length; ++i) {
-        args[i] = processArg(args[i]);
+        args[i] = processErrorMessageArg(args[i]);
       }
     }
 
@@ -1420,7 +1420,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
    * @param arg the argument
    * @return the result after processing
    */
-  protected Object processArg(Object arg) {
+  protected Object processErrorMessageArg(Object arg) {
     // Check to see if the argument itself is a property to be expanded
     if (arg instanceof String) {
       return messagesProperties.getProperty((String) arg, (String) arg);
