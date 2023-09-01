@@ -1707,7 +1707,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * is an implementation detail and visible inside the package only. See the comment in this
      * testcase for more details framework/tests/viewpointtest/TestgetAnnotatedLHS.java.
      *
-     * @see #getAnnotatedType(Tree), which should be usually used to get the annotated type.
+     * @see #getAnnotatedType(Tree)
      * @param tree an expression tree
      * @return the refined type of the expression tree
      */
