@@ -9,7 +9,7 @@ import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.qual.StubFiles;
 import org.checkerframework.framework.source.SupportedOptions;
 
-import java.util.LinkedHashSet;
+import java.util.Set;
 
 import javax.tools.Diagnostic.Kind;
 
@@ -52,9 +52,8 @@ public class ResourceLeakChecker extends CalledMethodsChecker {
     private int numMustCallFailed = 0;
 
     @Override
-    protected LinkedHashSet<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
-        LinkedHashSet<Class<? extends BaseTypeChecker>> checkers =
-                super.getImmediateSubcheckerClasses();
+    protected Set<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
+        Set<Class<? extends BaseTypeChecker>> checkers = super.getImmediateSubcheckerClasses();
 
         if (this.processingEnv.getOptions().containsKey(MustCallChecker.NO_CREATES_MUSTCALLFOR)) {
             checkers.add(MustCallNoCreatesMustCallForChecker.class);
