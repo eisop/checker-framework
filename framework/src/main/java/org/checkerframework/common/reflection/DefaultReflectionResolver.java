@@ -611,8 +611,8 @@ public class DefaultReflectionResolver implements ReflectionResolver {
     }
 
     /**
-     * Determine the enclosed elements for an element.
-     * This wrapper is useful to avoid a signature change in the called method.
+     * Determine the enclosed elements for an element. This wrapper is useful to avoid a signature
+     * change in the called method.
      *
      * @param sym the element
      * @return the enclosed elements
