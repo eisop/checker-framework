@@ -610,6 +610,13 @@ public class DefaultReflectionResolver implements ReflectionResolver {
         }
     }
 
+    /**
+     * Determine the enclosed elements for an element.
+     * This wrapper is useful to avoid a signature change in the called method.
+     *
+     * @param sym the element
+     * @return the enclosed elements
+     */
     @SuppressWarnings("ASTHelpersSuggestions") // Use local helper.
     private static List<Symbol> getEnclosedElements(Symbol sym) {
         return sym.getEnclosedElements();
