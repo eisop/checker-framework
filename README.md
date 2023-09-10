@@ -8,4 +8,4 @@ The history of releases and changes is in file
 [docs/CHANGELOG.md](docs/CHANGELOG.md).
 
 Documentation for Checker Framework developers
-is in directory `docs/developer/`.
+is in directory `docs/developer/`..
