@@ -265,7 +265,7 @@ public class TypeArgumentMapper {
     }
 
     /**
-     * Computes one level for depthFirstSearchForSupertype then recurses.
+     * Computes one level for depthFirstSearchForSupertype then recurse.
      *
      * @param pathFromRoot the path so far
      * @param target the end of the resulting path

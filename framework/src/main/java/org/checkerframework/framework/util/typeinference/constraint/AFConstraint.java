@@ -40,7 +40,7 @@ public abstract class AFConstraint {
     /** The formal parameter type. */
     public final AnnotatedTypeMirror formalParameter;
 
-    /** Create a constraint for type arguments for a methodd invocation or new class invocation. */
+    /** Create a constraint for type arguments for a method invocation or new class invocation. */
     protected AFConstraint(
             final AnnotatedTypeMirror argument, final AnnotatedTypeMirror formalParameter) {
         this.argument = argument;
