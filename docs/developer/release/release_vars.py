@@ -177,7 +177,6 @@ TOOLS = [
     "java",
     "latex",
     "mvn",
-    "hg",
     "git",
     "html5validator",
     "dot",
