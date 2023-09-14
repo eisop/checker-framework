@@ -96,7 +96,6 @@ docs/manual/figures/*.pdf
 docs/manual/figures/*.png
 docs/manual/figures/signature-types-with-canonicalname.dia
 docs/manual/manual.html-e
-docs/tmpapi/
 
 # dataflow manual
 dataflow/manual/dataflow.aux
