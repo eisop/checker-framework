@@ -1,5 +1,6 @@
 package org.checkerframework.framework.source;
 
+import com.google.common.base.Splitter;
 import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
@@ -1567,7 +1568,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
       return Collections.singleton("all");
     }
 
-    List<String> lintStrings = Arrays.asList(lintString.split(","));
+    List<String> lintStrings = SystemUtil.commaSplitter.splitToList(lintString);
     Set<String> activeLint = ArraySet.newArraySetOrHashSet(lintStrings.size());
     for (String s : lintStrings) {
       if (!this.getSupportedLintOptions().contains(s)
@@ -1938,7 +1939,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     if (value == null) {
       return defaultValue;
     }
-    return Arrays.asList(value.split(Pattern.quote(Character.toString(separator))));
+    return Splitter.on(separator).omitEmptyStrings().splitToList(value);
   }
 
   /**
@@ -1953,7 +1954,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     if (value == null) {
       return defaultValue;
     }
-    return Arrays.asList(value.split(separator));
+    return Splitter.on(separator).omitEmptyStrings().splitToList(value);
   }
 
   /**
