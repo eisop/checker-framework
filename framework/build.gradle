@@ -48,7 +48,7 @@ configurations {
 dependencies {
   api project(':javacutil')
   api project(':dataflow')
-  api 'org.checkerframework:stubparser:3.25.5-SNAPSHOT'
+  api 'org.checkerframework:stubparser:3.25.5'
 
   // NO-AFU
   /*
