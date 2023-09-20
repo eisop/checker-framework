@@ -46,8 +46,10 @@ ext {
   isJava18 = JavaVersion.current() == JavaVersion.VERSION_18
   isJava19 = JavaVersion.current() == JavaVersion.VERSION_19
   isJava20 = JavaVersion.current() == JavaVersion.VERSION_20
+  isJava21 = JavaVersion.current() == JavaVersion.VERSION_21
 
-  isJava20plus = isJava20
+  isJava21plus = isJava21
+  isJava20plus = isJava20 || isJava21plus
   isJava19plus = isJava19 || isJava20plus
   isJava18plus = isJava18 || isJava19plus
   isJava17plus = isJava17 || isJava18plus
@@ -56,13 +58,8 @@ ext {
   isJava14plus = isJava14 || isJava15plus
   isJava11plus = JavaVersion.current() >= JavaVersion.VERSION_11
 
-  // As of 2022-04-22, delombok doesn't yet support JDK 20; see https://projectlombok.org/changelog .
-  // Keep the variable in case we need to disable lombok for a future Java release.
-  skipDelombok = JavaVersion.current() >= JavaVersion.VERSION_20
-
-  // This call to `isCompatibleWith` causes a Gradle run-time failure: "No signature of method".
-  // isJava17compatible = JavaVersion.isCompatibleWith(JavaVersion.VERSION_17)
-  // isJava17orHigher = JavaVersion.current() >= JavaVersion.VERSION_17
+  // As of 2023-09-19, delombok doesn't yet support JDK 21; see https://projectlombok.org/changelog .
+  skipDelombok = JavaVersion.current() == JavaVersion.VERSION_21
 
   parentDir = file("${rootDir}/../").absolutePath
 
@@ -269,6 +266,10 @@ allprojects {
         // added in Java 14, not Java 17.
         doNotFormat += ['**/java17/']
       }
+      if (!isJava21plus) {
+        doNotFormat += ['**/java21/']
+      }
+
 
       format 'misc', {
         // define the files to apply `misc` to
@@ -434,14 +435,18 @@ allprojects {
 
       options.failOnError = true
       options.deprecation = true
+      // -options: To not get a warning about missing bootstrap classpath (when using Java 9 and `-source 8`).
+      // -fallthrough: Don't check fallthroughs.  Instead, use Error Prone.  Its
+      //   warnings are suppressible with a "// fall through" comment.
+      String lint =     '-Xlint:-options,-fallthrough'
+      if (isJava21plus) {
+        // TODO: Ignore this-escape for now, we may want to review and suppress each one later.
+        lint +=',-this-escape'
+      }
       options.compilerArgs += [
         '-g',
         '-Werror',
-        // -options: To not get a warning about missing bootstrap classpath (when using Java 9 and `-source 8`).
-        // -fallthrough: Don't check fallthroughs.  Instead, use Error Prone.  Its
-        //   warnings are suppressible with a "// fall through" comment.
-        // -classfile: classgraph jar file and https://bugs.openjdk.org/browse/JDK-8190452
-        '-Xlint:-options,-fallthrough,-classfile',
+        lint,
         '-Xlint',
       ]
 

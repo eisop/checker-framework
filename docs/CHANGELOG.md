@@ -49,9 +49,13 @@ eisop#297, eisop#376, eisop#400, eisop#519, eisop#532, eisop#533, typetools#1590
 
 
 Version 3.39.0 (October 1, 2023)
-----------------------------------
+--------------------------------
 
 **User-visible changes:**
+
+The Checker Framework runs under JDK 21 -- that is, it runs on a version 21 JVM.
+It does not yet support all new Java 21 language features -- it may crash when
+run on a program with new Java 21 language features.
 
 **Implementation details:**
 
