@@ -25,7 +25,7 @@ dot_files
 # Intellij files
 .idea
 
-# VScode files
+# VS Code files
 .vscode
 
 Makefile.user
