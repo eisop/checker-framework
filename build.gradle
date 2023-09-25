@@ -241,7 +241,7 @@ allprojects {
 
         autoValueVersion = '1.10.4'
         junitVersion = '4.13.2'
-        lombokVersion = '1.18.28'
+        lombokVersion = '1.18.30'
     }
 
     if (isJava11plus) {
