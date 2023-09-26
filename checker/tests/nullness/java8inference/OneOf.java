@@ -3,7 +3,7 @@
 
 import java.util.List;
 
-@SuppressWarnings("nullness") // don't bother with implementations
+@SuppressWarnings({"initialization", "nullness"}) // don't bother with implementations
 public class OneOf {
     static List<String> alist;
 
