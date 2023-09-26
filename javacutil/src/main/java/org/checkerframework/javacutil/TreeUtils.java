@@ -1754,6 +1754,22 @@ public final class TreeUtils {
     }
 
     /**
+     * Returns true if the passed constructor is anonymous and has an explicit enclosing expression.
+     *
+     * @param con an ExecutableElement of a constructor declaration
+     * @param tree the NewClassTree of a constructor declaration
+     * @return true if there is an extra enclosing expression
+     */
+    public static boolean isAnonymousConstructorWithExplicitEnclosingExpression(
+            ExecutableElement con, NewClassTree tree) {
+
+        return (tree.getEnclosingExpression() != null)
+                && con.getKind() == ElementKind.CONSTRUCTOR
+                && ((TypeElement) con.getEnclosingElement()).getNestingKind()
+                        == NestingKind.ANONYMOUS;
+    }
+
+    /**
      * Returns true if the given {@link MethodTree} is a compact canonical constructor (the
      * constructor for a record where the parameters are implicitly declared and implicitly assigned
      * to the record's fields). This may be an explicitly declared compact canonical constructor or
