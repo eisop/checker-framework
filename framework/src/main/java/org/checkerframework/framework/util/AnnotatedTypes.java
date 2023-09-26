@@ -29,6 +29,7 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.Pair;
+import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.CollectionsPlume;
@@ -50,7 +51,6 @@ import java.util.Set;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
@@ -990,14 +990,14 @@ public class AnnotatedTypes {
      * @param args the arguments to the method invocation
      * @return the types that the method invocation arguments need to be subtype of
      * @deprecated Use {@link #adaptParameters(AnnotatedTypeFactory,
-     *     AnnotatedTypeMirror.AnnotatedExecutableType, List)} instead
+     *     AnnotatedTypeMirror.AnnotatedExecutableType, List, NewClassTree)} instead
      */
     @Deprecated
     public static List<AnnotatedTypeMirror> expandVarArgsParameters(
             AnnotatedTypeFactory atypeFactory,
             AnnotatedExecutableType method,
             List<? extends ExpressionTree> args) {
-        return adaptParameters(atypeFactory, method, args);
+        return adaptParameters(atypeFactory, method, args, null);
     }
 
     /**
@@ -1011,13 +1011,15 @@ public class AnnotatedTypes {
      * @param atypeFactory the type factory to use for fetching annotated types
      * @param method the method or constructor's type
      * @param args the arguments to the method or constructor invocation
+     * @param tree the NewClassTree if method is a constructor
      * @return a list of the types that the invocation arguments need to be subtype of; has the same
      *     length as {@code args}
      */
     public static List<AnnotatedTypeMirror> adaptParameters(
             AnnotatedTypeFactory atypeFactory,
             AnnotatedExecutableType method,
-            List<? extends ExpressionTree> args) {
+            List<? extends ExpressionTree> args,
+            @Nullable NewClassTree tree) {
         List<AnnotatedTypeMirror> parameters = method.getParameterTypes();
 
         if (parameters.isEmpty()) {
@@ -1025,29 +1027,20 @@ public class AnnotatedTypes {
         }
 
         // Handle anonymous constructors that extend a class with an enclosing type.
-        if (method.getElement().getKind() == ElementKind.CONSTRUCTOR
-                && method.getElement().getEnclosingElement().getSimpleName().contentEquals("")) {
-            DeclaredType t =
-                    TypesUtils.getSuperClassOrInterface(
-                            method.getElement().getEnclosingElement().asType(), atypeFactory.types);
-            if (t.getEnclosingType() != null) {
-                if (args.isEmpty()) {
-                    // TODO: ugly hack to attempt to fix mismatch
-                    parameters = parameters.subList(1, parameters.size());
-                } else {
-                    TypeMirror p0tm = parameters.get(0).getUnderlyingType();
-                    // Is the first parameter either equal to the enclosing type?
-                    if (atypeFactory.types.isSameType(t.getEnclosingType(), p0tm)) {
-                        // Is the first argument the same type as the first parameter?
-                        if (!atypeFactory.types.isSameType(TreeUtils.typeOf(args.get(0)), p0tm)) {
-                            // Remove the first parameter.
-                            parameters = parameters.subList(1, parameters.size());
-                        }
-                    }
-                }
-                if (parameters.isEmpty()) {
-                    return parameters;
-                }
+        // There is a mismatch between the number of parameters and arguments when
+        // the following conditions are met:
+        // 1. Java version >= 11
+        // 2. the method is an anonymous constructor
+        // 3. the constructor is invoked with an explicit enclosing expression
+        // In the case, we should remove the first parameter.
+        if (SystemUtil.jreVersion >= 11
+                && tree != null
+                && TreeUtils.isAnonymousConstructorWithExplicitEnclosingExpression(
+                        method.getElement(), tree)) {
+            if (parameters.size() != args.size() || args.isEmpty()) {
+                List<AnnotatedTypeMirror> p = new ArrayList<>(parameters.size());
+                p.addAll(parameters.subList(1, parameters.size()));
+                parameters = p;
             }
         }
 
