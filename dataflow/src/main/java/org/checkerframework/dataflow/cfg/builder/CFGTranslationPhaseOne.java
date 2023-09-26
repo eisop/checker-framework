@@ -1271,29 +1271,29 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * is null when we visit {@link MethodInvocationTree}, and is non-null when we visit {@link
      * NewClassTree}.
      *
-     * @param excutable an ExecutableElement representing a method/constructor to be called
-     * @param excutableType an ExecutableType representing the type of the method/constructor call
+     * @param executable an ExecutableElement representing a method/constructor to be called
+     * @param executableType an ExecutableType representing the type of the method/constructor call
      * @param actualExprs a List of argument expressions to a call
      * @param newClassTree the NewClassTree if the method is the invocation of a constructor
      * @return a List of {@link Node}s representing arguments after conversions required by a call
      *     to this method
      */
     protected List<Node> convertCallArguments(
-            ExecutableElement excutable,
-            ExecutableType excutableType,
+            ExecutableElement executable,
+            ExecutableType executableType,
             List<? extends ExpressionTree> actualExprs,
             @Nullable NewClassTree newClassTree) {
         // NOTE: It is important to convert one method argument before generating CFG nodes for the
         // next argument, since label binding expects nodes to be generated in execution order.
         // Therefore, this method first determines which conversions need to be applied and then
         // iterates over the actual arguments.
-        List<? extends TypeMirror> formals = excutableType.getParameterTypes();
+        List<? extends TypeMirror> formals = executableType.getParameterTypes();
         int numFormals = formals.size();
 
         ArrayList<Node> convertedNodes = new ArrayList<>(numFormals);
 
         int numActuals = actualExprs.size();
-        if (excutable.isVarArgs()) {
+        if (executable.isVarArgs()) {
             // Create a new array argument if the actuals outnumber the formals, or if the last
             // actual is not assignable to the last formal.
             int lastArgIndex = numFormals - 1;
@@ -1317,10 +1317,10 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         : "variable argument formal must be an array";
                 // Handle anonymous constructors with an explicit enclosing expression.
                 // There is a mismatch between the number of parameters and arguments
-                // when following conditions are met:
+                // when the following conditions are met:
                 // 1. Java version >= 11,
                 // 2. the method is an anonymous constructor,
-                // 3. the excutable element has varargs,
+                // 3. the executable element has varargs,
                 // 4. the constructor is invoked with an explicit enclosing expression.
                 // In this case, the parameters have an enclosing expression as its first parameter,
                 // while the arguments do not have such element. Hence, decrease the lastArgIndex
@@ -1328,7 +1328,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 if (SystemUtil.jreVersion >= 11
                         && newClassTree != null
                         && TreeUtils.isAnonymousConstructorWithExplicitEnclosingExpression(
-                                excutable, newClassTree)) {
+                                executable, newClassTree)) {
                     lastArgIndex--;
                 }
 

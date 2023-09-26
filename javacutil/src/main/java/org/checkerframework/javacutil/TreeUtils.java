@@ -1754,7 +1754,7 @@ public final class TreeUtils {
     }
 
     /**
-     * Returns true if the passed constructor is anonymous and has explicit enclosing expression.
+     * Returns true if the passed constructor is anonymous and has an explicit enclosing expression.
      *
      * @param con an ExecutableElement of a constructor declaration
      * @param tree the NewClassTree of a constructor declaration

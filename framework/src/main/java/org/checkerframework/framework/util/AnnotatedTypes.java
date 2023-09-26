@@ -1028,7 +1028,7 @@ public class AnnotatedTypes {
 
         // Handle anonymous constructors that extend a class with an enclosing type.
         // There is a mismatch between the number of parameters and arguments when
-        // following conditions are met:
+        // the following conditions are met:
         // 1. Java version >= 11
         // 2. the method is an anonymous constructor
         // 3. the constructor is invoked with an explicit enclosing expression
