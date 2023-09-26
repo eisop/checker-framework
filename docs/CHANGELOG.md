@@ -2,7 +2,7 @@ Version 3.34.0-eisop2 (May ?, 2023)
 -----------------------------------
 
 **User-visible changes:**
-
+The Initialization Checker supports the new qualifier `@PolyInitialized` to express qualifier polymorphism.
 The Initialization Checker is now separated from the Nullness Checker.
 To unsoundly use the Nullness Checker without initialization checking, use the new `-AassumeInitialized`
 command-line argument.
