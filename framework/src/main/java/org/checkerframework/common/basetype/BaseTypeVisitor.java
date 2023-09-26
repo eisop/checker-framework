@@ -2001,43 +2001,25 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
 
             CFAbstractStore<?, ?> store = atypeFactory.getStoreBefore(tree);
-            CFAbstractValue<?> value = null;
-            if (CFAbstractStore.canInsertJavaExpression(exprJe)) {
-                value = store.getValue(exprJe);
-            }
-            AnnotationMirror inferredAnno = null;
-            if (value != null) {
-                QualifierHierarchy hierarchy = atypeFactory.getQualifierHierarchy();
-                AnnotationMirrorSet annos = value.getAnnotations();
-                inferredAnno = hierarchy.findAnnotationInSameHierarchy(annos, anno);
-            } else {
-                // If the expression is "this", then get the type of the method receiver.
-                // TODO: There are other expressions that can be converted to trees, "#1" for
-                // example.
-                if (expressionString.equals("this")) {
-                    AnnotatedTypeMirror atype = atypeFactory.getReceiverType(tree);
-                    if (atype != null) {
-                        QualifierHierarchy hierarchy = atypeFactory.getQualifierHierarchy();
-                        AnnotationMirrorSet annos = atype.getEffectiveAnnotations();
-                        inferredAnno = hierarchy.findAnnotationInSameHierarchy(annos, anno);
-                    }
-                }
+            QualifierHierarchy hierarchy = atypeFactory.getQualifierHierarchy();
 
-                if (inferredAnno == null) {
-                    // If there is no information in the store (possible if e.g., no refinement
-                    // of the field has occurred), use top instead of automatically
-                    // issuing a warning. This is not perfectly precise: for example,
-                    // if jeExpr is a field it would be more precise to use the field's
-                    // declared type rather than top. However, doing so would be unsound
-                    // in at least three circumstances where the type of the field depends
-                    // on the type of the receiver: (1) all fields in Nullness Checker,
-                    // because of possibility that the receiver is under initialization,
-                    // (2) polymorphic fields, and (3) fields whose type is a type variable.
-                    // Using top here instead means that there is no need for special cases
-                    // for these situations.
-                    inferredAnno = atypeFactory.getQualifierHierarchy().getTopAnnotation(anno);
+            Set<AnnotationMirror> annos =
+                    atypeFactory.getAnnotatedTypeBefore(exprJe, tree).getAnnotations();
+
+            AnnotationMirror inferredAnno = hierarchy.findAnnotationInSameHierarchy(annos, anno);
+
+            // If the expression is "this", then get the type of the method receiver.
+            // TODO: There are other expressions that can be converted to trees, "#1" for
+            // example.
+            if (expressionString.equals("this")
+                    && hierarchy.getTopAnnotations().contains(inferredAnno)) {
+                AnnotatedTypeMirror atype = atypeFactory.getReceiverType(tree);
+                if (atype != null) {
+                    annos = atype.getEffectiveAnnotations();
+                    inferredAnno = hierarchy.findAnnotationInSameHierarchy(annos, anno);
                 }
             }
+
             if (!checkContract(exprJe, anno, inferredAnno, store)) {
                 if (exprJe != null) {
                     expressionString = exprJe.toString();
@@ -3127,16 +3109,34 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         commonAssignmentCheckEndDiagnostic(success, null, varType, valueType, valueExpTree);
 
-        // Use an error key only if it's overridden by a checker.
         if (!success) {
-            FoundRequired pair = FoundRequired.of(valueType, varType);
-            String valueTypeString = pair.found;
-            String varTypeString = pair.required;
-            checker.reportError(
-                    valueExpTree,
-                    errorKey,
-                    ArraysPlume.concatenate(extraArgs, valueTypeString, varTypeString));
+            reportCommonAssignmentError(
+                    varType, widenedValueType, valueExpTree, errorKey, extraArgs);
         }
+    }
+
+    /**
+     * Report a common assignment error. Allows checkers to change how the message is output.
+     *
+     * @param varType the annotated type of the variable
+     * @param valueType the annotated type of the value
+     * @param valueTree the location to use when reporting the error message
+     * @param errorKey the error message key to use if the check fails
+     * @param extraArgs arguments to the error message key, before "found" and "expected" types
+     */
+    protected void reportCommonAssignmentError(
+            AnnotatedTypeMirror varType,
+            AnnotatedTypeMirror valueType,
+            Tree valueTree,
+            @CompilerMessageKey String errorKey,
+            Object... extraArgs) {
+        FoundRequired pair = FoundRequired.of(valueType, varType);
+        String valueTypeString = pair.found;
+        String varTypeString = pair.required;
+        checker.reportError(
+                valueTree,
+                errorKey,
+                ArraysPlume.concatenate(extraArgs, valueTypeString, varTypeString));
     }
 
     /**
@@ -3228,8 +3228,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * Class that creates string representations of {@link AnnotatedTypeMirror}s which are only
      * verbose if required to differentiate the two types.
      */
-    private static class FoundRequired {
+    protected static class FoundRequired {
+
+        /** The found type's string representation. */
         public final String found;
+
+        /** The required type's string representation. */
         public final String required;
 
         private FoundRequired(AnnotatedTypeMirror found, AnnotatedTypeMirror required) {
@@ -3256,8 +3260,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         /**
          * Creates string representations of {@link AnnotatedTypeMirror}s which are only verbose if
          * required to differentiate the two types.
+         *
+         * @param found the found annotation
+         * @param required the required annotation
+         * @return a string representation of the two annotations
          */
-        static FoundRequired of(AnnotatedTypeMirror found, AnnotatedTypeMirror required) {
+        public static FoundRequired of(AnnotatedTypeMirror found, AnnotatedTypeMirror required) {
             return new FoundRequired(found, required);
         }
 
@@ -3265,8 +3273,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * Creates string representations of {@link AnnotatedTypeMirror} and {@link
          * AnnotatedTypeParameterBounds}s which are only verbose if required to differentiate the
          * two types.
+         *
+         * @param found the found annotation
+         * @param required the required annotation
+         * @return a string representation of the two annotations
          */
-        static FoundRequired of(AnnotatedTypeMirror found, AnnotatedTypeParameterBounds required) {
+        public static FoundRequired of(
+                AnnotatedTypeMirror found, AnnotatedTypeParameterBounds required) {
             return new FoundRequired(found, required);
         }
     }

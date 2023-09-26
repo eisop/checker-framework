@@ -1,6 +1,6 @@
 plugins {
     id 'java-library'
-
+    id 'base'
     // https://github.com/n0mer/gradle-git-properties ; target is: generateGitProperties
     id 'com.gorylenko.gradle-git-properties' version '2.4.1'
 }
@@ -67,7 +67,7 @@ dependencies {
     testImplementation 'com.amazonaws:aws-java-sdk-ec2'
     testImplementation 'com.amazonaws:aws-java-sdk-kms'
     // The AWS SDK is used for testing the Called Methods Checker.
-    testImplementation platform('com.amazonaws:aws-java-sdk-bom:1.12.500')
+    testImplementation platform('com.amazonaws:aws-java-sdk-bom:1.12.542')
     // For the Resource Leak Checker's support for JavaEE.
     testImplementation 'javax.servlet:javax.servlet-api:4.0.1'
     // For the Resource Leak Checker's support for IOUtils.
@@ -172,7 +172,9 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 task checkerJar(type: ShadowJar, dependsOn: compileJava, group: 'Build') {
     description "Builds checker-${project.version}.jar with all dependencies except checker-qual and checker-util."
     includeEmptyDirs = false
-    archivesBaseName = 'checker'
+    base {
+        archivesName = 'checker'
+    }
     archiveClassifier = ''
 
     from shadowJar.source
