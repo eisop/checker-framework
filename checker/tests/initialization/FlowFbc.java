@@ -11,8 +11,14 @@ public class FlowFbc {
     public FlowFbc(String arg) {
         // :: error: (dereference.of.nullable)
         f.toLowerCase();
-        // :: error: (dereference.of.nullable)
+
+        // We get a dereference.of.nullable error by the Nullness Checker because g may be null,
+        // as well as a method.invocation.invalid error by the Initialization Checker because g
+        // is declared as @NotOnlyInitialized and thus may not be @Initialized,
+        // but toLowerCase()'s receiver type is, by default, @Initialized.
+        // :: error: (dereference.of.nullable) :: error: (method.invocation.invalid)
         g.toLowerCase();
+
         f = arg;
         g = arg;
         foo();

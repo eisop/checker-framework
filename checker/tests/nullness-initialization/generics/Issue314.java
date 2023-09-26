@@ -23,7 +23,6 @@ public class Issue314 {
         {
             // :: error: (assignment.type.incompatible)
             f1 = f2;
-            // :: error: (assignment.type.incompatible)
             f2 = f1;
         }
     }

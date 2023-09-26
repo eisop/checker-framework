@@ -4,7 +4,7 @@ import org.checkerframework.checker.nullness.qual.*;
 public class InitSuppressWarnings {
 
     private void init_vars(@UnderInitialization(Object.class) InitSuppressWarnings this) {
-        @SuppressWarnings({"nullness"})
+        @SuppressWarnings({"initialization"})
         @Initialized InitSuppressWarnings initializedThis = this;
     }
 }

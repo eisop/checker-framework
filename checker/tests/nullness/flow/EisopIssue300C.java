@@ -1,11 +1,12 @@
 // https://github.com/eisop/checker-framework/issues/300
 // Impure method can make the method return value nullable
 
+import org.checkerframework.checker.initialization.qual.NotOnlyInitialized;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.*;
 
 public final class EisopIssue300C {
-    @Nullable EisopIssue300C f;
+    @NotOnlyInitialized @Nullable EisopIssue300C f;
 
     EisopIssue300C() {
         this.f = this;
