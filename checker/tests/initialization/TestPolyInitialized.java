@@ -15,7 +15,6 @@ public class TestPolyInitialized {
         this.test = identity(str);
     }
 
-
     @PolyInitialized String identity(@UnknownInitialization TestPolyInitialized this, @PolyInitialized String str) {
         return str;
     }
