@@ -578,6 +578,7 @@ public class CheckerMain {
             String errorMessage = null;
 
             try {
+                @SuppressWarnings("builder:required.method.not.called") // called when needed
                 PrintWriter writer =
                         (outputFilename.equals("-")
                                 ? new PrintWriter(System.out)
