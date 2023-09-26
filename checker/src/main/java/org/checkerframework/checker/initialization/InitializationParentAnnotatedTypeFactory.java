@@ -119,8 +119,8 @@ public abstract class InitializationParentAnnotatedTypeFactory
         INITIALIZED = AnnotationBuilder.fromClass(elements, Initialized.class);
         UNDER_INITALIZATION = AnnotationBuilder.fromClass(elements, UnderInitialization.class);
         NOT_ONLY_INITIALIZED = AnnotationBuilder.fromClass(elements, NotOnlyInitialized.class);
-        FBCBOTTOM = AnnotationBuilder.fromClass(elements, FBCBottom.class);
         POLY_INITIALIZED = AnnotationBuilder.fromClass(elements, PolyInitialized.class);
+        FBCBOTTOM = AnnotationBuilder.fromClass(elements, FBCBottom.class);
 
         objectTypeMirror =
                 processingEnv.getElementUtils().getTypeElement("java.lang.Object").asType();
@@ -193,6 +193,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
         result.add(UnderInitialization.class);
         result.add(Initialized.class);
         result.add(FBCBottom.class);
+        result.add(PolyInitialized.class);
         return result;
     }
 
