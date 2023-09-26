@@ -577,10 +577,11 @@ public class CheckerMain {
         if (outputFilename != null) {
             String errorMessage = null;
 
-            try (PrintWriter writer =
-                    (outputFilename.equals("-")
-                            ? new PrintWriter(System.out)
-                            : new PrintWriter(outputFilename, "UTF-8"))) {
+            try {
+                PrintWriter writer =
+                        (outputFilename.equals("-")
+                                ? new PrintWriter(System.out)
+                                : new PrintWriter(outputFilename, "UTF-8"));
                 for (int i = 0; i < args.size(); i++) {
                     String arg = args.get(i);
 
@@ -606,6 +607,10 @@ public class CheckerMain {
                         writer.print(arg);
                         writer.print(" ");
                     }
+                    writer.flush();
+                }
+                if (!outputFilename.equals("-")) {
+                    writer.close();
                 }
             } catch (IOException e) {
                 errorMessage = e.toString();
