@@ -20,6 +20,7 @@ import org.checkerframework.checker.formatter.qual.FormatMethod;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
+import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.dataflow.analysis.Analysis;
 import org.checkerframework.dataflow.analysis.Analysis.BeforeOrAfter;
 import org.checkerframework.dataflow.analysis.AnalysisResult;
@@ -39,6 +40,7 @@ import org.checkerframework.dataflow.cfg.visualize.DOTCFGVisualizer;
 import org.checkerframework.dataflow.expression.FieldAccess;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.expression.LocalVariable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.flow.CFAbstractAnalysis.FieldInitialValue;
 import org.checkerframework.framework.flow.CFAbstractStore;
@@ -1292,6 +1294,17 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
+     * Returns true if the receiver of a method or constructor might not be fully initialized.
+     *
+     * @param methodDeclTree the declaration of the method or constructor
+     * @return true if the receiver of a method or constructor might not be fully initialized
+     */
+    @Pure
+    public boolean isNotFullyInitializedReceiver(MethodTree methodDeclTree) {
+        return TreeUtils.isConstructor(methodDeclTree);
+    }
+
+    /**
      * Perform a org.checkerframework.dataflow analysis over a single class tree and its nested
      * classes.
      *
@@ -1657,6 +1670,68 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
+     * Whether {@link #getAnnotatedTypeLhs(Tree)} is running right now. This can be used by
+     * subclasses whenever the type of expression differs depending on whether it occurs on the
+     * left- or right-hand side of an assignment (e.g., in the presence of type refinements or for
+     * uninitialized fields in the Initialization Checker.)
+     *
+     * @see #isComputingAnnotatedTypeMirrorOfLhs()
+     */
+    private boolean computingAnnotatedTypeMirrorOfLhs = false;
+
+    /**
+     * Returns whether {@link #getAnnotatedTypeLhs(Tree)} is running right now. This controls which
+     * hierarchies' qualifiers are changed based on the receiver type and the declared annotations
+     * for a field.
+     *
+     * @return whether {@link #getAnnotatedTypeLhs(Tree)} is running right now
+     * @see #getAnnotatedTypeLhs(Tree)
+     */
+    public boolean isComputingAnnotatedTypeMirrorOfLhs() {
+        return computingAnnotatedTypeMirrorOfLhs;
+    }
+
+    /**
+     * Returns the type of a JavaExpression {@code expr} if it were evaluated before a tree {@code
+     * tree}.
+     *
+     * <p>This is used by {@link BaseTypeVisitor#visitMethodInvocation(MethodInvocationTree, Void)}
+     * to check the preconditions of method calls.
+     *
+     * @param expr the expression to type
+     * @param tree a tree
+     * @return the type of {@code expr} if it were evaluated before tree {@code tree}
+     */
+    public AnnotatedTypeMirror getAnnotatedTypeBefore(JavaExpression expr, ExpressionTree tree) {
+        CFAbstractStore<?, ?> store = getStoreBefore(tree);
+        CFAbstractValue<?> value = null;
+        if (CFAbstractStore.canInsertJavaExpression(expr)) {
+            value = store.getValue(expr);
+        }
+        Set<? extends AnnotationMirror> annos = null;
+        if (value != null) {
+            annos = value.getAnnotations();
+        } else {
+            // If there is no information in the store (possible if e.g., no refinement
+            // of the field has occurred), use top instead of automatically
+            // issuing a warning. This is not perfectly precise: for example,
+            // if jeExpr is a field it would be more precise to use the field's
+            // declared type rather than top. However, doing so would be unsound
+            // in at least three circumstances where the type of the field depends
+            // on the type of the receiver: (1) all fields in Nullness Checker,
+            // because of possibility that the receiver is under initialization,
+            // (2) polymorphic fields, and (3) fields whose type is a type variable.
+            // Using top here instead means that the method is always sound;
+            // a subclass can then override it with a more precise implementation.
+            annos = getQualifierHierarchy().getTopAnnotations();
+        }
+
+        AnnotatedTypeMirror res = AnnotatedTypeMirror.createType(expr.getType(), this, false);
+        res.addAnnotations(annos);
+        return res;
+    }
+
+    /**
      * Returns the type of a left-hand side of an assignment.
      *
      * <p>The default implementation returns the type without considering dataflow type refinement.
@@ -1666,13 +1741,16 @@ public abstract class GenericAnnotatedTypeFactory<
      * @return AnnotatedTypeMirror of {@code lhsTree}
      */
     public AnnotatedTypeMirror getAnnotatedTypeLhs(Tree lhsTree) {
-        AnnotatedTypeMirror res;
         boolean oldUseFlow = useFlow;
         boolean oldShouldCache = shouldCache;
+        boolean oldComputingAnnotatedTypeMirrorOfLhs = computingAnnotatedTypeMirrorOfLhs;
         useFlow = false;
         // Don't cache the result because getAnnotatedType(lhsTree) could
         // be called from elsewhere and would expect flow-sensitive type refinements.
         shouldCache = false;
+        computingAnnotatedTypeMirrorOfLhs = true;
+
+        AnnotatedTypeMirror res;
         switch (lhsTree.getKind()) {
             case VARIABLE:
             case IDENTIFIER:
@@ -1699,6 +1777,7 @@ public abstract class GenericAnnotatedTypeFactory<
         }
         useFlow = oldUseFlow;
         shouldCache = oldShouldCache;
+        computingAnnotatedTypeMirrorOfLhs = oldComputingAnnotatedTypeMirrorOfLhs;
         return res;
     }
 

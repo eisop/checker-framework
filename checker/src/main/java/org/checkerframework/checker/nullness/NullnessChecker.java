@@ -3,12 +3,8 @@ package org.checkerframework.checker.nullness;
 import org.checkerframework.checker.initialization.InitializationChecker;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.common.basetype.BaseTypeChecker;
-import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.qual.StubFiles;
 import org.checkerframework.framework.source.SupportedLintOptions;
-
-import java.util.NavigableSet;
-import java.util.Set;
 
 import javax.annotation.processing.SupportedOptions;
 
@@ -17,6 +13,23 @@ import javax.annotation.processing.SupportedOptions;
  * safe initialization. It uses freedom-before-commitment, augmented by type frames (which are
  * crucial to obtain acceptable precision), as its initialization type system.
  *
+ * <p>This checker uses the {@link NullnessNoInitSubchecker} to check for nullness and extends the
+ * {@link InitializationChecker} to also check that all non-null fields are properly initialized.
+ *
+ * <p>You can use the following {@link SuppressWarnings} prefixes with this checker:
+ *
+ * <ul>
+ *   <li>{@code @SuppressWarnings("nullness")} suppresses warnings for both nullness and
+ *       initialization annotations
+ *   <li>{@code @SuppressWarnings("initialization")} suppresses warnings for initialization
+ *       annotations only
+ *   <li>{@code @SuppressWarnings("nullnessnoinit")} suppresses warnings for nullness annotations
+ *       only
+ * </ul>
+ *
+ * @see KeyForSubchecker
+ * @see InitializationChecker
+ * @see NullnessNoInitSubchecker
  * @checker_framework.manual #nullness-checker Nullness Checker
  */
 @SupportedLintOptions({
@@ -37,6 +50,7 @@ import javax.annotation.processing.SupportedOptions;
 })
 @SupportedOptions({
     "assumeKeyFor",
+    "assumeInitialized",
     "jspecifyNullMarkedAlias",
     "conservativeArgumentNullnessAfterInvocation"
 })
@@ -80,23 +94,12 @@ public class NullnessChecker extends InitializationChecker {
     public NullnessChecker() {}
 
     @Override
-    protected Set<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
-        Set<Class<? extends BaseTypeChecker>> checkers = super.getImmediateSubcheckerClasses();
-        if (!hasOptionNoSubcheckers("assumeKeyFor")) {
-            checkers.add(KeyForSubchecker.class);
-        }
-        return checkers;
+    public boolean checkPrimitives() {
+        return false;
     }
 
     @Override
-    public NavigableSet<String> getSuppressWarningsPrefixes() {
-        NavigableSet<String> result = super.getSuppressWarningsPrefixes();
-        result.add("nullness");
-        return result;
-    }
-
-    @Override
-    protected BaseTypeVisitor<?> createSourceVisitor() {
-        return new NullnessVisitor(this);
+    public Class<? extends BaseTypeChecker> getTargetCheckerClass() {
+        return NullnessNoInitSubchecker.class;
     }
 }
