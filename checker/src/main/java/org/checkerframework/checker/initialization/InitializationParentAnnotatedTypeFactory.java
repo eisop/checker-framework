@@ -18,6 +18,7 @@ import com.sun.tools.javac.tree.JCTree;
 import org.checkerframework.checker.initialization.qual.FBCBottom;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.initialization.qual.NotOnlyInitialized;
+import org.checkerframework.checker.initialization.qual.PolyInitialized;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 import org.checkerframework.common.basetype.BaseTypeChecker;
@@ -86,6 +87,9 @@ public abstract class InitializationParentAnnotatedTypeFactory
     /** {@link NotOnlyInitialized} or null. */
     protected final AnnotationMirror NOT_ONLY_INITIALIZED;
 
+    /** {@link PolyInitialized}. */
+    protected final AnnotationMirror POLY_INITIALIZED;
+
     /** {@link FBCBottom}. */
     protected final AnnotationMirror FBCBOTTOM;
 
@@ -115,6 +119,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
         INITIALIZED = AnnotationBuilder.fromClass(elements, Initialized.class);
         UNDER_INITALIZATION = AnnotationBuilder.fromClass(elements, UnderInitialization.class);
         NOT_ONLY_INITIALIZED = AnnotationBuilder.fromClass(elements, NotOnlyInitialized.class);
+        POLY_INITIALIZED = AnnotationBuilder.fromClass(elements, PolyInitialized.class);
         FBCBOTTOM = AnnotationBuilder.fromClass(elements, FBCBottom.class);
 
         objectTypeMirror =
@@ -188,6 +193,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
         result.add(UnderInitialization.class);
         result.add(Initialized.class);
         result.add(FBCBottom.class);
+        result.add(PolyInitialized.class);
         return result;
     }
 
