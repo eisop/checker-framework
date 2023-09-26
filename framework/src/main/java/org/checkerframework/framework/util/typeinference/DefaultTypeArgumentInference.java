@@ -443,7 +443,7 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
      * }</pre>
      *
      * TODO: NOTE WE ONLY DO THIS FOR InferredType results for now but we should probably include
-     * target as well
+     * targets as well
      *
      * @param fromArgSupertypes types inferred from LUBbing types from the arguments to the formal
      *     parameters
