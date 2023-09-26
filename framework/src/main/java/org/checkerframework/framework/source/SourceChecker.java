@@ -1506,13 +1506,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         } else if (requirePrefixInWarningSuppressions || showPrefixInWarningMessages) {
             // If the warning key must be prefixed with a prefix (a checker name), then add that to
             // the SuppressWarnings string that is printed.
-            String defaultPrefix = getDefaultSuppressWarningsPrefix();
-            if (prefixes.contains(defaultPrefix)) {
-                return defaultPrefix + ":" + messageKey;
-            } else {
-                String firstKey = prefixes.iterator().next();
-                return firstKey + ":" + messageKey;
-            }
+            return getWarningMessagePrefix() + ":" + messageKey;
         } else {
             return messageKey;
         }
@@ -2556,6 +2550,29 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         return result.toLowerCase(Locale.ROOT);
     }
 
+    /**
+     * Returns the prefix that should be added when issuing an error or warning if the {@code
+     * -AshowPrefixInWarningMessages} command-line option was passed.
+     *
+     * <p>The default implementation uses the default prefix based on the class name if that default
+     * prefix is contained in {@link #getSuppressWarningsPrefixes()}. Otherwise, it uses the first
+     * element of {@link #getSuppressWarningsPrefixes()}.
+     *
+     * @return the prefix that should be added when issuing an error or warning if the * {@code
+     *     -AshowPrefixInWarningMessages} command-line option was passed
+     */
+    protected String getWarningMessagePrefix() {
+        Collection<String> prefixes = this.getSuppressWarningsPrefixes();
+        prefixes.remove(SUPPRESS_ALL_PREFIX);
+        String defaultPrefix = getDefaultSuppressWarningsPrefix();
+        if (prefixes.contains(defaultPrefix)) {
+            return defaultPrefix;
+        } else {
+            String firstKey = prefixes.iterator().next();
+            return firstKey;
+        }
+    }
+
     ///////////////////////////////////////////////////////////////////////////
     /// Skipping uses and defs
     ///
@@ -2625,7 +2642,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @param tree class to potentially skip
      * @return true if checker should not test {@code tree}
      */
-    public final boolean shouldSkipDefs(ClassTree tree) {
+    public boolean shouldSkipDefs(ClassTree tree) {
         String qualifiedName = TreeUtils.typeOf(tree).toString();
         // System.out.printf("shouldSkipDefs(%s) %s%nskipDefs %s%nonlyDefs %s%nresult %s%n%n",
         //                   tree,
@@ -2655,7 +2672,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @param meth method to potentially skip
      * @return true if checker should not test {@code meth}
      */
-    public final boolean shouldSkipDefs(ClassTree cls, MethodTree meth) {
+    public boolean shouldSkipDefs(ClassTree cls, MethodTree meth) {
         return shouldSkipDefs(cls);
     }
 
