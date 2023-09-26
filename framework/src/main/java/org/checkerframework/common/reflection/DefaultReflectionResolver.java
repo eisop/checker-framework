@@ -525,7 +525,7 @@ public class DefaultReflectionResolver implements ReflectionResolver {
         List<Symbol> result = new ArrayList<>();
         ClassSymbol classSym = (ClassSymbol) sym;
         while (classSym != null) {
-            for (Symbol s : classSym.getEnclosedElements()) {
+            for (Symbol s : getEnclosedElements(classSym)) {
                 // check all member methods
                 if (s.getKind() == ElementKind.METHOD) {
                     // Check for method name and number of arguments
@@ -568,11 +568,11 @@ public class DefaultReflectionResolver implements ReflectionResolver {
         }
 
         // TODO: Should this be used instead of the below??
-        ElementFilter.constructorsIn(symClass.getEnclosedElements());
+        ElementFilter.constructorsIn(getEnclosedElements(symClass));
 
         // The common case is probably that there is one constructor of the given parameter length.
         List<Symbol> result = new ArrayList<>(2);
-        for (Symbol s : symClass.getEnclosedElements()) {
+        for (Symbol s : getEnclosedElements(symClass)) {
             // Check all constructors
             if (s.getKind() == ElementKind.CONSTRUCTOR) {
                 // Check for number of parameters
@@ -608,6 +608,18 @@ public class DefaultReflectionResolver implements ReflectionResolver {
             // A problem with javac is serious and must be reported.
             throw new BugInCF("Error in invoking reflective method.", e);
         }
+    }
+
+    /**
+     * Determine the enclosed elements for an element. This wrapper is useful to avoid a signature
+     * change in the called method.
+     *
+     * @param sym the element
+     * @return the enclosed elements
+     */
+    @SuppressWarnings("ASTHelpersSuggestions") // Use local helper.
+    private static List<Symbol> getEnclosedElements(Symbol sym) {
+        return sym.getEnclosedElements();
     }
 
     /**

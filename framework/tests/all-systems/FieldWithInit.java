@@ -1,8 +1,10 @@
+import org.checkerframework.checker.initialization.qual.UnknownInitialization;
+
 public class FieldWithInit {
-    @SuppressWarnings("nullness") // Don't want to depend on Nullness Checker
+
     Object f = foo();
 
-    Object foo(FieldWithInit this) {
+    Object foo(@UnknownInitialization FieldWithInit this) {
         return new Object();
     }
 }

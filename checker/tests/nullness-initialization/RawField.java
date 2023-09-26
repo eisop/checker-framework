@@ -42,7 +42,8 @@ class Options {
 
 class MultiVersionControl {
 
-    @SuppressWarnings("nullness") // see https://github.com/typetools/checker-framework/issues/223
+    @SuppressWarnings(
+            "initialization") // see https://github.com/typetools/checker-framework/issues/223
     public void parseArgs(@UnknownInitialization MultiVersionControl this) {
         Options options = new Options(this);
         options.parse_or_usage();

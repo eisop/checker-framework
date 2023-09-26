@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class Issue596 {
 
-    private static String getOrEmpty(AtomicReference<String> ref) {
+    private static String getOrEmpty(AtomicReference<@Nullable String> ref) {
         return Optional596.fromNullable(ref.get()).or("");
     }
 }

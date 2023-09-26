@@ -131,6 +131,13 @@ command-line option.)
   \refqualclass{checker/nullness/qual}{KeyFor} and related qualifiers.
 
 \item
+  \label{nullness-assumeInitialized}%
+  If you supply the \code{-AassumeInitialized} command-line option, then the
+  checker will unsoundly assume that every field is initialized before
+  being used. It will not do any checking of
+  \refqualclass{checker/initialization/qual}{Initialized} and related qualifiers.
+
+\item
   \label{nullness-conservativeArgumentNullnessAfterInvocation}%
   \label{nullness-invocationPreservesArgumentNullness}%
   If you supply the \code{-AconservativeArgumentNullnessAfterInvocation} command-line option, the soundness of
@@ -691,6 +698,10 @@ Checker to suppress warnings related to misuse of generic type
 arguments.  One use for this key is when a class is declared to take only
 \<@NonNull> type arguments, but you want to instantiate the class with a
 \<@Nullable> type argument, as in \code{List<@Nullable Object>}.
+
+To suppress warnings by the Nullness Checker without also suppressing warnings
+by the Initialization Checker (see Section~\ref{initialization-checker}),
+use the \<@SuppressWarnings("nullnessnoinit")> annotation.
 
 The Nullness Checker also permits you to use assertions or method calls to
 suppress warnings; see below.
@@ -1412,9 +1423,8 @@ value.  Your code can suffer a NullPointerException when using a
 The Nullness Checker prevents this problem by warning you anytime that you
 may be accessing an uninitialized field.  This check is useful because it
 prevents errors in your code.  However, the analysis can be confusing to
-understand.  If you wish to disable the initialization checks, see
-Section~\ref{initialization-checking-suppressing-warnings}.
-
+understand.  If you wish to disable the initialization checks, use
+the \code{-AassumeInitialized} command-line option.
 
 An object is partially initialized from the time that its constructor starts until its constructor
 finishes.  This is relevant to the Nullness Checker because while the
@@ -1575,9 +1585,6 @@ class C {
 \label{fig-initialization-examples}
 \end{figure}
 
-
-% Does our implementation handle static fields soundly?  NO!  See issue
-% #105.  Maybe document this?
 
 
 \subsectionAndLabel{How an object becomes initialized}{becoming-initialized}
@@ -2147,8 +2154,8 @@ message such as the following:
 MyFile.java:123: error: call to initHelper() not allowed on the given receiver.
     initHelper();
               ^
-  found   : @UnderInitialization(com.google.Bar.class) @NonNull MyClass
-  required: @Initialized @NonNull MyClass
+  found   : @UnderInitialization(com.google.Bar.class) MyClass
+  required: @Initialized MyClass
 \end{Verbatim}
 
 The problem is that the current object (\<this>) is under initialization,
@@ -2195,8 +2202,8 @@ the Nullness Checker issues the following warning:
 MyClass.java:7: error: call to helperMethod() not allowed on the given receiver.
     helperMethod();
                 ^
-  found   : @UnderInitialization(MyClass.class) @NonNull MyClass
-  required: @Initialized @NonNull MyClass
+  found   : @UnderInitialization(MyClass.class) MyClass
+  required: @Initialized MyClass
 1 error
 \end{Verbatim}
 
@@ -2212,31 +2219,31 @@ initialization was actually complete, then the receiver should have type
 \<@UnknownInitialization> and \<@UnderInitialization>.
 \end{sloppypar}
 
-
 \subsectionAndLabel{Suppressing warnings}{initialization-checking-suppressing-warnings}
 
-To suppress most warnings related to partially-initialized values, use the
+To suppress both warnings related to nullness and warnings related to initialization,
+see Section~\ref{suppressing-warnings-nullness}.
+For more about suppressing warnings in general, see
+\chapterpageref{suppressing-warnings}.
+
+To suppress only warnings related to initialization, use the
 warning suppression string ``initialization''.
 You can write \<@SuppressWarnings("initialization")>
 on a field, constructor, or
 class, or pass the command-line argument
 \<-AsuppressWarnings=initialization> when
 running the Nullness Checker.
-(For more about suppressing warnings, see
-\chapterpageref{suppressing-warnings}.)  You will no longer get a guarantee
+You will no longer get a guarantee
 of no null pointer exceptions, but you can still use the Nullness Checker
-to find most of the null pointer problems in your code.
+to find most of the null-pointer problems in your code.
 
 This suppresses warnings that are specific to the Initialization Checker,
 but does not suppress warnings issued by the Checker Framework itself, such
 as about assignments or method overriding.
 
-It is not possible to completely disable initialization checking while
-retaining nullness checking.  That is because
-of an implementation detail of the Nullness and Initialization Checkers:
-they are actually the same checker, rather than being two separate checkers
-that are aggregated together.
-
+You can also disable initialization checking completely while retaining
+nullness checking by running the Nullness Checker with the
+\code{-AassumeInitialized} command-line option.
 
 \subsectionAndLabel{More details about initialization checking}{initialization-checking}
 
@@ -2293,4 +2300,4 @@ greater than the benefit from adopting the Freedom Before Commitment system.
 % LocalWords:  NotOnlyInitialized underinitialization Commitment'' toarray
 % LocalWords:  unclassified'' trustArrayLenZero ArrayLen toArray
 % LocalWords:  ConcurrentHashMap permitClearProperty setProperties
-% LocalWords:  clearProperty AassumeKeyFor
+% LocalWords:  clearProperty AassumeKeyFor AassumeInitialized

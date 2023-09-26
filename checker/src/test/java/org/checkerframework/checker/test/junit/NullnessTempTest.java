@@ -16,9 +16,6 @@ public class NullnessTempTest extends CheckerFrameworkPerDirectoryTest {
      * @param testFiles the files containing test code, which will be type-checked
      */
     public NullnessTempTest(List<File> testFiles) {
-        // TODO: remove soundArrayCreationNullness option once it's no
-        // longer needed.  See issue #986:
-        // https://github.com/typetools/checker-framework/issues/986
         super(
                 testFiles,
                 org.checkerframework.checker.nullness.NullnessChecker.class,

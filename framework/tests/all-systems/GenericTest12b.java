@@ -1,4 +1,7 @@
-@SuppressWarnings("nullness") // Don't want to depend on @Nullable
+@SuppressWarnings({
+    "initialization",
+    "nullness"
+}) // Don't want to depend on @Nullable or @UnderInitialization
 public class GenericTest12b {
     class Cell<T1 extends Object> {}
 

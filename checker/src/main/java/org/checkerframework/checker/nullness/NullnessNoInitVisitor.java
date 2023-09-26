@@ -36,7 +36,6 @@ import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.formatter.qual.FormatMethod;
-import org.checkerframework.checker.initialization.InitializationVisitor;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
@@ -69,8 +68,8 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.type.TypeMirror;
 
 /** The visitor for the nullness type-system. */
-public class NullnessVisitor
-        extends InitializationVisitor<NullnessAnnotatedTypeFactory, NullnessValue, NullnessStore> {
+public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotatedTypeFactory> {
+    // Error message keys
     // private static final @CompilerMessageKey String ASSIGNMENT_TYPE_INCOMPATIBLE =
     // "assignment.type.incompatible";
     /** Error message key. */
@@ -130,7 +129,7 @@ public class NullnessVisitor
      *
      * @param checker the checker to which this visitor belongs
      */
-    public NullnessVisitor(BaseTypeChecker checker) {
+    public NullnessNoInitVisitor(BaseTypeChecker checker) {
         super(checker);
 
         NONNULL = atypeFactory.NONNULL;
@@ -154,8 +153,8 @@ public class NullnessVisitor
     }
 
     @Override
-    public NullnessAnnotatedTypeFactory createTypeFactory() {
-        return new NullnessAnnotatedTypeFactory(checker);
+    public NullnessNoInitAnnotatedTypeFactory createTypeFactory() {
+        return new NullnessNoInitAnnotatedTypeFactory(checker);
     }
 
     @Override
@@ -176,12 +175,27 @@ public class NullnessVisitor
     }
 
     @Override
+    protected void checkConstructorResult(
+            AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {
+        // Constructor results are always @NonNull. Other annotations are forbidden by
+        // #visitMethod.
+        // Nothing to check.
+    }
+
+    @Override
+    protected void checkThisOrSuperConstructorCall(
+            MethodInvocationTree superCall, @CompilerMessageKey String errorKey) {
+        // Constructor results are always @NonNull, so the result type of a this/super call is
+        // always equal to the result type of the current constructor.
+        // Nothing to check.
+    }
+
+    @Override
     protected void commonAssignmentCheck(
             Tree varTree,
             ExpressionTree valueExp,
             @CompilerMessageKey String errorKey,
             Object... extraArgs) {
-
         // Allow a MonotonicNonNull field to be initialized to null at its declaration, in a
         // constructor, or in an initializer block.  (The latter two are, strictly speaking, unsound
         // because the constructor or initializer block might have previously set the field to a
@@ -535,14 +549,16 @@ public class NullnessVisitor
 
     @Override
     public Void visitMethod(MethodTree tree, Void p) {
+        VariableTree receiver = tree.getReceiverParameter();
+
         if (TreeUtils.isConstructor(tree)) {
+            // Constructor results are always @NonNull. Any annotations are forbidden.
             List<? extends AnnotationTree> annoTrees = tree.getModifiers().getAnnotations();
             if (atypeFactory.containsNullnessAnnotation(annoTrees)) {
                 checker.reportError(tree, "nullness.on.constructor");
             }
         }
 
-        VariableTree receiver = tree.getReceiverParameter();
         if (receiver != null) {
             List<? extends AnnotationTree> annoTrees = receiver.getModifiers().getAnnotations();
             Tree type = receiver.getType();
@@ -591,7 +607,6 @@ public class NullnessVisitor
 
     @Override
     public void processClassTree(ClassTree classTree) {
-
         Tree extendsClause = classTree.getExtendsClause();
         if (extendsClause != null) {
             reportErrorIfSupertypeContainsNullnessAnnotation(extendsClause);
