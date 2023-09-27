@@ -13,6 +13,10 @@ In this release, `nullness` continues to suppress warnings from the Initializati
 `nullnessnoinit` may be used to suppress warnings from the Nullness Checker only. A future release
 will make suppression behavior consistent with other checkers.
 
+A new error message `cast.incomparable` will be raised if casting an expression to one target type which
+does not share a subtype relationship with the expression type in the lattice. No longer issue errors
+for statically verifiable downcast.
+
 **Implementation details:**
 
 Deprecated `ObjectCreationNode#getConstructor` in favor of new `ObjectCreationNode#getTypeToInstantiate()`.
@@ -26,9 +30,13 @@ Changed the return types of
 - `AnalysisResult#getFinalLocalValues()` to `Map<VariableElement, V>`, and
 - `GenericAnnotatedTypeFactory#getFinalLocalValues()` to `Map<VariableElement, Value>`.
 
+Refactored the implementation of `isTypeCastSafe` to categorize the kinds of a typecast, whether
+it's an upcast, downcast or incomparable cast. Based on that, further determine if the typecast
+is statically verifiable or not.
+
 **Closed issues:**
 
-eisop#297, eisop#376, eisop#532, typetools#1590.
+eisop#155, eisop#297, eisop#376, eisop#532, typetools#1590.
 
 
 Version 3.34.0-eisop1 (May 9, 2023)
