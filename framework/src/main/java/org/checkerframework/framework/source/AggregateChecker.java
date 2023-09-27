@@ -26,8 +26,8 @@ import javax.tools.Diagnostic.Kind;
  * component checkers in turn on the processed files.
  *
  * <p>There is no communication, interaction, or cooperation between the component checkers, even to
- * the extent of being able to read one another qualifiers. An aggregate checker is merely shorthand
- * to invoke a sequence of checkers.
+ * the extent of being able to read one another's qualifiers. An aggregate checker is merely
+ * shorthand to invoke a sequence of checkers.
  *
  * <p>This class delegates {@code AbstractTypeProcessor} responsibilities to each component checker.
  *
