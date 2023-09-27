@@ -278,7 +278,7 @@ class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
                 // systems can use receiver-dependent qualifiers for viewpoint adaptation.
                 // Thus, we re-enable the flow refinement for a while just for the receiver
                 // expression.
-                // See framework/tests/viewpointtest/TestgetAnnotatedLHS.java:26 for a concrete
+                // See framework/tests/viewpointtest/TestGetAnnotatedLhs.java for a concrete
                 // example.
                 t =
                         ((GenericAnnotatedTypeFactory<?, ?, ?, ?>) f)

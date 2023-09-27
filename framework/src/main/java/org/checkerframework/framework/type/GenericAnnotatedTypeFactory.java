@@ -1784,7 +1784,7 @@ public abstract class GenericAnnotatedTypeFactory<
     /**
      * As long as everUseFlow is true, always enable flow refinement for the receiver. This method
      * is an implementation detail and visible inside the package only. See the comment in this
-     * testcase for more details framework/tests/viewpointtest/TestgetAnnotatedLHS.java.
+     * testcase for more details framework/tests/viewpointtest/TestGetAnnotatedLhs.java.
      *
      * @see #getAnnotatedType(Tree)
      * @see #getAnnotatedTypeLhs(Tree)
