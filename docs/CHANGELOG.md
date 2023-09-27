@@ -19,6 +19,10 @@ for statically verifiable downcast.
 
 **Implementation details:**
 
+Corrected the arguments to an `ObjectCreationNode` when the node refers to an
+anonymous constructor invocation with an explicit enclosing expression in Java 11+.
+Now the first argument is not treated as an enclosing expression if it is not.
+
 Deprecated `ObjectCreationNode#getConstructor` in favor of new `ObjectCreationNode#getTypeToInstantiate()`.
 
 Removed class `StringConcatenateAssignmentNode` and its last usages.
@@ -36,7 +40,7 @@ is statically verifiable or not.
 
 **Closed issues:**
 
-eisop#155, eisop#297, eisop#376, eisop#532, typetools#1590.
+eisop#155, eisop#297, eisop#376, eisop#400, eisop#532, typetools#1590.
 
 
 Version 3.34.0-eisop1 (May 9, 2023)

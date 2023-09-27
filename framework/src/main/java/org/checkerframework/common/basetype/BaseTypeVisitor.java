@@ -3735,17 +3735,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         if (!checkEnclosingExpr) {
             return;
         }
-        AnnotatedTypeMirror parameterReceiverType = constructorType.getReceiverType();
-        if (parameterReceiverType != null) {
-            AnnotatedTypeMirror argumentReceiverType;
-            if (node.getEnclosingExpression() != null) {
-                argumentReceiverType = atypeFactory.getAnnotatedType(node.getEnclosingExpression());
-            } else {
-                argumentReceiverType = atypeFactory.getReceiverType(node);
-            }
+        AnnotatedTypeMirror formalReceiverType = constructorType.getReceiverType();
+        if (formalReceiverType != null) {
+            AnnotatedTypeMirror passedReceiverType = atypeFactory.getReceiverType(node);
             commonAssignmentCheck(
-                    parameterReceiverType,
-                    argumentReceiverType,
+                    formalReceiverType,
+                    passedReceiverType,
                     node,
                     "enclosingexpr.type.incompatible");
         }

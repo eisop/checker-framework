@@ -48,10 +48,7 @@ public class AnnotatedTypeParameterBounds {
             return false;
         }
         AnnotatedTypeParameterBounds other = (AnnotatedTypeParameterBounds) obj;
-        return this.upper == null
-                ? other.upper == null
-                : this.upper.equals(other.upper) && this.lower == null
-                        ? other.lower == null
-                        : this.lower.equals(other.lower);
+        return (this.upper == null ? other.upper == null : this.upper.equals(other.upper))
+                && (this.lower == null ? other.lower == null : this.lower.equals(other.lower));
     }
 }
