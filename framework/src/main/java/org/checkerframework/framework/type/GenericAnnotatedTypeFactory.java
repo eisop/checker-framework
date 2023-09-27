@@ -1787,10 +1787,11 @@ public abstract class GenericAnnotatedTypeFactory<
      * testcase for more details framework/tests/viewpointtest/TestgetAnnotatedLHS.java.
      *
      * @see #getAnnotatedType(Tree)
+     * @see #getAnnotatedTypeLhs(Tree)
      * @param tree an expression tree
      * @return the refined type of the expression tree
      */
-    AnnotatedTypeMirror getAnnotatedTypeWithReceiverRefinement(Tree tree) {
+    /*package-private*/ AnnotatedTypeMirror getAnnotatedTypeWithReceiverRefinement(Tree tree) {
         boolean oldUseFlow = useFlow;
         useFlow = everUseFlow;
         AnnotatedTypeMirror result = getAnnotatedType(tree);
