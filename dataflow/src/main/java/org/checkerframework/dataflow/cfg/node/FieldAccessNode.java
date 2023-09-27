@@ -13,7 +13,9 @@ import org.checkerframework.javacutil.TreeUtils;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
+import java.util.Set;
 
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.VariableElement;
 
 /**
@@ -24,13 +26,17 @@ import javax.lang.model.element.VariableElement;
  * </pre>
  */
 public class FieldAccessNode extends Node {
-
+    /** The corresponding tree for fieldaccessnode. */
     protected final Tree tree;
-    protected final VariableElement element;
-    protected final String field;
-    protected final Node receiver;
 
-    // TODO: add method to get modifiers (static, access level, ..)
+    /** The VariableElement. */
+    protected final VariableElement element;
+
+    /** The name of the field accessed by the tree. */
+    protected final String field;
+
+    /** The receiver node for field being accessed. */
+    protected final Node receiver;
 
     /**
      * Creates a new FieldAccessNode.
@@ -93,7 +99,11 @@ public class FieldAccessNode extends Node {
         return getReceiver() + "." + field;
     }
 
-    /** Is this a static field? */
+    /**
+     * Check the field is a static or not.
+     *
+     * @return a boolean indicates whether the field is static
+     */
     public boolean isStatic() {
         return ElementUtils.isStatic(getElement());
     }
@@ -117,5 +127,14 @@ public class FieldAccessNode extends Node {
     @SideEffectFree
     public Collection<Node> getOperands() {
         return Collections.singletonList(receiver);
+    }
+
+    /**
+     * Retrieves the modifiers of the method.
+     *
+     * @return the set of modifiers of the method
+     */
+    public Set<Modifier> getMethodModifiers() {
+        return element.getModifiers();
     }
 }

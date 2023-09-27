@@ -1215,7 +1215,6 @@ Before: NullnessNoInitStore#326(
 55:
 Before: NullnessNoInitStore#333(
   o > NV{@NonNull, Object, poly nn/n=f/f}
-  Issue5174Super.class > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1224,7 +1223,6 @@ Issue5174Sub   [ ClassName ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
 56:
 Before: NullnessNoInitStore#334(
   o > NV{@NonNull, Object, poly nn/n=f/f}
-  Issue5174Super.class > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1236,8 +1234,6 @@ o   [ LocalVariable ]
 57:
 Before: NullnessNoInitStore#343(
   o > NV{@NonNull, Object, poly nn/n=f/f}
-  Issue5174Sub.class > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
-  Issue5174Super.class > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1246,8 +1242,6 @@ Issue5174Super   [ ClassName ]    > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
 58:
 Before: NullnessNoInitStore#344(
   o > NV{@NonNull, Object, poly nn/n=f/f}
-  Issue5174Sub.class > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
-  Issue5174Super.class > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1258,8 +1252,6 @@ expression statement o = Issue5174Super.sf   [ ExpressionStatement ]
 49:
 Before: NullnessNoInitStore#353(
   o > NV{@NonNull, Object, poly nn/n=f/f}
-  Issue5174Sub.class > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
-  Issue5174Super.class > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1667,7 +1659,6 @@ Before: NullnessNoInitStore#456(
 109:
 Before: NullnessNoInitStore#463(
   o > NV{@NonNull, Object, poly nn/n=f/f}
-  Issue5174Super.class > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1676,7 +1667,6 @@ Issue5174Sub   [ ClassName ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
 110:
 Before: NullnessNoInitStore#464(
   o > NV{@NonNull, Object, poly nn/n=f/f}
-  Issue5174Super.class > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1688,8 +1678,6 @@ o   [ LocalVariable ]
 111:
 Before: NullnessNoInitStore#473(
   o > NV{@NonNull, Object, poly nn/n=f/f}
-  Issue5174Sub.class > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
-  Issue5174Super.class > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1698,8 +1686,6 @@ Issue5174Super   [ ClassName ]    > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
 112:
 Before: NullnessNoInitStore#474(
   o > NV{@NonNull, Object, poly nn/n=f/f}
-  Issue5174Sub.class > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
-  Issue5174Super.class > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1710,8 +1696,6 @@ expression statement o = Issue5174Super.sf   [ ExpressionStatement ]
 103:
 Before: NullnessNoInitStore#483(
   o > NV{@NonNull, Object, poly nn/n=f/f}
-  Issue5174Sub.class > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
-  Issue5174Super.class > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~

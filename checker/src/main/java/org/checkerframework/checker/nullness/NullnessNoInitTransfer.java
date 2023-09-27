@@ -361,9 +361,12 @@ public class NullnessNoInitTransfer
             MethodAccessNode n, TransferInput<NullnessNoInitValue, NullnessNoInitStore> p) {
         TransferResult<NullnessNoInitValue, NullnessNoInitStore> result =
                 super.visitMethodAccess(n, p);
-        // In contrast to the conditional makeNonNull in visitMethodInvocation, this
-        // makeNonNull is unconditional, as the receiver is definitely non-null after the access.
-        makeNonNull(result, n.getReceiver());
+        // In contrast to the makeNonNull in visitMethodInvocation, which checks the method is
+        // SideEffectFree or the receiver is unassignable, this makeNonNull is conditional and only
+        // for accessing method is an instance method, not a static method.
+        if (!n.isStatic()) {
+            makeNonNull(result, n.getReceiver());
+        }
         return result;
     }
 
@@ -372,7 +375,9 @@ public class NullnessNoInitTransfer
             FieldAccessNode n, TransferInput<NullnessNoInitValue, NullnessNoInitStore> p) {
         TransferResult<NullnessNoInitValue, NullnessNoInitStore> result =
                 super.visitFieldAccess(n, p);
-        makeNonNull(result, n.getReceiver());
+        if (!n.isStatic()) {
+            makeNonNull(result, n.getReceiver());
+        }
         return result;
     }
 

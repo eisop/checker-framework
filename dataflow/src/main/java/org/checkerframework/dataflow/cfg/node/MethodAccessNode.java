@@ -6,13 +6,16 @@ import com.sun.source.tree.Tree;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
+import java.util.Set;
 
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
 
 /**
  * A node for a method access, including a receiver:
@@ -22,12 +25,14 @@ import javax.lang.model.element.ExecutableElement;
  * </pre>
  */
 public class MethodAccessNode extends Node {
-
+    /** The corresponding Expression tree. */
     protected final ExpressionTree tree;
-    protected final ExecutableElement method;
-    protected final Node receiver;
 
-    // TODO: add method to get modifiers (static, access level, ..)
+    /** The ExecutatbleElement method. */
+    protected final ExecutableElement method;
+
+    /** The receiver node for method being accessed. */
+    protected final Node receiver;
 
     /**
      * Create a new MethodAccessNode.
@@ -89,5 +94,23 @@ public class MethodAccessNode extends Node {
     @SideEffectFree
     public Collection<Node> getOperands() {
         return Collections.singletonList(receiver);
+    }
+
+    /**
+     * Retrieves the modifiers of the method.
+     *
+     * @return the set of modifiers of the method
+     */
+    public Set<Modifier> getMethodModifiers() {
+        return method.getModifiers();
+    }
+
+    /**
+     * Check the method is a static or not.
+     *
+     * @return a boolean indicates whether the method is static
+     */
+    public boolean isStatic() {
+        return ElementUtils.isStatic(getMethod());
     }
 }
