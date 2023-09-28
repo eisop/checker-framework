@@ -18,6 +18,7 @@ public class I18nTest extends CheckerFrameworkPerDirectoryTest {
                 testFiles,
                 org.checkerframework.checker.i18n.I18nChecker.class,
                 "i18n",
+                // Ignore the test suite's usage of qualifiers in illegal locations.
                 "-AignoreTargetLocations");
     }
 

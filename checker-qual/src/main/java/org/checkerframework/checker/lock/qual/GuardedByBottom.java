@@ -22,14 +22,6 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-@TargetLocations({
-    TypeUseLocation.LOWER_BOUND,
-    TypeUseLocation.UPPER_BOUND,
-    TypeUseLocation.PARAMETER,
-    TypeUseLocation.FIELD,
-    TypeUseLocation.LOCAL_VARIABLE,
-    TypeUseLocation.RETURN,
-    TypeUseLocation.CONSTRUCTOR_RESULT
-})
+@TargetLocations({TypeUseLocation.LOWER_BOUND, TypeUseLocation.UPPER_BOUND})
 @SubtypeOf({NewObject.class})
 public @interface GuardedByBottom {}

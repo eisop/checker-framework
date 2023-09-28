@@ -25,6 +25,7 @@ public class IndexInitializedFieldsTest extends CheckerFrameworkPerDirectoryTest
                 "index-initializedfields",
                 Collections.emptyList(),
                 "-Aajava=tests/index-initializedfields/input-annotation-files/",
+                // Ignore the test suite's usage of qualifiers in illegal locations.
                 "-AignoreTargetLocations");
     }
 

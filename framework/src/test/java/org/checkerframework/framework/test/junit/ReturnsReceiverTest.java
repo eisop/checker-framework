@@ -21,6 +21,7 @@ public class ReturnsReceiverTest extends CheckerFrameworkPerDirectoryTest {
                 "returnsreceiver",
                 "-Astubs=stubs/",
                 "-nowarn",
+                // Ignore the test suite's usage of qualifiers in illegal locations.
                 "-AignoreTargetLocations");
     }
 

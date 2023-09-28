@@ -20,14 +20,7 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-@TargetLocations({
-    TypeUseLocation.UPPER_BOUND,
-    TypeUseLocation.LOWER_BOUND,
-    TypeUseLocation.FIELD,
-    TypeUseLocation.LOCAL_VARIABLE,
-    TypeUseLocation.RETURN,
-    TypeUseLocation.PARAMETER
-})
+@TargetLocations({TypeUseLocation.UPPER_BOUND, TypeUseLocation.LOWER_BOUND})
 @SubtypeOf({
     ArrayLen.class,
     BoolVal.class,

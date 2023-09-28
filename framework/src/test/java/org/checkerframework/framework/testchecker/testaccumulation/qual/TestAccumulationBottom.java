@@ -13,12 +13,5 @@ import java.lang.annotation.Target;
 @SubtypeOf({TestAccumulation.class, TestAccumulationPredicate.class})
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-@TargetLocations({
-    TypeUseLocation.LOWER_BOUND,
-    TypeUseLocation.UPPER_BOUND,
-    TypeUseLocation.PARAMETER,
-    TypeUseLocation.LOCAL_VARIABLE,
-    TypeUseLocation.FIELD,
-    TypeUseLocation.RETURN
-})
+@TargetLocations({TypeUseLocation.LOWER_BOUND, TypeUseLocation.UPPER_BOUND})
 public @interface TestAccumulationBottom {}

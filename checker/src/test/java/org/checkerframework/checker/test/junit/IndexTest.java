@@ -19,6 +19,7 @@ public class IndexTest extends CheckerFrameworkPerDirectoryTest {
                 testFiles,
                 org.checkerframework.checker.index.IndexChecker.class,
                 "index",
+                // Ignore the test suite's usage of qualifiers in illegal locations.
                 "-AignoreTargetLocations");
     }
 

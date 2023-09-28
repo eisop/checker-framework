@@ -228,7 +228,6 @@ public class GuardSatisfiedTest {
     }
 
     // :: error: (guardsatisfied.location.disallowed)
-    // :: error: (type.invalid.annotations.on.location)
     <T extends @GuardSatisfied Object> T testGuardSatisfiedOnBound(T t) {
         return t;
     }
@@ -247,12 +246,10 @@ public class GuardSatisfiedTest {
 
     void testGuardSatisfiedOnWildCardExtendsBound(
             // :: error: (guardsatisfied.location.disallowed)
-            // :: error: (type.invalid.annotations.on.location)
             MyParameterizedClass1<? extends @GuardSatisfied Object> l) {}
 
     void testGuardSatisfiedOnWildCardSuperBound(
             // :: error: (guardsatisfied.location.disallowed)
-            // :: error: (type.invalid.annotations.on.location)
             MyParameterizedClass1<? super @GuardSatisfied String> l) {}
 
     @GuardSatisfied(1) Object testGuardSatisfiedOnParameters(
