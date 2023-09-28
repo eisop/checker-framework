@@ -26,16 +26,16 @@ import javax.lang.model.element.VariableElement;
  * </pre>
  */
 public class FieldAccessNode extends Node {
-    /** The corresponding tree for fieldaccessnode. */
+    /** The tree of the field access. */
     protected final Tree tree;
 
-    /** The VariableElement. */
+    /** The element of the accessed field. */
     protected final VariableElement element;
 
-    /** The name of the field accessed by the tree. */
+    /** The name of the accessed field. */
     protected final String field;
 
-    /** The receiver node for field being accessed. */
+    /** The receiver node of the field access. */
     protected final Node receiver;
 
     /**
@@ -100,9 +100,9 @@ public class FieldAccessNode extends Node {
     }
 
     /**
-     * Check the field is a static or not.
+     * Determine whether the field is static or not.
      *
-     * @return a boolean indicates whether the field is static
+     * @return whether the field is static or not
      */
     public boolean isStatic() {
         return ElementUtils.isStatic(getElement());
