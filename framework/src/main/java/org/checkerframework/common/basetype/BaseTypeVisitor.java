@@ -267,23 +267,23 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /** True if "-AconservativeUninferredTypeArguments" was passed on the command line. */
     private final boolean conservativeUninferredTypeArguments;
 
-    /** True if "-AwarnRedundantAnnotations" was passed on the command line */
+    /** True if "-AwarnRedundantAnnotations" was passed on the command line. */
     private final boolean warnRedundantAnnotations;
 
-    /** True if "-AignoreTargetLocation" was passed on the command line */
+    /** True if "-AignoreTargetLocation" was passed on the command line. */
     protected final boolean ignoreTargetLocation;
 
-    /** True if "-AcheckEnclosingExpr" was passed on the command line */
+    /** True if "-AcheckEnclosingExpr" was passed on the command line. */
     private final boolean checkEnclosingExpr;
 
     /** The tree of the enclosing method that is currently being visited. */
     protected @Nullable MethodTree methodTree = null;
 
     /**
-     * Map from String (canonical name of the qualifier) to its TypeUseLocations declared
-     * in @TargetLocations
+     * Map from String (canonical name of the qualifier) to its type-use locations declared in
+     * {@link org.checkerframework.framework.qual.TargetLocations}.
      */
-    protected final HashMap<String, List<TypeUseLocation>> AnnoToTargetLocations = new HashMap<>();
+    protected final Map<@CanonicalName String, List<TypeUseLocation>> qualAllowedLocations;
 
     /**
      * Constructor for creating a BaseTypeVisitor.
@@ -323,7 +323,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         checkPurity = checker.hasOption("checkPurityAnnotations") || suggestPureMethods;
         warnRedundantAnnotations = checker.hasOption("warnRedundantAnnotations");
         ignoreTargetLocation = checker.hasOption("ignoreTargetLocation");
-        initAnnoToTargetLocations();
+        qualAllowedLocations = initQualAllowedLocations();
 
         checkEnclosingExpr = checker.hasOption("checkEnclosingExpr");
         ajavaChecks = checker.hasOption("ajavaChecks");
@@ -334,23 +334,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         checkCastElementType = checker.hasOption("checkCastElementType");
         conservativeUninferredTypeArguments =
                 checker.hasOption("conservativeUninferredTypeArguments");
-    }
-
-    /** Initialize AnnoToTargetLocations, which is used for declared typeuse locations lookup. */
-    protected void initAnnoToTargetLocations() {
-        for (String qual : atypeFactory.getSupportedTypeQualifierNames()) {
-            Element elem = elements.getTypeElement(qual);
-            TargetLocations tls = elem.getAnnotation(TargetLocations.class);
-            // @Target({ElementType.TYPE_USE})} together with no @TargetLocations(...) means that
-            // the qualifier can be written on any type use.
-            // TODO: do we have to consider the scenario that @Target contains other ElementType?
-            if (tls == null) {
-                AnnoToTargetLocations.put(qual, null);
-                continue;
-            }
-            List<TypeUseLocation> locations = Arrays.asList(tls.value());
-            AnnoToTargetLocations.put(qual, locations);
-        }
     }
 
     /** An array containing just {@code BaseTypeChecker.class}. */
@@ -1641,7 +1624,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             // TypeUseLocation.java doesn't have ENUM type use location right now.
             for (AnnotationMirror am : type.getAnnotations()) {
                 List<TypeUseLocation> locations =
-                        AnnoToTargetLocations.get(AnnotationUtils.annotationName(am));
+                        qualAllowedLocations.get(AnnotationUtils.annotationName(am));
                 if (locations == null || locations.contains(TypeUseLocation.ALL)) {
                     continue;
                 }
@@ -1711,7 +1694,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
         for (AnnotationMirror am : type.getAnnotations()) {
             List<TypeUseLocation> locations =
-                    AnnoToTargetLocations.get(AnnotationUtils.annotationName(am));
+                    qualAllowedLocations.get(AnnotationUtils.annotationName(am));
             if (locations == null || locations.contains(TypeUseLocation.ALL)) {
                 continue;
             }
@@ -1727,13 +1710,23 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
     }
 
-    /**
-     * Getter method for field ignoreTargetLocation.
-     *
-     * @return ignoreTargetLocation
-     */
-    public boolean getIgnoreTargetLocation() {
-        return ignoreTargetLocation;
+    /** Initialize qualAllowedLocations, which is used for declared type-use locations lookup. */
+    protected Map<@CanonicalName String, List<TypeUseLocation>> initQualAllowedLocations() {
+        HashMap<@CanonicalName String, List<TypeUseLocation>> qualAllowedLocations =
+                new HashMap<>();
+        for (String qual : atypeFactory.getSupportedTypeQualifierNames()) {
+            Element elem = elements.getTypeElement(qual);
+            TargetLocations tls = elem.getAnnotation(TargetLocations.class);
+            // @Target({ElementType.TYPE_USE})} together with no @TargetLocations(...) means that
+            // the qualifier can be written on any type use.
+            if (tls == null) {
+                qualAllowedLocations.put(qual, null);
+                continue;
+            }
+            List<TypeUseLocation> locations = Arrays.asList(tls.value());
+            qualAllowedLocations.put(qual, locations);
+        }
+        return qualAllowedLocations;
     }
 
     /**

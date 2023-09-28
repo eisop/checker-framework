@@ -14,7 +14,7 @@ In this release, `nullness` continues to suppress warnings from the Initializati
 will make suppression behavior consistent with other checkers.
 
 The new command-line argument `-AignoreTargetLocations` disables validating the target locations
-of qualifiers. By default, if a qualifier is declared with the meta-annotation
+of qualifiers. This option is not enabled by default, if a qualifier is declared with the meta-annotation
 `@TargetLocations({TypeUseLocation...})`, the qualifier should only be applied to these type use
 locations. With this flag, the checker ignores all `@TargetLocations` meta-annotations and allows all qualifiers to be
 applied to every type use.

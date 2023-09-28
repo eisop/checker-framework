@@ -37,6 +37,7 @@ import org.checkerframework.javacutil.TypeAnnotationUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.ArrayMap;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -716,9 +717,9 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
     }
 
     /**
-     * Validate if the annotations on wildcard are permitted by @TargetLocations. Report an error if
-     * the actual use of this annotation is not listed in the declared TypeUseLocations
-     * in @TargetLocation.
+     * Validate if qualifiers on wildcard are permitted by {@link
+     * org.checkerframework.framework.qual.TargetLocations}. Report an error if the actual use of
+     * this annotation is not listed in the declared TypeUseLocations in this meta-annotation.
      *
      * @param type the type to check
      * @param tree the tree of this type
@@ -728,14 +729,21 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
 
         for (AnnotationMirror am : type.getSuperBound().getAnnotations()) {
             List<TypeUseLocation> locations =
-                    visitor.AnnoToTargetLocations.get(AnnotationUtils.annotationName(am));
+                    visitor.qualAllowedLocations.get(AnnotationUtils.annotationName(am));
             // @Target({ElementType.TYPE_USE})} together with no @TargetLocations(...) means
             // that the qualifier can be written on any type use.
+            // Otherwise, for a valid use of qualifier on the super bound, that qualifier must
+            // declare one of these four type-use locations in the @TargetLocations meta-annotation.
             if (locations == null
-                    || locations.contains(TypeUseLocation.EXPLICIT_LOWER_BOUND)
-                    || locations.contains(TypeUseLocation.IMPLICIT_LOWER_BOUND)
-                    || locations.contains(TypeUseLocation.LOWER_BOUND)
-                    || locations.contains(TypeUseLocation.ALL)) {
+                    || locations.stream()
+                            .anyMatch(
+                                    location ->
+                                            (Arrays.asList(
+                                                            TypeUseLocation.ALL,
+                                                            TypeUseLocation.LOWER_BOUND,
+                                                            TypeUseLocation.IMPLICIT_LOWER_BOUND,
+                                                            TypeUseLocation.EXPLICIT_LOWER_BOUND)
+                                                    .contains(location)))) {
                 continue;
             }
 
@@ -748,12 +756,17 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
 
         for (AnnotationMirror am : type.getExtendsBound().getAnnotations()) {
             List<TypeUseLocation> locations =
-                    visitor.AnnoToTargetLocations.get(AnnotationUtils.annotationName(am));
+                    visitor.qualAllowedLocations.get(AnnotationUtils.annotationName(am));
             if (locations == null
-                    || locations.contains(TypeUseLocation.EXPLICIT_UPPER_BOUND)
-                    || locations.contains(TypeUseLocation.IMPLICIT_UPPER_BOUND)
-                    || locations.contains(TypeUseLocation.UPPER_BOUND)
-                    || locations.contains(TypeUseLocation.ALL)) {
+                    || locations.stream()
+                            .anyMatch(
+                                    location ->
+                                            (Arrays.asList(
+                                                            TypeUseLocation.ALL,
+                                                            TypeUseLocation.UPPER_BOUND,
+                                                            TypeUseLocation.IMPLICIT_UPPER_BOUND,
+                                                            TypeUseLocation.EXPLICIT_UPPER_BOUND)
+                                                    .contains(location)))) {
                 continue;
             }
 
