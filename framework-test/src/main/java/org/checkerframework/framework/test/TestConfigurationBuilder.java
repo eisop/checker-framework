@@ -427,7 +427,7 @@ public class TestConfigurationBuilder {
      * @param options options to add to {@code this}
      * @return the current object {@code this}
      */
-    @SuppressWarnings("nullness:return.type.incompatible") // need @PolyInitialized annotation
+    @SuppressWarnings("initialization:return.type.incompatible") // need @PolyInitialized annotation
     @RequiresNonNull("this.options")
     public TestConfigurationBuilder addOptions(
             @UnknownInitialization(TestConfigurationBuilder.class) TestConfigurationBuilder this,

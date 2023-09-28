@@ -13,6 +13,7 @@ tags
 *.swp
 *.orig
 .DS_Store
+
 # Eclipse files
 .metadata
 .classpath
@@ -20,25 +21,21 @@ tags
 .externalToolBuilders
 .settings
 dot_files
+
 # Intellij files
 .idea
 
+# VS Code files
+.vscode
+
 Makefile.user
 local.properties
-
-# ant tab completion cache file
-.ant-targets-build.xml
 
 # build files
 api
 build
 dist
 docs/tmpapi/
-stubparser/docs/api
-# Don't want to ignore .jar files in checker/lib/ nor in gradle/wrapper
-# *.jar
-checker/jdk/jdk*.jar
-checker/jdk/**/*.class
 *.pyc
 checker/build-temp
 checker/bin/.do-like-javac
@@ -80,6 +77,17 @@ manual003.gif
 manual003.png
 manual004.gif
 manual004.png
+
+# dataflow manual
+dataflow/manual/dataflow.aux
+dataflow/manual/dataflow.dvi
+dataflow/manual/dataflow.log
+dataflow/manual/dataflow.out
+dataflow/manual/dataflow.pdf
+
+docs/tutorial/src/personalblog-demo/bin/net/eyde/personalblog/service/PersonalBlogService.class
+docs/tutorial/src/personalblog-demo/bin/net/eyde/personalblog/struts/action/ReadAction.class
+docs/tutorial/sourcefiles.zip
 docs/examples/**/*.class
 docs/examples/MavenExample/Out.txt
 docs/examples/MavenExample-framework-all/Out.txt
@@ -96,18 +104,6 @@ docs/manual/figures/*.pdf
 docs/manual/figures/*.png
 docs/manual/figures/signature-types-with-canonicalname.dia
 docs/manual/manual.html-e
-docs/tmpapi/
-
-# dataflow manual
-dataflow/manual/dataflow.aux
-dataflow/manual/dataflow.dvi
-dataflow/manual/dataflow.log
-dataflow/manual/dataflow.out
-dataflow/manual/dataflow.pdf
-
-docs/tutorial/src/personalblog-demo/bin/net/eyde/personalblog/service/PersonalBlogService.class
-docs/tutorial/src/personalblog-demo/bin/net/eyde/personalblog/struts/action/ReadAction.class
-docs/tutorial/sourcefiles.zip
 
 # release tmps
 tmp
@@ -147,6 +143,17 @@ checker/tests/nullness-temp/*.class
 checker/tests/nullness-temp/*.java
 checker/tests/nullness/generics/*.class
 
+# Some tests produce output into the tests/ directory instead of the build/ directory.
+checker/tests/ainfer-index/annotated/
+checker/tests/ainfer-index/inference-output/
+checker/tests/ainfer-nullness/annotated/
+checker/tests/ainfer-nullness/inference-output/
+checker/tests/ainfer-testchecker/annotated/
+checker/tests/ainfer-testchecker/inference-output/
+checker/tests/ainfer-resourceleak/annotated/
+checker/tests/ainfer-resourceleak/inference-output/
+framework/tests/returnsreceiverdelomboked/
+
 dataflow/tests/busyexpr/Out.txt
 dataflow/tests/busyexpr/*.class
 dataflow/tests/constant-propagation/Out.txt
@@ -162,14 +169,3 @@ checker/jtreg/multipleexecutions/Main.class
 
 # Source is copied from elsewhere.
 checker-qual-android/src
-
-# Some tests produce output into the tests/ directory instead of the build/ directory.
-checker/tests/ainfer-index/annotated/
-checker/tests/ainfer-index/inference-output/
-checker/tests/ainfer-nullness/annotated/
-checker/tests/ainfer-nullness/inference-output/
-checker/tests/ainfer-testchecker/annotated/
-checker/tests/ainfer-testchecker/inference-output/
-checker/tests/ainfer-resourceleak/annotated/
-checker/tests/ainfer-resourceleak/inference-output/
-framework/tests/returnsreceiverdelomboked/

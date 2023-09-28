@@ -9,7 +9,7 @@ import org.checkerframework.framework.qual.RelevantJavaTypes;
 import org.checkerframework.framework.source.SuppressWarningsPrefix;
 
 import java.util.HashSet;
-import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * A type-checker for preventing fixed-length sequences such as arrays or strings from being
@@ -59,9 +59,8 @@ public class LowerBoundChecker extends BaseTypeChecker {
     }
 
     @Override
-    protected LinkedHashSet<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
-        LinkedHashSet<Class<? extends BaseTypeChecker>> checkers =
-                super.getImmediateSubcheckerClasses();
+    protected Set<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
+        Set<Class<? extends BaseTypeChecker>> checkers = super.getImmediateSubcheckerClasses();
         checkers.add(ValueChecker.class);
         checkers.add(LessThanChecker.class);
         checkers.add(SearchIndexChecker.class);

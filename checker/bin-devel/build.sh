@@ -84,8 +84,6 @@ if [[ "$version" -ge 9 ]]; then
   echo "Running:  (cd ../jspecify/ && ./gradlew assemble)"
   # If failure, retry in case the failure was due to network lossage.
   (cd ../jspecify/ && \
-    # Temporarily, until a gradle 8.1 release is used, to allow JDK 20 tests to pass.
-    sed -i "s/gradle-8.0-bin/gradle-8.1-rc-1-bin/" gradle/wrapper/gradle-wrapper.properties && \
     export JDK_JAVA_OPTIONS='--add-opens jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED' && \
     (./gradlew assemble || (sleep 60 && ./gradlew assemble)))
   echo "... done: (cd ../jspecify/ && ./gradlew assemble)"

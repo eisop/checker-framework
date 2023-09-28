@@ -634,8 +634,6 @@ class ValueTreeAnnotator extends TreeAnnotator {
                 return;
             }
         }
-
-        return;
     }
 
     /** Returns true iff the given type is in the domain of the Constant Value Checker. */
