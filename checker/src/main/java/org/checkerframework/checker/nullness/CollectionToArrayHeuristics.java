@@ -38,20 +38,25 @@ public class CollectionToArrayHeuristics {
 
     /** The processing environment. */
     private final ProcessingEnvironment processingEnv;
+
     /** The checker, used for issuing diagnostic messages. */
     private final BaseTypeChecker checker;
+
     /** The type factory. */
-    private final NullnessAnnotatedTypeFactory atypeFactory;
+    private final NullnessNoInitAnnotatedTypeFactory atypeFactory;
 
     /** Whether to trust {@code @ArrayLen(0)} annotations. */
     private final boolean trustArrayLenZero;
 
     /** The Collection type. */
     private final AnnotatedDeclaredType collectionType;
+
     /** The Collection.toArray(T[]) method. */
     private final ExecutableElement collectionToArrayE;
+
     /** The Collection.size() method. */
     private final ExecutableElement size;
+
     /** The ArrayLen.value field/element. */
     private final ExecutableElement arrayLenValueElement;
 
@@ -62,7 +67,7 @@ public class CollectionToArrayHeuristics {
      * @param factory the type factory
      */
     public CollectionToArrayHeuristics(
-            BaseTypeChecker checker, NullnessAnnotatedTypeFactory factory) {
+            BaseTypeChecker checker, NullnessNoInitAnnotatedTypeFactory factory) {
         this.processingEnv = checker.getProcessingEnvironment();
         this.checker = checker;
         this.atypeFactory = factory;

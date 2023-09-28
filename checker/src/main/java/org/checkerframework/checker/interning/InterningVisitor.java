@@ -59,7 +59,7 @@ import javax.tools.Diagnostic.Kind;
  *
  * <ol>
  *   <li value="1">either argument to a "==" or "!=" comparison is not Interned (error
- *       "not.interned"). As a special case, the comparison is permitted if either arugment is
+ *       "not.interned"). As a special case, the comparison is permitted if either argument is
  *       InternedDistinct.
  *   <li value="2">the receiver and argument for a call to an equals method are both Interned
  *       (optional warning "unnecessary.equals")
@@ -71,9 +71,11 @@ public final class InterningVisitor extends BaseTypeVisitor<InterningAnnotatedTy
 
     /** The @Interned annotation. */
     private final AnnotationMirror INTERNED = AnnotationBuilder.fromClass(elements, Interned.class);
+
     /** The @InternedDistinct annotation. */
     private final AnnotationMirror INTERNED_DISTINCT =
             AnnotationBuilder.fromClass(elements, InternedDistinct.class);
+
     /**
      * The declared type of which the equality tests should be tested, if the user explicitly passed
      * one. The user can pass the class name via the {@code -Acheckclass=...} option. Null if no

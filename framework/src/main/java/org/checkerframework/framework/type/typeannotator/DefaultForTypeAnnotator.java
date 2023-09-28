@@ -49,10 +49,13 @@ public class DefaultForTypeAnnotator extends TypeAnnotator {
 
     /** Map from {@link TypeKind} to annotations. */
     private final Map<TypeKind, AnnotationMirrorSet> typeKinds;
+
     /** Map from {@link AnnotatedTypeMirror} classes to annotations. */
     private final Map<Class<? extends AnnotatedTypeMirror>, AnnotationMirrorSet> atmClasses;
+
     /** Map from fully qualified class name strings to annotations. */
     private final Map<String, AnnotationMirrorSet> types;
+
     /**
      * A list where each element associates an annotation with name regexes and name exception
      * regexes.
@@ -321,7 +324,7 @@ public class DefaultForTypeAnnotator extends TypeAnnotator {
                     if (result == null) {
                         result = nameRegexes.anno;
                     } else {
-                        // This could combine the annotatations instead, but I think doing so
+                        // This could combine the annotations instead, but I think doing so
                         // silently would confuse users.
                         throw new TypeSystemError(
                                 "Multiple annotations are applicable to the name \"%s\"", name);
@@ -339,8 +342,10 @@ public class DefaultForTypeAnnotator extends TypeAnnotator {
     private static class NameRegexes {
         /** The annotation. */
         final AnnotationMirror anno;
+
         /** The name regexes. */
         final List<Pattern> names = new ArrayList<>(0);
+
         /** The name exception regexes. */
         final List<Pattern> namesExceptions = new ArrayList<>(0);
 

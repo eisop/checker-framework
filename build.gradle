@@ -6,16 +6,16 @@ buildscript {
             // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
             // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
             // Only works on JDK 11+.
-            classpath 'com.diffplug.spotless:spotless-plugin-gradle:6.18.0'
+            classpath 'com.diffplug.spotless:spotless-plugin-gradle:6.21.0'
         }
     }
 }
 
 plugins {
     // https://plugins.gradle.org/plugin/com.github.johnrengelman.shadow
-    id 'com.github.johnrengelman.shadow' version '8.1.0'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
     // https://plugins.gradle.org/plugin/de.undercouch.download
-    id 'de.undercouch.download' version '5.4.0'
+    id 'de.undercouch.download' version '5.5.0'
     id 'java'
     // https://github.com/tbroyer/gradle-errorprone-plugin
     id 'net.ltgt.errorprone' version '3.1.0'
@@ -236,8 +236,12 @@ allprojects {
         ]
 
         // plume-util includes a version of reflection-util. When updating ensure the versions are consistent.
-        reflectionUtilVersion = '1.0.6'
-        plumeUtilVersion = '1.7.0'
+        reflectionUtilVersion = '1.1.0'
+        plumeUtilVersion = '1.8.1'
+
+        autoValueVersion = '1.10.4'
+        junitVersion = '4.13.2'
+        lombokVersion = '1.18.30'
     }
 
     if (isJava11plus) {
@@ -859,7 +863,7 @@ subprojects {
         //  * Temporarily comment out "-Werror" elsewhere in this file
         //  * Repeatedly run `./gradlew clean compileJava` and fix all errors
         //  * Uncomment "-Werror"
-        ext.errorproneVersion = '2.19.1'
+        ext.errorproneVersion = '2.22.0'
         errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: errorproneVersion
 
         // TODO: it's a bug that annotatedlib:guava requires the error_prone_annotations dependency.

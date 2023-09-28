@@ -20,6 +20,7 @@ public class ArrayCreation extends JavaExpression {
      * expression for the given array level.
      */
     protected final List<@Nullable JavaExpression> dimensions;
+
     /** List of initializers. */
     protected final List<JavaExpression> initializers;
 

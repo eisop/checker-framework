@@ -40,7 +40,7 @@ public class GlbUtil {
             return null;
         }
 
-        // dtermine the greatest lower bounds for the primary annotations
+        // determine the greatest lower bounds for the primary annotations
         AnnotationMirrorMap<AnnotationMirror> glbPrimaries = new AnnotationMirrorMap<>();
         for (Map.Entry<AnnotatedTypeMirror, AnnotationMirrorSet> tmEntry : typeMirrors.entrySet()) {
             final AnnotationMirrorSet typeAnnoHierarchies = tmEntry.getValue();

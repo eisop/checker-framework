@@ -3,12 +3,36 @@ Version 3.34.0-eisop2 (May ?, 2023)
 
 **User-visible changes:**
 
+The Initialization Checker is now separated from the Nullness Checker.
+To unsoundly use the Nullness Checker without initialization checking, use the new `-AassumeInitialized`
+command-line argument.
+Error messages will now be either from the Initialization Checker or the Nullness Checker, which
+simplifies the types in error messages.
+`@SuppressWarnings("initialization")` should be used to suppress initialization warnings.
+In this release, `nullness` continues to suppress warnings from the Initialization Checker, while
+`nullnessnoinit` may be used to suppress warnings from the Nullness Checker only. A future release
+will make suppression behavior consistent with other checkers.
+
 **Implementation details:**
 
-Remove class `StringConcatenateAssignmentNode` and its last usages.
+Corrected the arguments to an `ObjectCreationNode` when the node refers to an
+anonymous constructor invocation with an explicit enclosing expression in Java 11+.
+Now the first argument is not treated as an enclosing expression if it is not.
+
+Deprecated `ObjectCreationNode#getConstructor` in favor of new `ObjectCreationNode#getTypeToInstantiate()`.
+
+Removed class `StringConcatenateAssignmentNode` and its last usages.
 The class was deprecated in release 3.21.3-eisop1 (March 23, 2022) and no longer used in CFGs.
 
+Changed the return types of
+- `BaseTypeChecker#getImmediateSubcheckerClasses()` and overrides to
+  `Set<Class<? extends BaseTypeChecker>>`,
+- `AnalysisResult#getFinalLocalValues()` to `Map<VariableElement, V>`, and
+- `GenericAnnotatedTypeFactory#getFinalLocalValues()` to `Map<VariableElement, Value>`.
+
 **Closed issues:**
+
+eisop#297, eisop#376, eisop#400, eisop#532, typetools#1590.
 
 
 Version 3.34.0-eisop1 (May 9, 2023)

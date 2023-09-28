@@ -587,14 +587,19 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /** True if the -Afilenames command-line argument was passed. */
     private boolean printFilenames;
+
     /** True if the -Awarns command-line argument was passed. */
     private boolean warns;
+
     /** True if the -AshowSuppressWarningsStrings command-line argument was passed. */
     private boolean showSuppressWarningsStrings;
+
     /** True if the -ArequirePrefixInWarningSuppressions command-line argument was passed. */
     private boolean requirePrefixInWarningSuppressions;
+
     /** True if the -AshowPrefixInWarningMessages command-line argument was passed. */
     private boolean showPrefixInWarningMessages;
+
     /** True if the -AwarnUnneededSuppressions command-line argument was passed. */
     private boolean warnUnneededSuppressions;
 
@@ -1501,13 +1506,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         } else if (requirePrefixInWarningSuppressions || showPrefixInWarningMessages) {
             // If the warning key must be prefixed with a prefix (a checker name), then add that to
             // the SuppressWarnings string that is printed.
-            String defaultPrefix = getDefaultSuppressWarningsPrefix();
-            if (prefixes.contains(defaultPrefix)) {
-                return defaultPrefix + ":" + messageKey;
-            } else {
-                String firstKey = prefixes.iterator().next();
-                return firstKey + ":" + messageKey;
-            }
+            return getWarningMessagePrefix() + ":" + messageKey;
         } else {
             return messageKey;
         }
@@ -2123,6 +2122,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /** The name of the @SuppressWarnings annotation. */
     private static final @CanonicalName String suppressWarningsClassName =
             SuppressWarnings.class.getCanonicalName();
+
     /**
      * Finds the tree that is a {@code @SuppressWarnings} annotation.
      *
@@ -2550,6 +2550,29 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         return result.toLowerCase(Locale.ROOT);
     }
 
+    /**
+     * Returns the prefix that should be added when issuing an error or warning if the {@code
+     * -AshowPrefixInWarningMessages} command-line option was passed.
+     *
+     * <p>The default implementation uses the default prefix based on the class name if that default
+     * prefix is contained in {@link #getSuppressWarningsPrefixes()}. Otherwise, it uses the first
+     * element of {@link #getSuppressWarningsPrefixes()}.
+     *
+     * @return the prefix that should be added when issuing an error or warning if the * {@code
+     *     -AshowPrefixInWarningMessages} command-line option was passed
+     */
+    protected String getWarningMessagePrefix() {
+        Collection<String> prefixes = this.getSuppressWarningsPrefixes();
+        prefixes.remove(SUPPRESS_ALL_PREFIX);
+        String defaultPrefix = getDefaultSuppressWarningsPrefix();
+        if (prefixes.contains(defaultPrefix)) {
+            return defaultPrefix;
+        } else {
+            String firstKey = prefixes.iterator().next();
+            return firstKey;
+        }
+    }
+
     ///////////////////////////////////////////////////////////////////////////
     /// Skipping uses and defs
     ///
@@ -2619,7 +2642,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @param tree class to potentially skip
      * @return true if checker should not test {@code tree}
      */
-    public final boolean shouldSkipDefs(ClassTree tree) {
+    public boolean shouldSkipDefs(ClassTree tree) {
         String qualifiedName = TreeUtils.typeOf(tree).toString();
         // System.out.printf("shouldSkipDefs(%s) %s%nskipDefs %s%nonlyDefs %s%nresult %s%n%n",
         //                   tree,
@@ -2649,7 +2672,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @param meth method to potentially skip
      * @return true if checker should not test {@code meth}
      */
-    public final boolean shouldSkipDefs(ClassTree cls, MethodTree meth) {
+    public boolean shouldSkipDefs(ClassTree cls, MethodTree meth) {
         return shouldSkipDefs(cls);
     }
 
@@ -2705,6 +2728,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                         " To see the full stack trace, don't invoke the compiler with"
                                 + " -AnoPrintErrorStack");
             } else {
+                msg.add("Checker: " + this.getClass());
+                if (this.visitor != null) {
+                    msg.add("Visitor: " + this.visitor.getClass());
+                }
                 if (this.currentRoot != null && this.currentRoot.getSourceFile() != null) {
                     msg.add("Compilation unit: " + this.currentRoot.getSourceFile().getName());
                 }

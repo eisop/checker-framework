@@ -199,45 +199,64 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     // These variables cannot be static because they depend on the ProcessingEnvironment.
     /** The AnnotatedFor.value argument/element. */
     protected final ExecutableElement annotatedForValueElement;
+
     /** The EnsuresQualifier.expression field/element. */
     protected final ExecutableElement ensuresQualifierExpressionElement;
+
     /** The EnsuresQualifier.List.value field/element. */
     protected final ExecutableElement ensuresQualifierListValueElement;
+
     /** The EnsuresQualifierIf.expression field/element. */
     protected final ExecutableElement ensuresQualifierIfExpressionElement;
+
     /** The EnsuresQualifierIf.result argument/element. */
     protected final ExecutableElement ensuresQualifierIfResultElement;
+
     /** The EnsuresQualifierIf.List.value field/element. */
     protected final ExecutableElement ensuresQualifierIfListValueElement;
+
     /** The FieldInvariant.field argument/element. */
     protected final ExecutableElement fieldInvariantFieldElement;
+
     /** The FieldInvariant.qualifier argument/element. */
     protected final ExecutableElement fieldInvariantQualifierElement;
+
     /** The HasQualifierParameter.value field/element. */
     protected final ExecutableElement hasQualifierParameterValueElement;
+
     /** The MethodVal.className argument/element. */
     public final ExecutableElement methodValClassNameElement;
+
     /** The MethodVal.methodName argument/element. */
     public final ExecutableElement methodValMethodNameElement;
+
     /** The MethodVal.params argument/element. */
     public final ExecutableElement methodValParamsElement;
+
     /** The NoQualifierParameter.value field/element. */
     protected final ExecutableElement noQualifierParameterValueElement;
+
     /** The RequiresQualifier.expression field/element. */
     protected final ExecutableElement requiresQualifierExpressionElement;
+
     /** The RequiresQualifier.List.value field/element. */
     protected final ExecutableElement requiresQualifierListValueElement;
 
     /** The RequiresQualifier type. */
     protected final TypeMirror requiresQualifierTM;
+
     /** The RequiresQualifier.List type. */
     protected final TypeMirror requiresQualifierListTM;
+
     /** The EnsuresQualifier type. */
     protected final TypeMirror ensuresQualifierTM;
+
     /** The EnsuresQualifier.List type. */
     protected final TypeMirror ensuresQualifierListTM;
+
     /** The EnsuresQualifierIf type. */
     protected final TypeMirror ensuresQualifierIfTM;
+
     /** The EnsuresQualifierIf.List type. */
     protected final TypeMirror ensuresQualifierIfListTM;
 
@@ -376,10 +395,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     private static class Alias {
         /** The canonical annotation (or null if copyElements == true). */
         final AnnotationMirror canonical;
+
         /** Whether elements should be copied over when translating to the canonical annotation. */
         final boolean copyElements;
+
         /** The canonical annotation name (or null if copyElements == false). */
         final @CanonicalName String canonicalName;
+
         /** Which elements should not be copied over (or null if copyElements == false). */
         final String[] ignorableElements;
 
@@ -2314,28 +2336,49 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return the type of the receiver of expression
      */
     public final AnnotatedTypeMirror getReceiverType(ExpressionTree expression) {
+        AnnotatedTypeMirror receiverType;
         ExpressionTree receiver = TreeUtils.getReceiverTree(expression);
         if (receiver != null) {
-            return getAnnotatedType(receiver);
-        }
-
-        Element element = TreeUtils.elementFromTree(expression);
-        if (element != null && ElementUtils.hasReceiver(element)) {
-            // The tree references an element that has a receiver, but the tree does not have an
-            // explicit receiver. So, the tree must have an implicit receiver of "this" or
-            // "Outer.this".
-            return getImplicitReceiverType(expression);
+            receiverType = getAnnotatedType(receiver);
         } else {
-            return null;
+            Element element = TreeUtils.elementFromTree(expression);
+            if (element != null && ElementUtils.hasReceiver(element)) {
+                // The tree references an element that has a receiver, but the tree does not have an
+                // explicit receiver. So, the tree must have an implicit receiver of "this" or
+                // "Outer.this".
+                receiverType = getImplicitReceiverType(expression);
+            } else {
+                receiverType = null;
+            }
         }
+        // In Java versions below 11, consider the following code:
+        // class Outer {
+        //   class Inner{}
+        // }
+        // class Top {
+        //   void test(Outer outer) {
+        //     outer.new Inner(){};
+        //   }
+        // }
+        // the receiverType of outer.new Inner(){} is Top instead of Outer,
+        // because Java below 11 organizes newClassTree of an anonymous class in a different
+        // way: there is a synthetic argument representing the enclosing expression type.
+        // In such case, use the synthetic argument as its receiver type.
+        if ((expression instanceof NewClassTree)
+                && TreeUtils.hasSyntheticArgument((NewClassTree) expression)) {
+            receiverType = getAnnotatedType(((NewClassTree) expression).getArguments().get(0));
+        }
+        return receiverType;
     }
 
     /** The type for an instantiated generic method or constructor. */
     public static class ParameterizedExecutableType {
         /** The method's/constructor's type. */
         public final AnnotatedExecutableType executableType;
+
         /** The types of the generic type arguments. */
         public final List<AnnotatedTypeMirror> typeArgs;
+
         /** Create a ParameterizedExecutableType. */
         public ParameterizedExecutableType(
                 AnnotatedExecutableType executableType, List<AnnotatedTypeMirror> typeArgs) {
@@ -2428,7 +2471,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // Adapt parameters, which makes parameters and arguments be the same size for later
         // checking.
         List<AnnotatedTypeMirror> parameters =
-                AnnotatedTypes.adaptParameters(this, method, tree.getArguments());
+                AnnotatedTypes.adaptParameters(this, method, tree.getArguments(), null);
         method.setParameterTypes(parameters);
         return result;
     }
@@ -2834,21 +2877,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 //   x0.super();
                 //   }
                 // So the code below deals with this.
+                // Because the anonymous constructor doesn't have annotated receiver type,
+                // we copy the receiver type from the super constructor invoked in the anonymous
+                // constructor
                 List<AnnotatedTypeMirror> p =
                         new ArrayList<>(superCon.getParameterTypes().size() + 1);
-                if (TreeUtils.hasSyntheticArgument(tree)) {
-                    p.add(con.getParameterTypes().get(0));
-                    con.setReceiverType(superCon.getReceiverType());
-                } else if (con.getReceiverType() != null) {
-                    // Because the anonymous constructor doesn't have annotated receiver type,
-                    // we copy the receiver type from the super constructor invoked in the anonymous
-                    // constructor and add it to the parameterTypes as the first element.
-                    con.setReceiverType(superCon.getReceiverType());
-                    p.add(con.getReceiverType());
-                } else {
-                    p.add(con.getParameterTypes().get(0));
-                }
-                p.addAll(1, superCon.getParameterTypes());
+                p.add(con.getParameterTypes().get(0));
+                con.setReceiverType(superCon.getReceiverType());
+                p.addAll(superCon.getParameterTypes());
                 con.setParameterTypes(Collections.unmodifiableList(p));
             }
             con.getReturnType().replaceAnnotations(superCon.getReturnType().getAnnotations());
@@ -2894,7 +2930,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // checking. The vararg type of con has been already computed and stored when calling
         // typeVarSubstitutor.substitute.
         List<AnnotatedTypeMirror> parameters =
-                AnnotatedTypes.adaptParameters(this, con, tree.getArguments());
+                AnnotatedTypes.adaptParameters(this, con, tree.getArguments(), tree);
         con.setParameterTypes(parameters);
         return new ParameterizedExecutableType(con, typeargs);
     }
@@ -5734,6 +5770,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     /** Matches addition of a constant. */
     private static final Pattern plusConstant = Pattern.compile(" *\\+ *(-?[0-9]+)$");
+
     /** Matches subtraction of a constant. */
     private static final Pattern minusConstant = Pattern.compile(" *- *(-?[0-9]+)$");
 

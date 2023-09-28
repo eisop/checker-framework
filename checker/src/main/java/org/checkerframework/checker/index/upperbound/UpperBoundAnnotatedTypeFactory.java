@@ -92,7 +92,7 @@ import javax.lang.model.util.Elements;
  * <ul>
  *   <li>1. Math.min has unusual semantics that combines annotations for the UBC.
  *   <li>2. The return type of Random.nextInt depends on the argument, but is not equal to it, so a
- *       polymorhpic qualifier is insufficient.
+ *       polymorphic qualifier is insufficient.
  *   <li>3. Unary negation on a NegativeIndexFor (from the SearchIndex Checker) results in a
  *       LTLengthOf for the same arrays.
  *   <li>4. Right shifting by a constant between 0 and 30 preserves the type of the left side
@@ -114,22 +114,27 @@ public class UpperBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
     /** The @{@link UpperBoundUnknown} annotation. */
     public final AnnotationMirror UNKNOWN =
             AnnotationBuilder.fromClass(elements, UpperBoundUnknown.class);
+
     /** The @{@link UpperBoundBottom} annotation. */
     public final AnnotationMirror BOTTOM =
             AnnotationBuilder.fromClass(elements, UpperBoundBottom.class);
+
     /** The @{@link PolyUpperBound} annotation. */
     public final AnnotationMirror POLY =
             AnnotationBuilder.fromClass(elements, PolyUpperBound.class);
+
     /** The @{@link UpperBoundLiteral}(-1) annotation. */
     public final AnnotationMirror NEGATIVEONE =
             new AnnotationBuilder(getProcessingEnv(), UpperBoundLiteral.class)
                     .setValue("value", -1)
                     .build();
+
     /** The @{@link UpperBoundLiteral}(0) annotation. */
     public final AnnotationMirror ZERO =
             new AnnotationBuilder(getProcessingEnv(), UpperBoundLiteral.class)
                     .setValue("value", 0)
                     .build();
+
     /** The @{@link UpperBoundLiteral}(1) annotation. */
     public final AnnotationMirror ONE =
             new AnnotationBuilder(getProcessingEnv(), UpperBoundLiteral.class)
@@ -139,12 +144,15 @@ public class UpperBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
     /** The NegativeIndexFor.value element/field. */
     public final ExecutableElement negativeIndexForValueElement =
             TreeUtils.getMethod(NegativeIndexFor.class, "value", 0, processingEnv);
+
     /** The SameLen.value element/field. */
     public final ExecutableElement sameLenValueElement =
             TreeUtils.getMethod(SameLen.class, "value", 0, processingEnv);
+
     /** The LTLengthOf.value element/field. */
     public final ExecutableElement ltLengthOfValueElement =
             TreeUtils.getMethod(LTLengthOf.class, "value", 0, processingEnv);
+
     /** The LTLengthOf.offset element/field. */
     public final ExecutableElement ltLengthOfOffsetElement =
             TreeUtils.getMethod(LTLengthOf.class, "offset", 0, processingEnv);

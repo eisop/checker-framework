@@ -453,7 +453,11 @@ public class ElementUtils {
      * @return path to the source file containing {@code element}
      */
     public static String getSourceFilePath(TypeElement element) {
-        return ((ClassSymbol) element).sourcefile.toUri().getPath();
+        String path = ((ClassSymbol) element).sourcefile.toUri().getPath();
+        if (path == null) {
+            throw new BugInCF("Unexpected null path for TypeElement: " + element);
+        }
+        return path;
     }
 
     /**

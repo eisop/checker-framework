@@ -36,7 +36,6 @@ import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.formatter.qual.FormatMethod;
-import org.checkerframework.checker.initialization.InitializationVisitor;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
@@ -69,30 +68,38 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.type.TypeMirror;
 
 /** The visitor for the nullness type-system. */
-public class NullnessVisitor
-        extends InitializationVisitor<NullnessAnnotatedTypeFactory, NullnessValue, NullnessStore> {
+public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotatedTypeFactory> {
+    // Error message keys
     // private static final @CompilerMessageKey String ASSIGNMENT_TYPE_INCOMPATIBLE =
     // "assignment.type.incompatible";
     /** Error message key. */
     private static final @CompilerMessageKey String UNBOXING_OF_NULLABLE = "unboxing.of.nullable";
+
     /** Error message key. */
     private static final @CompilerMessageKey String LOCKING_NULLABLE = "locking.nullable";
+
     /** Error message key. */
     private static final @CompilerMessageKey String THROWING_NULLABLE = "throwing.nullable";
+
     /** Error message key. */
     private static final @CompilerMessageKey String ACCESSING_NULLABLE = "accessing.nullable";
+
     /** Error message key. */
     private static final @CompilerMessageKey String CONDITION_NULLABLE = "condition.nullable";
+
     /** Error message key. */
     private static final @CompilerMessageKey String ITERATING_NULLABLE = "iterating.over.nullable";
+
     /** Error message key. */
     private static final @CompilerMessageKey String SWITCHING_NULLABLE = "switching.nullable";
+
     /** Error message key. */
     private static final @CompilerMessageKey String DEREFERENCE_OF_NULLABLE =
             "dereference.of.nullable";
 
     /** Annotation mirrors for nullness annotations. */
-    private final AnnotationMirror NONNULL, NULLABLE, MONOTONIC_NONNULL;
+    private final AnnotationMirror NONNULL, NULLABLE, MONOTONIC_NONNULL, POLYNULL;
+
     /** TypeMirror for java.lang.String. */
     private final TypeMirror stringType;
 
@@ -122,12 +129,13 @@ public class NullnessVisitor
      *
      * @param checker the checker to which this visitor belongs
      */
-    public NullnessVisitor(BaseTypeChecker checker) {
+    public NullnessNoInitVisitor(BaseTypeChecker checker) {
         super(checker);
 
         NONNULL = atypeFactory.NONNULL;
         NULLABLE = atypeFactory.NULLABLE;
         MONOTONIC_NONNULL = atypeFactory.MONOTONIC_NONNULL;
+        POLYNULL = atypeFactory.POLYNULL;
         stringType = elements.getTypeElement(String.class.getCanonicalName()).asType();
 
         ProcessingEnvironment env = checker.getProcessingEnvironment();
@@ -145,8 +153,8 @@ public class NullnessVisitor
     }
 
     @Override
-    public NullnessAnnotatedTypeFactory createTypeFactory() {
-        return new NullnessAnnotatedTypeFactory(checker);
+    public NullnessNoInitAnnotatedTypeFactory createTypeFactory() {
+        return new NullnessNoInitAnnotatedTypeFactory(checker);
     }
 
     @Override
@@ -167,12 +175,27 @@ public class NullnessVisitor
     }
 
     @Override
+    protected void checkConstructorResult(
+            AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {
+        // Constructor results are always @NonNull. Other annotations are forbidden by
+        // #visitMethod.
+        // Nothing to check.
+    }
+
+    @Override
+    protected void checkThisOrSuperConstructorCall(
+            MethodInvocationTree superCall, @CompilerMessageKey String errorKey) {
+        // Constructor results are always @NonNull, so the result type of a this/super call is
+        // always equal to the result type of the current constructor.
+        // Nothing to check.
+    }
+
+    @Override
     protected void commonAssignmentCheck(
             Tree varTree,
             ExpressionTree valueExp,
             @CompilerMessageKey String errorKey,
             Object... extraArgs) {
-
         // Allow a MonotonicNonNull field to be initialized to null at its declaration, in a
         // constructor, or in an initializer block.  (The latter two are, strictly speaking, unsound
         // because the constructor or initializer block might have previously set the field to a
@@ -317,7 +340,7 @@ public class NullnessVisitor
      * example "new Object[0][0];". Also true for empty dimensions, as in "new Object[] {...}".
      *
      * @param tree the constructor invocation to check
-     * @return true if every array dimention has a size of zero
+     * @return true if every array dimension has a size of zero
      */
     private static boolean isNewArrayAllZeroDims(NewArrayTree tree) {
         boolean isAllZeros = true;
@@ -340,7 +363,7 @@ public class NullnessVisitor
      * Return true if the given tree is "new X[]", in the context "toArray(new X[])".
      *
      * @param tree a tree to test
-     * @return true if the tree is a new array within acall to toArray()
+     * @return true if the tree is a new array within a call to toArray()
      */
     private boolean isNewArrayInToArray(NewArrayTree tree) {
         if (tree.getDimensions().size() != 1) {
@@ -526,14 +549,16 @@ public class NullnessVisitor
 
     @Override
     public Void visitMethod(MethodTree tree, Void p) {
+        VariableTree receiver = tree.getReceiverParameter();
+
         if (TreeUtils.isConstructor(tree)) {
+            // Constructor results are always @NonNull. Any annotations are forbidden.
             List<? extends AnnotationTree> annoTrees = tree.getModifiers().getAnnotations();
             if (atypeFactory.containsNullnessAnnotation(annoTrees)) {
                 checker.reportError(tree, "nullness.on.constructor");
             }
         }
 
-        VariableTree receiver = tree.getReceiverParameter();
         if (receiver != null) {
             List<? extends AnnotationTree> annoTrees = receiver.getModifiers().getAnnotations();
             Tree type = receiver.getType();
@@ -582,7 +607,6 @@ public class NullnessVisitor
 
     @Override
     public void processClassTree(ClassTree classTree) {
-
         Tree extendsClause = classTree.getExtendsClause();
         if (extendsClause != null) {
             reportErrorIfSupertypeContainsNullnessAnnotation(extendsClause);
@@ -677,7 +701,9 @@ public class NullnessVisitor
             treeReceiver.addAnnotations(rcv.getEffectiveAnnotations());
             // If receiver is Nullable, then we don't want to issue a warning about method
             // invocability (we'd rather have only the "dereference.of.nullable" message).
-            if (treeReceiver.hasAnnotation(NULLABLE) || receiverAnnos.contains(MONOTONIC_NONNULL)) {
+            if (treeReceiver.hasAnnotation(NULLABLE)
+                    || receiverAnnos.contains(MONOTONIC_NONNULL)
+                    || treeReceiver.hasAnnotation(POLYNULL)) {
                 return;
             }
         }
