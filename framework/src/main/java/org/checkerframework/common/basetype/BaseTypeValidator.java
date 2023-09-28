@@ -725,7 +725,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * @param tree the tree of this type
      */
     protected void validateWildCardTargetLocation(AnnotatedWildcardType type, Tree tree) {
-        if (visitor.ignoreTargetLocation) return;
+        if (visitor.ignoreTargetLocations) return;
 
         for (AnnotationMirror am : type.getSuperBound().getAnnotations()) {
             List<TypeUseLocation> locations =
@@ -738,12 +738,12 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                     || locations.stream()
                             .anyMatch(
                                     location ->
-                                            (Arrays.asList(
+                                            Arrays.asList(
                                                             TypeUseLocation.ALL,
                                                             TypeUseLocation.LOWER_BOUND,
                                                             TypeUseLocation.IMPLICIT_LOWER_BOUND,
                                                             TypeUseLocation.EXPLICIT_LOWER_BOUND)
-                                                    .contains(location)))) {
+                                                    .contains(location))) {
                 continue;
             }
 
@@ -761,12 +761,12 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                     || locations.stream()
                             .anyMatch(
                                     location ->
-                                            (Arrays.asList(
+                                            Arrays.asList(
                                                             TypeUseLocation.ALL,
                                                             TypeUseLocation.UPPER_BOUND,
                                                             TypeUseLocation.IMPLICIT_UPPER_BOUND,
                                                             TypeUseLocation.EXPLICIT_UPPER_BOUND)
-                                                    .contains(location)))) {
+                                                    .contains(location))) {
                 continue;
             }
 

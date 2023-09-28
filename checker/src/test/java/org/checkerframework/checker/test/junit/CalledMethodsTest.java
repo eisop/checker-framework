@@ -15,7 +15,7 @@ public class CalledMethodsTest extends CheckerFrameworkPerDirectoryTest {
                 CalledMethodsChecker.class,
                 "calledmethods",
                 "-nowarn",
-                "-AignoreTargetLocation",
+                "-AignoreTargetLocations",
                 "-encoding",
                 "UTF-8");
     }

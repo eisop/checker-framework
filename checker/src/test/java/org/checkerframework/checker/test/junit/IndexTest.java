@@ -19,7 +19,7 @@ public class IndexTest extends CheckerFrameworkPerDirectoryTest {
                 testFiles,
                 org.checkerframework.checker.index.IndexChecker.class,
                 "index",
-                "-AignoreTargetLocation");
+                "-AignoreTargetLocations");
     }
 
     @Parameters

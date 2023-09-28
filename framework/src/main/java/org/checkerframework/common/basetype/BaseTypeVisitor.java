@@ -47,6 +47,7 @@ import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.interning.qual.FindDistinct;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.signature.qual.CanonicalName;
 import org.checkerframework.dataflow.analysis.TransferResult;
 import org.checkerframework.dataflow.cfg.node.BooleanLiteralNode;
 import org.checkerframework.dataflow.cfg.node.Node;
@@ -270,8 +271,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /** True if "-AwarnRedundantAnnotations" was passed on the command line. */
     private final boolean warnRedundantAnnotations;
 
-    /** True if "-AignoreTargetLocation" was passed on the command line. */
-    protected final boolean ignoreTargetLocation;
+    /** True if "-AignoreTargetLocations" was passed on the command line. */
+    protected final boolean ignoreTargetLocations;
 
     /** True if "-AcheckEnclosingExpr" was passed on the command line. */
     private final boolean checkEnclosingExpr;
@@ -322,7 +323,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         suggestPureMethods = checker.hasOption("suggestPureMethods"); // NO-AFU || infer;
         checkPurity = checker.hasOption("checkPurityAnnotations") || suggestPureMethods;
         warnRedundantAnnotations = checker.hasOption("warnRedundantAnnotations");
-        ignoreTargetLocation = checker.hasOption("ignoreTargetLocation");
+        ignoreTargetLocations = checker.hasOption("ignoreTargetLocations");
         qualAllowedLocations = initQualAllowedLocations();
 
         checkEnclosingExpr = checker.hasOption("checkEnclosingExpr");
@@ -1616,7 +1617,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param type the type of the tree
      */
     protected void validateVariablesTargetLocation(Tree tree, AnnotatedTypeMirror type) {
-        if (ignoreTargetLocation) return;
+        if (ignoreTargetLocations) return;
         Element element = TreeUtils.elementFromTree(tree);
 
         if (element != null) {
@@ -1689,7 +1690,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     protected void validateTargetLocation(
             Tree tree, AnnotatedTypeMirror type, TypeUseLocation required) {
-        if (ignoreTargetLocation) {
+        if (ignoreTargetLocations) {
             return;
         }
         for (AnnotationMirror am : type.getAnnotations()) {

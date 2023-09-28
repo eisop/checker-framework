@@ -18,7 +18,7 @@ public class I18nTest extends CheckerFrameworkPerDirectoryTest {
                 testFiles,
                 org.checkerframework.checker.i18n.I18nChecker.class,
                 "i18n",
-                "-AignoreTargetLocation");
+                "-AignoreTargetLocations");
     }
 
     @Parameters
