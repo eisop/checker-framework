@@ -160,7 +160,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
                         err = COMMITMENT_INVALID_FIELD_WRITE_UNKNOWN_INITIALIZATION;
                     }
                     checker.reportError(varTree, err, varTree);
-                    return; // prevent issuing another errow about subtyping
+                    return; // prevent issuing another error about subtyping
                 }
             }
         }
@@ -247,7 +247,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
         // Warn about uninitialized static fields.
         Tree.Kind nodeKind = tree.getKind();
         // Skip interfaces (and annotations, which are interfaces).  In an interface, every static
-        // field must be initialized.  Java forbids uninitialized variables and static initalizer
+        // field must be initialized.  Java forbids uninitialized variables and static initializer
         // blocks.
         if (nodeKind != Tree.Kind.INTERFACE && nodeKind != Tree.Kind.ANNOTATION_TYPE) {
             // See GenericAnnotatedTypeFactory.performFlowAnalysis for why we use
