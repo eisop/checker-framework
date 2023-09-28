@@ -734,16 +734,13 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
             // that the qualifier can be written on any type use.
             // Otherwise, for a valid use of qualifier on the super bound, that qualifier must
             // declare one of these four type-use locations in the @TargetLocations meta-annotation.
-            if (locations == null
-                    || locations.stream()
-                            .anyMatch(
-                                    location ->
-                                            Arrays.asList(
-                                                            TypeUseLocation.ALL,
-                                                            TypeUseLocation.LOWER_BOUND,
-                                                            TypeUseLocation.IMPLICIT_LOWER_BOUND,
-                                                            TypeUseLocation.EXPLICIT_LOWER_BOUND)
-                                                    .contains(location))) {
+            List<TypeUseLocation> lowerLocations =
+                    Arrays.asList(
+                            TypeUseLocation.ALL,
+                            TypeUseLocation.LOWER_BOUND,
+                            TypeUseLocation.IMPLICIT_LOWER_BOUND,
+                            TypeUseLocation.EXPLICIT_LOWER_BOUND);
+            if (locations == null || locations.stream().anyMatch(lowerLocations::contains)) {
                 continue;
             }
 
@@ -757,16 +754,13 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         for (AnnotationMirror am : type.getExtendsBound().getAnnotations()) {
             List<TypeUseLocation> locations =
                     visitor.qualAllowedLocations.get(AnnotationUtils.annotationName(am));
-            if (locations == null
-                    || locations.stream()
-                            .anyMatch(
-                                    location ->
-                                            Arrays.asList(
-                                                            TypeUseLocation.ALL,
-                                                            TypeUseLocation.UPPER_BOUND,
-                                                            TypeUseLocation.IMPLICIT_UPPER_BOUND,
-                                                            TypeUseLocation.EXPLICIT_UPPER_BOUND)
-                                                    .contains(location))) {
+            List<TypeUseLocation> upperLocations =
+                    Arrays.asList(
+                            TypeUseLocation.ALL,
+                            TypeUseLocation.UPPER_BOUND,
+                            TypeUseLocation.IMPLICIT_UPPER_BOUND,
+                            TypeUseLocation.EXPLICIT_UPPER_BOUND);
+            if (locations == null || locations.stream().anyMatch(upperLocations::contains)) {
                 continue;
             }
 

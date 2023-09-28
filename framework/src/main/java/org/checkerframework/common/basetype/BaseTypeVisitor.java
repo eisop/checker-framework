@@ -324,7 +324,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         checkPurity = checker.hasOption("checkPurityAnnotations") || suggestPureMethods;
         warnRedundantAnnotations = checker.hasOption("warnRedundantAnnotations");
         ignoreTargetLocations = checker.hasOption("ignoreTargetLocations");
-        qualAllowedLocations = initQualAllowedLocations();
+        qualAllowedLocations = createQualAllowedLocations();
 
         checkEnclosingExpr = checker.hasOption("checkEnclosingExpr");
         ajavaChecks = checker.hasOption("ajavaChecks");
@@ -1712,7 +1712,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /** Initialize qualAllowedLocations, which is used for declared type-use locations lookup. */
-    protected Map<@CanonicalName String, List<TypeUseLocation>> initQualAllowedLocations() {
+    protected Map<@CanonicalName String, List<TypeUseLocation>> createQualAllowedLocations() {
         HashMap<@CanonicalName String, List<TypeUseLocation>> qualAllowedLocations =
                 new HashMap<>();
         for (String qual : atypeFactory.getSupportedTypeQualifierNames()) {
