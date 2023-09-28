@@ -25,13 +25,13 @@ import javax.lang.model.element.Modifier;
  * </pre>
  */
 public class MethodAccessNode extends Node {
-    /** The corresponding Expression tree. */
+    /** The tree of the method access. */
     protected final ExpressionTree tree;
 
-    /** The ExecutatbleElement method. */
+    /** The element of the accessed method. */
     protected final ExecutableElement method;
 
-    /** The receiver node for method being accessed. */
+    /** The receiver node of the method access. */
     protected final Node receiver;
 
     /**
