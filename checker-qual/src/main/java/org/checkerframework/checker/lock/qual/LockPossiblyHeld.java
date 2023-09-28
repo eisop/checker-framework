@@ -17,8 +17,8 @@ import java.lang.annotation.Target;
 /**
  * Indicates that an expression is not known to be {@link LockHeld}.
  *
- * <p>This annotation may not be written in source code; it is an implementation detail of the
- * checker.
+ * <p>It is usually not necessary to write this annotation in source code. It is an implementation
+ * detail of the checker.
  *
  * @see LockHeld
  * @checker_framework.manual #lock-checker Lock Checker

@@ -23,9 +23,9 @@ import java.lang.annotation.Target;
  * enable that. For finer-grained control, override {@code visit*} methods that visit trees in
  * BaseTypeVisitor.
  *
- * <p>This meta-annotation prevents the type system from inferring, or computing the given
- * qualifier at the given location. It also prevents users from writing that qualifier explicitly at
- * the given location.
+ * <p>This meta-annotation prevents the type system from inferring, or computing the given qualifier
+ * at the given location. It also prevents users from writing that qualifier explicitly at the given
+ * location.
  *
  * <p>Because the meta-annotation avoids given annotations implicitly and explicitly applying on
  * certain locations, supply LOWER_BOUND (UPPER_BOUND) rather than EXPLICIT_LOWER_BOUND
