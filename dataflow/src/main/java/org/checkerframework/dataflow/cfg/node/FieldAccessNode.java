@@ -13,9 +13,7 @@ import org.checkerframework.javacutil.TreeUtils;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
-import java.util.Set;
 
-import javax.lang.model.element.Modifier;
 import javax.lang.model.element.VariableElement;
 
 /**
@@ -100,7 +98,7 @@ public class FieldAccessNode extends Node {
     }
 
     /**
-     * Check the field is a static or not.
+     * Determine whether the field is a static or not.
      *
      * @return a boolean indicates whether the field is static
      */
@@ -127,14 +125,5 @@ public class FieldAccessNode extends Node {
     @SideEffectFree
     public Collection<Node> getOperands() {
         return Collections.singletonList(receiver);
-    }
-
-    /**
-     * Retrieves the modifiers of the method.
-     *
-     * @return the set of modifiers of the method
-     */
-    public Set<Modifier> getMethodModifiers() {
-        return element.getModifiers();
     }
 }
