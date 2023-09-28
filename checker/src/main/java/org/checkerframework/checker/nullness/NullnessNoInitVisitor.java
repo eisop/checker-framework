@@ -259,9 +259,10 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         // Use the valueExp as the context because data flow will have a value for that tree.  It
         // might not have a value for the var tree.  This is sound because if data flow has
         // determined @PolyNull is @Nullable at the RHS, then it is also @Nullable for the LHS.
-        // TODO: replacePolyQualifier is a temporary hack as it produce side effect to polymorphic
-        // qualifier. In future revision, remove replacePolyQualifier in this method, as referred
-        // to in NullnessVisitor#visitConditionalExpression.
+        // TODO: A visitor should not change types, so this call to replacePolyQualifier is a hack.
+        // To work around this hack here, NullnessVisitor#visitConditionalExpression needs a further
+        // hack. Both should be undone, by properly resolving polymorphic qualifiers in the
+        // ATF/transfer.
         atypeFactory.replacePolyQualifier(varType, valueExp);
         super.commonAssignmentCheck(varType, valueExp, errorKey, extraArgs);
     }
@@ -814,22 +815,19 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     @Override
     public Void visitConditionalExpression(ConditionalExpressionTree tree, Void p) {
         checkForNullability(tree.getCondition(), CONDITION_NULLABLE);
-        // Note: A copy of condThen is provided as an argument to the second invocation of
-        // NullnessVisitor#commonAssignmentCheck. This approach is taken due to the method's side
-        // effects now.
-        // A more appropriate handling of the conditional expression would involve removing
-        // replacePolyQualifier from commonAssignmentCheck, and then managing the two branches
-        // separately within Nullnesstransfer.
-        // This check's logic should be kept in sync with the super method.
+        // Note: Because of the hack in NullnessVisitor#commonAssignmentCheck, this code needs to
+        // use a copy of the types for the two invocations of #commonAssignmentCheck. These hacks
+        // should be undone, by properly resolving polymorphic qualifiers in the ATF/transfer. As
+        // this code is mostly duplicated from the super method, this code needs to be kept in sync.
         AnnotatedTypeMirror condThen = atypeFactory.getAnnotatedType(tree);
         AnnotatedTypeMirror condElse = condThen.deepCopy();
         this.commonAssignmentCheck(
                 condThen, tree.getTrueExpression(), "conditional.type.incompatible");
         this.commonAssignmentCheck(
                 condElse, tree.getFalseExpression(), "conditional.type.incompatible");
-        // Avoid calling super, as it will trigger a false negative in the false branch of super
-        // method. Instead, manually implement the logic from TreeScanner#visitConditionalExpression
-        // to traverse the subtree.
+        // Avoid calling super, as the super method does not handle conditional branches correctly.
+        // Instead, manually implement the logic from TreeScanner#visitConditionalExpression to
+        // traverse the subtree.
         Void r = scan(tree.getCondition(), p);
         r = reduce(scan(tree.getTrueExpression(), p), r);
         r = reduce(scan(tree.getFalseExpression(), p), r);
