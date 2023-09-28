@@ -571,32 +571,11 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
         */
     }
 
-<<<<<<< HEAD
     @Override
     protected void checkThrownExpression(ThrowTree tree, @Nullable MethodTree mtree) {
         super.checkThrownExpression(tree, mtree);
     }
-    //    /**
-    //     * Returns a set of AnnotatedTypeMirror that is allowed throw exceptions for method.
-    //     *
-    //     * <p>Note: If the method declaration do not have any throw clauses, then return null.
-    //     *
-    //     * @param mtree MethodTree to look up throw expressions
-    //     * @return List of AnnotationTypeMirrors, one per exception in method signature, that
-    // contains
-    //     *     annotation and java expressions
-    //     */
-    //    protected List<AnnotatedTypeMirror> getExceptionList(MethodTree mtree) {
-    //        List<AnnotatedTypeMirror> ExceptionList = new ArrayList<>();
-    //        List<? extends ExpressionTree> ExceptionTrees = mtree.getThrows();
-    //        if (!ExceptionTrees.isEmpty()) {
-    //            for (ExpressionTree throwExpression : ExceptionTrees) {
-    //                ExceptionList.add(atypeFactory.getAnnotatedType(throwExpression));
-    //            }
-    //        }
-    //        return ExceptionList;
-    //    }
-=======
+
     /**
      * Use the target checker to remove fields that are initialized or do not need to be initialized
      * in the store before or after {@code tree} from {@code uninitializedFields}.
@@ -650,5 +629,4 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
                             factory, value, varElement);
                 });
     }
->>>>>>> master
 }
