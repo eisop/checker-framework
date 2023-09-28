@@ -11,10 +11,9 @@ import java.lang.annotation.Target;
  * When written together with {@code @Target({ElementType.TYPE_USE})}, the given type qualifier may
  * be applied only at locations listed in the {@code @TargetLocations(...)} meta-annotation.
  * {@code @Target({ElementType.TYPE_USE})} together with no {@code @TargetLocations(...)} means that
- * the qualifier can be applied on any type use. {@code @TargetLocations({})} will prevent the
- * annotation from been applied in the source code, but you can achieve the same goal by writing
- * {@code @Target({})}. So, we don't suggest writing the annotation with no type-use location
- * supplied.
+ * the qualifier can be applied to any type use. {@code @TargetLocations({})} means that the
+ * qualifier should not be used in source code. The same goal can be achieved by writing
+ * {@code @Target({})}, which is enforced by javac itself. So, we do not suggest writing {@code @Target({})}.
  *
  * <p>This enables a type system designer to permit a qualifier to be applied only in certain
  * locations. For example, some type systems' top and bottom qualifier (such as {@link
