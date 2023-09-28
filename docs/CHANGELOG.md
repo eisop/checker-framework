@@ -3,6 +3,8 @@ Version 3.34.0-eisop2 (May ?, 2023)
 
 **User-visible changes:**
 
+Fixed a bug in the Nullness Checker where the instance receiver is not necessarily non-null after a static method/field access.
+
 The Initialization Checker is now separated from the Nullness Checker.
 To unsoundly use the Nullness Checker without initialization checking, use the new `-AassumeInitialized`
 command-line argument.
@@ -32,7 +34,7 @@ Changed the return types of
 
 **Closed issues:**
 
-eisop#297, eisop#376, eisop#400, eisop#532 eisop#533, typetools#1590.
+eisop#297, eisop#376, eisop#400, eisop#532, eisop#533, typetools#1590.
 
 Version 3.34.0-eisop1 (May 9, 2023)
 -----------------------------------

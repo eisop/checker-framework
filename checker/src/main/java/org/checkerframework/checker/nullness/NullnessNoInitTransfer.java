@@ -374,7 +374,7 @@ public class NullnessNoInitTransfer
             FieldAccessNode n, TransferInput<NullnessNoInitValue, NullnessNoInitStore> p) {
         TransferResult<NullnessNoInitValue, NullnessNoInitStore> result =
                 super.visitFieldAccess(n, p);
-        // The receiver of an instance field access is non-null. A static method access does not
+        // The receiver of an instance field access is non-null. A static field access does not
         // ensure that the receiver is non-null.
         if (!n.isStatic()) {
             makeNonNull(result, n.getReceiver());
