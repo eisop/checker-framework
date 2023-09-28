@@ -13,11 +13,11 @@ In this release, `nullness` continues to suppress warnings from the Initializati
 `nullnessnoinit` may be used to suppress warnings from the Nullness Checker only. A future release
 will make suppression behavior consistent with other checkers.
 
-The new command-line argument `-AignoreTargetLocation` disables validating the target locations
+The new command-line argument `-AignoreTargetLocations` disables validating the target locations
 of qualifiers. By default, if a qualifier is declared with the meta-annotation
-@TargetLocations({TypeUseLocation...}), the qualifier should only be applied on these type use
-locations. With this flag, the checker ignores the meta-annotation and allow the qualifier to be
-applied on everywhere.
+`@TargetLocations({TypeUseLocation...})`, the qualifier should only be applied to these type use
+locations. With this flag, the checker ignores all `@TargetLocations` meta-annotations and allows all qualifiers to be
+applied to every type use.
 
 **Implementation details:**
 

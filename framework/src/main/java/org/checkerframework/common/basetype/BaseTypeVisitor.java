@@ -342,7 +342,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             Element elem = elements.getTypeElement(qual);
             TargetLocations tls = elem.getAnnotation(TargetLocations.class);
             // @Target({ElementType.TYPE_USE})} together with no @TargetLocations(...) means that
-            // the qualifier can be written on any type use
+            // the qualifier can be written on any type use.
             // TODO: do we have to consider the scenario that @Target contains other ElementType?
             if (tls == null) {
                 AnnoToTargetLocations.put(qual, null);

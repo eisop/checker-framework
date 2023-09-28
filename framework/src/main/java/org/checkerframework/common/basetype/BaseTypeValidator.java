@@ -730,7 +730,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
             List<TypeUseLocation> locations =
                     visitor.AnnoToTargetLocations.get(AnnotationUtils.annotationName(am));
             // @Target({ElementType.TYPE_USE})} together with no @TargetLocations(...) means
-            // that the qualifier can be written on any type use
+            // that the qualifier can be written on any type use.
             if (locations == null
                     || locations.contains(TypeUseLocation.EXPLICIT_LOWER_BOUND)
                     || locations.contains(TypeUseLocation.IMPLICIT_LOWER_BOUND)
