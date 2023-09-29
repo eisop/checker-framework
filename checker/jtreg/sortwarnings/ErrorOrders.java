@@ -7,14 +7,14 @@ import org.checkerframework.checker.index.qual.UpperBoundBottom;
 import org.checkerframework.common.value.qual.BottomVal;
 
 /** This class tests that errors are issued in order of postion. */
-// Ignore the test suite's usage of qualifiers in illegal locations.
-@SuppressWarnings("type.invalid.annotations.on.location")
 public class ErrorOrders {
 
     void test2(int i, int[] a) {
         a[i] = 2;
     }
 
+    // Ignore the test suite's usage of qualifiers in illegal locations.
+    @SuppressWarnings("type.invalid.annotations.on.location")
     int test4(
             @GTENegativeOne @UpperBoundBottom int p1,
             @UpperBoundBottom @GTENegativeOne int p2,
@@ -47,6 +47,8 @@ class InSameCompilationUnit {
         a[i] = 2;
     }
 
+    // Ignore the test suite's usage of qualifiers in illegal locations.
+    @SuppressWarnings("type.invalid.annotations.on.location")
     int test4(
             @GTENegativeOne @UpperBoundBottom int p1,
             @UpperBoundBottom @GTENegativeOne int p2,
