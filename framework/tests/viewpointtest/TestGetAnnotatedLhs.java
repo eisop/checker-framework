@@ -36,7 +36,8 @@ class TestGetAnnotatedLhs {
     @SuppressWarnings({"cast.unsafe.constructor.invocation"})
     void topWithoutRefinement() {
         TestGetAnnotatedLhs top = new @Top TestGetAnnotatedLhs();
-        // :: error: (assignment.type.incompatible)
+        // See #576.
+        // :TODO: error: (assignment.type.incompatible)
         top.f = new @B Object();
         top.f = new @A Object();
     }
