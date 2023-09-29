@@ -2336,20 +2336,39 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return the type of the receiver of expression
      */
     public final AnnotatedTypeMirror getReceiverType(ExpressionTree expression) {
+        AnnotatedTypeMirror receiverType;
         ExpressionTree receiver = TreeUtils.getReceiverTree(expression);
         if (receiver != null) {
-            return getAnnotatedType(receiver);
-        }
-
-        Element element = TreeUtils.elementFromTree(expression);
-        if (element != null && ElementUtils.hasReceiver(element)) {
-            // The tree references an element that has a receiver, but the tree does not have an
-            // explicit receiver. So, the tree must have an implicit receiver of "this" or
-            // "Outer.this".
-            return getImplicitReceiverType(expression);
+            receiverType = getAnnotatedType(receiver);
         } else {
-            return null;
+            Element element = TreeUtils.elementFromTree(expression);
+            if (element != null && ElementUtils.hasReceiver(element)) {
+                // The tree references an element that has a receiver, but the tree does not have an
+                // explicit receiver. So, the tree must have an implicit receiver of "this" or
+                // "Outer.this".
+                receiverType = getImplicitReceiverType(expression);
+            } else {
+                receiverType = null;
+            }
         }
+        // In Java versions below 11, consider the following code:
+        // class Outer {
+        //   class Inner{}
+        // }
+        // class Top {
+        //   void test(Outer outer) {
+        //     outer.new Inner(){};
+        //   }
+        // }
+        // the receiverType of outer.new Inner(){} is Top instead of Outer,
+        // because Java below 11 organizes newClassTree of an anonymous class in a different
+        // way: there is a synthetic argument representing the enclosing expression type.
+        // In such case, use the synthetic argument as its receiver type.
+        if ((expression instanceof NewClassTree)
+                && TreeUtils.hasSyntheticArgument((NewClassTree) expression)) {
+            receiverType = getAnnotatedType(((NewClassTree) expression).getArguments().get(0));
+        }
+        return receiverType;
     }
 
     /** The type for an instantiated generic method or constructor. */
@@ -2452,7 +2471,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // Adapt parameters, which makes parameters and arguments be the same size for later
         // checking.
         List<AnnotatedTypeMirror> parameters =
-                AnnotatedTypes.adaptParameters(this, method, tree.getArguments());
+                AnnotatedTypes.adaptParameters(this, method, tree.getArguments(), null);
         method.setParameterTypes(parameters);
         return result;
     }
@@ -2858,21 +2877,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 //   x0.super();
                 //   }
                 // So the code below deals with this.
+                // Because the anonymous constructor doesn't have annotated receiver type,
+                // we copy the receiver type from the super constructor invoked in the anonymous
+                // constructor
                 List<AnnotatedTypeMirror> p =
                         new ArrayList<>(superCon.getParameterTypes().size() + 1);
-                if (TreeUtils.hasSyntheticArgument(tree)) {
-                    p.add(con.getParameterTypes().get(0));
-                    con.setReceiverType(superCon.getReceiverType());
-                } else if (con.getReceiverType() != null) {
-                    // Because the anonymous constructor doesn't have annotated receiver type,
-                    // we copy the receiver type from the super constructor invoked in the anonymous
-                    // constructor and add it to the parameterTypes as the first element.
-                    con.setReceiverType(superCon.getReceiverType());
-                    p.add(con.getReceiverType());
-                } else {
-                    p.add(con.getParameterTypes().get(0));
-                }
-                p.addAll(1, superCon.getParameterTypes());
+                p.add(con.getParameterTypes().get(0));
+                con.setReceiverType(superCon.getReceiverType());
+                p.addAll(superCon.getParameterTypes());
                 con.setParameterTypes(Collections.unmodifiableList(p));
             }
             con.getReturnType().replaceAnnotations(superCon.getReturnType().getAnnotations());
@@ -2918,7 +2930,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // checking. The vararg type of con has been already computed and stored when calling
         // typeVarSubstitutor.substitute.
         List<AnnotatedTypeMirror> parameters =
-                AnnotatedTypes.adaptParameters(this, con, tree.getArguments());
+                AnnotatedTypes.adaptParameters(this, con, tree.getArguments(), tree);
         con.setParameterTypes(parameters);
         return new ParameterizedExecutableType(con, typeargs);
     }
