@@ -1711,7 +1711,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
     }
 
-    /** Initialize qualAllowedLocations, which is used for declared type-use locations lookup. */
+    /**
+     * Create a new map, which is used for declared type-use locations lookup.
+     *
+     * @return a new mapping from strings of qualifier names to their declared type-use locations.
+     */
     protected Map<@CanonicalName String, List<TypeUseLocation>> createQualAllowedLocations() {
         HashMap<@CanonicalName String, List<TypeUseLocation>> qualAllowedLocations =
                 new HashMap<>();

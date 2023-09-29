@@ -18,6 +18,8 @@ public class ValueIgnoreRangeOverflowTest extends CheckerFrameworkPerDirectoryTe
                 testFiles,
                 org.checkerframework.common.value.ValueChecker.class,
                 "value",
+                // Ignore the test suite's usage of qualifiers in illegal locations.
+                "-AignoreTargetLocations",
                 "-A" + ValueChecker.REPORT_EVAL_WARNS,
                 "-A" + ValueChecker.IGNORE_RANGE_OVERFLOW);
     }

@@ -37,7 +37,7 @@ public class KeyForLub {
         // :: error: (assignment.type.incompatible)
         @PolyKeyFor String s1 = flag ? poly : unknown;
         @PolyKeyFor String s2 = flag ? poly : bot;
-        // :: error: (assignment.type.incompatible)
+        // :: error: (assignment.type.incompatible) :: error: (type.invalid.annotations.on.location)
         @KeyForBottom String s3 = flag ? poly : bot;
     }
 }

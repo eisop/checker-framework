@@ -17,6 +17,8 @@ public class ValueNonNullStringsConcatenationTest extends CheckerFrameworkPerDir
                 testFiles,
                 org.checkerframework.common.value.ValueChecker.class,
                 "value-non-null-strings-concatenation",
+                // Ignore the test suite's usage of qualifiers in illegal locations.
+                "-AignoreTargetLocations",
                 "-A" + ValueChecker.REPORT_EVAL_WARNS,
                 "-A" + ValueChecker.NON_NULL_STRINGS_CONCATENATION);
     }
