@@ -66,9 +66,9 @@ public class NullnessNoInitValue extends CFAbstractValue<NullnessNoInitValue> {
     }
 
     /**
-     * Returns true if this value contans {@code @NonNull} or {@code @PolyNull}.
+     * Returns true if this value contains {@code @NonNull} or {@code @PolyNull}.
      *
-     * @return true if this value contans {@code @NonNull} or {@code @PolyNull}
+     * @return true if this value contains {@code @NonNull} or {@code @PolyNull}
      */
     @Pure
     private boolean containsNonNullOrPolyNull() {

@@ -49,7 +49,7 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     private final AnnotationMirror UNKNOWN_METHOD =
             AnnotationBuilder.fromClass(elements, UnknownMethod.class);
 
-    /** An arary length that represents that the length is unknown. */
+    /** An array length that represents that the length is unknown. */
     private static final int UNKNOWN_PARAM_LENGTH = -1;
 
     /** A list containing just {@link #UNKNOWN_PARAM_LENGTH}. */
@@ -410,7 +410,7 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         /**
-         * if getMethod(Object receiver, Object... params) or getConstrutor(Object... params) have
+         * if getMethod(Object receiver, Object... params) or getConstructor(Object... params) have
          * one argument for params, then the number of parameters in the underlying method or
          * constructor must be:
          *

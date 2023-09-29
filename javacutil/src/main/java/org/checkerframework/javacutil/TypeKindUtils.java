@@ -125,7 +125,7 @@ public final class TypeKindUtils {
         return boxedToPrimitiveType.get(typeString);
     }
 
-    // No overload that takes AnnotatedTypeMirror becasue javacutil cannot depend on framework.
+    // No overload that takes AnnotatedTypeMirror because javacutil cannot depend on framework.
     /**
      * Returns the widened numeric type for an arithmetic operation performed on a value of the left
      * type and the right type. Defined in JLS 5.6.2. We return a {@link TypeKind} because creating
@@ -256,7 +256,7 @@ public final class TypeKindUtils {
     }
 
     /**
-     * Returns the minimum value representable by the given ingetgral primitive type.
+     * Returns the minimum value representable by the given integral primitive type.
      *
      * @param tk a primitive type kind
      * @return the minimum value representable by the given integral primitive type

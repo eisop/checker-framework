@@ -928,7 +928,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Check the defaultc constructor.
+     * Check the default constructor.
      *
      * @param tree a class declaration
      */
