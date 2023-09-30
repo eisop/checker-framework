@@ -567,7 +567,7 @@ public class QualifierDefaults {
             case IDENTIFIER:
                 elt = TreeUtils.elementFromUse((IdentifierTree) tree);
                 if (ElementUtils.isTypeDeclaration(elt)) {
-                    // If the Idenitifer is a type, then use the scope of the tree.
+                    // If the identifier is a type, then use the scope of the tree.
                     elt = nearestEnclosingExceptLocal(tree);
                 }
                 break;

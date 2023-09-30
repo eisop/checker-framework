@@ -328,7 +328,7 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
      * List<@Nullable String> nl = method(nonNullList);
      * }</pre>
      *       The above assignment should fail because T is forced to be both @NonNull and @Nullable.
-     *       In cases like these, we use @NonNull String becasue we always favor constraints from
+     *       In cases like these, we use @NonNull String because we always favor constraints from
      *       the arguments over the assignment context.
      *   <li>6. Infer from Assignment Context Finally, the JLS states that we should substitute the
      *       types we have inferred up until this point back into the original argument constraints.
@@ -443,7 +443,7 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
      * }</pre>
      *
      * TODO: NOTE WE ONLY DO THIS FOR InferredType results for now but we should probably include
-     * targest as well
+     * targets as well
      *
      * @param fromArgSupertypes types inferred from LUBbing types from the arguments to the formal
      *     parameters

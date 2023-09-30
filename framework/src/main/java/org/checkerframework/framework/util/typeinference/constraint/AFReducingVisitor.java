@@ -402,7 +402,7 @@ abstract class AFReducingVisitor extends AbstractAtmComboVisitor<Void, Set<AFCon
         return null; // TODO: UNIONS ARE NOT YET SUPPORTED
     }
 
-    // Despite the fact that intersections are not yet supported, this is the right impelementation.
+    // Despite the fact that intersections are not yet supported, this is the right implementation.
     // NULL types only have primary annotations.  Since type parameters cannot be a member of the
     // intersection's bounds (though they can be component types), we do not need to do anything
     // further.
