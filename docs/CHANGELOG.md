@@ -13,6 +13,12 @@ In this release, `nullness` continues to suppress warnings from the Initializati
 `nullnessnoinit` may be used to suppress warnings from the Nullness Checker only. A future release
 will make suppression behavior consistent with other checkers.
 
+The Initialization Checker supports the new qualifier `@PolyInitialized` to express qualifier polymorphism.
+
+Fixed a bug in the Nullness Checker where an instance receiver is incorrectly marked non-null after
+a static method or field access. This could lead to new nullness errors. The static access should be
+changed to be through a class name.
+
 **Implementation details:**
 
 Corrected the arguments to an `ObjectCreationNode` when the node refers to an
@@ -32,7 +38,7 @@ Changed the return types of
 
 **Closed issues:**
 
-eisop#297, eisop#376, eisop#400, eisop#532, typetools#1590.
+eisop#297, eisop#376, eisop#400, eisop#519, eisop#532, eisop#533, typetools#1590.
 
 
 Version 3.34.0-eisop1 (May 9, 2023)
