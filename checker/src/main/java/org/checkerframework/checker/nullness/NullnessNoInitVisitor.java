@@ -340,7 +340,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
      * example "new Object[0][0];". Also true for empty dimensions, as in "new Object[] {...}".
      *
      * @param tree the constructor invocation to check
-     * @return true if every array dimention has a size of zero
+     * @return true if every array dimension has a size of zero
      */
     private static boolean isNewArrayAllZeroDims(NewArrayTree tree) {
         boolean isAllZeros = true;
@@ -363,7 +363,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
      * Return true if the given tree is "new X[]", in the context "toArray(new X[])".
      *
      * @param tree a tree to test
-     * @return true if the tree is a new array within acall to toArray()
+     * @return true if the tree is a new array within a call to toArray()
      */
     private boolean isNewArrayInToArray(NewArrayTree tree) {
         if (tree.getDimensions().size() != 1) {
