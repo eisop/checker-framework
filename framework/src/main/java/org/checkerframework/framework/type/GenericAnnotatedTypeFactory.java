@@ -1782,6 +1782,24 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
+     * As long as everUseFlow is true, always enable flow refinement for the receiver. This method
+     * is an implementation detail and visible inside the package only. See the comment in this
+     * testcase for more details framework/tests/viewpointtest/TestGetAnnotatedLhs.java.
+     *
+     * @see #getAnnotatedType(Tree)
+     * @see #getAnnotatedTypeLhs(Tree)
+     * @param tree an expression tree
+     * @return the refined type of the expression tree
+     */
+    /*package-private*/ AnnotatedTypeMirror getAnnotatedTypeWithReceiverRefinement(Tree tree) {
+        boolean oldUseFlow = useFlow;
+        useFlow = everUseFlow;
+        AnnotatedTypeMirror result = getAnnotatedType(tree);
+        useFlow = oldUseFlow;
+        return result;
+    }
+
+    /**
      * Returns the type of a varargs array of a method invocation or a constructor invocation.
      * Returns null only if private field {@code useFlow} is false.
      *
