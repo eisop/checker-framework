@@ -2,7 +2,7 @@ Version 3.34.0-eisop2 (May ?, 2023)
 -----------------------------------
 
 **User-visible changes:**
-The Initialization Checker supports the new qualifier `@PolyInitialized` to express qualifier polymorphism.
+
 The Initialization Checker is now separated from the Nullness Checker.
 To unsoundly use the Nullness Checker without initialization checking, use the new `-AassumeInitialized`
 command-line argument.
@@ -12,6 +12,8 @@ simplifies the types in error messages.
 In this release, `nullness` continues to suppress warnings from the Initialization Checker, while
 `nullnessnoinit` may be used to suppress warnings from the Nullness Checker only. A future release
 will make suppression behavior consistent with other checkers.
+
+The Initialization Checker supports the new qualifier `@PolyInitialized` to express qualifier polymorphism.
 
 Fixed a bug in the Nullness Checker where an instance receiver is incorrectly marked non-null after
 a static method or field access. This could lead to new nullness errors. The static access should be
