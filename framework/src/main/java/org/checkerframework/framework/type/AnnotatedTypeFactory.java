@@ -5882,8 +5882,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
       makeConditionConsistentWithOtherMethod(postcondMap, inSubtype, false, false);
     }
   }
+  */
 
-  /**
+  /* NO-AFU
    * Performs side effects to make {@code conditionMap} obey behavioral subtyping constraints with
    * {@code otherDeclAnnos}, that is, postconditions must be at least as strong as the postcondition
    * on the superclass, and preconditions must be at most as strong as the condition on the
@@ -5900,6 +5901,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
    * @param otherIsSupertype true if {@code otherDeclAnnos} are on a supertype; false if they are on
    *     a subtype
    */
+  /* NO-AFU
   protected void makeConditionConsistentWithOtherMethod(
       Map<String, Pair<AnnotatedTypeMirror, AnnotatedTypeMirror>> conditionMap,
       WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos otherDeclAnnos,
