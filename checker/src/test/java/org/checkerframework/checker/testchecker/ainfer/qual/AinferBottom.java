@@ -15,6 +15,6 @@ import java.lang.annotation.Target;
  */
 @SubtypeOf({AinferImplicitAnno.class})
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-@TargetLocations({TypeUseLocation.EXPLICIT_LOWER_BOUND, TypeUseLocation.EXPLICIT_UPPER_BOUND})
+@TargetLocations({TypeUseLocation.LOWER_BOUND, TypeUseLocation.UPPER_BOUND})
 @DefaultFor(TypeUseLocation.LOWER_BOUND)
 public @interface AinferBottom {}

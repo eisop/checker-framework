@@ -13,12 +13,6 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-@TargetLocations({
-    TypeUseLocation.FIELD,
-    TypeUseLocation.LOCAL_VARIABLE,
-    TypeUseLocation.PARAMETER,
-    TypeUseLocation.RETURN,
-    TypeUseLocation.CONSTRUCTOR_RESULT
-})
+@TargetLocations({TypeUseLocation.LOWER_BOUND})
 @SubtypeOf({H2Top.class})
-public @interface H2S1 {}
+public @interface H2OnlyOnLB {}

@@ -19,6 +19,13 @@ Fixed a bug in the Nullness Checker where an instance receiver is incorrectly ma
 a static method or field access. This could lead to new nullness errors. The static access should be
 changed to be through a class name.
 
+Checkers now enforce `@TargetLocations` meta-annotations: if a qualifier is declared with the
+meta-annotation `@TargetLocations({TypeUseLocation...})`, the qualifier should only be applied to
+these type use locations.
+The new command-line argument `-AignoreTargetLocations` disables validating the target locations
+of qualifiers. This option is not enabled by default. With this flag, the checker ignores all
+`@TargetLocations` meta-annotations and allows all qualifiers to be applied to every type use.
+
 **Implementation details:**
 
 Corrected the arguments to an `ObjectCreationNode` when the node refers to an
@@ -38,7 +45,7 @@ Changed the return types of
 
 **Closed issues:**
 
-eisop#297, eisop#376, eisop#400, eisop#519, eisop#532, eisop#533, typetools#1590.
+eisop#297, eisop#376, eisop#400, eisop#519, eisop#532, eisop#533, typetools#1590, typetools#1919.
 
 
 Version 3.34.0-eisop1 (May 9, 2023)

@@ -338,6 +338,8 @@ import io.github.classgraph.ClassGraph;
     // Do not perform a JRE version check.
     "noJreVersionCheck",
 
+    // Do not validate meta-annotation @TargetLocations
+    "ignoreTargetLocations",
     /// Format of messages
 
     // Output detailed message in simple-to-parse format, useful

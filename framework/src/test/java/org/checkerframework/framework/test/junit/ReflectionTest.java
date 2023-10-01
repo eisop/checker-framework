@@ -15,7 +15,12 @@ public class ReflectionTest extends CheckerFrameworkPerDirectoryTest {
      * @param testFiles the files containing test code, which will be type-checked
      */
     public ReflectionTest(List<File> testFiles) {
-        super(testFiles, ReflectionTestChecker.class, "reflection");
+        super(
+                testFiles,
+                ReflectionTestChecker.class,
+                "reflection",
+                // Ignore the test suite's usage of qualifiers in illegal locations.
+                "-AignoreTargetLocations");
     }
 
     @Parameters

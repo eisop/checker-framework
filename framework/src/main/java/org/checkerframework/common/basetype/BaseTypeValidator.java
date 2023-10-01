@@ -13,6 +13,7 @@ import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.source.DiagMessage;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
@@ -36,6 +37,7 @@ import org.checkerframework.javacutil.TypeAnnotationUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.ArrayMap;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -686,6 +688,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
             reportInvalidBounds(type, tree);
         }
 
+        validateWildCardTargetLocation(type, tree);
         return super.visitWildcard(type, tree);
     }
 
@@ -711,5 +714,63 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         //  a bound.type.incompatible
 
         return true;
+    }
+
+    /**
+     * Validate if qualifiers on wildcard are permitted by {@link
+     * org.checkerframework.framework.qual.TargetLocations}. Report an error if the actual use of
+     * this annotation is not listed in the declared TypeUseLocations in this meta-annotation.
+     *
+     * @param type the type to check
+     * @param tree the tree of this type
+     */
+    protected void validateWildCardTargetLocation(AnnotatedWildcardType type, Tree tree) {
+        if (visitor.ignoreTargetLocations) {
+            return;
+        }
+
+        for (AnnotationMirror am : type.getSuperBound().getAnnotations()) {
+            List<TypeUseLocation> locations =
+                    visitor.qualAllowedLocations.get(AnnotationUtils.annotationName(am));
+            // @Target({ElementType.TYPE_USE})} together with no @TargetLocations(...) means
+            // that the qualifier can be written on any type use.
+            // Otherwise, for a valid use of qualifier on the super bound, that qualifier must
+            // declare one of these four type-use locations in the @TargetLocations meta-annotation.
+            List<TypeUseLocation> lowerLocations =
+                    Arrays.asList(
+                            TypeUseLocation.ALL,
+                            TypeUseLocation.LOWER_BOUND,
+                            TypeUseLocation.IMPLICIT_LOWER_BOUND,
+                            TypeUseLocation.EXPLICIT_LOWER_BOUND);
+            if (locations == null || locations.stream().anyMatch(lowerLocations::contains)) {
+                continue;
+            }
+
+            checker.reportError(
+                    tree,
+                    "type.invalid.annotations.on.location",
+                    type.getSuperBound().getAnnotations().toString(),
+                    "SUPER_WILDCARD");
+        }
+
+        for (AnnotationMirror am : type.getExtendsBound().getAnnotations()) {
+            List<TypeUseLocation> locations =
+                    visitor.qualAllowedLocations.get(AnnotationUtils.annotationName(am));
+            List<TypeUseLocation> upperLocations =
+                    Arrays.asList(
+                            TypeUseLocation.ALL,
+                            TypeUseLocation.UPPER_BOUND,
+                            TypeUseLocation.IMPLICIT_UPPER_BOUND,
+                            TypeUseLocation.EXPLICIT_UPPER_BOUND);
+            if (locations == null || locations.stream().anyMatch(upperLocations::contains)) {
+                continue;
+            }
+
+            checker.reportError(
+                    tree,
+                    "type.invalid.annotations.on.location",
+                    type.getExtendsBound().getAnnotations().toString(),
+                    "EXTENDS_WILDCARD");
+        }
     }
 }
