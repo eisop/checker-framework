@@ -303,7 +303,7 @@ allprojects {
 
                 googleJavaFormat().aosp()
                 importOrder('com', 'jdk', 'lib', 'lombok', 'org', 'java', 'javax')
-                formatAnnotations()
+                formatAnnotations().addTypeAnnotation("PolyInitialized")
             }
 
             groovyGradle {
