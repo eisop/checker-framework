@@ -1617,7 +1617,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param type the type of the tree
      */
     protected void validateVariablesTargetLocation(Tree tree, AnnotatedTypeMirror type) {
-        if (ignoreTargetLocations) return;
+        if (ignoreTargetLocations) {
+            return;
+        }
         Element element = TreeUtils.elementFromTree(tree);
 
         if (element != null) {
@@ -5062,7 +5064,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     // not use void as return type.
                     return true;
                 }
-                if (((MethodTree) tree).getReturnType() == null) {
+                if (TreeUtils.isConstructor(tree)) {
                     validateTargetLocation(tree, type, TypeUseLocation.CONSTRUCTOR_RESULT);
                 } else {
                     validateTargetLocation(tree, type, TypeUseLocation.RETURN);
