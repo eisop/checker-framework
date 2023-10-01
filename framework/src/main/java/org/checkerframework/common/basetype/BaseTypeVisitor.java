@@ -5064,7 +5064,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     // not use void as return type.
                     return true;
                 }
-                if (TreeUtils.isConstructor(tree)) {
+                if (TreeUtils.isConstructor((MethodTree) tree)) {
                     validateTargetLocation(tree, type, TypeUseLocation.CONSTRUCTOR_RESULT);
                 } else {
                     validateTargetLocation(tree, type, TypeUseLocation.RETURN);
