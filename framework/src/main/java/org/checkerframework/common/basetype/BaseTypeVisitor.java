@@ -2671,8 +2671,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     @Override
     public Void visitThrow(ThrowTree tree, Void p) {
-        MethodTree mtree = this.methodTree;
-        checkThrownExpression(tree, mtree);
+        checkThrownExpression(tree);
         return super.visitThrow(tree, p);
     }
 
@@ -2886,26 +2885,20 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * #getThrowUpperBoundAnnotations()}.
      *
      * @param tree ThrowTree to check
-     * @param mtree MethodTree to look up annotations
      */
-    protected void checkThrownExpression(ThrowTree tree, @Nullable MethodTree mtree) {
+    protected void checkThrownExpression(ThrowTree tree) {
         AnnotatedTypeMirror throwType = atypeFactory.getAnnotatedType(tree.getExpression());
         Set<? extends AnnotationMirror> required = getThrowUpperBoundAnnotations();
-        if (mtree != null && getExceptionList(mtree) != null) {
-            List<AnnotatedTypeMirror> exceptionList = getExceptionList(mtree);
-            //            boolean exceptionFound = false;
+        if (methodTree != null && getExceptionList(methodTree) != null) {
+            List<AnnotatedTypeMirror> exceptionList = getExceptionList(methodTree);
             for (AnnotatedTypeMirror exception : exceptionList) {
                 Types typesUtil = atypeFactory.getProcessingEnv().getTypeUtils();
                 if (typesUtil.isSubtype(
                         exception.getUnderlyingType(), throwType.getUnderlyingType())) {
                     required = exception.getAnnotations();
-                    //                    exceptionFound = true;
                     break;
                 }
             }
-            //            if (!exceptionFound) {
-            //                throw new BugInCF("Exception type is not in method signature");
-            //            }
         }
         switch (throwType.getKind()) {
             case NULL:
