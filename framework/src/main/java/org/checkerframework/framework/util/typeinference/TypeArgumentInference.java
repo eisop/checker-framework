@@ -1,15 +1,12 @@
 package org.checkerframework.framework.util.typeinference;
 
 import com.sun.source.tree.ExpressionTree;
-
+import java.util.Map;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.type.TypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
-
-import java.util.Map;
-
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.type.TypeVariable;
 
 /**
  * Instances of TypeArgumentInference are used to infer the types of method type arguments when no
@@ -40,22 +37,22 @@ import javax.lang.model.type.TypeVariable;
  */
 public interface TypeArgumentInference {
 
-    /**
-     * Infer the type arguments for the method or constructor invocation given by invocation.
-     *
-     * @param typeFactory the type factory used to create methodType
-     * @param invocation a tree representing the method or constructor invocation for which we are
-     *     inferring type arguments
-     * @param methodElem the element for the declaration of the method being invoked
-     * @param methodType the declaration type of method elem
-     * @return a mapping between the Java type parameter and the annotated type that was inferred
-     *     for it. Note: We use the Java TypeVariable type because this uniquely identifies a
-     *     declaration where as two uses of an AnnotatedTypeVariable may be uses of the same
-     *     declaration but are not .equals to each other.
-     */
-    public Map<TypeVariable, AnnotatedTypeMirror> inferTypeArgs(
-            final AnnotatedTypeFactory typeFactory,
-            final ExpressionTree invocation,
-            final ExecutableElement methodElem,
-            final AnnotatedExecutableType methodType);
+  /**
+   * Infer the type arguments for the method or constructor invocation given by invocation.
+   *
+   * @param typeFactory the type factory used to create methodType
+   * @param invocation a tree representing the method or constructor invocation for which we are
+   *     inferring type arguments
+   * @param methodElem the element for the declaration of the method being invoked
+   * @param methodType the declaration type of method elem
+   * @return a mapping between the Java type parameter and the annotated type that was inferred for
+   *     it. Note: We use the Java TypeVariable type because this uniquely identifies a declaration
+   *     where as two uses of an AnnotatedTypeVariable may be uses of the same declaration but are
+   *     not .equals to each other.
+   */
+  public Map<TypeVariable, AnnotatedTypeMirror> inferTypeArgs(
+      final AnnotatedTypeFactory typeFactory,
+      final ExpressionTree invocation,
+      final ExecutableElement methodElem,
+      final AnnotatedExecutableType methodType);
 }

@@ -1,17 +1,14 @@
 package org.checkerframework.checker.nullness;
 
 import com.sun.source.tree.MethodInvocationTree;
-
-import org.checkerframework.framework.type.AnnotatedTypeMirror;
-import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
-import org.checkerframework.javacutil.TreeUtils;
-
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
-
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.ExecutableElement;
+import org.checkerframework.framework.type.AnnotatedTypeMirror;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.javacutil.TreeUtils;
 
 /**
  * Utility class for handling {@link java.lang.System#getProperty(String)} and related invocations.
@@ -22,108 +19,108 @@ import javax.lang.model.element.ExecutableElement;
  */
 public class SystemGetPropertyHandler {
 
-    /**
-     * If true, client code may clear system properties, and this class (SystemGetPropertyHandler)
-     * has no effect.
-     */
-    private final boolean permitClearProperty;
+  /**
+   * If true, client code may clear system properties, and this class (SystemGetPropertyHandler) has
+   * no effect.
+   */
+  private final boolean permitClearProperty;
 
-    /** The processing environment. */
-    private final ProcessingEnvironment env;
+  /** The processing environment. */
+  private final ProcessingEnvironment env;
 
-    /** The factory for constructing and looking up types. */
-    private final NullnessNoInitAnnotatedTypeFactory factory;
+  /** The factory for constructing and looking up types. */
+  private final NullnessNoInitAnnotatedTypeFactory factory;
 
-    /** The System.getProperty(String) method. */
-    private final ExecutableElement systemGetProperty;
+  /** The System.getProperty(String) method. */
+  private final ExecutableElement systemGetProperty;
 
-    /** The System.setProperty(String) method. */
-    private final ExecutableElement systemSetProperty;
+  /** The System.setProperty(String) method. */
+  private final ExecutableElement systemSetProperty;
 
-    /**
-     * System properties that are defined at startup on every JVM.
-     *
-     * <p>This list is from the Javadoc of System.getProperties, for Java 17.
-     */
-    public static final Collection<String> predefinedSystemProperties =
-            new HashSet<>(
-                    Arrays.asList(
-                            "java.version",
-                            "java.version.date",
-                            "java.vendor",
-                            "java.vendor.url",
-                            "java.vendor.version",
-                            "java.home",
-                            "java.vm.specification.version",
-                            "java.vm.specification.vendor",
-                            "java.vm.specification.name",
-                            "java.vm.version",
-                            "java.vm.vendor",
-                            "java.vm.name",
-                            "java.specification.version",
-                            "java.specification.maintenance.version",
-                            "java.specification.vendor",
-                            "java.specification.name",
-                            "java.class.version",
-                            "java.class.path",
-                            "java.library.path",
-                            "java.io.tmpdir",
-                            "java.compiler",
-                            "os.name",
-                            "os.arch",
-                            "os.version",
-                            "file.separator",
-                            "path.separator",
-                            "line.separator",
-                            "user.name",
-                            "user.home",
-                            "user.dir",
-                            "native.encoding",
-                            "stdout.encoding",
-                            "stderr.encoding",
-                            "jdk.module.path",
-                            "jdk.module.upgrade.path",
-                            "jdk.module.main",
-                            "jdk.module.main.class",
-                            "file.encoding"));
+  /**
+   * System properties that are defined at startup on every JVM.
+   *
+   * <p>This list is from the Javadoc of System.getProperties, for Java 17.
+   */
+  public static final Collection<String> predefinedSystemProperties =
+      new HashSet<>(
+          Arrays.asList(
+              "java.version",
+              "java.version.date",
+              "java.vendor",
+              "java.vendor.url",
+              "java.vendor.version",
+              "java.home",
+              "java.vm.specification.version",
+              "java.vm.specification.vendor",
+              "java.vm.specification.name",
+              "java.vm.version",
+              "java.vm.vendor",
+              "java.vm.name",
+              "java.specification.version",
+              "java.specification.maintenance.version",
+              "java.specification.vendor",
+              "java.specification.name",
+              "java.class.version",
+              "java.class.path",
+              "java.library.path",
+              "java.io.tmpdir",
+              "java.compiler",
+              "os.name",
+              "os.arch",
+              "os.version",
+              "file.separator",
+              "path.separator",
+              "line.separator",
+              "user.name",
+              "user.home",
+              "user.dir",
+              "native.encoding",
+              "stdout.encoding",
+              "stderr.encoding",
+              "jdk.module.path",
+              "jdk.module.upgrade.path",
+              "jdk.module.main",
+              "jdk.module.main.class",
+              "file.encoding"));
 
-    /**
-     * Creates a SystemGetPropertyHandler.
-     *
-     * @param env the processing environment
-     * @param factory the factory for constructing and looking up types
-     * @param permitClearProperty if true, client code may clear system properties, and this object
-     *     does nothing
-     */
-    public SystemGetPropertyHandler(
-            ProcessingEnvironment env,
-            NullnessNoInitAnnotatedTypeFactory factory,
-            boolean permitClearProperty) {
-        this.env = env;
-        this.factory = factory;
-        this.permitClearProperty = permitClearProperty;
+  /**
+   * Creates a SystemGetPropertyHandler.
+   *
+   * @param env the processing environment
+   * @param factory the factory for constructing and looking up types
+   * @param permitClearProperty if true, client code may clear system properties, and this object
+   *     does nothing
+   */
+  public SystemGetPropertyHandler(
+      ProcessingEnvironment env,
+      NullnessNoInitAnnotatedTypeFactory factory,
+      boolean permitClearProperty) {
+    this.env = env;
+    this.factory = factory;
+    this.permitClearProperty = permitClearProperty;
 
-        systemGetProperty = TreeUtils.getMethod("java.lang.System", "getProperty", 1, env);
-        systemSetProperty = TreeUtils.getMethod("java.lang.System", "setProperty", 2, env);
+    systemGetProperty = TreeUtils.getMethod("java.lang.System", "getProperty", 1, env);
+    systemSetProperty = TreeUtils.getMethod("java.lang.System", "setProperty", 2, env);
+  }
+
+  /**
+   * Apply rules regarding System.getProperty and related methods.
+   *
+   * @param tree a method invocation
+   * @param method the method being invoked
+   */
+  public void handle(MethodInvocationTree tree, AnnotatedExecutableType method) {
+    if (permitClearProperty) {
+      return;
     }
-
-    /**
-     * Apply rules regarding System.getProperty and related methods.
-     *
-     * @param tree a method invocation
-     * @param method the method being invoked
-     */
-    public void handle(MethodInvocationTree tree, AnnotatedExecutableType method) {
-        if (permitClearProperty) {
-            return;
-        }
-        if (TreeUtils.isMethodInvocation(tree, systemGetProperty, env)
-                || TreeUtils.isMethodInvocation(tree, systemSetProperty, env)) {
-            String literal = NullnessNoInitVisitor.literalFirstArgument(tree);
-            if (literal != null && predefinedSystemProperties.contains(literal)) {
-                AnnotatedTypeMirror type = method.getReturnType();
-                type.replaceAnnotation(factory.NONNULL);
-            }
-        }
+    if (TreeUtils.isMethodInvocation(tree, systemGetProperty, env)
+        || TreeUtils.isMethodInvocation(tree, systemSetProperty, env)) {
+      String literal = NullnessNoInitVisitor.literalFirstArgument(tree);
+      if (literal != null && predefinedSystemProperties.contains(literal)) {
+        AnnotatedTypeMirror type = method.getReturnType();
+        type.replaceAnnotation(factory.NONNULL);
+      }
     }
+  }
 }

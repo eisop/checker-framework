@@ -1,12 +1,11 @@
 package org.checkerframework.common.value.qual;
 
-import org.checkerframework.framework.qual.SubtypeOf;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import org.checkerframework.framework.qual.SubtypeOf;
 
 /**
  * An expression with this type evaluates to an array or a string whose length is in the given
@@ -20,9 +19,9 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE_PARAMETER, ElementType.TYPE_USE})
 @SubtypeOf(UnknownVal.class)
 public @interface ArrayLenRange {
-    /** Smallest value in the range, inclusive. */
-    int from() default 0;
+  /** Smallest value in the range, inclusive. */
+  int from() default 0;
 
-    /** Largest value in the range, inclusive. */
-    int to() default Integer.MAX_VALUE;
+  /** Largest value in the range, inclusive. */
+  int to() default Integer.MAX_VALUE;
 }
