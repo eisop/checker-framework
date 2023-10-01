@@ -9,7 +9,6 @@ import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewClassTree;
-import com.sun.source.tree.ThrowTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.VariableTree;
@@ -21,7 +20,6 @@ import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 import org.checkerframework.checker.nullness.NullnessChecker;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.dataflow.cfg.node.ClassNameNode;
@@ -295,13 +293,6 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
         return super.visitMethod(tree, p);
     }
 
-    @Override
-    public Void visitThrow(ThrowTree tree, Void p) {
-        MethodTree mtree = this.methodTree;
-        checkThrownExpression(tree, mtree);
-        return super.visitThrow(tree, p);
-    }
-
     /**
      * The assignment/variable/method invocation tree currently being checked.
      *
@@ -569,11 +560,6 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
           }
         }
         */
-    }
-
-    @Override
-    protected void checkThrownExpression(ThrowTree tree, @Nullable MethodTree mtree) {
-        super.checkThrownExpression(tree, mtree);
     }
 
     /**
