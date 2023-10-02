@@ -266,6 +266,11 @@ allprojects {
         // added in Java 14, not Java 17.
         doNotFormat += ['**/java17/']
       }
+      // As of 2023-09-24, google-java-format cannot parse Java 21 language features.
+      // See https://github.com/google/google-java-format/releases.
+      if (true) {
+        doNotFormat += ['**/java21/']
+      }
       if (!isJava21plus) {
         doNotFormat += ['**/java21/']
       }
