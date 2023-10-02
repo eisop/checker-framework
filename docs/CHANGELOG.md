@@ -41,7 +41,7 @@ Changed the return types of
 - `GenericAnnotatedTypeFactory#getFinalLocalValues()` to `Map<VariableElement, Value>`.
 
 Refactored the implementation of `isTypeCastSafe` to categorize the kinds of a typecast, whether
-it's an upcast, downcast or incomparable cast. Based on that, further determine if the typecast
+it is an upcast, downcast or incomparable cast. Based on that, further determine if the typecast
 is statically verifiable or not.
 
 **Closed issues:**

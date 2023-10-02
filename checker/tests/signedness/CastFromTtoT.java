@@ -26,7 +26,7 @@ class CastFromTtoT<T extends @UnknownSignedness Object> {
         }
 
         // Looks like an upcast, but it's a downcast.
-        // This time, as arugment p has type T, which is the same as the casting type
+        // This time, as argument p has type T, which is the same as the casting type
         // and the compiler will not issue a warning. So we should give a warning.
         void foo2(Inner<@SignednessGlb Integer> s, @Signed Integer local) {
             @SignednessGlb Integer x = s.bar2(local);

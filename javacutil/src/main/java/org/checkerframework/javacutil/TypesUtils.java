@@ -297,7 +297,7 @@ public final class TypesUtils {
     }
 
     /**
-     * Returns true iff the arguments are both the same type variables.
+     * Returns true iff the arguments are both the same type variable.
      *
      * @param v1 a type variable
      * @param v2 a type variable
