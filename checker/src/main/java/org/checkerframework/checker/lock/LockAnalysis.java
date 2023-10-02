@@ -1,11 +1,12 @@
 package org.checkerframework.checker.lock;
 
-import javax.lang.model.type.TypeMirror;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFValue;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
+
+import javax.lang.model.type.TypeMirror;
 
 /**
  * The analysis class for the lock type system.
@@ -15,33 +16,33 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
  */
 public class LockAnalysis extends CFAbstractAnalysis<CFValue, LockStore, LockTransfer> {
 
-  /**
-   * Creates a new {@link LockAnalysis}.
-   *
-   * @param checker the checker
-   * @param factory the factory
-   */
-  public LockAnalysis(BaseTypeChecker checker, LockAnnotatedTypeFactory factory) {
-    super(checker, factory);
-  }
+    /**
+     * Creates a new {@link LockAnalysis}.
+     *
+     * @param checker the checker
+     * @param factory the factory
+     */
+    public LockAnalysis(BaseTypeChecker checker, LockAnnotatedTypeFactory factory) {
+        super(checker, factory);
+    }
 
-  @Override
-  public LockTransfer createTransferFunction() {
-    return new LockTransfer(this, (LockChecker) checker);
-  }
+    @Override
+    public LockTransfer createTransferFunction() {
+        return new LockTransfer(this, (LockChecker) checker);
+    }
 
-  @Override
-  public LockStore createEmptyStore(boolean sequentialSemantics) {
-    return new LockStore(this, sequentialSemantics);
-  }
+    @Override
+    public LockStore createEmptyStore(boolean sequentialSemantics) {
+        return new LockStore(this, sequentialSemantics);
+    }
 
-  @Override
-  public LockStore createCopiedStore(LockStore s) {
-    return new LockStore(this, s);
-  }
+    @Override
+    public LockStore createCopiedStore(LockStore s) {
+        return new LockStore(this, s);
+    }
 
-  @Override
-  public CFValue createAbstractValue(AnnotationMirrorSet annotations, TypeMirror underlyingType) {
-    return defaultCreateAbstractValue(this, annotations, underlyingType);
-  }
+    @Override
+    public CFValue createAbstractValue(AnnotationMirrorSet annotations, TypeMirror underlyingType) {
+        return defaultCreateAbstractValue(this, annotations, underlyingType);
+    }
 }

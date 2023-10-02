@@ -3,17 +3,20 @@ package org.checkerframework.framework.util.element;
 import com.sun.tools.javac.code.Attribute;
 import com.sun.tools.javac.code.Attribute.TypeCompound;
 import com.sun.tools.javac.code.TargetType;
+
+import org.checkerframework.framework.type.AnnotatedTypeMirror;
+import org.checkerframework.framework.util.element.ElementAnnotationUtil.UnexpectedAnnotationLocationException;
+import org.checkerframework.javacutil.BugInCF;
+import org.plumelib.util.StringsPlume;
+
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
+
 import javax.lang.model.element.Element;
 import javax.lang.model.type.TypeKind;
-import org.checkerframework.framework.type.AnnotatedTypeMirror;
-import org.checkerframework.framework.util.element.ElementAnnotationUtil.UnexpectedAnnotationLocationException;
-import org.checkerframework.javacutil.BugInCF;
-import org.plumelib.util.StringsPlume;
 
 /**
  * TargetedElementAnnotationApplier filters annotations for an element into 3 groups. TARGETED
@@ -28,181 +31,188 @@ import org.plumelib.util.StringsPlume;
  * methods though they have default empty implementations for brevity.
  */
 abstract class TargetedElementAnnotationApplier {
-  /**
-   * Three annotation types that may be encountered when calling getRawTypeAttributes. see sift().
-   */
-  enum TargetClass {
-    TARGETED,
-    VALID,
-    INVALID
-  }
-
-  /** The type to which we wish to apply annotations. */
-  protected final AnnotatedTypeMirror type;
-
-  /** An Element that type represents. */
-  protected final Element element;
-
-  /**
-   * Returns the TargetTypes that identify annotations we wish to apply with this object. Any
-   * annotations that have these target types will be passed to handleTargeted.
-   *
-   * @return the TargetTypes that identify annotations we wish to apply with this object. Any
-   *     annotations that have these target types will be passed to handleTargeted
-   */
-  protected abstract TargetType[] annotatedTargets();
-
-  /**
-   * Returns the TargetTypes that identify annotations that are valid but we wish to ignore. Any
-   * annotations that have these target types will be passed to handleValid, providing they aren't
-   * also in annotatedTargets.
-   *
-   * @return the TargetTypes that identify annotations that are valid but we wish to ignore
-   */
-  protected abstract TargetType[] validTargets();
-
-  /**
-   * Annotations on elements are represented as Attribute.TypeCompounds ( a subtype of
-   * AnnotationMirror) that are usually accessed through a getRawTypeAttributes method on the
-   * element.
-   *
-   * <p>In Java 8 and later these annotations are generally contained by elements to which they
-   * apply. However, in earlier versions of Java many of these annotations are handled by either the
-   * enclosing method, e.g. parameters and method type parameters, or enclosing class, e.g. class
-   * type parameters. Therefore, many annotations are addressed by first getting all annotations on
-   * a method or class and the picking out only the ones we wish to target (see extractAndApply).
-   *
-   * @return the annotations that we MAY wish to apply to the given type
-   */
-  protected abstract Iterable<Attribute.TypeCompound> getRawTypeAttributes();
-
-  /**
-   * Tests element/type fields to ensure that this TargetedElementAnnotationApplier is valid for
-   * this element/type pair.
-   *
-   * @return true if the type/element members are handled by this class false otherwise
-   */
-  protected abstract boolean isAccepted();
-
-  /**
-   * @param type the type to annotate
-   * @param element an element identifying type
-   */
-  TargetedElementAnnotationApplier(AnnotatedTypeMirror type, Element element) {
-    this.type = type;
-    this.element = element;
-  }
-
-  /**
-   * This method should apply all annotations that are handled by this object.
-   *
-   * @param targeted the list of annotations that were returned by getRawTypeAttributes and had a
-   *     TargetType contained by annotatedTargets
-   */
-  protected abstract void handleTargeted(List<TypeCompound> targeted)
-      throws UnexpectedAnnotationLocationException;
-
-  /**
-   * The default implementation of this method does nothing.
-   *
-   * @param valid the list of annotations that were returned by getRawTypeAttributes and had a
-   *     TargetType contained by valid and NOT annotatedTargets
-   */
-  protected void handleValid(List<Attribute.TypeCompound> valid) {}
-
-  /**
-   * This implementation reports all invalid annotations as errors.
-   *
-   * @param invalid the list of annotations that were returned by getRawTypeAttributes and were not
-   *     handled by handleTargeted or handleValid
-   */
-  protected void handleInvalid(List<Attribute.TypeCompound> invalid) {
-    List<Attribute.TypeCompound> remaining = new ArrayList<>(invalid.size());
-    for (Attribute.TypeCompound tc : invalid) {
-      if (tc.getAnnotationType().getKind() != TypeKind.ERROR) {
-        // Filter out annotations that have an error type. javac will
-        // already have raised an error for them.
-        remaining.add(tc);
-      }
-    }
-    if (!remaining.isEmpty()) {
-      StringJoiner msg = new StringJoiner(System.lineSeparator());
-      msg.add("handleInvalid(this=" + this.getClass().getName() + "):");
-      msg.add("Invalid variable and element passed to extractAndApply; type: " + type);
-      String elementInfoPrefix =
-          "  element: " + element + " (kind: " + element.getKind() + "), invalid annotations: ";
-      StringJoiner remainingInfo = new StringJoiner(", ", elementInfoPrefix, "");
-      for (Attribute.TypeCompound r : remaining) {
-        remainingInfo.add(r.toString() + " (" + r.position + ")");
-      }
-      msg.add(remainingInfo.toString());
-      msg.add("Targeted annotations: " + StringsPlume.join(", ", annotatedTargets()));
-      msg.add("Valid annotations: " + StringsPlume.join(", ", validTargets()));
-
-      throw new BugInCF(msg.toString());
-    }
-  }
-
-  /**
-   * Separate the input annotations into a Map of TargetClass (TARGETED, VALID, INVALID) to the
-   * annotations that fall into each of those categories.
-   *
-   * @param typeCompounds annotations to sift through, should be those returned by
-   *     getRawTypeAttributes
-   * @return a {@literal Map<TargetClass => Annotations>.}
-   */
-  protected Map<TargetClass, List<Attribute.TypeCompound>> sift(
-      Iterable<Attribute.TypeCompound> typeCompounds) {
-
-    Map<TargetClass, List<Attribute.TypeCompound>> targetClassToCompound =
-        new EnumMap<>(TargetClass.class);
-    for (TargetClass targetClass : TargetClass.values()) {
-      targetClassToCompound.put(targetClass, new ArrayList<>());
+    /**
+     * Three annotation types that may be encountered when calling getRawTypeAttributes. see sift().
+     */
+    enum TargetClass {
+        TARGETED,
+        VALID,
+        INVALID
     }
 
-    for (Attribute.TypeCompound typeCompound : typeCompounds) {
-      TargetType typeCompoundTarget = typeCompound.position.type;
-      List<Attribute.TypeCompound> destList;
+    /** The type to which we wish to apply annotations. */
+    protected final AnnotatedTypeMirror type;
 
-      if (ElementAnnotationUtil.contains(typeCompoundTarget, annotatedTargets())) {
-        destList = targetClassToCompound.get(TargetClass.TARGETED);
+    /** An Element that type represents. */
+    protected final Element element;
 
-      } else if (ElementAnnotationUtil.contains(typeCompoundTarget, validTargets())) {
-        destList = targetClassToCompound.get(TargetClass.VALID);
+    /**
+     * Returns the TargetTypes that identify annotations we wish to apply with this object. Any
+     * annotations that have these target types will be passed to handleTargeted.
+     *
+     * @return the TargetTypes that identify annotations we wish to apply with this object. Any
+     *     annotations that have these target types will be passed to handleTargeted
+     */
+    protected abstract TargetType[] annotatedTargets();
 
-      } else {
-        destList = targetClassToCompound.get(TargetClass.INVALID);
-      }
+    /**
+     * Returns the TargetTypes that identify annotations that are valid but we wish to ignore. Any
+     * annotations that have these target types will be passed to handleValid, providing they aren't
+     * also in annotatedTargets.
+     *
+     * @return the TargetTypes that identify annotations that are valid but we wish to ignore
+     */
+    protected abstract TargetType[] validTargets();
 
-      destList.add(typeCompound);
+    /**
+     * Annotations on elements are represented as Attribute.TypeCompounds ( a subtype of
+     * AnnotationMirror) that are usually accessed through a getRawTypeAttributes method on the
+     * element.
+     *
+     * <p>In Java 8 and later these annotations are generally contained by elements to which they
+     * apply. However, in earlier versions of Java many of these annotations are handled by either
+     * the enclosing method, e.g. parameters and method type parameters, or enclosing class, e.g.
+     * class type parameters. Therefore, many annotations are addressed by first getting all
+     * annotations on a method or class and the picking out only the ones we wish to target (see
+     * extractAndApply).
+     *
+     * @return the annotations that we MAY wish to apply to the given type
+     */
+    protected abstract Iterable<Attribute.TypeCompound> getRawTypeAttributes();
+
+    /**
+     * Tests element/type fields to ensure that this TargetedElementAnnotationApplier is valid for
+     * this element/type pair.
+     *
+     * @return true if the type/element members are handled by this class false otherwise
+     */
+    protected abstract boolean isAccepted();
+
+    /**
+     * @param type the type to annotate
+     * @param element an element identifying type
+     */
+    TargetedElementAnnotationApplier(AnnotatedTypeMirror type, Element element) {
+        this.type = type;
+        this.element = element;
     }
 
-    return targetClassToCompound;
-  }
+    /**
+     * This method should apply all annotations that are handled by this object.
+     *
+     * @param targeted the list of annotations that were returned by getRawTypeAttributes and had a
+     *     TargetType contained by annotatedTargets
+     */
+    protected abstract void handleTargeted(List<TypeCompound> targeted)
+            throws UnexpectedAnnotationLocationException;
 
-  /**
-   * Reads the list of annotations that apply to this element (see getRawTypeAttributes). Sifts them
-   * into three groups (TARGETED, INVALID, VALID) and then calls the appropriate handle method on
-   * them. The handleTargeted method should apply all annotations that are handled by this object.
-   *
-   * <p>This method will throw a runtime exception if isAccepted returns false.
-   */
-  public void extractAndApply() throws UnexpectedAnnotationLocationException {
-    if (!isAccepted()) {
-      throw new BugInCF(
-          "LocalVariableExtractor.extractAndApply: "
-              + "Invalid variable and element passed to "
-              + this.getClass().getName()
-              + "::extractAndApply ("
-              + type
-              + ", "
-              + element);
+    /**
+     * The default implementation of this method does nothing.
+     *
+     * @param valid the list of annotations that were returned by getRawTypeAttributes and had a
+     *     TargetType contained by valid and NOT annotatedTargets
+     */
+    protected void handleValid(List<Attribute.TypeCompound> valid) {}
+
+    /**
+     * This implementation reports all invalid annotations as errors.
+     *
+     * @param invalid the list of annotations that were returned by getRawTypeAttributes and were
+     *     not handled by handleTargeted or handleValid
+     */
+    protected void handleInvalid(List<Attribute.TypeCompound> invalid) {
+        List<Attribute.TypeCompound> remaining = new ArrayList<>(invalid.size());
+        for (Attribute.TypeCompound tc : invalid) {
+            if (tc.getAnnotationType().getKind() != TypeKind.ERROR) {
+                // Filter out annotations that have an error type. javac will
+                // already have raised an error for them.
+                remaining.add(tc);
+            }
+        }
+        if (!remaining.isEmpty()) {
+            StringJoiner msg = new StringJoiner(System.lineSeparator());
+            msg.add("handleInvalid(this=" + this.getClass().getName() + "):");
+            msg.add("Invalid variable and element passed to extractAndApply; type: " + type);
+            String elementInfoPrefix =
+                    "  element: "
+                            + element
+                            + " (kind: "
+                            + element.getKind()
+                            + "), invalid annotations: ";
+            StringJoiner remainingInfo = new StringJoiner(", ", elementInfoPrefix, "");
+            for (Attribute.TypeCompound r : remaining) {
+                remainingInfo.add(r.toString() + " (" + r.position + ")");
+            }
+            msg.add(remainingInfo.toString());
+            msg.add("Targeted annotations: " + StringsPlume.join(", ", annotatedTargets()));
+            msg.add("Valid annotations: " + StringsPlume.join(", ", validTargets()));
+
+            throw new BugInCF(msg.toString());
+        }
     }
 
-    Map<TargetClass, List<Attribute.TypeCompound>> targetClassToAnno = sift(getRawTypeAttributes());
+    /**
+     * Separate the input annotations into a Map of TargetClass (TARGETED, VALID, INVALID) to the
+     * annotations that fall into each of those categories.
+     *
+     * @param typeCompounds annotations to sift through, should be those returned by
+     *     getRawTypeAttributes
+     * @return a {@literal Map<TargetClass => Annotations>.}
+     */
+    protected Map<TargetClass, List<Attribute.TypeCompound>> sift(
+            Iterable<Attribute.TypeCompound> typeCompounds) {
 
-    handleInvalid(targetClassToAnno.get(TargetClass.INVALID));
-    handleValid(targetClassToAnno.get(TargetClass.VALID));
-    handleTargeted(targetClassToAnno.get(TargetClass.TARGETED));
-  }
+        Map<TargetClass, List<Attribute.TypeCompound>> targetClassToCompound =
+                new EnumMap<>(TargetClass.class);
+        for (TargetClass targetClass : TargetClass.values()) {
+            targetClassToCompound.put(targetClass, new ArrayList<>());
+        }
+
+        for (Attribute.TypeCompound typeCompound : typeCompounds) {
+            TargetType typeCompoundTarget = typeCompound.position.type;
+            List<Attribute.TypeCompound> destList;
+
+            if (ElementAnnotationUtil.contains(typeCompoundTarget, annotatedTargets())) {
+                destList = targetClassToCompound.get(TargetClass.TARGETED);
+
+            } else if (ElementAnnotationUtil.contains(typeCompoundTarget, validTargets())) {
+                destList = targetClassToCompound.get(TargetClass.VALID);
+
+            } else {
+                destList = targetClassToCompound.get(TargetClass.INVALID);
+            }
+
+            destList.add(typeCompound);
+        }
+
+        return targetClassToCompound;
+    }
+
+    /**
+     * Reads the list of annotations that apply to this element (see getRawTypeAttributes). Sifts
+     * them into three groups (TARGETED, INVALID, VALID) and then calls the appropriate handle
+     * method on them. The handleTargeted method should apply all annotations that are handled by
+     * this object.
+     *
+     * <p>This method will throw a runtime exception if isAccepted returns false.
+     */
+    public void extractAndApply() throws UnexpectedAnnotationLocationException {
+        if (!isAccepted()) {
+            throw new BugInCF(
+                    "LocalVariableExtractor.extractAndApply: "
+                            + "Invalid variable and element passed to "
+                            + this.getClass().getName()
+                            + "::extractAndApply ("
+                            + type
+                            + ", "
+                            + element);
+        }
+
+        Map<TargetClass, List<Attribute.TypeCompound>> targetClassToAnno =
+                sift(getRawTypeAttributes());
+
+        handleInvalid(targetClassToAnno.get(TargetClass.INVALID));
+        handleValid(targetClassToAnno.get(TargetClass.VALID));
+        handleTargeted(targetClassToAnno.get(TargetClass.TARGETED));
+    }
 }

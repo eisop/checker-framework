@@ -1,13 +1,7 @@
 package org.checkerframework.framework.testchecker.util;
 
 import com.sun.source.tree.Tree;
-import java.lang.annotation.Annotation;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.util.Elements;
+
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
@@ -22,6 +16,15 @@ import org.checkerframework.framework.util.QualifierKindHierarchy;
 import org.checkerframework.framework.util.defaults.QualifierDefaults;
 import org.checkerframework.javacutil.AnnotationBuilder;
 
+import java.lang.annotation.Annotation;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
+
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.util.Elements;
+
 /**
  * A simple checker used for testing the Checker Framework. It treats the {@code @Odd} and
  * {@code @Even} annotations as a subtype-style qualifiers with no special semantics.
@@ -29,62 +32,68 @@ import org.checkerframework.javacutil.AnnotationBuilder;
  * <p>This checker should only be used for testing the framework.
  */
 public final class EvenOddChecker extends BaseTypeChecker {
-  @Override
-  protected BaseTypeVisitor<?> createSourceVisitor() {
-    return new TestVisitor(this);
-  }
+    @Override
+    protected BaseTypeVisitor<?> createSourceVisitor() {
+        return new TestVisitor(this);
+    }
 }
 
 class TestVisitor extends BaseTypeVisitor<TestAnnotatedTypeFactory> {
 
-  public TestVisitor(BaseTypeChecker checker) {
-    super(checker);
-  }
+    public TestVisitor(BaseTypeChecker checker) {
+        super(checker);
+    }
 
-  @Override
-  protected TestAnnotatedTypeFactory createTypeFactory() {
-    return new TestAnnotatedTypeFactory(checker);
-  }
+    @Override
+    protected TestAnnotatedTypeFactory createTypeFactory() {
+        return new TestAnnotatedTypeFactory(checker);
+    }
 
-  @Override
-  public boolean isValidUse(AnnotatedDeclaredType type, AnnotatedDeclaredType useType, Tree tree) {
-    // TODO: super would result in error, because of default on classes.
-    return true;
-  }
+    @Override
+    public boolean isValidUse(
+            AnnotatedDeclaredType type, AnnotatedDeclaredType useType, Tree tree) {
+        // TODO: super would result in error, because of default on classes.
+        return true;
+    }
 }
 
 class TestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
-  protected AnnotationMirror BOTTOM;
+    protected AnnotationMirror BOTTOM;
 
-  public TestAnnotatedTypeFactory(BaseTypeChecker checker) {
-    super(checker, true);
-    Elements elements = processingEnv.getElementUtils();
-    BOTTOM = AnnotationBuilder.fromClass(elements, Bottom.class);
+    public TestAnnotatedTypeFactory(BaseTypeChecker checker) {
+        super(checker, true);
+        Elements elements = processingEnv.getElementUtils();
+        BOTTOM = AnnotationBuilder.fromClass(elements, Bottom.class);
 
-    this.postInit();
-  }
+        this.postInit();
+    }
 
-  @Override
-  protected void addCheckedCodeDefaults(QualifierDefaults defs) {
-    defs.addCheckedCodeDefault(BOTTOM, TypeUseLocation.LOWER_BOUND);
-    AnnotationMirror unqualified = AnnotationBuilder.fromClass(elements, Unqualified.class);
-    defs.addCheckedCodeDefault(unqualified, TypeUseLocation.OTHERWISE);
-  }
+    @Override
+    protected void addCheckedCodeDefaults(QualifierDefaults defs) {
+        defs.addCheckedCodeDefault(BOTTOM, TypeUseLocation.LOWER_BOUND);
+        AnnotationMirror unqualified = AnnotationBuilder.fromClass(elements, Unqualified.class);
+        defs.addCheckedCodeDefault(unqualified, TypeUseLocation.OTHERWISE);
+    }
 
-  @Override
-  protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
-    return new HashSet<>(
-        Arrays.asList(Odd.class, MonotonicOdd.class, Even.class, Unqualified.class, Bottom.class));
-  }
+    @Override
+    protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
+        return new HashSet<>(
+                Arrays.asList(
+                        Odd.class,
+                        MonotonicOdd.class,
+                        Even.class,
+                        Unqualified.class,
+                        Bottom.class));
+    }
 
-  @Override
-  protected QualifierHierarchy createQualifierHierarchy() {
-    return new NoElementQualifierHierarchy(getSupportedTypeQualifiers(), elements) {
-      @Override
-      protected QualifierKindHierarchy createQualifierKindHierarchy(
-          Collection<Class<? extends Annotation>> qualifierClasses) {
-        return new DefaultQualifierKindHierarchy(qualifierClasses, Bottom.class);
-      }
-    };
-  }
+    @Override
+    protected QualifierHierarchy createQualifierHierarchy() {
+        return new NoElementQualifierHierarchy(getSupportedTypeQualifiers(), elements) {
+            @Override
+            protected QualifierKindHierarchy createQualifierKindHierarchy(
+                    Collection<Class<? extends Annotation>> qualifierClasses) {
+                return new DefaultQualifierKindHierarchy(qualifierClasses, Bottom.class);
+            }
+        };
+    }
 }

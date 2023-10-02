@@ -1,13 +1,16 @@
 package org.checkerframework.dataflow.cfg.node;
 
 import com.sun.source.tree.Tree;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Objects;
-import javax.lang.model.type.TypeMirror;
+
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.TypesUtils;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Objects;
+
+import javax.lang.model.type.TypeMirror;
 
 /**
  * A node for the widening primitive conversion operation. See JLS 5.1.2 for the definition of
@@ -19,53 +22,53 @@ import org.checkerframework.javacutil.TypesUtils;
  */
 public class WideningConversionNode extends Node {
 
-  protected final Tree tree;
-  protected final Node operand;
+    protected final Tree tree;
+    protected final Node operand;
 
-  public WideningConversionNode(Tree tree, Node operand, TypeMirror type) {
-    super(type);
-    assert TypesUtils.isPrimitive(type) : "non-primitive type in widening conversion";
-    this.tree = tree;
-    this.operand = operand;
-  }
-
-  public Node getOperand() {
-    return operand;
-  }
-
-  @Override
-  public Tree getTree() {
-    return tree;
-  }
-
-  @Override
-  public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
-    return visitor.visitWideningConversion(this, p);
-  }
-
-  @Override
-  public String toString() {
-    return "WideningConversion{" + getOperand() + ", " + type + "}";
-  }
-
-  @Override
-  public boolean equals(@Nullable Object obj) {
-    if (!(obj instanceof WideningConversionNode)) {
-      return false;
+    public WideningConversionNode(Tree tree, Node operand, TypeMirror type) {
+        super(type);
+        assert TypesUtils.isPrimitive(type) : "non-primitive type in widening conversion";
+        this.tree = tree;
+        this.operand = operand;
     }
-    WideningConversionNode other = (WideningConversionNode) obj;
-    return getOperand().equals(other.getOperand())
-        && TypesUtils.areSamePrimitiveTypes(getType(), other.getType());
-  }
 
-  @Override
-  public int hashCode() {
-    return Objects.hash(WideningConversionNode.class, getOperand());
-  }
+    public Node getOperand() {
+        return operand;
+    }
 
-  @Override
-  @SideEffectFree
-  public Collection<Node> getOperands() {
-    return Collections.singletonList(getOperand());
-  }
+    @Override
+    public Tree getTree() {
+        return tree;
+    }
+
+    @Override
+    public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
+        return visitor.visitWideningConversion(this, p);
+    }
+
+    @Override
+    public String toString() {
+        return "WideningConversion{" + getOperand() + ", " + type + "}";
+    }
+
+    @Override
+    public boolean equals(@Nullable Object obj) {
+        if (!(obj instanceof WideningConversionNode)) {
+            return false;
+        }
+        WideningConversionNode other = (WideningConversionNode) obj;
+        return getOperand().equals(other.getOperand())
+                && TypesUtils.areSamePrimitiveTypes(getType(), other.getType());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(WideningConversionNode.class, getOperand());
+    }
+
+    @Override
+    @SideEffectFree
+    public Collection<Node> getOperands() {
+        return Collections.singletonList(getOperand());
+    }
 }
