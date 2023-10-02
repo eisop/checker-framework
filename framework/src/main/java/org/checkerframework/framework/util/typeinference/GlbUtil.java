@@ -141,6 +141,7 @@ public class GlbUtil {
 
     /** The qualifier hierarchy. */
     private final QualifierHierarchy qualifierHierarchy;
+
     /** The type utiliites. */
     private final Types types;
 
