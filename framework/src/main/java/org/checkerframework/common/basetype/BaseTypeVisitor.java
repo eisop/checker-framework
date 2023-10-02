@@ -2588,7 +2588,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         // As the compiler will not report the unchecked warning in this case, so we should
         // do the check for our type system when the subtype relation of the instantiations of the
         // two T cannot be statically verified.
-        // See CastFromTtoT.java:22 for an example.
+        // See CastFromTtoT.java for an example.
         if (castTypeKind == TypeKind.TYPEVAR && exprType.getKind() == TypeKind.TYPEVAR) {
             TypeVariable castTV = (TypeVariable) castType.getUnderlyingType();
             TypeVariable exprTV = (TypeVariable) exprType.getUnderlyingType();
@@ -2663,12 +2663,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * If it is an incomparable cast in terms of qualifiers, return ERROR by default. Subchecker can
-     * override this method to allow certain incomparable casts.
+     * If it is an incomparable cast in terms of qualifiers, return ERROR. Subchecker can override
+     * this method to allow certain incomparable casts and can return SAFE, WARNING or ERROR.
      *
      * @param castType annotated type of the cast
      * @param exprType annotated type of the casted expression
-     * @return TypecastKind.ERROR if it's an incomparable cast.
+     * @return TypecastKind.ERROR.
      */
     protected TypecastKind isSafeIncomparableCast(
             AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {

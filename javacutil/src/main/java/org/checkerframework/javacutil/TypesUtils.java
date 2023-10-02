@@ -278,7 +278,7 @@ public final class TypesUtils {
         if (t1.tsym.name != t2.tsym.name) {
             return false;
         }
-        return t1.toString().equals(t1.toString());
+        return t1.toString().equals(t2.toString());
     }
 
     /**
@@ -297,7 +297,10 @@ public final class TypesUtils {
     }
 
     /**
-     * Returns true iff the arguments are both the same type variable.
+     * Returns true iff the arguments are type variables with the same name. This method doesn't
+     * distinguish the difference of type variables having the same name but declared in different
+     * contexts, so we should be careful using it. Javac is able to identify the difference and
+     * issue an unchecked warning for the above scenario.
      *
      * @param v1 a type variable
      * @param v2 a type variable
