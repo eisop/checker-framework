@@ -19,7 +19,7 @@ Fixed a bug in the Nullness Checker where an instance receiver is incorrectly ma
 a static method or field access. This could lead to new nullness errors. The static access should be
 changed to be through a class name.
 
-A new error message `cast.incomparable` will be raised if casting an expression to one target type which
+A new error message `cast.incomparable` will be raised if casting an expression to a target type which
 does not share a subtype relationship with the expression type in the lattice. No longer issue errors
 for statically verifiable downcast.
 
