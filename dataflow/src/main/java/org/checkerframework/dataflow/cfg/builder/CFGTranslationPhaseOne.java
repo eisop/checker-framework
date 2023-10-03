@@ -634,11 +634,11 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
       nestedPatterns.add(scan(pattern, p));
     }
 
-    DeconstructorPatternNode dpn =
+    DeconstructorPatternNode dcpN =
         new DeconstructorPatternNode(
             TreeUtils.typeOf(deconstructionPatternTree), deconstructionPatternTree, nestedPatterns);
-    extendWithNode(dpn);
-    return dpn;
+    extendWithNode(dcpN);
+    return dcpN;
   }
 
   /* --------------------------------------------------------- */

@@ -1006,6 +1006,14 @@ public abstract class CFAbstractTransfer<
   }
 
   @Override
+  public TransferResult<V, S> visitDeconstructorPattern(
+      DeconstructorPatternNode n, TransferInput<V, S> in) {
+    // TODO: Implement getting the type of a DeconstructorPatternTree.
+    V value = null;
+    return createTransferResult(value, in);
+  }
+
+  @Override
   public TransferResult<V, S> visitInstanceOf(InstanceOfNode node, TransferInput<V, S> in) {
     TransferResult<V, S> result = super.visitInstanceOf(node, in);
     for (LocalVariableNode bindingVar : node.getBindingVariables()) {
