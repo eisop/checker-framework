@@ -1625,66 +1625,64 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         if (ignoreTargetLocations) {
             return;
         }
-        Element element = TreeUtils.elementFromTree(tree);
+        Element element = TreeUtils.elementFromDeclaration(tree);
 
-        if (element != null) {
-            ElementKind elemKind = element.getKind();
-            // TypeUseLocation.java doesn't have ENUM type use location right now.
-            for (AnnotationMirror am : type.getAnnotations()) {
-                List<TypeUseLocation> locations =
-                        qualAllowedLocations.get(AnnotationUtils.annotationName(am));
-                if (locations == null || locations.contains(TypeUseLocation.ALL)) {
-                    continue;
-                }
-                boolean issueError = true;
-                switch (elemKind) {
-                    case LOCAL_VARIABLE:
-                        if (locations.contains(TypeUseLocation.LOCAL_VARIABLE)) {
+        ElementKind elemKind = element.getKind();
+        // TypeUseLocation.java doesn't have ENUM type use location right now.
+        for (AnnotationMirror am : type.getAnnotations()) {
+            List<TypeUseLocation> locations =
+                    qualAllowedLocations.get(AnnotationUtils.annotationName(am));
+            if (locations == null || locations.contains(TypeUseLocation.ALL)) {
+                continue;
+            }
+            boolean issueError = true;
+            switch (elemKind) {
+                case LOCAL_VARIABLE:
+                    if (locations.contains(TypeUseLocation.LOCAL_VARIABLE)) {
+                        issueError = false;
+                    }
+                    break;
+                case EXCEPTION_PARAMETER:
+                    if (locations.contains(TypeUseLocation.EXCEPTION_PARAMETER)) {
+                        issueError = false;
+                    }
+                    break;
+                case PARAMETER:
+                    if (tree.getName().contentEquals("this")) {
+                        if (locations.contains(TypeUseLocation.RECEIVER)) {
                             issueError = false;
                         }
-                        break;
-                    case EXCEPTION_PARAMETER:
-                        if (locations.contains(TypeUseLocation.EXCEPTION_PARAMETER)) {
+                    } else {
+                        if (locations.contains(TypeUseLocation.PARAMETER)) {
                             issueError = false;
                         }
-                        break;
-                    case PARAMETER:
-                        if (tree.getName().contentEquals("this")) {
-                            if (locations.contains(TypeUseLocation.RECEIVER)) {
-                                issueError = false;
-                            }
-                        } else {
-                            if (locations.contains(TypeUseLocation.PARAMETER)) {
-                                issueError = false;
-                            }
-                        }
-                        break;
-                    case RESOURCE_VARIABLE:
-                        if (locations.contains(TypeUseLocation.RESOURCE_VARIABLE)) {
-                            issueError = false;
-                        }
-                        break;
-                    case FIELD:
-                        if (locations.contains(TypeUseLocation.FIELD)) {
-                            issueError = false;
-                        }
-                        break;
-                    case ENUM_CONSTANT:
-                        if (locations.contains(TypeUseLocation.FIELD)
-                                || locations.contains(TypeUseLocation.CONSTRUCTOR_RESULT)) {
-                            issueError = false;
-                        }
-                        break;
-                    default:
-                        throw new BugInCF("Location not matched");
-                }
-                if (issueError) {
-                    checker.reportError(
-                            tree,
-                            "type.invalid.annotations.on.location",
-                            am.toString(),
-                            element.getKind().name());
-                }
+                    }
+                    break;
+                case RESOURCE_VARIABLE:
+                    if (locations.contains(TypeUseLocation.RESOURCE_VARIABLE)) {
+                        issueError = false;
+                    }
+                    break;
+                case FIELD:
+                    if (locations.contains(TypeUseLocation.FIELD)) {
+                        issueError = false;
+                    }
+                    break;
+                case ENUM_CONSTANT:
+                    if (locations.contains(TypeUseLocation.FIELD)
+                            || locations.contains(TypeUseLocation.CONSTRUCTOR_RESULT)) {
+                        issueError = false;
+                    }
+                    break;
+                default:
+                    throw new BugInCF("Location not matched");
+            }
+            if (issueError) {
+                checker.reportError(
+                        tree,
+                        "type.invalid.annotations.on.location",
+                        am.toString(),
+                        element.getKind().name());
             }
         }
     }
