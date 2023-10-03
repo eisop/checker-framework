@@ -2492,6 +2492,29 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
     }
 
+    /**
+     * This method returns TypecastKind.SAFE when the typecast is an upcast or a statically
+     * verifiable downcast. Returns TypecastKind.WARNING and ERROR for those downcasts which cannot
+     * be statically verified or some incomparable casts.
+     *
+     * @param castType annotated type of the cast
+     * @param exprType annotated type of the casted expression
+     * @return TypecastKind.SAFE if the typecast is safe, error or warning otherwise
+     */
+    protected TypecastKind isTypeCastSafe(
+            AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
+        TypecastKind castResult = isUpcast(castType, exprType);
+
+        // not upcast, do downcast and incomparable cast check
+        if (castResult == TypecastKind.NOT_UPCAST) {
+            castResult = isSafeDowncast(castType, exprType);
+            if (castResult == TypecastKind.NOT_DOWNCAST) { // fall into incomparable cast
+                return isSafeIncomparableCast(castType, exprType);
+            }
+        }
+        return castResult;
+    }
+
     /** Represents all possible kinds of typecasts. */
     protected enum TypecastKind {
         /** The cast is safe. */
@@ -2673,29 +2696,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     protected TypecastKind isSafeIncomparableCast(
             AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
         return TypecastKind.ERROR;
-    }
-
-    /**
-     * This method returns TypecastKind.SAFE when the typecast is an upcast or a statically
-     * verifiable downcast. Returns TypecastKind.WARNING and ERROR for those downcasts which cannot
-     * be statically verified or some incomparable casts.
-     *
-     * @param castType annotated type of the cast
-     * @param exprType annotated type of the casted expression
-     * @return TypecastKind.SAFE if the typecast is safe, error or warning otherwise
-     */
-    protected TypecastKind isTypeCastSafe(
-            AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
-        TypecastKind castResult = isUpcast(castType, exprType);
-
-        // not upcast, do downcast and incomparable cast check
-        if (castResult == TypecastKind.NOT_UPCAST) {
-            castResult = isSafeDowncast(castType, exprType);
-            if (castResult == TypecastKind.NOT_DOWNCAST) { // fall into incomparable cast
-                return isSafeIncomparableCast(castType, exprType);
-            }
-        }
-        return castResult;
     }
 
     /**
