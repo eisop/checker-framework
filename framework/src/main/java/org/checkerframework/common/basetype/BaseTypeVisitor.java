@@ -1670,15 +1670,20 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Validate if the annotations on the VariableTree are at the right locations, which is
-     * specified by the meta-annotation @TargetLocations. The difference of this method between
-     * {@link BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)} is
-     * that this one is only used in {@link BaseTypeVisitor#visitVariable(VariableTree, Void)}
+     * Validate if the qualifiers on the VariableTree are at the right locations, which is specified
+     * by the meta-annotation @TargetLocations. The difference of this method between {@link
+     * BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)} is that
+     * this one is only used in {@link BaseTypeVisitor#visitVariable(VariableTree, Void)}. The three
+     * different validate methods in the visitor and validator file achieve the same goal and the
+     * need for having three is due to implementation reasons. We perform checks for types in
+     * VariableTree at {@link BaseTypeVisitor#visitVariable(VariableTree, Void)}; checks for types
+     * in wildcards at {@link BaseTypeValidator#visitWildcard(AnnotatedWildcardType, Tree)}; the
+     * rest done in the {@link BaseTypeVisitor#validateTypeOf(Tree)}.
      *
-     * @param tree annotations on this VariableTree will be validated
+     * @param tree qualifiers on this VariableTree will be validated
      * @param type the type of the tree
      */
-    protected void validateVariablesTargetLocation(Tree tree, AnnotatedTypeMirror type) {
+    protected void validateVariablesTargetLocation(VariableTree tree, AnnotatedTypeMirror type) {
         if (ignoreTargetLocations) {
             return;
         }
@@ -1696,14 +1701,17 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 boolean issueError = true;
                 switch (elemKind) {
                     case LOCAL_VARIABLE:
-                        if (locations.contains(TypeUseLocation.LOCAL_VARIABLE)) issueError = false;
+                        if (locations.contains(TypeUseLocation.LOCAL_VARIABLE)) {
+                            issueError = false;
+                        }
                         break;
                     case EXCEPTION_PARAMETER:
-                        if (locations.contains(TypeUseLocation.EXCEPTION_PARAMETER))
+                        if (locations.contains(TypeUseLocation.EXCEPTION_PARAMETER)) {
                             issueError = false;
+                        }
                         break;
                     case PARAMETER:
-                        if (((VariableTree) tree).getName().contentEquals("this")) {
+                        if (tree.getName().contentEquals("this")) {
                             if (locations.contains(TypeUseLocation.RECEIVER)) {
                                 issueError = false;
                             }
@@ -1744,13 +1752,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Validate if the annotations on the tree are at the right locations, which are specified by
-     * the meta-annotation @TargetLocations.
+     * Validate if the qualifiers on the tree are at the right locations, which are specified by the
+     * meta-annotation @TargetLocations.
      *
-     * @param tree annotations on this VariableTree will be validated
+     * @param tree qualifiers on this VariableTree will be validated
      * @param type the type of the tree
-     * @param required if all of the TypeUseLocations in {@code required} are not present in the
-     *     specification of the annotation (@TargetLocations), issue an error.
+     * @param required if all the TypeUseLocations in {@code required} are not present in the
+     *     specification of the meta-annotation (@TargetLocations), issue an error.
      */
     protected void validateTargetLocation(
             Tree tree, AnnotatedTypeMirror type, TypeUseLocation required) {
