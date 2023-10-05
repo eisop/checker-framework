@@ -41,6 +41,7 @@ public class InitializationStore extends CFAbstractStore<CFValue, Initialization
      */
     public InitializationStore(InitializationAnalysis analysis, boolean sequentialSemantics) {
         super(analysis, sequentialSemantics);
+        // The initialCapacity for the two maps is set to 4, an arbitrary, small value.
         initializedFields = new HashSet<>(4);
     }
 

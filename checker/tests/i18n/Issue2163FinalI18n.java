@@ -38,8 +38,9 @@ import org.checkerframework.checker.i18n.qual.*;
 }
 
 @LocalizableKeyBottom class Issue2163FinalCB {
-    // :: error: (type.invalid.annotations.on.use) :: warning: (inconsistent.constructor.type) ::
-    // error: (super.invocation.invalid)
+    // :: warning: (inconsistent.constructor.type)
+    // :: error: (super.invocation.invalid)
+    // :: error: (type.invalid.annotations.on.use)
     @LocalizableKey Issue2163FinalCB() {}
 }
 

@@ -19,7 +19,12 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-@TargetLocations({TypeUseLocation.EXPLICIT_LOWER_BOUND, TypeUseLocation.EXPLICIT_UPPER_BOUND})
+@TargetLocations({
+    TypeUseLocation.LOWER_BOUND,
+    TypeUseLocation.UPPER_BOUND,
+    TypeUseLocation.LOCAL_VARIABLE,
+    TypeUseLocation.RESOURCE_VARIABLE
+})
 @SubtypeOf({})
 @DefaultFor({TypeUseLocation.LOCAL_VARIABLE, TypeUseLocation.RESOURCE_VARIABLE})
 public @interface FenumTop {}

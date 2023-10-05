@@ -6,6 +6,13 @@ package org.checkerframework.framework.qual;
  * <p>The order of enums is important. Defaults are applied in this order. In particular, this means
  * that OTHERWISE and ALL should be last.
  *
+ * <p>For an annotation on a variable which has element kind ENUM_CONSTANT, the annotation's
+ * type-use location is either {@code TypeUseLocation.FIELD} or {@code
+ * TypeUseLocation.CONSTRUCTOR_RESULT}.
+ *
+ * <p>Note: The use locations listed here are not complete, for more details see <a href=
+ * "https://github.com/eisop/checker-framework/issues/340">EISOP Issue #340</a>
+ *
  * @see DefaultQualifier
  * @see javax.lang.model.element.ElementKind
  */
@@ -45,7 +52,7 @@ public enum TypeUseLocation {
 
     /**
      * Apply default annotations to unannotated lower bounds for type variables and wildcards both
-     * explicit ones in {@code extends} clauses, and implicit upper bounds when no explicit {@code
+     * explicit ones in {@code super} clauses, and implicit lower bounds when no explicit {@code
      * extends} or {@code super} clause is present.
      */
     LOWER_BOUND,
