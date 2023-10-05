@@ -180,6 +180,9 @@ import io.github.classgraph.ClassGraph;
     // Temporary, for backward compatibility
     "useDefaultsForUncheckedCode",
 
+    // Whether to store defaulted annotations in bytecode
+    "noBytecodeStorage",
+
     // Whether to assume sound concurrent semantics or
     // simplified sequential semantics
     // org.checkerframework.framework.flow.CFAbstractTransfer.sequentialSemantics
