@@ -3,6 +3,8 @@ Version 3.34.0-eisop2 (May ?, 2023)
 
 **User-visible changes:**
 
+The new command-line argument `-AnoBytecodeStorage` allows the option to not store defaulted annotations in bytecode.
+
 The Initialization Checker is now separated from the Nullness Checker.
 To unsoundly use the Nullness Checker without initialization checking, use the new `-AassumeInitialized`
 command-line argument.
