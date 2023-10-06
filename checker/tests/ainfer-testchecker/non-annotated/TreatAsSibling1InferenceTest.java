@@ -6,8 +6,8 @@
 import org.checkerframework.checker.testchecker.ainfer.qual.AinferSibling1;
 
 public class TreatAsSibling1InferenceTest {
-    public void test(Object iShouldBeTreatedAsSibling1) {
-        // :: warning: (assignment.type.incompatible)
-        @AinferSibling1 Object x = iShouldBeTreatedAsSibling1;
-    }
+  public void test(Object iShouldBeTreatedAsSibling1) {
+    // :: warning: (assignment.type.incompatible)
+    @AinferSibling1 Object x = iShouldBeTreatedAsSibling1;
+  }
 }

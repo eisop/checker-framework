@@ -3,7 +3,6 @@
 // TODO: add a @Processor method-annotation to parameterize
 
 import com.sun.tools.classfile.ClassFile;
-
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -25,98 +24,97 @@ import java.util.StringJoiner;
  */
 public class PersistUtil {
 
-    public static String testClassOf(Method m) {
-        TestClass tc = m.getAnnotation(TestClass.class);
-        if (tc != null) {
-            return tc.value();
-        } else {
-            return "Test";
-        }
+  public static String testClassOf(Method m) {
+    TestClass tc = m.getAnnotation(TestClass.class);
+    if (tc != null) {
+      return tc.value();
+    } else {
+      return "Test";
+    }
+  }
+
+  public static ClassFile compileAndReturn(String fullFile, String testClass) throws Exception {
+    File source = writeTestFile(fullFile);
+    File clazzFile = compileTestFile(source, testClass);
+    return ClassFile.read(clazzFile);
+  }
+
+  public static File writeTestFile(String fullFile) throws IOException {
+    File f = new File("Test.java");
+    try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(f)))) {
+      out.println(fullFile);
+    }
+    return f;
+  }
+
+  public static File compileTestFile(File f, String testClass) {
+    int rc =
+        com.sun.tools.javac.Main.compile(
+            new String[] {
+              "-AnoJreVersionCheck",
+              "-g",
+              "-processor",
+              "org.checkerframework.checker.nullness.NullnessChecker",
+              f.getPath()
+            });
+    if (rc != 0) {
+      throw new Error("compilation failed. rc=" + rc);
     }
 
-    public static ClassFile compileAndReturn(String fullFile, String testClass) throws Exception {
-        File source = writeTestFile(fullFile);
-        File clazzFile = compileTestFile(source, testClass);
-        return ClassFile.read(clazzFile);
+    File result = new File(f.getParent(), testClass + ".class");
+
+    // This diagnostic code preserves temporary files and prints the paths where they are
+    // preserved.
+    if (false) {
+      try {
+        File tempDir = new File(System.getProperty("java.io.tmpdir"));
+        File fCopy = File.createTempFile("FCopy", ".java", tempDir);
+        File resultCopy = File.createTempFile("FCopy", ".class", tempDir);
+        // REPLACE_EXISTING is essential in the `Files.copy()` calls because createTempFile
+        // actually creates a file in addition to returning its name.
+        Files.copy(f.toPath(), fCopy.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(result.toPath(), resultCopy.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        System.out.printf("comileTestFile: copied to %s %s%n", fCopy, resultCopy);
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
     }
 
-    public static File writeTestFile(String fullFile) throws IOException {
-        File f = new File("Test.java");
-        try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(f)))) {
-            out.println(fullFile);
-        }
-        return f;
+    return result;
+  }
+
+  public static String wrap(String compact) {
+    StringJoiner sj = new StringJoiner(System.lineSeparator());
+
+    // Automatically import java.util
+    sj.add("");
+    sj.add("import java.util.*;");
+    sj.add("import java.lang.annotation.*;");
+
+    // And the Nullness qualifiers
+    sj.add("import org.checkerframework.framework.qual.DefaultQualifier;");
+    sj.add("import org.checkerframework.checker.nullness.qual.*;");
+    sj.add("import org.checkerframework.dataflow.qual.*;");
+
+    sj.add("");
+    boolean isSnippet =
+        !(compact.startsWith("class") || compact.contains(" class"))
+            && !compact.contains("interface")
+            && !compact.contains("enum");
+
+    if (isSnippet) {
+      sj.add("class Test {");
     }
 
-    public static File compileTestFile(File f, String testClass) {
-        int rc =
-                com.sun.tools.javac.Main.compile(
-                        new String[] {
-                            "-AnoJreVersionCheck",
-                            "-g",
-                            "-processor",
-                            "org.checkerframework.checker.nullness.NullnessChecker",
-                            f.getPath()
-                        });
-        if (rc != 0) {
-            throw new Error("compilation failed. rc=" + rc);
-        }
+    sj.add(compact);
 
-        File result = new File(f.getParent(), testClass + ".class");
-
-        // This diagnostic code preserves temporary files and prints the paths where they are
-        // preserved.
-        if (false) {
-            try {
-                File tempDir = new File(System.getProperty("java.io.tmpdir"));
-                File fCopy = File.createTempFile("FCopy", ".java", tempDir);
-                File resultCopy = File.createTempFile("FCopy", ".class", tempDir);
-                // REPLACE_EXISTING is essential in the `Files.copy()` calls because createTempFile
-                // actually creates a file in addition to returning its name.
-                Files.copy(f.toPath(), fCopy.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                Files.copy(
-                        result.toPath(), resultCopy.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                System.out.printf("comileTestFile: copied to %s %s%n", fCopy, resultCopy);
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        }
-
-        return result;
+    if (isSnippet) {
+      sj.add("}");
+      sj.add("");
     }
 
-    public static String wrap(String compact) {
-        StringJoiner sj = new StringJoiner(System.lineSeparator());
-
-        // Automatically import java.util
-        sj.add("");
-        sj.add("import java.util.*;");
-        sj.add("import java.lang.annotation.*;");
-
-        // And the Nullness qualifiers
-        sj.add("import org.checkerframework.framework.qual.DefaultQualifier;");
-        sj.add("import org.checkerframework.checker.nullness.qual.*;");
-        sj.add("import org.checkerframework.dataflow.qual.*;");
-
-        sj.add("");
-        boolean isSnippet =
-                !(compact.startsWith("class") || compact.contains(" class"))
-                        && !compact.contains("interface")
-                        && !compact.contains("enum");
-
-        if (isSnippet) {
-            sj.add("class Test {");
-        }
-
-        sj.add(compact);
-
-        if (isSnippet) {
-            sj.add("}");
-            sj.add("");
-        }
-
-        return sj.toString();
-    }
+    return sj.toString();
+  }
 }
 
 /**
@@ -126,5 +124,5 @@ public class PersistUtil {
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 @interface TestClass {
-    String value() default "Test";
+  String value() default "Test";
 }

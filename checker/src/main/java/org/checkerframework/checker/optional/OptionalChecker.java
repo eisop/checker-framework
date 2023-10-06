@@ -1,9 +1,8 @@
 package org.checkerframework.checker.optional;
 
+import java.util.Optional;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.qual.RelevantJavaTypes;
-
-import java.util.Optional;
 
 /**
  * A type-checker that prevents misuse of the {@link java.util.Optional} class.
@@ -14,6 +13,6 @@ import java.util.Optional;
 // type have type @Present.  Make Optional Checker a subchecker of the Nullness Checker.
 @RelevantJavaTypes(Optional.class)
 public class OptionalChecker extends BaseTypeChecker {
-    /** Default constructor for OptionalChecker. */
-    public OptionalChecker() {}
+  /** Default constructor for OptionalChecker. */
+  public OptionalChecker() {}
 }
