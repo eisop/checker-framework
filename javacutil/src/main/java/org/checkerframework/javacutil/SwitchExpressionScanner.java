@@ -4,7 +4,6 @@ import com.sun.source.tree.BlockTree;
 import com.sun.source.tree.CaseTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.Tree;
-import com.sun.source.tree.Tree.Kind;
 import com.sun.source.util.TreeScanner;
 
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -85,13 +84,13 @@ public abstract class SwitchExpressionScanner<R, P> extends TreeScanner<R, P> {
                 @NonNull Tree body = TreeUtils.caseTreeGetBody(caseTree);
                 // This case is a switch rule, so its body is either an expression, block, or throw.
                 // See https://docs.oracle.com/javase/specs/jls/se17/html/jls-15.html#jls-15.28.2.
-                if (body.getKind() == Kind.BLOCK) {
+                if (body.getKind() == Tree.Kind.BLOCK) {
                     // Scan for yield statements.
                     result =
                             combineResults(
                                     result,
                                     yieldVisitor.scan(((BlockTree) body).getStatements(), p));
-                } else if (body.getKind() != Kind.THROW) {
+                } else if (body.getKind() != Tree.Kind.THROW) {
                     // The expression is the result expression.
                     ExpressionTree expressionTree = (ExpressionTree) body;
                     result = combineResults(result, visitSwitchResultExpression(expressionTree, p));

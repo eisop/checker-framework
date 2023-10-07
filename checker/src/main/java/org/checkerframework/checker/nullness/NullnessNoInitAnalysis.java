@@ -39,7 +39,7 @@ public class NullnessNoInitAnalysis
     @Override
     public NullnessNoInitValue createAbstractValue(
             AnnotationMirrorSet annotations, TypeMirror underlyingType) {
-        if (!CFAbstractValue.validateSet(annotations, underlyingType, qualifierHierarchy)) {
+        if (!CFAbstractValue.validateSet(annotations, underlyingType, atypeFactory)) {
             return null;
         }
         return new NullnessNoInitValue(this, annotations, underlyingType);

@@ -573,7 +573,7 @@ public class WholeProgramInferenceScenesStorage
      *       previous annotation and rhsATM.
      * </ul>
      *
-     * @param type ATypeElement of the Scene which will be modified
+     * @param type the ATypeElement of the Scene which will be modified
      * @param jaifPath path to a .jaif file for a Scene; used for marking the scene as modified
      *     (needing to be written to disk)
      * @param rhsATM the RHS of the annotated type on the source code
@@ -592,7 +592,8 @@ public class WholeProgramInferenceScenesStorage
         if (rhsATM instanceof AnnotatedNullType && ignoreNullAssignments) {
             return;
         }
-        AnnotatedTypeMirror atmFromScene = atmFromStorageLocation(rhsATM.getUnderlyingType(), type);
+        TypeMirror rhsTM = rhsATM.getUnderlyingType();
+        AnnotatedTypeMirror atmFromScene = atmFromStorageLocation(rhsTM, type);
         updateAtmWithLub(rhsATM, atmFromScene);
         if (lhsATM instanceof AnnotatedTypeVariable) {
             AnnotationMirrorSet upperAnnos =

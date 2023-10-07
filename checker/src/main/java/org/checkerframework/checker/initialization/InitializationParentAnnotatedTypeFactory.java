@@ -481,8 +481,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
         if (super.isNotFullyInitializedReceiver(methodTree)) {
             return true;
         }
-        final AnnotatedDeclaredType receiverType =
-                analysis.getTypeFactory().getAnnotatedType(methodTree).getReceiverType();
+        AnnotatedDeclaredType receiverType = getAnnotatedType(methodTree).getReceiverType();
         if (receiverType != null) {
             return isUnknownInitialization(receiverType) || isUnderInitialization(receiverType);
         } else {
@@ -745,7 +744,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
             boolean allInitialized = true;
             Type type = ((JCTree) tree).type;
             for (ExpressionTree a : tree.getArguments()) {
-                final AnnotatedTypeMirror t = getAnnotatedType(a);
+                AnnotatedTypeMirror t = getAnnotatedType(a);
                 allInitialized &= (isInitialized(t) || isFbcBottom(t));
             }
             if (!allInitialized) {

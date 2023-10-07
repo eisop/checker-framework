@@ -2,6 +2,7 @@ package org.checkerframework.javacutil;
 
 import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 import org.checkerframework.checker.nullness.qual.KeyFor;
+import org.checkerframework.checker.nullness.qual.KeyForBottom;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.common.returnsreceiver.qual.This;
@@ -46,6 +47,16 @@ public class AnnotationMirrorSet
 
     /** Default constructor. */
     public AnnotationMirrorSet() {}
+
+    // TODO: Should this be an unmodifiable set?
+    /**
+     * Creates a new {@link AnnotationMirrorSet} that contains {@code value}.
+     *
+     * @param value the AnnotationMirror to put in the set
+     */
+    public AnnotationMirrorSet(AnnotationMirror value) {
+        this.add(value);
+    }
 
     /**
      * Returns a new {@link AnnotationMirrorSet} that contains the given annotation mirrors.
@@ -143,7 +154,7 @@ public class AnnotationMirrorSet
 
     @SuppressWarnings("nullness:toarray.nullable.elements.not.newarray") // delegation
     @Override
-    public <T> @Nullable T[] toArray(@PolyNull T[] a) {
+    public <@KeyForBottom T> @Nullable T[] toArray(@PolyNull T[] a) {
         return shadowSet.toArray(a);
     }
 

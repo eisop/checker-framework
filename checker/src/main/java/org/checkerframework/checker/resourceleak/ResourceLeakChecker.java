@@ -11,7 +11,7 @@ import org.checkerframework.framework.source.SupportedOptions;
 
 import java.util.Set;
 
-import javax.tools.Diagnostic.Kind;
+import javax.tools.Diagnostic;
 
 /**
  * The entry point for the Resource Leak Checker. This checker is a modifed {@link
@@ -85,9 +85,9 @@ public class ResourceLeakChecker extends CalledMethodsChecker {
     @Override
     public void typeProcessingOver() {
         if (hasOption(COUNT_MUST_CALL)) {
-            message(Kind.WARNING, "Found %d must call obligation(s).%n", numMustCall);
+            message(Diagnostic.Kind.WARNING, "Found %d must call obligation(s).%n", numMustCall);
             message(
-                    Kind.WARNING,
+                    Diagnostic.Kind.WARNING,
                     "Successfully verified %d must call obligation(s).%n",
                     numMustCall - numMustCallFailed);
         }

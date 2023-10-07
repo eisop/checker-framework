@@ -111,7 +111,7 @@ import javax.lang.model.type.TypeMirror;
 public class DependentTypesHelper {
 
     /** AnnotatedTypeFactory */
-    protected final AnnotatedTypeFactory factory;
+    protected final AnnotatedTypeFactory atypeFactory;
 
     /**
      * Maps from an annotation name, the fully-qualified name of its class, to its elements that are
@@ -141,22 +141,24 @@ public class DependentTypesHelper {
     /**
      * Creates a {@code DependentTypesHelper}.
      *
-     * @param factory annotated type factory
+     * @param atypeFactory annotated type factory
      */
-    public DependentTypesHelper(AnnotatedTypeFactory factory) {
-        this.factory = factory;
+    public DependentTypesHelper(AnnotatedTypeFactory atypeFactory) {
+        this.atypeFactory = atypeFactory;
 
         this.annoToElements = new HashMap<>();
-        for (Class<? extends Annotation> expressionAnno : factory.getSupportedTypeQualifiers()) {
+        for (Class<? extends Annotation> expressionAnno :
+                atypeFactory.getSupportedTypeQualifiers()) {
             List<ExecutableElement> elementList =
-                    getExpressionElements(expressionAnno, factory.getProcessingEnv());
+                    getExpressionElements(expressionAnno, atypeFactory.getProcessingEnv());
             if (!elementList.isEmpty()) {
                 annoToElements.put(expressionAnno.getCanonicalName(), elementList);
             }
         }
 
         this.objectTM =
-                TypesUtils.typeFromClass(Object.class, factory.types, factory.getElementUtils());
+                TypesUtils.typeFromClass(
+                        Object.class, atypeFactory.types, atypeFactory.getElementUtils());
     }
 
     /**
@@ -199,7 +201,7 @@ public class DependentTypesHelper {
     /**
      * Returns the elements of the annotation that are Java expressions.
      *
-     * @param am AnnotationMirror
+     * @param am an annotation
      * @return the elements of the annotation that are Java expressions
      */
     private List<ExecutableElement> getListOfExpressionElements(AnnotationMirror am) {
@@ -214,7 +216,7 @@ public class DependentTypesHelper {
      */
     public TreeAnnotator createDependentTypesTreeAnnotator() {
         assert hasDependentAnnotations();
-        return new DependentTypesTreeAnnotator(factory, this);
+        return new DependentTypesTreeAnnotator(atypeFactory, this);
     }
 
     ///
@@ -242,7 +244,7 @@ public class DependentTypesHelper {
         StringToJavaExpression stringToJavaExpr =
                 stringExpr ->
                         StringToJavaExpression.atTypeDecl(
-                                stringExpr, typeUse, factory.getChecker());
+                                stringExpr, typeUse, atypeFactory.getChecker());
         if (debugStringToJavaExpression) {
             System.out.printf(
                     "atParameterizedTypeUse(%s, %s) created %s%n",
@@ -322,7 +324,7 @@ public class DependentTypesHelper {
 
         // The annotations on `declaredMethodType` will be copied to `methodType`.
         AnnotatedExecutableType declaredMethodType =
-                (AnnotatedExecutableType) factory.getAnnotatedType(methodElt);
+                (AnnotatedExecutableType) atypeFactory.getAnnotatedType(methodElt);
         if (!hasDependentType(declaredMethodType)) {
             return;
         }
@@ -332,7 +334,9 @@ public class DependentTypesHelper {
             stringToJavaExpr =
                     stringExpr ->
                             StringToJavaExpression.atMethodInvocation(
-                                    stringExpr, (MethodInvocationTree) tree, factory.getChecker());
+                                    stringExpr,
+                                    (MethodInvocationTree) tree,
+                                    atypeFactory.getChecker());
             if (debugStringToJavaExpression) {
                 System.out.printf(
                         "atInvocation(%s, %s) 1 created %s%n",
@@ -342,7 +346,7 @@ public class DependentTypesHelper {
             stringToJavaExpr =
                     stringExpr ->
                             StringToJavaExpression.atConstructorInvocation(
-                                    stringExpr, (NewClassTree) tree, factory.getChecker());
+                                    stringExpr, (NewClassTree) tree, atypeFactory.getChecker());
             if (debugStringToJavaExpression) {
                 System.out.printf(
                         "atInvocation(%s, %s) 2 created %s%n",
@@ -370,7 +374,7 @@ public class DependentTypesHelper {
         StringToJavaExpression stringToJavaExpr =
                 stringExpr ->
                         StringToJavaExpression.atFieldAccess(
-                                stringExpr, fieldAccess, factory.getChecker());
+                                stringExpr, fieldAccess, atypeFactory.getChecker());
         if (debugStringToJavaExpression) {
             System.out.printf(
                     "atFieldAccess(%s, %s) created %s%n",
@@ -395,7 +399,7 @@ public class DependentTypesHelper {
         StringToJavaExpression stringToJavaExpr =
                 stringExpr ->
                         StringToJavaExpression.atMethodBody(
-                                stringExpr, methodDeclTree, factory.getChecker());
+                                stringExpr, methodDeclTree, atypeFactory.getChecker());
         if (debugStringToJavaExpression) {
             System.out.printf(
                     "atMethodBody(%s, %s) 1 created %s%n",
@@ -418,7 +422,7 @@ public class DependentTypesHelper {
         StringToJavaExpression stringToJavaExpr =
                 stringExpr ->
                         StringToJavaExpression.atTypeDecl(
-                                stringExpr, typeElt, factory.getChecker());
+                                stringExpr, typeElt, atypeFactory.getChecker());
         if (debugStringToJavaExpression) {
             System.out.printf("atTypeDecl(%s, %s) created %s%n", type, typeElt, stringToJavaExpr);
         }
@@ -443,7 +447,7 @@ public class DependentTypesHelper {
             return;
         }
 
-        TreePath pathToVariableDecl = factory.getPath(declarationTree);
+        TreePath pathToVariableDecl = atypeFactory.getPath(declarationTree);
         assert pathToVariableDecl != null;
 
         if (variableElt instanceof DetachedVarSymbol) {
@@ -490,7 +494,7 @@ public class DependentTypesHelper {
                     StringToJavaExpression stringToJavaExpr =
                             stringExpr ->
                                     StringToJavaExpression.atMethodBody(
-                                            stringExpr, methodDeclTree, factory.getChecker());
+                                            stringExpr, methodDeclTree, atypeFactory.getChecker());
                     if (debugStringToJavaExpression) {
                         System.out.printf(
                                 "atVariableDeclaration(%s, %s, %s) 1 created %s%n",
@@ -509,7 +513,7 @@ public class DependentTypesHelper {
                                             stringExpr,
                                             (LambdaExpressionTree) enclTree,
                                             pathToVariableDecl.getParentPath(),
-                                            factory.getChecker());
+                                            atypeFactory.getChecker());
                     if (debugStringToJavaExpression) {
                         System.out.printf(
                                 "atVariableDeclaration(%s, %s, %s) 2 created %s%n",
@@ -528,7 +532,7 @@ public class DependentTypesHelper {
                 StringToJavaExpression stringToJavaExprVar =
                         stringExpr ->
                                 StringToJavaExpression.atPath(
-                                        stringExpr, pathToVariableDecl, factory.getChecker());
+                                        stringExpr, pathToVariableDecl, atypeFactory.getChecker());
                 if (debugStringToJavaExpression) {
                     System.out.printf(
                             "atVariableDeclaration(%s, %s, %s) 3 created %s%n",
@@ -545,7 +549,7 @@ public class DependentTypesHelper {
                 StringToJavaExpression stringToJavaExprField =
                         stringExpr ->
                                 StringToJavaExpression.atFieldDecl(
-                                        stringExpr, variableElt, factory.getChecker());
+                                        stringExpr, variableElt, atypeFactory.getChecker());
                 if (debugStringToJavaExpression) {
                     System.out.printf(
                             "atVariableDeclaration(%s, %s, %s) 4 created %s%n",
@@ -581,12 +585,13 @@ public class DependentTypesHelper {
             return;
         }
 
-        TreePath path = factory.getPath(expressionTree);
+        TreePath path = atypeFactory.getPath(expressionTree);
         if (path == null) {
             return;
         }
         StringToJavaExpression stringToJavaExpr =
-                stringExpr -> StringToJavaExpression.atPath(stringExpr, path, factory.getChecker());
+                stringExpr ->
+                        StringToJavaExpression.atPath(stringExpr, path, atypeFactory.getChecker());
         if (debugStringToJavaExpression) {
             System.out.printf(
                     "atExpression(%s, %s) created %s%n",
@@ -614,7 +619,7 @@ public class DependentTypesHelper {
             case LOCAL_VARIABLE:
             case RESOURCE_VARIABLE:
             case EXCEPTION_PARAMETER:
-                Tree declarationTree = factory.declarationFromElement(elt);
+                Tree declarationTree = atypeFactory.declarationFromElement(elt);
                 if (declarationTree == null) {
                     if (elt.getKind() == ElementKind.PARAMETER) {
                         // The tree might be null when
@@ -664,7 +669,7 @@ public class DependentTypesHelper {
             return;
         }
 
-        TreePath pathToMethodDecl = factory.getPath(methodDeclTree);
+        TreePath pathToMethodDecl = atypeFactory.getPath(methodDeclTree);
         ExecutableElement methodElement = TreeUtils.elementFromDeclaration(methodDeclTree);
         List<FormalParameter> parameters = JavaExpression.getFormalParameters(methodElement);
         List<JavaExpression> paramsAsLocals =
@@ -676,7 +681,7 @@ public class DependentTypesHelper {
                     try {
                         javaExpr =
                                 StringToJavaExpression.atPath(
-                                        expression, pathToMethodDecl, factory.getChecker());
+                                        expression, pathToMethodDecl, atypeFactory.getChecker());
                     } catch (JavaExpressionParseException ex) {
                         return null;
                     }
@@ -738,12 +743,13 @@ public class DependentTypesHelper {
         List<JavaExpression> argsAsExprs =
                 CollectionsPlume.mapList(LocalVariable::fromNode, arguments);
         JavaExpression receiverAsExpr = receiver == null ? null : LocalVariable.fromNode(receiver);
-        TreePath path = factory.getPath(invocationTree);
+        TreePath path = atypeFactory.getPath(invocationTree);
 
         StringToJavaExpression stringToJavaExpr =
                 stringExpr -> {
                     JavaExpression expr =
-                            StringToJavaExpression.atPath(stringExpr, path, factory.getChecker());
+                            StringToJavaExpression.atPath(
+                                    stringExpr, path, atypeFactory.getChecker());
                     JavaExpressionConverter jec =
                             new JavaExpressionConverter() {
                                 @Override
@@ -915,7 +921,8 @@ public class DependentTypesHelper {
             Map<ExecutableElement, List<JavaExpression>> elementMap) {
         AnnotationBuilder builder =
                 new AnnotationBuilder(
-                        factory.getProcessingEnv(), AnnotationUtils.annotationName(originalAnno));
+                        atypeFactory.getProcessingEnv(),
+                        AnnotationUtils.annotationName(originalAnno));
         builder.copyElementValuesFromAnnotation(originalAnno, elementMap.keySet());
         for (Map.Entry<ExecutableElement, List<JavaExpression>> entry : elementMap.entrySet()) {
             List<String> strings =
@@ -1083,7 +1090,7 @@ public class DependentTypesHelper {
      * @param errors the errors to report
      */
     protected void reportErrors(Tree errorTree, List<DependentTypesError> errors) {
-        SourceChecker checker = factory.getChecker();
+        SourceChecker checker = atypeFactory.getChecker();
         for (DependentTypesError dte : errors) {
             checker.reportError(errorTree, "expression.unparsable.type.invalid", dte.format());
         }
@@ -1132,7 +1139,7 @@ public class DependentTypesHelper {
         if (errors.isEmpty()) {
             return;
         }
-        SourceChecker checker = factory.getChecker();
+        SourceChecker checker = atypeFactory.getChecker();
         for (DependentTypesError error : errors) {
             checker.reportError(errorTree, "flowexpr.parse.error", error);
         }
@@ -1175,7 +1182,7 @@ public class DependentTypesHelper {
         checkTypeVariablesForErrorExpressions(methodDeclTree, type);
         // Check return type
         if (type.getReturnType().getKind() != TypeKind.VOID) {
-            AnnotatedTypeMirror returnType = factory.getMethodReturnType(methodDeclTree);
+            AnnotatedTypeMirror returnType = atypeFactory.getMethodReturnType(methodDeclTree);
             Tree treeForError =
                     TreeUtils.isConstructor(methodDeclTree)
                             ? methodDeclTree
@@ -1198,7 +1205,7 @@ public class DependentTypesHelper {
             StringToJavaExpression stringToJavaExpr =
                     stringExpr ->
                             StringToJavaExpression.atMethodBody(
-                                    stringExpr, tree, factory.getChecker());
+                                    stringExpr, tree, atypeFactory.getChecker());
             if (debugStringToJavaExpression) {
                 System.out.printf(
                         "checkTypeVariablesForErrorExpressions(%s, %s) created %s%n",

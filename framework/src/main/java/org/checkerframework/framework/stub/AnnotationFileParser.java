@@ -417,8 +417,8 @@ public class AnnotationFileParser {
      * given file.
      *
      * @param filename name of annotation file, used only for diagnostic messages
-     * @param atypeFactory AnnotatedTypeFactory to use
-     * @param processingEnv ProcessingEnvironment to use
+     * @param atypeFactory the type factory
+     * @param processingEnv the processing environment
      * @param fileType the type of file being parsed (stub file or ajava file) and its source
      * @param fileElementTypes the manager that controls the stub file parsing process
      */
@@ -599,7 +599,7 @@ public class AnnotationFileParser {
                     )
                     @FullyQualifiedName String imported = importDecl.getNameAsString();
 
-                    final TypeElement importType = elements.getTypeElement(imported);
+                    TypeElement importType = elements.getTypeElement(imported);
                     if (importType == null && !importDecl.isStatic()) {
                         // Class or nested class (according to JSL), but we can't resolve
 
@@ -672,8 +672,8 @@ public class AnnotationFileParser {
      *
      * @param filename name of stub file, used only for diagnostic messages
      * @param inputStream of stub file to parse
-     * @param atypeFactory AnnotatedTypeFactory to use
-     * @param processingEnv ProcessingEnvironment to use
+     * @param atypeFactory the type factory
+     * @param processingEnv the processing environment
      * @param annotationFileAnnos annotations from the annotation file; side-effected by this method
      * @param fileType the annotation file type and source
      * @param fileElementTypes the manager that controls the stub file parsing process
@@ -706,8 +706,8 @@ public class AnnotationFileParser {
      * @param filename name of ajava file, used only for diagnostic messages
      * @param inputStream of ajava file to parse
      * @param root javac tree for the file to be parsed
-     * @param atypeFactory AnnotatedTypeFactory to use
-     * @param processingEnv ProcessingEnvironment to use
+     * @param atypeFactory the type factory
+     * @param processingEnv the processing environment
      * @param ajavaAnnos annotations from the ajava file; side-effected by this method
      * @param fileElementTypes the manager that controls the stub file parsing process
      */
@@ -744,8 +744,8 @@ public class AnnotationFileParser {
      *
      * @param filename name of stub file, used only for diagnostic messages
      * @param inputStream of stub file to parse
-     * @param atypeFactory AnnotatedTypeFactory to use
-     * @param processingEnv ProcessingEnvironment to use
+     * @param atypeFactory the type factory
+     * @param processingEnv the processing environment
      * @param stubAnnos annotations from the stub file; side-effected by this method
      * @param fileElementTypes the manager that controls the stub file parsing process
      */
@@ -1061,8 +1061,8 @@ public class AnnotationFileParser {
         Pair<Map<Element, BodyDeclaration<?>>, Map<Element, List<BodyDeclaration<?>>>> members =
                 getMembers(typeDecl, typeElt, typeDecl);
         for (Map.Entry<Element, BodyDeclaration<?>> entry : members.first.entrySet()) {
-            final Element elt = entry.getKey();
-            final BodyDeclaration<?> decl = entry.getValue();
+            Element elt = entry.getKey();
+            BodyDeclaration<?> decl = entry.getValue();
             switch (elt.getKind()) {
                 case FIELD:
                     processField((FieldDeclaration) decl, (VariableElement) elt);
@@ -1150,8 +1150,8 @@ public class AnnotationFileParser {
         AnnotatedDeclaredType type = atypeFactory.fromElement(elt);
         annotate(type, decl.getAnnotations(), decl);
 
-        final List<? extends AnnotatedTypeMirror> typeArguments = type.getTypeArguments();
-        final List<TypeParameter> typeParameters;
+        List<? extends AnnotatedTypeMirror> typeArguments = type.getTypeArguments();
+        List<TypeParameter> typeParameters;
         if (decl instanceof NodeWithTypeParameters) {
             typeParameters = ((NodeWithTypeParameters<?>) decl).getTypeParameters();
         } else {
@@ -1416,9 +1416,9 @@ public class AnnotationFileParser {
      * Process the parameters of a method or constructor declaration: copy their annotations to
      * {@code #annotationFileAnnos}.
      *
-     * @param method a Method or Constructor declaration
-     * @param elt ExecutableElement of {@code method}
-     * @param methodType annotated type of {@code method}
+     * @param method a method or constructor declaration
+     * @param elt the element for {@code method}
+     * @param methodType the annotated type of {@code method}
      */
     private void processParameters(
             CallableDeclaration<?> method,
@@ -2310,7 +2310,7 @@ public class AnnotationFileParser {
      *     element is not found
      */
     private @Nullable Element findElement(TypeElement typeElt, ClassOrInterfaceDeclaration ciDecl) {
-        final String wantedClassOrInterfaceName = ciDecl.getNameAsString();
+        String wantedClassOrInterfaceName = ciDecl.getNameAsString();
         for (TypeElement typeElement : ElementUtils.getAllTypeElementsIn(typeElt)) {
             if (wantedClassOrInterfaceName.equals(typeElement.getSimpleName().toString())) {
                 return typeElement;
@@ -2340,7 +2340,7 @@ public class AnnotationFileParser {
      *     element is not found
      */
     private @Nullable Element findElement(TypeElement typeElt, EnumDeclaration enumDecl) {
-        final String wantedEnumName = enumDecl.getNameAsString();
+        String wantedEnumName = enumDecl.getNameAsString();
         for (TypeElement typeElement : ElementUtils.getAllTypeElementsIn(typeElt)) {
             if (wantedEnumName.equals(typeElement.getSimpleName().toString())) {
                 return typeElement;
@@ -2369,7 +2369,7 @@ public class AnnotationFileParser {
      */
     private @Nullable VariableElement findElement(
             TypeElement typeElt, EnumConstantDeclaration enumConstDecl, NodeWithRange<?> astNode) {
-        final String enumConstName = enumConstDecl.getNameAsString();
+        String enumConstName = enumConstDecl.getNameAsString();
         return findFieldElement(typeElt, enumConstName, astNode);
     }
 
@@ -2390,10 +2390,10 @@ public class AnnotationFileParser {
         if (skipNode(methodDecl)) {
             return null;
         }
-        final String wantedMethodName = methodDecl.getNameAsString();
-        final int wantedMethodParams =
+        String wantedMethodName = methodDecl.getNameAsString();
+        int wantedMethodParams =
                 (methodDecl.getParameters() == null) ? 0 : methodDecl.getParameters().size();
-        final String wantedMethodString = AnnotationFileUtil.toString(methodDecl);
+        String wantedMethodString = AnnotationFileUtil.toString(methodDecl);
         for (ExecutableElement method : ElementFilter.methodsIn(typeElt.getEnclosedElements())) {
             if (wantedMethodParams == method.getParameters().size()
                     && wantedMethodName.contentEquals(method.getSimpleName().toString())
@@ -2447,11 +2447,11 @@ public class AnnotationFileParser {
         if (skipNode(constructorDecl)) {
             return null;
         }
-        final int wantedMethodParams =
+        int wantedMethodParams =
                 (constructorDecl.getParameters() == null)
                         ? 0
                         : constructorDecl.getParameters().size();
-        final String wantedMethodString = AnnotationFileUtil.toString(constructorDecl);
+        String wantedMethodString = AnnotationFileUtil.toString(constructorDecl);
         for (ExecutableElement method :
                 ElementFilter.constructorsIn(typeElt.getEnclosedElements())) {
             if (wantedMethodParams == method.getParameters().size()
@@ -2480,7 +2480,7 @@ public class AnnotationFileParser {
      * @return the element for the given variable
      */
     private VariableElement findElement(TypeElement typeElt, VariableDeclarator variable) {
-        final String fieldName = variable.getNameAsString();
+        String fieldName = variable.getNameAsString();
         return findFieldElement(typeElt, fieldName, variable);
     }
 

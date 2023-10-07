@@ -1,5 +1,5 @@
-Version 3.34.0-eisop2 (May ?, 2023)
------------------------------------
+Version 3.35.0-eisop1 (October ?, 2023)
+---------------------------------------
 
 **User-visible changes:**
 
@@ -46,6 +46,52 @@ Changed the return types of
 **Closed issues:**
 
 eisop#297, eisop#376, eisop#400, eisop#519, eisop#532, eisop#533, typetools#1590, typetools#1919.
+
+
+Version 3.35.0 (June 1, 2023)
+-----------------------------
+
+**User-visible changes:**
+
+The Checker Framework no longer issues `type.checking.not.run` errors.
+This reduces clutter in the output.
+
+Signedness Checker:
+ * The receiver type of `Object.hashCode()` is now `@UnknownSignedness`.
+
+**Implementation details:**
+
+Instead of overriding `isRelevant()`, a type factory implementation should
+override `isRelevantImpl()`.  Clients should continue to call `isRelevant()`;
+never call `isRelevantImpl()`.
+
+Methods that now return a `boolean` rather than `void`:
+ * `commonAssignmentCheck()`
+ * `checkArrayInitialization()`
+ * `checkLock()`
+ * `checkLockOfThisOrTree()`
+ * `ensureExpressionIsEffectivelyFinal()`
+
+Methods that now return `AnnotationMirrorSet` instead of `Set<? extends AnnotationMirror>`:
+ * `getTopAnnotations()`
+ * `getBottomAnnotations()`
+ * `getDefaultTypeDeclarationBounds()`
+ * `getExceptionParameterLowerBoundAnnotations()`
+
+Renamed `BaseTypeVisitor.checkExtendsImplements()` to `checkExtendsAndImplements()`.
+
+Class `FieldInvariants`:
+ * constructor now takes an `AnnotatedTypeFactory`
+ * `isSuperInvariant()` has been renamed to `isStrongerThan()` and
+   no longer takes an `AnnotatedTypeFactory`
+
+`CFAbstractValue.validateSet()` takes a type factory rather than a `QualifierHierarchy`.
+
+Removed methods that have been deprecated for over two years.
+
+**Closed issues:**
+
+#4170, #5722, #5777, #5807, #5821, #5826, #5829, #5837, #5930.
 
 
 Version 3.34.0-eisop1 (May 9, 2023)
@@ -1468,7 +1514,7 @@ All CFGVisualizeLauncher command-line arguments now start with `--` instead of `
 
 **Implementation details:**
 
-commonAssignmentCheck() now takes an additional argument.  Type system
+`commonAssignmentCheck()` now takes an additional argument.  Type system
 authors must update their overriding implementations.
 
 Renamed methods:

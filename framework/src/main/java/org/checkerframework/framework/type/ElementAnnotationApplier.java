@@ -79,9 +79,7 @@ public final class ElementAnnotationApplier {
      * @param typeFactory the typeFactory used to create the given type
      */
     public static void apply(
-            final AnnotatedTypeMirror type,
-            final Element element,
-            final AnnotatedTypeFactory typeFactory) {
+            AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory typeFactory) {
         try {
             try {
                 applyInternal(type, element, typeFactory);
@@ -118,9 +116,7 @@ public final class ElementAnnotationApplier {
 
     /** Same as apply except that annotations aren't copied from type parameter declarations. */
     private static void applyInternal(
-            final AnnotatedTypeMirror type,
-            final Element element,
-            final AnnotatedTypeFactory typeFactory)
+            final AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory typeFactory)
             throws UnexpectedAnnotationLocationException {
 
         if (element == null) {
@@ -202,7 +198,7 @@ public final class ElementAnnotationApplier {
         VariableTree paramDecl = (VariableTree) typeFactory.declarationFromElement(varEle);
 
         if (paramDecl != null) {
-            final Tree parentTree = typeFactory.getPath(paramDecl).getParentPath().getLeaf();
+            Tree parentTree = typeFactory.getPath(paramDecl).getParentPath().getLeaf();
             if (parentTree != null && parentTree.getKind() == Tree.Kind.LAMBDA_EXPRESSION) {
                 return Pair.of(paramDecl, (LambdaExpressionTree) parentTree);
             }
@@ -217,8 +213,8 @@ public final class ElementAnnotationApplier {
      * @param element the element which type represents
      * @return true if type was generated via capture conversion false otherwise
      */
-    private static boolean isCaptureConvertedTypeVar(final Element element) {
-        final Element enclosure = element.getEnclosingElement();
+    private static boolean isCaptureConvertedTypeVar(Element element) {
+        Element enclosure = element.getEnclosingElement();
         return (((Symbol) enclosure).kind == com.sun.tools.javac.code.Kinds.Kind.NIL);
     }
 

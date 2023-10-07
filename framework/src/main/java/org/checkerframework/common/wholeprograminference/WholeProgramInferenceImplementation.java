@@ -37,6 +37,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedNullType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
+import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
 import org.checkerframework.javacutil.AnnotationBuilder;
@@ -1038,12 +1039,11 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
 
             // If the inferred type is a subtype of the upper bounds of the
             // current type in the source code, do nothing.
+            QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
             for (AnnotationMirror anno : rhsATM.getAnnotations()) {
                 AnnotationMirror upperAnno =
-                        atypeFactory
-                                .getQualifierHierarchy()
-                                .findAnnotationInSameHierarchy(upperAnnos, anno);
-                if (atypeFactory.getQualifierHierarchy().isSubtype(anno, upperAnno)) {
+                        qualHierarchy.findAnnotationInSameHierarchy(upperAnnos, anno);
+                if (qualHierarchy.isSubtype(anno, upperAnno)) {
                     rhsATM.removeAnnotation(anno);
                 }
             }
@@ -1073,15 +1073,8 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
         System.out.println("WPI failed to make an inference: " + reason);
     }
 
-    /**
-     * Updates sourceCodeATM to contain the LUB between sourceCodeATM and ajavaATM, ignoring missing
-     * AnnotationMirrors from ajavaATM -- it considers the LUB between an AnnotationMirror am and a
-     * missing AnnotationMirror to be am. The results are stored in sourceCodeATM.
-     *
-     * @param sourceCodeATM the annotated type on the source code; side effected by this method
-     * @param ajavaATM the annotated type on the ajava file
-     */
-    private void updateAtmWithLub(AnnotatedTypeMirror sourceCodeATM, AnnotatedTypeMirror ajavaATM) {
+    @Override
+    public void updateAtmWithLub(AnnotatedTypeMirror sourceCodeATM, AnnotatedTypeMirror ajavaATM) {
 
         if (sourceCodeATM.getKind() != ajavaATM.getKind()) {
             // Ignore null types: passing them to asSuper causes a crash, as they cannot be
