@@ -27,7 +27,7 @@ import java.util.ResourceBundle;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
-import javax.tools.Diagnostic.Kind;
+import javax.tools.Diagnostic;
 
 /**
  * This AnnotatedTypeFactory adds PropertyKey annotations to String literals that contain values
@@ -154,7 +154,9 @@ public class PropertyKeyAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         String[] namesArr = names.split(File.pathSeparator);
 
         if (namesArr == null) {
-            checker.message(Kind.WARNING, "Couldn't parse the properties files: <" + names + ">");
+            checker.message(
+                    Diagnostic.Kind.WARNING,
+                    "Couldn't parse the properties files: <" + names + ">");
             return Collections.emptySet();
         }
 
@@ -180,7 +182,8 @@ public class PropertyKeyAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                             prop.load(fis);
                         } catch (FileNotFoundException e) {
                             checker.message(
-                                    Kind.WARNING, "Couldn't find the properties file: " + name);
+                                    Diagnostic.Kind.WARNING,
+                                    "Couldn't find the properties file: " + name);
                             // report(null, "propertykeychecker.filenotfound", name);
                             // return Collections.emptySet();
                             continue;
@@ -195,7 +198,8 @@ public class PropertyKeyAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                 // node?
                 // One cannot use `report`, because it needs a node.
                 checker.message(
-                        Kind.WARNING, "Exception in PropertyKeyChecker.keysOfPropertyFile: " + e);
+                        Diagnostic.Kind.WARNING,
+                        "Exception in PropertyKeyChecker.keysOfPropertyFile: " + e);
                 e.printStackTrace();
             }
         }
@@ -208,7 +212,8 @@ public class PropertyKeyAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
         if (namesArr == null) {
             checker.message(
-                    Kind.WARNING, "Couldn't parse the resource bundles: <" + bundleNames + ">");
+                    Diagnostic.Kind.WARNING,
+                    "Couldn't parse the resource bundles: <" + bundleNames + ">");
             return Collections.emptySet();
         }
 
@@ -223,7 +228,7 @@ public class PropertyKeyAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             ResourceBundle bundle = ResourceBundle.getBundle(bundleName);
             if (bundle == null) {
                 checker.message(
-                        Kind.WARNING,
+                        Diagnostic.Kind.WARNING,
                         "Couldn't find the resource bundle: <"
                                 + bundleName
                                 + "> for locale <"

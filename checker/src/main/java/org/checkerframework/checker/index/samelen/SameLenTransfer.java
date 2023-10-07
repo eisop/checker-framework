@@ -47,9 +47,9 @@ import javax.lang.model.type.TypeKind;
 public class SameLenTransfer extends CFTransfer {
 
     /** The annotated type factory. */
-    private final SameLenAnnotatedTypeFactory aTypeFactory;
+    private final SameLenAnnotatedTypeFactory atypeFactory;
 
-    /** Shorthand for aTypeFactory.UNKNOWN. */
+    /** Shorthand for atypeFactory.UNKNOWN. */
     private final AnnotationMirror UNKNOWN;
 
     /**
@@ -59,8 +59,8 @@ public class SameLenTransfer extends CFTransfer {
      */
     public SameLenTransfer(CFAnalysis analysis) {
         super(analysis);
-        this.aTypeFactory = (SameLenAnnotatedTypeFactory) analysis.getTypeFactory();
-        this.UNKNOWN = aTypeFactory.UNKNOWN;
+        this.atypeFactory = (SameLenAnnotatedTypeFactory) analysis.getTypeFactory();
+        this.UNKNOWN = atypeFactory.UNKNOWN;
     }
 
     /**
@@ -72,7 +72,7 @@ public class SameLenTransfer extends CFTransfer {
             // lengthNode is a.length
             FieldAccessNode lengthFieldAccessNode = (FieldAccessNode) lengthNode;
             return lengthFieldAccessNode.getReceiver();
-        } else if (aTypeFactory.getMethodIdentifier().isLengthOfMethodInvocation(lengthNode)) {
+        } else if (atypeFactory.getMethodIdentifier().isLengthOfMethodInvocation(lengthNode)) {
             // lengthNode is s.length()
             MethodInvocationNode lengthMethodInvocationNode = (MethodInvocationNode) lengthNode;
             return lengthMethodInvocationNode.getTarget().getReceiver();
@@ -105,12 +105,12 @@ public class SameLenTransfer extends CFTransfer {
                     JavaExpression otherRec = JavaExpression.fromNode(lengthNodeReceiver);
 
                     AnnotationMirror lengthNodeAnnotation =
-                            aTypeFactory
+                            atypeFactory
                                     .getAnnotatedType(lengthNodeReceiver.getTree())
                                     .getAnnotationInHierarchy(UNKNOWN);
 
                     AnnotationMirror combinedSameLen =
-                            aTypeFactory.createCombinedSameLen(
+                            atypeFactory.createCombinedSameLen(
                                     Arrays.asList(targetRec, otherRec),
                                     Arrays.asList(UNKNOWN, lengthNodeAnnotation));
 
@@ -121,7 +121,7 @@ public class SameLenTransfer extends CFTransfer {
         }
 
         AnnotationMirror rightAnno =
-                aTypeFactory
+                atypeFactory
                         .getAnnotatedType(node.getExpression().getTree())
                         .getAnnotationInHierarchy(UNKNOWN);
 
@@ -133,12 +133,12 @@ public class SameLenTransfer extends CFTransfer {
         JavaExpression exprRec = JavaExpression.fromNode(node.getExpression());
 
         if (IndexUtil.isSequenceType(node.getTarget().getType())
-                || (rightAnno != null && aTypeFactory.areSameByClass(rightAnno, SameLen.class))) {
+                || (rightAnno != null && atypeFactory.areSameByClass(rightAnno, SameLen.class))) {
 
             AnnotationMirror rightAnnoOrUnknown = rightAnno == null ? UNKNOWN : rightAnno;
 
             AnnotationMirror combinedSameLen =
-                    aTypeFactory.createCombinedSameLen(
+                    atypeFactory.createCombinedSameLen(
                             Arrays.asList(targetRec, exprRec),
                             Arrays.asList(UNKNOWN, rightAnnoOrUnknown));
 
@@ -157,16 +157,16 @@ public class SameLenTransfer extends CFTransfer {
      * @param store the store to modify
      */
     private void propagateCombinedSameLen(AnnotationMirror sameLenAnno, Node node, CFStore store) {
-        TreePath currentPath = aTypeFactory.getPath(node.getTree());
+        TreePath currentPath = atypeFactory.getPath(node.getTree());
         if (currentPath == null) {
             return;
         }
         for (String exprString :
                 AnnotationUtils.getElementValueArray(
-                        sameLenAnno, aTypeFactory.sameLenValueElement, String.class)) {
+                        sameLenAnno, atypeFactory.sameLenValueElement, String.class)) {
             JavaExpression je;
             try {
-                je = aTypeFactory.parseJavaExpressionString(exprString, currentPath);
+                je = atypeFactory.parseJavaExpressionString(exprString, currentPath);
             } catch (JavaExpressionParseUtil.JavaExpressionParseException e) {
                 continue;
             }
@@ -202,13 +202,13 @@ public class SameLenTransfer extends CFTransfer {
             annos.add(getAnno(internal));
         }
 
-        AnnotationMirror combinedSameLen = aTypeFactory.createCombinedSameLen(exprs, annos);
+        AnnotationMirror combinedSameLen = atypeFactory.createCombinedSameLen(exprs, annos);
 
         propagateCombinedSameLen(combinedSameLen, left, store);
     }
 
     /**
-     * Return n's annotation from the SameLen hierarchy.
+     * Returns {@code n}'s annotation from the SameLen hierarchy.
      *
      * <p>analysis.getValue fails if called on an lvalue. However, this method needs to always
      * succeed, even when n is an lvalue. Consider this code:
@@ -218,16 +218,19 @@ public class SameLenTransfer extends CFTransfer {
      * where a, b, and c are all arrays, and a has type {@code @SameLen("d")}. Afterwards, all three
      * should have the type {@code @SameLen({"a", "b", "c", "d"})}, but in order to accomplish this,
      * this method must return the type of a, which is an lvalue.
+     *
+     * @param n a node whose SameLen annotation to return
+     * @return {@code n}'s annotation from the SameLen hierarchy
      */
     AnnotationMirror getAnno(Node n) {
         if (n.isLValue()) {
-            return aTypeFactory.getAnnotatedType(n.getTree()).getAnnotationInHierarchy(UNKNOWN);
+            return atypeFactory.getAnnotatedType(n.getTree()).getAnnotationInHierarchy(UNKNOWN);
         }
         CFValue cfValue = analysis.getValue(n);
         if (cfValue == null) {
             return UNKNOWN;
         }
-        return aTypeFactory
+        return atypeFactory
                 .getQualifierHierarchy()
                 .findAnnotationInHierarchy(cfValue.getAnnotations(), UNKNOWN);
     }
@@ -279,7 +282,7 @@ public class SameLenTransfer extends CFTransfer {
 
         for (VariableTree tree : paramTrees) {
             paramNames.add(tree.getName().toString());
-            params.add(aTypeFactory.getAnnotatedType(tree));
+            params.add(atypeFactory.getAnnotatedType(tree));
         }
 
         for (int index = 0; index < numParams; index++) {
@@ -294,7 +297,7 @@ public class SameLenTransfer extends CFTransfer {
 
             List<String> values =
                     AnnotationUtils.getElementValueArray(
-                            sameLenAnno, aTypeFactory.sameLenValueElement, String.class);
+                            sameLenAnno, atypeFactory.sameLenValueElement, String.class);
             for (String value : values) {
                 int otherParamIndex = paramNames.indexOf(value);
                 if (otherParamIndex == -1) {
@@ -304,7 +307,7 @@ public class SameLenTransfer extends CFTransfer {
                 // the SameLen value is in the list of params, so modify the type of
                 // that param in the store
                 AnnotationMirror newSameLen =
-                        aTypeFactory.createSameLen(
+                        atypeFactory.createSameLen(
                                 Collections.singletonList(paramNames.get(index)));
                 JavaExpression otherParamRec =
                         JavaExpression.fromVariableTree(paramTrees.get(otherParamIndex));

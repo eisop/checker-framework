@@ -328,7 +328,7 @@ public class AnalysisResult<V extends AbstractValue<V>, S extends Store<S>> impl
             case BACKWARD:
                 List<Node> nodes = block.getNodes();
                 if (nodes.isEmpty()) {
-                    // This block doesn't contain any node, return the store in the transfer input
+                    // This block doesn't contain any node, return the store in the transfer input.
                     return transferInput.getRegularStore();
                 } else {
                     Node firstNode = nodes.get(0);
@@ -359,7 +359,7 @@ public class AnalysisResult<V extends AbstractValue<V>, S extends Store<S>> impl
             case FORWARD:
                 Node lastNode = block.getLastNode();
                 if (lastNode == null) {
-                    // This block doesn't contain any node, return the store in the transfer input
+                    // This block doesn't contain any node, return the store in the transfer input.
                     return transferInput.getRegularStore();
                 } else {
                     return analysis.runAnalysisFor(

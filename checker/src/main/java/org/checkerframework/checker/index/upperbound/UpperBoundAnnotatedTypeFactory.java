@@ -462,18 +462,19 @@ public class UpperBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
         }
 
         /**
-         * Computes subtyping as per the subtyping in the qualifier hierarchy structure unless both
-         * annotations have the same class. In this case, rhs is a subtype of lhs iff rhs contains
-         * every element of lhs.
+         * {@inheritDoc}
          *
-         * @return true if rhs is a subtype of lhs, false otherwise
+         * <p>Computes subtyping as per the subtyping in the qualifier hierarchy structure unless
+         * both annotations have the same class. In this case, rhs is a subtype of lhs iff rhs
+         * contains every element of lhs.
          */
         @Override
         public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror superAnno) {
-            UBQualifier subtype = UBQualifier.createUBQualifier(subAnno, (IndexChecker) checker);
-            UBQualifier supertype =
+            UBQualifier subtypeQual =
+                    UBQualifier.createUBQualifier(subAnno, (IndexChecker) checker);
+            UBQualifier supertypeQual =
                     UBQualifier.createUBQualifier(superAnno, (IndexChecker) checker);
-            return subtype.isSubtype(supertype);
+            return subtypeQual.isSubtype(supertypeQual);
         }
     }
 
@@ -736,18 +737,18 @@ public class UpperBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
                 ExpressionTree left, ExpressionTree right, AnnotatedTypeMirror type) {
             LowerBoundAnnotatedTypeFactory lowerBoundATF = getLowerBoundAnnotatedTypeFactory();
             AnnotatedTypeMirror leftType = getAnnotatedType(left);
-            AnnotationMirror leftResultType = UNKNOWN;
+            AnnotationMirror leftResultAnno = UNKNOWN;
             if (lowerBoundATF.isNonNegative(left)) {
-                leftResultType = leftType.getAnnotationInHierarchy(UNKNOWN);
+                leftResultAnno = leftType.getAnnotationInHierarchy(UNKNOWN);
             }
 
             AnnotatedTypeMirror rightType = getAnnotatedType(right);
-            AnnotationMirror rightResultType = UNKNOWN;
+            AnnotationMirror rightResultAnno = UNKNOWN;
             if (lowerBoundATF.isNonNegative(right)) {
-                rightResultType = rightType.getAnnotationInHierarchy(UNKNOWN);
+                rightResultAnno = rightType.getAnnotationInHierarchy(UNKNOWN);
             }
 
-            type.addAnnotation(qualHierarchy.greatestLowerBound(leftResultType, rightResultType));
+            type.addAnnotation(qualHierarchy.greatestLowerBound(leftResultAnno, rightResultAnno));
         }
 
         /** Gets a sequence tree for a length access tree, or null if it is not a length access. */

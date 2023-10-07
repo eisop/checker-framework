@@ -130,7 +130,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
     }
 
     @Override
-    protected void commonAssignmentCheck(
+    protected boolean commonAssignmentCheck(
             Tree varTree,
             ExpressionTree valueExp,
             @CompilerMessageKey String errorKey,
@@ -160,11 +160,11 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
                         err = COMMITMENT_INVALID_FIELD_WRITE_UNKNOWN_INITIALIZATION;
                     }
                     checker.reportError(varTree, err, varTree);
-                    return; // prevent issuing another error about subtyping
+                    return false; // prevent issuing another error about subtyping
                 }
             }
         }
-        super.commonAssignmentCheck(varTree, valueExp, errorKey, extraArgs);
+        return super.commonAssignmentCheck(varTree, valueExp, errorKey, extraArgs);
     }
 
     @Override
@@ -201,7 +201,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
             isSubtype = true;
         } else {
             assert exprAnno != null && castAnno != null;
-            isSubtype = atypeFactory.getQualifierHierarchy().isSubtype(exprAnno, castAnno);
+            isSubtype = qualHierarchy.isSubtype(exprAnno, castAnno);
         }
 
         if (!isSubtype) {
@@ -236,7 +236,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
                         store.addInitializedField(fieldInitialValue.fieldDecl.getField());
                     }
                 }
-                final List<VariableTree> init =
+                List<VariableTree> init =
                         atypeFactory.getInitializedFields(store, getCurrentPath());
                 initializedFields.addAll(init);
             }

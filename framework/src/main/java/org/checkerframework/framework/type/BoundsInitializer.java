@@ -59,16 +59,16 @@ public class BoundsInitializer {
      * @param declaredType type whose arguments are initialized
      */
     public static void initializeTypeArgs(AnnotatedDeclaredType declaredType) {
-        final DeclaredType underlyingType = (DeclaredType) declaredType.underlyingType;
+        DeclaredType underlyingType = (DeclaredType) declaredType.underlyingType;
         if (underlyingType.getTypeArguments().isEmpty() && !declaredType.isUnderlyingTypeRaw()) {
             // No type arguments to initialize.
             return;
         }
 
-        final TypeElement typeElement =
+        TypeElement typeElement =
                 (TypeElement) declaredType.atypeFactory.types.asElement(underlyingType);
         int numTypeParameters = typeElement.getTypeParameters().size();
-        final List<AnnotatedTypeMirror> typeArgs = new ArrayList<>(numTypeParameters);
+        List<AnnotatedTypeMirror> typeArgs = new ArrayList<>(numTypeParameters);
 
         // Create AnnotatedTypeMirror for each type argument and store them in the typeArgsMap.
         // Take un-annotated type variables as the key for this map.
@@ -83,7 +83,7 @@ public class BoundsInitializer {
                 javaTypeArg = declaredType.getUnderlyingType().getTypeArguments().get(i);
             }
 
-            final AnnotatedTypeMirror typeArg =
+            AnnotatedTypeMirror typeArg =
                     AnnotatedTypeMirror.createType(
                             javaTypeArg, declaredType.atypeFactory, declaredType.isDeclaration());
             if (typeArg.getKind() == TypeKind.WILDCARD) {
@@ -157,7 +157,7 @@ public class BoundsInitializer {
      *
      * @param typeVar the type variable whose lower bound is being initialized
      */
-    public static void initializeBounds(final AnnotatedTypeVariable typeVar) {
+    public static void initializeBounds(AnnotatedTypeVariable typeVar) {
         initializeBounds(typeVar, null);
     }
 
@@ -169,8 +169,8 @@ public class BoundsInitializer {
      * @param map a mapping of type parameters to type arguments. May be null.
      */
     private static void initializeBounds(
-            final AnnotatedTypeVariable typeVar, Map<TypeVariable, AnnotatedTypeMirror> map) {
-        final AnnotationMirrorSet annos = saveAnnotations(typeVar);
+            AnnotatedTypeVariable typeVar, Map<TypeVariable, AnnotatedTypeMirror> map) {
+        AnnotationMirrorSet annos = saveAnnotations(typeVar);
 
         InitializerVisitor visitor =
                 new InitializerVisitor(new TypeVariableStructure(typeVar), map);
@@ -202,9 +202,9 @@ public class BoundsInitializer {
      * @param type a type whose annotations to read, clear, and return
      * @return the original primary annotations on {@code type}, or null if none
      */
-    private static @Nullable AnnotationMirrorSet saveAnnotations(final AnnotatedTypeMirror type) {
+    private static @Nullable AnnotationMirrorSet saveAnnotations(AnnotatedTypeMirror type) {
         if (!type.getAnnotationsField().isEmpty()) {
-            final AnnotationMirrorSet annos = new AnnotationMirrorSet(type.getAnnotations());
+            AnnotationMirrorSet annos = new AnnotationMirrorSet(type.getAnnotations());
             type.clearAnnotations();
             return annos;
         }
@@ -212,8 +212,7 @@ public class BoundsInitializer {
         return null;
     }
 
-    private static void restoreAnnotations(
-            final AnnotatedTypeMirror type, final AnnotationMirrorSet annos) {
+    private static void restoreAnnotations(AnnotatedTypeMirror type, AnnotationMirrorSet annos) {
         if (annos != null) {
             type.addAnnotations(annos);
         }
@@ -225,7 +224,7 @@ public class BoundsInitializer {
      *
      * @param wildcard the wildcard whose lower bound is being initialized
      */
-    public static void initializeSuperBound(final AnnotatedWildcardType wildcard) {
+    public static void initializeSuperBound(AnnotatedWildcardType wildcard) {
         initializeSuperBound(wildcard, null);
     }
 
@@ -237,8 +236,8 @@ public class BoundsInitializer {
      * @param map a mapping of type parameters to type arguments. May be null.
      */
     private static void initializeSuperBound(
-            final AnnotatedWildcardType wildcard, Map<TypeVariable, AnnotatedTypeMirror> map) {
-        final AnnotationMirrorSet annos = saveAnnotations(wildcard);
+            AnnotatedWildcardType wildcard, Map<TypeVariable, AnnotatedTypeMirror> map) {
+        AnnotationMirrorSet annos = saveAnnotations(wildcard);
 
         InitializerVisitor visitor = new InitializerVisitor(new RecursiveTypeStructure(), map);
         visitor.initializeSuperBound(wildcard);
@@ -253,7 +252,7 @@ public class BoundsInitializer {
      *
      * @param wildcard the wildcard whose extends bound is being initialized
      */
-    public static void initializeExtendsBound(final AnnotatedWildcardType wildcard) {
+    public static void initializeExtendsBound(AnnotatedWildcardType wildcard) {
         initializeExtendsBound(wildcard, null);
     }
 
@@ -265,8 +264,8 @@ public class BoundsInitializer {
      * @param map a mapping of type parameters to type arguments. May be null.
      */
     private static void initializeExtendsBound(
-            final AnnotatedWildcardType wildcard, Map<TypeVariable, AnnotatedTypeMirror> map) {
-        final AnnotationMirrorSet annos = saveAnnotations(wildcard);
+            AnnotatedWildcardType wildcard, Map<TypeVariable, AnnotatedTypeMirror> map) {
+        AnnotationMirrorSet annos = saveAnnotations(wildcard);
         InitializerVisitor visitor = new InitializerVisitor(new RecursiveTypeStructure(), map);
         visitor.initializeExtendsBound(wildcard);
         visitor.resolveTypeVarReferences(wildcard);
@@ -799,7 +798,7 @@ public class BoundsInitializer {
          * Add a type variable found at the current path while visiting the type variable or
          * wildcard associated with this structure.
          *
-         * @param typeVariable TypeVariable
+         * @param typeVariable a type variable
          */
         public void addTypeVar(TypeVariable typeVariable) {
             typeVarsInType.add(Pair.of(this.currentPath.copy(), typeVariable));
@@ -1061,10 +1060,10 @@ public class BoundsInitializer {
         /**
          * Throws a {@link BugInCF} if {@code parent} is {@code typeKind}.
          *
-         * @param typeKind TypeKind
+         * @param typeKind the desired TypeKind
          * @param replacement for debugging
          * @param parent possible parent type of this node
-         * @throws BugInCF if {@code parent} is {@code typeKind}
+         * @throws BugInCF if {@code parent.getKind()} is not {@code typeKind}
          */
         private void abortIfNotKind(
                 TypeKind typeKind, AnnotatedTypeVariable replacement, AnnotatedTypeMirror parent) {

@@ -9,12 +9,12 @@ import org.checkerframework.checker.mustcall.CreatesMustCallForToJavaExpression;
 import org.checkerframework.checker.mustcall.MustCallAnnotatedTypeFactory;
 import org.checkerframework.checker.mustcall.MustCallChecker;
 import org.checkerframework.checker.mustcall.qual.CreatesMustCallFor;
+import org.checkerframework.checker.mustcall.qual.NotOwning;
 import org.checkerframework.checker.mustcall.qual.Owning;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.framework.flow.CFAbstractStore;
 import org.checkerframework.framework.flow.CFAbstractValue;
-import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
@@ -57,7 +57,7 @@ public class ResourceLeakVisitor extends CalledMethodsVisitor {
      *
      * @param checker the type-checker associated with this visitor
      */
-    public ResourceLeakVisitor(final BaseTypeChecker checker) {
+    public ResourceLeakVisitor(BaseTypeChecker checker) {
         super(checker);
         rlTypeFactory = (ResourceLeakAnnotatedTypeFactory) atypeFactory;
         permitStaticOwning = checker.hasOption("permitStaticOwning");
@@ -79,6 +79,7 @@ public class ResourceLeakVisitor extends CalledMethodsVisitor {
             checkCreatesMustCallForOverrides(tree, elt, mcAtf, cmcfValues);
             checkCreatesMustCallForTargetsHaveNonEmptyMustCall(tree, mcAtf);
         }
+        checkOwningOverrides(tree, elt, mcAtf);
         return super.visitMethod(tree, p);
     }
 
@@ -144,6 +145,53 @@ public class ResourceLeakVisitor extends CalledMethodsVisitor {
         }
     }
 
+    /**
+     * Checks that overrides respect behavioral subtyping for @Owning and @NotOwning annotations. In
+     * particular, checks that 1) if an overridden method has an @Owning parameter, then that
+     * parameter is @Owning in the overrider, and 2) if an overridden method has an @NotOwning
+     * return, then the overrider also has an @NotOwning return.
+     *
+     * @param tree overriding method, for error reporting
+     * @param overrider element for overriding method
+     * @param mcAtf the type factory
+     */
+    private void checkOwningOverrides(
+            MethodTree tree, ExecutableElement overrider, MustCallAnnotatedTypeFactory mcAtf) {
+        for (ExecutableElement overridden :
+                ElementUtils.getOverriddenMethods(overrider, this.types)) {
+            // Check for @Owning parameters. Must use an explicitly-indexed for loop so that the
+            // same parameter index can be accessed in the overrider's parameter list, which is the
+            // same length.
+            for (int i = 0; i < overridden.getParameters().size(); i++) {
+                if (mcAtf.getDeclAnnotation(overridden.getParameters().get(i), Owning.class)
+                        != null) {
+                    if (mcAtf.getDeclAnnotation(overrider.getParameters().get(i), Owning.class)
+                            == null) {
+                        checker.reportError(
+                                tree,
+                                "owning.override.param",
+                                overrider.getParameters().get(i).getSimpleName().toString(),
+                                overrider.getSimpleName().toString(),
+                                ElementUtils.getEnclosingClassName(overrider),
+                                overridden.getSimpleName().toString(),
+                                ElementUtils.getEnclosingClassName(overridden));
+                    }
+                }
+            }
+            // Check for @NotOwning returns.
+            if (mcAtf.getDeclAnnotation(overridden, NotOwning.class) != null
+                    && mcAtf.getDeclAnnotation(overrider, NotOwning.class) == null) {
+                checker.reportError(
+                        tree,
+                        "owning.override.return",
+                        overrider.getSimpleName().toString(),
+                        ElementUtils.getEnclosingClassName(overrider),
+                        overridden.getSimpleName().toString(),
+                        ElementUtils.getEnclosingClassName(overridden));
+            }
+        }
+    }
+
     // Overwritten to check that destructors (i.e. methods responsible for resolving
     // the must-call obligations of owning fields) enforce a stronger version of
     // @EnsuresCalledMethods: that the claimed @CalledMethods annotation is true on
@@ -171,9 +219,8 @@ public class ResourceLeakVisitor extends CalledMethodsVisitor {
             CFAbstractValue<?> value = exitStore.getValue(expression);
             AnnotationMirror inferredAnno = null;
             if (value != null) {
-                QualifierHierarchy hierarchy = atypeFactory.getQualifierHierarchy();
                 AnnotationMirrorSet annos = value.getAnnotations();
-                inferredAnno = hierarchy.findAnnotationInSameHierarchy(annos, annotation);
+                inferredAnno = qualHierarchy.findAnnotationInSameHierarchy(annos, annotation);
             }
             if (!checkContract(expression, annotation, inferredAnno, exitStore)) {
                 String inferredAnnoStr =

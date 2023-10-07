@@ -19,11 +19,9 @@ import javax.lang.model.element.Element;
 public class TypeDeclarationApplier extends TargetedElementAnnotationApplier {
 
     public static void apply(
-            final AnnotatedTypeMirror type,
-            final Element element,
-            final AnnotatedTypeFactory typeFactory)
+            final AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory atypeFactory)
             throws UnexpectedAnnotationLocationException {
-        new TypeDeclarationApplier(type, element, typeFactory).extractAndApply();
+        new TypeDeclarationApplier(type, element, atypeFactory).extractAndApply();
     }
 
     /**
@@ -39,20 +37,18 @@ public class TypeDeclarationApplier extends TargetedElementAnnotationApplier {
      * @param element an element
      * @return true if type is an annotated declared type and element is a ClassSymbol
      */
-    public static boolean accepts(final AnnotatedTypeMirror type, final Element element) {
+    public static boolean accepts(AnnotatedTypeMirror type, Element element) {
         return type instanceof AnnotatedDeclaredType && element instanceof Symbol.ClassSymbol;
     }
 
-    private final AnnotatedTypeFactory typeFactory;
+    private final AnnotatedTypeFactory atypeFactory;
     private final Symbol.ClassSymbol typeSymbol;
     private final AnnotatedDeclaredType declaredType;
 
     TypeDeclarationApplier(
-            final AnnotatedTypeMirror type,
-            final Element element,
-            final AnnotatedTypeFactory typeFactory) {
+            AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory atypeFactory) {
         super(type, element);
-        this.typeFactory = typeFactory;
+        this.atypeFactory = atypeFactory;
         this.typeSymbol = (Symbol.ClassSymbol) element;
         this.declaredType = (AnnotatedDeclaredType) type;
     }
@@ -108,7 +104,7 @@ public class TypeDeclarationApplier extends TargetedElementAnnotationApplier {
         if (TypesUtils.isAnonymous(typeSymbol.type)) {
             // If this is an anonymous class, then the annotations after "new" but before the class
             // name are stored as super class annotations. Treat them as annotations on the class.
-            for (final Attribute.TypeCompound anno : extendsAndImplementsAnnos) {
+            for (Attribute.TypeCompound anno : extendsAndImplementsAnnos) {
                 if (anno.position.type_index >= SUPERCLASS_INDEX
                         && anno.position.location.isEmpty()) {
                     type.addAnnotation(anno);
@@ -128,7 +124,7 @@ public class TypeDeclarationApplier extends TargetedElementAnnotationApplier {
         type.addAnnotations(typeSymbol.getAnnotationMirrors());
 
         ElementAnnotationUtil.applyAllElementAnnotations(
-                declaredType.getTypeArguments(), typeSymbol.getTypeParameters(), typeFactory);
+                declaredType.getTypeArguments(), typeSymbol.getTypeParameters(), atypeFactory);
     }
 
     @Override

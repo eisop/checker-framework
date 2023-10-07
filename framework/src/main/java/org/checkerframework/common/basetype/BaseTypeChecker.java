@@ -394,7 +394,7 @@ public abstract class BaseTypeChecker extends SourceChecker {
         BaseTypeVisitor<?> visitor = getVisitor();
         // Avoid NPE if this method is called during initialization.
         if (visitor == null) {
-            return null;
+            throw new TypeSystemError("Called getTypeFactory() before initialization was complete");
         }
         return visitor.getTypeFactory();
     }
@@ -409,7 +409,8 @@ public abstract class BaseTypeChecker extends SourceChecker {
      * returns the only such checker, or null if none was found. The caller must know the exact
      * checker class to request.
      *
-     * @param checkerClass the class of the subchecker
+     * @param <T> the class of the subchecker to return
+     * @param checkerClass the class of the subchecker to return
      * @return the requested subchecker or null if not found
      */
     @SuppressWarnings("unchecked")
@@ -479,7 +480,7 @@ public abstract class BaseTypeChecker extends SourceChecker {
             try {
                 instance = subcheckerClass.getDeclaredConstructor().newInstance();
             } catch (Exception e) {
-                throw new BugInCF("Could not create an instance of " + subcheckerClass);
+                throw new BugInCF("Could not create an instance of " + subcheckerClass, e);
             }
 
             instance.setProcessingEnvironment(this.processingEnv);
@@ -516,14 +517,6 @@ public abstract class BaseTypeChecker extends SourceChecker {
         }
 
         return subcheckers;
-    }
-
-    @Override
-    protected void reportJavacError(TreePath p) {
-        if (parentChecker == null) {
-            // Only the parent checker should report the "type.checking.not.run" error.
-            super.reportJavacError(p);
-        }
     }
 
     // AbstractTypeProcessor delegation
@@ -596,8 +589,8 @@ public abstract class BaseTypeChecker extends SourceChecker {
      * that the user actually requested, i.e. the one with no parent. The ultimate parent might be
      * this checker itself.
      *
-     * @return the first checker in the parent checker chain with no parent checker of its own, i.e.
-     *     the ultimate parent checker
+     * @return the first checker in the parent checker chain with no parent checker of its own,
+     *     i.e., the ultimate parent checker
      */
     public BaseTypeChecker getUltimateParentChecker() {
         if (ultimateParentChecker == null) {

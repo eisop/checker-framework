@@ -53,11 +53,11 @@ public class IndexMethodIdentifier {
     private final List<ExecutableElement> indexOfStringMethods;
 
     /** The type factory. */
-    private final AnnotatedTypeFactory factory;
+    private final AnnotatedTypeFactory atypeFactory;
 
-    public IndexMethodIdentifier(AnnotatedTypeFactory factory) {
-        this.factory = factory;
-        ProcessingEnvironment processingEnv = factory.getProcessingEnv();
+    public IndexMethodIdentifier(AnnotatedTypeFactory atypeFactory) {
+        this.atypeFactory = atypeFactory;
+        ProcessingEnvironment processingEnv = atypeFactory.getProcessingEnv();
         mathRandom = TreeUtils.getMethod("java.lang.Math", "random", 0, processingEnv);
         randomNextDouble = TreeUtils.getMethod("java.util.Random", "nextDouble", 0, processingEnv);
         randomNextInt = TreeUtils.getMethod("java.util.Random", "nextInt", 1, processingEnv);
@@ -97,7 +97,7 @@ public class IndexMethodIdentifier {
      *     methods that takes another string as a parameter.
      */
     public boolean isIndexOfString(Tree methodTree) {
-        ProcessingEnvironment processingEnv = factory.getProcessingEnv();
+        ProcessingEnvironment processingEnv = atypeFactory.getProcessingEnv();
         return TreeUtils.isMethodInvocation(methodTree, indexOfStringMethods, processingEnv);
     }
 
@@ -108,13 +108,13 @@ public class IndexMethodIdentifier {
      * @return true iff the argument is an invocation of Math.min()
      */
     public boolean isMathMin(Tree methodTree) {
-        ProcessingEnvironment processingEnv = factory.getProcessingEnv();
+        ProcessingEnvironment processingEnv = atypeFactory.getProcessingEnv();
         return TreeUtils.isMethodInvocation(methodTree, mathMinMethods, processingEnv);
     }
 
     /** Returns true iff the argument is an invocation of Math.max. */
     public boolean isMathMax(Tree methodTree) {
-        ProcessingEnvironment processingEnv = factory.getProcessingEnv();
+        ProcessingEnvironment processingEnv = atypeFactory.getProcessingEnv();
         return TreeUtils.isMethodInvocation(methodTree, mathMaxMethods, processingEnv);
     }
 
@@ -160,7 +160,7 @@ public class IndexMethodIdentifier {
             return true;
         }
 
-        AnnotationMirror lengthOfAnno = factory.getDeclAnnotation(ele, LengthOf.class);
+        AnnotationMirror lengthOfAnno = atypeFactory.getDeclAnnotation(ele, LengthOf.class);
         if (lengthOfAnno == null) {
             return false;
         }

@@ -3,6 +3,7 @@ package org.checkerframework.checker.index;
 import com.sun.source.tree.Tree;
 
 import org.checkerframework.checker.index.qual.HasSubsequence;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.expression.FieldAccess;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.framework.source.SourceChecker;
@@ -85,7 +86,7 @@ public class Subsequence {
      * @param factory an AnnotatedTypeFactory
      * @return null or a new Subsequence from the declaration of {@code varTree}
      */
-    public static Subsequence getSubsequenceFromReceiver(
+    public static @Nullable Subsequence getSubsequenceFromReceiver(
             JavaExpression expr, BaseAnnotatedTypeFactoryForIndexChecker factory) {
         if (!(expr instanceof FieldAccess)) {
             return null;

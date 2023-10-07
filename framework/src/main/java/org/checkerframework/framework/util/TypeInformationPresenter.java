@@ -44,7 +44,7 @@ import javax.tools.Diagnostic;
 public class TypeInformationPresenter {
 
     /** The AnnotatedTypeFactory for the current analysis. */
-    private final AnnotatedTypeFactory factory;
+    private final AnnotatedTypeFactory atypeFactory;
 
     /**
      * The GenericAnnotatedTypeFactory for the current analysis. null if the factory is not an
@@ -64,12 +64,12 @@ public class TypeInformationPresenter {
     /**
      * Constructs a presenter for the given factory.
      *
-     * @param factory the AnnotatedTypeFactory for the current analysis
+     * @param atypeFactory the AnnotatedTypeFactory for the current analysis
      */
-    public TypeInformationPresenter(AnnotatedTypeFactory factory) {
-        this.factory = factory;
-        if (factory instanceof GenericAnnotatedTypeFactory<?, ?, ?, ?>) {
-            this.genFactory = (GenericAnnotatedTypeFactory<?, ?, ?, ?>) factory;
+    public TypeInformationPresenter(AnnotatedTypeFactory atypeFactory) {
+        this.atypeFactory = atypeFactory;
+        if (atypeFactory instanceof GenericAnnotatedTypeFactory<?, ?, ?, ?>) {
+            this.genFactory = (GenericAnnotatedTypeFactory<?, ?, ?, ?>) atypeFactory;
         } else {
             this.genFactory = null;
         }
@@ -191,9 +191,9 @@ public class TypeInformationPresenter {
          */
         public TypeInformationReporter(ClassTree classTree) {
             this.classTree = classTree;
-            this.checker = factory.getChecker();
+            this.checker = atypeFactory.getChecker();
             this.currentRoot = this.checker.getPathToCompilationUnit().getCompilationUnit();
-            this.sourcePositions = factory.getTreeUtils().getSourcePositions();
+            this.sourcePositions = atypeFactory.getTreeUtils().getSourcePositions();
         }
 
         /**
@@ -383,7 +383,9 @@ public class TypeInformationPresenter {
         @Override
         public Void visitTypeParameter(TypeParameterTree tree, Void unused) {
             reportTreeType(
-                    tree, factory.getAnnotatedTypeFromTypeTree(tree), MessageKind.DECLARED_TYPE);
+                    tree,
+                    atypeFactory.getAnnotatedTypeFromTypeTree(tree),
+                    MessageKind.DECLARED_TYPE);
             return super.visitTypeParameter(tree, unused);
         }
 
@@ -394,20 +396,20 @@ public class TypeInformationPresenter {
             AnnotatedTypeMirror varType =
                     genFactory != null
                             ? genFactory.getAnnotatedTypeLhs(tree)
-                            : factory.getAnnotatedType(tree);
+                            : atypeFactory.getAnnotatedType(tree);
             reportTreeType(tree, varType, MessageKind.DECLARED_TYPE);
             return super.visitVariable(tree, unused);
         }
 
         @Override
         public Void visitMethod(MethodTree tree, Void unused) {
-            reportTreeType(tree, factory.getAnnotatedType(tree), MessageKind.DECLARED_TYPE);
+            reportTreeType(tree, atypeFactory.getAnnotatedType(tree), MessageKind.DECLARED_TYPE);
             return super.visitMethod(tree, unused);
         }
 
         @Override
         public Void visitMethodInvocation(MethodInvocationTree tree, Void unused) {
-            reportTreeType(tree, factory.methodFromUse(tree).executableType);
+            reportTreeType(tree, atypeFactory.methodFromUse(tree).executableType);
             return super.visitMethodInvocation(tree, unused);
         }
 
@@ -416,26 +418,26 @@ public class TypeInformationPresenter {
             AnnotatedTypeMirror varType =
                     genFactory != null
                             ? genFactory.getAnnotatedTypeLhs(tree.getVariable())
-                            : factory.getAnnotatedType(tree.getVariable());
+                            : atypeFactory.getAnnotatedType(tree.getVariable());
             reportTreeType(tree, varType, MessageKind.ASSIGN_LHS_DECLARED_TYPE);
             reportTreeType(
                     tree,
-                    factory.getAnnotatedType(tree.getExpression()),
+                    atypeFactory.getAnnotatedType(tree.getExpression()),
                     MessageKind.ASSIGN_RHS_TYPE);
             return super.visitAssignment(tree, unused);
         }
 
         @Override
         public Void visitCompoundAssignment(CompoundAssignmentTree tree, Void unused) {
-            reportTreeType(tree, factory.getAnnotatedType(tree));
+            reportTreeType(tree, atypeFactory.getAnnotatedType(tree));
             AnnotatedTypeMirror varType =
                     genFactory != null
                             ? genFactory.getAnnotatedTypeLhs(tree.getVariable())
-                            : factory.getAnnotatedType(tree.getVariable());
+                            : atypeFactory.getAnnotatedType(tree.getVariable());
             reportTreeType(tree, varType, MessageKind.ASSIGN_LHS_DECLARED_TYPE);
             reportTreeType(
                     tree,
-                    factory.getAnnotatedType(tree.getExpression()),
+                    atypeFactory.getAnnotatedType(tree.getExpression()),
                     MessageKind.ASSIGN_RHS_TYPE);
             return super.visitCompoundAssignment(tree, unused);
         }
@@ -450,11 +452,11 @@ public class TypeInformationPresenter {
                 case LOGICAL_COMPLEMENT:
                 case PREFIX_INCREMENT:
                 case PREFIX_DECREMENT:
-                    reportTreeType(tree, factory.getAnnotatedType(tree));
+                    reportTreeType(tree, atypeFactory.getAnnotatedType(tree));
                     break;
                 case POSTFIX_INCREMENT:
                 case POSTFIX_DECREMENT:
-                    reportTreeType(tree, factory.getAnnotatedType(tree));
+                    reportTreeType(tree, atypeFactory.getAnnotatedType(tree));
                     if (genFactory != null) {
                         reportTreeType(
                                 tree,
@@ -474,16 +476,17 @@ public class TypeInformationPresenter {
 
         @Override
         public Void visitBinary(BinaryTree tree, Void unused) {
-            reportTreeType(tree, factory.getAnnotatedType(tree));
+            reportTreeType(tree, atypeFactory.getAnnotatedType(tree));
             return super.visitBinary(tree, unused);
         }
 
         @Override
         public Void visitMemberSelect(MemberSelectTree tree, Void unused) {
             if (TreeUtils.isFieldAccess(tree)) {
-                reportTreeType(tree, factory.getAnnotatedType(tree));
+                reportTreeType(tree, atypeFactory.getAnnotatedType(tree));
             } else if (TreeUtils.isMethodAccess(tree)) {
-                reportTreeType(tree, factory.getAnnotatedType(tree), MessageKind.DECLARED_TYPE);
+                reportTreeType(
+                        tree, atypeFactory.getAnnotatedType(tree), MessageKind.DECLARED_TYPE);
             }
 
             return super.visitMemberSelect(tree, unused);
@@ -492,9 +495,9 @@ public class TypeInformationPresenter {
         @Override
         public Void visitMemberReference(MemberReferenceTree tree, Void unused) {
             // the declared type of the functional interface
-            reportTreeType(tree, factory.getAnnotatedType(tree), MessageKind.DECLARED_TYPE);
+            reportTreeType(tree, atypeFactory.getAnnotatedType(tree), MessageKind.DECLARED_TYPE);
             // the use type of the functional interface
-            reportTreeType(tree, factory.getFnInterfaceFromTree(tree).first);
+            reportTreeType(tree, atypeFactory.getFnInterfaceFromTree(tree).first);
             return super.visitMemberReference(tree, unused);
         }
 
@@ -508,10 +511,11 @@ public class TypeInformationPresenter {
                 case EXCEPTION_PARAMETER:
                 case RESOURCE_VARIABLE:
                 case CONSTRUCTOR:
-                    reportTreeType(tree, factory.getAnnotatedType(tree));
+                    reportTreeType(tree, atypeFactory.getAnnotatedType(tree));
                     break;
                 case METHOD:
-                    reportTreeType(tree, factory.getAnnotatedType(tree), MessageKind.DECLARED_TYPE);
+                    reportTreeType(
+                            tree, atypeFactory.getAnnotatedType(tree), MessageKind.DECLARED_TYPE);
                     break;
                 default:
                     break;
@@ -521,7 +525,7 @@ public class TypeInformationPresenter {
 
         @Override
         public Void visitLiteral(LiteralTree tree, Void unused) {
-            reportTreeType(tree, factory.getAnnotatedType(tree));
+            reportTreeType(tree, atypeFactory.getAnnotatedType(tree));
             return super.visitLiteral(tree, unused);
         }
     }

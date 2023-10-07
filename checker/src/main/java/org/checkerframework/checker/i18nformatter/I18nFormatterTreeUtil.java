@@ -434,7 +434,7 @@ public class I18nFormatterTreeUtil {
             InvocationType type = InvocationType.VARARG;
 
             if (args.size() == 1) {
-                final ExpressionTree first = args.get(0);
+                ExpressionTree first = args.get(0);
                 TypeMirror argType = atypeFactory.getAnnotatedType(first).getUnderlyingType();
                 // figure out if argType is an array
                 type =
@@ -592,7 +592,7 @@ public class I18nFormatterTreeUtil {
      * @param type a TypeMirror
      * @return the class corresponding to the argument
      */
-    private static final Class<? extends Object> typeMirrorToClass(final TypeMirror type) {
+    private static Class<? extends Object> typeMirrorToClass(TypeMirror type) {
         return type.accept(typeMirrorToClassVisitor, Void.TYPE);
     }
 }

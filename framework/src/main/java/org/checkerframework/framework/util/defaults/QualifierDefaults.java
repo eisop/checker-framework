@@ -28,6 +28,7 @@ import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.AnnotationBuilder;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.CollectionUtils;
@@ -231,8 +232,8 @@ public class QualifierDefaults {
     /** Add standard unchecked defaults that do not conflict with previously added defaults. */
     public void addUncheckedStandardDefaults() {
         QualifierHierarchy qualHierarchy = this.atypeFactory.getQualifierHierarchy();
-        Set<? extends AnnotationMirror> tops = qualHierarchy.getTopAnnotations();
-        Set<? extends AnnotationMirror> bottoms = qualHierarchy.getBottomAnnotations();
+        AnnotationMirrorSet tops = qualHierarchy.getTopAnnotations();
+        AnnotationMirrorSet bottoms = qualHierarchy.getBottomAnnotations();
 
         for (TypeUseLocation loc : STANDARD_UNCHECKED_DEFAULTS_TOP) {
             // Only add standard defaults in locations where a default has not be specified.
@@ -256,8 +257,8 @@ public class QualifierDefaults {
     /** Add standard CLIMB defaults that do not conflict with previously added defaults. */
     public void addClimbStandardDefaults() {
         QualifierHierarchy qualHierarchy = this.atypeFactory.getQualifierHierarchy();
-        Set<? extends AnnotationMirror> tops = qualHierarchy.getTopAnnotations();
-        Set<? extends AnnotationMirror> bottoms = qualHierarchy.getBottomAnnotations();
+        AnnotationMirrorSet tops = qualHierarchy.getTopAnnotations();
+        AnnotationMirrorSet bottoms = qualHierarchy.getBottomAnnotations();
 
         for (TypeUseLocation loc : STANDARD_CLIMB_DEFAULTS_TOP) {
             for (AnnotationMirror top : tops) {
@@ -413,13 +414,21 @@ public class QualifierDefaults {
         }
     }
 
+    /**
+     * Returns true if there are conflicts with existing defaults.
+     *
+     * @param previousDefaults the previous defaults
+     * @param newAnno the new annotation
+     * @param newLoc the location of the type use
+     * @return true if there are conflicts with existing defaults
+     */
     private boolean conflictsWithExistingDefaults(
             DefaultSet previousDefaults, AnnotationMirror newAnno, TypeUseLocation newLoc) {
-        final QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
+        QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
 
         for (Default previous : previousDefaults) {
             if (!AnnotationUtils.areSame(newAnno, previous.anno) && previous.location == newLoc) {
-                final AnnotationMirror previousTop = qualHierarchy.getTopAnnotation(previous.anno);
+                AnnotationMirror previousTop = qualHierarchy.getTopAnnotation(previous.anno);
                 if (qualHierarchy.isSubtype(newAnno, previousTop)) {
                     return true;
                 }
@@ -645,7 +654,7 @@ public class QualifierDefaults {
         }
     }
 
-    private boolean isElementAnnotatedForThisChecker(final Element elt) {
+    private boolean isElementAnnotatedForThisChecker(Element elt) {
         boolean elementAnnotatedForThisChecker = false;
 
         if (elt == null) {
@@ -657,8 +666,7 @@ public class QualifierDefaults {
             return elementAnnotatedFors.get(elt);
         }
 
-        final AnnotationMirror annotatedFor =
-                atypeFactory.getDeclAnnotation(elt, AnnotatedFor.class);
+        AnnotationMirror annotatedFor = atypeFactory.getDeclAnnotation(elt, AnnotatedFor.class);
 
         if (annotatedFor != null) {
             elementAnnotatedForThisChecker =
@@ -692,7 +700,7 @@ public class QualifierDefaults {
      * @param elt the element
      * @return the defaults
      */
-    private DefaultSet defaultsAt(final Element elt) {
+    private DefaultSet defaultsAt(Element elt) {
         if (elt == null) {
             return DefaultSet.EMPTY;
         }
@@ -749,7 +757,7 @@ public class QualifierDefaults {
      * @param elt the element
      * @return the defaults
      */
-    private DefaultSet defaultsAtDirect(final Element elt) {
+    private DefaultSet defaultsAtDirect(Element elt) {
         DefaultSet qualifiers = null;
 
         // Handle DefaultQualifier
@@ -793,7 +801,7 @@ public class QualifierDefaults {
      * @param annotationScope the element that the conservative default might apply to
      * @return whether the conservative default applies to the given element
      */
-    public boolean applyConservativeDefaults(final Element annotationScope) {
+    public boolean applyConservativeDefaults(Element annotationScope) {
         if (annotationScope == null) {
             return false;
         }
@@ -843,8 +851,7 @@ public class QualifierDefaults {
      *     and inference)
      * @checker_framework.manual #annotating-libraries Annotating libraries
      */
-    private void applyDefaultsElement(
-            final Element annotationScope, final AnnotatedTypeMirror type) {
+    private void applyDefaultsElement(Element annotationScope, AnnotatedTypeMirror type) {
         DefaultSet defaults = defaultsAt(annotationScope);
         DefaultApplierElement applier =
                 createDefaultApplierElement(atypeFactory, annotationScope, type, applyToTypeVar);
@@ -935,8 +942,7 @@ public class QualifierDefaults {
          * @param applyToTypeVar whether to apply to type variables
          * @return true if this application should proceed
          */
-        protected boolean shouldBeAnnotated(
-                final AnnotatedTypeMirror type, final boolean applyToTypeVar) {
+        protected boolean shouldBeAnnotated(AnnotatedTypeMirror type, boolean applyToTypeVar) {
             return !(type == null
                     // TODO: executables themselves should not be annotated
                     // For some reason h1h2checker-tests fails with this.
@@ -1046,7 +1052,7 @@ public class QualifierDefaults {
                             && (outer.scope.getKind() == ElementKind.METHOD)
                             && t.getKind() == TypeKind.EXECUTABLE
                             && isTopLevelType) {
-                        final AnnotatedDeclaredType receiver =
+                        AnnotatedDeclaredType receiver =
                                 ((AnnotatedExecutableType) t).getReceiverType();
                         if (outer.shouldBeAnnotated(receiver, false)) {
                             outer.addAnnotation(receiver, qual);
@@ -1058,7 +1064,7 @@ public class QualifierDefaults {
                             && outer.scope.getKind() == ElementKind.METHOD
                             && t.getKind() == TypeKind.EXECUTABLE
                             && isTopLevelType) {
-                        final AnnotatedTypeMirror returnType =
+                        AnnotatedTypeMirror returnType =
                                 ((AnnotatedExecutableType) t).getReturnType();
                         if (outer.shouldBeAnnotated(returnType, false)) {
                             outer.addAnnotation(returnType, qual);
@@ -1072,7 +1078,7 @@ public class QualifierDefaults {
                             && isTopLevelType) {
                         // This is the return type of a constructor declaration (not a
                         // constructor invocation).
-                        final AnnotatedTypeMirror returnType =
+                        AnnotatedTypeMirror returnType =
                                 ((AnnotatedExecutableType) t).getReturnType();
                         if (outer.shouldBeAnnotated(returnType, false)) {
                             outer.addAnnotation(returnType, qual);
@@ -1172,9 +1178,9 @@ public class QualifierDefaults {
                 AnnotatedTypeMirror upperBound,
                 AnnotatedTypeMirror lowerBound,
                 AnnotationMirror qual) {
-            final boolean prevIsUpperBound = isUpperBound;
-            final boolean prevIsLowerBound = isLowerBound;
-            final BoundType prevBoundType = boundType;
+            boolean prevIsUpperBound = isUpperBound;
+            boolean prevIsLowerBound = isLowerBound;
+            BoundType prevBoundType = boundType;
 
             boundType = getBoundType(boundedType);
 
@@ -1225,7 +1231,7 @@ public class QualifierDefaults {
      *     AnnotatedTypeVariable.
      * @return the boundType for type
      */
-    private BoundType getBoundType(final AnnotatedTypeMirror type) {
+    private BoundType getBoundType(AnnotatedTypeMirror type) {
         if (type instanceof AnnotatedTypeVariable) {
             return getTypeVarBoundType((AnnotatedTypeVariable) type);
         }
@@ -1243,7 +1249,7 @@ public class QualifierDefaults {
      * @param typeVar the type variable
      * @return the bound type of the input typeVar
      */
-    private BoundType getTypeVarBoundType(final AnnotatedTypeVariable typeVar) {
+    private BoundType getTypeVarBoundType(AnnotatedTypeVariable typeVar) {
         return getTypeVarBoundType((TypeParameterElement) typeVar.getUnderlyingType().asElement());
     }
 
@@ -1254,8 +1260,8 @@ public class QualifierDefaults {
      * @return the boundType (UPPER or UNBOUNDED) of the declaration of typeParamElem
      */
     // Results are cached in {@link elementToBoundType}.
-    private BoundType getTypeVarBoundType(final TypeParameterElement typeParamElem) {
-        final BoundType prev = elementToBoundType.get(typeParamElem);
+    private BoundType getTypeVarBoundType(TypeParameterElement typeParamElem) {
+        BoundType prev = elementToBoundType.get(typeParamElem);
         if (prev != null) {
             return prev;
         }
@@ -1279,7 +1285,7 @@ public class QualifierDefaults {
             }
         } else {
             if (typeParamDecl.getKind() == Tree.Kind.TYPE_PARAMETER) {
-                final TypeParameterTree tptree = (TypeParameterTree) typeParamDecl;
+                TypeParameterTree tptree = (TypeParameterTree) typeParamDecl;
 
                 List<? extends Tree> bnds = tptree.getBounds();
                 if (bnds != null && !bnds.isEmpty()) {
@@ -1306,7 +1312,7 @@ public class QualifierDefaults {
      * @param wildcardType the annotated wildcard type
      * @return the BoundType of annotatedWildcard
      */
-    private BoundType getWildcardBoundType(final AnnotatedWildcardType wildcardType) {
+    private BoundType getWildcardBoundType(AnnotatedWildcardType wildcardType) {
         if (AnnotatedTypes.hasNoExplicitBound(wildcardType)) {
             return BoundType.UNBOUNDED;
         } else if (AnnotatedTypes.hasExplicitSuperBound(wildcardType)) {

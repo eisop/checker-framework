@@ -57,7 +57,7 @@ public class AutoValueSupport implements BuilderFrameworkSupport {
      * of the AutoValue toBuilder method, and has no effect if {@code tree} is a call to any other
      * constructor.
      *
-     * @param tree AST for a constructor call
+     * @param tree an AST for a constructor call
      * @param type type of the call expression
      */
     @Override
@@ -178,7 +178,7 @@ public class AutoValueSupport implements BuilderFrameworkSupport {
      *
      * @param type type to update
      * @param builderType type of abstract @AutoValue.Builder class
-     * @param classElement AutoValue class corresponding to {@code type}
+     * @param classElement an AutoValue class corresponding to {@code type}
      */
     private void handleToBuilderType(
             AnnotatedTypeMirror type, TypeMirror builderType, TypeElement classElement) {
@@ -215,7 +215,7 @@ public class AutoValueSupport implements BuilderFrameworkSupport {
      * @return a @CalledMethods annotation that indicates all the given properties have been set
      */
     private AnnotationMirror createCalledMethodsForAutoValueProperties(
-            final List<String> propertyNames, Set<String> avBuilderSetterNames) {
+            List<String> propertyNames, Set<String> avBuilderSetterNames) {
         List<String> calledMethodNames =
                 propertyNames.stream()
                         .map(prop -> autoValuePropToBuilderSetterName(prop, avBuilderSetterNames))
@@ -270,7 +270,7 @@ public class AutoValueSupport implements BuilderFrameworkSupport {
      * @return a list of required property names
      */
     private List<String> getAutoValueRequiredProperties(
-            final TypeElement autoValueClassElement, Set<String> avBuilderSetterNames) {
+            TypeElement autoValueClassElement, Set<String> avBuilderSetterNames) {
         return getAllAbstractMethods(autoValueClassElement).stream()
                 .filter(member -> isAutoValueRequiredProperty(member, avBuilderSetterNames))
                 .map(e -> e.getSimpleName().toString())

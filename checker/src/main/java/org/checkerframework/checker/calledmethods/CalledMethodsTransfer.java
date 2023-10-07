@@ -57,7 +57,7 @@ public class CalledMethodsTransfer extends AccumulationTransfer {
      *
      * @param analysis the analysis
      */
-    public CalledMethodsTransfer(final CalledMethodsAnalysis analysis) {
+    public CalledMethodsTransfer(CalledMethodsAnalysis analysis) {
         super(analysis);
         calledMethodsValueElement =
                 ((CalledMethodsAnnotatedTypeFactory) atypeFactory).calledMethodsValueElement;
@@ -65,7 +65,7 @@ public class CalledMethodsTransfer extends AccumulationTransfer {
 
     @Override
     public TransferResult<CFValue, CFStore> visitMethodInvocation(
-            final MethodInvocationNode node, final TransferInput<CFValue, CFStore> input) {
+            MethodInvocationNode node, TransferInput<CFValue, CFStore> input) {
         exceptionalStores = makeExceptionalStores(node, input);
         TransferResult<CFValue, CFStore> superResult = super.visitMethodInvocation(node, input);
         handleEnsuresCalledMethodsVarArgs(node, superResult);
@@ -132,7 +132,7 @@ public class CalledMethodsTransfer extends AccumulationTransfer {
      *     from {@code input}.
      */
     private Map<TypeMirror, CFStore> makeExceptionalStores(
-            MethodInvocationNode node, final TransferInput<CFValue, CFStore> input) {
+            MethodInvocationNode node, TransferInput<CFValue, CFStore> input) {
         if (!(node.getBlock() instanceof ExceptionBlock)) {
             // This can happen in some weird (buggy?) cases:
             // see https://github.com/typetools/checker-framework/issues/3585

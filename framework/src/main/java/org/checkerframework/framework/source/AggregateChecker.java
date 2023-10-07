@@ -19,7 +19,7 @@ import java.util.Set;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.TypeElement;
-import javax.tools.Diagnostic.Kind;
+import javax.tools.Diagnostic;
 
 /**
  * An aggregate checker that packages multiple checkers together. The resulting checker invokes the
@@ -63,7 +63,9 @@ public abstract class AggregateChecker extends SourceChecker {
                 instance.setParentChecker(this);
                 checkers.add(instance);
             } catch (Exception e) {
-                message(Kind.ERROR, "Couldn't instantiate an instance of " + checkerClass);
+                message(
+                        Diagnostic.Kind.ERROR,
+                        "Couldn't instantiate an instance of " + checkerClass);
             }
         }
     }

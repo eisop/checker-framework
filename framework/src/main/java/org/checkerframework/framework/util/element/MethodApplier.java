@@ -30,26 +30,26 @@ public class MethodApplier extends TargetedElementAnnotationApplier {
 
     /** Apply annotations from {@code element} to {@code type}. */
     public static void apply(
-            AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory typeFactory)
+            AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory atypeFactory)
             throws UnexpectedAnnotationLocationException {
-        new MethodApplier(type, element, typeFactory).extractAndApply();
+        new MethodApplier(type, element, atypeFactory).extractAndApply();
     }
 
-    public static boolean accepts(final AnnotatedTypeMirror typeMirror, final Element element) {
+    public static boolean accepts(AnnotatedTypeMirror typeMirror, Element element) {
         return element instanceof Symbol.MethodSymbol
                 && typeMirror instanceof AnnotatedExecutableType;
     }
 
-    private final AnnotatedTypeFactory typeFactory;
+    private final AnnotatedTypeFactory atypeFactory;
 
     /** Method being annotated, this symbol contains all relevant annotations. */
     private final Symbol.MethodSymbol methodSymbol;
 
     private final AnnotatedExecutableType methodType;
 
-    MethodApplier(AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory typeFactory) {
+    MethodApplier(AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory atypeFactory) {
         super(type, element);
-        this.typeFactory = typeFactory;
+        this.atypeFactory = atypeFactory;
         this.methodSymbol = (Symbol.MethodSymbol) element;
         this.methodType = (AnnotatedExecutableType) type;
     }
@@ -139,7 +139,7 @@ public class MethodApplier extends TargetedElementAnnotationApplier {
         ElementAnnotationUtil.addDeclarationAnnotationsFromElement(
                 methodType.getReturnType(), methodSymbol.getAnnotationMirrors());
 
-        final List<AnnotatedTypeMirror> params = methodType.getParameterTypes();
+        List<AnnotatedTypeMirror> params = methodType.getParameterTypes();
         for (int i = 0; i < params.size(); ++i) {
             // Add declaration annotations to the parameter type
             ElementAnnotationUtil.addDeclarationAnnotationsFromElement(
@@ -151,17 +151,17 @@ public class MethodApplier extends TargetedElementAnnotationApplier {
         super.extractAndApply();
 
         ElementAnnotationUtil.applyAllElementAnnotations(
-                methodType.getParameterTypes(), methodSymbol.getParameters(), typeFactory);
+                methodType.getParameterTypes(), methodSymbol.getParameters(), atypeFactory);
         ElementAnnotationUtil.applyAllElementAnnotations(
-                methodType.getTypeVariables(), methodSymbol.getTypeParameters(), typeFactory);
+                methodType.getTypeVariables(), methodSymbol.getTypeParameters(), atypeFactory);
     }
 
     // NOTE that these are the only locations not handled elsewhere, otherwise we call apply
     @Override
-    protected void handleTargeted(final List<TypeCompound> targeted)
+    protected void handleTargeted(List<TypeCompound> targeted)
             throws UnexpectedAnnotationLocationException {
-        final List<TypeCompound> unmatched = new ArrayList<>();
-        final Map<TargetType, List<TypeCompound>> targetTypeToAnno =
+        List<TypeCompound> unmatched = new ArrayList<>();
+        Map<TargetType, List<TypeCompound>> targetTypeToAnno =
                 ElementAnnotationUtil.partitionByTargetType(
                         targeted,
                         unmatched,
@@ -189,22 +189,22 @@ public class MethodApplier extends TargetedElementAnnotationApplier {
     }
 
     /** For each thrown type, collect all the annotations for that type and apply them. */
-    private void applyThrowsAnnotations(final List<Attribute.TypeCompound> annos)
+    private void applyThrowsAnnotations(List<Attribute.TypeCompound> annos)
             throws UnexpectedAnnotationLocationException {
-        final List<AnnotatedTypeMirror> thrown = methodType.getThrownTypes();
+        List<AnnotatedTypeMirror> thrown = methodType.getThrownTypes();
         if (thrown.isEmpty()) {
             return;
         }
 
         Map<AnnotatedTypeMirror, List<TypeCompound>> typeToAnnos = new LinkedHashMap<>();
-        for (final AnnotatedTypeMirror thrownType : thrown) {
+        for (AnnotatedTypeMirror thrownType : thrown) {
             typeToAnnos.put(thrownType, new ArrayList<>());
         }
 
         for (TypeCompound anno : annos) {
-            final TypeAnnotationPosition annoPos = anno.position;
+            TypeAnnotationPosition annoPos = anno.position;
             if (annoPos.type_index >= 0 && annoPos.type_index < thrown.size()) {
-                final AnnotatedTypeMirror thrownType = thrown.get(annoPos.type_index);
+                AnnotatedTypeMirror thrownType = thrown.get(annoPos.type_index);
                 typeToAnnos.get(thrownType).add(anno);
 
             } else {
@@ -219,7 +219,7 @@ public class MethodApplier extends TargetedElementAnnotationApplier {
             }
         }
 
-        for (final Map.Entry<AnnotatedTypeMirror, List<TypeCompound>> typeToAnno :
+        for (Map.Entry<AnnotatedTypeMirror, List<TypeCompound>> typeToAnno :
                 typeToAnnos.entrySet()) {
             ElementAnnotationUtil.annotateViaTypeAnnoPosition(
                     typeToAnno.getKey(), typeToAnno.getValue());
@@ -231,7 +231,7 @@ public class MethodApplier extends TargetedElementAnnotationApplier {
      * type variables declaration.
      */
     private void applyTypeVarUseOnReturnType() throws UnexpectedAnnotationLocationException {
-        new TypeVarUseApplier(methodType.getReturnType(), methodSymbol, typeFactory)
+        new TypeVarUseApplier(methodType.getReturnType(), methodSymbol, atypeFactory)
                 .extractAndApply();
     }
 }
