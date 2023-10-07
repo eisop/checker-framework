@@ -1476,6 +1476,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * <p>The default implementation uses this to store the defaulted AnnotatedTypeMirrors and
      * inherited declaration annotations back into the corresponding Elements. Subclasses might want
      * to override this method if storing defaulted types is not desirable.
+     *
+     * @param classTree ClassTree on which to perform preprocessing
      */
     public void postProcessClassTree(ClassTree tree) {
         if (!checker.hasOption("noBytecodeStorage")) {
