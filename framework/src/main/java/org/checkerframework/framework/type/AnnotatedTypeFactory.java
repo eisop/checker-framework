@@ -1479,7 +1479,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * inherited declaration annotations back into the corresponding Elements. Subclasses might want
      * to override this method if storing defaulted types is not desirable.
      *
-     * @param classTree ClassTree on which to perform preprocessing
+     * @param tree ClassTree on which to perform preprocessing
      */
     public void postProcessClassTree(ClassTree tree) {
         if (!checker.hasOption("noBytecodeStorage")) {
