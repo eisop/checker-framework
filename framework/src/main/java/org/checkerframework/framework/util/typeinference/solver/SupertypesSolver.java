@@ -16,7 +16,6 @@ import org.checkerframework.javacutil.BugInCF;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -43,16 +42,16 @@ public class SupertypesSolver {
      *     and will not infer that the target is equivalent to another target.
      */
     public InferenceResult solveFromSupertypes(
-            final Set<TypeVariable> remainingTargets,
-            final ConstraintMap constraintMap,
-            final AnnotatedTypeFactory typeFactory) {
+            Set<TypeVariable> remainingTargets,
+            ConstraintMap constraintMap,
+            AnnotatedTypeFactory typeFactory) {
         // infer a type for all targets that have supertype constraints
-        final Lubs lubs = targetToTypeLubs(remainingTargets, constraintMap, typeFactory);
+        Lubs lubs = targetToTypeLubs(remainingTargets, constraintMap, typeFactory);
 
         // add the lub types to the outgoing solution
-        final InferenceResult solution = new InferenceResult();
-        for (final TypeVariable target : remainingTargets) {
-            final AnnotatedTypeMirror lub = lubs.getType(target);
+        InferenceResult solution = new InferenceResult();
+        for (TypeVariable target : remainingTargets) {
+            AnnotatedTypeMirror lub = lubs.getType(target);
             AnnotationMirrorMap<AnnotationMirror> lubAnnos = lubs.getPrimaries(target);
 
             // we may have a partial solution present in the equality constraints, override
@@ -84,25 +83,25 @@ public class SupertypesSolver {
      * equalities or from the lub, return null.
      */
     protected InferredType mergeLubTypeWithEqualities(
-            final TypeVariable target,
-            final AnnotatedTypeMirror lub,
-            final ConstraintMap constraintMap,
-            final AnnotatedTypeFactory typeFactory) {
-        final Equalities equalities = constraintMap.getConstraints(target).equalities;
-        final AnnotationMirrorSet tops =
+            TypeVariable target,
+            AnnotatedTypeMirror lub,
+            ConstraintMap constraintMap,
+            AnnotatedTypeFactory typeFactory) {
+        Equalities equalities = constraintMap.getConstraints(target).equalities;
+        AnnotationMirrorSet tops =
                 new AnnotationMirrorSet(typeFactory.getQualifierHierarchy().getTopAnnotations());
 
         if (!equalities.types.isEmpty()) {
             // there should be only one equality type if any at this point
-            final Map.Entry<AnnotatedTypeMirror, AnnotationMirrorSet> eqEntry =
+            Map.Entry<AnnotatedTypeMirror, AnnotationMirrorSet> eqEntry =
                     equalities.types.entrySet().iterator().next();
-            final AnnotatedTypeMirror equalityType = eqEntry.getKey();
-            final AnnotationMirrorSet equalityAnnos = eqEntry.getValue();
+            AnnotatedTypeMirror equalityType = eqEntry.getKey();
+            AnnotationMirrorSet equalityAnnos = eqEntry.getValue();
 
             boolean failed = false;
-            for (final AnnotationMirror top : tops) {
+            for (AnnotationMirror top : tops) {
                 if (!equalityAnnos.contains(top)) {
-                    final AnnotationMirror lubAnno = lub.getAnnotationInHierarchy(top);
+                    AnnotationMirror lubAnno = lub.getAnnotationInHierarchy(top);
                     if (lubAnno == null) {
                         // If the LUB and the Equality were the SAME typevar, and the lub was
                         // unannotated then "NO ANNOTATION" is the correct choice.
@@ -139,25 +138,25 @@ public class SupertypesSolver {
      * equalities or from the lub, return null.
      */
     protected InferredType mergeLubAnnosWithEqualities(
-            final TypeVariable target,
-            final AnnotationMirrorMap<AnnotationMirror> lubAnnos,
-            final ConstraintMap constraintMap,
-            final AnnotatedTypeFactory typeFactory) {
-        final Equalities equalities = constraintMap.getConstraints(target).equalities;
-        final AnnotationMirrorSet tops =
+            TypeVariable target,
+            AnnotationMirrorMap<AnnotationMirror> lubAnnos,
+            ConstraintMap constraintMap,
+            AnnotatedTypeFactory typeFactory) {
+        Equalities equalities = constraintMap.getConstraints(target).equalities;
+        AnnotationMirrorSet tops =
                 new AnnotationMirrorSet(typeFactory.getQualifierHierarchy().getTopAnnotations());
 
         if (!equalities.types.isEmpty()) {
             // there should be only equality type if any at this point
-            final Map.Entry<AnnotatedTypeMirror, AnnotationMirrorSet> eqEntry =
+            Map.Entry<AnnotatedTypeMirror, AnnotationMirrorSet> eqEntry =
                     equalities.types.entrySet().iterator().next();
-            final AnnotatedTypeMirror equalityType = eqEntry.getKey();
-            final AnnotationMirrorSet equalityAnnos = eqEntry.getValue();
+            AnnotatedTypeMirror equalityType = eqEntry.getKey();
+            AnnotationMirrorSet equalityAnnos = eqEntry.getValue();
 
             boolean failed = false;
-            for (final AnnotationMirror top : tops) {
+            for (AnnotationMirror top : tops) {
                 if (!equalityAnnos.contains(top)) {
-                    final AnnotationMirror lubAnno = lubAnnos.get(top);
+                    AnnotationMirror lubAnno = lubAnnos.get(top);
                     if (lubAnno == null) {
                         failed = true;
 
@@ -183,19 +182,19 @@ public class SupertypesSolver {
                 new LinkedHashMap<>();
 
         public void addPrimaries(
-                final TypeVariable target, AnnotationMirrorMap<AnnotationMirror> primaries) {
+                TypeVariable target, AnnotationMirrorMap<AnnotationMirror> primaries) {
             this.primaries.put(target, new AnnotationMirrorMap<>(primaries));
         }
 
-        public void addType(final TypeVariable target, final AnnotatedTypeMirror type) {
+        public void addType(TypeVariable target, AnnotatedTypeMirror type) {
             types.put(target, type);
         }
 
-        public AnnotationMirrorMap<AnnotationMirror> getPrimaries(final TypeVariable target) {
+        public AnnotationMirrorMap<AnnotationMirror> getPrimaries(TypeVariable target) {
             return primaries.get(target);
         }
 
-        public AnnotatedTypeMirror getType(final TypeVariable target) {
+        public AnnotatedTypeMirror getType(TypeVariable target) {
             return types.get(target);
         }
     }
@@ -212,9 +211,8 @@ public class SupertypesSolver {
             Set<TypeVariable> remainingTargets,
             ConstraintMap constraintMap,
             AnnotatedTypeFactory typeFactory) {
-        final QualifierHierarchy qualifierHierarchy = typeFactory.getQualifierHierarchy();
-        final AnnotationMirrorSet tops =
-                new AnnotationMirrorSet(qualifierHierarchy.getTopAnnotations());
+        QualifierHierarchy qualHierarchy = typeFactory.getQualifierHierarchy();
+        AnnotationMirrorSet tops = new AnnotationMirrorSet(qualHierarchy.getTopAnnotations());
 
         Lubs solution = new Lubs();
 
@@ -222,30 +220,26 @@ public class SupertypesSolver {
 
         List<TypeVariable> targetsSupertypesLast = new ArrayList<>(remainingTargets);
 
-        final Types types = typeFactory.getProcessingEnv().getTypeUtils();
+        Types types = typeFactory.getProcessingEnv().getTypeUtils();
         // If we have two type variables <A, A extends B> order them B then A
         // this is required because we will use the fact that A must be above B
         // when determining the LUB of A
         Collections.sort(
                 targetsSupertypesLast,
-                new Comparator<TypeVariable>() {
-                    @Override
-                    public int compare(TypeVariable o1, TypeVariable o2) {
-                        if (types.isSubtype(o1, o2)) {
-                            return -1;
-                        } else if (types.isSubtype(o2, o1)) {
-                            return 1;
-                        }
-
-                        return 0;
+                (o1, o2) -> {
+                    if (types.isSubtype(o1, o2)) {
+                        return -1;
+                    } else if (types.isSubtype(o2, o1)) {
+                        return 1;
                     }
+                    return 0;
                 });
 
-        for (final TypeVariable target : targetsSupertypesLast) {
+        for (TypeVariable target : targetsSupertypesLast) {
             TargetConstraints targetRecord = constraintMap.getConstraints(target);
-            final AnnotationMirrorMap<AnnotationMirrorSet> subtypeAnnos =
+            AnnotationMirrorMap<AnnotationMirrorSet> subtypeAnnos =
                     targetRecord.supertypes.primaries;
-            final Map<AnnotatedTypeMirror, AnnotationMirrorSet> subtypesOfTarget =
+            Map<AnnotatedTypeMirror, AnnotationMirrorSet> subtypesOfTarget =
                     targetRecord.supertypes.types;
 
             // If this target is a supertype of other targets and those targets have already been
@@ -254,21 +248,20 @@ public class SupertypesSolver {
             propagatePreviousLubs(targetRecord, solution, subtypesOfTarget);
 
             // lub all the primary annotations and put them in lubOfPrimaries
-            lubPrimaries(lubOfPrimaries, subtypeAnnos, tops, qualifierHierarchy);
+            lubPrimaries(lubOfPrimaries, subtypeAnnos, tops, qualHierarchy);
             solution.addPrimaries(target, lubOfPrimaries);
 
             if (!subtypesOfTarget.isEmpty()) {
-                final AnnotatedTypeMirror lub =
-                        leastUpperBound(target, typeFactory, subtypesOfTarget);
-                final AnnotationMirrorSet effectiveLubAnnos =
+                AnnotatedTypeMirror lub = leastUpperBound(target, typeFactory, subtypesOfTarget);
+                AnnotationMirrorSet effectiveLubAnnos =
                         new AnnotationMirrorSet(lub.getEffectiveAnnotations());
 
                 for (AnnotationMirror lubAnno : effectiveLubAnnos) {
-                    final AnnotationMirror hierarchy = qualifierHierarchy.getTopAnnotation(lubAnno);
-                    final AnnotationMirror primaryLub = lubOfPrimaries.get(hierarchy);
+                    AnnotationMirror hierarchy = qualHierarchy.getTopAnnotation(lubAnno);
+                    AnnotationMirror primaryLub = lubOfPrimaries.get(hierarchy);
 
                     if (primaryLub != null) {
-                        if (qualifierHierarchy.isSubtype(lubAnno, primaryLub)
+                        if (qualHierarchy.isSubtype(lubAnno, primaryLub)
                                 && !AnnotationUtils.areSame(lubAnno, primaryLub)) {
                             lub.replaceAnnotation(primaryLub);
                         }
@@ -286,13 +279,13 @@ public class SupertypesSolver {
      * we have already determined a lub, add that target's lub to this list.
      */
     protected static void propagatePreviousLubs(
-            final TargetConstraints targetRecord,
+            TargetConstraints targetRecord,
             Lubs solution,
-            final Map<AnnotatedTypeMirror, AnnotationMirrorSet> subtypesOfTarget) {
+            Map<AnnotatedTypeMirror, AnnotationMirrorSet> subtypesOfTarget) {
 
-        for (final Map.Entry<TypeVariable, AnnotationMirrorSet> supertypeTarget :
+        for (Map.Entry<TypeVariable, AnnotationMirrorSet> supertypeTarget :
                 targetRecord.supertypes.targets.entrySet()) {
-            final AnnotatedTypeMirror supertargetLub = solution.getType(supertypeTarget.getKey());
+            AnnotatedTypeMirror supertargetLub = solution.getType(supertypeTarget.getKey());
             if (supertargetLub != null) {
                 AnnotationMirrorSet supertargetTypeAnnos = subtypesOfTarget.get(supertargetLub);
                 if (supertargetTypeAnnos != null) {
@@ -314,19 +307,19 @@ public class SupertypesSolver {
             AnnotationMirrorMap<AnnotationMirror> lubOfPrimaries,
             AnnotationMirrorMap<AnnotationMirrorSet> subtypeAnnos,
             AnnotationMirrorSet tops,
-            QualifierHierarchy qualifierHierarchy) {
+            QualifierHierarchy qualHierarchy) {
 
         lubOfPrimaries.clear();
-        for (final AnnotationMirror top : tops) {
-            final AnnotationMirrorSet annosInHierarchy = subtypeAnnos.get(top);
+        for (AnnotationMirror top : tops) {
+            AnnotationMirrorSet annosInHierarchy = subtypeAnnos.get(top);
             if (annosInHierarchy != null && !annosInHierarchy.isEmpty()) {
-                lubOfPrimaries.put(top, leastUpperBound(annosInHierarchy, qualifierHierarchy));
+                lubOfPrimaries.put(top, leastUpperBound(annosInHierarchy, qualHierarchy));
             } else {
                 // If there are no annotations for this hierarchy, add bottom.  This happens
                 // when the only constraint for a type variable is a use that is annotated in
                 // this hierarchy. Calls to the method below have this property.
                 // <T> void method(@NonNull T t) {}
-                lubOfPrimaries.put(top, qualifierHierarchy.getBottomAnnotation(top));
+                lubOfPrimaries.put(top, qualHierarchy.getBottomAnnotation(top));
             }
         }
     }
@@ -336,10 +329,10 @@ public class SupertypesSolver {
      * a given hierarchy replace it with the corresponding value in lowerBoundAnnos.
      */
     public static AnnotatedTypeMirror groundMissingHierarchies(
-            final Map.Entry<AnnotatedTypeMirror, AnnotationMirrorSet> typeToHierarchies,
-            final AnnotationMirrorMap<AnnotationMirror> lowerBoundAnnos) {
-        final AnnotationMirrorSet presentHierarchies = typeToHierarchies.getValue();
-        final AnnotationMirrorSet missingAnnos = new AnnotationMirrorSet();
+            Map.Entry<AnnotatedTypeMirror, AnnotationMirrorSet> typeToHierarchies,
+            AnnotationMirrorMap<AnnotationMirror> lowerBoundAnnos) {
+        AnnotationMirrorSet presentHierarchies = typeToHierarchies.getValue();
+        AnnotationMirrorSet missingAnnos = new AnnotationMirrorSet();
         for (AnnotationMirror top : lowerBoundAnnos.keySet()) {
             if (!presentHierarchies.contains(top)) {
                 missingAnnos.add(lowerBoundAnnos.get(top));
@@ -361,34 +354,32 @@ public class SupertypesSolver {
      * AnnotatedTypes.leastUpperBound, this method will box primitives if necessary
      */
     public static AnnotatedTypeMirror leastUpperBound(
-            final TypeVariable target,
-            final AnnotatedTypeFactory typeFactory,
-            final Map<AnnotatedTypeMirror, AnnotationMirrorSet> types) {
+            TypeVariable target,
+            AnnotatedTypeFactory typeFactory,
+            Map<AnnotatedTypeMirror, AnnotationMirrorSet> types) {
 
-        QualifierHierarchy qualifierHierarchy = typeFactory.getQualifierHierarchy();
+        QualifierHierarchy qualHierarchy = typeFactory.getQualifierHierarchy();
         AnnotatedTypeVariable targetsDeclaredType =
                 (AnnotatedTypeVariable) typeFactory.getAnnotatedType(target.asElement());
-        final AnnotationMirrorMap<AnnotationMirror> lowerBoundAnnos =
+        AnnotationMirrorMap<AnnotationMirror> lowerBoundAnnos =
                 TypeArgInferenceUtil.createHierarchyMap(
                         new AnnotationMirrorSet(
                                 targetsDeclaredType.getLowerBound().getEffectiveAnnotations()),
-                        qualifierHierarchy);
+                        qualHierarchy);
 
-        final Iterator<Map.Entry<AnnotatedTypeMirror, AnnotationMirrorSet>> typesIter =
+        Iterator<Map.Entry<AnnotatedTypeMirror, AnnotationMirrorSet>> typesIter =
                 types.entrySet().iterator();
         if (!typesIter.hasNext()) {
             throw new BugInCF("Calling LUB on empty list.");
         }
 
-        /*
-         * If a constraint implies that a type parameter Ti is a supertype of an annotated type
-         * mirror Ai but only in a subset of all qualifier hierarchies then for all other qualifier
-         * hierarchies replace the primary annotation on Ai with the lowest possible annotation
-         * (ensuring that it won't be the LUB unless there are no other constraints, or all other
-         * constraints imply the bottom annotation is the LUB). Note: Even if we choose bottom as
-         * the lub here, the assignment context may raise this annotation.
-         */
-        final Map.Entry<AnnotatedTypeMirror, AnnotationMirrorSet> head = typesIter.next();
+        // If a constraint implies that a type parameter Ti is a supertype of an annotated type
+        // mirror Ai but only in a subset of all qualifier hierarchies then for all other qualifier
+        // hierarchies replace the primary annotation on Ai with the lowest possible annotation
+        // (ensuring that it won't be the LUB unless there are no other constraints, or all other
+        // constraints imply the bottom annotation is the LUB). Note: Even if we choose bottom as
+        // the lub here, the assignment context may raise this annotation.
+        Map.Entry<AnnotatedTypeMirror, AnnotationMirrorSet> head = typesIter.next();
 
         AnnotatedTypeMirror lubType = groundMissingHierarchies(head, lowerBoundAnnos);
         AnnotatedTypeMirror nextType = null;
@@ -414,17 +405,16 @@ public class SupertypesSolver {
      * Returns the lub of all the annotations in annos.
      *
      * @param annos a set of annotations in the same annotation hierarchy
-     * @param qualifierHierarchy the qualifier hierarchy that contains each annotation
+     * @param qualHierarchy the qualifier hierarchy that contains each annotation
      * @return the lub of all the annotations in annos
      */
-    private static final AnnotationMirror leastUpperBound(
-            final Iterable<? extends AnnotationMirror> annos,
-            QualifierHierarchy qualifierHierarchy) {
+    private static AnnotationMirror leastUpperBound(
+            Iterable<? extends AnnotationMirror> annos, QualifierHierarchy qualHierarchy) {
         Iterator<? extends AnnotationMirror> annoIter = annos.iterator();
         AnnotationMirror lub = annoIter.next();
 
         while (annoIter.hasNext()) {
-            lub = qualifierHierarchy.leastUpperBound(lub, annoIter.next());
+            lub = qualHierarchy.leastUpperBound(lub, annoIter.next());
         }
 
         return lub;

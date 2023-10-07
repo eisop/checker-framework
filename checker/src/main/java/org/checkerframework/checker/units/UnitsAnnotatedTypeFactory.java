@@ -55,7 +55,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
 import javax.lang.model.util.Elements;
-import javax.tools.Diagnostic.Kind;
+import javax.tools.Diagnostic;
 
 /**
  * Annotated type factory for the Units Checker.
@@ -263,7 +263,7 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     /** Adds the annotation class to the external qualifier map if it is not an alias annotation. */
-    private void addUnitToExternalQualMap(final Class<? extends Annotation> annoClass) {
+    private void addUnitToExternalQualMap(Class<? extends Annotation> annoClass) {
         AnnotationMirror mirror =
                 UnitsRelationsTools.buildAnnoMirrorWithNoPrefix(
                         processingEnv, annoClass.getCanonicalName());
@@ -470,7 +470,7 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
                 if (bestres != null && res != null && !bestres.equals(res)) {
                     checker.message(
-                            Kind.WARNING,
+                            Diagnostic.Kind.WARNING,
                             "UnitsRelation mismatch, taking neither! Previous: "
                                     + bestres
                                     + " and current: "

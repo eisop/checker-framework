@@ -8,7 +8,6 @@ import org.checkerframework.framework.qual.PreconditionAnnotation;
 import org.checkerframework.framework.qual.QualifierArgument;
 import org.checkerframework.framework.qual.RequiresQualifier;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
-import org.checkerframework.framework.util.Contract.Kind;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.Pair;
@@ -45,18 +44,18 @@ public class ContractsFromMethod {
     protected final ExecutableElement qualifierArgumentValueElement;
 
     /** The factory that this ContractsFromMethod is associated with. */
-    protected final GenericAnnotatedTypeFactory<?, ?, ?, ?> factory;
+    protected final GenericAnnotatedTypeFactory<?, ?, ?, ?> atypeFactory;
 
     /**
      * Creates a ContractsFromMethod for the given factory.
      *
-     * @param factory the type factory associated with the newly-created ContractsFromMethod
+     * @param atypeFactory the type factory associated with the newly-created ContractsFromMethod
      */
-    public ContractsFromMethod(GenericAnnotatedTypeFactory<?, ?, ?, ?> factory) {
-        this.factory = factory;
+    public ContractsFromMethod(GenericAnnotatedTypeFactory<?, ?, ?, ?> atypeFactory) {
+        this.atypeFactory = atypeFactory;
         qualifierArgumentValueElement =
                 TreeUtils.getMethod(
-                        QualifierArgument.class, "value", 0, factory.getProcessingEnv());
+                        QualifierArgument.class, "value", 0, atypeFactory.getProcessingEnv());
     }
 
     /**
@@ -80,7 +79,8 @@ public class ContractsFromMethod {
      * @return the precondition contracts on {@code executableElement}
      */
     public Set<Contract.Precondition> getPreconditions(ExecutableElement executableElement) {
-        return getContracts(executableElement, Kind.PRECONDITION, Contract.Precondition.class);
+        return getContracts(
+                executableElement, Contract.Kind.PRECONDITION, Contract.Precondition.class);
     }
 
     /**
@@ -90,7 +90,8 @@ public class ContractsFromMethod {
      * @return the postcondition contracts on {@code executableElement}
      */
     public Set<Contract.Postcondition> getPostconditions(ExecutableElement executableElement) {
-        return getContracts(executableElement, Kind.POSTCONDITION, Contract.Postcondition.class);
+        return getContracts(
+                executableElement, Contract.Kind.POSTCONDITION, Contract.Postcondition.class);
     }
 
     /**
@@ -103,7 +104,7 @@ public class ContractsFromMethod {
             ExecutableElement methodElement) {
         return getContracts(
                 methodElement,
-                Kind.CONDITIONALPOSTCONDITION,
+                Contract.Kind.CONDITIONALPOSTCONDITION,
                 Contract.ConditionalPostcondition.class);
     }
 
@@ -120,20 +121,20 @@ public class ContractsFromMethod {
      * @return the contracts on {@code executableElement}
      */
     private <T extends Contract> Set<T> getContracts(
-            ExecutableElement executableElement, Kind kind, Class<T> clazz) {
+            ExecutableElement executableElement, Contract.Kind kind, Class<T> clazz) {
         Set<T> result = new LinkedHashSet<>();
         // Check for a single framework-defined contract annotation.
         AnnotationMirror frameworkContractAnno =
-                factory.getDeclAnnotation(executableElement, kind.frameworkContractClass);
+                atypeFactory.getDeclAnnotation(executableElement, kind.frameworkContractClass);
         result.addAll(getContract(kind, frameworkContractAnno, clazz));
 
         // Check for a framework-defined wrapper around contract annotations.
         // The result is RequiresQualifier.List, EnsuresQualifier.List, or EnsuresQualifierIf.List.
         AnnotationMirror frameworkContractListAnno =
-                factory.getDeclAnnotation(executableElement, kind.frameworkContractListClass);
+                atypeFactory.getDeclAnnotation(executableElement, kind.frameworkContractListClass);
         if (frameworkContractListAnno != null) {
             List<AnnotationMirror> frameworkContractAnnoList =
-                    factory.getContractListValues(frameworkContractListAnno);
+                    atypeFactory.getContractListValues(frameworkContractListAnno);
             for (AnnotationMirror a : frameworkContractAnnoList) {
                 result.addAll(getContract(kind, a, clazz));
             }
@@ -141,7 +142,8 @@ public class ContractsFromMethod {
 
         // Check for type-system specific annotations.
         List<Pair<AnnotationMirror, AnnotationMirror>> declAnnotations =
-                factory.getDeclAnnotationWithMetaAnnotation(executableElement, kind.metaAnnotation);
+                atypeFactory.getDeclAnnotationWithMetaAnnotation(
+                        executableElement, kind.metaAnnotation);
         for (Pair<AnnotationMirror, AnnotationMirror> r : declAnnotations) {
             AnnotationMirror anno = r.first;
             // contractAnno is the meta-annotation on anno.
@@ -151,9 +153,9 @@ public class ContractsFromMethod {
             if (enforcedQualifier == null) {
                 continue;
             }
-            List<String> expressions = factory.getContractExpressions(kind, anno);
+            List<String> expressions = atypeFactory.getContractExpressions(kind, anno);
             Collections.sort(expressions);
-            Boolean ensuresQualifierIfResult = factory.getEnsuresQualifierIfResult(kind, anno);
+            Boolean ensuresQualifierIfResult = atypeFactory.getEnsuresQualifierIfResult(kind, anno);
 
             for (String expr : expressions) {
                 T contract =
@@ -193,11 +195,11 @@ public class ContractsFromMethod {
             return Collections.emptySet();
         }
 
-        List<String> expressions = factory.getContractExpressions(contractAnnotation);
+        List<String> expressions = atypeFactory.getContractExpressions(contractAnnotation);
         Collections.sort(expressions);
 
         Boolean ensuresQualifierIfResult =
-                factory.getEnsuresQualifierIfResult(kind, contractAnnotation);
+                atypeFactory.getEnsuresQualifierIfResult(kind, contractAnnotation);
 
         Set<T> result = new LinkedHashSet<>();
         for (String expr : expressions) {
@@ -271,18 +273,18 @@ public class ContractsFromMethod {
         AnnotationMirror anno;
         if (argumentAnno == null || argumentRenaming.isEmpty()) {
             // If there are no arguments, use factory method that allows caching
-            anno = AnnotationBuilder.fromName(factory.getElementUtils(), c);
+            anno = AnnotationBuilder.fromName(atypeFactory.getElementUtils(), c);
         } else {
-            AnnotationBuilder builder = new AnnotationBuilder(factory.getProcessingEnv(), c);
+            AnnotationBuilder builder = new AnnotationBuilder(atypeFactory.getProcessingEnv(), c);
             builder.copyRenameElementValuesFromAnnotation(argumentAnno, argumentRenaming);
             anno = builder.build();
         }
 
-        if (factory.isSupportedQualifier(anno)) {
+        if (atypeFactory.isSupportedQualifier(anno)) {
             return anno;
         } else {
-            AnnotationMirror aliasedAnno = factory.canonicalAnnotation(anno);
-            if (factory.isSupportedQualifier(aliasedAnno)) {
+            AnnotationMirror aliasedAnno = atypeFactory.canonicalAnnotation(anno);
+            if (atypeFactory.isSupportedQualifier(aliasedAnno)) {
                 return aliasedAnno;
             } else {
                 return null;
@@ -309,7 +311,7 @@ public class ContractsFromMethod {
         for (ExecutableElement meth :
                 ElementFilter.methodsIn(contractAnnoElement.getEnclosedElements())) {
             AnnotationMirror argumentAnnotation =
-                    factory.getDeclAnnotation(meth, QualifierArgument.class);
+                    atypeFactory.getDeclAnnotation(meth, QualifierArgument.class);
             if (argumentAnnotation != null) {
                 String sourceName = meth.getSimpleName().toString();
                 String targetName =

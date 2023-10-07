@@ -74,7 +74,7 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Types;
-import javax.tools.Diagnostic.Kind;
+import javax.tools.Diagnostic;
 
 /**
  * Helper methods to parse a string that represents a restricted Java expression.
@@ -239,7 +239,7 @@ public class JavaExpressionParseUtil {
          * Create a new ExpressionToJavaExpressionVisitor.
          *
          * @param enclosingType type of the class that encloses the JavaExpression
-         * @param thisReference JavaExpression to which to parse "this", or null if "this" should
+         * @param thisReference a JavaExpression to which to parse "this", or null if "this" should
          *     not appear in the expression
          * @param parameters list of JavaExpressions to which to parse a formal parameter reference
          *     such as "#2", or null if parameters should not appear in the expression
@@ -271,7 +271,7 @@ public class JavaExpressionParseUtil {
          *
          * @param expr the JavaParser {@link Expression} to convert
          * @param enclosingType type of the class that encloses the JavaExpression
-         * @param thisReference JavaExpression to which to parse "this", or null if "this" should
+         * @param thisReference a JavaExpression to which to parse "this", or null if "this" should
          *     not appear in the expression
          * @param parameters list of JavaExpressions to which to parse parameters, or null if
          *     parameters should not appear in the expression
@@ -654,7 +654,8 @@ public class JavaExpressionParseUtil {
                 }
             }
 
-            // Construct a FieldAccess expression.
+            // `fieldElem` is now set.  Construct a FieldAccess expression.
+
             if (ElementUtils.isStatic(fieldElem)) {
                 Element classElem = fieldElem.getEnclosingElement();
                 JavaExpression staticClassReceiver = new ClassName(ElementUtils.getType(classElem));
@@ -831,8 +832,11 @@ public class JavaExpressionParseUtil {
             throw constructJavaExpressionParseError(methodName, "no such method");
         }
 
-        // expr is a field access, a fully qualified class name, or a class name qualified with
-        // another class name (e.g. {@code OuterClass.InnerClass})
+        // `expr` should be a field access, a fully qualified class name, or a class name qualified
+        // with another class name (e.g. {@code OuterClass.InnerClass}).
+        // If the expression refers to a class that is not available to the resolver (the class
+        // wasn't passed to javac on the command line), then the argument can be
+        // "outerpackage.innerpackage", which will lead to a confusing error message.
         @Override
         public JavaExpression visit(FieldAccessExpr expr, Void aVoid) {
             setResolverField();
@@ -1202,7 +1206,7 @@ public class JavaExpressionParseUtil {
          * @return a DiagMessage that can be used for error reporting
          */
         public DiagMessage getDiagMessage() {
-            return new DiagMessage(Kind.ERROR, errorKey, args);
+            return new DiagMessage(Diagnostic.Kind.ERROR, errorKey, args);
         }
 
         public boolean isFlowParseError() {

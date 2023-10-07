@@ -243,7 +243,7 @@ public class OptionalVisitor
      */
     private boolean sameExpression(ExpressionTree tree1, ExpressionTree tree2) {
         JavaExpression r1 = JavaExpression.fromTree(tree1);
-        JavaExpression r2 = JavaExpression.fromTree(tree1);
+        JavaExpression r2 = JavaExpression.fromTree(tree2);
         if (r1 != null && !r1.containsUnknown() && r2 != null && !r2.containsUnknown()) {
             return r1.equals(r2);
         } else {
@@ -431,7 +431,7 @@ public class OptionalVisitor
      * @return the single enclosed statement, if it exists; otherwise, the same tree
      */
     // TODO: The Optional Checker should work over the CFG, then it would not need this any longer.
-    public static StatementTree skipBlocks(final StatementTree tree) {
+    public static StatementTree skipBlocks(StatementTree tree) {
         if (tree == null) {
             return tree;
         }

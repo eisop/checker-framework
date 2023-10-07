@@ -56,7 +56,7 @@ public class TypecheckExecutor {
         }
         TestUtilities.ensureDirectoryExists(dOption);
 
-        final StringWriter javacOutput = new StringWriter();
+        StringWriter javacOutput = new StringWriter();
         DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
 
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
@@ -71,7 +71,7 @@ public class TypecheckExecutor {
             //   error: Class names, 'org.checkerframework.checker.interning.InterningChecker', are
             //   only accepted if annotation processing is explicitly requested
             // Therefore, we now add them to the beginning of the options list.
-            final List<String> options = new ArrayList<>();
+            List<String> options = new ArrayList<>();
             options.add("-processor");
             options.add(String.join(",", configuration.getProcessors()));
             options.addAll(configuration.getFlatOptions());
@@ -100,7 +100,7 @@ public class TypecheckExecutor {
              * expected/unexpected messages, but not the std out/err messages from
              * that particular test. Can we improve this somehow?
              */
-            final Boolean compiledWithoutError = task.call();
+            Boolean compiledWithoutError = task.call();
             javacOutput.flush();
             return new CompilationResult(
                     compiledWithoutError,

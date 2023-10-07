@@ -231,7 +231,7 @@ public class StubGenerator {
 
         // implements
         if (!typeElement.getInterfaces().isEmpty()) {
-            final boolean isInterface = typeElement.getKind() == ElementKind.INTERFACE;
+            boolean isInterface = typeElement.getKind() == ElementKind.INTERFACE;
             out.print(isInterface ? " extends " : " implements ");
             List<String> ls =
                     CollectionsPlume.mapList(

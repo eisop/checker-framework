@@ -29,17 +29,17 @@ import javax.lang.model.type.TypeKind;
 public class FIsAReducer implements AFReducer {
 
     protected final FIsAReducingVisitor visitor;
-    private final AnnotatedTypeFactory typeFactory;
+    private final AnnotatedTypeFactory atypeFactory;
 
-    public FIsAReducer(final AnnotatedTypeFactory typeFactory) {
-        this.typeFactory = typeFactory;
+    public FIsAReducer(AnnotatedTypeFactory atypeFactory) {
+        this.atypeFactory = atypeFactory;
         this.visitor = new FIsAReducingVisitor();
     }
 
     @Override
     public boolean reduce(AFConstraint constraint, Set<AFConstraint> newConstraints) {
         if (constraint instanceof FIsA) {
-            final FIsA fIsA = (FIsA) constraint;
+            FIsA fIsA = (FIsA) constraint;
             visitor.visit(fIsA.formalParameter, fIsA.argument, newConstraints);
             return true;
 
@@ -145,22 +145,22 @@ public class FIsAReducer implements AFReducer {
             }
 
             AnnotatedDeclaredType argumentAsParam =
-                    AnnotatedTypes.castedAsSuper(typeFactory, argument, parameter);
+                    AnnotatedTypes.castedAsSuper(atypeFactory, argument, parameter);
             if (argumentAsParam == null) {
                 return null;
             }
 
-            final List<AnnotatedTypeMirror> argTypeArgs = argumentAsParam.getTypeArguments();
-            final List<AnnotatedTypeMirror> paramTypeArgs = parameter.getTypeArguments();
+            List<AnnotatedTypeMirror> argTypeArgs = argumentAsParam.getTypeArguments();
+            List<AnnotatedTypeMirror> paramTypeArgs = parameter.getTypeArguments();
             for (int i = 0; i < argTypeArgs.size(); i++) {
-                final AnnotatedTypeMirror argTypeArg = argTypeArgs.get(i);
-                final AnnotatedTypeMirror paramTypeArg = paramTypeArgs.get(i);
+                AnnotatedTypeMirror argTypeArg = argTypeArgs.get(i);
+                AnnotatedTypeMirror paramTypeArg = paramTypeArgs.get(i);
 
                 if (paramTypeArg.getKind() == TypeKind.WILDCARD) {
-                    final AnnotatedWildcardType paramWc = (AnnotatedWildcardType) paramTypeArg;
+                    AnnotatedWildcardType paramWc = (AnnotatedWildcardType) paramTypeArg;
 
                     if (argTypeArg.getKind() == TypeKind.WILDCARD) {
-                        final AnnotatedWildcardType argWc = (AnnotatedWildcardType) argTypeArg;
+                        AnnotatedWildcardType argWc = (AnnotatedWildcardType) argTypeArg;
                         constraints.add(
                                 new FIsA(paramWc.getExtendsBound(), argWc.getExtendsBound()));
                         constraints.add(new FIsA(paramWc.getSuperBound(), argWc.getSuperBound()));
@@ -233,7 +233,7 @@ public class FIsAReducer implements AFReducer {
                 Set<AFConstraint> constraints) {
             // we may be able to eliminate this case, since I believe the corresponding constraint
             // will just be discarded as the parameter must be a boxed primitive
-            constraints.add(new FIsA(typeFactory.getBoxedType(parameter), argument));
+            constraints.add(new FIsA(atypeFactory.getBoxedType(parameter), argument));
             return null;
         }
 

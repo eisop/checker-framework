@@ -81,7 +81,7 @@ public class ElementUtils {
      * @return the innermost type element (possibly the argument itself), or null if {@code elem} is
      *     not, and is not enclosed by, a type element
      */
-    public static @Nullable TypeElement enclosingTypeElement(final Element elem) {
+    public static @Nullable TypeElement enclosingTypeElement(Element elem) {
         Element result = elem;
         while (result != null && !isTypeElement(result)) {
             result = result.getEnclosingElement();
@@ -97,7 +97,7 @@ public class ElementUtils {
      * @param elem the enclosed element of a class
      * @return the innermost type element, or null if no type element encloses {@code elem}
      */
-    public static @Nullable TypeElement strictEnclosingTypeElement(final Element elem) {
+    public static @Nullable TypeElement strictEnclosingTypeElement(Element elem) {
         Element enclosingElement = elem.getEnclosingElement();
         if (enclosingElement == null) {
             return null;
@@ -463,7 +463,7 @@ public class ElementUtils {
     /**
      * Returns the field of the class or {@code null} if not found.
      *
-     * @param type TypeElement to search
+     * @param type the TypeElement to search
      * @param name name of a field
      * @return the VariableElement for the field if it was found, null otherwise
      */
@@ -684,8 +684,8 @@ public class ElementUtils {
      */
     public static List<TypeElement> getDirectSuperTypeElements(
             TypeElement type, Elements elements) {
-        final TypeMirror superclass = type.getSuperclass();
-        final List<? extends TypeMirror> interfaces = type.getInterfaces();
+        TypeMirror superclass = type.getSuperclass();
+        List<? extends TypeMirror> interfaces = type.getInterfaces();
         List<TypeElement> result = new ArrayList<TypeElement>(interfaces.size() + 1);
         if (superclass.getKind() != TypeKind.NONE) {
             @SuppressWarnings("nullness:assignment") // Not null because the TypeKind is not NONE.
@@ -879,7 +879,7 @@ public class ElementUtils {
             return false;
         }
         // Generated constructors seem to get GENERATEDCONSTR even though the documentation
-        // seems to imply they would get GENERATED_MEMBER like the fields do:
+        // seems to imply they would get GENERATED_MEMBER like the fields do.
         return (((Symbol) e).flags() & (Flags_GENERATED_MEMBER | Flags.GENERATEDCONSTR)) != 0;
     }
 
@@ -1031,7 +1031,7 @@ public class ElementUtils {
                 TYPEELEMENT_GETRECORDCOMPONENTS =
                         TypeElement.class.getMethod("getRecordComponents");
             } catch (NoSuchMethodException e) {
-                throw new Error("Cannot find TypeElement.getRecordComponents()", e);
+                throw new BugInCF("Cannot access TypeElement.getRecordComponents()", e);
             }
         } else {
             TYPEELEMENT_GETRECORDCOMPONENTS = null;

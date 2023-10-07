@@ -1,7 +1,9 @@
 plugins {
     id 'java-library'
     id 'base'
-    // https://github.com/n0mer/gradle-git-properties ; target is: generateGitProperties
+
+    // https://github.com/n0mer/gradle-git-properties
+    // Generates file build/resources/main/git.properties when the `classes` task runs.
     id 'com.gorylenko.gradle-git-properties' version '2.4.1'
 }
 
@@ -407,7 +409,7 @@ if (skipDelombok) {
 }
 
 ///
-/// Whole-program inference tests
+/// Tests of the -Ainfer command-line argument.  These are not whole-program inference tests.
 ///
 
 test {
@@ -916,6 +918,10 @@ task ainferTest(group: 'Verification') {
     dependsOn('ainferIndexAjavaTest')
     dependsOn('ainferResourceLeakAjavaTest')
 }
+
+///
+/// Whole-program inference tests
+///
 
 // This is run as part of the inferenceTests task.
 task wpiManyTest(group: 'Verification') {

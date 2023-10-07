@@ -68,9 +68,9 @@ public class I18nFormatterVisitor extends BaseTypeVisitor<I18nFormatterAnnotated
                         int paraml = paramTypes.length;
                         int formatl = formatCats.length;
 
-                        // For assignments, i18nformat.missing.arguments and
-                        // i18nformat.excess.arguments are
-                        // issued from commonAssignmentCheck.
+                        // For assignments, "i18nformat.missing.arguments" and
+                        // "i18nformat.excess.arguments" are
+                        // issued from commonAssignmentCheck().
                         if (paraml < formatl) {
                             tu.warning(invc, "i18nformat.missing.arguments", formatl, paraml);
                         }
@@ -124,18 +124,20 @@ public class I18nFormatterVisitor extends BaseTypeVisitor<I18nFormatterAnnotated
     }
 
     @Override
-    protected void commonAssignmentCheck(
+    protected boolean commonAssignmentCheck(
             AnnotatedTypeMirror varType,
             AnnotatedTypeMirror valueType,
             Tree valueTree,
             @CompilerMessageKey String errorKey,
             Object... extraArgs) {
+        boolean result = true;
+
         AnnotationMirror rhs = valueType.getAnnotationInHierarchy(atypeFactory.I18NUNKNOWNFORMAT);
         AnnotationMirror lhs = varType.getAnnotationInHierarchy(atypeFactory.I18NUNKNOWNFORMAT);
 
-        // i18nformat.missing.arguments and i18nformat.excess.arguments are issued here for
+        // "i18nformat.missing.arguments" and "i18nformat.excess.arguments" are issued here for
         // assignments.
-        // For method calls, they are issued in checkInvocationFormatFor.
+        // For method calls, they are issued in checkInvocationFormatFor().
         if (rhs != null
                 && lhs != null
                 && AnnotationUtils.areSameByName(
@@ -164,12 +166,20 @@ public class I18nFormatterVisitor extends BaseTypeVisitor<I18nFormatterAnnotated
                         "i18nformat.excess.arguments",
                         varType.toString(),
                         valueType.toString());
+                result = false;
             }
         }
 
-        // By calling super.commonAssignmentCheck last, any "i18nformat.excess.arguments" message
-        // issued for a given line of code will take precedence over the
-        // "assignment.type.incompatible" issued by super.commonAssignmentCheck.
-        super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);
+        /// TODO: What does "take precedence over" mean?  Both are issued, but the
+        /// "i18nformat.excess.arguments" appears first in the output.  Is this meant to not call
+        /// super.commonAssignmentCheck() if `result` is already false?
+        // By calling super.commonAssignmentCheck() last, any "i18nformat.excess.arguments"
+        // message issued for a given line of code will take precedence over the
+        // "assignment.type.incompatible"
+        // issued by super.commonAssignmentCheck().
+        result =
+                super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs)
+                        && result;
+        return result;
     }
 }

@@ -64,6 +64,7 @@ import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
 import org.plumelib.util.ArraySet;
 import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.UtilPlume;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -673,7 +674,8 @@ public class WholeProgramInferenceJavaParserStorage
      * stores those wrappers in {@code sourceAnnos}.
      *
      * @param javacClass javac tree for class
-     * @param javaParserClass JavaParser node corresponding to the same class as {@code javacClass}
+     * @param javaParserClass a JavaParser node corresponding to the same class as {@code
+     *     javacClass}
      * @param sourceAnnos compilation unit wrapper to add new wrappers to
      */
     private void createWrappersForClass(
@@ -782,7 +784,9 @@ public class WholeProgramInferenceJavaParserStorage
                             @Nullable @BinaryName String classNameKey,
                             @Nullable TypeDeclaration<?> javaParserNode) {
                         String className;
-                        if (classNameKey == null) {
+                        if (classNameKey != null) {
+                            className = classNameKey;
+                        } else {
                             TypeElement classElt = TreeUtils.elementFromDeclaration(tree);
                             className = ElementUtils.getBinaryName(classElt);
 
@@ -806,8 +810,6 @@ public class WholeProgramInferenceJavaParserStorage
                                                 supertypeName, k -> new TreeSet<>());
                                 subtypeSet.add(className);
                             }
-                        } else {
-                            className = classNameKey;
                         }
                         ClassOrInterfaceAnnos typeWrapper =
                                 new ClassOrInterfaceAnnos(className, javaParserNode);
@@ -853,7 +855,8 @@ public class WholeProgramInferenceJavaParserStorage
                      * {@code javaParserNode} and stores it in {@code sourceAnnos}.
                      *
                      * @param javacTree javac tree for declaration to add
-                     * @param javaParserNode JavaParser node for the same class as {@code javacTree}
+                     * @param javaParserNode a JavaParser node for the same class as {@code
+                     *     javacTree}
                      */
                     private void addCallableDeclaration(
                             MethodTree javacTree, CallableDeclaration<?> javaParserNode) {
@@ -1077,7 +1080,9 @@ public class WholeProgramInferenceJavaParserStorage
         setSupertypesAndSubtypesModified();
 
         for (String path : modifiedFiles) {
-            CompilationUnitAnnos root = sourceToAnnos.get(path);
+            // This calls deepCopy() because wpiPrepareCompilationUnitForWriting performs side
+            // effects that we don't want to be persistent.
+            CompilationUnitAnnos root = sourceToAnnos.get(path).deepCopy();
             wpiPrepareCompilationUnitForWriting(root);
             File packageDir;
             if (!root.compilationUnit.getPackageDeclaration().isPresent()) {
@@ -1142,8 +1147,7 @@ public class WholeProgramInferenceJavaParserStorage
                             VoidVisitor<Void> visitor =
                                     new DefaultPrettyPrinterVisitor(getConfiguration()) {
                                         @Override
-                                        public void visit(
-                                                final MarkerAnnotationExpr n, final Void arg) {
+                                        public void visit(MarkerAnnotationExpr n, Void arg) {
                                             if (invisibleQualifierNames.contains(
                                                     n.getName().toString())) {
                                                 return;
@@ -1152,9 +1156,7 @@ public class WholeProgramInferenceJavaParserStorage
                                         }
 
                                         @Override
-                                        public void visit(
-                                                final SingleMemberAnnotationExpr n,
-                                                final Void arg) {
+                                        public void visit(SingleMemberAnnotationExpr n, Void arg) {
                                             if (invisibleQualifierNames.contains(
                                                     n.getName().toString())) {
                                                 return;
@@ -1163,8 +1165,7 @@ public class WholeProgramInferenceJavaParserStorage
                                         }
 
                                         @Override
-                                        public void visit(
-                                                final NormalAnnotationExpr n, final Void arg) {
+                                        public void visit(NormalAnnotationExpr n, Void arg) {
                                             if (invisibleQualifierNames.contains(
                                                     n.getName().toString())) {
                                                 return;
@@ -1374,7 +1375,7 @@ public class WholeProgramInferenceJavaParserStorage
             result.callableDeclarations = CollectionUtils.deepCopyValues(callableDeclarations);
             result.fields = CollectionUtils.deepCopyValues(fields);
             result.enumConstants =
-                    CollectionUtils.clone(enumConstants); // no deep copy: elements are strings
+                    UtilPlume.clone(enumConstants); // no deep copy: elements are strings
             if (classAnnotations != null) {
                 result.classAnnotations = classAnnotations.deepCopy();
             }
@@ -1420,13 +1421,22 @@ public class WholeProgramInferenceJavaParserStorage
 
         @Override
         public String toString() {
+            String fieldsString = fields.toString();
+            if (fieldsString.length() > 100) {
+                // The quoting increases the likelihood that all delimiters are balanced in the
+                // result.
+                // That makes it easier to manipulate the result (such as skipping over it) in an
+                // editor.  The quoting also makes clear that the value is truncated.
+                fieldsString = "\"" + fieldsString.substring(0, 95) + "...\"";
+            }
+
             return "ClassOrInterfaceAnnos ["
-                    + classDeclaration.getName()
+                    + (classDeclaration == null ? "unnamed" : classDeclaration.getName())
                     + ": callableDeclarations="
                     // For deterministic output
                     + new TreeMap<>(callableDeclarations)
                     + ", fields="
-                    + fields
+                    + fieldsString
                     + "]";
         }
 
@@ -1511,7 +1521,7 @@ public class WholeProgramInferenceJavaParserStorage
             result.declarationAnnotations =
                     DeepCopyable.deepCopyOrNull(this.declarationAnnotations);
 
-            if (result.paramsDeclAnnos != null) {
+            if (this.paramsDeclAnnos != null) {
                 result.paramsDeclAnnos = new ArraySet<>(this.paramsDeclAnnos);
             }
             result.preconditions = deepCopyMapOfStringToPair(this.preconditions);
