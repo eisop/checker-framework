@@ -62,6 +62,7 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11.SwitchExpressionUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
 /** The visitor for the nullness type-system. */
@@ -751,8 +752,18 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
 
   @Override
   public Void visitSwitch(SwitchTree tree, Void p) {
-    checkForNullability(tree.getExpression(), SWITCHING_NULLABLE);
+    if (!TreeUtils.hasNullCaseLabel(tree)) {
+      checkForNullability(tree.getExpression(), SWITCHING_NULLABLE);
+    }
     return super.visitSwitch(tree, p);
+  }
+
+  @Override
+  public void visitSwitchExpression17(Tree switchExprTree) {
+    if (!TreeUtils.hasNullCaseLabel(switchExprTree)) {
+      checkForNullability(SwitchExpressionUtils.getExpression(switchExprTree), SWITCHING_NULLABLE);
+    }
+    super.visitSwitchExpression17(switchExprTree);
   }
 
   @Override
