@@ -7,30 +7,30 @@ package org.checkerframework.dataflow.cfg.builder;
  */
 public class Label {
 
-    /** Unique id counter that incremented in {@code #uniqueName}. */
-    private static int uid = 0;
+  /** Unique id counter that incremented in {@code #uniqueName}. */
+  private static int uid = 0;
 
-    protected final String name;
+  protected final String name;
 
-    public Label(String name) {
-        this.name = name;
-    }
+  public Label(String name) {
+    this.name = name;
+  }
 
-    public Label() {
-        this.name = uniqueName();
-    }
+  public Label() {
+    this.name = uniqueName();
+  }
 
-    @Override
-    public String toString() {
-        return name;
-    }
+  @Override
+  public String toString() {
+    return name;
+  }
 
-    /**
-     * Return a new unique label name that cannot be confused with a Java source code label.
-     *
-     * @return a new unique label name
-     */
-    private static String uniqueName() {
-        return "%L" + uid++;
-    }
+  /**
+   * Return a new unique label name that cannot be confused with a Java source code label.
+   *
+   * @return a new unique label name
+   */
+  private static String uniqueName() {
+    return "%L" + uid++;
+  }
 }
