@@ -7,6 +7,7 @@ import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.Tree;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.regex.qual.PartialRegex;
 import org.checkerframework.checker.regex.qual.PolyRegex;
 import org.checkerframework.checker.regex.qual.Regex;
@@ -156,7 +157,7 @@ public class RegexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     /** Returns a new Regex annotation with the given group count. */
-    /*package-scope*/ AnnotationMirror createRegexAnnotation(int groupCount) {
+    /*package-private*/ AnnotationMirror createRegexAnnotation(int groupCount) {
         AnnotationBuilder builder = new AnnotationBuilder(processingEnv, Regex.class);
         if (groupCount > 0) {
             builder.setValue("value", groupCount);
@@ -342,7 +343,7 @@ public class RegexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          */
         @Override
         public Void visitLiteral(LiteralTree tree, AnnotatedTypeMirror type) {
-            if (!type.isAnnotatedInHierarchy(REGEX)) {
+            if (!type.hasAnnotationInHierarchy(REGEX)) {
                 String regex = null;
                 if (tree.getKind() == Tree.Kind.STRING_LITERAL) {
                     regex = (String) tree.getValue();
@@ -367,7 +368,7 @@ public class RegexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          */
         @Override
         public Void visitBinary(BinaryTree tree, AnnotatedTypeMirror type) {
-            if (!type.isAnnotatedInHierarchy(REGEX) && TreeUtils.isStringConcatenation(tree)) {
+            if (!type.hasAnnotationInHierarchy(REGEX) && TreeUtils.isStringConcatenation(tree)) {
                 AnnotatedTypeMirror lExpr = getAnnotatedType(tree.getLeftOperand());
                 AnnotatedTypeMirror rExpr = getAnnotatedType(tree.getRightOperand());
 
@@ -381,14 +382,13 @@ public class RegexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                 boolean rExprPoly = rExpr.hasAnnotation(PolyRegex.class);
 
                 if (lExprRE && rExprRE) {
-                    // Remove current @Regex annotation...
-                    type.removeAnnotationInHierarchy(REGEX);
-                    // ...and add a new one with the correct group count value.
-                    type.addAnnotation(createRegexAnnotation(lGroupCount + rGroupCount));
+                    // Remove current @Regex annotation and add a new one with the correct group
+                    // count value.
+                    type.replaceAnnotation(createRegexAnnotation(lGroupCount + rGroupCount));
                 } else if ((lExprPoly && rExprPoly)
                         || (lExprPoly && rExprRE)
                         || (lExprRE && rExprPoly)) {
-                    type.addAnnotation(PolyRegex.class);
+                    type.addAnnotation(POLYREGEX);
                 } else if (lExprPart && rExprPart) {
                     String lRegex = getPartialRegexValue(lExpr);
                     String rRegex = getPartialRegexValue(rExpr);
@@ -419,8 +419,8 @@ public class RegexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                 AnnotatedTypeMirror rhs = getAnnotatedType(tree.getExpression());
                 AnnotatedTypeMirror lhs = getAnnotatedType(tree.getVariable());
 
-                final Integer lhsRegexCount = getMinimumRegexCount(lhs);
-                final Integer rhsRegexCount = getMinimumRegexCount(rhs);
+                Integer lhsRegexCount = getMinimumRegexCount(lhs);
+                Integer rhsRegexCount = getMinimumRegexCount(rhs);
 
                 if (lhsRegexCount != null && rhsRegexCount != null) {
                     int lCount = getGroupCount(lhs.getAnnotation(Regex.class));
@@ -443,7 +443,7 @@ public class RegexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                     || TreeUtils.isMethodInvocation(tree, patternCompile2, processingEnv)) {
                 ExpressionTree arg0 = tree.getArguments().get(0);
 
-                final AnnotatedTypeMirror argType = getAnnotatedType(arg0);
+                AnnotatedTypeMirror argType = getAnnotatedType(arg0);
                 Integer regexCount = getMinimumRegexCount(argType);
                 AnnotationMirror bottomAnno =
                         getAnnotatedType(arg0).getAnnotation(RegexBottom.class);
@@ -493,8 +493,8 @@ public class RegexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          * @param type type that may carry a Regex annotation
          * @return the Integer value of the Regex annotation (0 if no value exists)
          */
-        private Integer getMinimumRegexCount(final AnnotatedTypeMirror type) {
-            final AnnotationMirror primaryRegexAnno = type.getAnnotation(Regex.class);
+        private @Nullable Integer getMinimumRegexCount(AnnotatedTypeMirror type) {
+            AnnotationMirror primaryRegexAnno = type.getAnnotation(Regex.class);
             if (primaryRegexAnno == null) {
                 switch (type.getKind()) {
                     case TYPEVAR:
@@ -506,7 +506,7 @@ public class RegexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
                     case INTERSECTION:
                         Integer maxBound = null;
-                        for (final AnnotatedTypeMirror bound :
+                        for (AnnotatedTypeMirror bound :
                                 ((AnnotatedIntersectionType) type).getBounds()) {
                             Integer boundRegexNum = getMinimumRegexCount(bound);
                             if (boundRegexNum != null) {

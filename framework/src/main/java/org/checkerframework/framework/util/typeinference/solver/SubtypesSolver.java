@@ -11,7 +11,6 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -36,20 +35,20 @@ public class SubtypesSolver {
      *     and will not infer that the target is equivalent to another target.
      */
     public InferenceResult solveFromSubtypes(
-            final Set<TypeVariable> remainingTargets,
-            final ConstraintMap constraints,
-            final AnnotatedTypeFactory typeFactory) {
+            Set<TypeVariable> remainingTargets,
+            ConstraintMap constraints,
+            AnnotatedTypeFactory typeFactory) {
         return glbSubtypes(remainingTargets, constraints, typeFactory);
     }
 
     public InferenceResult glbSubtypes(
-            final Set<TypeVariable> remainingTargets,
-            final ConstraintMap constraints,
-            final AnnotatedTypeFactory typeFactory) {
-        final InferenceResult inferenceResult = new InferenceResult();
-        final QualifierHierarchy qualifierHierarchy = typeFactory.getQualifierHierarchy();
+            Set<TypeVariable> remainingTargets,
+            ConstraintMap constraints,
+            AnnotatedTypeFactory typeFactory) {
+        InferenceResult inferenceResult = new InferenceResult();
+        QualifierHierarchy qualHierarchy = typeFactory.getQualifierHierarchy();
 
-        final Types types = typeFactory.getProcessingEnv().getTypeUtils();
+        Types types = typeFactory.getProcessingEnv().getTypeUtils();
 
         List<TypeVariable> targetsSubtypesLast = new ArrayList<>(remainingTargets);
 
@@ -58,20 +57,16 @@ public class SubtypesSolver {
         // when determining the glb of B
         Collections.sort(
                 targetsSubtypesLast,
-                new Comparator<TypeVariable>() {
-                    @Override
-                    public int compare(TypeVariable o1, TypeVariable o2) {
-                        if (types.isSubtype(o1, o2)) {
-                            return 1;
-                        } else if (types.isSubtype(o2, o1)) {
-                            return -1;
-                        }
-
-                        return 0;
+                (o1, o2) -> {
+                    if (types.isSubtype(o1, o2)) {
+                        return 1;
+                    } else if (types.isSubtype(o2, o1)) {
+                        return -1;
                     }
+                    return 0;
                 });
 
-        for (final TypeVariable target : targetsSubtypesLast) {
+        for (TypeVariable target : targetsSubtypesLast) {
             Subtypes subtypes = constraints.getConstraints(target).subtypes;
 
             if (subtypes.types.isEmpty()) {
@@ -84,24 +79,23 @@ public class SubtypesSolver {
             // but we may have primary annotations that need to be GLBed
             AnnotationMirrorMap<AnnotationMirrorSet> primaries = subtypes.primaries;
             if (subtypes.types.size() == 1) {
-                final Map.Entry<AnnotatedTypeMirror, AnnotationMirrorSet> entry =
+                Map.Entry<AnnotatedTypeMirror, AnnotationMirrorSet> entry =
                         subtypes.types.entrySet().iterator().next();
                 AnnotatedTypeMirror supertype = entry.getKey().deepCopy();
 
                 for (AnnotationMirror top : entry.getValue()) {
-                    final AnnotationMirrorSet superAnnos = primaries.get(top);
+                    AnnotationMirrorSet superAnnos = primaries.get(top);
                     // if it is null we're just going to use the anno already on supertype
                     if (superAnnos != null) {
-                        final AnnotationMirror supertypeAnno =
-                                supertype.getAnnotationInHierarchy(top);
+                        AnnotationMirror supertypeAnno = supertype.getAnnotationInHierarchy(top);
                         superAnnos.add(supertypeAnno);
                     }
                 }
 
                 if (!primaries.isEmpty()) {
-                    for (AnnotationMirror top : qualifierHierarchy.getTopAnnotations()) {
-                        final AnnotationMirror glb =
-                                greatestLowerBound(subtypes.primaries.get(top), qualifierHierarchy);
+                    for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
+                        AnnotationMirror glb =
+                                greatestLowerBound(subtypes.primaries.get(top), qualHierarchy);
                         supertype.replaceAnnotation(glb);
                     }
                 }
@@ -112,21 +106,19 @@ public class SubtypesSolver {
 
                 // GLB all of the types than combine this with the GLB of primary annotation
                 // constraints
-                final AnnotatedTypeMirror glbType = GlbUtil.glbAll(subtypes.types, typeFactory);
+                AnnotatedTypeMirror glbType = GlbUtil.glbAll(subtypes.types, typeFactory);
                 if (glbType != null) {
                     if (!primaries.isEmpty()) {
-                        for (AnnotationMirror top : qualifierHierarchy.getTopAnnotations()) {
-                            final AnnotationMirror glb =
-                                    greatestLowerBound(
-                                            subtypes.primaries.get(top), qualifierHierarchy);
-                            final AnnotationMirror currentAnno =
-                                    glbType.getAnnotationInHierarchy(top);
+                        for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
+                            AnnotationMirror glb =
+                                    greatestLowerBound(subtypes.primaries.get(top), qualHierarchy);
+                            AnnotationMirror currentAnno = glbType.getAnnotationInHierarchy(top);
 
                             if (currentAnno == null) {
                                 glbType.addAnnotation(glb);
                             } else if (glb != null) {
                                 glbType.replaceAnnotation(
-                                        qualifierHierarchy.greatestLowerBound(glb, currentAnno));
+                                        qualHierarchy.greatestLowerBound(glb, currentAnno));
                             }
                         }
                     }
@@ -145,17 +137,16 @@ public class SubtypesSolver {
      * for this target.
      */
     protected static void propagatePreviousGlbs(
-            final Subtypes targetSubtypes,
+            Subtypes targetSubtypes,
             InferenceResult solution,
-            final Map<AnnotatedTypeMirror, AnnotationMirrorSet> subtypesOfTarget) {
+            Map<AnnotatedTypeMirror, AnnotationMirrorSet> subtypesOfTarget) {
 
-        for (final Map.Entry<TypeVariable, AnnotationMirrorSet> subtypeTarget :
+        for (Map.Entry<TypeVariable, AnnotationMirrorSet> subtypeTarget :
                 targetSubtypes.targets.entrySet()) {
-            final InferredValue subtargetInferredGlb = solution.get(subtypeTarget.getKey());
+            InferredValue subtargetInferredGlb = solution.get(subtypeTarget.getKey());
 
             if (subtargetInferredGlb != null) {
-                final AnnotatedTypeMirror subtargetGlbType =
-                        ((InferredType) subtargetInferredGlb).type;
+                AnnotatedTypeMirror subtargetGlbType = ((InferredType) subtargetInferredGlb).type;
                 AnnotationMirrorSet subtargetAnnos = subtypesOfTarget.get(subtargetGlbType);
                 if (subtargetAnnos != null) {
                     // there is already an equivalent type in the list of subtypes, just add
@@ -172,17 +163,16 @@ public class SubtypesSolver {
      * Returns the GLB of annos.
      *
      * @param annos a set of annotations in the same annotation hierarchy
-     * @param qualifierHierarchy the qualifier of the annotation hierarchy
+     * @param qualHierarchy the qualifier of the annotation hierarchy
      * @return the GLB of annos
      */
-    private static final AnnotationMirror greatestLowerBound(
-            final Iterable<? extends AnnotationMirror> annos,
-            QualifierHierarchy qualifierHierarchy) {
+    private static AnnotationMirror greatestLowerBound(
+            Iterable<? extends AnnotationMirror> annos, QualifierHierarchy qualHierarchy) {
         Iterator<? extends AnnotationMirror> annoIter = annos.iterator();
         AnnotationMirror glb = annoIter.next();
 
         while (annoIter.hasNext()) {
-            glb = qualifierHierarchy.greatestLowerBound(glb, annoIter.next());
+            glb = qualHierarchy.greatestLowerBound(glb, annoIter.next());
         }
 
         return glb;

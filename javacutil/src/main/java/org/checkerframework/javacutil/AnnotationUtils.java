@@ -74,8 +74,8 @@ public class AnnotationUtils {
         if (annotation instanceof AnnotationBuilder.CheckerFrameworkAnnotationMirror) {
             return ((AnnotationBuilder.CheckerFrameworkAnnotationMirror) annotation).annotationName;
         }
-        final DeclaredType annoType = annotation.getAnnotationType();
-        final TypeElement elm = (TypeElement) annoType.asElement();
+        DeclaredType annoType = annotation.getAnnotationType();
+        TypeElement elm = (TypeElement) annoType.asElement();
         @SuppressWarnings("signature:assignment.type.incompatible") // JDK needs annotations
         @CanonicalName String name = elm.getQualifiedName().toString();
         return name;
@@ -88,8 +88,8 @@ public class AnnotationUtils {
      * @return the binary name of an annotation as a String
      */
     public static final @BinaryName String annotationBinaryName(AnnotationMirror annotation) {
-        final DeclaredType annoType = annotation.getAnnotationType();
-        final TypeElement elm = (TypeElement) annoType.asElement();
+        DeclaredType annoType = annotation.getAnnotationType();
+        TypeElement elm = (TypeElement) annoType.asElement();
         return ElementUtils.getBinaryName(elm);
     }
 
@@ -828,7 +828,7 @@ public class AnnotationUtils {
      * @param <T> the class of the type
      * @return the value of the element with the given name
      */
-    public static <T> @Nullable T getElementValue(
+    public static <T> T getElementValue(
             AnnotationMirror anno, ExecutableElement element, Class<T> expectedType) {
         AnnotationValue av = anno.getElementValues().get(element);
         if (av == null) {
@@ -855,7 +855,7 @@ public class AnnotationUtils {
      * @param defaultValue the value to return if the element is not present
      * @return the value of the element with the given name
      */
-    public static <T> @Nullable T getElementValue(
+    public static <T> T getElementValue(
             AnnotationMirror anno,
             ExecutableElement element,
             Class<T> expectedType,
@@ -1292,7 +1292,7 @@ public class AnnotationUtils {
      * <p>To test containment, use {@link #annotationValueContains(AnnotationValue, String)} or
      * {@link #annotationValueContainsToString(AnnotationValue, String)}.
      *
-     * @param avList an AnnotationValue that is null or a list of Strings
+     * @param avList an AnnotationValue that is a list of Strings
      * @param expectedType the component type of the argument and of the return type, an enum
      * @param <T> the class of the type
      * @return the annotation value, converted to a list

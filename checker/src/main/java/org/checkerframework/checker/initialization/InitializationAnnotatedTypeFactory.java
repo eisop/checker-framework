@@ -18,7 +18,7 @@ import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.util.AnnotatedTypes;
-import org.checkerframework.javacutil.Pair;
+import org.plumelib.util.IPair;
 
 import java.lang.annotation.Annotation;
 import java.util.List;
@@ -71,7 +71,8 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
     protected @Nullable InitializationFieldAccessAnnotatedTypeFactory getFieldAccessFactory() {
         InitializationChecker checker = getChecker();
         BaseTypeChecker targetChecker = checker.getSubchecker(checker.getTargetCheckerClass());
-        return targetChecker.getTypeFactoryOfSubchecker(InitializationFieldAccessSubchecker.class);
+        return targetChecker.getTypeFactoryOfSubcheckerOrNull(
+                InitializationFieldAccessSubchecker.class);
     }
 
     @Override
@@ -95,7 +96,7 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
     }
 
     @Override
-    public List<Pair<ReturnNode, TransferResult<CFValue, InitializationStore>>>
+    public List<IPair<ReturnNode, TransferResult<CFValue, InitializationStore>>>
             getReturnStatementStores(MethodTree methodTree) {
         return getFieldAccessFactory().getReturnStatementStores(methodTree);
     }

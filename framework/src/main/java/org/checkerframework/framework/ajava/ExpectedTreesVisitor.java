@@ -23,8 +23,6 @@ import com.sun.source.tree.SynchronizedTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.tree.WhileLoopTree;
-import com.sun.tools.javac.tree.JCTree.JCExpression;
-import com.sun.tools.javac.util.Position;
 
 import org.checkerframework.javacutil.TreeUtils;
 
@@ -116,8 +114,7 @@ public class ExpectedTreesVisitor extends TreeScannerWithDefaults {
                     trees.remove(constructor.getIdentifier());
                 }
             }
-            // RECORD was added in Java 14, so use string comparison to be JDK 8,11 compatible:
-        } else if (tree.getKind().name().equals("RECORD")) {
+        } else if (TreeUtils.isRecordTree(tree)) {
             // A record like:
             //   record MyRec(String myField) {}
             // will be expanded by javac to:
@@ -387,8 +384,7 @@ public class ExpectedTreesVisitor extends TreeScannerWithDefaults {
         // JavaParser has a special "var" construct, so they won't match. If a javac type was
         // generated this way, then it won't have a position in source code so in that case we don't
         // add it.
-        JCExpression type = (JCExpression) tree.getType();
-        if (type != null && type.pos == Position.NOPOS) {
+        if (TreeUtils.isVariableTreeDeclaredUsingVar(tree)) {
             return null;
         }
 

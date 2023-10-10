@@ -55,7 +55,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
 import javax.lang.model.util.Elements;
-import javax.tools.Diagnostic.Kind;
+import javax.tools.Diagnostic;
 
 /**
  * Annotated type factory for the Units Checker.
@@ -63,9 +63,9 @@ import javax.tools.Diagnostic.Kind;
  * <p>Handles multiple names for the same unit, with different prefixes, e.g. @kg is the same
  * as @g(Prefix.kilo).
  *
- * <p>Supports relations between units, e.g. if "m" is a variable of type "@m" and "s" is a variable
- * of type "@s", the division "m/s" is automatically annotated as "mPERs", the correct unit for the
- * result.
+ * <p>Supports relations between units. If {@code m} is a variable of type "@m" and {@code s} is a
+ * variable of type "@s", the division {@code m / s} is automatically annotated as "@mPERs", the
+ * correct unit for the result.
  */
 public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     private static final Class<org.checkerframework.checker.units.qual.UnitsRelations>
@@ -263,7 +263,7 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     /** Adds the annotation class to the external qualifier map if it is not an alias annotation. */
-    private void addUnitToExternalQualMap(final Class<? extends Annotation> annoClass) {
+    private void addUnitToExternalQualMap(Class<? extends Annotation> annoClass) {
         AnnotationMirror mirror =
                 UnitsRelationsTools.buildAnnoMirrorWithNoPrefix(
                         processingEnv, annoClass.getCanonicalName());
@@ -470,7 +470,7 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
                 if (bestres != null && res != null && !bestres.equals(res)) {
                     checker.message(
-                            Kind.WARNING,
+                            Diagnostic.Kind.WARNING,
                             "UnitsRelation mismatch, taking neither! Previous: "
                                     + bestres
                                     + " and current: "
@@ -554,26 +554,23 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             return null;
         }
 
-        private AnnotationMirror useUnitsRelation(
+        private @Nullable AnnotationMirror useUnitsRelation(
                 Tree.Kind kind,
                 UnitsRelations ur,
                 AnnotatedTypeMirror lht,
                 AnnotatedTypeMirror rht) {
 
-            AnnotationMirror res = null;
             if (ur != null) {
                 switch (kind) {
                     case DIVIDE:
-                        res = ur.division(lht, rht);
-                        break;
+                        return ur.division(lht, rht);
                     case MULTIPLY:
-                        res = ur.multiplication(lht, rht);
-                        break;
+                        return ur.multiplication(lht, rht);
                     default:
                         // Do nothing
                 }
             }
-            return res;
+            return null;
         }
     }
 

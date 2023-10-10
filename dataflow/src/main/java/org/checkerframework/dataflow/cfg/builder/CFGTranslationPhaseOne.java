@@ -73,6 +73,7 @@ import org.checkerframework.dataflow.cfg.node.BitwiseOrNode;
 import org.checkerframework.dataflow.cfg.node.BitwiseXorNode;
 import org.checkerframework.dataflow.cfg.node.BooleanLiteralNode;
 import org.checkerframework.dataflow.cfg.node.CaseNode;
+import org.checkerframework.dataflow.cfg.node.CatchMarkerNode;
 import org.checkerframework.dataflow.cfg.node.CharacterLiteralNode;
 import org.checkerframework.dataflow.cfg.node.ClassDeclarationNode;
 import org.checkerframework.dataflow.cfg.node.ClassNameNode;
@@ -138,7 +139,6 @@ import org.checkerframework.dataflow.qual.TerminatesExecution;
 import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
-import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
@@ -149,6 +149,7 @@ import org.checkerframework.javacutil.trees.TreeBuilder;
 import org.plumelib.util.ArrayMap;
 import org.plumelib.util.ArraySet;
 import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.IPair;
 import org.plumelib.util.IdentityArraySet;
 
 import java.util.ArrayList;
@@ -221,7 +222,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     /** TreeBuilder instance. */
     protected final TreeBuilder treeBuilder;
 
-    /** AnnotationProvider instance. */
+    /** The annotation provider, e.g., a type factory. */
     protected final AnnotationProvider annotationProvider;
 
     /** Can assertions be assumed to be disabled? */
@@ -490,7 +491,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                     regularExitLabel,
                     exceptionalExitLabel,
                     declaredClasses,
-                    declaredLambdas);
+                    declaredLambdas,
+                    types);
         } finally {
             this.path = null;
         }
@@ -590,9 +592,9 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     public Node visitSwitchExpression17(Tree switchExpressionTree, Void p) {
         SwitchBuilder oldSwitchBuilder = switchBuilder;
         switchBuilder = new SwitchBuilder(switchExpressionTree);
-        Node res = switchBuilder.build();
+        Node result = switchBuilder.build();
         switchBuilder = oldSwitchBuilder;
-        return res;
+        return result;
     }
 
     /**
@@ -954,12 +956,12 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     }
 
     private TreeInfo getTreeInfo(Tree tree) {
-        final TypeMirror type = TreeUtils.typeOf(tree);
-        final boolean boxed = TypesUtils.isBoxedPrimitive(type);
-        final TypeMirror unboxedType = boxed ? types.unboxedType(type) : type;
+        TypeMirror type = TreeUtils.typeOf(tree);
+        boolean boxed = TypesUtils.isBoxedPrimitive(type);
+        TypeMirror unboxedType = boxed ? types.unboxedType(type) : type;
 
-        final boolean bool = TypesUtils.isBooleanType(type);
-        final boolean numeric = TypesUtils.isNumeric(unboxedType);
+        boolean bool = TypesUtils.isBooleanType(type);
+        boolean numeric = TypesUtils.isNumeric(unboxedType);
 
         return new TreeInfo() {
             @Override
@@ -1230,7 +1232,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 node = narrow(node, varType);
             }
         }
-        // node might have been re-assigned; if nodeType is needed, set it again
+        // `node` might have been re-assigned; if `nodeType` is needed, set it again.
         // nodeType = node.getType();
 
         // TODO: if checkers need to know about null references of
@@ -2603,10 +2605,10 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             // requires addition of InfeasibleExitBlock, a new SpecialBlock in the CFG.
             boolean isTerminalCase = isDefaultCase || isLastOfExhaustive;
 
-            final Label thisBodyLabel = caseBodyLabels[index];
-            final Label nextBodyLabel = caseBodyLabels[index + 1];
+            Label thisBodyLabel = caseBodyLabels[index];
+            Label nextBodyLabel = caseBodyLabels[index + 1];
             // `nextCaseLabel` is not used if isTerminalCase==FALSE.
-            final Label nextCaseLabel = new Label();
+            Label nextCaseLabel = new Label();
 
             // Handle the case expressions
             if (!isTerminalCase) {
@@ -2791,7 +2793,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         extendWithExtendedNode(new UnconditionalJump(merge));
 
         addLabelForNextNode(merge);
-        Pair<IdentifierTree, LocalVariableNode> treeAndLocalVarNode =
+        IPair<IdentifierTree, LocalVariableNode> treeAndLocalVarNode =
                 buildVarUseNode(condExprVarTree);
         Node node =
                 new TernaryExpressionNode(
@@ -2812,7 +2814,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      */
     private void extendWithAssignmentForConditionalExpr(
             VariableTree condExprVarTree, ExpressionTree caseExprTree, Node caseExprNode) {
-        Pair<IdentifierTree, LocalVariableNode> treeAndLocalVarNode =
+        IPair<IdentifierTree, LocalVariableNode> treeAndLocalVarNode =
                 buildVarUseNode(condExprVarTree);
 
         AssignmentTree assign =
@@ -2828,19 +2830,19 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
     /**
      * Build a pair of {@link IdentifierTree} and {@link LocalVariableNode} to represent a use of
-     * some variable
+     * some variable. Does not add the node to the CFG.
      *
      * @param varTree tree for the variable
      * @return a pair whose first element is the synthetic {@link IdentifierTree} for the use, and
      *     whose second element is the {@link LocalVariableNode} representing the use
      */
-    private Pair<IdentifierTree, LocalVariableNode> buildVarUseNode(VariableTree varTree) {
+    private IPair<IdentifierTree, LocalVariableNode> buildVarUseNode(VariableTree varTree) {
         IdentifierTree condExprVarUseTree = treeBuilder.buildVariableUse(varTree);
         handleArtificialTree(condExprVarUseTree);
         LocalVariableNode condExprVarUseNode = new LocalVariableNode(condExprVarUseTree);
         condExprVarUseNode.setInSource(false);
-        // Do not actually add the node to the CFG
-        return Pair.of(condExprVarUseTree, condExprVarUseNode);
+        // Do not actually add the node to the CFG.
+        return IPair.of(condExprVarUseTree, condExprVarUseNode);
     }
 
     @Override
@@ -2904,7 +2906,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
     @Override
     public Node visitErroneous(ErroneousTree tree, Void p) {
-        throw new BugInCF("ErroneousTree is unexpected in AST to CFG translation");
+        throw new BugInCF("ErroneousTree is unexpected in AST to CFG translation: " + tree);
     }
 
     @Override
@@ -3377,7 +3379,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
     @Override
     public Node visitImport(ImportTree tree, Void p) {
-        throw new BugInCF("ImportTree is unexpected in AST to CFG translation");
+        throw new BugInCF("ImportTree is unexpected in AST to CFG translation: " + tree);
     }
 
     @Override
@@ -3645,6 +3647,15 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         throw new BugInCF("CompilationUnitTree is unexpected in AST to CFG translation");
     }
 
+    /**
+     * Return the first argument if it is non-null, otherwise return the second argument. Throws an
+     * exception if both arguments are null.
+     *
+     * @param <A> the type of the arguments
+     * @param first a reference
+     * @param second a reference
+     * @return the first argument that is non-null
+     */
     private static <A> A firstNonNull(A first, A second) {
         if (first != null) {
             return first;
@@ -3666,10 +3677,10 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         "start of try statement #" + TreeUtils.treeUids.get(tree),
                         env.getTypeUtils()));
 
-        List<Pair<TypeMirror, Label>> catchLabels =
+        List<IPair<TypeMirror, Label>> catchLabels =
                 CollectionsPlume.mapList(
                         (CatchTree c) -> {
-                            return Pair.of(
+                            return IPair.of(
                                     TreeUtils.typeOf(c.getParameter().getType()), new Label());
                         },
                         catches);
@@ -3731,23 +3742,10 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         int catchIndex = 0;
         for (CatchTree c : catches) {
             addLabelForNextNode(catchLabels.get(catchIndex).second);
-            extendWithNode(
-                    new MarkerNode(
-                            tree,
-                            "start of catch block for "
-                                    + c.getParameter().getType()
-                                    + " #"
-                                    + TreeUtils.treeUids.get(tree),
-                            env.getTypeUtils()));
+            TypeMirror catchType = TreeUtils.typeOf(c.getParameter().getType());
+            extendWithNode(new CatchMarkerNode(tree, "start", catchType, env.getTypeUtils()));
             scan(c, p);
-            extendWithNode(
-                    new MarkerNode(
-                            tree,
-                            "end of catch block for "
-                                    + c.getParameter().getType()
-                                    + " #"
-                                    + TreeUtils.treeUids.get(tree),
-                            env.getTypeUtils()));
+            extendWithNode(new CatchMarkerNode(tree, "end", catchType, env.getTypeUtils()));
 
             catchIndex++;
             extendWithExtendedNode(new UnconditionalJump(firstNonNull(finallyLabel, doneLabel)));
@@ -3960,7 +3958,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
     @Override
     public Node visitUnionType(UnionTypeTree tree, Void p) {
-        throw new BugInCF("UnionTypeTree is unexpected in AST to CFG translation");
+        throw new BugInCF("UnionTypeTree is unexpected in AST to CFG translation: " + tree);
     }
 
     @Override
@@ -3972,9 +3970,9 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
     @Override
     public Node visitTypeCast(TypeCastTree tree, Void p) {
-        final Node operand = scan(tree.getExpression(), p);
-        final TypeMirror type = TreeUtils.typeOf(tree.getType());
-        final Node node = new TypeCastNode(tree, operand, type, types);
+        Node operand = scan(tree.getExpression(), p);
+        TypeMirror type = TreeUtils.typeOf(tree.getType());
+        Node node = new TypeCastNode(tree, operand, type, types);
 
         extendWithNodeWithException(node, classCastExceptionType);
         return node;

@@ -229,22 +229,15 @@ TreeAnnotator
 
   <p>
     The following continuous integration tests should all pass before you make changes that you need to test.  If not, notify the
-    relevant team members.
+    relevant team members.  Refresh this page to see the latest status.
   </p>
 
-<ol>
-  <li>The following Continuous Integration builds should be passing (refresh this page to see the latest status):
   <ul>
     <li>Annotation File Utilities: <a href="https://dev.azure.com/eisop/annotation-tools/_build/latest?definitionId=2&branchName=master"><img src="https://dev.azure.com/eisop/annotation-tools/_apis/build/status/eisop.annotation-tools?branchName=master" alt="Azure Pipelines eisop/annotation-tools status"/></a></li>
     <li>Checker Framework: <a href="https://dev.azure.com/eisop/checker-framework/_build/latest?definitionId=2&branchName=master"><img src="https://dev.azure.com/eisop/checker-framework/_apis/build/status/eisop.checker-framework?branchName=master" alt="Azure Pipelines eisop/checker-framework status"/></a></li>
     <li>checker-framework.demos: <a href="https://travis-ci.org/eisop/checker-framework.demos/branches"><img src="https://travis-ci.org/eisop/checker-framework.demos.svg?branch=master" alt="Travis eisop/checker-framework.demos status"/></a></li>
     <li>Daikon: <a href="https://dev.azure.com/eisop-codespecs/daikon/_build/latest?definitionId=1&branchName=master"><img src="https://dev.azure.com/codespecs/daikon/_apis/build/status/codespecs.daikon?branchName=master" alt="codespecs/daikon Azure Pipelines status"></a></li>
-    <li>guava-typecheck: <a href="https://travis-ci.org/typetests/guava-typecheck/branches"><img src="https://travis-ci.org/typetests/guava-typecheck.svg?branch=master" alt="Travis typetests/guava-typecheck status"/></a></li>
   </ul>
-  </li>
-  <li> Check that <a href="https://travis-ci.org/typetests/daikon-typecheck/builds">a daikon-typecheck Travis job</a> was triggered by the last commit of the Checker Framework before the code freeze.
-  </li>
-</ol>
 
   <h2 id="snapshot_release">Snapshot release</h2>
   <p>This section explains how to release the Maven artifacts to the Maven Central snapshot repository.</p>

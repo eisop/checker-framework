@@ -57,12 +57,22 @@ createDataflowShaded('shaded')
 createDataflowShaded('nullaway')
 createDataflowShaded('errorprone')
 
+task manual(group: 'Documentation') {
+    description 'Build the manual'
+    doLast {
+        exec {
+            commandLine 'make', '-C', 'manual'
+        }
+    }
+}
+
 tasks.withType(Test) {
     dependsOn('allDataflowTests')
 }
 
 tasks.create(name: 'allDataflowTests', group: 'Verification') {
     description 'Run all dataflow analysis tests'
+    // 'allDataflowTests' is automatically populated by testDataflowAnalysis().
 }
 
 /**
@@ -141,8 +151,8 @@ def testDataflowAnalysis(taskName, dirName, className, diff) {
 // When adding a new test case, don't forget to add the temporary files to `../.gitignore`.
 testDataflowAnalysis("busyExpressionTest", "busyexpr", "busyexpr.BusyExpression", true)
 testDataflowAnalysis("constantPropagationTest", "constant-propagation", "constantpropagation.ConstantPropagation", true)
-testDataflowAnalysis("liveVariableTest", "live-variable", "livevar.LiveVariable", true)
 testDataflowAnalysis("issue3447Test", "issue3447", "livevar.LiveVariable", false)
+testDataflowAnalysis("liveVariableTest", "live-variable", "livevar.LiveVariable", true)
 testDataflowAnalysis("reachingDefinitionTest", "reachingdef", "reachingdef.ReachingDefinition", true)
 
 apply from: rootProject.file('gradle-mvn-push.gradle')

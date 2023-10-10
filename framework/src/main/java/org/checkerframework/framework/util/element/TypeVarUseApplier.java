@@ -29,11 +29,9 @@ import javax.lang.model.type.TypeKind;
 public class TypeVarUseApplier {
 
     public static void apply(
-            final AnnotatedTypeMirror type,
-            final Element element,
-            final AnnotatedTypeFactory typeFactory)
+            final AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory atypeFactory)
             throws UnexpectedAnnotationLocationException {
-        new TypeVarUseApplier(type, element, typeFactory).extractAndApply();
+        new TypeVarUseApplier(type, element, atypeFactory).extractAndApply();
     }
 
     /** The ElementKinds that are accepted by this. */
@@ -87,19 +85,17 @@ public class TypeVarUseApplier {
     private final Element useElem;
 
     /** The annotated type factory. */
-    private final AnnotatedTypeFactory typeFactory;
+    private final AnnotatedTypeFactory atypeFactory;
 
     /**
      * Create a new TypeVarUseApplier.
      *
      * @param type the type of the variable use
      * @param element the element for the variable use
-     * @param typeFactory the type factory
+     * @param atypeFactory the type factory
      */
     TypeVarUseApplier(
-            final AnnotatedTypeMirror type,
-            final Element element,
-            final AnnotatedTypeFactory typeFactory) {
+            AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory atypeFactory) {
         if (!accepts(type, element)) {
             throw new BugInCF(
                     "TypeParamUseApplier does not accept type/element combination ("
@@ -116,7 +112,7 @@ public class TypeVarUseApplier {
             this.declarationElem =
                     (TypeParameterElement) typeVariable.getUnderlyingType().asElement();
             this.useElem = element;
-            this.typeFactory = typeFactory;
+            this.atypeFactory = atypeFactory;
 
         } else {
             this.arrayType = null;
@@ -124,7 +120,7 @@ public class TypeVarUseApplier {
             this.declarationElem =
                     (TypeParameterElement) typeVariable.getUnderlyingType().asElement();
             this.useElem = element;
-            this.typeFactory = typeFactory;
+            this.atypeFactory = atypeFactory;
         }
     }
 
@@ -139,11 +135,11 @@ public class TypeVarUseApplier {
                 typeVariable, useElem.getAnnotationMirrors());
 
         // apply declaration annotations
-        ElementAnnotationApplier.apply(typeVariable, declarationElem, typeFactory);
+        ElementAnnotationApplier.apply(typeVariable, declarationElem, atypeFactory);
 
-        final List<Attribute.TypeCompound> annotations = getAnnotations(useElem, declarationElem);
+        List<Attribute.TypeCompound> annotations = getAnnotations(useElem, declarationElem);
 
-        final List<Attribute.TypeCompound> typeVarAnnotations;
+        List<Attribute.TypeCompound> typeVarAnnotations;
         if (arrayType != null) {
             // if the outer-most type is an array type then we want to ensure the outer annotations
             // are not applied as the type variables primary annotation
@@ -154,19 +150,19 @@ public class TypeVarUseApplier {
             typeVarAnnotations = annotations;
         }
 
-        for (final Attribute.TypeCompound annotation : typeVarAnnotations) {
+        for (Attribute.TypeCompound annotation : typeVarAnnotations) {
             typeVariable.replaceAnnotation(annotation);
         }
     }
 
     private List<Attribute.TypeCompound> removeComponentAnnotations(
-            final AnnotatedArrayType arrayType, final List<Attribute.TypeCompound> annotations) {
+            AnnotatedArrayType arrayType, List<Attribute.TypeCompound> annotations) {
 
-        final List<Attribute.TypeCompound> componentAnnotations = new ArrayList<>();
+        List<Attribute.TypeCompound> componentAnnotations = new ArrayList<>();
 
         if (arrayType != null) {
             for (int i = 0; i < annotations.size(); ) {
-                final Attribute.TypeCompound anno = annotations.get(i);
+                Attribute.TypeCompound anno = annotations.get(i);
                 if (isBaseComponent(arrayType, anno)) {
                     componentAnnotations.add(anno);
                     annotations.remove(anno);
@@ -179,8 +175,7 @@ public class TypeVarUseApplier {
         return componentAnnotations;
     }
 
-    private boolean isBaseComponent(
-            final AnnotatedArrayType arrayType, final Attribute.TypeCompound anno) {
+    private boolean isBaseComponent(AnnotatedArrayType arrayType, Attribute.TypeCompound anno) {
         try {
             return ElementAnnotationUtil.getTypeAtLocation(arrayType, anno.getPosition().location)
                             .getKind()
@@ -196,7 +191,7 @@ public class TypeVarUseApplier {
      * by annotation position and element kind and returns them
      */
     private static List<Attribute.TypeCompound> getAnnotations(
-            final Element useElem, final Element declarationElem) {
+            Element useElem, Element declarationElem) {
         final List<Attribute.TypeCompound> annotations;
         switch (useElem.getKind()) {
             case METHOD:
@@ -235,9 +230,9 @@ public class TypeVarUseApplier {
      * @param variableElem the element whose annotations to check
      * @return annotations on an element that apply to variable declarations
      */
-    private static List<Attribute.TypeCompound> getVariableAnnos(final Element variableElem) {
-        final VarSymbol varSymbol = (VarSymbol) variableElem;
-        final List<Attribute.TypeCompound> annotations = new ArrayList<>();
+    private static List<Attribute.TypeCompound> getVariableAnnos(Element variableElem) {
+        VarSymbol varSymbol = (VarSymbol) variableElem;
+        List<Attribute.TypeCompound> annotations = new ArrayList<>();
 
         for (Attribute.TypeCompound anno : varSymbol.getRawTypeAttributes()) {
 
@@ -266,8 +261,8 @@ public class TypeVarUseApplier {
      * @return a list of annotations that were found on METHOD_FORMAL_PARAMETERS that match the
      *     parameter index of the input element in the parent methods formal parameter list
      */
-    private static List<Attribute.TypeCompound> getParameterAnnos(final Element paramElem) {
-        final Element enclosingElement = paramElem.getEnclosingElement();
+    private static List<Attribute.TypeCompound> getParameterAnnos(Element paramElem) {
+        Element enclosingElement = paramElem.getEnclosingElement();
         if (!(enclosingElement instanceof ExecutableElement)) {
             throw new BugInCF(
                     "Bad element passed to TypeFromElement.getTypeParameterAnnotationAttributes: "
@@ -277,7 +272,7 @@ public class TypeVarUseApplier {
                             + enclosingElement);
         }
 
-        final MethodSymbol enclosingMethod = (MethodSymbol) enclosingElement;
+        MethodSymbol enclosingMethod = (MethodSymbol) enclosingElement;
 
         if (enclosingMethod.getKind() != ElementKind.CONSTRUCTOR
                 && enclosingMethod.getKind() != ElementKind.METHOD) {
@@ -288,11 +283,11 @@ public class TypeVarUseApplier {
         // TODO: for the parameter in a lambda expression, the enclosingMethod isn't
         // the lambda expression. Does this read the correct annotations?
 
-        final int paramIndex = enclosingMethod.getParameters().indexOf(paramElem);
-        final List<Attribute.TypeCompound> annotations = enclosingMethod.getRawTypeAttributes();
+        int paramIndex = enclosingMethod.getParameters().indexOf(paramElem);
+        List<Attribute.TypeCompound> annotations = enclosingMethod.getRawTypeAttributes();
 
-        final List<Attribute.TypeCompound> result = new ArrayList<>();
-        for (final Attribute.TypeCompound typeAnno : annotations) {
+        List<Attribute.TypeCompound> result = new ArrayList<>();
+        for (Attribute.TypeCompound typeAnno : annotations) {
             if (typeAnno.position.type == TargetType.METHOD_FORMAL_PARAMETER) {
                 if (typeAnno.position.parameter_index == paramIndex) {
                     result.add(typeAnno);
@@ -309,17 +304,17 @@ public class TypeVarUseApplier {
      * @param methodElem the method whose return type annotations to return
      * @return the annotations on the return type of the input ExecutableElement
      */
-    private static List<Attribute.TypeCompound> getReturnAnnos(final Element methodElem) {
+    private static List<Attribute.TypeCompound> getReturnAnnos(Element methodElem) {
         if (!(methodElem instanceof ExecutableElement)) {
             throw new BugInCF(
                     "Bad element passed to TypeVarUseApplier.getReturnAnnos:" + methodElem);
         }
 
-        final MethodSymbol enclosingMethod = (MethodSymbol) methodElem;
+        MethodSymbol enclosingMethod = (MethodSymbol) methodElem;
 
-        final List<Attribute.TypeCompound> annotations = enclosingMethod.getRawTypeAttributes();
-        final List<Attribute.TypeCompound> result = new ArrayList<>();
-        for (final Attribute.TypeCompound typeAnno : annotations) {
+        List<Attribute.TypeCompound> annotations = enclosingMethod.getRawTypeAttributes();
+        List<Attribute.TypeCompound> result = new ArrayList<>();
+        for (Attribute.TypeCompound typeAnno : annotations) {
             if (typeAnno.position.type == TargetType.METHOD_RETURN) {
                 result.add(typeAnno);
             }

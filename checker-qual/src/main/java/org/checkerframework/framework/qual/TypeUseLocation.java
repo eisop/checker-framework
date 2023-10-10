@@ -24,8 +24,6 @@ public enum TypeUseLocation {
     /**
      * Apply default annotations to all unannotated raw types of local variables, casts, and
      * instanceof.
-     *
-     * <p>TODO: should cast/instanceof be separated?
      */
     LOCAL_VARIABLE,
 

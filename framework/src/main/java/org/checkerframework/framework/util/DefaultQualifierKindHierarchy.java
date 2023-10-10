@@ -1,6 +1,7 @@
 package org.checkerframework.framework.util;
 
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
+import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 import org.checkerframework.checker.interning.qual.Interned;
 import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
@@ -114,7 +115,9 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
     }
 
     @Override
-    public QualifierKind getQualifierKind(@CanonicalName String name) {
+    public QualifierKind getQualifierKind(
+            @UnknownInitialization(DefaultQualifierKindHierarchy.class) DefaultQualifierKindHierarchy this,
+            @CanonicalName String name) {
         QualifierKind result = nameToQualifierKind.get(name);
         if (result == null) {
             throw new BugInCF("getQualifierKind(%s) => null", name);

@@ -25,7 +25,7 @@ import javax.lang.model.element.AnnotationMirror;
 public class SearchIndexTransfer extends IndexAbstractTransfer {
 
     /** The annotated type factory. */
-    private final SearchIndexAnnotatedTypeFactory aTypeFactory;
+    private final SearchIndexAnnotatedTypeFactory atypeFactory;
 
     /**
      * Create a new SearchIndexTransfer.
@@ -34,7 +34,7 @@ public class SearchIndexTransfer extends IndexAbstractTransfer {
      */
     public SearchIndexTransfer(CFAnalysis analysis) {
         super(analysis);
-        aTypeFactory = (SearchIndexAnnotatedTypeFactory) analysis.getTypeFactory();
+        atypeFactory = (SearchIndexAnnotatedTypeFactory) analysis.getTypeFactory();
     }
 
     /**
@@ -65,15 +65,15 @@ public class SearchIndexTransfer extends IndexAbstractTransfer {
         assert valueToCompareTo == 0 || valueToCompareTo == -1;
         Long leftValue =
                 ValueCheckerUtils.getExactValue(
-                        left.getTree(), aTypeFactory.getValueAnnotatedTypeFactory());
+                        left.getTree(), atypeFactory.getValueAnnotatedTypeFactory());
         if (leftValue != null && leftValue == valueToCompareTo) {
             AnnotationMirror rightSIF =
-                    aTypeFactory.getAnnotationMirror(right.getTree(), SearchIndexFor.class);
+                    atypeFactory.getAnnotationMirror(right.getTree(), SearchIndexFor.class);
             if (rightSIF != null) {
                 List<String> arrays =
                         AnnotationUtils.getElementValueArray(
-                                rightSIF, aTypeFactory.searchIndexForValueElement, String.class);
-                AnnotationMirror nif = aTypeFactory.createNegativeIndexFor(arrays);
+                                rightSIF, atypeFactory.searchIndexForValueElement, String.class);
+                AnnotationMirror nif = atypeFactory.createNegativeIndexFor(arrays);
                 store.insertValue(JavaExpression.fromNode(right), nif);
             }
         }

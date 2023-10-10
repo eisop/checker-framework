@@ -13,7 +13,7 @@ buildscript {
 
 plugins {
     // https://plugins.gradle.org/plugin/com.github.johnrengelman.shadow
-    id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id 'com.github.johnrengelman.shadow' version '8.1.0'
     // https://plugins.gradle.org/plugin/de.undercouch.download
     id 'de.undercouch.download' version '5.5.0'
     id 'java'
@@ -63,8 +63,6 @@ ext {
     // isJava17compatible = JavaVersion.isCompatibleWith(JavaVersion.VERSION_17)
     // isJava17orHigher = JavaVersion.current() >= JavaVersion.VERSION_17
 
-    errorproneJavacVersion = '9+181-r4173-1'
-
     parentDir = file("${rootDir}/../").absolutePath
 
     // NO-AFU
@@ -72,7 +70,7 @@ ext {
     // afu = "${annotationTools}/annotation-file-utilities"
 
     stubparser = "${parentDir}/stubparser"
-    stubparserVersion = "3.25.2"
+    stubparserVersion = "3.25.3"
     stubparserJar = "${stubparser}/javaparser-core/target/stubparser-${stubparserVersion}.jar"
 
     jtregHome = "${parentDir}/jtreg"
@@ -149,6 +147,12 @@ if (isJava11plus) {
 }
 
 allprojects {
+    // Increment the minor version (second number) rather than just the patch
+    // level (third number) if:
+    //   * any new checkers have been added, or
+    //   * backward-incompatible changes have been made to APIs or elsewhere.
+    version '3.36.0'
+
     tasks.withType(JavaCompile).configureEach {
         options.fork = true
     }
@@ -160,12 +164,6 @@ allprojects {
     apply plugin: 'net.ltgt.errorprone'
 
     group 'io.github.eisop'
-
-    // Increment the minor version (second number) rather than just the patch
-    // level (third number) if:
-    //   * any new checkers have been added, or
-    //   * backward-incompatible changes have been made to APIs or elsewhere.
-    version '3.34.0-eisop2-SNAPSHOT'
 
     // Keep in sync with "repositories { ... }" block above.
     repositories {
@@ -184,9 +182,9 @@ allprojects {
     }
 
     dependencies {
-        javacJar group: 'com.google.errorprone', name: 'javac', version: "$errorproneJavacVersion"
+        javacJar group: 'com.google.errorprone', name: 'javac', version: "9+181-r4173-1"
 
-        errorproneJavac("com.google.errorprone:javac:$errorproneJavacVersion")
+        errorproneJavac("com.google.errorprone:javac:9+181-r4173-1")
 
         allProjects subprojects
     }
@@ -236,6 +234,7 @@ allprojects {
         ]
 
         // plume-util includes a version of reflection-util. When updating ensure the versions are consistent.
+        hashmapUtilVersion = '0.0.1'
         reflectionUtilVersion = '1.1.0'
         plumeUtilVersion = '1.8.1'
 
@@ -549,7 +548,7 @@ task maybeCloneAndBuildDependencies() {
                 executable 'ls'
                 ignoreExitValue = true
             }
-            throw new RuntimeException('Can\'t find stubparser jar: ' + stubparserJar)
+            throw new RuntimeException('Can\'t find stubparser jar: ' + stubparserJar + '; are you using an out-of-date Checker Framework or Stubparser?')
         }
     }
 }
@@ -915,7 +914,7 @@ subprojects {
     if (!project.name.startsWith('checker-qual-android')) {
         task tags(type: Exec) {
             description 'Create Emacs TAGS table'
-            commandLine 'bash', '-c', "find . \\( -name build \\) -prune -o -name '*.java' -print | sort-directory-order | xargs ctags -e -f TAGS"
+            commandLine 'bash', '-c', "find . \\( -name build -o -name jtreg -o -name tests \\) -prune -o -name '*.java' -print | sort-directory-order | xargs ctags -e -f TAGS"
         }
     }
 
@@ -967,6 +966,7 @@ subprojects {
                 'org.checkerframework.checker.nullness.NullnessChecker',
                 [
                     '-AskipUses=com\\.sun\\.*',
+                    // If a file does not contain @AnnotatedFor("nullness"), all its routines are assumed to return @Nullable.
                     '-AuseConservativeDefaultsForUncheckedCode=source'
                 ])
         createCheckTypeTask(project.name, 'Purity',
@@ -1077,6 +1077,8 @@ subprojects {
             tasks.create(name: "${junitClassName}", type: Test) {
                 description "Run ${junitClassName} tests."
                 include "**/${name}.class"
+                testClassesDirs = testing.suites.test.sources.output.classesDirs
+                classpath = testing.suites.test.sources.runtimeClasspath
             }
         }
 
@@ -1153,7 +1155,21 @@ subprojects {
             description 'Run inference tests.'
             if (project.name.is('checker')) {
                 // NO-AFU: Needs to depend on future AFU version of CF
-                // dependsOn('ainferTest', 'wpiManyTest', 'wpiPlumeLibTest')
+                // dependsOn('inferenceTests-part1', 'inferenceTests-part1')
+            }
+        }
+        tasks.create(name: 'inferenceTests-part1', group: 'Verification') {
+            description 'Run inference tests (part 1).'
+            if (project.name.is('checker')) {
+                // NO-AFU: Needs to depend on future AFU version of CF
+                // dependsOn('ainferTest', 'wpiManyTest')
+            }
+        }
+        tasks.create(name: 'inferenceTests-part2', group: 'Verification') {
+            description 'Run inference tests (part 2).'
+            if (project.name.is('checker')) {
+                // NO-AFU: Needs to depend on future AFU version of CF
+                // dependsOn('wpiPlumeLibTest')
             }
         }
 
@@ -1162,7 +1178,15 @@ subprojects {
         // Tasks such as 'checkInterning' are constructed by createCheckTypeTask.
         tasks.create(name: 'typecheck', group: 'Verification') {
             description 'Run the Checker Framework on itself'
-            dependsOn('checkFormatter', 'checkInterning', 'checkPurity', 'checkResourceLeak', 'checkSignature')
+            dependsOn('typecheck-part1', 'typecheck-part2')
+        }
+        tasks.create(name: 'typecheck-part1', group: 'Verification') {
+            description 'Run the Checker Framework on itself (part 1)'
+            dependsOn('checkFormatter', 'checkInterning', 'checkPurity')
+        }
+        tasks.create(name: 'typecheck-part2', group: 'Verification') {
+            description 'Run the Checker Framework on itself (part 2)'
+            dependsOn('checkResourceLeak', 'checkSignature')
             if (project.name.is('framework') || project.name.is('checker')) {
                 dependsOn('checkNullnessOnlyAnnotatedFor', 'checkCompilerMessages')
             } else {
@@ -1189,10 +1213,11 @@ subprojects {
     }
 }
 
+// The `assembleForJavac` task is faster than the `assemble` task, if you only
+// care about running `javac`.
 // The assemble task also produces Javadoc jars, because its purpose is to build
 // all artifacts produced by the Gradle project:
 // https://docs.gradle.org/current/userguide/base_plugin.html#sec:base_tasks
-
 assemble.dependsOn(':checker:assembleForJavac')
 
 assemble.mustRunAfter(clean)
@@ -1233,7 +1258,7 @@ jar.onlyIf {false}
 
 /**
  * Adds the shared pom information to the given publication.
- * @param publication MavenPublication
+ * @param publication the MavenPublication
  */
 final sharedPublicationConfiguration(publication) {
     publication.pom {

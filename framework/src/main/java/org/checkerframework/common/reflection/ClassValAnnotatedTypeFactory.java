@@ -8,6 +8,7 @@ import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.ArrayType;
 import com.sun.tools.javac.code.Type.UnionClassType;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.reflection.qual.ClassBound;
@@ -148,7 +149,8 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          * obtained by combining the values of both annotations.
          */
         @Override
-        public AnnotationMirror leastUpperBound(AnnotationMirror a1, AnnotationMirror a2) {
+        public @Nullable AnnotationMirror leastUpperBound(
+                AnnotationMirror a1, AnnotationMirror a2) {
             if (!AnnotationUtils.areSameByName(getTopAnnotation(a1), getTopAnnotation(a2))) {
                 return null;
             } else if (isSubtype(a1, a2)) {
@@ -171,7 +173,8 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         @Override
-        public AnnotationMirror greatestLowerBound(AnnotationMirror a1, AnnotationMirror a2) {
+        public @Nullable AnnotationMirror greatestLowerBound(
+                AnnotationMirror a1, AnnotationMirror a2) {
             if (!AnnotationUtils.areSameByName(getTopAnnotation(a1), getTopAnnotation(a2))) {
                 return null;
             } else if (isSubtype(a1, a2)) {
@@ -312,7 +315,7 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             return getDeclAnnotation(TreeUtils.elementFromUse(tree), GetClass.class) != null;
         }
 
-        private List<String> getStringValues(ExpressionTree arg) {
+        private @Nullable List<String> getStringValues(ExpressionTree arg) {
             ValueAnnotatedTypeFactory valueATF = getTypeFactoryOfSubchecker(ValueChecker.class);
             AnnotationMirror annotation = valueATF.getAnnotationMirror(arg, StringVal.class);
             if (annotation == null) {

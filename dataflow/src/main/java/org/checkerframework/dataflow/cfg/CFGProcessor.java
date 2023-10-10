@@ -138,7 +138,7 @@ public class CFGProcessor extends BasicTypeProcessor {
          *
          * @param cfg control flow graph
          */
-        /*package-private*/ CFGProcessResult(final ControlFlowGraph cfg) {
+        /*package-private*/ CFGProcessResult(ControlFlowGraph cfg) {
             this(cfg, true, null);
         }
 
@@ -147,7 +147,7 @@ public class CFGProcessor extends BasicTypeProcessor {
          *
          * @param errMsg the error message
          */
-        /*package-private*/ CFGProcessResult(final String errMsg) {
+        /*package-private*/ CFGProcessResult(String errMsg) {
             this(null, false, errMsg);
         }
 

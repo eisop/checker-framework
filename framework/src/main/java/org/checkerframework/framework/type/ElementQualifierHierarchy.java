@@ -19,7 +19,6 @@ import java.lang.annotation.Annotation;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 
 import javax.lang.model.element.AnnotationMirror;
@@ -194,7 +193,7 @@ public abstract class ElementQualifierHierarchy implements QualifierHierarchy {
     }
 
     @Override
-    public Set<? extends AnnotationMirror> getTopAnnotations() {
+    public AnnotationMirrorSet getTopAnnotations() {
         return tops;
     }
 
@@ -208,7 +207,7 @@ public abstract class ElementQualifierHierarchy implements QualifierHierarchy {
     }
 
     @Override
-    public Set<? extends AnnotationMirror> getBottomAnnotations() {
+    public AnnotationMirrorSet getBottomAnnotations() {
         return bottoms;
     }
 

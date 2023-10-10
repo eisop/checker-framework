@@ -25,15 +25,15 @@ public class JavaExpressionOptimizer extends JavaExpressionConverter {
      * Annotated type factory. If it is a {@code ValueAnnotatedTypeFactory}, then more optimizations
      * are possible.
      */
-    private final AnnotatedTypeFactory factory;
+    private final AnnotatedTypeFactory atypeFactory;
 
     /**
      * Creates a JavaExpressionOptimizer.
      *
-     * @param factory an annotated type factory
+     * @param atypeFactory an annotated type factory
      */
-    public JavaExpressionOptimizer(AnnotatedTypeFactory factory) {
-        this.factory = factory;
+    public JavaExpressionOptimizer(AnnotatedTypeFactory atypeFactory) {
+        this.atypeFactory = atypeFactory;
     }
 
     @Override
@@ -50,10 +50,11 @@ public class JavaExpressionOptimizer extends JavaExpressionConverter {
 
     @Override
     protected JavaExpression visitLocalVariable(LocalVariable localVarExpr, Void unused) {
-        if (factory instanceof ValueAnnotatedTypeFactory) {
+        if (atypeFactory instanceof ValueAnnotatedTypeFactory) {
             Element element = localVarExpr.getElement();
             Long exactValue =
-                    ValueCheckerUtils.getExactValue(element, (ValueAnnotatedTypeFactory) factory);
+                    ValueCheckerUtils.getExactValue(
+                            element, (ValueAnnotatedTypeFactory) atypeFactory);
             if (exactValue != null) {
                 return new ValueLiteral(localVarExpr.getType(), exactValue.intValue());
             }
@@ -71,7 +72,8 @@ public class JavaExpressionOptimizer extends JavaExpressionConverter {
             Object value = ((ValueLiteral) optReceiver).getValue();
             if (value instanceof String) {
                 return new ValueLiteral(
-                        factory.types.getPrimitiveType(TypeKind.INT), ((String) value).length());
+                        atypeFactory.types.getPrimitiveType(TypeKind.INT),
+                        ((String) value).length());
             }
         }
         return new MethodCall(
