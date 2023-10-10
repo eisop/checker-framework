@@ -92,7 +92,7 @@ public class I18nFormatterVisitor extends BaseTypeVisitor<I18nFormatterAnnotated
                                         ExecutableElement method =
                                                 TreeUtils.elementFromUse(fc.getTree());
                                         CharSequence methodName =
-                                                ElementUtils.getSimpleNameOrDescription(method);
+                                                ElementUtils.getSimpleDescription(method);
                                         tu.failure(
                                                 param,
                                                 "argument.type.incompatible",

@@ -16,6 +16,7 @@ import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.interning.qual.FindDistinct;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
@@ -146,7 +147,8 @@ public class TypeArgInferenceUtil {
      * @return the type of path's leaf
      */
     @SuppressWarnings("interning:not.interned") // AST node comparisons
-    public static AnnotatedTypeMirror assignedTo(AnnotatedTypeFactory atypeFactory, TreePath path) {
+    public static @Nullable AnnotatedTypeMirror assignedTo(
+            AnnotatedTypeFactory atypeFactory, TreePath path) {
         Tree assignmentContext = TreePathUtil.getAssignmentContext(path);
         AnnotatedTypeMirror res;
         if (assignmentContext == null) {
@@ -234,7 +236,7 @@ public class TypeArgInferenceUtil {
         }
     }
 
-    private static AnnotatedTypeMirror assignedToExecutable(
+    private static @Nullable AnnotatedTypeMirror assignedToExecutable(
             AnnotatedTypeFactory atypeFactory,
             TreePath path,
             ExecutableElement methodElt,
@@ -302,7 +304,7 @@ public class TypeArgInferenceUtil {
 
     /**
      * If the variable's type is a type variable, return getAnnotatedTypeLhsNoTypeVarDefault(tree).
-     * Rational:
+     * Rationale:
      *
      * <p>For example:
      *

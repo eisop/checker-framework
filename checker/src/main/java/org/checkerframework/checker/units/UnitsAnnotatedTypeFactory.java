@@ -63,9 +63,9 @@ import javax.tools.Diagnostic;
  * <p>Handles multiple names for the same unit, with different prefixes, e.g. @kg is the same
  * as @g(Prefix.kilo).
  *
- * <p>Supports relations between units, e.g. if "m" is a variable of type "@m" and "s" is a variable
- * of type "@s", the division "m/s" is automatically annotated as "mPERs", the correct unit for the
- * result.
+ * <p>Supports relations between units. If {@code m} is a variable of type "@m" and {@code s} is a
+ * variable of type "@s", the division {@code m / s} is automatically annotated as "@mPERs", the
+ * correct unit for the result.
  */
 public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     private static final Class<org.checkerframework.checker.units.qual.UnitsRelations>
@@ -554,26 +554,23 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             return null;
         }
 
-        private AnnotationMirror useUnitsRelation(
+        private @Nullable AnnotationMirror useUnitsRelation(
                 Tree.Kind kind,
                 UnitsRelations ur,
                 AnnotatedTypeMirror lht,
                 AnnotatedTypeMirror rht) {
 
-            AnnotationMirror res = null;
             if (ur != null) {
                 switch (kind) {
                     case DIVIDE:
-                        res = ur.division(lht, rht);
-                        break;
+                        return ur.division(lht, rht);
                     case MULTIPLY:
-                        res = ur.multiplication(lht, rht);
-                        break;
+                        return ur.multiplication(lht, rht);
                     default:
                         // Do nothing
                 }
             }
-            return res;
+            return null;
         }
     }
 

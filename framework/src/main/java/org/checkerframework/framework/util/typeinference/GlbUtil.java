@@ -1,5 +1,6 @@
 package org.checkerframework.framework.util.typeinference;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedNullType;
@@ -36,7 +37,7 @@ public class GlbUtil {
      * @param atypeFactory the type factory
      * @return the greatest lower bound of typeMirrors
      */
-    public static AnnotatedTypeMirror glbAll(
+    public static @Nullable AnnotatedTypeMirror glbAll(
             Map<AnnotatedTypeMirror, AnnotationMirrorSet> typeMirrors,
             AnnotatedTypeFactory atypeFactory) {
         QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();

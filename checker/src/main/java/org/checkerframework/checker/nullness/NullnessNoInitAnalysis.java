@@ -1,5 +1,6 @@
 package org.checkerframework.checker.nullness;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.flow.CFAbstractValue;
@@ -37,7 +38,7 @@ public class NullnessNoInitAnalysis
     }
 
     @Override
-    public NullnessNoInitValue createAbstractValue(
+    public @Nullable NullnessNoInitValue createAbstractValue(
             AnnotationMirrorSet annotations, TypeMirror underlyingType) {
         if (!CFAbstractValue.validateSet(annotations, underlyingType, atypeFactory)) {
             return null;

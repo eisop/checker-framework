@@ -42,7 +42,10 @@ public abstract class BaseAnnotatedTypeFactoryForIndexChecker extends BaseAnnota
      * @return its from() element/field
      */
     public String hasSubsequenceFromValue(AnnotationMirror anno) {
-        return AnnotationUtils.getElementValue(anno, hasSubsequenceFromElement, String.class);
+        String result =
+                AnnotationUtils.getElementValue(anno, hasSubsequenceFromElement, String.class);
+        assert result != null : "@AssumeAssertion(nullness)";
+        return result;
     }
 
     /**
@@ -52,7 +55,10 @@ public abstract class BaseAnnotatedTypeFactoryForIndexChecker extends BaseAnnota
      * @return its to() element/field
      */
     public String hasSubsequenceToValue(AnnotationMirror anno) {
-        return AnnotationUtils.getElementValue(anno, hasSubsequenceToElement, String.class);
+        String result =
+                AnnotationUtils.getElementValue(anno, hasSubsequenceToElement, String.class);
+        assert result != null : "@AssumeAssertion(nullness)";
+        return result;
     }
 
     /**
@@ -62,7 +68,10 @@ public abstract class BaseAnnotatedTypeFactoryForIndexChecker extends BaseAnnota
      * @return its subsequence() element/field
      */
     public String hasSubsequenceSubsequenceValue(AnnotationMirror anno) {
-        return AnnotationUtils.getElementValue(
-                anno, hasSubsequenceSubsequenceElement, String.class);
+        String result =
+                AnnotationUtils.getElementValue(
+                        anno, hasSubsequenceSubsequenceElement, String.class);
+        assert result != null : "@AssumeAssertion(nullness)";
+        return result;
     }
 }

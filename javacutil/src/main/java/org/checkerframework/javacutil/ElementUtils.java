@@ -338,7 +338,9 @@ public class ElementUtils {
      *
      * @param element a method declaration
      * @return a user-friendly name for the method
+     * @deprecated use {@link #getSimpleDescription}
      */
+    @Deprecated // 2023-06-01
     public static CharSequence getSimpleNameOrDescription(ExecutableElement element) {
         Name result = element.getSimpleName();
         switch (result.toString()) {
@@ -348,6 +350,28 @@ public class ElementUtils {
                 return "class initializer";
             default:
                 return result;
+        }
+    }
+
+    /**
+     * Returns a user-friendly name for the given method, which includes the name of the enclosing
+     * type. Does not return {@code "<init>"} or {@code "<clinit>"} as
+     * ExecutableElement.getSimpleName() does.
+     *
+     * @param element a method declaration
+     * @return a user-friendly name for the method
+     */
+    public static CharSequence getSimpleDescription(ExecutableElement element) {
+        String enclosingTypeName =
+                ((TypeElement) element.getEnclosingElement()).getSimpleName().toString();
+        Name methodName = element.getSimpleName();
+        switch (methodName.toString()) {
+            case "<init>":
+                return enclosingTypeName + " constructor";
+            case "<clinit>":
+                return "class initializer for " + enclosingTypeName;
+            default:
+                return enclosingTypeName + "." + methodName;
         }
     }
 
@@ -853,11 +877,11 @@ public class ElementUtils {
         }
 
         TypeElement enclosing = (TypeElement) methodElement.getEnclosingElement();
-        if (enclosing.getKind().toString().equals("RECORD")) {
+        if (isRecordElement(enclosing)) {
             String methodName = methodElement.getSimpleName().toString();
             List<? extends Element> encloseds = enclosing.getEnclosedElements();
             for (Element enclosed : encloseds) {
-                if (enclosed.getKind().toString().equals("RECORD_COMPONENT")
+                if (isRecordComponentElement(enclosed)
                         && enclosed.getSimpleName().toString().equals(methodName)) {
                     return true;
                 }
@@ -1007,6 +1031,30 @@ public class ElementUtils {
     }
 
     /**
+     * Determine whether the given element is of Kind RECORD, in a way that works on all versions of
+     * Java.
+     *
+     * @param elt the element to test
+     * @return whether the element is of the kind RECORD
+     */
+    public static boolean isRecordElement(Element elt) {
+        ElementKind kind = elt.getKind();
+        return kind.name().equals("RECORD");
+    }
+
+    /**
+     * Determine whether the given element is of Kind RECORD_COMPONENT, in a way that works on all
+     * versions of Java.
+     *
+     * @param elt the element to test
+     * @return whether the element is of the kind RECORD_COMPONENT
+     */
+    public static boolean isRecordComponentElement(Element elt) {
+        ElementKind kind = elt.getKind();
+        return kind.name().equals("RECORD_COMPONENT");
+    }
+
+    /**
      * Calls getKind() on the given Element, but returns CLASS if the ElementKind is RECORD. This is
      * needed because the Checker Framework runs on JDKs before the RECORD item was added, so RECORD
      * can't be used in case statements, and usually we want to treat them the same as classes.
@@ -1015,11 +1063,10 @@ public class ElementUtils {
      * @return the kind of the element, but CLASS if the kind was RECORD
      */
     public static ElementKind getKindRecordAsClass(Element elt) {
-        ElementKind kind = elt.getKind();
-        if (kind.name().equals("RECORD")) {
-            kind = ElementKind.CLASS;
+        if (isRecordElement(elt)) {
+            return ElementKind.CLASS;
         }
-        return kind;
+        return elt.getKind();
     }
 
     /** The {@code TypeElement.getRecordComponents()} method. */

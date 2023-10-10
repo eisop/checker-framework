@@ -107,7 +107,6 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
-import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.SwitchExpressionScanner;
 import org.checkerframework.javacutil.SwitchExpressionScanner.FunctionalSwitchExpressionScanner;
 import org.checkerframework.javacutil.SystemUtil;
@@ -119,6 +118,7 @@ import org.plumelib.util.ArrayMap;
 import org.plumelib.util.ArraySet;
 import org.plumelib.util.ArraysPlume;
 import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.IPair;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -177,8 +177,8 @@ import javax.lang.model.util.ElementFilter;
  *
  * <ol>
  *   <li><b>Assignment and Pseudo-Assignment Check</b>: It verifies that any assignment type-checks,
- *       using {@code TypeHierarchy.isSubtype} method. This includes method invocation and method
- *       overriding checks.
+ *       using the {@link TypeHierarchy#isSubtype} method. This includes method invocation and
+ *       method overriding checks.
  *   <li><b>Type Validity Check</b>: It verifies that any user-supplied type is a valid type, using
  *       one of the {@code isValidUse} methods.
  *   <li><b>(Re-)Assignability Check</b>: It verifies that any assignment is valid, using {@code
@@ -306,7 +306,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param checker the type-checker associated with this visitor
      * @param typeFactory the type factory, or null. If null, this calls {@link #createTypeFactory}.
      */
-    protected BaseTypeVisitor(BaseTypeChecker checker, Factory typeFactory) {
+    protected BaseTypeVisitor(BaseTypeChecker checker, @Nullable Factory typeFactory) {
         super(checker);
 
         this.checker = checker;
@@ -361,7 +361,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     @SuppressWarnings({
         "unchecked", // unchecked cast to type variable
-        "mustcall:cast.unsafe" // cast to type variable, hairy generics error message
     })
     protected Factory createTypeFactory() {
         // Try to reflectively load the type factory.
@@ -783,7 +782,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
 
             for (AnnotationMirror poly : polys) {
-                if (type.hasAnnotation(poly)) {
+                if (type.hasAnnotationRelaxed(poly)) {
                     return Collections.singletonList(
                             DiagMessage.error("invalid.polymorphic.qualifier.use", poly));
                 }
@@ -1237,16 +1236,16 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             } else {
                 msgKeyPrefix = "purity.not.deterministic.not.sideeffectfree.";
             }
-            for (Pair<Tree, String> r : result.getNotBothReasons()) {
+            for (IPair<Tree, String> r : result.getNotBothReasons()) {
                 reportPurityError(msgKeyPrefix, r);
             }
             if (violations.contains(Pure.Kind.SIDE_EFFECT_FREE)) {
-                for (Pair<Tree, String> r : result.getNotSEFreeReasons()) {
+                for (IPair<Tree, String> r : result.getNotSEFreeReasons()) {
                     reportPurityError("purity.not.sideeffectfree.", r);
                 }
             }
             if (violations.contains(Pure.Kind.DETERMINISTIC)) {
-                for (Pair<Tree, String> r : result.getNotDetReasons()) {
+                for (IPair<Tree, String> r : result.getNotDetReasons()) {
                     reportPurityError("purity.not.deterministic.", r);
                 }
             }
@@ -1259,7 +1258,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param msgKeyPrefix the prefix of the message key to use when reporting
      * @param r the result to report
      */
-    private void reportPurityError(String msgKeyPrefix, Pair<Tree, String> r) {
+    private void reportPurityError(String msgKeyPrefix, IPair<Tree, String> r) {
         String reason = r.second;
         @SuppressWarnings("compilermessages")
         @CompilerMessageKey String msgKey = msgKeyPrefix + reason;
@@ -1487,7 +1486,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return;
         }
 
-        for (Pair<ReturnNode, ?> pair : atypeFactory.getReturnStatementStores(methodTree)) {
+        for (IPair<ReturnNode, ?> pair : atypeFactory.getReturnStatementStores(methodTree)) {
             ReturnNode returnStmt = pair.first;
 
             Node retValNode = returnStmt.getResult();
@@ -1972,7 +1971,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         AnnotatedTypeVariable::getBounds, invokedMethod.getTypeVariables());
 
         ExecutableElement method = invokedMethod.getElement();
-        CharSequence methodName = ElementUtils.getSimpleNameOrDescription(method);
+        CharSequence methodName = ElementUtils.getSimpleDescription(method);
         try {
             checkTypeArguments(
                     tree,
@@ -2282,7 +2281,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         List<AnnotatedTypeMirror> params = constructorType.getParameterTypes();
 
         ExecutableElement constructor = constructorType.getElement();
-        CharSequence constructorName = ElementUtils.getSimpleNameOrDescription(constructor);
+        CharSequence constructorName = ElementUtils.getSimpleDescription(constructor);
 
         checkArguments(params, passedArguments, constructorName, constructor.getParameters());
         checkVarargs(constructorType, tree);
@@ -3325,7 +3324,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     protected final void commonAssignmentCheckEndDiagnostic(
             boolean success,
-            String extraMessage,
+            @Nullable String extraMessage,
             AnnotatedTypeMirror varType,
             AnnotatedTypeMirror valueType,
             Tree valueExpTree) {
@@ -3349,7 +3348,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * AnnotatedTypeMirror, AnnotatedTypeMirror, Tree)}. The purpose of this method is to permit
      * customizing the message that is printed.
      *
-     * @param message the result, plus information about why the result is what it is; may be null
+     * @param message the result, plus information about why the result is what it is
      * @param varType the annotated type of the variable
      * @param valueType the annotated type of the value
      * @param valueExpTree the location to use when reporting the error message
@@ -3461,7 +3460,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      *
      * @param atm1 the first AnnotatedTypeMirror
      * @param atm2 the second AnnotatedTypeMirror
-     * @return true iff neither argumentc contains "@", or there are two annotated types (in either
+     * @return true iff neither argument contains "@", or there are two annotated types (in either
      *     ATM) such that their toStrings are the same but their verbose toStrings differ
      */
     private static boolean shouldPrintVerbose(AnnotatedTypeMirror atm1, AnnotatedTypeMirror atm2) {
@@ -4011,7 +4010,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     protected boolean checkMethodReferenceAsOverride(
             MemberReferenceTree memberReferenceTree, Void p) {
 
-        Pair<AnnotatedTypeMirror, AnnotatedExecutableType> result =
+        IPair<AnnotatedTypeMirror, AnnotatedExecutableType> result =
                 atypeFactory.getFnInterfaceFromTree(memberReferenceTree);
         // The type to which the member reference is assigned -- also known as the target type of
         // the reference.
@@ -4309,9 +4308,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             // Check preconditions
             Set<Precondition> superPre = contractsUtils.getPreconditions(overridden.getElement());
             Set<Precondition> subPre = contractsUtils.getPreconditions(overrider.getElement());
-            Set<Pair<JavaExpression, AnnotationMirror>> superPre2 =
+            Set<IPair<JavaExpression, AnnotationMirror>> superPre2 =
                     parseAndLocalizeContracts(superPre, overridden);
-            Set<Pair<JavaExpression, AnnotationMirror>> subPre2 =
+            Set<IPair<JavaExpression, AnnotationMirror>> subPre2 =
                     parseAndLocalizeContracts(subPre, overrider);
             @SuppressWarnings("compilermessages")
             @CompilerMessageKey String premsg = "contracts.precondition." + msgKey + ".invalid";
@@ -4321,9 +4320,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             Set<Postcondition> superPost =
                     contractsUtils.getPostconditions(overridden.getElement());
             Set<Postcondition> subPost = contractsUtils.getPostconditions(overrider.getElement());
-            Set<Pair<JavaExpression, AnnotationMirror>> superPost2 =
+            Set<IPair<JavaExpression, AnnotationMirror>> superPost2 =
                     parseAndLocalizeContracts(superPost, overridden);
-            Set<Pair<JavaExpression, AnnotationMirror>> subPost2 =
+            Set<IPair<JavaExpression, AnnotationMirror>> subPost2 =
                     parseAndLocalizeContracts(subPost, overrider);
             @SuppressWarnings("compilermessages")
             @CompilerMessageKey String postmsg = "contracts.postcondition." + msgKey + ".invalid";
@@ -4337,9 +4336,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             // consider only 'true' postconditions
             Set<Postcondition> superCPostTrue = filterConditionalPostconditions(superCPost, true);
             Set<Postcondition> subCPostTrue = filterConditionalPostconditions(subCPost, true);
-            Set<Pair<JavaExpression, AnnotationMirror>> superCPostTrue2 =
+            Set<IPair<JavaExpression, AnnotationMirror>> superCPostTrue2 =
                     parseAndLocalizeContracts(superCPostTrue, overridden);
-            Set<Pair<JavaExpression, AnnotationMirror>> subCPostTrue2 =
+            Set<IPair<JavaExpression, AnnotationMirror>> subCPostTrue2 =
                     parseAndLocalizeContracts(subCPostTrue, overrider);
             @SuppressWarnings("compilermessages")
             @CompilerMessageKey String posttruemsg = "contracts.conditional.postcondition.true." + msgKey + ".invalid";
@@ -4349,9 +4348,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             // consider only 'false' postconditions
             Set<Postcondition> superCPostFalse = filterConditionalPostconditions(superCPost, false);
             Set<Postcondition> subCPostFalse = filterConditionalPostconditions(subCPost, false);
-            Set<Pair<JavaExpression, AnnotationMirror>> superCPostFalse2 =
+            Set<IPair<JavaExpression, AnnotationMirror>> superCPostFalse2 =
                     parseAndLocalizeContracts(superCPostFalse, overridden);
-            Set<Pair<JavaExpression, AnnotationMirror>> subCPostFalse2 =
+            Set<IPair<JavaExpression, AnnotationMirror>> subCPostFalse2 =
                     parseAndLocalizeContracts(subCPostFalse, overrider);
             @SuppressWarnings("compilermessages")
             @CompilerMessageKey String postfalsemsg =
@@ -4730,14 +4729,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     private void checkContractsSubset(
             AnnotatedTypeMirror overriderType,
             AnnotatedDeclaredType overriddenType,
-            Set<Pair<JavaExpression, AnnotationMirror>> mustSubset,
-            Set<Pair<JavaExpression, AnnotationMirror>> set,
+            Set<IPair<JavaExpression, AnnotationMirror>> mustSubset,
+            Set<IPair<JavaExpression, AnnotationMirror>> set,
             @CompilerMessageKey String messageKey) {
-        for (Pair<JavaExpression, AnnotationMirror> weak : mustSubset) {
+        for (IPair<JavaExpression, AnnotationMirror> weak : mustSubset) {
             JavaExpression jexpr = weak.first;
             boolean found = false;
 
-            for (Pair<JavaExpression, AnnotationMirror> strong : set) {
+            for (IPair<JavaExpression, AnnotationMirror> strong : set) {
                 // are we looking at a contract of the same receiver?
                 if (jexpr.equals(strong.first)) {
                     // check subtyping relationship of annotations
@@ -4767,7 +4766,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 // These are the annotations that are too weak.
                 StringJoiner strongRelevantAnnos =
                         new StringJoiner(" ").setEmptyValue("no information");
-                for (Pair<JavaExpression, AnnotationMirror> strong : set) {
+                for (IPair<JavaExpression, AnnotationMirror> strong : set) {
                     if (jexpr.equals(strong.first)) {
                         strongRelevantAnnos.add(strong.second.toString());
                     }
@@ -4812,7 +4811,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param methodType the type of the method that the contracts are for
      * @return pairs of (expression, AnnotationMirror), which are localized contracts
      */
-    private Set<Pair<JavaExpression, AnnotationMirror>> parseAndLocalizeContracts(
+    private Set<IPair<JavaExpression, AnnotationMirror>> parseAndLocalizeContracts(
             Set<? extends Contract> contractSet, AnnotatedExecutableType methodType) {
         if (contractSet.isEmpty()) {
             return Collections.emptySet();
@@ -4833,7 +4832,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     return javaExpr.atMethodBody(methodTree);
                 };
 
-        Set<Pair<JavaExpression, AnnotationMirror>> result =
+        Set<IPair<JavaExpression, AnnotationMirror>> result =
                 ArraySet.newArraySetOrHashSet(contractSet.size());
         for (Contract p : contractSet) {
             String expressionString = p.expressionString;
@@ -4851,7 +4850,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 checker.report(methodTree, e.getDiagMessage());
                 continue;
             }
-            result.add(Pair.of(exprJe, annotation));
+            result.add(IPair.of(exprJe, annotation));
         }
         return result;
     }
@@ -4862,7 +4861,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @return the enclosing member select, or null if the identifier is not the field in a member
      *     selection
      */
-    protected MemberSelectTree enclosingMemberSelect() {
+    protected @Nullable MemberSelectTree enclosingMemberSelect() {
         TreePath path = this.getCurrentPath();
         assert path.getLeaf().getKind() == Tree.Kind.IDENTIFIER
                 : "expected identifier, found: " + path.getLeaf();
@@ -4879,7 +4878,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param tree an AST node that is on the current path
      * @return the statement that encloses the given one
      */
-    protected Tree enclosingStatement(@FindDistinct Tree tree) {
+    protected @Nullable Tree enclosingStatement(@FindDistinct Tree tree) {
         TreePath path = this.getCurrentPath();
         while (path != null && path.getLeaf() != tree) {
             path = path.getParentPath();
@@ -4938,7 +4937,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     protected void checkAccessAllowed(
             Element field,
-            AnnotatedTypeMirror receiverType,
+            @Nullable AnnotatedTypeMirror receiverType,
             @FindDistinct ExpressionTree accessTree) {
         AnnotationMirror unused = atypeFactory.getDeclAnnotation(field, Unused.class);
         if (unused == null) {

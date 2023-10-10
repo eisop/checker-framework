@@ -201,7 +201,7 @@ public class FormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
         @Override
         public Void visitLiteral(LiteralTree tree, AnnotatedTypeMirror type) {
-            if (!type.isAnnotatedInHierarchy(UNKNOWNFORMAT)) {
+            if (!type.hasAnnotationInHierarchy(UNKNOWNFORMAT)) {
                 String format = null;
                 if (tree.getKind() == Tree.Kind.STRING_LITERAL) {
                     format = (String) tree.getValue();

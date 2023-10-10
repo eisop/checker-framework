@@ -1,6 +1,7 @@
 package org.checkerframework.framework.util.typeinference.solver;
 
 import org.checkerframework.checker.interning.qual.FindDistinct;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
@@ -284,7 +285,7 @@ public class EqualitiesSolver {
      * @param tops the set of top annotations in the qualifier hierarchy
      * @return a concrete type argument or null if there was not enough information to infer one
      */
-    private InferredType mergeTypesAndPrimaries(
+    private @Nullable InferredType mergeTypesAndPrimaries(
             Map<AnnotatedTypeMirror, AnnotationMirrorSet> typesToHierarchies,
             AnnotationMirrorMap<AnnotationMirror> primaries,
             AnnotationMirrorSet tops,
@@ -465,7 +466,8 @@ public class EqualitiesSolver {
      *
      * @return a target equal to this target in all hierarchies, or null
      */
-    public InferredTarget findEqualTarget(Equalities equalities, AnnotationMirrorSet tops) {
+    public @Nullable InferredTarget findEqualTarget(
+            Equalities equalities, AnnotationMirrorSet tops) {
         for (Map.Entry<TypeVariable, AnnotationMirrorSet> targetToHierarchies :
                 equalities.targets.entrySet()) {
             TypeVariable equalTarget = targetToHierarchies.getKey();

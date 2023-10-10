@@ -63,7 +63,7 @@ public class I18nAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
         @Override
         public Void visitLiteral(LiteralTree tree, AnnotatedTypeMirror type) {
-            if (!type.isAnnotatedInHierarchy(LOCALIZED)) {
+            if (!type.hasAnnotationInHierarchy(LOCALIZED)) {
                 if (tree.getKind() == Tree.Kind.STRING_LITERAL && tree.getValue().equals("")) {
                     type.addAnnotation(LOCALIZED);
                 }

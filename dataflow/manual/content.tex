@@ -209,7 +209,7 @@ class SpecialBlockImpl extends SingleSuccessorBlockImpl implements SpecialBlock
 \end{verbatim}
 
 A ConditionalBlock contains no operations at all.  It represents a
-control-flow split to either a `then' or an `else' successor based on
+control-flow split to either a ``then'' or an ``else'' successor based on
 the immediately preceding boolean-valued Node.
 
 \begin{verbatim}
@@ -323,17 +323,18 @@ class NullnessValue extends CFAbstractValue<NullnessValue>
 \subsubsection{UnusedAbstractValue}
 \label{sec:unused_abstract_value_class}
 
-UnusedAbstractValue, as the name suggests, is an AbstractValue that is
-not involved in any computation during dataflow analysis. This class should
-only be used as a type argument in transfer functions. It is implemented because some
-analyses do not need and do not have their own AbstractValue classes.
+UnusedAbstractValue is an AbstractValue that is
+not used during dataflow analysis. This class should
+only be used as a type argument in transfer functions, for
+analyses that do not need and do not have their own AbstractValue classes.
 
-For example, in LiveVariable analysis (\autoref{sec:live_variable}),
-we need to compute the least upper bound of successors' stores, and
+For example, LiveVariable analysis (\autoref{sec:live_variable}),
+needs to compute the least upper bound of successors' stores, and
 it is meaningless to further calculate the least upper bound of two
 individual live variables at a smaller granularity.
-Since there is no computation between two AbstractValues, using the UnusedAbstractValue
-is sufficient and we do not have to implement a specific AbstractValue for this analysis.
+Since there is no computation between two AbstractValues, LiveVariable
+analysis uses the UnusedAbstractValue rather than
+implementing a specific AbstractValue for this analysis.
 
 \begin{verbatim}
 package org.checkerframework.dataflow.analysis;
@@ -363,7 +364,7 @@ abstract class CFAbstractStore<V extends CFAbstractValue<V>,
 class CFStore extends CFAbstractStore<CFValue, CFStore>
 \end{verbatim}
 
-An InitializationStore tracks which fields of the `self' reference
+An InitializationStore tracks which fields of the ``self'' reference
 have been initialized.
 
 \begin{verbatim}
@@ -394,7 +395,7 @@ explicitly represented as a node visitor that takes a TransferInput
 
 The TransferInput represents the set of dataflow facts known to be
 true immediately before the node to be analyzed.  A TransferInput may
-contain a single store, or a pair of `then' and `else' stores when
+contain a single store, or a pair of ``then'' and ``else'' stores when
 following a boolean-valued expression.
 
 \begin{verbatim}
@@ -409,7 +410,7 @@ class TransferInput<V extends AbstractValue<V>,
 A TransferResult is the output of a transfer function.  In other
 words, it is the set of dataflow facts known to be true immediately
 after a node.  A Boolean-valued expression produces a
-ConditionalTransferResult that contains both a `then' and an `else'
+ConditionalTransferResult that contains both a ``then'' and an ``else''
 store, while most other Nodes produce a RegularTransferResult with a
 single store.
 
@@ -460,7 +461,7 @@ class CFTransfer extends CFAbstractTransfer<CFValue, CFStore, CFTransfer>
 \end{verbatim}
 
 The Initialization Checker's transfer function tracks which fields of
-the `self' reference have been initialized.
+the ``self'' reference have been initialized.
 
 \begin{verbatim}
 package org.checkerframework.checker.initialization;
@@ -854,6 +855,9 @@ All classes are in package \code{org.checkerframework.dataflow.cfg.node}.
         \nodetype{GreaterThanOrEqualNode} & & \code{x >= y} \\
         \nodetype{LessThanNode} & & \code{x < y} \\
         \nodetype{LessThanOrEqualNode} & & \code{x <= y} \\
+        \midrule
+
+        \code{SwitchExpression} & A switch expression (not statement!) & \\
 
         \nodetype{CaseNode} & Case of a switch.  Acts as an equality test. & \\
         \midrule
@@ -985,8 +989,8 @@ constructs: conditional basic blocks and control-flow edges between
 basic blocks. For instance, a \code{while} loop is translated into its
 condition followed by a conditional basic block that models the two
 possible outcomes of the condition: either the control flow follows
-the `true' branch and continues with the loop's body, or control goes to the
-`false' successor and executes the first statement after the loop.
+the ``true'' branch and continues with the loop's body, or control goes to the
+``false'' successor and executes the first statement after the loop.
 
 
 \subsubsection{Assignment}
@@ -1328,8 +1332,8 @@ The process of translating an AST to a CFG proceeds in three distinct phases.
     \begin{itemize}
     \item Regular basic blocks might be empty.
     \item Some conditional basic blocks might be unnecessary, in that
-      they have the same target for both the `then' as well as the
-      `else' branch.
+      they have the same target for both the ``then'' as well as the
+      ``else'' branch.
     \item Two consecutive, non-empty, regular basic blocks can exist,
       even if the second block has only exactly one predecessor and
       the two blocks could thus be merged.
@@ -1770,7 +1774,7 @@ update the live variable values in the stores.
 
 \section{Example: Very Busy Expression Analysis}
 
-Very busy expression analysis infers an expression to be very busy if no matter what path is taken,
+An expression is ``very busy'' if no matter what path is taken,
 the expression is used before any variables occurring in it are redefined.
 This analysis is a backward analysis that intersects abstract states from successors.
 \\
@@ -1778,13 +1782,13 @@ The main class is \code{org.checkerframework.dataflow.cfg.playground.BusyExpress
 
 \textbf{Abstract values.} The \code{BusyExprValue} is a very busy expression, represented by a node.
 The node can be any \code{BinaryOperationNode}, such as \code{NumericalAdditionNode}
-and \code{LeftShiftNode}.
+or \code{LeftShiftNode}.
 
 \textbf{The store.} The busy expression store \code{BusyExprStore} has a field
 \code{busyExprValueSet} which contains a set of \code{BusyExprValue}s.
 If a node is a \code{BinaryOperationNode}, \code{addUseInExpression(Node)}
 will recursively analyze the subexpressions of the node to determine
-if they are nested \code{BinaryOperationNode}s. We then use \code{putBusyExpr(BusyExprValue)}
+if they are nested \code{BinaryOperationNode}s. It then uses \code{putBusyExpr(BusyExprValue)}
 to put the expression in the set. \code{killBusyExpr(Node)} is used when a variable is re-assigned.
 
 \textbf{The transfer function.} The transfer function \code{BusyExprTransfer}
@@ -2067,7 +2071,7 @@ and $<:$ denotes standard Java subtyping.
 %  LocalWords: IntegerLiteral LongLiteral NullLiteral ShortLiteral args StringLiteral Accessor ArrayAccess FieldAccess This MethodAccess ExplicitThis ImplicitThis NullAway
 %  LocalWords: LocalVariable MethodInvocation BitwiseAnd BitwiseOr MyType BitwiseComplement BitwiseXor ConditionalAnd ConditionalNot ConditionalOr FloatingDivision FloatingRemainder LeftShift
 %  LocalWords: IntegerDivision IntegerRemainder NumericalAddition EqualTo NumericalMinus NumericalMultiplication NumericalPlus util NumericalSubtraction SignedRightShift StringConcatenate
-%  LocalWords: TernaryExpression UnsignedRightShift NotEqual GreaterThan GreaterThanOrEqual LessThan ArrayCreation StringConcatenateAssignment ObjectCreation TypeCast cond
+%  LocalWords: TernaryExpression UnsignedRightShift NotEqual GreaterThan GreaterThanOrEqual LessThan ArrayCreation ObjectCreation TypeCast cond
 %  LocalWords: InstanceOf NarrowingConversion StringConversion WideningConversion ArrayType ParameterizedType ClassName PrimitiveType PackageName AssertionError NullChk accessor
 %  LocalWords: VariableDeclaration FieldAssignment CFGFieldAssignment getRegularStore CFGConditionalOr fnc CFGConditionalOr2 ConditionalOrNode ConditionalOr2 valueOf
 %  LocalWords: IdentifierTree FieldAccessNode ImplicitThisNode unboxing TreePath pathHack MethodTree VarSymbol DetachedVarSymbols DeclarationFromElement BoxedClass treeLookup getValue

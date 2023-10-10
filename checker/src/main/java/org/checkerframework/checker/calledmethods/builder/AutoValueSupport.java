@@ -4,6 +4,7 @@ import com.sun.source.tree.NewClassTree;
 
 import org.checkerframework.checker.calledmethods.CalledMethodsAnnotatedTypeFactory;
 import org.checkerframework.checker.calledmethods.qual.CalledMethods;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.util.AnnotatedTypes;
@@ -109,16 +110,7 @@ public class AutoValueSupport implements BuilderFrameworkSupport {
                 createCalledMethodsForAutoValueClass(builderElement, autoValueClassElement);
         // Only add the new @CalledMethods annotation if there is not already a @CalledMethods
         // annotation present.
-        AnnotationMirror explicitCalledMethodsAnno =
-                builderBuildType
-                        .getReceiverType()
-                        .getAnnotationInHierarchy(
-                                atypeFactory
-                                        .getQualifierHierarchy()
-                                        .getTopAnnotation(newCalledMethodsAnno));
-        if (explicitCalledMethodsAnno == null) {
-            builderBuildType.getReceiverType().addAnnotation(newCalledMethodsAnno);
-        }
+        builderBuildType.getReceiverType().addMissingAnnotation(newCalledMethodsAnno);
     }
 
     @Override
@@ -229,9 +221,9 @@ public class AutoValueSupport implements BuilderFrameworkSupport {
      *
      * @param prop the property (i.e., field) name
      * @param builderSetterNames names of all methods in the builder class
-     * @return the name of the setter for prop
+     * @return the name of the setter for prop, or null if it cannot be found
      */
-    private static String autoValuePropToBuilderSetterName(
+    private static @Nullable String autoValuePropToBuilderSetterName(
             String prop, Set<String> builderSetterNames) {
         String[] possiblePropNames;
         if (prop.startsWith("get") && prop.length() > 3 && Character.isUpperCase(prop.charAt(3))) {

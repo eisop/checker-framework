@@ -40,12 +40,12 @@ import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
-import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeKindUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.TypesUtils;
+import org.plumelib.util.IPair;
 
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
@@ -437,12 +437,12 @@ public class SignednessAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     // TODO: Return a TypeKind rather than a PrimitiveTypeTree?
     /**
-     * Returns the type of a primitive cast, or null the argument is not a cast to a primitive.
+     * Returns the type of a primitive cast, or null if the argument is not a cast to a primitive.
      *
      * @param tree a tree that might be a cast to a primitive
      * @return type of a primitive cast, or null if not a cast to a primitive
      */
-    private PrimitiveTypeTree primitiveTypeCast(Tree tree) {
+    private @Nullable PrimitiveTypeTree primitiveTypeCast(Tree tree) {
         if (tree.getKind() != Tree.Kind.TYPE_CAST) {
             return null;
         }
@@ -621,7 +621,7 @@ public class SignednessAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      *     same effect
      */
     /*package-private*/ boolean isMaskedShiftEitherSignedness(BinaryTree shiftExpr, TreePath path) {
-        Pair<Tree, Tree> enclosingPair = TreePathUtil.enclosingNonParen(path);
+        IPair<Tree, Tree> enclosingPair = TreePathUtil.enclosingNonParen(path);
         // enclosing immediately contains shiftExpr or a parenthesized version of shiftExpr
         Tree enclosing = enclosingPair.first;
         // enclosingChild is a child of enclosing:  shiftExpr or a parenthesized version of it.

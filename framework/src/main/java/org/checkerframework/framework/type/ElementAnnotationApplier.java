@@ -5,6 +5,7 @@ import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 import com.sun.tools.javac.code.Symbol;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
@@ -20,7 +21,7 @@ import org.checkerframework.framework.util.element.TypeVarUseApplier;
 import org.checkerframework.framework.util.element.VariableApplier;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
-import org.checkerframework.javacutil.Pair;
+import org.plumelib.util.IPair;
 
 import java.util.List;
 
@@ -193,14 +194,14 @@ public final class ElementAnnotationApplier {
      * @return a LambdaExpressionTree if the varEle represents a parameter in a lambda expression,
      *     otherwise null
      */
-    public static Pair<VariableTree, LambdaExpressionTree> getParamAndLambdaTree(
+    public static @Nullable IPair<VariableTree, LambdaExpressionTree> getParamAndLambdaTree(
             VariableElement varEle, AnnotatedTypeFactory typeFactory) {
         VariableTree paramDecl = (VariableTree) typeFactory.declarationFromElement(varEle);
 
         if (paramDecl != null) {
             Tree parentTree = typeFactory.getPath(paramDecl).getParentPath().getLeaf();
             if (parentTree != null && parentTree.getKind() == Tree.Kind.LAMBDA_EXPRESSION) {
-                return Pair.of(paramDecl, (LambdaExpressionTree) parentTree);
+                return IPair.of(paramDecl, (LambdaExpressionTree) parentTree);
             }
         }
 

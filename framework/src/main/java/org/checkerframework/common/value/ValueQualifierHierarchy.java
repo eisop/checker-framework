@@ -1,5 +1,6 @@
 package org.checkerframework.common.value;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.regex.qual.Regex;
 import org.checkerframework.common.value.util.Range;
 import org.checkerframework.framework.type.ElementQualifierHierarchy;
@@ -230,7 +231,7 @@ final class ValueQualifierHierarchy extends ElementQualifierHierarchy {
      * @return the least upper bound of a1 and a2
      */
     @Override
-    public AnnotationMirror leastUpperBound(AnnotationMirror a1, AnnotationMirror a2) {
+    public @Nullable AnnotationMirror leastUpperBound(AnnotationMirror a1, AnnotationMirror a2) {
         if (!AnnotationUtils.areSameByName(getTopAnnotation(a1), getTopAnnotation(a2))) {
             // The annotations are in different hierarchies
             return null;

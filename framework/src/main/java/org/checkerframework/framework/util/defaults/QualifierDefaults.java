@@ -12,6 +12,7 @@ import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.interning.qual.FindDistinct;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.TypeUseLocation;
@@ -31,10 +32,10 @@ import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
-import org.checkerframework.javacutil.CollectionUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
+import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.StringsPlume;
 
 import java.util.Arrays;
@@ -112,7 +113,7 @@ public class QualifierDefaults {
 
     /** Mapping from an Element to the bound type. */
     protected final Map<Element, BoundType> elementToBoundType =
-            CollectionUtils.createLRUCache(CACHE_SIZE);
+            CollectionsPlume.createLruCache(CACHE_SIZE);
 
     /**
      * Defaults that apply for a certain Element. On the one hand this is used for caching (an
@@ -498,7 +499,7 @@ public class QualifierDefaults {
      * @param tree the tree
      * @return the nearest enclosing element for a tree
      */
-    private Element nearestEnclosingExceptLocal(Tree tree) {
+    private @Nullable Element nearestEnclosingExceptLocal(Tree tree) {
         TreePath path = atypeFactory.getPath(tree);
         if (path == null) {
             return TreeUtils.elementFromTree(tree);
@@ -620,7 +621,7 @@ public class QualifierDefaults {
      * @param dq a @DefaultQualifier annotation
      * @return a DefaultSet corresponding to the @DefaultQualifier annotation
      */
-    private DefaultSet fromDefaultQualifier(AnnotationMirror dq) {
+    private @Nullable DefaultSet fromDefaultQualifier(AnnotationMirror dq) {
         @SuppressWarnings("unchecked")
         Name cls = AnnotationUtils.getElementValueClassName(dq, defaultQualifierValueElement);
         AnnotationMirror anno = AnnotationBuilder.fromName(elements, cls);
@@ -962,8 +963,8 @@ public class QualifierDefaults {
          */
         protected void addAnnotation(AnnotatedTypeMirror type, AnnotationMirror qual) {
             // Add the default annotation, but only if no other annotation is present.
-            if (!type.isAnnotatedInHierarchy(qual) && type.getKind() != TypeKind.EXECUTABLE) {
-                type.addAnnotation(qual);
+            if (type.getKind() != TypeKind.EXECUTABLE) {
+                type.addMissingAnnotation(qual);
             }
         }
     }

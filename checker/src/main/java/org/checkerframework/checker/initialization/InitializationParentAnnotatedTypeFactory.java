@@ -21,6 +21,7 @@ import org.checkerframework.checker.initialization.qual.NotOnlyInitialized;
 import org.checkerframework.checker.initialization.qual.PolyInitialized;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.initialization.qual.UnknownInitialization;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.flow.CFValue;
@@ -228,7 +229,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
     }
 
     @Override
-    public AnnotatedDeclaredType getSelfType(Tree tree) {
+    public @Nullable AnnotatedDeclaredType getSelfType(Tree tree) {
         AnnotatedDeclaredType selfType = super.getSelfType(tree);
 
         if (checker.hasOption("assumeInitialized")) {
@@ -263,7 +264,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
      * @return path to a top-level member containing the leaf of {@code path}
      */
     @SuppressWarnings("interning:not.interned") // AST node comparison
-    private TreePath findTopLevelClassMemberForTree(TreePath path) {
+    private @Nullable TreePath findTopLevelClassMemberForTree(TreePath path) {
         if (TreeUtils.isClassTree(path.getLeaf())) {
             path = path.getParentPath();
             if (path == null) {

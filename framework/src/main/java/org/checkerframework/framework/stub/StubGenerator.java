@@ -200,7 +200,7 @@ public class StubGenerator {
             out.print("enum");
         } else if (typeElement.getKind() == ElementKind.INTERFACE) {
             out.print("interface");
-        } else if (typeElement.getKind().name().equals("RECORD")) {
+        } else if (ElementUtils.isRecordElement(typeElement)) {
             out.print("record");
         } else if (typeElement.getKind() == ElementKind.CLASS) {
             out.print("class");

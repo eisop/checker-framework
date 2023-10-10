@@ -15,6 +15,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.javacutil.AbstractTypeProcessor;
 import org.checkerframework.javacutil.AnnotationProvider;
+import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.reflection.Signatures;
 
@@ -248,7 +249,7 @@ public class SignaturePrinter extends AbstractTypeProcessor {
                 case ENUM:
                     return "enum";
                 default:
-                    if (e.getKind().name().equals("RECORD")) {
+                    if (ElementUtils.isRecordElement(e)) {
                         return "record";
                     }
                     throw new IllegalArgumentException("Not a type element: " + e.getKind());

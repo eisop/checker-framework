@@ -518,7 +518,7 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
                 ParameterizedExecutableType mType = atypeFactory.methodFromUse(invocationTree);
                 AnnotatedExecutableType invokedMethod = mType.executableType;
                 ExecutableElement method = invokedMethod.getElement();
-                CharSequence methodName = ElementUtils.getSimpleNameOrDescription(method);
+                CharSequence methodName = ElementUtils.getSimpleDescription(method);
                 List<? extends VariableElement> methodParams = method.getParameters();
                 List<AnnotatedTypeMirror> paramTypes = invokedMethod.getParameterTypes();
                 for (int i = 0; i < args.size(); ++i) {

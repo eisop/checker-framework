@@ -5,6 +5,7 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 
 import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * Used to test the compound checker design pattern. AliasingChecker and AnotherCompoundChecker are
@@ -13,7 +14,7 @@ import java.util.LinkedHashSet;
  */
 public class CompoundChecker extends BaseTypeChecker {
     @Override
-    protected LinkedHashSet<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
+    protected Set<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
         LinkedHashSet<Class<? extends BaseTypeChecker>> subcheckers = new LinkedHashSet<>();
         subcheckers.addAll(super.getImmediateSubcheckerClasses());
         subcheckers.add(AliasingChecker.class);

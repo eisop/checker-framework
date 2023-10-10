@@ -172,7 +172,7 @@ public class KeyForAnnotatedTypeFactory
         }
         Collection<String> maps = null;
         AnnotatedTypeMirror type = getAnnotatedType(tree);
-        AnnotationMirror keyForAnno = type.getAnnotation(KeyFor.class);
+        AnnotationMirror keyForAnno = type.getEffectiveAnnotation(KeyFor.class);
         if (keyForAnno != null) {
             maps =
                     AnnotationUtils.getElementValueArray(
