@@ -60,7 +60,6 @@ public class MethodTest {
         try {
             Class<?> c = Class.forName("MethodTest$SuperClass");
             Method m = c.getMethod(str, new Class[] {});
-
             @TestReflectSibling1
             Object a = m.invoke(superClass, (@TestReflectBottom Object[]) null);
         } catch (Exception ignore) {

@@ -42,6 +42,7 @@ import org.checkerframework.checker.index.substringindex.SubstringIndexChecker;
 import org.checkerframework.checker.index.upperbound.UBQualifier.LessThanLengthOf;
 import org.checkerframework.checker.index.upperbound.UBQualifier.UpperBoundLiteralQualifier;
 import org.checkerframework.checker.index.upperbound.UBQualifier.UpperBoundUnknownQualifier;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.value.ValueAnnotatedTypeFactory;
 import org.checkerframework.common.value.ValueChecker;
@@ -66,9 +67,9 @@ import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
-import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
+import org.plumelib.util.IPair;
 
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
@@ -336,7 +337,7 @@ public class UpperBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
      * Queries the SameLen Checker to return the type that the SameLen Checker associates with the
      * given tree.
      */
-    public AnnotationMirror sameLenAnnotationFromTree(Tree tree) {
+    public @Nullable AnnotationMirror sameLenAnnotationFromTree(Tree tree) {
         AnnotatedTypeMirror sameLenType = getSameLenAnnotatedTypeFactory().getAnnotatedType(tree);
         return sameLenType.getAnnotation(SameLen.class);
     }
@@ -752,7 +753,7 @@ public class UpperBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
         }
 
         /** Gets a sequence tree for a length access tree, or null if it is not a length access. */
-        private ExpressionTree getLengthSequenceTree(ExpressionTree lengthTree) {
+        private @Nullable ExpressionTree getLengthSequenceTree(ExpressionTree lengthTree) {
             return IndexUtil.getLengthSequenceTree(lengthTree, imf, processingEnv);
         }
 
@@ -962,7 +963,7 @@ public class UpperBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
         return ltlQualifier.convertToAnnotation(processingEnv);
     }
 
-    UBQualifier fromLessThan(ExpressionTree tree, TreePath treePath) {
+    @Nullable UBQualifier fromLessThan(ExpressionTree tree, TreePath treePath) {
         List<String> lessThanExpressions =
                 getLessThanAnnotatedTypeFactory().getLessThanExpressions(tree);
         if (lessThanExpressions == null) {
@@ -975,7 +976,7 @@ public class UpperBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
         return null;
     }
 
-    UBQualifier fromLessThanOrEqual(ExpressionTree tree, TreePath treePath) {
+    @Nullable UBQualifier fromLessThanOrEqual(ExpressionTree tree, TreePath treePath) {
         List<String> lessThanExpressions =
                 getLessThanAnnotatedTypeFactory().getLessThanExpressions(tree);
         if (lessThanExpressions == null) {
@@ -985,11 +986,11 @@ public class UpperBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
         return ubQualifier;
     }
 
-    private UBQualifier fromLessThanOrEqual(
+    private @Nullable UBQualifier fromLessThanOrEqual(
             Tree tree, TreePath treePath, List<String> lessThanExpressions) {
         UBQualifier ubQualifier = null;
         for (String expression : lessThanExpressions) {
-            Pair<JavaExpression, String> exprAndOffset;
+            IPair<JavaExpression, String> exprAndOffset;
             try {
                 exprAndOffset =
                         getExpressionAndOffsetFromJavaExpressionString(expression, treePath);

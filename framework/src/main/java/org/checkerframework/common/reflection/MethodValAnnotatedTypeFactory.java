@@ -410,7 +410,7 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         /**
-         * if getMethod(Object receiver, Object... params) or getConstructor(Object... params) have
+         * If getMethod(Object receiver, Object... params) or getConstructor(Object... params) have
          * one argument for params, then the number of parameters in the underlying method or
          * constructor must be:
          *

@@ -2,8 +2,8 @@ package org.checkerframework.framework.test.diagnostics;
 
 import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.javacutil.Pair;
 import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.IPair;
 
 import java.io.File;
 import java.util.Arrays;
@@ -96,7 +96,7 @@ public class TestDiagnosticUtils {
         // However, diagnostic.toString() may contain "[unchecked]" even though getMessage() does
         // not.
         // Since we want to match the error messages reported by javac exactly, we must parse.
-        Pair<String, String> trimmed = formatJavaxToolString(diagnosticString, noMsgText);
+        IPair<String, String> trimmed = formatJavaxToolString(diagnosticString, noMsgText);
         return fromPatternMatching(
                 DIAGNOSTIC_PATTERN,
                 DIAGNOSTIC_WARNING_PATTERN,
@@ -157,7 +157,7 @@ public class TestDiagnosticUtils {
 
         Matcher diagnosticMatcher = diagnosticPattern.matcher(diagnosticString);
         if (diagnosticMatcher.matches()) {
-            Pair<DiagnosticKind, Boolean> categoryToFixable =
+            IPair<DiagnosticKind, Boolean> categoryToFixable =
                     parseCategoryString(diagnosticMatcher.group(1 + capturingGroupOffset));
             kind = categoryToFixable.first;
             isFixable = categoryToFixable.second;
@@ -217,7 +217,7 @@ public class TestDiagnosticUtils {
      * @param noMsgText whether to do work; if false, this returns a pair of (argument, "")
      * @return the diagnostic, split into message and filename
      */
-    public static Pair<String, String> formatJavaxToolString(String original, boolean noMsgText) {
+    public static IPair<String, String> formatJavaxToolString(String original, boolean noMsgText) {
         String trimmed = original;
         String filename = "";
         if (noMsgText) {
@@ -236,7 +236,7 @@ public class TestDiagnosticUtils {
             }
         }
 
-        return Pair.of(trimmed, filename);
+        return IPair.of(trimmed, filename);
     }
 
     /**
@@ -258,7 +258,7 @@ public class TestDiagnosticUtils {
      * Given a category string that may be prepended with "fixable-", return the category enum that
      * corresponds with the category and whether or not it is a isFixable error
      */
-    private static Pair<DiagnosticKind, Boolean> parseCategoryString(String category) {
+    private static IPair<DiagnosticKind, Boolean> parseCategoryString(String category) {
         String fixable = "fixable-";
         boolean isFixable = category.startsWith(fixable);
         if (isFixable) {
@@ -269,7 +269,7 @@ public class TestDiagnosticUtils {
             throw new Error("Unparsable category: " + category);
         }
 
-        return Pair.of(categoryEnum, isFixable);
+        return IPair.of(categoryEnum, isFixable);
     }
 
     /**

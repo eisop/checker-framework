@@ -214,9 +214,8 @@ public class SignatureAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         @Override
         public Void visitBinary(BinaryTree tree, AnnotatedTypeMirror type) {
             if (TreeUtils.isStringConcatenation(tree)) {
-                type.removeAnnotationInHierarchy(SIGNATURE_UNKNOWN);
                 // This could be made more precise.
-                type.addAnnotation(SignatureUnknown.class);
+                type.replaceAnnotation(SIGNATURE_UNKNOWN);
             }
             return null; // super.visitBinary(tree, type);
         }
@@ -224,9 +223,8 @@ public class SignatureAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         @Override
         public Void visitCompoundAssignment(CompoundAssignmentTree tree, AnnotatedTypeMirror type) {
             if (TreeUtils.isStringCompoundConcatenation(tree)) {
-                type.removeAnnotationInHierarchy(SIGNATURE_UNKNOWN);
                 // This could be made more precise.
-                type.addAnnotation(SignatureUnknown.class);
+                type.replaceAnnotation(SIGNATURE_UNKNOWN);
             }
             return null; // super.visitCompoundAssignment(tree, type);
         }

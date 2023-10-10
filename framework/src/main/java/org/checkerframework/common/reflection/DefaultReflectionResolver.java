@@ -25,6 +25,7 @@ import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Names;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.reflection.qual.Invoke;
 import org.checkerframework.common.reflection.qual.MethodVal;
@@ -628,7 +629,7 @@ public class DefaultReflectionResolver implements ReflectionResolver {
      * @return the lub of the two types
      */
     private Set<? extends AnnotationMirror> lub(
-            Set<? extends AnnotationMirror> set1,
+            @Nullable Set<? extends AnnotationMirror> set1,
             Set<? extends AnnotationMirror> set2,
             AnnotatedTypeFactory atypeFactory) {
         if (set1 == null || set1.isEmpty()) {
@@ -650,7 +651,7 @@ public class DefaultReflectionResolver implements ReflectionResolver {
      * @return the glb of the two types
      */
     private Set<? extends AnnotationMirror> glb(
-            Set<? extends AnnotationMirror> set1,
+            @Nullable Set<? extends AnnotationMirror> set1,
             Set<? extends AnnotationMirror> set2,
             AnnotatedTypeFactory atypeFactory) {
         if (set1 == null || set1.isEmpty()) {

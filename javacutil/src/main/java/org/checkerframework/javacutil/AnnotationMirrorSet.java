@@ -6,6 +6,7 @@ import org.checkerframework.checker.nullness.qual.KeyForBottom;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.common.returnsreceiver.qual.This;
+import org.plumelib.util.DeepCopyable;
 
 import java.util.Collection;
 import java.util.Collections;

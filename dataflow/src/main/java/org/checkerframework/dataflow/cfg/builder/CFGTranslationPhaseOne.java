@@ -73,6 +73,7 @@ import org.checkerframework.dataflow.cfg.node.BitwiseOrNode;
 import org.checkerframework.dataflow.cfg.node.BitwiseXorNode;
 import org.checkerframework.dataflow.cfg.node.BooleanLiteralNode;
 import org.checkerframework.dataflow.cfg.node.CaseNode;
+import org.checkerframework.dataflow.cfg.node.CatchMarkerNode;
 import org.checkerframework.dataflow.cfg.node.CharacterLiteralNode;
 import org.checkerframework.dataflow.cfg.node.ClassDeclarationNode;
 import org.checkerframework.dataflow.cfg.node.ClassNameNode;
@@ -138,7 +139,6 @@ import org.checkerframework.dataflow.qual.TerminatesExecution;
 import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
-import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
@@ -149,6 +149,7 @@ import org.checkerframework.javacutil.trees.TreeBuilder;
 import org.plumelib.util.ArrayMap;
 import org.plumelib.util.ArraySet;
 import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.IPair;
 import org.plumelib.util.IdentityArraySet;
 
 import java.util.ArrayList;
@@ -490,7 +491,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                     regularExitLabel,
                     exceptionalExitLabel,
                     declaredClasses,
-                    declaredLambdas);
+                    declaredLambdas,
+                    types);
         } finally {
             this.path = null;
         }
@@ -1230,7 +1232,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 node = narrow(node, varType);
             }
         }
-        // node might have been re-assigned; if nodeType is needed, set it again
+        // `node` might have been re-assigned; if `nodeType` is needed, set it again.
         // nodeType = node.getType();
 
         // TODO: if checkers need to know about null references of
@@ -2791,7 +2793,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         extendWithExtendedNode(new UnconditionalJump(merge));
 
         addLabelForNextNode(merge);
-        Pair<IdentifierTree, LocalVariableNode> treeAndLocalVarNode =
+        IPair<IdentifierTree, LocalVariableNode> treeAndLocalVarNode =
                 buildVarUseNode(condExprVarTree);
         Node node =
                 new TernaryExpressionNode(
@@ -2812,7 +2814,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      */
     private void extendWithAssignmentForConditionalExpr(
             VariableTree condExprVarTree, ExpressionTree caseExprTree, Node caseExprNode) {
-        Pair<IdentifierTree, LocalVariableNode> treeAndLocalVarNode =
+        IPair<IdentifierTree, LocalVariableNode> treeAndLocalVarNode =
                 buildVarUseNode(condExprVarTree);
 
         AssignmentTree assign =
@@ -2828,19 +2830,19 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
     /**
      * Build a pair of {@link IdentifierTree} and {@link LocalVariableNode} to represent a use of
-     * some variable
+     * some variable. Does not add the node to the CFG.
      *
      * @param varTree tree for the variable
      * @return a pair whose first element is the synthetic {@link IdentifierTree} for the use, and
      *     whose second element is the {@link LocalVariableNode} representing the use
      */
-    private Pair<IdentifierTree, LocalVariableNode> buildVarUseNode(VariableTree varTree) {
+    private IPair<IdentifierTree, LocalVariableNode> buildVarUseNode(VariableTree varTree) {
         IdentifierTree condExprVarUseTree = treeBuilder.buildVariableUse(varTree);
         handleArtificialTree(condExprVarUseTree);
         LocalVariableNode condExprVarUseNode = new LocalVariableNode(condExprVarUseTree);
         condExprVarUseNode.setInSource(false);
-        // Do not actually add the node to the CFG
-        return Pair.of(condExprVarUseTree, condExprVarUseNode);
+        // Do not actually add the node to the CFG.
+        return IPair.of(condExprVarUseTree, condExprVarUseNode);
     }
 
     @Override
@@ -3675,10 +3677,10 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         "start of try statement #" + TreeUtils.treeUids.get(tree),
                         env.getTypeUtils()));
 
-        List<Pair<TypeMirror, Label>> catchLabels =
+        List<IPair<TypeMirror, Label>> catchLabels =
                 CollectionsPlume.mapList(
                         (CatchTree c) -> {
-                            return Pair.of(
+                            return IPair.of(
                                     TreeUtils.typeOf(c.getParameter().getType()), new Label());
                         },
                         catches);
@@ -3740,23 +3742,10 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         int catchIndex = 0;
         for (CatchTree c : catches) {
             addLabelForNextNode(catchLabels.get(catchIndex).second);
-            extendWithNode(
-                    new MarkerNode(
-                            tree,
-                            "start of catch block for "
-                                    + c.getParameter().getType()
-                                    + " #"
-                                    + TreeUtils.treeUids.get(tree),
-                            env.getTypeUtils()));
+            TypeMirror catchType = TreeUtils.typeOf(c.getParameter().getType());
+            extendWithNode(new CatchMarkerNode(tree, "start", catchType, env.getTypeUtils()));
             scan(c, p);
-            extendWithNode(
-                    new MarkerNode(
-                            tree,
-                            "end of catch block for "
-                                    + c.getParameter().getType()
-                                    + " #"
-                                    + TreeUtils.treeUids.get(tree),
-                            env.getTypeUtils()));
+            extendWithNode(new CatchMarkerNode(tree, "end", catchType, env.getTypeUtils()));
 
             catchIndex++;
             extendWithExtendedNode(new UnconditionalJump(firstNonNull(finallyLabel, doneLabel)));

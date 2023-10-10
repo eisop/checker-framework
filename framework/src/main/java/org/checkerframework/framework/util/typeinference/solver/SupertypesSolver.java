@@ -1,5 +1,6 @@
 package org.checkerframework.framework.util.typeinference.solver;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiveType;
@@ -82,7 +83,7 @@ public class SupertypesSolver {
      * <p>If we failed to infer any annotation for a given hierarchy, either previously from
      * equalities or from the lub, return null.
      */
-    protected InferredType mergeLubTypeWithEqualities(
+    protected @Nullable InferredType mergeLubTypeWithEqualities(
             TypeVariable target,
             AnnotatedTypeMirror lub,
             ConstraintMap constraintMap,
@@ -137,7 +138,7 @@ public class SupertypesSolver {
      * <p>If we failed to infer any annotation for a given hierarchy, either previously from
      * equalities or from the lub, return null.
      */
-    protected InferredType mergeLubAnnosWithEqualities(
+    protected @Nullable InferredType mergeLubAnnosWithEqualities(
             TypeVariable target,
             AnnotationMirrorMap<AnnotationMirror> lubAnnos,
             ConstraintMap constraintMap,

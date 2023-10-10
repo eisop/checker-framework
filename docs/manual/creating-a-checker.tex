@@ -1107,7 +1107,7 @@ A checker obtains information from its subcheckers (those that ran before
 it) by querying their \refclass{framework/type}{AnnotatedTypeFactory} to
 determine the types of variables.  Obtain the \<AnnotatedTypeFactory> by
 calling
-\refmethodterse{common/basetype}{BaseTypeChecker}{getTypeFactoryOfSubchecker}{(java.lang.Class)}.
+\refmethodterse{common/basetype}{BaseTypeChecker}{getTypeFactoryOfSubcheckerOrNull}{(java.lang.Class)}.
 
 \end{enumerate}
 
@@ -1579,7 +1579,7 @@ a transfer class.)
 %\begin{Verbatim}
 %  @Override
 %  protected RegexAnalysis createFlowAnalysis(
-%          List<Pair<VariableElement, CFValue>> fieldValues) {
+%          List<IPair<VariableElement, CFValue>> fieldValues) {
 %
 %      return new RegexAnalysis(checker, this, fieldValues);
 %  }

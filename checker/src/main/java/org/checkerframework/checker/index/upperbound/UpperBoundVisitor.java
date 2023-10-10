@@ -14,6 +14,7 @@ import org.checkerframework.checker.index.qual.HasSubsequence;
 import org.checkerframework.checker.index.qual.LTLengthOf;
 import org.checkerframework.checker.index.samelen.SameLenAnnotatedTypeFactory;
 import org.checkerframework.checker.index.upperbound.UBQualifier.LessThanLengthOf;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.common.value.ValueAnnotatedTypeFactory;
@@ -30,9 +31,9 @@ import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressio
 import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
-import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
+import org.plumelib.util.IPair;
 
 import java.util.Collections;
 import java.util.List;
@@ -354,16 +355,16 @@ public class UpperBoundVisitor extends BaseTypeVisitor<UpperBoundAnnotatedTypeFa
      * <p>This is useful for expressions like "n+1", for which {@link #parseJavaExpressionString}
      * returns null because the whole expression is not a receiver.
      */
-    static Pair<JavaExpression, String> getExpressionAndOffsetFromJavaExpressionString(
+    static @Nullable IPair<JavaExpression, String> getExpressionAndOffsetFromJavaExpressionString(
             String s, UpperBoundAnnotatedTypeFactory atypeFactory, TreePath currentPath) {
 
-        Pair<String, String> p = AnnotatedTypeFactory.getExpressionAndOffset(s);
+        IPair<String, String> p = AnnotatedTypeFactory.getExpressionAndOffset(s);
 
         JavaExpression je = parseJavaExpressionString(p.first, atypeFactory, currentPath);
         if (je == null) {
             return null;
         }
-        return Pair.of(je, p.second);
+        return IPair.of(je, p.second);
     }
 
     /**
@@ -373,7 +374,7 @@ public class UpperBoundVisitor extends BaseTypeVisitor<UpperBoundAnnotatedTypeFa
      *
      * <p>This wraps GenericAnnotatedTypeFactory#parseJavaExpressionString.
      */
-    static JavaExpression parseJavaExpressionString(
+    static @Nullable JavaExpression parseJavaExpressionString(
             String s, UpperBoundAnnotatedTypeFactory atypeFactory, TreePath currentPath) {
         JavaExpression result;
         try {

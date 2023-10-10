@@ -25,7 +25,7 @@ public class ClassValChecker extends BaseTypeChecker {
         // Don't call super otherwise MethodVal will be added as a subChecker
         // which creates a circular dependency.
         // Use the same Set implementation as super.
-        LinkedHashSet<Class<? extends BaseTypeChecker>> subCheckers =
+        Set<Class<? extends BaseTypeChecker>> subCheckers =
                 new LinkedHashSet<>(CollectionsPlume.mapCapacity(2));
         subCheckers.add(ValueChecker.class);
         return subCheckers;

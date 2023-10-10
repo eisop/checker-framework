@@ -25,6 +25,7 @@ import org.checkerframework.checker.lock.qual.GuardedByBottom;
 import org.checkerframework.checker.lock.qual.GuardedByUnknown;
 import org.checkerframework.checker.lock.qual.Holding;
 import org.checkerframework.checker.lock.qual.LockHeld;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.dataflow.expression.JavaExpression;
@@ -767,7 +768,7 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
      * @param lockExpression the receiver tree for the method call to unlock(). Can be null.
      */
     private void ensureReceiverOfExplicitUnlockCallIsEffectivelyFinal(
-            ExecutableElement methodElement, ExpressionTree lockExpression) {
+            ExecutableElement methodElement, @Nullable ExpressionTree lockExpression) {
         if (lockExpression == null) {
             // Implicit this, or class name receivers, are null. But they are also final. So nothing
             // to be checked for them.
@@ -1028,7 +1029,7 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
      * @return a TreePath that can be passed to methods in the Resolver class to locate local
      *     variables
      */
-    private TreePath getPathForLocalVariableRetrieval(TreePath path) {
+    private @Nullable TreePath getPathForLocalVariableRetrieval(TreePath path) {
         assert path.getLeaf() instanceof AnnotationTree;
 
         // TODO: handle annotations in trees of kind NEW_CLASS (and add test coverage for this

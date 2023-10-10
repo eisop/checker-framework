@@ -399,7 +399,7 @@ public abstract class AbstractQualifierPolymorphism implements QualifierPolymorp
          *
          * <p>Uses reference equality rather than equals because the visitor may visit two types
          * that are structurally equal, but not actually the same. For example, the wildcards in
-         * {@code Pair<?,?>} may be equal, but they both should be visited.
+         * {@code IPair<?,?>} may be equal, but they both should be visited.
          */
         private final Set<AnnotatedTypeMirror> visitedTypes =
                 Collections.newSetFromMap(new IdentityHashMap<AnnotatedTypeMirror, Boolean>());
@@ -525,15 +525,6 @@ public abstract class AbstractQualifierPolymorphism implements QualifierPolymorp
             AnnotatedTypeMirror asSuper = AnnotatedTypes.asSuper(atypeFactory, type, polyType);
 
             return visit(asSuper, polyType, null);
-        }
-
-        @Override
-        protected String defaultErrorMessage(
-                AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, Void aVoid) {
-            return String.format(
-                    "AbstractQualifierPolymorphism:"
-                            + " Unexpected combination: type1: %s (%s) type2: %s (%s).",
-                    type1, type1.getKind(), type2, type2.getKind());
         }
 
         @Override

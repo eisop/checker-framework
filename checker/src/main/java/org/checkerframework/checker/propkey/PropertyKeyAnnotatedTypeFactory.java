@@ -72,7 +72,7 @@ public class PropertyKeyAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
         @Override
         public Void visitLiteral(LiteralTree tree, AnnotatedTypeMirror type) {
-            if (!type.isAnnotatedInHierarchy(theAnnot)
+            if (!type.hasAnnotationInHierarchy(theAnnot)
                     && tree.getKind() == Tree.Kind.STRING_LITERAL
                     && strContains(lookupKeys, tree.getValue().toString())) {
                 type.addAnnotation(theAnnot);

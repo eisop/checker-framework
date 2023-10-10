@@ -2,7 +2,7 @@ package org.checkerframework.dataflow.analysis;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.cfg.node.ReturnNode;
-import org.checkerframework.javacutil.Pair;
+import org.plumelib.util.IPair;
 
 import java.util.List;
 
@@ -27,5 +27,5 @@ public interface ForwardAnalysis<
      *
      * @return the transfer results for each return node in the CFG
      */
-    List<Pair<ReturnNode, @Nullable TransferResult<V, S>>> getReturnStatementStores();
+    List<IPair<ReturnNode, @Nullable TransferResult<V, S>>> getReturnStatementStores();
 }

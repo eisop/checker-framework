@@ -238,7 +238,7 @@ public class ToIndexFileConverter extends GenericVisitorAdapter<Void, AElement> 
      * Builds simplified annotation from its declaration. Only the name is included, because
      * stubfiles do not generally have access to the full definitions of annotations.
      */
-    private static Annotation extractAnnotation(AnnotationExpr expr) {
+    private static @Nullable Annotation extractAnnotation(AnnotationExpr expr) {
         String exprName = expr.toString().substring(1); // leave off leading '@'
 
         // Eliminate jdk.Profile+Annotation, a synthetic annotation that
@@ -633,7 +633,7 @@ public class ToIndexFileConverter extends GenericVisitorAdapter<Void, AElement> 
      * @return fully qualified name of class that {@code className} identifies in the current
      *     context, or null if resolution fails
      */
-    private @BinaryName String resolve(@BinaryName String className) {
+    private @Nullable @BinaryName String resolve(@BinaryName String className) {
 
         if (pkgName != null) {
             String qualifiedName = Signatures.addPackage(pkgName, className);
@@ -673,7 +673,8 @@ public class ToIndexFileConverter extends GenericVisitorAdapter<Void, AElement> 
      * @return fully qualified class name if resolution succeeds, null otherwise
      */
     @SuppressWarnings("signature") // string manipulation of signature strings
-    private static @BinaryName String mergeImport(String importName, @BinaryName String className) {
+    private static @Nullable @BinaryName String mergeImport(
+            String importName, @BinaryName String className) {
         if (importName.isEmpty() || importName.equals(className)) {
             return className;
         }
@@ -703,7 +704,7 @@ public class ToIndexFileConverter extends GenericVisitorAdapter<Void, AElement> 
      * @param className a class name
      * @return the {@link Class} object corresponding to {@code className}, or null if none found
      */
-    private static Class<?> loadClass(@ClassGetName String className) {
+    private static @Nullable Class<?> loadClass(@ClassGetName String className) {
         assert className != null;
         try {
             return Class.forName(className, false, null);

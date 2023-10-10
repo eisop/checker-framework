@@ -28,8 +28,10 @@ import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.util.Options;
 
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.interning.qual.FindDistinct;
 import org.checkerframework.checker.interning.qual.InternedDistinct;
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.CanonicalName;
@@ -78,9 +80,7 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
-import org.checkerframework.javacutil.CollectionUtils;
 import org.checkerframework.javacutil.ElementUtils;
-import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeKindUtils;
@@ -89,6 +89,7 @@ import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
 import org.checkerframework.javacutil.trees.DetachedVarSymbol;
 import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.IPair;
 import org.plumelib.util.StringsPlume;
 
 import java.io.BufferedReader;
@@ -421,7 +422,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 String aliasName,
                 AnnotationMirror canonical,
                 boolean copyElements,
-                @CanonicalName String canonicalName,
+                @Nullable @CanonicalName String canonicalName,
                 String[] ignorableElements) {
             this.canonical = canonical;
             this.copyElements = copyElements;
@@ -546,22 +547,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     private final TypeInformationPresenter typeInformationPresenter;
 
     /**
-     * Constructs a factory from the given {@link ProcessingEnvironment} instance and syntax tree
-     * root. (These parameters are required so that the factory may conduct the appropriate
-     * annotation-gathering analyses on certain tree types.)
-     *
-     * <p>Root can be {@code null} if the factory does not operate on trees.
+     * Constructs a factory from the given checker.
      *
      * <p>A subclass must call postInit at the end of its constructor. postInit must be the last
      * call in the constructor or else types from stub files may not be created as expected.
      *
      * @param checker the {@link SourceChecker} to which this factory belongs
-     * @throws IllegalArgumentException if either argument is {@code null}
      */
     public AnnotatedTypeFactory(BaseTypeChecker checker) {
         uid = ++uidCounter;
         this.processingEnv = checker.getProcessingEnvironment();
-        // this.root = root;
         this.checker = checker;
         this.assumeSideEffectFree =
                 checker.hasOption("assumeSideEffectFree") || checker.hasOption("assumePure");
@@ -584,15 +579,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.shouldCache = !checker.hasOption("atfDoNotCache");
         if (shouldCache) {
             int cacheSize = getCacheSize();
-            this.classAndMethodTreeCache = CollectionUtils.createLRUCache(cacheSize);
-            this.fromExpressionTreeCache = CollectionUtils.createLRUCache(cacheSize);
-            this.fromMemberTreeCache = CollectionUtils.createLRUCache(cacheSize);
-            this.fromTypeTreeCache = CollectionUtils.createLRUCache(cacheSize);
-            this.elementCache = CollectionUtils.createLRUCache(cacheSize);
-            this.elementToTreeCache = CollectionUtils.createLRUCache(cacheSize);
+            this.classAndMethodTreeCache = CollectionsPlume.createLruCache(cacheSize);
+            this.fromExpressionTreeCache = CollectionsPlume.createLruCache(cacheSize);
+            this.fromMemberTreeCache = CollectionsPlume.createLruCache(cacheSize);
+            this.fromTypeTreeCache = CollectionsPlume.createLruCache(cacheSize);
+            this.elementCache = CollectionsPlume.createLruCache(cacheSize);
+            this.elementToTreeCache = CollectionsPlume.createLruCache(cacheSize);
             this.annotationClassNames =
                     Collections.synchronizedMap(
-                            CollectionUtils.createLRUCache(ANNOTATION_CACHE_SIZE));
+                            CollectionsPlume.createLruCache(ANNOTATION_CACHE_SIZE));
         } else {
             this.classAndMethodTreeCache = null;
             this.fromExpressionTreeCache = null;
@@ -620,7 +615,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             String aliasesOption = checker.getOption("aliasedTypeAnnos");
             String[] annos = aliasesOption.split(";");
             for (String alias : annos) {
-                Pair<Class<? extends Annotation>, @FullyQualifiedName String[]> aliasPair =
+                IPair<Class<? extends Annotation>, @FullyQualifiedName String[]> aliasPair =
                         parseAliasesFromString(alias);
                 for (@FullyQualifiedName String a : aliasPair.second) {
                     addAliasedTypeAnnotation(a, aliasPair.first, true);
@@ -635,7 +630,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             String aliasesOption = checker.getOption("aliasedDeclAnnos");
             String[] annos = aliasesOption.split(";");
             for (String alias : annos) {
-                Pair<Class<? extends Annotation>, @FullyQualifiedName String[]> aliasPair =
+                IPair<Class<? extends Annotation>, @FullyQualifiedName String[]> aliasPair =
                         parseAliasesFromString(alias);
                 AnnotationMirror anno = AnnotationBuilder.fromClass(elements, aliasPair.first);
                 for (String a : aliasPair.second) {
@@ -759,7 +754,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     // signature is suppressed because there is no way to reason about parsed strings
     @SuppressWarnings({"unchecked", "signature"})
-    private Pair<Class<? extends Annotation>, @FullyQualifiedName String[]> parseAliasesFromString(
+    private IPair<Class<? extends Annotation>, @FullyQualifiedName String[]> parseAliasesFromString(
             String alias) {
         String[] parts = alias.split(":");
         if (parts.length != 2) {
@@ -776,7 +771,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     String.format("The name %s is an invalid annotation name.", parts[0]));
         }
         String[] aliases = parts[1].trim().split("\\s*,\\s*");
-        return Pair.of(canonical, aliases);
+        return IPair.of(canonical, aliases);
     }
 
     /**
@@ -838,7 +833,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * constructor has completed. In particular, {@link AnnotationFileElementTypes#parseStubFiles()}
      * may try to do type resolution with this AnnotatedTypeFactory.
      */
-    protected void postInit() {
+    protected void postInit(
+            @UnderInitialization(AnnotatedTypeFactory.class) AnnotatedTypeFactory this) {
         this.qualHierarchy = createQualifierHierarchy();
         if (qualHierarchy == null) {
             throw new TypeSystemError(
@@ -951,8 +947,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return the WholeProgramInference instance, or null
      */
     /* NO-AFU
-    public WholeProgramInference getWholeProgramInference() {
-        return wholeProgramInference;
+    public @Nullable WholeProgramInference getWholeProgramInference() {
+      return wholeProgramInference;
     }
     */
 
@@ -1074,7 +1070,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             }
             if (candidateAjavaFiles.size() == 1) {
                 currentFileAjavaTypes = new AnnotationFileElementTypes(this);
-                String ajavaPath = candidateAjavaFiles.toArray(new String[1])[0];
+                String ajavaPath =
+                        candidateAjavaFiles.toArray(new String[candidateAjavaFiles.size()])[0];
                 try {
                     currentFileAjavaTypes.parseAjavaFileWithTree(ajavaPath, root);
                 } catch (Throwable e) {
@@ -1982,7 +1979,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param element class for which to get invariants
      * @return field invariants for {@code element}
      */
-    public FieldInvariants getFieldInvariants(TypeElement element) {
+    public @Nullable FieldInvariants getFieldInvariants(TypeElement element) {
         if (element == null) {
             return null;
         }
@@ -2042,7 +2039,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *     if one isn't found
      */
     public @Nullable AnnotationTree getFieldInvariantAnnotationTree(
-            List<? extends AnnotationTree> annoTrees) {
+            @Nullable List<? extends AnnotationTree> annoTrees) {
         List<AnnotationMirror> annos = TreeUtils.annotationsFromTypeAnnotationTrees(annoTrees);
         for (int i = 0; i < annos.size(); i++) {
             for (Class<? extends Annotation> clazz : getFieldInvariantDeclarationAnnotations()) {
@@ -2308,6 +2305,23 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
+     * Returns the {@link AnnotatedTypeMirror} of the enclosing type at the location of {@code tree}
+     * that is a subtype of {@code typeElement}.
+     *
+     * @param typeElement super type of the enclosing type to return
+     * @param tree location to use
+     * @return the enclosing type at the location of {@code tree} that is a subtype of {@code
+     *     typeElement}
+     */
+    public AnnotatedDeclaredType getEnclosingSubType(TypeElement typeElement, Tree tree) {
+        AnnotatedDeclaredType thisType = getSelfType(tree);
+        while (!isSubtype(thisType.getUnderlyingType(), typeElement.asType())) {
+            thisType = thisType.getEnclosingType();
+        }
+        return thisType;
+    }
+
+    /**
      * Returns true if the erasure of {@code type1} is a Java subtype of the erasure of {@code
      * type2}.
      *
@@ -2340,7 +2354,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param expression the expression for which to determine the receiver type
      * @return the type of the receiver of expression
      */
-    public final AnnotatedTypeMirror getReceiverType(ExpressionTree expression) {
+    public final @Nullable AnnotatedTypeMirror getReceiverType(ExpressionTree expression) {
         AnnotatedTypeMirror receiverType;
         ExpressionTree receiver = TreeUtils.getReceiverTree(expression);
         if (receiver != null) {
@@ -3315,7 +3329,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param tree a binary tree
      * @return the types of the two arguments
      */
-    public Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> binaryTreeArgTypes(BinaryTree tree) {
+    public IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> binaryTreeArgTypes(BinaryTree tree) {
         return binaryTreeArgTypes(
                 TreeUtils.typeOf(tree),
                 getAnnotatedType(tree.getLeftOperand()),
@@ -3330,7 +3344,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param tree a compound assignment tree
      * @return the types of the two arguments
      */
-    public Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> compoundAssignmentTreeArgTypes(
+    public IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> compoundAssignmentTreeArgTypes(
             CompoundAssignmentTree tree) {
         return binaryTreeArgTypes(
                 TreeUtils.typeOf(tree.getVariable()),
@@ -3353,7 +3367,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param right the type of the right argument of a binary operation
      * @return the types of the two arguments
      */
-    protected Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> binaryTreeArgTypes(
+    protected IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> binaryTreeArgTypes(
             TypeMirror resultType, AnnotatedTypeMirror left, AnnotatedTypeMirror right) {
         TypeKind widenedNumericType =
                 TypeKindUtils.widenedNumericType(
@@ -3370,7 +3384,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     (rightUnboxed.getKind() == widenedNumericType
                             ? rightUnboxed
                             : getWidenedPrimitive(rightUnboxed, widenedNumericTypeMirror));
-            return Pair.of(leftWidened, rightWidened);
+            return IPair.of(leftWidened, rightWidened);
         } else if (TypesUtils.isString(resultType)) {
             // the result of a binary operation is String iff it's string concatenation
             AnnotatedTypeMirror leftStringConverted = left;
@@ -3390,10 +3404,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                                 resultType, right.getEffectiveAnnotations());
                 rightStringConverted.addAnnotations(annos);
             }
-            return Pair.of(leftStringConverted, rightStringConverted);
+            return IPair.of(leftStringConverted, rightStringConverted);
         }
 
-        return Pair.of(left, right);
+        return IPair.of(left, right);
     }
 
     /**
@@ -3407,7 +3421,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *     #compoundAssignmentTreeArgTypes(CompoundAssignmentTree)}
      */
     @Deprecated // 2022-06-03
-    public Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> binaryTreeArgTypes(
+    public IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> binaryTreeArgTypes(
             AnnotatedTypeMirror left, AnnotatedTypeMirror right) {
         TypeKind resultTypeKind =
                 TypeKindUtils.widenedNumericType(
@@ -3424,9 +3438,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     (rightUnboxed.getKind() == resultTypeKind
                             ? rightUnboxed
                             : getWidenedPrimitive(rightUnboxed, resultTypeMirror));
-            return Pair.of(leftWidened, rightWidened);
+            return IPair.of(leftWidened, rightWidened);
         } else {
-            return Pair.of(left, right);
+            return IPair.of(left, right);
         }
     }
 
@@ -3542,6 +3556,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return true if that annotation is part of the type system under which this type factory
      *     operates, false otherwise
      */
+    @EnsuresNonNullIf(expression = "#1", result = true)
     public boolean isSupportedQualifier(@Nullable AnnotationMirror a) {
         if (a == null) {
             return false;
@@ -4148,7 +4163,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param anno annotation class
      * @return the annotation mirror for anno
      */
-    public final AnnotationMirror getDeclAnnotationNoAliases(
+    public final @Nullable AnnotationMirror getDeclAnnotationNoAliases(
             Element elt, Class<? extends Annotation> anno) {
         return getDeclAnnotation(elt, anno, false);
     }
@@ -4200,12 +4215,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * method.
      *
      * @param elt the element to retrieve the annotation from
-     * @param annoClass the class the annotation to retrieve
+     * @param annoClass the class of the annotation to retrieve
      * @param checkAliases whether to return an annotation mirror for an alias of the requested
      *     annotation class name
      * @return the annotation mirror for the requested annotation, or null if not found
      */
-    private AnnotationMirror getDeclAnnotation(
+    private @Nullable AnnotationMirror getDeclAnnotation(
             Element elt, Class<? extends Annotation> annoClass, boolean checkAliases) {
         return getDeclAnnotation(elt, annoClass.getCanonicalName(), checkAliases);
     }
@@ -4434,9 +4449,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *     at {@code element}, and {@code metaAnno} is the annotation mirror (of type {@code
      *     metaAnnotationClass}) used to meta-annotate the declaration of {@code anno}
      */
-    public List<Pair<AnnotationMirror, AnnotationMirror>> getDeclAnnotationWithMetaAnnotation(
+    public List<IPair<AnnotationMirror, AnnotationMirror>> getDeclAnnotationWithMetaAnnotation(
             Element element, Class<? extends Annotation> metaAnnotationClass) {
-        List<Pair<AnnotationMirror, AnnotationMirror>> result = new ArrayList<>();
+        List<IPair<AnnotationMirror, AnnotationMirror>> result = new ArrayList<>();
         AnnotationMirrorSet annotationMirrors = getDeclAnnotations(element);
 
         for (AnnotationMirror candidate : annotationMirrors) {
@@ -4467,10 +4482,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                                 AnnotationUtils.getElementValueArray(
                                         candidate, "value", AnnotationMirror.class, false);
                         for (AnnotationMirror wrappedCandidate : wrappedCandidates) {
-                            result.add(Pair.of(wrappedCandidate, ma));
+                            result.add(IPair.of(wrappedCandidate, ma));
                         }
                     } else {
-                        result.add(Pair.of(candidate, ma));
+                        result.add(IPair.of(candidate, ma));
                     }
                 }
             }
@@ -4530,7 +4545,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *     at {@code element}, and {@code metaAnno} is the annotation mirror used to annotate {@code
      *     anno}.
      */
-    public List<Pair<AnnotationMirror, AnnotationMirror>> getAnnotationWithMetaAnnotation(
+    public List<IPair<AnnotationMirror, AnnotationMirror>> getAnnotationWithMetaAnnotation(
             Element element, Class<? extends Annotation> metaAnnotationClass) {
         AnnotationMirrorSet annotationMirrors = new AnnotationMirrorSet();
         // Consider real annotations.
@@ -4538,7 +4553,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // Consider declaration annotations
         annotationMirrors.addAll(getDeclAnnotations(element));
 
-        List<Pair<AnnotationMirror, AnnotationMirror>> result = new ArrayList<>();
+        List<IPair<AnnotationMirror, AnnotationMirror>> result = new ArrayList<>();
 
         // Go through all annotations found.
         for (AnnotationMirror annotation : annotationMirrors) {
@@ -4546,7 +4561,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     annotation.getAnnotationType().asElement().getAnnotationMirrors();
             for (AnnotationMirror a : annotationsOnAnnotation) {
                 if (areSameByClass(a, metaAnnotationClass)) {
-                    result.add(Pair.of(annotation, a));
+                    result.add(IPair.of(annotation, a));
                 }
             }
         }
@@ -4866,7 +4881,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return the functional interface and the function type that this method reference or lambda
      *     targets
      */
-    public Pair<AnnotatedTypeMirror, AnnotatedExecutableType> getFnInterfaceFromTree(Tree tree) {
+    public IPair<AnnotatedTypeMirror, AnnotatedExecutableType> getFnInterfaceFromTree(Tree tree) {
         // Functional interface
         AnnotatedTypeMirror functionalInterfaceType = getFunctionalInterfaceType(tree);
         if (functionalInterfaceType.getKind() == TypeKind.DECLARED) {
@@ -4882,7 +4897,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // Function type
         AnnotatedExecutableType functionType =
                 AnnotatedTypes.asMemberOf(types, this, functionalInterfaceType, fnElement);
-        return Pair.of(functionalInterfaceType, functionType);
+        return IPair.of(functionalInterfaceType, functionType);
     }
 
     /**
@@ -5735,7 +5750,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     // TODO: generalize.  There is no reason this couldn't handle arbitrary addition and subtraction
     // expressions, given the Index Checker's support for OffsetEquation.  That might even make its
     // implementation simpler.
-    public static Pair<String, String> getExpressionAndOffset(String expression) {
+    public static IPair<String, String> getExpressionAndOffset(String expression) {
         String expr = expression;
         String offset = "0";
 
@@ -5764,7 +5779,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         expr = expr.intern();
         offset = offset.intern();
 
-        return Pair.of(expr, offset);
+        return IPair.of(expr, offset);
     }
 
     /**
@@ -5932,9 +5947,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos methodAnnos,
         Collection<WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos> inSupertypes,
         Collection<WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos> inSubtypes) {
-      Map<String, Pair<AnnotatedTypeMirror, AnnotatedTypeMirror>> precondMap =
+      Map<String, IPair<AnnotatedTypeMirror, AnnotatedTypeMirror>> precondMap =
           methodAnnos.getPreconditions();
-      Map<String, Pair<AnnotatedTypeMirror, AnnotatedTypeMirror>> postcondMap =
+      Map<String, IPair<AnnotatedTypeMirror, AnnotatedTypeMirror>> postcondMap =
           methodAnnos.getPostconditions();
       for (WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos inSupertype :
           inSupertypes) {
@@ -5967,20 +5982,20 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     /* NO-AFU
     protected void makeConditionConsistentWithOtherMethod(
-        Map<String, Pair<AnnotatedTypeMirror, AnnotatedTypeMirror>> conditionMap,
+        Map<String, IPair<AnnotatedTypeMirror, AnnotatedTypeMirror>> conditionMap,
         WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos otherDeclAnnos,
         boolean isPrecondition,
         boolean otherIsSupertype) {
-      for (Map.Entry<String, Pair<AnnotatedTypeMirror, AnnotatedTypeMirror>> entry :
+      for (Map.Entry<String, IPair<AnnotatedTypeMirror, AnnotatedTypeMirror>> entry :
           conditionMap.entrySet()) {
         String expr = entry.getKey();
-        Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> pair = entry.getValue();
+        IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> pair = entry.getValue();
         AnnotatedTypeMirror inferredType = pair.first;
         AnnotatedTypeMirror declaredType = pair.second;
         if (otherIsSupertype ? isPrecondition : !isPrecondition) {
           // other is a supertype & compare preconditions, or
           // other is a subtype & compare postconditions.
-          Map<String, Pair<AnnotatedTypeMirror, AnnotatedTypeMirror>> otherConditionMap =
+          Map<String, IPair<AnnotatedTypeMirror, AnnotatedTypeMirror>> otherConditionMap =
               isPrecondition ? otherDeclAnnos.getPreconditions() : otherDeclAnnos.getPostconditions();
           // TODO: Complete support for "every expression" conditions, then remove the
           // `!otherConditionMap.containsKey(expr)` test.

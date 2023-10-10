@@ -31,6 +31,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
 import org.checkerframework.framework.util.JavaExpressionParseUtil;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.List;
@@ -223,7 +224,8 @@ public class I18nFormatterTreeUtil {
         checker.reportWarning(res.location, msgKey, args);
     }
 
-    private I18nConversionCategory[] asFormatCallCategoriesLowLevel(MethodInvocationNode node) {
+    private I18nConversionCategory @Nullable [] asFormatCallCategoriesLowLevel(
+            MethodInvocationNode node) {
         Node vararg = node.getArgument(1);
         if (vararg instanceof ArrayCreationNode) {
             List<Node> convs = ((ArrayCreationNode) vararg).getInitializers();
@@ -320,6 +322,7 @@ public class I18nFormatterTreeUtil {
          * @param tree method invocation tree
          * @param atypeFactory type factory
          */
+        @SuppressWarnings("nullness:initialization.fields.uninitialized")
         public I18nFormatCall(MethodInvocationTree tree, AnnotatedTypeFactory atypeFactory) {
             this.tree = tree;
             this.atypeFactory = atypeFactory;
@@ -554,7 +557,7 @@ public class I18nFormatterTreeUtil {
                 case DOUBLE:
                     return Double.class;
                 default:
-                    return null;
+                    throw new BugInCF("unknown primitive type " + t);
             }
         }
 
@@ -565,16 +568,16 @@ public class I18nFormatterTreeUtil {
                             new SimpleElementVisitor8<Class<? extends Object>, Class<Void>>() {
                                 @Override
                                 public Class<? extends Object> visitType(
-                                        TypeElement e, Class<Void> v) {
+                                        TypeElement te, Class<Void> v) {
                                     try {
                                         @SuppressWarnings(
                                                 "signature") // https://tinyurl.com/cfissue/658:
                                         // Name.toString should be @PolySignature
-                                        @BinaryName String cname = e.getQualifiedName().toString();
+                                        @BinaryName String cname = te.getQualifiedName().toString();
                                         return Class.forName(cname);
-                                    } catch (ClassNotFoundException e1) {
+                                    } catch (ClassNotFoundException e) {
                                         // The lookup should work for all the classes we care about.
-                                        return null;
+                                        throw new Error(e);
                                     }
                                 }
                             },

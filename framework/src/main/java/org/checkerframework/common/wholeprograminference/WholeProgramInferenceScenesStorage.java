@@ -44,9 +44,9 @@ import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
-import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.IPair;
 
 import java.io.File;
 import java.io.IOException;
@@ -974,7 +974,7 @@ public class WholeProgramInferenceScenesStorage
             // firstKey works as a unique identifier for each annotation
             // that should not be inserted in source code
             String firstKey = aTypeElementToString(typeToUpdate);
-            Pair<String, TypeUseLocation> key = Pair.of(firstKey, defLoc);
+            IPair<String, TypeUseLocation> key = IPair.of(firstKey, defLoc);
             Set<String> annosIgnored = annosToIgnore.get(key);
             if (annosIgnored == null) {
                 annosIgnored = new HashSet<>(CollectionsPlume.mapCapacity(1));
@@ -1001,7 +1001,7 @@ public class WholeProgramInferenceScenesStorage
      * TypeUseLocation to a set of names of annotations.
      */
     public static class AnnotationsInContexts
-            extends HashMap<Pair<String, TypeUseLocation>, Set<String>> {
+            extends HashMap<IPair<String, TypeUseLocation>, Set<String>> {
         private static final long serialVersionUID = 20200321L;
     }
 

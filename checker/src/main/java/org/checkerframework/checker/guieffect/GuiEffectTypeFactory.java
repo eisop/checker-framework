@@ -9,6 +9,7 @@ import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.ParenthesizedTree;
 import com.sun.source.tree.Tree;
 
+import org.checkerframework.checker.guieffect.Effect.EffectRange;
 import org.checkerframework.checker.guieffect.qual.AlwaysSafe;
 import org.checkerframework.checker.guieffect.qual.PolyUI;
 import org.checkerframework.checker.guieffect.qual.PolyUIEffect;
@@ -19,6 +20,7 @@ import org.checkerframework.checker.guieffect.qual.UI;
 import org.checkerframework.checker.guieffect.qual.UIEffect;
 import org.checkerframework.checker.guieffect.qual.UIPackage;
 import org.checkerframework.checker.guieffect.qual.UIType;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
@@ -71,6 +73,16 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
      * if it had been annotated with @UI.
      */
     protected final Set<TypeElement> uiAnonClasses = new HashSet<>();
+
+    /** The @{@link AlwaysSafe} annotation. */
+    protected final AnnotationMirror ALWAYSSAFE =
+            AnnotationBuilder.fromClass(elements, AlwaysSafe.class);
+
+    /** The @{@link PolyUI} annotation. */
+    protected final AnnotationMirror POLYUI = AnnotationBuilder.fromClass(elements, PolyUI.class);
+
+    /** The @{@link UI} annotation. */
+    protected final AnnotationMirror UI = AnnotationBuilder.fromClass(elements, UI.class);
 
     public GuiEffectTypeFactory(BaseTypeChecker checker, boolean spew) {
         // use true to enable flow inference, false to disable it
@@ -250,7 +262,7 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
             }
 
             if (canInheritParentEffects) {
-                Effect.EffectRange r = findInheritedEffectRange(targetClassElt, methodElt);
+                EffectRange r = findInheritedEffectRange(targetClassElt, methodElt);
                 return (r != null ? Effect.min(r.min, r.max) : new Effect(SafeEffect.class));
             }
         }
@@ -380,7 +392,7 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     // Only the visitMethod call should pass true for warnings
-    public Effect.EffectRange findInheritedEffectRange(
+    public EffectRange findInheritedEffectRange(
             TypeElement declaringType, ExecutableElement overridingMethod) {
         return findInheritedEffectRange(declaringType, overridingMethod, false, null);
     }
@@ -402,9 +414,9 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
      * @param overridingMethod the method override itself
      * @param issueConflictWarning whether or not to issue warnings
      * @param errorTree the method declaration AST node; used for reporting errors
-     * @return the min and max inherited effects
+     * @return the min and max inherited effects, or null if none were discovered
      */
-    public Effect.EffectRange findInheritedEffectRange(
+    public @Nullable EffectRange findInheritedEffectRange(
             TypeElement declaringType,
             ExecutableElement overridingMethod,
             boolean issueConflictWarning,
@@ -534,7 +546,7 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
         if (min == null && max == null) {
             return null;
         } else {
-            return new Effect.EffectRange(min, max);
+            return new EffectRange(min, max);
         }
     }
 
@@ -619,15 +631,11 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
 
             // STEP 2: Fix up the method receiver annotation
             AnnotatedTypeMirror.AnnotatedDeclaredType receiverType = methType.getReceiverType();
-            if (receiverType != null
-                    && !receiverType.isAnnotatedInHierarchy(
-                            AnnotationBuilder.fromClass(elements, UI.class))) {
+            if (receiverType != null && !receiverType.hasAnnotationInHierarchy(UI)) {
                 receiverType.addAnnotation(
                         isPolymorphicType(cls)
-                                ? PolyUI.class
-                                : fromElement(cls).hasAnnotation(UI.class)
-                                        ? UI.class
-                                        : AlwaysSafe.class);
+                                ? POLYUI
+                                : fromElement(cls).hasAnnotation(UI.class) ? UI : ALWAYSSAFE);
             }
             return super.visitMethod(tree, type);
         }

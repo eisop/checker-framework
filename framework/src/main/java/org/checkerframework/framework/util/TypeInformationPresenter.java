@@ -20,6 +20,7 @@ import com.sun.source.util.SourcePositions;
 import com.sun.source.util.TreeScanner;
 import com.sun.tools.javac.tree.JCTree;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.flow.CFAbstractStore;
@@ -51,7 +52,7 @@ public class TypeInformationPresenter {
      * instance of GenericAnnotatedTypeFactory; otherwise, factory and genFactory refer to the same
      * object.
      */
-    private final GenericAnnotatedTypeFactory<
+    private final @Nullable GenericAnnotatedTypeFactory<
                     ? extends CFAbstractValue<?>,
                     ? extends CFAbstractStore<? extends CFAbstractValue<?>, ?>,
                     ? extends CFAbstractTransfer<?, ?, ?>,
@@ -246,7 +247,7 @@ public class TypeInformationPresenter {
          * @param tree the tree for which we want to compute the message range
          * @return a message range corresponds to the tree
          */
-        private MessageRange computeMessageRange(Tree tree) {
+        private @Nullable MessageRange computeMessageRange(Tree tree) {
             long startPos = sourcePositions.getStartPosition(currentRoot, tree);
             long endPos = sourcePositions.getEndPosition(currentRoot, tree);
             if (startPos == Diagnostic.NOPOS || endPos == Diagnostic.NOPOS) {

@@ -27,6 +27,7 @@ import org.checkerframework.checker.index.qual.Positive;
 import org.checkerframework.checker.index.qual.SubstringIndexFor;
 import org.checkerframework.checker.index.searchindex.SearchIndexAnnotatedTypeFactory;
 import org.checkerframework.checker.index.searchindex.SearchIndexChecker;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signedness.qual.SignedPositive;
 import org.checkerframework.checker.signedness.qual.SignednessGlb;
 import org.checkerframework.common.basetype.BaseTypeChecker;
@@ -165,7 +166,7 @@ public class LowerBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
     private void addLowerBoundTypeFromValueType(
             AnnotatedTypeMirror valueType, AnnotatedTypeMirror type) {
         AnnotationMirror anm = getLowerBoundAnnotationFromValueType(valueType);
-        if (!type.isAnnotatedInHierarchy(UNKNOWN)) {
+        if (!type.hasAnnotationInHierarchy(UNKNOWN)) {
             if (!areSameByClass(anm, LowerBoundUnknown.class)) {
                 type.addAnnotation(anm);
             }
@@ -244,7 +245,7 @@ public class LowerBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
     }
 
     /** Determine the annotation that should be associated with a literal. */
-    AnnotationMirror anmFromVal(long val) {
+    /*package-private*/ AnnotationMirror anmFromVal(long val) {
         if (val >= 1) {
             return POS;
         } else if (val >= 0) {
@@ -399,7 +400,7 @@ public class LowerBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
      * Looks up the minlen of a member select tree. Returns null if the tree doesn't represent an
      * array's length field.
      */
-    Integer getMinLenFromMemberSelectTree(MemberSelectTree tree) {
+    /*package-private*/ @Nullable Integer getMinLenFromMemberSelectTree(MemberSelectTree tree) {
         if (TreeUtils.isArrayLengthAccess(tree)) {
             return ValueCheckerUtils.getMinLenFromTree(tree, getValueAnnotatedTypeFactory());
         }
@@ -410,7 +411,8 @@ public class LowerBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
      * Looks up the minlen of a method invocation tree. Returns null if the tree doesn't represent
      * an string length method.
      */
-    Integer getMinLenFromMethodInvocationTree(MethodInvocationTree tree) {
+    /*package-private*/ @Nullable Integer getMinLenFromMethodInvocationTree(
+            MethodInvocationTree tree) {
         if (imf.isLengthOfMethodInvocation(tree)) {
             return ValueCheckerUtils.getMinLenFromTree(tree, getValueAnnotatedTypeFactory());
         }
@@ -427,7 +429,8 @@ public class LowerBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
      * @return an AnnotationMirror representing the result if the special case is valid, or null if
      *     not
      */
-    AnnotationMirror checkForMathRandomSpecialCase(NumericalMultiplicationNode node) {
+    /*package-private*/ @Nullable AnnotationMirror checkForMathRandomSpecialCase(
+            NumericalMultiplicationNode node) {
         AnnotationMirror forwardRes =
                 checkForMathRandomSpecialCase(
                         node.getLeftOperand().getTree(), node.getRightOperand().getTree());
@@ -444,10 +447,11 @@ public class LowerBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
     }
 
     /**
-     * Return true if randTree is a call to Math.random() or Random.nextDouble(), and arrLenTree is
-     * someArray.length.
+     * Return a non-null value if randTree is a call to Math.random() or Random.nextDouble(), and
+     * arrLenTree is someArray.length.
      */
-    private AnnotationMirror checkForMathRandomSpecialCase(Tree randTree, Tree arrLenTree) {
+    private @Nullable AnnotationMirror checkForMathRandomSpecialCase(
+            Tree randTree, Tree arrLenTree) {
         if (randTree.getKind() == Tree.Kind.METHOD_INVOCATION
                 && TreeUtils.isArrayLengthAccess(arrLenTree)) {
             MethodInvocationTree miTree = (MethodInvocationTree) randTree;

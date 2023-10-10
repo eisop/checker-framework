@@ -17,6 +17,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
 
+import javax.lang.model.util.Types;
+
 /** A wrapper object to pass around the result of phase one. */
 public class PhaseOneResult {
 
@@ -74,6 +76,9 @@ public class PhaseOneResult {
      */
     /*package-private*/ final List<LambdaExpressionTree> declaredLambdas;
 
+    /** The javac type utilities. */
+    /*package-private*/ final Types types;
+
     /**
      * Create a PhaseOneResult with the given data.
      *
@@ -89,6 +94,7 @@ public class PhaseOneResult {
      * @param exceptionalExitLabel the exceptional exit labels
      * @param declaredClasses the declared classes
      * @param declaredLambdas the declared lambdas
+     * @param types the javac type utilities
      */
     public PhaseOneResult(
             UnderlyingAST underlyingAST,
@@ -102,7 +108,8 @@ public class PhaseOneResult {
             Label regularExitLabel,
             Label exceptionalExitLabel,
             List<ClassTree> declaredClasses,
-            List<LambdaExpressionTree> declaredLambdas) {
+            List<LambdaExpressionTree> declaredLambdas,
+            Types types) {
         this.underlyingAST = underlyingAST;
         this.treeToCfgNodes = treeToCfgNodes;
         this.treeToConvertedCfgNodes = treeToConvertedCfgNodes;
@@ -115,6 +122,7 @@ public class PhaseOneResult {
         this.exceptionalExitLabel = exceptionalExitLabel;
         this.declaredClasses = declaredClasses;
         this.declaredLambdas = declaredLambdas;
+        this.types = types;
     }
 
     @Override

@@ -218,7 +218,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
      * @return the initialized element, or null
      */
     @SuppressWarnings("UnusedMethod")
-    private Element initializedElement(Tree varTree) {
+    private @Nullable Element initializedElement(Tree varTree) {
         switch (varTree.getKind()) {
             case VARIABLE:
                 // It's a variable declaration.

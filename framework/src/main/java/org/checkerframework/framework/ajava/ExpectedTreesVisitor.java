@@ -114,8 +114,7 @@ public class ExpectedTreesVisitor extends TreeScannerWithDefaults {
                     trees.remove(constructor.getIdentifier());
                 }
             }
-            // RECORD was added in Java 14, so use string comparison to be JDK 8,11 compatible:
-        } else if (tree.getKind().name().equals("RECORD")) {
+        } else if (TreeUtils.isRecordTree(tree)) {
             // A record like:
             //   record MyRec(String myField) {}
             // will be expanded by javac to:

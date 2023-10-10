@@ -10,6 +10,7 @@ import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.plumelib.util.IPair;
 
 import java.util.EnumSet;
 import java.util.Iterator;
@@ -230,7 +231,7 @@ public final class TreePathUtil {
      * @return a pair of a non-parenthesis tree that contains the argument, and its child that is
      *     the argument or is a parenthesized version of it
      */
-    public static Pair<Tree, Tree> enclosingNonParen(TreePath path) {
+    public static IPair<Tree, Tree> enclosingNonParen(TreePath path) {
         TreePath parentPath = path.getParentPath();
         Tree enclosing = parentPath.getLeaf();
         Tree enclosingChild = path.getLeaf();
@@ -239,7 +240,7 @@ public final class TreePathUtil {
             enclosingChild = enclosing;
             enclosing = parentPath.getLeaf();
         }
-        return Pair.of(enclosing, enclosingChild);
+        return IPair.of(enclosing, enclosingChild);
     }
 
     /**
