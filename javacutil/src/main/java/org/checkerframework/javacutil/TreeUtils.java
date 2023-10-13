@@ -1821,6 +1821,21 @@ public final class TreeUtils {
   }
 
   /**
+   * Returns true if the passed constructor is anonymous and has an explicit enclosing expression.
+   *
+   * @param con an ExecutableElement of a constructor declaration
+   * @param tree the NewClassTree of a constructor declaration
+   * @return true if there is an extra enclosing expression
+   */
+  public static boolean isAnonymousConstructorWithExplicitEnclosingExpression(
+      ExecutableElement con, NewClassTree tree) {
+
+    return (tree.getEnclosingExpression() != null)
+        && con.getKind() == ElementKind.CONSTRUCTOR
+        && ((TypeElement) con.getEnclosingElement()).getNestingKind() == NestingKind.ANONYMOUS;
+  }
+
+  /**
    * Returns true if the given {@link MethodTree} is a compact canonical constructor (the
    * constructor for a record where the parameters are implicitly declared and implicitly assigned
    * to the record's fields). This may be an explicitly declared compact canonical constructor or an
@@ -2656,6 +2671,19 @@ public final class TreeUtils {
 
     TypeMirror varargsParamType = parameters.get(parameters.size() - 1).asType();
     return TypesUtils.getArrayDepth(varargsParamType) != TypesUtils.getArrayDepth(lastArgType);
+  }
+
+  /**
+   * Determine whether the given tree is of Kind RECORD, in a way that works on all versions of
+   * Java.
+   *
+   * @param tree the tree to get the kind for
+   * @return whether the tree is of the kind RECORD
+   */
+  public static boolean isRecordTree(Tree tree) {
+    Tree.Kind kind = tree.getKind();
+    // Must use String comparison because we may be on an older JDK:
+    return kind.name().equals("RECORD");
   }
 
   /**
