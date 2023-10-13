@@ -4,82 +4,82 @@ import org.checkerframework.checker.nullness.qual.*;
 // This test is broken as it uses multiple classes.  Javac halts when seeing the first error
 public class RawSuper {
 
-  class A {
-    @NonNull Object afield;
+    class A {
+        @NonNull Object afield;
 
-    A() {
-      super();
-      mRA(this);
-      // :: error: (type.incompatible)
-      mA(this);
-      afield = new Object();
-      mRA(this);
-      mA(this);
+        A() {
+            super();
+            mRA(this);
+            // :: error: (type.incompatible)
+            mA(this);
+            afield = new Object();
+            mRA(this);
+            mA(this);
+        }
+
+        A(int ignore) {
+            this.raw();
+            afield = new Object();
+        }
+
+        void raw(A this) {}
+
+        void nonRaw() {}
     }
 
-    A(int ignore) {
-      this.raw();
-      afield = new Object();
+    class B extends A {
+        @NonNull Object bfield;
+
+        B() {
+            mRA(this);
+            mA(this);
+            mRB(this);
+            // :: error: (type.incompatible)
+            mB(this);
+            bfield = new Object();
+            mRA(this);
+            mA(this);
+            mRB(this);
+            mB(this);
+        }
+
+        void raw(B this) {
+            // :: error: (type.incompatible)
+            super.nonRaw();
+        }
     }
 
-    void raw(A this) {}
+    // This test may be extraneous
+    class C extends B {
+        @NonNull Object cfield;
 
-    void nonRaw() {}
-  }
-
-  class B extends A {
-    @NonNull Object bfield;
-
-    B() {
-      mRA(this);
-      mA(this);
-      mRB(this);
-      // :: error: (type.incompatible)
-      mB(this);
-      bfield = new Object();
-      mRA(this);
-      mA(this);
-      mRB(this);
-      mB(this);
+        C() {
+            mRA(this);
+            mA(this);
+            mRB(this);
+            mB(this);
+            mRC(this);
+            // :: error: (type.incompatible)
+            mC(this);
+            cfield = new Object();
+            mRA(this);
+            mA(this);
+            mRB(this);
+            mB(this);
+            mRC(this);
+            mC(this);
+        }
     }
 
-    void raw(B this) {
-      // :: error: (type.incompatible)
-      super.nonRaw();
-    }
-  }
+    void mA(A a) {}
 
-  // This test may be extraneous
-  class C extends B {
-    @NonNull Object cfield;
+    void mRA(A a) {}
 
-    C() {
-      mRA(this);
-      mA(this);
-      mRB(this);
-      mB(this);
-      mRC(this);
-      // :: error: (type.incompatible)
-      mC(this);
-      cfield = new Object();
-      mRA(this);
-      mA(this);
-      mRB(this);
-      mB(this);
-      mRC(this);
-      mC(this);
-    }
-  }
+    void mB(B b) {}
 
-  void mA(A a) {}
+    void mRB(B b) {}
 
-  void mRA(A a) {}
+    void mC(C c) {}
 
-  void mB(B b) {}
-
-  void mRB(B b) {}
-
-  void mC(C c) {}
-
-  void mRC(C c) {}
+    void mRC(C c) {}
 }
