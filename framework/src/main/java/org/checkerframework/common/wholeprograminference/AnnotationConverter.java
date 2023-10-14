@@ -98,7 +98,7 @@ public class AnnotationConverter {
      */
     protected static AnnotationMirror annotationToAnnotationMirror(
             Annotation anno, ProcessingEnvironment processingEnv) {
-        final AnnotationBuilder builder =
+        AnnotationBuilder builder =
                 new AnnotationBuilder(
                         processingEnv, Signatures.binaryNameToFullyQualified(anno.def().name));
         for (String fieldKey : anno.fieldValues.keySet()) {
@@ -128,7 +128,7 @@ public class AnnotationConverter {
         switch (tm.getKind()) {
             case BOOLEAN:
                 return BasicAFT.forType(boolean.class);
-                // Primitves
+                // Primitives
             case BYTE:
                 return BasicAFT.forType(byte.class);
             case CHAR:

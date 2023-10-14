@@ -34,11 +34,11 @@ echo "JAVA_HOME=${JAVA_HOME}"
 # Using `(cd "$CHECKERFRAMEWORK" && ./gradlew getPlumeScripts -q)` leads to infinite regress.
 PLUME_SCRIPTS="$CHECKERFRAMEWORK/checker/bin-devel/.plume-scripts"
 if [ -d "$PLUME_SCRIPTS" ] ; then
-  (cd "$PLUME_SCRIPTS" && git pull -q)
+  (cd "$PLUME_SCRIPTS" && (git pull -q || true))
 else
   (cd "$CHECKERFRAMEWORK/checker/bin-devel" && \
       (git clone --depth 1 -q https://github.com/eisop-plume-lib/plume-scripts.git .plume-scripts || \
-       git clone --depth 1 -q https://github.com/eisop-plume-lib/plume-scripts.git .plume-scripts))
+       (sleep 1m && git clone --depth 1 -q https://github.com/eisop-plume-lib/plume-scripts.git .plume-scripts)))
 fi
 
 # Clone the annotated JDK into ../jdk .
@@ -84,8 +84,6 @@ if [[ "$version" -ge 9 ]]; then
   echo "Running:  (cd ../jspecify/ && ./gradlew assemble)"
   # If failure, retry in case the failure was due to network lossage.
   (cd ../jspecify/ && \
-    # Temporarily, until a gradle 8.1 release is used, to allow JDK 20 tests to pass.
-    sed -i "s/gradle-8.0-bin/gradle-8.1-rc-1-bin/" gradle/wrapper/gradle-wrapper.properties && \
     export JDK_JAVA_OPTIONS='--add-opens jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED' && \
     (./gradlew assemble || (sleep 60 && ./gradlew assemble)))
   echo "... done: (cd ../jspecify/ && ./gradlew assemble)"
@@ -95,8 +93,8 @@ fi
 ## Compile
 
 # Download dependencies, trying a second time if there is a failure.
-(./gradlew --write-verification-metadata sha256 help --dry-run ||
-     (sleep 60 && ./gradlew --write-verification-metadata sha256 help --dry-run))
+(TERM=dumb timeout 300 ./gradlew --write-verification-metadata sha256 help --dry-run || \
+     (sleep 1m && ./gradlew --write-verification-metadata sha256 help --dry-run))
 
 echo "running \"./gradlew assembleForJavac\" for checker-framework"
 ./gradlew assembleForJavac --console=plain --warning-mode=all -s -Dorg.gradle.internal.http.socketTimeout=60000 -Dorg.gradle.internal.http.connectionTimeout=60000

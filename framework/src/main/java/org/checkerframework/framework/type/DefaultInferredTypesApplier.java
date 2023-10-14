@@ -21,19 +21,20 @@ public class DefaultInferredTypesApplier {
     private final boolean omitSubtypingCheck;
 
     private final QualifierHierarchy hierarchy;
-    private final AnnotatedTypeFactory factory;
+    private final AnnotatedTypeFactory atypeFactory;
 
-    public DefaultInferredTypesApplier(QualifierHierarchy hierarchy, AnnotatedTypeFactory factory) {
-        this(false, hierarchy, factory);
+    public DefaultInferredTypesApplier(
+            QualifierHierarchy hierarchy, AnnotatedTypeFactory atypeFactory) {
+        this(false, hierarchy, atypeFactory);
     }
 
     public DefaultInferredTypesApplier(
             boolean omitSubtypingCheck,
             QualifierHierarchy hierarchy,
-            AnnotatedTypeFactory factory) {
+            AnnotatedTypeFactory atypeFactory) {
         this.omitSubtypingCheck = omitSubtypingCheck;
         this.hierarchy = hierarchy;
-        this.factory = factory;
+        this.atypeFactory = atypeFactory;
     }
 
     /**
@@ -45,8 +46,8 @@ public class DefaultInferredTypesApplier {
      * @param inferredTypeMirror underlying inferred type
      */
     public void applyInferredType(
-            final AnnotatedTypeMirror type,
-            final AnnotationMirrorSet inferredSet,
+            AnnotatedTypeMirror type,
+            AnnotationMirrorSet inferredSet,
             TypeMirror inferredTypeMirror) {
         if (inferredSet == null) {
             return;
@@ -59,7 +60,7 @@ public class DefaultInferredTypesApplier {
                 inferredTypeMirror = ((WildcardType) inferredTypeMirror).getExtendsBound();
             }
         }
-        for (final AnnotationMirror top : hierarchy.getTopAnnotations()) {
+        for (AnnotationMirror top : hierarchy.getTopAnnotations()) {
             AnnotationMirror inferred = hierarchy.findAnnotationInHierarchy(inferredSet, top);
 
             apply(type, inferred, inferredTypeMirror, top);
@@ -109,7 +110,7 @@ public class DefaultInferredTypesApplier {
 
         TypeVariable typeVar = (TypeVariable) inferredTypeMirror;
         AnnotatedTypeVariable typeVariableDecl =
-                (AnnotatedTypeVariable) factory.getAnnotatedType(typeVar.asElement());
+                (AnnotatedTypeVariable) atypeFactory.getAnnotatedType(typeVar.asElement());
         AnnotationMirror upperBound = typeVariableDecl.getEffectiveAnnotationInHierarchy(top);
 
         if (omitSubtypingCheck || hierarchy.isSubtype(upperBound, notInferred)) {
@@ -127,7 +128,7 @@ public class DefaultInferredTypesApplier {
         }
         TypeVariable typeVar = (TypeVariable) inferredTypeMirror;
         AnnotatedTypeVariable typeVariableDecl =
-                (AnnotatedTypeVariable) factory.getAnnotatedType(typeVar.asElement());
+                (AnnotatedTypeVariable) atypeFactory.getAnnotatedType(typeVar.asElement());
         AnnotationMirror upperBound = typeVariableDecl.getEffectiveAnnotationInHierarchy(top);
         if (omitSubtypingCheck || hierarchy.isSubtype(upperBound, previousAnnotation)) {
             // TODO: clean up this method and whole class.

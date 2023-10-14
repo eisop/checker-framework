@@ -64,9 +64,10 @@ dependencies {
     // External dependencies:
     // If you add an external dependency, you must shadow its packages.
     // See the comment in ../build.gradle in the shadowJar block.
+    implementation "org.plumelib:hashmap-util:${hashmapUtilVersion}"
     implementation "org.plumelib:plume-util:${plumeUtilVersion}"
     implementation "org.plumelib:reflection-util:${reflectionUtilVersion}"
-    implementation 'io.github.classgraph:classgraph:4.8.161'
+    implementation 'io.github.classgraph:classgraph:4.8.162'
 
     testImplementation "junit:junit:${junitVersion}"
     testImplementation project(':framework-test')

@@ -45,6 +45,7 @@ import java.util.List;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 
@@ -64,7 +65,7 @@ import javax.lang.model.type.TypeMirror;
  *   <li>{@code UnaryTree}
  * </ul>
  *
- * Other expressions are in fact type trees and their annotataed type mirrors are computed as type
+ * Other expressions are in fact type trees and their annotated type mirrors are computed as type
  * trees:
  *
  * <ul>
@@ -253,6 +254,7 @@ class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
         }
         switch (ElementUtils.getKindRecordAsClass(elt)) {
             case METHOD:
+            case CONSTRUCTOR: // x0.super() in anoymous classes
             case PACKAGE: // "java.lang" in new java.lang.Short("2")
             case CLASS: // o instanceof MyClass.InnerClass
             case ENUM:
@@ -267,10 +269,33 @@ class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
             // Tree is "MyClass.this", where "MyClass" may be the innermost enclosing type or any
             // outer type.
             return f.getEnclosingType(TypesUtils.getTypeElement(TreeUtils.typeOf(tree)), tree);
+        } else if (tree.getIdentifier().contentEquals("super")) {
+            // Tree is "MyClass.super", where "MyClass" may be the innermost enclosing type or any
+            // outer type.
+            TypeMirror superTypeMirror = TreeUtils.typeOf(tree);
+            TypeElement superTypeElement = TypesUtils.getTypeElement(superTypeMirror);
+            AnnotatedDeclaredType thisType = f.getEnclosingSubType(superTypeElement, tree);
+            return AnnotatedTypes.asSuper(
+                    f, thisType, AnnotatedTypeMirror.createType(superTypeMirror, f, false));
         } else {
             // tree must be a field access, so get the type of the expression, and then call
             // asMemberOf.
-            AnnotatedTypeMirror t = f.getAnnotatedType(tree.getExpression());
+            AnnotatedTypeMirror t;
+            if (f instanceof GenericAnnotatedTypeFactory) {
+                // If calling GenericAnnotatedTypeFactory#getAnnotatedTypeLhs(Tree lhsTree) to
+                // get the type of this MemberSelectTree, flow refinement is disabled. However,
+                // we want the receiver to have the refined type because type
+                // systems can use receiver-dependent qualifiers for viewpoint adaptation.
+                // Thus, we re-enable the flow refinement for a while just for the receiver
+                // expression.
+                // See framework/tests/viewpointtest/TestGetAnnotatedLhs.java for a concrete
+                // example.
+                t =
+                        ((GenericAnnotatedTypeFactory<?, ?, ?, ?>) f)
+                                .getAnnotatedTypeWithReceiverRefinement(tree.getExpression());
+            } else {
+                t = f.getAnnotatedType(tree.getExpression());
+            }
             t = f.applyCaptureConversion(t);
             return AnnotatedTypes.asMemberOf(f.types, f, t, elt).asUse();
         }
@@ -364,7 +389,7 @@ class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
      *       public MyClass() {}}).
      * </ul>
      *
-     * @param tree NewClassTree
+     * @param tree a NewClassTree
      * @param f the type factory
      * @return AnnotatedDeclaredType of {@code tree}
      */

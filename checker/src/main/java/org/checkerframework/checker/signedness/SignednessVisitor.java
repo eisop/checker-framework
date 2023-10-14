@@ -16,13 +16,11 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
-import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
-
-import java.util.Collections;
-import java.util.Set;
+import org.plumelib.util.IPair;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
@@ -81,7 +79,7 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
         ExpressionTree leftOp = tree.getLeftOperand();
         ExpressionTree rightOp = tree.getRightOperand();
 
-        Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> argTypes =
+        IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> argTypes =
                 atypeFactory.binaryTreeArgTypes(tree);
         AnnotatedTypeMirror leftOpType = argTypes.first;
         AnnotatedTypeMirror rightOpType = argTypes.second;
@@ -150,9 +148,9 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
             case PLUS:
                 if (TreeUtils.isStringConcatenation(tree)) {
                     AnnotationMirror leftAnno =
-                            leftOpType.getEffectiveAnnotations().iterator().next();
+                            leftOpType.getEffectiveAnnotationInHierarchy(atypeFactory.SIGNED);
                     AnnotationMirror rightAnno =
-                            rightOpType.getEffectiveAnnotations().iterator().next();
+                            rightOpType.getEffectiveAnnotationInHierarchy(atypeFactory.SIGNED);
 
                     // Note that leftOpType.getUnderlyingType() and rightOpType.getUnderlyingType()
                     // are always java.lang.String. Please refer to binaryTreeArgTypes for more
@@ -160,18 +158,13 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
                     // Here, the original types of operands can be something different from string.
                     // For example, "123" + obj is a string concatenation in which the original type
                     // of the right operand is java.lang.Object.
-                    TypeMirror leftOpOriginalType = TreeUtils.typeOf(leftOp);
-                    TypeMirror rightOpOriginalType = TreeUtils.typeOf(rightOp);
-
-                    if (!TypesUtils.isCharType(leftOpOriginalType)
-                            && !atypeFactory
-                                    .getQualifierHierarchy()
-                                    .isSubtype(leftAnno, atypeFactory.SIGNED)) {
+                    TypeMirror leftOpTM = TreeUtils.typeOf(leftOp);
+                    TypeMirror rightOpTM = TreeUtils.typeOf(rightOp);
+                    if (!TypesUtils.isCharType(leftOpTM)
+                            && !qualHierarchy.isSubtype(leftAnno, atypeFactory.SIGNED)) {
                         checker.reportError(leftOp, "unsigned.concat");
-                    } else if (!TypesUtils.isCharType(rightOpOriginalType)
-                            && !atypeFactory
-                                    .getQualifierHierarchy()
-                                    .isSubtype(rightAnno, atypeFactory.SIGNED)) {
+                    } else if (!TypesUtils.isCharType(rightOpTM)
+                            && !qualHierarchy.isSubtype(rightAnno, atypeFactory.SIGNED)) {
                         checker.reportError(rightOp, "unsigned.concat");
                     }
                     break;
@@ -292,7 +285,7 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
         ExpressionTree var = tree.getVariable();
         ExpressionTree expr = tree.getExpression();
 
-        Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> argTypes =
+        IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> argTypes =
                 atypeFactory.compoundAssignmentTreeArgTypes(tree);
         AnnotatedTypeMirror varType = argTypes.first;
         AnnotatedTypeMirror exprType = argTypes.second;
@@ -348,14 +341,13 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
                 if (TreeUtils.isStringCompoundConcatenation(tree)) {
                     // Note that exprType.getUnderlyingType() is always java.lang.String.
                     // Please refer to compoundAssignmentTreeArgTypes for more details.
-                    if (!TypesUtils.isCharType(TreeUtils.typeOf(expr))) {
-                        AnnotationMirror anno =
-                                exprType.getEffectiveAnnotations().iterator().next();
-                        if (!atypeFactory
-                                .getQualifierHierarchy()
-                                .isSubtype(anno, atypeFactory.SIGNED)) {
-                            checker.reportError(tree.getExpression(), "unsigned.concat");
-                        }
+                    if (TypesUtils.isCharType(TreeUtils.typeOf(expr))) {
+                        break;
+                    }
+                    AnnotationMirror anno =
+                            exprType.getEffectiveAnnotationInHierarchy(atypeFactory.SIGNED);
+                    if (!qualHierarchy.isSubtype(anno, atypeFactory.SIGNED)) {
+                        checker.reportError(tree.getExpression(), "unsigned.concat");
                     }
                     break;
                 }
@@ -393,8 +385,8 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
     }
 
     @Override
-    protected Set<? extends AnnotationMirror> getExceptionParameterLowerBoundAnnotations() {
-        return Collections.singleton(atypeFactory.SIGNED);
+    protected AnnotationMirrorSet getExceptionParameterLowerBoundAnnotations() {
+        return new AnnotationMirrorSet(atypeFactory.SIGNED);
     }
 
     @Override

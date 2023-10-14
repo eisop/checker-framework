@@ -28,7 +28,7 @@ public class SimpleFbc {
 
     void test2(@UnknownInitialization @NonNull SimpleFbc t) {
         // :: error: (assignment.type.incompatible)
-        @NonNull SimpleFbc a = t.f;
+        @Initialized @NonNull SimpleFbc a = t.f;
     }
 
     // check initialized-only semantics for fields

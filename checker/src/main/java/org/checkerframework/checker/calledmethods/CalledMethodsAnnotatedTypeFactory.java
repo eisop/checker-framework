@@ -97,7 +97,9 @@ public class CalledMethodsAnnotatedTypeFactory extends AccumulationAnnotatedType
             disabledFrameworks = new String[0];
         }
         enableFrameworks(disabledFrameworks);
+
         this.useValueChecker = checker.hasOption(CalledMethodsChecker.USE_VALUE_CHECKER);
+
         // Lombok generates @CalledMethods annotations using an old package name,
         // so we maintain it as an alias.
         addAliasedTypeAnnotation(
@@ -185,8 +187,7 @@ public class CalledMethodsAnnotatedTypeFactory extends AccumulationAnnotatedType
      *     Otherwise, return the first argument.
      */
     // This cannot return a Name because filterTreeToMethodName cannot.
-    public String adjustMethodNameUsingValueChecker(
-            final String methodName, final MethodInvocationTree tree) {
+    public String adjustMethodNameUsingValueChecker(String methodName, MethodInvocationTree tree) {
         if (!useValueChecker) {
             return methodName;
         }

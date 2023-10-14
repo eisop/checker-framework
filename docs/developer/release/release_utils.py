@@ -239,7 +239,7 @@ def push_changes_prompt_if_fail(repo_root):
                 + repo_root
                 + "; result="
                 + str(result)
-                + " for command: "
+                + " for command: `"
                 + cmd
                 + "` in "
                 + os.getcwd()
@@ -557,7 +557,7 @@ http://eisop.github.io/
 
 Changes for Checker Framework version %s:
 
-<<Insert latest Checker Framework changelog entry, omitting the first line with the release version and date, and with hard line breaks removed>>
+<<Insert latest Checker Framework changelog entry from https://github.com/eisop/checker-framework/blob/master/docs/CHANGELOG.md, preserving its formatting.>>
 """ % (
         version,
         version,

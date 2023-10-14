@@ -260,7 +260,7 @@ public class TestConfigurationBuilder {
             errors.add("No processors were specified!");
         }
 
-        final Map<String, @Nullable String> optionMap = options.getOptions();
+        Map<String, @Nullable String> optionMap = options.getOptions();
         if (!optionMap.containsKey("-d") || optionMap.get("-d") == null) {
             errors.add("No output directory was specified.");
         }
@@ -427,7 +427,7 @@ public class TestConfigurationBuilder {
      * @param options options to add to {@code this}
      * @return the current object {@code this}
      */
-    @SuppressWarnings("nullness:return.type.incompatible") // need @PolyInitialized annotation
+    @SuppressWarnings("initialization:return.type.incompatible") // need @PolyInitialized annotation
     @RequiresNonNull("this.options")
     public TestConfigurationBuilder addOptions(
             @UnknownInitialization(TestConfigurationBuilder.class) TestConfigurationBuilder this,
@@ -580,8 +580,8 @@ public class TestConfigurationBuilder {
      * @return a list that first has the items from parameter list then the items from iterable
      */
     private static <T> List<T> catListAndIterable(
-            final List<? extends T> list, final Iterable<? extends T> iterable) {
-        final List<T> newList = new ArrayList<>(list);
+            List<? extends T> list, Iterable<? extends T> iterable) {
+        List<T> newList = new ArrayList<>(list);
 
         for (T iterObject : iterable) {
             newList.add(iterObject);

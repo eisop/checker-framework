@@ -152,43 +152,47 @@ public class AliasingVisitor extends BaseTypeVisitor<AliasingAnnotatedTypeFactor
     }
 
     // TODO: Merge that code in commonAssignmentCheck(AnnotatedTypeMirror varType, ExpressionTree
-    // valueExp, String errorKey, boolean isLocalVariableAssignement), because the method below
+    // valueExp, String errorKey, boolean isLocalVariableAssignment), because the method below
     // isn't called for pseudo-assignments, but the mentioned one is. The issue of copy-pasting the
     // code from this method to the other one is that a declaration such as: List<@Unique Object>
     // will raise a unique.leaked warning, as there is a pseudo-assignment from @Unique to a
     // @MaybeAliased object, if the @Unique annotation is not in the stubfile.  TODO: Change the
     // documentation in BaseTypeVisitor to point out that this isn't called for pseudo-assignments.
     @Override
-    protected void commonAssignmentCheck(
+    protected boolean commonAssignmentCheck(
             Tree varTree,
             ExpressionTree valueExp,
             @CompilerMessageKey String errorKey,
             Object... extraArgs) {
-        super.commonAssignmentCheck(varTree, valueExp, errorKey, extraArgs);
+        boolean result = super.commonAssignmentCheck(varTree, valueExp, errorKey, extraArgs);
         if (isInUniqueConstructor() && TreeUtils.isExplicitThisDereference(valueExp)) {
             // If an assignment occurs inside a constructor with result type @Unique, it will
             // invalidate the @Unique property by using the "this" reference.
             checker.reportError(valueExp, "unique.leaked");
+            result = false;
         } else if (canBeLeaked(valueExp)) {
             checker.reportError(valueExp, "unique.leaked");
+            result = false;
         }
+        return result;
     }
 
     @Override
     @FormatMethod
-    protected void commonAssignmentCheck(
+    protected boolean commonAssignmentCheck(
             AnnotatedTypeMirror varType,
             AnnotatedTypeMirror valueType,
             Tree valueTree,
             @CompilerMessageKey String errorKey,
             Object... extraArgs) {
-        super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);
+        boolean result =
+                super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);
 
         // If we are visiting a pseudo-assignment, visitorLeafKind is either
         // Tree.Kind.NEW_CLASS or Tree.Kind.METHOD_INVOCATION.
         TreePath path = getCurrentPath();
         if (path == null) {
-            return;
+            return result;
         }
         Tree.Kind visitorLeafKind = path.getLeaf().getKind();
 
@@ -202,9 +206,11 @@ public class AliasingVisitor extends BaseTypeVisitor<AliasingAnnotatedTypeFactor
                         && !(varType.hasAnnotation(LeakedToResult.class)
                                 && parentKind == Tree.Kind.EXPRESSION_STATEMENT)) {
                     checker.reportError(valueTree, "unique.leaked");
+                    result = false;
                 }
             }
         }
+        return result;
     }
 
     @Override
@@ -258,9 +264,20 @@ public class AliasingVisitor extends BaseTypeVisitor<AliasingAnnotatedTypeFactor
     protected void checkConstructorResult(
             AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {
         // @Unique is verified, so don't check this.
-        if (!constructorType.getReturnType().hasAnnotation(atypeFactory.UNIQUE)) {
-            super.checkConstructorResult(constructorType, constructorElement);
+        AnnotatedTypeMirror returnType = constructorType.getReturnType();
+        if (returnType.hasAnnotation(atypeFactory.UNIQUE)) {
+            return;
         }
+
+        // Don't issue warnings about @LeakedToResult or (implicit) @MaybeLeaked on constructor
+        // results.
+        if (!returnType.hasAnnotation(atypeFactory.NON_LEAKED)) {
+            // TODO: the visitor should not change qualifiers.
+            // Possible problem from aliasing of `returnType`, but all tests pass.
+            returnType.replaceAnnotation(atypeFactory.NON_LEAKED);
+        }
+
+        super.checkConstructorResult(constructorType, constructorElement);
     }
 
     @Override

@@ -8,7 +8,6 @@ import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Objects;
 
 /**
  * A node for a reference to 'super'.
@@ -49,7 +48,7 @@ public class SuperNode extends Node {
 
     @Override
     public int hashCode() {
-        return Objects.hash("super");
+        return 109801370; // Objects.hash("super");
     }
 
     @Override

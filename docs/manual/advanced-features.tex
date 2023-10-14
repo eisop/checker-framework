@@ -1195,6 +1195,28 @@ statements whose message contains the text \<@AssumeAssertion>; see
 Section~\ref{assumeassertion}.
 
 
+\subsectionAndLabel{Var Keyword}{type-refinement-var}
+
+The initial type of a variable declared with \code{var} is exactly
+the type of the initializer expression at the declaration.
+
+\begin{Verbatim}
+    var list1 = new ArrayList<@Tainted String>(); // type of list1 is ArrayList<@Tainted String>
+    var list2 = new ArrayList<@Untainted String>(); // type of list2 is ArrayList<@Untainted String>
+\end{Verbatim}
+
+Flow-sensitive type refinement applies to these variables as usual.
+The base type qualifier may change at a later program point due to
+a subsequent assignment, but the qualifiers on type arguments and
+array components remain exactly the same.
+
+\begin{Verbatim}
+    var list1 = new ArrayList<@Tainted String>(); // type of list1 is ArrayList<@Tainted String>
+    var list2 = new ArrayList<@Untainted String>(); // type of list2 is ArrayList<@Untainted String>
+    var list3 = list1; // type of list3 is ArrayList<@Tainted String>
+    list2 = list1; // assignment error
+\end{Verbatim}
+
 % If you add a Javadoc link to this location, also add the qualifier to the
 % list below.
 \sectionAndLabel{Writing Java expressions as annotation arguments}{java-expressions-as-arguments}
@@ -1336,11 +1358,21 @@ systems) \code{<self>}.
 %% TODO: we may eventually have an @SpecField annotation
 
 
-\textbf{Limitations:}
+\subsectionAndLabel{Limitations}{java-expressions-limitations}
+
+If you mention a class in a Java expression, then that class must be
+available to the compiler.  For example, if you write
+  \<@EnsuresNonNull("package1.package2.MyClass.myField.myOtherField")>,
+then you should pass \<MyClass.java> to the compiler.  Otherwise, the
+compiler does not know which components of the dotted name are packages,
+classes, and field names.  In that case, you might get confusing error
+messages such as ``Invalid 'package1.package2' because could not find class
+package1 in package package2''.
+
 It is not possible to write a
 quantification over all array components (e.g., to express that all
-  array elements are non-null).  There is no such Java expression, but it
-  would be useful when writing specifications.
+array elements are non-null).  There is no such Java expression, but it
+would be useful when writing specifications.
 
 
 \sectionAndLabel{Field invariants}{field-invariants}

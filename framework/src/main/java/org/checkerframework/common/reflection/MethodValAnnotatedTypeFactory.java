@@ -49,7 +49,7 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     private final AnnotationMirror UNKNOWN_METHOD =
             AnnotationBuilder.fromClass(elements, UnknownMethod.class);
 
-    /** An arary length that represents that the length is unknown. */
+    /** An array length that represents that the length is unknown. */
     private static final int UNKNOWN_PARAM_LENGTH = -1;
 
     /** A list containing just {@link #UNKNOWN_PARAM_LENGTH}. */
@@ -154,7 +154,7 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     /**
      * Returns a list of class names for the given tree using the Class Val Checker.
      *
-     * @param tree ExpressionTree whose class names are requested
+     * @param tree an ExpressionTree whose class names are requested
      * @param mustBeExact whether @ClassBound may be read to produce the result; if false,
      *     only @ClassVal may be read
      * @return list of class names or the empty list if no class names were found
@@ -186,7 +186,7 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      * Returns the string values for the argument passed. The String Values are estimated using the
      * Value Checker.
      *
-     * @param arg ExpressionTree whose string values are sought
+     * @param arg an ExpressionTree whose string values are sought
      * @return string values of arg or the empty list if no values were found
      */
     private List<String> getMethodNamesFromStringArg(ExpressionTree arg) {
@@ -410,7 +410,7 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         /**
-         * if getMethod(Object receiver, Object... params) or getConstrutor(Object... params) have
+         * If getMethod(Object receiver, Object... params) or getConstructor(Object... params) have
          * one argument for params, then the number of parameters in the underlying method or
          * constructor must be:
          *

@@ -124,11 +124,11 @@ public abstract class BaseTypeChecker extends SourceChecker {
      * subcheckers. Do not read this field directly. Instead, retrieve it via {@link
      * #getSubcheckers}.
      *
-     * <p>If the list still null when {@link #getSubcheckers} is called, then getSubcheckers() will
-     * call {@link #instantiateSubcheckers}. However, if the current object was itself instantiated
-     * by a prior call to instantiateSubcheckers, this field will have been initialized to an empty
-     * list before getSubcheckers() is called, thereby ensuring that this list is non-empty only for
-     * one checker.
+     * <p>If the list still null when {@link #getSubcheckers} is called, then {@code
+     * getSubcheckers()} will call {@link #instantiateSubcheckers}. However, if the current object
+     * was itself instantiated by a prior call to instantiateSubcheckers, this field will have been
+     * initialized to an empty list before {@code getSubcheckers()} is called, thereby ensuring that
+     * this list is non-empty only for one checker.
      */
     private @MonotonicNonNull List<BaseTypeChecker> subcheckers = null;
 
@@ -137,7 +137,7 @@ public abstract class BaseTypeChecker extends SourceChecker {
      * non-empty for any checker that has at least one subchecker.
      *
      * <p>Does not need to be initialized to null or an empty list because it is always initialized
-     * via calls to instantiateSubcheckers.
+     * via calls to {@link #instantiateSubcheckers}.
      */
     // Set to non-null when subcheckers is.
     private @MonotonicNonNull List<BaseTypeChecker> immediateSubcheckers = null;
@@ -241,7 +241,6 @@ public abstract class BaseTypeChecker extends SourceChecker {
      * @return the type-checking visitor
      */
     @Override
-    @SuppressWarnings("mustcall:return") // generics problem
     protected BaseTypeVisitor<?> createSourceVisitor() {
         // Try to reflectively load the visitor.
         Class<?> checkerClass = this.getClass();
@@ -321,7 +320,7 @@ public abstract class BaseTypeChecker extends SourceChecker {
      *     not exist
      */
     @SuppressWarnings({"unchecked", "TypeParameterUnusedInFormals"}) // Intentional abuse
-    public static <T> T invokeConstructorFor(
+    public static <T> @Nullable T invokeConstructorFor(
             @ClassGetName String name, Class<?>[] paramTypes, Object[] args) {
 
         // Load the class.
@@ -394,7 +393,7 @@ public abstract class BaseTypeChecker extends SourceChecker {
         BaseTypeVisitor<?> visitor = getVisitor();
         // Avoid NPE if this method is called during initialization.
         if (visitor == null) {
-            return null;
+            throw new TypeSystemError("Called getTypeFactory() before initialization was complete");
         }
         return visitor.getTypeFactory();
     }
@@ -409,11 +408,12 @@ public abstract class BaseTypeChecker extends SourceChecker {
      * returns the only such checker, or null if none was found. The caller must know the exact
      * checker class to request.
      *
-     * @param checkerClass the class of the subchecker
+     * @param <T> the class of the subchecker to return
+     * @param checkerClass the class of the subchecker to return
      * @return the requested subchecker or null if not found
      */
     @SuppressWarnings("unchecked")
-    public <T extends BaseTypeChecker> T getSubchecker(Class<T> checkerClass) {
+    public <T extends BaseTypeChecker> @Nullable T getSubchecker(Class<T> checkerClass) {
         for (BaseTypeChecker checker : immediateSubcheckers) {
             if (checker.getClass() == checkerClass) {
                 return (T) checker;
@@ -436,8 +436,8 @@ public abstract class BaseTypeChecker extends SourceChecker {
      * @return the type factory of the requested subchecker or null if not found
      */
     @SuppressWarnings("TypeParameterUnusedInFormals") // Intentional abuse
-    public <T extends GenericAnnotatedTypeFactory<?, ?, ?, ?>> @Nullable T getTypeFactoryOfSubchecker(Class<? extends BaseTypeChecker> subCheckerClass) {
-        return getTypeFactory().getTypeFactoryOfSubchecker(subCheckerClass);
+    public <T extends GenericAnnotatedTypeFactory<?, ?, ?, ?>> @Nullable T getTypeFactoryOfSubcheckerOrNull(Class<? extends BaseTypeChecker> subCheckerClass) {
+        return getTypeFactory().getTypeFactoryOfSubcheckerOrNull(subCheckerClass);
     }
 
     /**
@@ -479,7 +479,7 @@ public abstract class BaseTypeChecker extends SourceChecker {
             try {
                 instance = subcheckerClass.getDeclaredConstructor().newInstance();
             } catch (Exception e) {
-                throw new BugInCF("Could not create an instance of " + subcheckerClass);
+                throw new BugInCF("Could not create an instance of " + subcheckerClass, e);
             }
 
             instance.setProcessingEnvironment(this.processingEnv);
@@ -516,14 +516,6 @@ public abstract class BaseTypeChecker extends SourceChecker {
         }
 
         return subcheckers;
-    }
-
-    @Override
-    protected void reportJavacError(TreePath p) {
-        if (parentChecker == null) {
-            // Only the parent checker should report the "type.checking.not.run" error.
-            super.reportJavacError(p);
-        }
     }
 
     // AbstractTypeProcessor delegation
@@ -596,8 +588,8 @@ public abstract class BaseTypeChecker extends SourceChecker {
      * that the user actually requested, i.e. the one with no parent. The ultimate parent might be
      * this checker itself.
      *
-     * @return the first checker in the parent checker chain with no parent checker of its own, i.e.
-     *     the ultimate parent checker
+     * @return the first checker in the parent checker chain with no parent checker of its own,
+     *     i.e., the ultimate parent checker
      */
     public BaseTypeChecker getUltimateParentChecker() {
         if (ultimateParentChecker == null) {
