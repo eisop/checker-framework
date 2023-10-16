@@ -41,4 +41,17 @@ public class UnsignedConcat {
         s += c;
         s += charObj;
     }
+
+    void test3() {
+        String a = "World";
+        String s = "Hi " + (int) a.charAt(0);
+    }
+
+    void test4(String s) {
+        Class<? extends String> sc = null;
+        if (s != null) {
+            sc = s.getClass();
+        }
+        System.out.println("In: " + sc);
+    }
 }
