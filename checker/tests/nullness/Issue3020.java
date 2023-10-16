@@ -4,7 +4,6 @@ enum Issue3020 {
     void retrieveConstant() {
         Class<?> theClass = Issue3020.class;
         // :: error: (accessing.nullable)
-        // :: error: (dereference.of.nullable)
         Object unused = passThrough(theClass.getEnumConstants())[0];
     }
 

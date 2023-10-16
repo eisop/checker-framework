@@ -3585,7 +3585,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         if (!TreeUtils.isFieldAccess(tree)) {
             // Could be a selector of a class or package
             Element element = TreeUtils.elementFromUse(tree);
-            if (ElementUtils.isTypeElement(element)) {
+            if (ElementUtils.isTypeElement(element) || element.toString().equals("class")) {
                 ClassNameNode result = new ClassNameNode(tree, expr);
                 extendWithClassNameNode(result);
                 return result;

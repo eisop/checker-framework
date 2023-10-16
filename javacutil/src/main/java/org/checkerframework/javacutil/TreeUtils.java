@@ -1570,7 +1570,7 @@ public final class TreeUtils {
             MemberSelectTree memberSelect = (MemberSelectTree) tree;
             assert isUseOfElement(memberSelect) : "@AssumeAssertion(nullness): tree kind";
             Element el = TreeUtils.elementFromUse(memberSelect);
-            if (el.getKind().isField()) {
+            if (el.getKind().isField() && !el.toString().equals("class")) {
                 return (VariableElement) el;
             }
         } else if (tree.getKind() == Tree.Kind.IDENTIFIER) {
