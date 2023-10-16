@@ -5,15 +5,15 @@ import org.checkerframework.framework.qual.DefaultQualifier;
 @DefaultQualifier(Nullable.class)
 public class RedundantAnnoWithDefaultQualifier {
 
-  // :: warning: (redundant.anno)
-  void foo(@Nullable String message) {}
+    // :: warning: (redundant.anno)
+    void foo(@Nullable String message) {}
 
-  // :: warning: (redundant.anno)
-  @Nullable Integer foo() {
-    return 5;
-  }
+    // :: warning: (redundant.anno)
+    @Nullable Integer foo() {
+        return 5;
+    }
 
-  void bar(String p) {}
+    void bar(String p) {}
 
-  void baz(@NonNull String p) {}
+    void baz(@NonNull String p) {}
 }
