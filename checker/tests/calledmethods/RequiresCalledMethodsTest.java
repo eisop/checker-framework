@@ -4,19 +4,19 @@ import org.checkerframework.checker.calledmethods.qual.RequiresCalledMethods;
 
 class RequiresCalledMethodsTest {
 
-    Object foo;
+  Object foo;
 
-    @RequiresCalledMethods(value = "this.foo", methods = "toString")
-    void afterFooToString() {}
+  @RequiresCalledMethods(value = "this.foo", methods = "toString")
+  void afterFooToString() {}
 
-    void test_ok() {
-        foo.toString();
-        afterFooToString();
-    }
+  void test_ok() {
+    foo.toString();
+    afterFooToString();
+  }
 
-    void test_bad() {
-        // foo.toString();
-        // :: error: contracts.precondition.not.satisfied
-        afterFooToString();
-    }
+  void test_bad() {
+    // foo.toString();
+    // :: error: contracts.precondition.not.satisfied
+    afterFooToString();
+  }
 }
