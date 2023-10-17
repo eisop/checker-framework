@@ -3092,7 +3092,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             case NULL:
             case DECLARED:
                 AnnotationMirrorSet found = throwType.getAnnotations();
-                if (!qualHierarchy.isSubtype(found, required)) {
+                if (!qualHierarchy.isSubtypeShallow(found, required, throwTM)) {
                     checker.reportError(
                             tree.getExpression(), "throw.type.incompatible", found, required);
                 }
@@ -3100,7 +3100,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             case TYPEVAR:
             case WILDCARD:
                 if (!typeHierarchy.isSubtypeShallowEffective(throwType, required)) {
-                    AnnotationMirrorSet found = throwType.getEffectiveAnnotations();
+                    AnnotationMirrorSet foundEffective = throwType.getEffectiveAnnotations();
                     checker.reportError(
                             tree.getExpression(),
                             "throw.type.incompatible",
