@@ -908,11 +908,11 @@ public class AnnotationFileElementTypes {
       if (stubDebug) {
         System.out.printf(
             "Contents of remainingJdkStubFiles for %s from %s:%n",
-            factory.getClass().getSimpleName(), jdkDirectory);
+            atypeFactory.getClass().getSimpleName(), jdkDirectory);
         printSortedIndented(remainingJdkStubFiles.keySet());
         System.out.printf(
             "End of remainingJdkStubFiles for %s from %s.%n",
-            factory.getClass().getSimpleName(), jdkDirectory);
+            atypeFactory.getClass().getSimpleName(), jdkDirectory);
       }
     } catch (IOException e) {
       throw new BugInCF("prepJdkFromFile(" + jdkDirectory + ")", e);
@@ -953,7 +953,7 @@ public class AnnotationFileElementTypes {
         remainingJdkStubFilesJar.put(fqClassName, jarEntryName);
       }
       if (stubDebug) {
-        String factoryClass = factory.getClass().getSimpleName().toString();
+        String factoryClass = atypeFactory.getClass().getSimpleName().toString();
         String jarFileURL = connection.getJarFileURL().toString();
         System.out.printf(
             "Contents of remainingJdkStubFilesJar for %s from %s:%n", factoryClass, jarFileURL);
