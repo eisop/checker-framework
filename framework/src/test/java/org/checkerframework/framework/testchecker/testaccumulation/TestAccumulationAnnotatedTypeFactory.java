@@ -14,6 +14,7 @@ import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.javacutil.TreeUtils;
 
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.type.TypeMirror;
 
 /**
  * The annotated type factory for a test accumulation checker, which implements a basic called
@@ -66,11 +67,12 @@ public class TestAccumulationAnnotatedTypeFactory extends AccumulationAnnotatedT
             // returns receiver methods; it does not support automatically accumulating at the same
             // time.
             if (returnsThis(tree)) {
+                TypeMirror tm = type.getUnderlyingType();
                 String methodName = TreeUtils.getMethodName(tree.getMethodSelect());
                 AnnotationMirror oldAnno = type.getAnnotationInHierarchy(top);
                 type.replaceAnnotation(
-                        qualHierarchy.greatestLowerBound(
-                                oldAnno, createAccumulatorAnnotation(methodName)));
+                        qualHierarchy.greatestLowerBoundShallow(
+                                oldAnno, tm, createAccumulatorAnnotation(methodName), tm));
             }
             return super.visitMethodInvocation(tree, type);
         }

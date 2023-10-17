@@ -89,7 +89,9 @@ public class DefaultInferredTypesApplier {
                         AnnotatedTypes.findEffectiveLowerBoundAnnotations(hierarchy, type);
                 primary = hierarchy.findAnnotationInHierarchy(lowerbounds, top);
             }
-            if ((omitSubtypingCheck || hierarchy.isSubtype(inferred, primary))) {
+            if ((omitSubtypingCheck
+                    || hierarchy.isSubtypeShallow(
+                            inferred, inferredTypeMirror, primary, type.getUnderlyingType()))) {
                 type.replaceAnnotation(inferred);
             }
         }
@@ -113,7 +115,9 @@ public class DefaultInferredTypesApplier {
                 (AnnotatedTypeVariable) atypeFactory.getAnnotatedType(typeVar.asElement());
         AnnotationMirror upperBound = typeVariableDecl.getEffectiveAnnotationInHierarchy(top);
 
-        if (omitSubtypingCheck || hierarchy.isSubtype(upperBound, notInferred)) {
+        if (omitSubtypingCheck
+                || hierarchy.isSubtypeShallow(
+                        upperBound, typeVar, notInferred, type.getUnderlyingType())) {
             type.replaceAnnotation(upperBound);
         }
     }
@@ -130,7 +134,12 @@ public class DefaultInferredTypesApplier {
         AnnotatedTypeVariable typeVariableDecl =
                 (AnnotatedTypeVariable) atypeFactory.getAnnotatedType(typeVar.asElement());
         AnnotationMirror upperBound = typeVariableDecl.getEffectiveAnnotationInHierarchy(top);
-        if (omitSubtypingCheck || hierarchy.isSubtype(upperBound, previousAnnotation)) {
+        if (omitSubtypingCheck
+                || hierarchy.isSubtypeShallow(
+                        upperBound,
+                        typeVariableDecl.getUnderlyingType(),
+                        previousAnnotation,
+                        annotatedTypeVariable.getUnderlyingType())) {
             // TODO: clean up this method and whole class.
             AnnotationMirror ub = typeVariableDecl.getUpperBound().getAnnotationInHierarchy(top);
             AnnotationMirror lb = typeVariableDecl.getLowerBound().getAnnotationInHierarchy(top);

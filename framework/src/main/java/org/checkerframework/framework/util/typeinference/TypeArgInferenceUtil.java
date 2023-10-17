@@ -224,7 +224,7 @@ public class TypeArgInferenceUtil {
             }
 
         } else if (assignmentContext instanceof VariableTree) {
-            res = assignedToVariable(atypeFactory, assignmentContext);
+            res = assignedToVariable(atypeFactory, (VariableTree) assignmentContext);
         } else {
             throw new BugInCF("AnnotatedTypes.assignedTo: shouldn't be here");
         }
@@ -347,7 +347,10 @@ public class TypeArgInferenceUtil {
      * @return AnnotatedTypeMirror of Assignment context
      */
     public static AnnotatedTypeMirror assignedToVariable(
-            AnnotatedTypeFactory atypeFactory, Tree assignmentContext) {
+            AnnotatedTypeFactory atypeFactory, VariableTree assignmentContext) {
+        if (TreeUtils.isVariableTreeDeclaredUsingVar(assignmentContext)) {
+            return null;
+        }
         if (atypeFactory instanceof GenericAnnotatedTypeFactory<?, ?, ?, ?>) {
             GenericAnnotatedTypeFactory<?, ?, ?, ?> gatf =
                     ((GenericAnnotatedTypeFactory<?, ?, ?, ?>) atypeFactory);

@@ -899,7 +899,8 @@ public class AnnotatedTypes {
                 AnnotatedTypes.findEffectiveLowerBoundAnnotations(qualHierarchy, type1);
         AnnotationMirrorSet set2 =
                 AnnotatedTypes.findEffectiveLowerBoundAnnotations(qualHierarchy, type2);
-        Set<? extends AnnotationMirror> glbAnnos = qualHierarchy.greatestLowerBounds(set1, set2);
+        Set<? extends AnnotationMirror> glbAnnos =
+                qualHierarchy.greatestLowerBoundsShallow(set1, tm1, set2, tm2);
 
         AnnotatedIntersectionType glb =
                 (AnnotatedIntersectionType)
@@ -958,11 +959,15 @@ public class AnnotatedTypes {
         AnnotatedTypeMirror glb = subtype.deepCopy();
         glb.clearAnnotations();
 
+        TypeMirror subTM = subtype.getUnderlyingType();
+        TypeMirror superTM = supertype.getUnderlyingType();
         for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
             AnnotationMirror subAnno = subtype.getAnnotationInHierarchy(top);
             AnnotationMirror superAnno = supertype.getAnnotationInHierarchy(top);
             if (subAnno != null && superAnno != null) {
-                glb.addAnnotation(qualHierarchy.greatestLowerBound(subAnno, superAnno));
+                glb.addAnnotation(
+                        qualHierarchy.greatestLowerBoundShallow(
+                                subAnno, subTM, superAnno, superTM));
             } else if (subAnno == null && superAnno == null) {
                 if (subtype.getKind() != TypeKind.TYPEVAR
                         || supertype.getKind() != TypeKind.TYPEVAR) {
@@ -976,7 +981,8 @@ public class AnnotatedTypes {
                 }
                 AnnotationMirrorSet lb = findEffectiveLowerBoundAnnotations(qualHierarchy, subtype);
                 AnnotationMirror lbAnno = qualHierarchy.findAnnotationInHierarchy(lb, top);
-                if (lbAnno != null && !qualHierarchy.isSubtype(lbAnno, superAnno)) {
+                if (lbAnno != null
+                        && !qualHierarchy.isSubtypeShallow(lbAnno, subTM, superAnno, superTM)) {
                     // The superAnno is lower than the lower bound annotation, so add it.
                     glb.addAnnotation(superAnno);
                 } // else don't add any annotation.
@@ -1560,7 +1566,13 @@ public class AnnotatedTypes {
         AnnotationMirror anno = isect.getAnnotationInHierarchy(top);
         for (AnnotatedTypeMirror bound : isect.getBounds()) {
             AnnotationMirror boundAnno = bound.getAnnotationInHierarchy(top);
-            if (boundAnno != null && (anno == null || qualHierarchy.isSubtype(boundAnno, anno))) {
+            if (boundAnno != null
+                    && (anno == null
+                            || qualHierarchy.isSubtypeShallow(
+                                    boundAnno,
+                                    bound.getUnderlyingType(),
+                                    anno,
+                                    isect.getUnderlyingType()))) {
                 anno = boundAnno;
             }
         }

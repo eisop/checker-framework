@@ -2,6 +2,7 @@ package org.checkerframework.checker.signedness;
 
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.value.ValueChecker;
+import org.checkerframework.framework.qual.RelevantJavaTypes;
 import org.checkerframework.framework.qual.StubFiles;
 
 import java.util.Set;
@@ -12,6 +13,18 @@ import java.util.Set;
  *
  * @checker_framework.manual #signedness-checker Signedness Checker
  */
+// Character and char are omitted here because they are always @Unsigned, and the user is not
+// allowed to write @Signed or @Unsigned on them.
+@RelevantJavaTypes({
+    Byte.class,
+    Short.class,
+    Integer.class,
+    Long.class,
+    byte.class,
+    short.class,
+    int.class,
+    long.class,
+})
 @StubFiles({"junit-assertions.astub"})
 public class SignednessChecker extends BaseTypeChecker {
 

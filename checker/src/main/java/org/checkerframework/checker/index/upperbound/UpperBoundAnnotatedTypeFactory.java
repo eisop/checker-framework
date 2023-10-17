@@ -421,11 +421,12 @@ public class UpperBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
          */
         UpperBoundQualifierHierarchy(
                 Collection<Class<? extends Annotation>> qualifierClasses, Elements elements) {
-            super(qualifierClasses, elements);
+            super(qualifierClasses, elements, UpperBoundAnnotatedTypeFactory.this);
         }
 
         @Override
-        public AnnotationMirror greatestLowerBound(AnnotationMirror a1, AnnotationMirror a2) {
+        public AnnotationMirror greatestLowerBoundQualifiers(
+                AnnotationMirror a1, AnnotationMirror a2) {
             UBQualifier a1Obj = UBQualifier.createUBQualifier(a1, (IndexChecker) checker);
             UBQualifier a2Obj = UBQualifier.createUBQualifier(a2, (IndexChecker) checker);
             UBQualifier glb = a1Obj.glb(a2Obj);
@@ -440,7 +441,8 @@ public class UpperBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
          * @return the least upper bound of a1 and a2
          */
         @Override
-        public AnnotationMirror leastUpperBound(AnnotationMirror a1, AnnotationMirror a2) {
+        public AnnotationMirror leastUpperBoundQualifiers(
+                AnnotationMirror a1, AnnotationMirror a2) {
             UBQualifier a1Obj = UBQualifier.createUBQualifier(a1, (IndexChecker) checker);
             UBQualifier a2Obj = UBQualifier.createUBQualifier(a2, (IndexChecker) checker);
             UBQualifier lub = a1Obj.lub(a2Obj);
@@ -470,7 +472,7 @@ public class UpperBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
          * contains every element of lhs.
          */
         @Override
-        public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror superAnno) {
+        public boolean isSubtypeQualifiers(AnnotationMirror subAnno, AnnotationMirror superAnno) {
             UBQualifier subtypeQual =
                     UBQualifier.createUBQualifier(subAnno, (IndexChecker) checker);
             UBQualifier supertypeQual =
@@ -510,9 +512,11 @@ public class UpperBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
                 AnnotatedTypeMirror rightType = getAnnotatedType(tree.getArguments().get(1));
 
                 type.replaceAnnotation(
-                        qualHierarchy.greatestLowerBound(
+                        qualHierarchy.greatestLowerBoundShallow(
                                 leftType.getAnnotationInHierarchy(UNKNOWN),
-                                rightType.getAnnotationInHierarchy(UNKNOWN)));
+                                leftType.getUnderlyingType(),
+                                rightType.getAnnotationInHierarchy(UNKNOWN),
+                                rightType.getUnderlyingType()));
             }
             if (isRandomNextInt(tree)) {
                 AnnotatedTypeMirror argType = getAnnotatedType(tree.getArguments().get(0));
@@ -749,7 +753,12 @@ public class UpperBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
                 rightResultAnno = rightType.getAnnotationInHierarchy(UNKNOWN);
             }
 
-            type.addAnnotation(qualHierarchy.greatestLowerBound(leftResultAnno, rightResultAnno));
+            type.addAnnotation(
+                    qualHierarchy.greatestLowerBoundShallow(
+                            leftResultAnno,
+                            leftType.getUnderlyingType(),
+                            rightResultAnno,
+                            rightType.getUnderlyingType()));
         }
 
         /** Gets a sequence tree for a length access tree, or null if it is not a length access. */

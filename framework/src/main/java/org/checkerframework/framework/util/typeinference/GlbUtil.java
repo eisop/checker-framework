@@ -58,7 +58,9 @@ public class GlbUtil {
                 AnnotationMirror typeAnno = type.getEffectiveAnnotationInHierarchy(top);
                 AnnotationMirror currentAnno = glbPrimaries.get(top);
                 if (typeAnno != null && currentAnno != null) {
-                    glbPrimaries.put(top, qualHierarchy.greatestLowerBound(currentAnno, typeAnno));
+                    glbPrimaries.put(
+                            top,
+                            qualHierarchy.greatestLowerBoundQualifiersOnly(currentAnno, typeAnno));
                 } else if (typeAnno != null) {
                     glbPrimaries.put(top, typeAnno);
                 }
@@ -66,12 +68,13 @@ public class GlbUtil {
         }
 
         List<AnnotatedTypeMirror> glbTypes = new ArrayList<>();
+        TypeHierarchy typeHierarchy = atypeFactory.getTypeHierarchy();
 
         // create a copy of all of the types and apply the glb primary annotation
         AnnotationMirrorSet values = new AnnotationMirrorSet(glbPrimaries.values());
         for (AnnotatedTypeMirror atm : typeMirrors.keySet()) {
             if (atm.getKind() != TypeKind.TYPEVAR
-                    || !qualHierarchy.isSubtype(atm.getEffectiveAnnotations(), values)) {
+                    || !typeHierarchy.isSubtypeShallowEffective(atm, values)) {
                 AnnotatedTypeMirror copy = atm.deepCopy();
                 copy.replaceAnnotations(values);
                 glbTypes.add(copy);
@@ -83,8 +86,6 @@ public class GlbUtil {
                 glbTypes.add(atm);
             }
         }
-
-        TypeHierarchy typeHierarchy = atypeFactory.getTypeHierarchy();
 
         // sort placing supertypes first
         sortForGlb(glbTypes, atypeFactory);
@@ -191,7 +192,10 @@ public class GlbUtil {
             AnnotationMirrorSet annos2 = type2.getAnnotations();
             if (AnnotationUtils.areSame(annos1, annos2)) {
                 return 0;
-            } else if (qualHierarchy.isSubtype(annos1, annos2)) {
+            }
+            TypeMirror tm1 = type1.getUnderlyingType();
+            TypeMirror tm2 = type2.getUnderlyingType();
+            if (qualHierarchy.isSubtypeShallow(annos1, tm1, annos2, tm2)) {
                 return 1;
             } else {
                 return -1;

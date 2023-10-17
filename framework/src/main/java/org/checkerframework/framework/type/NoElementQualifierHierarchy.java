@@ -34,7 +34,7 @@ import javax.lang.model.util.Elements;
  * QualifierKindHierarchy.
  */
 @AnnotatedFor("nullness")
-public class NoElementQualifierHierarchy implements QualifierHierarchy {
+public class NoElementQualifierHierarchy extends QualifierHierarchy {
 
     /** {@link QualifierKindHierarchy}. */
     protected final QualifierKindHierarchy qualifierKindHierarchy;
@@ -56,9 +56,14 @@ public class NoElementQualifierHierarchy implements QualifierHierarchy {
      *
      * @param qualifierClasses classes of annotations that are the qualifiers
      * @param elements element utils
+     * @param atypeFactory the associated type factory
      */
     public NoElementQualifierHierarchy(
-            Collection<Class<? extends Annotation>> qualifierClasses, Elements elements) {
+            Collection<Class<? extends Annotation>> qualifierClasses,
+            Elements elements,
+            GenericAnnotatedTypeFactory<?, ?, ?, ?> atypeFactory) {
+        super(atypeFactory);
+
         this.qualifierKindHierarchy = createQualifierKindHierarchy(qualifierClasses);
 
         this.kindToAnnotationMirror = createAnnotationMirrors(elements);
@@ -223,14 +228,15 @@ public class NoElementQualifierHierarchy implements QualifierHierarchy {
     }
 
     @Override
-    public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror superAnno) {
+    public boolean isSubtypeQualifiers(AnnotationMirror subAnno, AnnotationMirror superAnno) {
         QualifierKind subKind = getQualifierKind(subAnno);
         QualifierKind superKind = getQualifierKind(superAnno);
         return subKind.isSubtypeOf(superKind);
     }
 
     @Override
-    public @Nullable AnnotationMirror leastUpperBound(AnnotationMirror a1, AnnotationMirror a2) {
+    public @Nullable AnnotationMirror leastUpperBoundQualifiers(
+            AnnotationMirror a1, AnnotationMirror a2) {
         QualifierKind qual1 = getQualifierKind(a1);
         QualifierKind qual2 = getQualifierKind(a2);
 
@@ -242,7 +248,8 @@ public class NoElementQualifierHierarchy implements QualifierHierarchy {
     }
 
     @Override
-    public @Nullable AnnotationMirror greatestLowerBound(AnnotationMirror a1, AnnotationMirror a2) {
+    public @Nullable AnnotationMirror greatestLowerBoundQualifiers(
+            AnnotationMirror a1, AnnotationMirror a2) {
         QualifierKind qual1 = getQualifierKind(a1);
         QualifierKind qual2 = getQualifierKind(a2);
         QualifierKind glb = qualifierKindHierarchy.greatestLowerBound(qual1, qual2);

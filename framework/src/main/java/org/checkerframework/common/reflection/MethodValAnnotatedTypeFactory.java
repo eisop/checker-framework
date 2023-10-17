@@ -217,7 +217,7 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          */
         protected MethodValQualifierHierarchy(
                 Collection<Class<? extends Annotation>> qualifierClasses, Elements elements) {
-            super(qualifierClasses, elements);
+            super(qualifierClasses, elements, MethodValAnnotatedTypeFactory.this);
         }
 
         /*
@@ -226,13 +226,13 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          * concatenating all value lists of a1 and a2.
          */
         @Override
-        public @Nullable AnnotationMirror leastUpperBound(
+        public @Nullable AnnotationMirror leastUpperBoundQualifiers(
                 AnnotationMirror a1, AnnotationMirror a2) {
             if (!AnnotationUtils.areSameByName(getTopAnnotation(a1), getTopAnnotation(a2))) {
                 return null;
-            } else if (isSubtype(a1, a2)) {
+            } else if (isSubtypeQualifiers(a1, a2)) {
                 return a2;
-            } else if (isSubtype(a2, a1)) {
+            } else if (isSubtypeQualifiers(a2, a1)) {
                 return a1;
             } else if (AnnotationUtils.areSameByName(a1, a2)) {
                 List<MethodSignature> a1Sigs = getListOfMethodSignatures(a1);
@@ -245,13 +245,13 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         @Override
-        public @Nullable AnnotationMirror greatestLowerBound(
+        public @Nullable AnnotationMirror greatestLowerBoundQualifiers(
                 AnnotationMirror a1, AnnotationMirror a2) {
             if (!AnnotationUtils.areSameByName(getTopAnnotation(a1), getTopAnnotation(a2))) {
                 return null;
-            } else if (isSubtype(a1, a2)) {
+            } else if (isSubtypeQualifiers(a1, a2)) {
                 return a1;
-            } else if (isSubtype(a2, a1)) {
+            } else if (isSubtypeQualifiers(a2, a1)) {
                 return a2;
             } else if (AnnotationUtils.areSameByName(a1, a2)) {
                 List<MethodSignature> a1Sigs = getListOfMethodSignatures(a1);
@@ -264,7 +264,7 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         @Override
-        public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror superAnno) {
+        public boolean isSubtypeQualifiers(AnnotationMirror subAnno, AnnotationMirror superAnno) {
             if (AnnotationUtils.areSame(subAnno, superAnno)
                     || areSameByClass(superAnno, UnknownMethod.class)
                     || areSameByClass(subAnno, MethodValBottom.class)) {

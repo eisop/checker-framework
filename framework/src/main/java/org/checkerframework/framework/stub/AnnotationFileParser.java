@@ -1400,7 +1400,7 @@ public class AnnotationFileParser {
             warn(
                     decl,
                     String.format(
-                            "redundant stub file specification for %s",
+                            "stub file specification is same as bytecode for %s",
                             ElementUtils.getQualifiedName(elt)));
         }
 

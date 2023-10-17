@@ -69,10 +69,11 @@ public class SignednessAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     protected final AnnotationMirror SIGNED = AnnotationBuilder.fromClass(elements, Signed.class);
 
     /** The @Unsigned annotation. */
-    private final AnnotationMirror UNSIGNED = AnnotationBuilder.fromClass(elements, Unsigned.class);
+    protected final AnnotationMirror UNSIGNED =
+            AnnotationBuilder.fromClass(elements, Unsigned.class);
 
     /** The @SignednessGlb annotation. Do not use @SignedPositive; use this instead. */
-    private final AnnotationMirror SIGNEDNESS_GLB =
+    protected final AnnotationMirror SIGNEDNESS_GLB =
             AnnotationBuilder.fromClass(elements, SignednessGlb.class);
 
     /** The @SignedPositiveFromUnsigned annotation. */
@@ -277,22 +278,6 @@ public class SignednessAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             super(atypeFactory);
         }
 
-        /**
-         * Change the type of booleans to {@code @UnknownSignedness} so that the {@link
-         * PropagationTreeAnnotator} does not change the type of them.
-         *
-         * @param type a type to change the annotation of, if it is boolean
-         */
-        private void annotateBooleanAsUnknownSignedness(AnnotatedTypeMirror type) {
-            switch (type.getKind()) {
-                case BOOLEAN:
-                    type.addAnnotation(SIGNED);
-                    break;
-                default:
-                    // Nothing for other cases.
-            }
-        }
-
         @Override
         public Void visitBinary(BinaryTree tree, AnnotatedTypeMirror type) {
             switch (tree.getKind()) {
@@ -309,20 +294,9 @@ public class SignednessAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                         type.replaceAnnotations(lht.getAnnotations());
                     }
                     break;
-                case PLUS:
-                    if (TreeUtils.isStringConcatenation(tree)) {
-                        TypeMirror lht = TreeUtils.typeOf(tree.getLeftOperand());
-                        TypeMirror rht = TreeUtils.typeOf(tree.getRightOperand());
-
-                        if (TypesUtils.isCharType(lht) || TypesUtils.isCharType(rht)) {
-                            type.replaceAnnotation(SIGNED);
-                        }
-                    }
-                    break;
                 default:
                     // Do nothing
             }
-            annotateBooleanAsUnknownSignedness(type);
             return null;
         }
 
@@ -333,14 +307,15 @@ public class SignednessAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                     type.replaceAnnotation(SIGNED);
                 }
             }
-            annotateBooleanAsUnknownSignedness(type);
             return null;
         }
 
         @Override
         public Void visitTypeCast(TypeCastTree tree, AnnotatedTypeMirror type) {
             // Don't change the annotation on a cast with an explicit annotation.
-            if (type.getAnnotations().isEmpty() && !maybeIntegral(type)) {
+            if (TypesUtils.isCharType(type.getUnderlyingType())) {
+                type.replaceAnnotation(UNSIGNED);
+            } else if (type.getAnnotations().isEmpty() && !maybeIntegral(type)) {
                 AnnotatedTypeMirror exprType = atypeFactory.getAnnotatedType(tree.getExpression());
                 if ((type.getKind() != TypeKind.TYPEVAR || exprType.getKind() != TypeKind.TYPEVAR)
                         && !AnnotationUtils.containsSame(
@@ -694,14 +669,6 @@ public class SignednessAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     // End of special-case code for shifts that do not depend on the MSB of the first argument.
 
-    @Override
-    public boolean isRelevantImpl(TypeMirror tm) {
-        if (TypesUtils.isFloatingPoint(tm)) {
-            return false;
-        }
-        return true;
-    }
-
     /**
      * Requires that, when two formal parameter types are annotated with {@code @PolySigned}, the
      * two arguments must have the same signedness type annotation.
@@ -737,9 +704,9 @@ public class SignednessAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                 return a1;
             } else if (AnnotationUtils.areSame(a1, a2)) {
                 return a1;
-            } else if (qualHierarchy.isSubtype(a1, a2)) {
+            } else if (qualHierarchy.isSubtypeQualifiersOnly(a1, a2)) {
                 return a2;
-            } else if (qualHierarchy.isSubtype(a2, a1)) {
+            } else if (qualHierarchy.isSubtypeQualifiersOnly(a2, a1)) {
                 return a1;
             } else
                 // The two annotations are incomparable
