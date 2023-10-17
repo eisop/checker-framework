@@ -14,25 +14,25 @@ import org.checkerframework.dataflow.reachingdef.ReachingDefinitionTransfer;
  */
 public class ReachingDefinitionPlayground {
 
-    /** Class cannot be instantiated. */
-    private ReachingDefinitionPlayground() {
-        throw new AssertionError("Class ReachingDefinitionPlayground cannot be instantiated.");
-    }
+  /** Class cannot be instantiated. */
+  private ReachingDefinitionPlayground() {
+    throw new AssertionError("Class ReachingDefinitionPlayground cannot be instantiated.");
+  }
 
-    /**
-     * Run reaching definition analysis on a file.
-     *
-     * @param args command-line arguments
-     */
-    public static void main(String[] args) {
+  /**
+   * Run reaching definition analysis on a file.
+   *
+   * @param args command-line arguments
+   */
+  public static void main(String[] args) {
 
-        // Parse the arguments.
-        CFGVisualizeOptions config = CFGVisualizeOptions.parseArgs(args);
+    // Parse the arguments.
+    CFGVisualizeOptions config = CFGVisualizeOptions.parseArgs(args);
 
-        // Run the analysis and create a PDF file
-        ReachingDefinitionTransfer transfer = new ReachingDefinitionTransfer();
-        ForwardAnalysis<UnusedAbstractValue, ReachingDefinitionStore, ReachingDefinitionTransfer>
-                forwardAnalysis = new ForwardAnalysisImpl<>(transfer);
-        CFGVisualizeLauncher.performAnalysis(config, forwardAnalysis);
-    }
+    // Run the analysis and create a PDF file
+    ReachingDefinitionTransfer transfer = new ReachingDefinitionTransfer();
+    ForwardAnalysis<UnusedAbstractValue, ReachingDefinitionStore, ReachingDefinitionTransfer>
+        forwardAnalysis = new ForwardAnalysisImpl<>(transfer);
+    CFGVisualizeLauncher.performAnalysis(config, forwardAnalysis);
+  }
 }

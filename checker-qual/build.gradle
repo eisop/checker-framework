@@ -1,43 +1,43 @@
 plugins {
-    id 'java-library'
-    id("biz.aQute.bnd.builder") version "6.4.0"
+  id 'java-library'
+  id("biz.aQute.bnd.builder") version "6.4.0"
 }
 
 
 jar {
-    manifest {
-        attributes('Export-Package': '*')
-    }
+  manifest {
+    attributes('Export-Package': '*')
+  }
 }
 
 apply from: rootProject.file('gradle-mvn-push.gradle')
 
 /** Adds information to the publication for uploading to Maven repositories. */
 final checkerQualPom(publication) {
-    sharedPublicationConfiguration(publication)
-    publication.from components.java
-    publication.pom {
-        name = 'Checker Qual'
-        description = 'checker-qual contains annotations (type qualifiers) that a programmer\n' +
-                'writes to specify Java code for type-checking by the Checker Framework.\n'
-        licenses {
-            license {
-                name = 'The MIT License'
-                url = 'http://opensource.org/licenses/MIT'
-                distribution = 'repo'
-            }
-        }
+  sharedPublicationConfiguration(publication)
+  publication.from components.java
+  publication.pom {
+    name = 'Checker Qual'
+    description = 'checker-qual contains annotations (type qualifiers) that a programmer\n' +
+        'writes to specify Java code for type-checking by the Checker Framework.\n'
+    licenses {
+      license {
+        name = 'The MIT License'
+        url = 'http://opensource.org/licenses/MIT'
+        distribution = 'repo'
+      }
     }
+  }
 }
 
 publishing {
-    publications {
-        checkerQual(MavenPublication) {
-            checkerQualPom it
-        }
+  publications {
+    checkerQual(MavenPublication) {
+      checkerQualPom it
     }
+  }
 }
 
 signing {
-    sign publishing.publications.checkerQual
+  sign publishing.publications.checkerQual
 }
