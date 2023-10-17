@@ -24,6 +24,7 @@ import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Names;
 
+import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.CollectionsPlume;
@@ -151,11 +152,13 @@ public class TreeBuilder {
             if (method.getParameters().isEmpty()
                     && method.getSimpleName().contentEquals("hasNext")) {
                 hasNextMethod = (Symbol.MethodSymbol) method;
+                break;
             }
         }
 
-        assert hasNextMethod != null
-                : "@AssumeAssertion(nullness): no hasNext method declared for expression type";
+        if (hasNextMethod == null) {
+            throw new BugInCF("no hasNext method declared for " + exprElement);
+        }
 
         JCTree.JCFieldAccess hasNextAccess = TreeUtils.Select(maker, iteratorExpr, hasNextMethod);
         hasNextAccess.setType(hasNextMethod.asType());
