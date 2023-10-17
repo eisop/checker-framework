@@ -6,7 +6,6 @@ import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
 import com.sun.tools.javac.code.Attribute;
-import com.sun.tools.javac.code.BoundKind;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Type;
 
@@ -133,7 +132,6 @@ public class AnnotatedTypes {
     public static <T extends AnnotatedTypeMirror> T castedAsSuper(
             AnnotatedTypeFactory atypeFactory, AnnotatedTypeMirror subtype, T supertype) {
         Types types = atypeFactory.getProcessingEnv().getTypeUtils();
-        Elements elements = atypeFactory.getProcessingEnv().getElementUtils();
 
         if (subtype.getKind() == TypeKind.NULL) {
             // Make a copy of the supertype so that if supertype is a composite type, the
@@ -149,38 +147,6 @@ public class AnnotatedTypes {
 
         fixUpRawTypes(subtype, asSuperType, supertype, types);
 
-        // if we have a type for enum MyEnum {...}
-        // When the supertype is the declaration of java.lang.Enum<E>, MyEnum values become
-        // Enum<MyEnum>.  Where really, we would like an Enum<E> with the annotations from
-        // Enum<MyEnum> are transferred to Enum<E>.  That is, if we have a type:
-        // @1 Enum<@2 MyEnum>
-        // asSuper should return:
-        // @1 Enum<E extends @2 Enum<E>>
-        if (asSuperType != null
-                && AnnotatedTypes.isEnum(asSuperType)
-                && AnnotatedTypes.isDeclarationOfJavaLangEnum(types, elements, supertype)) {
-            AnnotatedDeclaredType resultAtd = ((AnnotatedDeclaredType) supertype).deepCopy();
-            resultAtd.clearAnnotations();
-            resultAtd.addAnnotations(asSuperType.getAnnotations());
-
-            AnnotatedDeclaredType asSuperAdt = (AnnotatedDeclaredType) asSuperType;
-            if (!resultAtd.getTypeArguments().isEmpty()
-                    && !asSuperAdt.getTypeArguments().isEmpty()) {
-                AnnotatedTypeMirror sourceTypeArg = asSuperAdt.getTypeArguments().get(0);
-                AnnotatedTypeMirror resultTypeArg = resultAtd.getTypeArguments().get(0);
-                resultTypeArg.clearAnnotations();
-                if (resultTypeArg.getKind() == TypeKind.TYPEVAR) {
-                    // Only change the upper bound of a type variable.
-                    AnnotatedTypeVariable resultTypeArgTV = (AnnotatedTypeVariable) resultTypeArg;
-                    resultTypeArgTV.getUpperBound().addAnnotations(sourceTypeArg.getAnnotations());
-                } else {
-                    resultTypeArg.addAnnotations(sourceTypeArg.getEffectiveAnnotations());
-                }
-                @SuppressWarnings("unchecked")
-                T result = (T) resultAtd;
-                return result;
-            }
-        }
         return asSuperType;
     }
 
@@ -1606,11 +1572,11 @@ public class AnnotatedTypes {
     /**
      * This method identifies wildcard types that are unbound.
      *
-     * @param wildcard the type to check
+     * @param wildcardType the type to check
      * @return true if the given card is an unbounded wildcard
      */
-    public static boolean hasNoExplicitBound(AnnotatedTypeMirror wildcard) {
-        return ((Type.WildcardType) wildcard.getUnderlyingType()).kind == BoundKind.UNBOUND;
+    public static boolean hasNoExplicitBound(AnnotatedTypeMirror wildcardType) {
+        return TypesUtils.hasNoExplicitBound(wildcardType.getUnderlyingType());
     }
 
     /**
@@ -1632,8 +1598,7 @@ public class AnnotatedTypes {
      * @return true if wildcard type is explicitly super bounded
      */
     public static boolean hasExplicitSuperBound(AnnotatedTypeMirror wildcardType) {
-        Type.WildcardType wc = (Type.WildcardType) wildcardType.getUnderlyingType();
-        return wc.isSuperBound() && wc.kind != BoundKind.UNBOUND;
+        return TypesUtils.hasExplicitSuperBound(wildcardType.getUnderlyingType());
     }
 
     /**
@@ -1655,8 +1620,7 @@ public class AnnotatedTypes {
      * @return true if wildcard type is explicitly extends bounded
      */
     public static boolean hasExplicitExtendsBound(AnnotatedTypeMirror wildcardType) {
-        Type.WildcardType wc = (Type.WildcardType) wildcardType.getUnderlyingType();
-        return wc.isExtendsBound() && wc.kind != BoundKind.UNBOUND;
+        return TypesUtils.hasExplicitExtendsBound(wildcardType.getUnderlyingType());
     }
 
     /**
@@ -1666,7 +1630,7 @@ public class AnnotatedTypes {
      * @return true if this type is super bounded or unbounded
      */
     public static boolean isUnboundedOrSuperBounded(AnnotatedWildcardType wildcardType) {
-        return ((Type.WildcardType) wildcardType.getUnderlyingType()).isSuperBound();
+        return TypesUtils.isUnboundedOrSuperBounded(wildcardType.getUnderlyingType());
     }
 
     /**
@@ -1676,7 +1640,7 @@ public class AnnotatedTypes {
      * @return true if this type is extends bounded or unbounded
      */
     public static boolean isUnboundedOrExtendsBounded(AnnotatedWildcardType wildcardType) {
-        return ((Type.WildcardType) wildcardType.getUnderlyingType()).isExtendsBound();
+        return TypesUtils.isUnboundedOrExtendsBounded(wildcardType.getUnderlyingType());
     }
 
     /**
@@ -1687,16 +1651,16 @@ public class AnnotatedTypes {
      *
      * @param atypeFactory type factory
      * @param returnType return type to copy annotations to
-     * @param constructor the ATM for the constructor
+     * @param constructorType the ATM for the constructor
      */
     public static void copyOnlyExplicitConstructorAnnotations(
             AnnotatedTypeFactory atypeFactory,
             AnnotatedDeclaredType returnType,
-            AnnotatedExecutableType constructor) {
+            AnnotatedExecutableType constructorType) {
 
         // TODO: There will be a nicer way to access this in 308 soon.
         List<Attribute.TypeCompound> decall =
-                ((Symbol) constructor.getElement()).getRawTypeAttributes();
+                ((Symbol) constructorType.getElement()).getRawTypeAttributes();
         AnnotationMirrorSet decret = new AnnotationMirrorSet();
         for (Attribute.TypeCompound da : decall) {
             if (da.position.type == com.sun.tools.javac.code.TargetType.METHOD_RETURN) {
@@ -1714,7 +1678,7 @@ public class AnnotatedTypes {
             }
         }
 
-        for (AnnotationMirror cta : constructor.getReturnType().getAnnotations()) {
+        for (AnnotationMirror cta : constructorType.getReturnType().getAnnotations()) {
             AnnotationMirror ctatop = qualHierarchy.getTopAnnotation(cta);
             if (returnType.hasAnnotationInHierarchy(cta)) {
                 continue;

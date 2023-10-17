@@ -70,7 +70,7 @@ ext {
     // afu = "${annotationTools}/annotation-file-utilities"
 
     stubparser = "${parentDir}/stubparser"
-    stubparserVersion = "3.25.3"
+    stubparserVersion = "3.25.5"
     stubparserJar = "${stubparser}/javaparser-core/target/stubparser-${stubparserVersion}.jar"
 
     jtregHome = "${parentDir}/jtreg"
@@ -163,7 +163,7 @@ allprojects {
     //   * any new checkers have been added, or
     //   * backward-incompatible changes have been made to APIs or elsewhere.
     // To make a snapshot release: ./gradlew publish
-    version '3.37.0'
+    version '3.38.0'
 
     tasks.withType(JavaCompile).configureEach {
         options.fork = true
@@ -252,6 +252,7 @@ allprojects {
             // If you add any formatters to this block that require dependencies, then you must also
             // add them to spotlessPredeclare block.
             def doNotFormat = [
+                'checker/bin-devel/.plume-scripts/**',
                 'checker/tests/ainfer-*/annotated/*',
                 'dataflow/manual/examples/',
                 '**/nullness-javac-errors/*',
