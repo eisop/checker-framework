@@ -355,7 +355,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
             if (actual != null
                     && atypeFactory
                             .getQualifierHierarchy()
-                            .isSubtype(actual, monotonicAnnotation)) {
+                            .isSubtypeQualifiersOnly(actual, monotonicAnnotation)) {
                 newValue =
                         analysis.createSingleAnnotationValue(
                                         monotonicAnnotation, value.getUnderlyingType())

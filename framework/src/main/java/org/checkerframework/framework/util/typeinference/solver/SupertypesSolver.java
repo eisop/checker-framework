@@ -262,7 +262,7 @@ public class SupertypesSolver {
                     AnnotationMirror primaryLub = lubOfPrimaries.get(hierarchy);
 
                     if (primaryLub != null) {
-                        if (qualHierarchy.isSubtype(lubAnno, primaryLub)
+                        if (qualHierarchy.isSubtypeQualifiersOnly(lubAnno, primaryLub)
                                 && !AnnotationUtils.areSame(lubAnno, primaryLub)) {
                             lub.replaceAnnotation(primaryLub);
                         }
@@ -415,7 +415,7 @@ public class SupertypesSolver {
         AnnotationMirror lub = annoIter.next();
 
         while (annoIter.hasNext()) {
-            lub = qualHierarchy.leastUpperBound(lub, annoIter.next());
+            lub = qualHierarchy.leastUpperBoundQualifiersOnly(lub, annoIter.next());
         }
 
         return lub;

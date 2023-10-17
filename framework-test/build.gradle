@@ -6,11 +6,11 @@ sourceSets {
 }
 
 dependencies {
-    implementation "junit:junit:${junitVersion}"
+    implementation "junit:junit:${versions.junit}"
     implementation project(':javacutil')
     implementation project(':checker-qual')
 
-    implementation "org.plumelib:plume-util:${plumeUtilVersion}"
+    implementation "org.plumelib:plume-util:${versions.plumeUtil}"
 
     if (Jvm.current().toolsJar) {
         tagletJdk8Implementation files(Jvm.current().toolsJar)

@@ -104,11 +104,11 @@ public class LessThanAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForInd
          */
         public LessThanQualifierHierarchy(
                 Set<Class<? extends Annotation>> qualifierClasses, Elements elements) {
-            super(qualifierClasses, elements);
+            super(qualifierClasses, elements, LessThanAnnotatedTypeFactory.this);
         }
 
         @Override
-        public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror superAnno) {
+        public boolean isSubtypeQualifiers(AnnotationMirror subAnno, AnnotationMirror superAnno) {
             List<String> subList = getLessThanExpressions(subAnno);
             if (subList == null) {
                 return true;
@@ -122,10 +122,11 @@ public class LessThanAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForInd
         }
 
         @Override
-        public AnnotationMirror leastUpperBound(AnnotationMirror a1, AnnotationMirror a2) {
-            if (isSubtype(a1, a2)) {
+        public AnnotationMirror leastUpperBoundQualifiers(
+                AnnotationMirror a1, AnnotationMirror a2) {
+            if (isSubtypeQualifiers(a1, a2)) {
                 return a2;
-            } else if (isSubtype(a2, a1)) {
+            } else if (isSubtypeQualifiers(a2, a1)) {
                 return a1;
             }
 
@@ -136,10 +137,11 @@ public class LessThanAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForInd
         }
 
         @Override
-        public AnnotationMirror greatestLowerBound(AnnotationMirror a1, AnnotationMirror a2) {
-            if (isSubtype(a1, a2)) {
+        public AnnotationMirror greatestLowerBoundQualifiers(
+                AnnotationMirror a1, AnnotationMirror a2) {
+            if (isSubtypeQualifiers(a1, a2)) {
                 return a1;
-            } else if (isSubtype(a2, a1)) {
+            } else if (isSubtypeQualifiers(a2, a1)) {
                 return a2;
             }
 

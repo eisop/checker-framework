@@ -8,7 +8,6 @@ import com.sun.source.tree.Tree;
 import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.interning.qual.InternedDistinct;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
@@ -219,10 +218,14 @@ public abstract class CFAbstractTransfer<
     }
 
     /** The fixed initial store. */
-    private @MonotonicNonNull S fixedInitialStore = null;
+    private @Nullable S fixedInitialStore = null;
 
-    /** Set a fixed initial Store. */
-    public void setFixedInitialStore(S s) {
+    /**
+     * Set a fixed initial Store.
+     *
+     * @param s initial store; possible null
+     */
+    public void setFixedInitialStore(@Nullable S s) {
         fixedInitialStore = s;
     }
 
@@ -289,15 +292,19 @@ public abstract class CFAbstractTransfer<
             */
 
         } else if (underlyingAST.getKind() == UnderlyingAST.Kind.LAMBDA) {
-            // Create a copy and keep only the field values (nothing else applies).
-            store = analysis.createCopiedStore(fixedInitialStore);
-            // Allow that local variables are retained; they are effectively final,
-            // otherwise Java wouldn't allow access from within the lambda.
-            // TODO: what about the other information? Can code further down be simplified?
-            // store.localVariableValues.clear();
-            store.classValues.clear();
-            store.arrayValues.clear();
-            store.methodValues.clear();
+            if (fixedInitialStore != null) {
+                // Create a copy and keep only the field values (nothing else applies).
+                store = analysis.createCopiedStore(fixedInitialStore);
+                // Allow that local variables are retained; they are effectively final,
+                // otherwise Java wouldn't allow access from within the lambda.
+                // TODO: what about the other information? Can code further down be simplified?
+                // store.localVariableValues.clear();
+                store.classValues.clear();
+                store.arrayValues.clear();
+                store.methodValues.clear();
+            } else {
+                store = analysis.createEmptyStore(sequentialSemantics);
+            }
 
             for (LocalVariableNode p : parameters) {
                 AnnotatedTypeMirror anno = atypeFactory.getAnnotatedType(p.getElement());
