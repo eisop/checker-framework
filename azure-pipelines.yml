@@ -10,6 +10,13 @@ pr:
 
 jobs:
 
+# Tests run on
+#  * "LTS" releases (8, 11, 17, 21),
+#  * jdk_latest, which is the latest JDK release. This is currently JDK 21, so not separate.
+#    (jdk_latest will move to JDK 22 once it is released.)
+#  * jdk_next, which is the next JDK version, which is not yet released and might still fail.
+#    This is currently JDK 22.
+#
 # The dependsOn clauses are:
 #  * Everything depends on the canary jobs (the 4 main jdk_21 jobs (the newest LTS release)), except those jobs themselves.
 #  * Anything *_jdk8, *_jdk11, *_jdk17, *_jdk_latest, or *_jdk_next depends on *_jdk21.
