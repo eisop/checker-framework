@@ -3,31 +3,31 @@
 ///
 
 plugins {
-  id 'java'
-  id 'io.freefair.lombok' version '8.3'
-  // Checker Framework pluggable type-checking
-  id 'org.checkerframework' version '0.6.33'
+    id 'java'
+    id 'io.freefair.lombok' version '8.3'
+    // Checker Framework pluggable type-checking
+    id 'org.checkerframework' version '0.6.33'
 }
 
 lombok {
-  version = "1.18.30"
+    version = "1.18.30"
 }
 
 apply plugin: 'org.checkerframework'
 
 def cfHome = "${projectDir}/../../.."
 dependencies {
-  compileOnly files(cfHome + '/checker/dist/checker-qual.jar')
-  testCompileOnly files(cfHome + '/checker/dist/checker-qual.jar')
-  checkerFramework files(cfHome + '/checker/dist/checker.jar')
+    compileOnly files(cfHome + '/checker/dist/checker-qual.jar')
+    testCompileOnly files(cfHome + '/checker/dist/checker-qual.jar')
+    checkerFramework files(cfHome + '/checker/dist/checker.jar')
 }
 
 repositories {
-  mavenCentral()
+    mavenCentral()
 }
 
 checkerFramework {
-  checkers = [
-    'org.checkerframework.checker.nullness.NullnessChecker',
-  ]
+    checkers = [
+        'org.checkerframework.checker.nullness.NullnessChecker',
+    ]
 }

@@ -1,11 +1,12 @@
 package org.checkerframework.checker.i18nformatter.qual;
 
+import org.checkerframework.framework.qual.SubtypeOf;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.checkerframework.framework.qual.SubtypeOf;
 
 /**
  * This annotation indicates that when a string of the annotated type is passed as the first
@@ -31,13 +32,13 @@ import org.checkerframework.framework.qual.SubtypeOf;
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @SubtypeOf(I18nUnknownFormat.class)
 public @interface I18nFormatFor {
-  /**
-   * Indicates which formal parameter is the arguments to the format method. The value should be
-   * {@code #} followed by the 1-based index of the formal parameter that is the arguments to the
-   * format method, e.g., {@code "#2"}.
-   *
-   * @return {@code #} followed by the 1-based index of the formal parameter that is the arguments
-   *     to the format method
-   */
-  String value();
+    /**
+     * Indicates which formal parameter is the arguments to the format method. The value should be
+     * {@code #} followed by the 1-based index of the formal parameter that is the arguments to the
+     * format method, e.g., {@code "#2"}.
+     *
+     * @return {@code #} followed by the 1-based index of the formal parameter that is the arguments
+     *     to the format method
+     */
+    String value();
 }
