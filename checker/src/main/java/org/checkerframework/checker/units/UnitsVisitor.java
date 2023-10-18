@@ -29,8 +29,7 @@ public class UnitsVisitor extends BaseTypeVisitor<UnitsAnnotatedTypeFactory> {
         Tree.Kind kind = tree.getKind();
 
         if ((kind == Tree.Kind.PLUS_ASSIGNMENT || kind == Tree.Kind.MINUS_ASSIGNMENT)) {
-            if (!qualHierarchy.isSubtype(
-                    exprType.getEffectiveAnnotations(), varType.getEffectiveAnnotations())) {
+            if (!typeHierarchy.isSubtypeShallowEffective(exprType, varType)) {
                 checker.reportError(
                         tree, "compound.assignment.type.incompatible", varType, exprType);
             }

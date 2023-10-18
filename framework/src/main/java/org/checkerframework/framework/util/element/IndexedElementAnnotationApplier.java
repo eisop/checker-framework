@@ -1,6 +1,7 @@
 package org.checkerframework.framework.util.element;
 
 import com.sun.tools.javac.code.Attribute;
+import com.sun.tools.javac.code.TargetType;
 
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 
@@ -50,7 +51,11 @@ abstract class IndexedElementAnnotationApplier extends TargetedElementAnnotation
         // processed, see class comments ).  Place these annotations into the valid list.
         int i = 0;
         while (i < targeted.size()) {
-            if (getTypeCompoundIndex(targeted.get(i)) != paramIndex) {
+            Attribute.TypeCompound target = targeted.get(i);
+            // Annotations on parameters to record constructors are marked as fields so
+            // getTypeCompoundIndex does not return paramIndex.
+            if (target.position.type != TargetType.FIELD
+                    && getTypeCompoundIndex(target) != paramIndex) {
                 valid.add(targeted.remove(i));
             } else {
                 ++i;

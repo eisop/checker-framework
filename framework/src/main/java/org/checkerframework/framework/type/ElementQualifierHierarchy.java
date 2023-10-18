@@ -36,7 +36,7 @@ import javax.lang.model.util.Elements;
  * of QualifierKindHierarchy.
  */
 @AnnotatedFor("nullness")
-public abstract class ElementQualifierHierarchy implements QualifierHierarchy {
+public abstract class ElementQualifierHierarchy extends QualifierHierarchy {
 
     /** {@link org.checkerframework.javacutil.ElementUtils}. */
     private final Elements elements;
@@ -70,9 +70,14 @@ public abstract class ElementQualifierHierarchy implements QualifierHierarchy {
      *
      * @param qualifierClasses classes of annotations that are the qualifiers for this hierarchy
      * @param elements element utils
+     * @param atypeFactory the associated type factory
      */
     protected ElementQualifierHierarchy(
-            Collection<Class<? extends Annotation>> qualifierClasses, Elements elements) {
+            Collection<Class<? extends Annotation>> qualifierClasses,
+            Elements elements,
+            GenericAnnotatedTypeFactory<?, ?, ?, ?> atypeFactory) {
+        super(atypeFactory);
+
         this.elements = elements;
         this.qualifierKindHierarchy = createQualifierKindHierarchy(qualifierClasses);
 

@@ -176,8 +176,6 @@ import io.github.classgraph.ClassGraph;
     // sections in the manual for more details
     // org.checkerframework.framework.source.SourceChecker.useConservativeDefault
     "useConservativeDefaultsForUncheckedCode",
-    // Temporary, for backward compatibility
-    "useDefaultsForUncheckedCode",
 
     // Whether to store defaulted annotations in bytecode
     "noBytecodeStorage",
@@ -469,7 +467,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /**
      * Maps error keys to localized/custom error messages. Do not use directly; call {@link
-     * #fullMessageOf} or {@link #processArg}. Is set in {@link #initChecker}.
+     * #fullMessageOf} or {@link #processErrorMessageArg}. Is set in {@link #initChecker}.
      */
     protected Properties messagesProperties;
 
@@ -508,6 +506,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * call {@link #getSuppressWarningsStringsFromOption()}.
      */
     private String @MonotonicNonNull [] suppressWarningsStringsFromOption;
+
+    /** True if {@link #suppressWarningsStringsFromOption} has been computed. */
+    private boolean computedSuppressWarningsStringsFromOption = false;
 
     /**
      * If true, use the "allcheckers:" warning string prefix.
@@ -1205,7 +1206,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
         if (args != null) {
             for (int i = 0; i < args.length; ++i) {
-                args[i] = processArg(args[i]);
+                args[i] = processErrorMessageArg(args[i]);
             }
         }
 
@@ -1439,7 +1440,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @param arg the argument
      * @return the result after processing
      */
-    protected Object processArg(Object arg) {
+    protected Object processErrorMessageArg(Object arg) {
         // Check to see if the argument itself is a property to be expanded
         if (arg instanceof String) {
             return messagesProperties.getProperty((String) arg, (String) arg);
@@ -1587,8 +1588,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return Collections.singleton("all");
         }
 
-        String[] lintStrings = lintString.split(",");
-        Set<String> activeLint = ArraySet.newArraySetOrHashSet(lintStrings.length);
+        List<String> lintStrings = Arrays.asList(lintString.split(","));
+        Set<String> activeLint = ArraySet.newArraySetOrHashSet(lintStrings.size());
         for (String s : lintStrings) {
             if (!this.getSupportedLintOptions().contains(s)
                     && !(s.charAt(0) == '-'
@@ -1652,6 +1653,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             throw new UserError("Illegal lint option: " + name);
         }
 
+        // This is only needed if initChecker() has not yet been called.
         if (activeLints == null) {
             activeLints = createActiveLints(getOptions());
         }
@@ -1864,6 +1866,14 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     @Override
+    public Map<String, String> getOptions() {
+        if (activeOptions == null) {
+            activeOptions = createActiveOptions(processingEnv.getOptions());
+        }
+        return activeOptions;
+    }
+
+    @Override
     public final boolean hasOption(String name) {
         return getOptions().containsKey(name);
     }
@@ -1876,6 +1886,39 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     @Override
     public final String getOption(String name) {
         return getOption(name, null);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see SourceChecker#getLintOption(String,boolean)
+     */
+    @Override
+    public final String getOption(String name, String defaultValue) {
+
+        // TODO: Should supportedOptions be cached?
+        Set<String> supportedOptions = this.getSupportedOptions();
+        if (!supportedOptions.contains(name)) {
+            throw new UserError(
+                    "Illegal option: "
+                            + name
+                            + "; supported options = "
+                            + String.join(",", supportedOptions));
+        }
+
+        if (activeOptions == null) {
+            activeOptions = createActiveOptions(processingEnv.getOptions());
+        }
+
+        if (activeOptions.isEmpty()) {
+            return defaultValue;
+        }
+
+        if (activeOptions.containsKey(name)) {
+            return activeOptions.get(name);
+        } else {
+            return defaultValue;
+        }
     }
 
     /**
@@ -1910,12 +1953,19 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                         "Value of %s option should be a boolean, but is \"%s\".", name, value));
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @see SourceChecker#getLintOption(String,boolean)
+     */
     @Override
-    public Map<String, String> getOptions() {
-        if (activeOptions == null) {
-            activeOptions = createActiveOptions(processingEnv.getOptions());
+    public final List<String> getStringsOption(
+            String name, char separator, List<String> defaultValue) {
+        String value = getOption(name);
+        if (value == null) {
+            return defaultValue;
         }
-        return activeOptions;
+        return Arrays.asList(value.split(Pattern.quote(Character.toString(separator))));
     }
 
     /**
@@ -1924,25 +1974,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @see SourceChecker#getLintOption(String,boolean)
      */
     @Override
-    public final String getOption(String name, String defaultValue) {
-
-        if (!this.getSupportedOptions().contains(name)) {
-            throw new UserError("Illegal option: " + name);
-        }
-
-        if (activeOptions == null) {
-            activeOptions = createActiveOptions(processingEnv.getOptions());
-        }
-
-        if (activeOptions.isEmpty()) {
+    public final List<String> getStringsOption(
+            String name, String separator, List<String> defaultValue) {
+        String value = getOption(name);
+        if (value == null) {
             return defaultValue;
         }
-
-        if (activeOptions.containsKey(name)) {
-            return activeOptions.get(name);
-        } else {
-            return defaultValue;
-        }
+        return Arrays.asList(value.split(separator));
     }
 
     /**
@@ -2041,17 +2079,15 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *     argument
      */
     private String @Nullable [] getSuppressWarningsStringsFromOption() {
-        if (this.suppressWarningsStringsFromOption == null) {
+        if (!computedSuppressWarningsStringsFromOption) {
+            computedSuppressWarningsStringsFromOption = true;
             Map<String, String> options = getOptions();
-            if (!options.containsKey("suppressWarnings")) {
-                return null;
+            if (options.containsKey("suppressWarnings")) {
+                String swStrings = options.get("suppressWarnings");
+                if (swStrings != null) {
+                    this.suppressWarningsStringsFromOption = swStrings.split(",");
+                }
             }
-
-            String swStrings = options.get("suppressWarnings");
-            if (swStrings == null) {
-                return null;
-            }
-            this.suppressWarningsStringsFromOption = swStrings.split(",");
         }
 
         return this.suppressWarningsStringsFromOption;
@@ -2186,7 +2222,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Determines whether all the warnings pertaining to a given tree should be suppressed. Returns
+     * Returns true if all the warnings pertaining to a given tree should be suppressed. Returns
      * true if the tree is within the scope of a @SuppressWarnings annotation, one of whose values
      * suppresses the checker's warning. Also, returns true if the {@code errKey} matches a string
      * in {@code -AsuppressWarnings}.
@@ -2218,7 +2254,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Determines whether all the warnings pertaining to a given tree path should be suppressed.
+     * Returns true if all the warnings pertaining to a given tree path should be suppressed.
      * Returns true if the path is within the scope of a @SuppressWarnings annotation, one of whose
      * values suppresses the checker's warning.
      *
@@ -2292,14 +2328,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     public boolean useConservativeDefault(String kindOfCode) {
         boolean useUncheckedDefaultsForSource = false;
         boolean useUncheckedDefaultsForByteCode = false;
-        String option = this.getOption("useConservativeDefaultsForUncheckedCode");
-        // Temporary, for backward compatibility.
-        if (option == null) {
-            this.getOption("useDefaultsForUncheckedCode");
-        }
-
-        String[] args = option != null ? option.split(",") : new String[0];
-        for (String arg : args) {
+        for (String arg : this.getStringsOption("useConservativeDefaultsForUncheckedCode", ',')) {
             boolean value = arg.indexOf("-") != 0;
             arg = value ? arg : arg.substring(1);
             if (arg.equals(kindOfCode)) {
@@ -2323,9 +2352,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     protected final Set<Element> elementsWithSuppressedWarnings = new HashSet<>();
 
     /**
-     * Determines whether all the warnings pertaining to a given element should be suppressed.
-     * Returns true if the element is within the scope of a @SuppressWarnings annotation, one of
-     * whose values suppresses all the checker's warnings.
+     * Returns true if all the warnings pertaining to a given element should be suppressed. Returns
+     * true if the element is within the scope of a @SuppressWarnings annotation, one of whose
+     * values suppresses all the checker's warnings.
      *
      * @param elt the Element that might be a source of, or related to, a warning
      * @param errKey the error key the checker is emitting
@@ -2360,8 +2389,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Determines whether an error (whose message key is {@code messageKey}) should be suppressed.
-     * It is suppressed if any of the given SuppressWarnings strings suppresses it.
+     * Returns true if an error (whose message key is {@code messageKey}) should be suppressed. It
+     * is suppressed if any of the given SuppressWarnings strings suppresses it.
      *
      * <p>A SuppressWarnings string may be of the following pattern:
      *
@@ -2457,7 +2486,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             }
         }
 
-        // None of the SuppressWarnings strings suppress this error.
+        // None of the SuppressWarnings strings suppresses this error.
         return false;
     }
 

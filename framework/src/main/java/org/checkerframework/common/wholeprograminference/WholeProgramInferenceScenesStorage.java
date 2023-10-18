@@ -603,7 +603,11 @@ public class WholeProgramInferenceScenesStorage
             if (upperAnnos.size() == rhsATM.getAnnotations().size()
                     && atypeFactory
                             .getQualifierHierarchy()
-                            .isSubtype(rhsATM.getAnnotations(), upperAnnos)) {
+                            .isSubtypeShallow(
+                                    rhsATM.getAnnotations(),
+                                    rhsTM,
+                                    upperAnnos,
+                                    lhsATM.getUnderlyingType())) {
                 return;
             }
         }
@@ -661,7 +665,14 @@ public class WholeProgramInferenceScenesStorage
             // amJaif only contains annotations from the jaif, so it might be missing
             // an annotation in the hierarchy
             if (amJaif != null) {
-                amSource = atypeFactory.getQualifierHierarchy().leastUpperBound(amSource, amJaif);
+                amSource =
+                        atypeFactory
+                                .getQualifierHierarchy()
+                                .leastUpperBoundShallow(
+                                        amSource,
+                                        sourceCodeATM.getUnderlyingType(),
+                                        amJaif,
+                                        jaifATM.getUnderlyingType());
             }
             annosToReplace.add(amSource);
         }

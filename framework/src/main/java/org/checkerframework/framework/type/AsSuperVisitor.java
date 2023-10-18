@@ -21,6 +21,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.Types;
 
 /**
@@ -122,10 +123,13 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
                 if (lubs == null) {
                     lubs = altern.getAnnotations();
                 } else {
+                    TypeMirror typeMirror = type.getUnderlyingType();
                     AnnotationMirrorSet newLubs = new AnnotationMirrorSet();
                     for (AnnotationMirror lub : lubs) {
                         AnnotationMirror anno = altern.getAnnotationInHierarchy(lub);
-                        newLubs.add(qualHierarchy.leastUpperBound(anno, lub));
+                        newLubs.add(
+                                qualHierarchy.leastUpperBoundShallow(
+                                        anno, altern.getUnderlyingType(), lub, typeMirror));
                     }
                     lubs = newLubs;
                 }
@@ -637,8 +641,15 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
     @Override
     public AnnotatedTypeMirror visitTypevar_Wildcard(
             AnnotatedTypeVariable type, AnnotatedWildcardType superType, Void p) {
-        AnnotatedTypeMirror upperBound =
-                visit(type.getUpperBound(), superType.getExtendsBound(), p);
+        AnnotatedTypeMirror upperBound;
+        if (superType.getExtendsBound().getUnderlyingType().getKind() == TypeKind.TYPEVAR
+                && TypesUtils.areSame(
+                        type.getUnderlyingType(),
+                        (TypeVariable) superType.getExtendsBound().getUnderlyingType())) {
+            upperBound = visit(type, superType.getExtendsBound(), p);
+        } else {
+            upperBound = visit(type.getUpperBound(), superType.getExtendsBound(), p);
+        }
         superType.setExtendsBound(upperBound);
 
         AnnotatedTypeMirror lowerBound;

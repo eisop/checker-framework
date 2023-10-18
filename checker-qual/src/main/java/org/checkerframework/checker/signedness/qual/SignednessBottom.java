@@ -25,5 +25,5 @@ import java.lang.annotation.Target;
     TypeUseLocation.LOWER_BOUND,
     TypeUseLocation.UPPER_BOUND,
 })
-@SubtypeOf({SignedPositiveFromUnsigned.class})
+@SubtypeOf({SignedPositive.class})
 public @interface SignednessBottom {}

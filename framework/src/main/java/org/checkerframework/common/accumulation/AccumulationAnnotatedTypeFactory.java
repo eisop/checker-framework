@@ -297,14 +297,23 @@ public abstract class AccumulationAnnotatedTypeFactory
             if (returnsThis(tree)) {
                 // There is a @This annotation on the return type of the invoked method.
                 ExpressionTree receiverTree = TreeUtils.getReceiverTree(tree.getMethodSelect());
-                AnnotatedTypeMirror receiverType =
-                        receiverTree == null ? null : getAnnotatedType(receiverTree);
-                // The current type of the receiver, or top if none exists.
-                AnnotationMirror receiverAnno =
-                        receiverType == null ? top : receiverType.getAnnotationInHierarchy(top);
-
                 AnnotationMirror returnAnno = type.getAnnotationInHierarchy(top);
-                type.replaceAnnotation(qualHierarchy.greatestLowerBound(returnAnno, receiverAnno));
+                AnnotationMirror glbAnno;
+                if (receiverTree == null) {
+                    glbAnno = returnAnno;
+                } else {
+                    AnnotatedTypeMirror receiverType = getAnnotatedType(receiverTree);
+                    // The current type of the receiver, or top if none exists.
+                    AnnotationMirror receiverAnno = receiverType.getAnnotationInHierarchy(top);
+                    glbAnno =
+                            qualHierarchy.greatestLowerBoundShallow(
+                                    returnAnno,
+                                    type.getUnderlyingType(),
+                                    receiverAnno,
+                                    receiverType.getUnderlyingType());
+                }
+
+                type.replaceAnnotation(glbAnno);
             }
             return super.visitMethodInvocation(tree, type);
         }
@@ -410,7 +419,7 @@ public abstract class AccumulationAnnotatedTypeFactory
          */
         protected AccumulationQualifierHierarchy(
                 Collection<Class<? extends Annotation>> qualifierClasses, Elements elements) {
-            super(qualifierClasses, elements);
+            super(qualifierClasses, elements, AccumulationAnnotatedTypeFactory.this);
         }
 
         /**
@@ -418,7 +427,8 @@ public abstract class AccumulationAnnotatedTypeFactory
          * of them is bottom, in which case the result is also bottom.
          */
         @Override
-        public AnnotationMirror greatestLowerBound(AnnotationMirror a1, AnnotationMirror a2) {
+        public AnnotationMirror greatestLowerBoundQualifiers(
+                AnnotationMirror a1, AnnotationMirror a2) {
             if (AnnotationUtils.areSame(a1, bottom) || AnnotationUtils.areSame(a2, bottom)) {
                 return bottom;
             }
@@ -461,7 +471,8 @@ public abstract class AccumulationAnnotatedTypeFactory
          * unless one of them is bottom, in which case the result is the other annotation.
          */
         @Override
-        public AnnotationMirror leastUpperBound(AnnotationMirror a1, AnnotationMirror a2) {
+        public AnnotationMirror leastUpperBoundQualifiers(
+                AnnotationMirror a1, AnnotationMirror a2) {
             if (AnnotationUtils.areSame(a1, bottom)) {
                 return a2;
             } else if (AnnotationUtils.areSame(a2, bottom)) {
@@ -507,7 +518,7 @@ public abstract class AccumulationAnnotatedTypeFactory
          * <p>isSubtype in this type system is subset.
          */
         @Override
-        public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror superAnno) {
+        public boolean isSubtypeQualifiers(AnnotationMirror subAnno, AnnotationMirror superAnno) {
             if (AnnotationUtils.areSame(subAnno, bottom)) {
                 return true;
             } else if (AnnotationUtils.areSame(superAnno, bottom)) {

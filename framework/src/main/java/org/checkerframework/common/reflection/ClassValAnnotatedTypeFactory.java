@@ -140,7 +140,7 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          */
         public ClassValQualifierHierarchy(
                 Set<Class<? extends Annotation>> qualifierClasses, Elements elements) {
-            super(qualifierClasses, elements);
+            super(qualifierClasses, elements, ClassValAnnotatedTypeFactory.this);
         }
 
         /*
@@ -149,13 +149,13 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          * obtained by combining the values of both annotations.
          */
         @Override
-        public @Nullable AnnotationMirror leastUpperBound(
+        public @Nullable AnnotationMirror leastUpperBoundQualifiers(
                 AnnotationMirror a1, AnnotationMirror a2) {
             if (!AnnotationUtils.areSameByName(getTopAnnotation(a1), getTopAnnotation(a2))) {
                 return null;
-            } else if (isSubtype(a1, a2)) {
+            } else if (isSubtypeQualifiers(a1, a2)) {
                 return a2;
-            } else if (isSubtype(a2, a1)) {
+            } else if (isSubtypeQualifiers(a2, a1)) {
                 return a1;
             } else {
                 List<String> a1ClassNames = getClassNamesFromAnnotation(a1);
@@ -173,13 +173,13 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         @Override
-        public @Nullable AnnotationMirror greatestLowerBound(
+        public @Nullable AnnotationMirror greatestLowerBoundQualifiers(
                 AnnotationMirror a1, AnnotationMirror a2) {
             if (!AnnotationUtils.areSameByName(getTopAnnotation(a1), getTopAnnotation(a2))) {
                 return null;
-            } else if (isSubtype(a1, a2)) {
+            } else if (isSubtypeQualifiers(a1, a2)) {
                 return a1;
-            } else if (isSubtype(a2, a1)) {
+            } else if (isSubtypeQualifiers(a2, a1)) {
                 return a2;
             } else {
                 List<String> a1ClassNames = getClassNamesFromAnnotation(a1);
@@ -205,7 +205,7 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          * a subtype of lhs iff lhs contains  every element of rhs.
          */
         @Override
-        public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror superAnno) {
+        public boolean isSubtypeQualifiers(AnnotationMirror subAnno, AnnotationMirror superAnno) {
             if (AnnotationUtils.areSame(subAnno, superAnno)
                     || areSameByClass(superAnno, UnknownClass.class)
                     || areSameByClass(subAnno, ClassValBottom.class)) {

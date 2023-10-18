@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.type.TypeMirror;
 
 /**
  * Adds annotations to a type based on the contents of a tree. This class applies annotations
@@ -254,13 +255,14 @@ public class LiteralTreeAnnotator extends TreeAnnotator {
                 }
             }
             if (!matches.isEmpty()) {
+                TypeMirror tm = type.getUnderlyingType();
                 Set<? extends AnnotationMirror> res = matches.get(0);
                 for (Set<? extends AnnotationMirror> sam : matches) {
-                    res = qualHierarchy.greatestLowerBounds(res, sam);
+                    res = qualHierarchy.greatestLowerBoundsShallow(res, tm, sam, tm);
                 }
                 // Verify that res is not a subtype of any type in nonMatches
                 for (Set<? extends AnnotationMirror> sam : nonMatches) {
-                    if (qualHierarchy.isSubtype(res, sam)) {
+                    if (qualHierarchy.isSubtypeShallow(res, sam, tm)) {
                         String matchesOnePerLine = "";
                         for (Set<? extends AnnotationMirror> match : matches) {
                             matchesOnePerLine += System.lineSeparator() + "     " + match;

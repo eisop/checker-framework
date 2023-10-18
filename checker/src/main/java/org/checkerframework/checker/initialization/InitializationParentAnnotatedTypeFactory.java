@@ -814,7 +814,8 @@ public abstract class InitializationParentAnnotatedTypeFactory
         protected InitializationQualifierHierarchy() {
             super(
                     InitializationParentAnnotatedTypeFactory.this.getSupportedTypeQualifiers(),
-                    elements);
+                    elements,
+                    InitializationParentAnnotatedTypeFactory.this);
             UNKNOWN_INIT = getQualifierKind(UNKNOWN_INITIALIZATION);
             UNDER_INIT = getQualifierKind(UNDER_INITALIZATION);
         }
