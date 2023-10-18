@@ -228,13 +228,13 @@ public class AliasingVisitor extends BaseTypeVisitor<AliasingAnnotatedTypeFactor
       // VariableTree#getType returns null for binding variables from a DeconstructionPatternTree.
       if (tree.getType().getKind() == Tree.Kind.ARRAY_TYPE) {
         AnnotatedArrayType arrayType = (AnnotatedArrayType) varType;
-        if (arrayType.getComponentType().hasPrimaryAnnotation(Unique.class)) {
+        if (arrayType.getComponentType().hasAnnotation(Unique.class)) {
           checker.reportError(tree, "unique.location.forbidden");
         }
       } else if (tree.getType().getKind() == Tree.Kind.PARAMETERIZED_TYPE) {
         AnnotatedDeclaredType declaredType = (AnnotatedDeclaredType) varType;
         for (AnnotatedTypeMirror atm : declaredType.getTypeArguments()) {
-          if (atm.hasPrimaryAnnotation(Unique.class)) {
+          if (atm.hasAnnotation(Unique.class)) {
             checker.reportError(tree, "unique.location.forbidden");
           }
         }
