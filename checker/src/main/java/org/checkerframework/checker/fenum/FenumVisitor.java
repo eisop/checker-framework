@@ -14,12 +14,20 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclared
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11.CaseUtils;
 
 import java.util.List;
 
 import javax.lang.model.element.ExecutableElement;
 
+/** The visitor for Fenum Checker. */
 public class FenumVisitor extends BaseTypeVisitor<FenumAnnotatedTypeFactory> {
+
+    /**
+     * Creates a Fenum Visitor
+     *
+     * @param checker the checker
+     */
     public FenumVisitor(BaseTypeChecker checker) {
         super(checker);
     }
@@ -46,8 +54,7 @@ public class FenumVisitor extends BaseTypeVisitor<FenumAnnotatedTypeFactory> {
         AnnotatedTypeMirror exprType = atypeFactory.getAnnotatedType(expr);
 
         for (CaseTree caseExpr : tree.getCases()) {
-            List<? extends ExpressionTree> realCaseExprs =
-                    TreeUtils.caseTreeGetExpressions(caseExpr);
+            List<? extends ExpressionTree> realCaseExprs = CaseUtils.getExpressions(caseExpr);
             // Check all the case options against the switch expression type:
             for (ExpressionTree realCaseExpr : realCaseExprs) {
                 AnnotatedTypeMirror caseType = atypeFactory.getAnnotatedType(realCaseExpr);

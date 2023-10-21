@@ -209,5 +209,7 @@ public class LombokSupport implements BuilderFrameworkSupport {
     }
 
     @Override
-    public void handleConstructor(NewClassTree tree, AnnotatedTypeMirror type) {}
+    public void handleConstructor(NewClassTree tree, AnnotatedTypeMirror type) {
+        // do nothing
+    }
 }

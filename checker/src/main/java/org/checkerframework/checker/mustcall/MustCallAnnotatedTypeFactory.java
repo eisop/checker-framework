@@ -25,6 +25,7 @@ import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.QualifierUpperBounds;
 import org.checkerframework.framework.type.SubtypeIsSubsetQualifierHierarchy;
@@ -39,9 +40,11 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
+import org.checkerframework.javacutil.TypesUtils;
 
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -50,10 +53,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.type.TypeMirror;
 
 /**
  * The annotated type factory for the Must Call Checker. Primarily responsible for the subtyping
@@ -260,7 +265,8 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
     }
 
     /** Support @InheritableMustCall meaning @MustCall on all subtype elements. */
-    class MustCallDefaultQualifierForUseTypeAnnotator extends DefaultQualifierForUseTypeAnnotator {
+    private class MustCallDefaultQualifierForUseTypeAnnotator
+            extends DefaultQualifierForUseTypeAnnotator {
 
         /** Creates a {@code MustCallDefaultQualifierForUseTypeAnnotator}. */
         public MustCallDefaultQualifierForUseTypeAnnotator() {
@@ -292,7 +298,7 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
     }
 
     /** Support @InheritableMustCall meaning @MustCall on all subtypes. */
-    class MustCallQualifierUpperBounds extends QualifierUpperBounds {
+    private class MustCallQualifierUpperBounds extends QualifierUpperBounds {
 
         /**
          * Creates a {@link QualifierUpperBounds} from the MustCall Checker the annotations that are
@@ -354,7 +360,7 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
 
     @Override
     protected QualifierHierarchy createQualifierHierarchy() {
-        return new SubtypeIsSubsetQualifierHierarchy(
+        return new MustCallQualifierHierarchy(
                 this.getSupportedTypeQualifiers(), this.getProcessingEnv(), this);
     }
 
@@ -446,5 +452,65 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
      */
     public @Nullable LocalVariableNode getTempVar(Node node) {
         return tempVars.get(node.getTree());
+    }
+
+    /**
+     * Returns true if the given type should never have a must-call obligation.
+     *
+     * @param type the type to check
+     * @return true if the given type should never have a must-call obligation
+     */
+    public boolean shouldHaveNoMustCallObligation(TypeMirror type) {
+        return type.getKind().isPrimitive()
+                || TypesUtils.isClass(type)
+                || TypesUtils.isString(type);
+    }
+
+    /** Qualifier hierarchy for the Must Call Checker. */
+    private class MustCallQualifierHierarchy extends SubtypeIsSubsetQualifierHierarchy {
+
+        /**
+         * Creates a SubtypeIsSubsetQualifierHierarchy from the given classes.
+         *
+         * @param qualifierClasses classes of annotations that are the qualifiers for this hierarchy
+         * @param processingEnv processing environment
+         * @param atypeFactory the associated type factory
+         */
+        public MustCallQualifierHierarchy(
+                Collection<Class<? extends Annotation>> qualifierClasses,
+                ProcessingEnvironment processingEnv,
+                GenericAnnotatedTypeFactory<?, ?, ?, ?> atypeFactory) {
+            super(qualifierClasses, processingEnv, atypeFactory);
+        }
+
+        @Override
+        public boolean isSubtypeShallow(
+                AnnotationMirror subQualifier,
+                TypeMirror subType,
+                AnnotationMirror superQualifier,
+                TypeMirror superType) {
+            if (shouldHaveNoMustCallObligation(subType)
+                    || shouldHaveNoMustCallObligation(superType)) {
+                return true;
+            }
+            return super.isSubtypeShallow(subQualifier, subType, superQualifier, superType);
+        }
+
+        @Override
+        public @Nullable AnnotationMirror leastUpperBoundShallow(
+                AnnotationMirror qualifier1,
+                TypeMirror tm1,
+                AnnotationMirror qualifier2,
+                TypeMirror tm2) {
+            boolean tm1NoMustCall = shouldHaveNoMustCallObligation(tm1);
+            boolean tm2NoMustCall = shouldHaveNoMustCallObligation(tm2);
+            if (tm1NoMustCall == tm2NoMustCall) {
+                return super.leastUpperBoundShallow(qualifier1, tm1, qualifier2, tm2);
+            } else if (tm1NoMustCall) {
+                return qualifier1;
+            } else { // if (tm2NoMustCall) {
+                return qualifier2;
+            }
+        }
     }
 }

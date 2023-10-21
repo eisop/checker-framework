@@ -1,12 +1,12 @@
 # Create a Docker image that is ready to run the full Checker Framework tests,
 # including building the manual and Javadoc, using the latest JDK release,
-# currently JDK 19.
+# currently JDK 21.
 
 # "ubuntu" is the latest LTS release.  "ubuntu:rolling" is the latest release.
 # See releases at https://hub.docker.com/_/ubuntu for available images.
 # See https://packages.ubuntu.com/search?suite=default&section=all&arch=any&keywords=openjdk-20-jdk&searchon=names
 # to see what Ubuntu versions support a particular OpenJDK version.
-FROM ubuntu:22.10
+FROM ubuntu:23.10
 MAINTAINER Werner Dietl <wdietl@gmail.com>
 
 # According to
@@ -16,38 +16,44 @@ MAINTAINER Werner Dietl <wdietl@gmail.com>
 
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get -qqy update \
-&& apt-get -qqy install \
-  openjdk-19-jdk
+&& apt-get -y install aptitude \
+&& aptitude -y install \
+  apt-utils
 
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get -qqy update \
-&& apt-get -qqy install \
+&& aptitude -y install \
+  openjdk-17-jdk \
+  openjdk-21-jdk
+
+RUN export DEBIAN_FRONTEND=noninteractive \
+&& apt-get -qqy update \
+&& aptitude -y install \
   ant \
   binutils \
   build-essential \
   cpp \
   git \
-  gradle \
   jq \
   libcurl3-gnutls \
   make \
   maven \
-  mercurial \
-  python3-pip \
+  pipx \
+  python3-distutils \
   python3-requests \
   unzip \
   wget
 
-# Maven 3.6.3 (the default on Ubuntu 22.04) does not run under JDK 19.
+# Maven 3.8.7 is the default on Ubuntu 23.04, so the below is not needed.
 # (Don't try to use a variable here for the Maven version.)
-RUN export DEBIAN_FRONTEND=noninteractive \
-&& wget https://mirrors.sonic.net/apache/maven/maven-3/3.9.1/binaries/apache-maven-3.9.1-bin.tar.gz \
-&& tar xzvf apache-maven-3.9.1-bin.tar.gz
-ENV PATH="/apache-maven-3.9.1/bin:$PATH"
+# RUN export DEBIAN_FRONTEND=noninteractive \
+# && wget https://mirrors.sonic.net/apache/maven/maven-3/3.9.2/binaries/apache-maven-3.9.2-bin.tar.gz \
+# && tar xzvf apache-maven-3.9.2-bin.tar.gz
+# ENV PATH="/apache-maven-3.9.2/bin:$PATH"
 
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get -qqy update \
-&& apt-get -qqy install \
+&& aptitude -y install \
   autoconf \
   devscripts \
   dia \
@@ -74,8 +80,24 @@ RUN export DEBIAN_FRONTEND=noninteractive \
   texlive-latex-extra \
   texlive-latex-recommended
 
-RUN pip3 install --no-cache-dir black flake8 html5validator lithium-reducer PyGithub pyyaml
+# `pipx ensurepath` only adds to the path in newly-started shells.
+# BUT, setting the path for the current user is not enough.
+# Azure creates a new user and runs jobs as it.
+# So, install into /usr/local/bin which is already on every user's path.
+RUN export DEBIAN_FRONTEND=noninteractive \
+&& apt-get -qqy update \
+&& aptitude -y install \
+  pipx \
+&& PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install black \
+&& PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install flake8 \
+&& PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install html5validator \
+&& PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install lithium-reducer
+
+RUN mkdir /python-env \
+&& python3 -m venv /python-env \
+&& /python-env/bin/pip install --no-cache-dir lithium-reducer PyGithub pyyaml
 
 RUN export DEBIAN_FRONTEND=noninteractive \
+&& apt-get autoremove \
 && apt-get clean \
 && rm -rf /var/lib/apt/lists/*

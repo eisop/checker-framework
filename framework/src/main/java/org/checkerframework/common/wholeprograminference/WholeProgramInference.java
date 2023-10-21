@@ -5,6 +5,7 @@ import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.Tree;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 
+import org.checkerframework.checker.index.qual.Positive;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.dataflow.analysis.Analysis;
 import org.checkerframework.dataflow.cfg.node.LocalVariableNode;
@@ -233,11 +234,11 @@ public interface WholeProgramInference {
      * Adds a declaration annotation to a formal parameter.
      *
      * @param methodElt the method whose formal parameter will be annotated
-     * @param index the index of the parameter (0-indexed)
+     * @param index_1based the index of the parameter (1-indexed)
      * @param anno the annotation to add
      */
     void addDeclarationAnnotationToFormalParameter(
-            ExecutableElement methodElt, int index, AnnotationMirror anno);
+            ExecutableElement methodElt, @Positive int index_1based, AnnotationMirror anno);
 
     /**
      * Adds an annotation to a class declaration.

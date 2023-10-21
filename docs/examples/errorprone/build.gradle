@@ -6,14 +6,14 @@ plugins {
     id 'java'
     id 'net.ltgt.errorprone' version '2.0.2'
     // Checker Framework pluggable type-checking
-    id 'org.checkerframework' version '0.6.27'
+    id 'org.checkerframework' version '0.6.33'
 }
 
 apply plugin: 'org.checkerframework'
 dependencies {
-    compileOnly 'io.github.eisop:checker-qual:3.23.0-eisop1'
-    testCompileOnly 'io.github.eisop:checker-qual:3.23.0-eisop1'
-    checkerFramework 'io.github.eisop:checker:3.23.0-eisop1'
+    compileOnly 'io.github.eisop:checker-qual:3.34.0-eisop1'
+    testCompileOnly 'io.github.eisop:checker-qual:3.34.0-eisop1'
+    checkerFramework 'io.github.eisop:checker:3.34.0-eisop1'
 }
 
 dependencies {

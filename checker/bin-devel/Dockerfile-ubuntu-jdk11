@@ -5,7 +5,7 @@
 # See releases at https://hub.docker.com/_/ubuntu for available images.
 # See https://packages.ubuntu.com/search?suite=default&section=all&arch=any&keywords=openjdk-20-jdk&searchon=names
 # to see what Ubuntu versions support a particular OpenJDK version.
-FROM ubuntu:22.10
+FROM ubuntu
 MAINTAINER Werner Dietl <wdietl@gmail.com>
 
 # According to
@@ -22,7 +22,9 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get -qqy update \
 && aptitude -y install \
-  openjdk-11-jdk
+  openjdk-11-jdk \
+  openjdk-17-jdk \
+&& update-java-alternatives -s java-1.11.0-openjdk-amd64
 
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get -qqy update \
@@ -36,7 +38,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
   libcurl3-gnutls \
   make \
   maven \
-  mercurial \
+  python3-pip \
   python3-distutils \
   python3-requests \
   unzip \

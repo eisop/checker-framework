@@ -91,7 +91,6 @@ LIVE_CHECKER_REPO = "git@github.com:eisop/checker-framework.git"
 PLUME_SCRIPTS_REPO = "https://github.com/eisop-plume-lib/plume-scripts"
 CHECKLINK_REPO = "https://github.com/eisop-plume-lib/checklink"
 PLUME_BIB_REPO = "https://github.com/mernst/plume-bib"
-STUBPARSER_REPO = "https://github.com/eisop/stubparser"
 
 # Location of the project directories in which we will build the actual projects.
 # When we build these projects are pushed to the INTERM repositories.
@@ -115,7 +114,6 @@ ANNO_FILE_UTILITIES = os.path.join(ANNO_TOOLS, "annotation-file-utilities")
 PLUME_SCRIPTS = os.path.join(BUILD_DIR, "plume-scripts")
 CHECKLINK = os.path.join(BUILD_DIR, "checklink")
 PLUME_BIB = os.path.join(BUILD_DIR, "plume-bib")
-STUBPARSER = os.path.join(BUILD_DIR, "stubparser")
 
 BUILD_REPOS = (CHECKER_FRAMEWORK, ANNO_TOOLS)
 INTERM_REPOS = (INTERM_CHECKER_REPO, INTERM_ANNO_REPO)
@@ -177,7 +175,6 @@ TOOLS = [
     "java",
     "latex",
     "mvn",
-    "hg",
     "git",
     "html5validator",
     "dot",

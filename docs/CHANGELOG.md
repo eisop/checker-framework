@@ -1,4 +1,4 @@
-Version 3.38.0-eisop1 (October ?, 2023)
+Version 3.39.0-eisop1 (October ?, 2023)
 ---------------------------------------
 
 **User-visible changes:**
@@ -46,6 +46,30 @@ Changed the return types of
 **Closed issues:**
 
 eisop#297, eisop#376, eisop#400, eisop#519, eisop#532, eisop#533, typetools#1590, typetools#1919.
+
+
+Version 3.39.0 (October 2, 2023)
+--------------------------------
+
+**User-visible changes:**
+
+The Checker Framework runs on a version 21 JVM.
+It does not yet soundly check all new Java 21 language features, but it does not
+crash when compiling them.
+
+**Implementation details:**
+
+Dataflow supports all the new Java 21 langauge features.
+ * A new node, `DeconstructorPatternNode`, was added, so any implementation of
+   `NodeVisitor` must be updated.
+ * Method `InstanceOfNode.getBindingVariable()` is deprecated; use
+   `getPatternNode()` or `getBindingVariables()` instead.
+
+WPI uses 1-based indexing for formal parameters and arguments.
+
+**Closed issues:**
+
+#5911, #5967, #6155, #6173, #6201.
 
 
 Version 3.38.0 (September 1, 2023)

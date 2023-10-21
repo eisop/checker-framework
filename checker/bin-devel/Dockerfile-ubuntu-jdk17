@@ -3,9 +3,9 @@
 
 # "ubuntu" is the latest LTS release.  "ubuntu:rolling" is the latest release.
 # See releases at https://hub.docker.com/_/ubuntu for available images.
-# See https://packages.ubuntu.com/search?suite=default&section=all&arch=any&keywords=openjdk-20-jdk&searchon=names
+# See https://packages.ubuntu.com/search?suite=default&section=all&arch=any&keywords=openjdk-17-jdk&searchon=names
 # to see what Ubuntu versions support a particular OpenJDK version.
-FROM ubuntu:22.10
+FROM ubuntu
 MAINTAINER Werner Dietl <wdietl@gmail.com>
 
 # According to
@@ -36,7 +36,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
   libcurl3-gnutls \
   make \
   maven \
-  mercurial \
+  python3-pip \
   python3-distutils \
   python3-requests \
   unzip \
@@ -45,9 +45,9 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 # Maven 3.6.3 (the default on Ubuntu 22.10) does not run under JDK 17.
 # (Don't try to use a variable here for the Maven version.)
 RUN export DEBIAN_FRONTEND=noninteractive \
-&& wget https://mirrors.sonic.net/apache/maven/maven-3/3.9.2/binaries/apache-maven-3.9.2-bin.tar.gz \
-&& tar xzvf apache-maven-3.9.2-bin.tar.gz
-ENV PATH="/apache-maven-3.9.2/bin:$PATH"
+&& wget https://mirrors.sonic.net/apache/maven/maven-3/3.9.5/binaries/apache-maven-3.9.5-bin.tar.gz \
+&& tar xzvf apache-maven-3.9.5-bin.tar.gz
+ENV PATH="/apache-maven-3.9.5/bin:$PATH"
 
 RUN pip3 install --no-cache-dir lithium-reducer PyGithub pyyaml
 

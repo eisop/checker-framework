@@ -38,6 +38,7 @@ import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
 
 import org.checkerframework.afu.scenelib.util.JVMNames;
+import org.checkerframework.checker.index.qual.Positive;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.BinaryName;
@@ -59,6 +60,7 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TypeSystemError;
 import org.plumelib.util.ArraySet;
 import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.DeepCopyable;
@@ -309,10 +311,14 @@ public class WholeProgramInferenceJavaParserStorage
     @Override
     public AnnotatedTypeMirror getParameterAnnotations(
             ExecutableElement methodElt,
-            int i,
+            @Positive int index_1based,
             AnnotatedTypeMirror paramATM,
             VariableElement ve,
             AnnotatedTypeFactory atypeFactory) {
+        if (index_1based == 0) {
+            throw new TypeSystemError(
+                    "0 is illegal as index argument to addDeclarationAnnotationToFormalParameter");
+        }
         CallableDeclarationAnnos methodAnnos = getMethodAnnos(methodElt);
         if (methodAnnos == null) {
             // When processing anonymous inner classes outside their compilation units,
@@ -322,7 +328,7 @@ public class WholeProgramInferenceJavaParserStorage
             // because even if WPI inferred something, it couldn't be printed.
             return paramATM;
         }
-        return methodAnnos.getParameterTypeInitialized(paramATM, i, atypeFactory);
+        return methodAnnos.getParameterTypeInitialized(paramATM, index_1based, atypeFactory);
     }
 
     @Override
@@ -486,14 +492,18 @@ public class WholeProgramInferenceJavaParserStorage
 
     @Override
     public boolean addDeclarationAnnotationToFormalParameter(
-            ExecutableElement methodElt, int index, AnnotationMirror anno) {
+            ExecutableElement methodElt, @Positive int index_1based, AnnotationMirror anno) {
+        if (index_1based == 0) {
+            throw new TypeSystemError(
+                    "0 is illegal as index argument to addDeclarationAnnotationToFormalParameter");
+        }
         CallableDeclarationAnnos methodAnnos = getMethodAnnos(methodElt);
         if (methodAnnos == null) {
             // See the comment on the similar exception in #getParameterAnnotations, above.
             return false;
         }
         boolean isNewAnnotation =
-                methodAnnos.addDeclarationAnnotationToFormalParameter(anno, index);
+                methodAnnos.addDeclarationAnnotationToFormalParameter(anno, index_1based);
         if (isNewAnnotation) {
             modifiedFiles.add(getFileForElement(methodElt));
         }
@@ -1498,25 +1508,28 @@ public class WholeProgramInferenceJavaParserStorage
          *     {@code AnnotatedTypeMirror} the first time it's accessed
          * @param atf the annotated type factory of a given type system, whose type hierarchy will
          *     be used
-         * @param index index of the parameter to return the inferred annotations of
+         * @param index_1based index of the parameter to return the inferred annotations of
+         *     (1-based)
          * @return an {@code AnnotatedTypeMirror} containing all annotations inferred for the
          *     parameter at the given index
          */
         public AnnotatedTypeMirror getParameterTypeInitialized(
-                AnnotatedTypeMirror type, int index, AnnotatedTypeFactory atf) {
+                AnnotatedTypeMirror type, @Positive int index_1based, AnnotatedTypeFactory atf) {
+            // 0-based index
+            int i = index_1based - 1;
+
             if (parameterTypes == null) {
                 parameterTypes =
                         new ArrayList<>(
                                 Collections.nCopies(declaration.getParameters().size(), null));
             }
 
-            if (parameterTypes.get(index) == null) {
+            if (parameterTypes.get(i) == null) {
                 parameterTypes.set(
-                        index,
-                        AnnotatedTypeMirror.createType(type.getUnderlyingType(), atf, false));
+                        i, AnnotatedTypeMirror.createType(type.getUnderlyingType(), atf, false));
             }
 
-            return parameterTypes.get(index);
+            return parameterTypes.get(i);
         }
 
         /**
@@ -1541,17 +1554,21 @@ public class WholeProgramInferenceJavaParserStorage
          * annotation.
          *
          * @param annotation the declaration annotation to add
-         * @param index index of the parameter
+         * @param index_1based index of the parameter (1-indexed)
          * @return true if {@code annotation} wasn't previously stored for this parameter
          */
         public boolean addDeclarationAnnotationToFormalParameter(
-                AnnotationMirror annotation, int index) {
+                AnnotationMirror annotation, @Positive int index_1based) {
+            if (index_1based == 0) {
+                throw new TypeSystemError(
+                        "0 is illegal as index argument to addDeclarationAnnotationToFormalParameter");
+            }
             if (paramsDeclAnnos == null) {
                 // There are usually few formal parameters.
                 paramsDeclAnnos = new ArraySet<>(4);
             }
 
-            return paramsDeclAnnos.add(IPair.of(index, annotation));
+            return paramsDeclAnnos.add(IPair.of(index_1based, annotation));
         }
 
         /**
@@ -1767,7 +1784,7 @@ public class WholeProgramInferenceJavaParserStorage
 
             if (paramsDeclAnnos != null) {
                 for (IPair<Integer, AnnotationMirror> pair : paramsDeclAnnos) {
-                    Parameter param = declaration.getParameter(pair.first);
+                    Parameter param = declaration.getParameter(pair.first - 1);
                     param.addAnnotation(
                             AnnotationMirrorToAnnotationExprConversion
                                     .annotationMirrorToAnnotationExpr(pair.second));
