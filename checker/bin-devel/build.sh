@@ -60,12 +60,6 @@ fi
 # echo "... done: (cd ${AT} && ./.build-without-test.sh)"
 
 
-## Build stubparser
-"$PLUME_SCRIPTS/git-clone-related" ${DEBUG_FLAG} eisop stubparser
-echo "Running:  (cd ../stubparser/ && ./.build-without-test.sh)"
-(cd ../stubparser/ && ./.build-without-test.sh)
-echo "... done: (cd ../stubparser/ && ./.build-without-test.sh)"
-
 # TODO: NullnessNullMarkedTest depends on JSpecify annotations.
 # Find a way to not run that test, to avoid this dependency and
 # instead only use ./test-jspecify.sh.

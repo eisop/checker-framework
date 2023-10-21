@@ -62,6 +62,16 @@ export PROJECT=cf
 create_upload_docker_image
 
 export OS=ubuntu
+export JDKVER=jdk21
+export PROJECT=cf
+create_upload_docker_image
+
+export OS=ubuntu
+export JDKVER=jdk21-plus
+export PROJECT=cf
+create_upload_docker_image
+
+export OS=ubuntu
 export JDKVER=jdk-latest
 export PROJECT=cf
 create_upload_docker_image
@@ -80,7 +90,6 @@ export OS=ubuntu
 export JDKVER=jdk-next-plus
 export PROJECT=cf
 create_upload_docker_image
-
 
 Use numbered JDK releases for versions that should be supported longer term.
 jdk-latest is for the latest release and jdk-next is for pre-releases of

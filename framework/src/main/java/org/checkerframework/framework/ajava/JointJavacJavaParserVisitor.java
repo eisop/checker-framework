@@ -158,6 +158,11 @@ import com.sun.source.util.SimpleTreeVisitor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11.BindingPatternUtils;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11.CaseUtils;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11.InstanceOfUtils;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11.SwitchExpressionUtils;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11.YieldUtils;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -283,7 +288,7 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
     public Void visitBindingPattern17(Tree javacTree, Node javaParserNode) {
         PatternExpr patternExpr = castNode(PatternExpr.class, javaParserNode, javacTree);
         processBindingPattern(javacTree, patternExpr);
-        VariableTree variableTree = TreeUtils.bindingPatternTreeGetVariable(javacTree);
+        VariableTree variableTree = BindingPatternUtils.getVariable(javacTree);
         // The name expression can be null, even when a name exists.
         if (variableTree.getNameExpression() != null) {
             variableTree.getNameExpression().accept(this, patternExpr.getName());
@@ -428,8 +433,7 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
         processCase(javacTree, node);
         // Java 12 introduced multiple label cases:
         List<Expression> labels = node.getLabels();
-        List<? extends ExpressionTree> treeExpressions =
-                org.checkerframework.javacutil.TreeUtils.caseTreeGetExpressions(javacTree);
+        List<? extends ExpressionTree> treeExpressions = CaseUtils.getExpressions(javacTree);
         assert node.getLabels().size() == treeExpressions.size()
                 : String.format(
                         "node.getLabels() = %s, treeExpressions = %s",
@@ -438,7 +442,7 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
             treeExpressions.get(i).accept(this, labels.get(i));
         }
         if (javacTree.getStatements() == null) {
-            Tree javacBody = TreeUtils.caseTreeGetBody(javacTree);
+            Tree javacBody = CaseUtils.getBody(javacTree);
             Statement nodeBody = node.getStatement(0);
             if (javacBody.getKind() == Tree.Kind.EXPRESSION_STATEMENT) {
                 javacBody.accept(this, node.getStatement(0));
@@ -866,7 +870,7 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
         processInstanceOf(javacTree, node);
         javacTree.getExpression().accept(this, node.getExpression());
         if (node.getPattern().isPresent()) {
-            Tree bindingPattern = TreeUtils.instanceOfTreeGetPattern(javacTree);
+            Tree bindingPattern = InstanceOfUtils.getPattern(javacTree);
             visitBindingPattern17(bindingPattern, node.getPattern().get());
         } else {
             javacTree.getType().accept(this, node.getType());
@@ -1311,11 +1315,11 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
 
         // Switch expressions are always parenthesized in javac but never in JavaParser.
         ExpressionTree expression =
-                ((ParenthesizedTree) TreeUtils.switchExpressionTreeGetExpression(javacTree))
+                ((ParenthesizedTree) SwitchExpressionUtils.getExpression(javacTree))
                         .getExpression();
         expression.accept(this, node.getSelector());
 
-        visitLists(TreeUtils.switchExpressionTreeGetCases(javacTree), node.getEntries());
+        visitLists(SwitchExpressionUtils.getCases(javacTree), node.getEntries());
         return null;
     }
 
@@ -1546,7 +1550,7 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
             YieldStmt yieldStmt = castNode(YieldStmt.class, node, tree);
             processYield(tree, yieldStmt);
 
-            TreeUtils.yieldTreeGetValue(tree).accept(this, yieldStmt.getExpression());
+            YieldUtils.getValue(tree).accept(this, yieldStmt.getExpression());
             return null;
         }
         // JavaParser does not parse yields correctly:

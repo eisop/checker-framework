@@ -460,6 +460,11 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     public Void visitInstanceOf(InstanceOfTree tree, Void p) {
         // The "reference type" is the type after "instanceof".
         Tree refTypeTree = tree.getType();
+        if (refTypeTree == null) {
+            // TODO: the type is null for deconstructor patterns.
+            // Handle them properly.
+            return null;
+        }
         if (refTypeTree.getKind() == Tree.Kind.ANNOTATED_TYPE) {
             List<? extends AnnotationMirror> annotations =
                     TreeUtils.annotationsFromTree((AnnotatedTypeTree) refTypeTree);

@@ -15,6 +15,7 @@ import java.util.Collection;
 import java.util.List;
 
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.type.TypeMirror;
 
 /** The qualifier hierarchy for the Value type system. */
 final class ValueQualifierHierarchy extends ElementQualifierHierarchy {
@@ -428,6 +429,29 @@ final class ValueQualifierHierarchy extends ElementQualifierHierarchy {
 
         // In all other cases, the LUB is UnknownVal.
         return atypeFactory.UNKNOWNVAL;
+    }
+
+    @Override
+    public boolean isSubtypeShallow(
+            AnnotationMirror subQualifier,
+            TypeMirror subType,
+            AnnotationMirror superQualifier,
+            TypeMirror superType) {
+        subQualifier = atypeFactory.convertSpecialIntRangeToStandardIntRange(subQualifier, subType);
+        superQualifier =
+                atypeFactory.convertSpecialIntRangeToStandardIntRange(superQualifier, superType);
+        return super.isSubtypeShallow(subQualifier, subType, superQualifier, superType);
+    }
+
+    @Override
+    public @Nullable AnnotationMirror leastUpperBoundShallow(
+            AnnotationMirror qualifier1,
+            TypeMirror tm1,
+            AnnotationMirror qualifier2,
+            TypeMirror tm2) {
+        qualifier1 = atypeFactory.convertSpecialIntRangeToStandardIntRange(qualifier1, tm1);
+        qualifier2 = atypeFactory.convertSpecialIntRangeToStandardIntRange(qualifier2, tm2);
+        return super.leastUpperBoundShallow(qualifier1, tm1, qualifier2, tm2);
     }
 
     /**

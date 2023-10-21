@@ -141,7 +141,7 @@ import javax.lang.model.type.TypeMirror;
  * variables, the checker wouldn't be able to verify code such as {@code new Socket(host,
  * port).close()}, which would cause false positives. Temporaries are created for {@code new}
  * expressions, method calls (for the return value), and ternary expressions. Other types of
- * expressions may also be supported in the future.
+ * expressions may be supported in the future.
  */
 /*package-private*/
 class MustCallConsistencyAnalyzer {

@@ -81,6 +81,7 @@ import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeKindUtils;
@@ -901,7 +902,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 ((JavacProcessingEnvironment) processingEnv).getContext();
         String processorArg = Options.instance(context).get("-processor");
         if (processorArg != null) {
-            return Arrays.asList(processorArg.split(","));
+            return SystemUtil.COMMA_SPLITTER.splitToList(processorArg);
         }
         try {
             String filename = "META-INF/services/javax.annotation.processing.Processor";
@@ -4161,7 +4162,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     @Override
     public final AnnotationMirror getDeclAnnotation(Element elt, Class<? extends Annotation> anno) {
-        return getDeclAnnotation(elt, anno, true);
+        AnnotationMirror result = getDeclAnnotation(elt, anno, true);
+        return result;
     }
 
     /**

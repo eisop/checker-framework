@@ -20,12 +20,14 @@ import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.IPair;
+import org.plumelib.util.SystemPlume;
 
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.ProcessBuilder.Redirect;
 import java.net.JarURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -35,7 +37,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -170,6 +172,11 @@ public class AnnotationFileElementTypes {
         assert parsingCount == 0;
         ++parsingCount;
         BaseTypeChecker checker = atypeFactory.getChecker();
+        if (stubDebug) {
+            System.out.printf(
+                    "entered parseStubFiles() for %s, ignorejdkastub=%s%n",
+                    atypeFactory.getClass().getSimpleName(), ignorejdkastub);
+        }
         if (!ignorejdkastub) {
             // 1. Annotated JDK
             // This preps but does not parse the JDK files (except package-info.java files).
@@ -205,12 +212,17 @@ public class AnnotationFileElementTypes {
         String stubsOption = checker.getOption("stubs");
         if (stubsOption != null) {
             parseAnnotationFiles(
-                    Arrays.asList(stubsOption.split(File.pathSeparator)),
+                    SystemUtil.PATH_SEPARATOR_SPLITTER.splitToList(stubsOption),
                     AnnotationFileType.COMMAND_LINE_STUB);
         }
 
         --parsingCount;
         assert parsingCount == 0;
+
+        if (stubDebug) {
+            System.out.printf(
+                    "exited parseStubFiles() for %s%n", atypeFactory.getClass().getSimpleName());
+        }
     }
 
     /**
@@ -257,11 +269,7 @@ public class AnnotationFileElementTypes {
         ++parsingCount;
         // TODO: Error if this is called more than once?
         SourceChecker checker = atypeFactory.getChecker();
-        List<String> ajavaFiles = new ArrayList<>();
-        String ajavaOption = checker.getOption("ajava");
-        if (ajavaOption != null) {
-            Collections.addAll(ajavaFiles, ajavaOption.split(File.pathSeparator));
-        }
+        List<String> ajavaFiles = checker.getStringsOption("ajava", File.pathSeparator);
 
         parseAnnotationFiles(ajavaFiles, AnnotationFileType.AJAVA);
         --parsingCount;
@@ -465,6 +473,15 @@ public class AnnotationFileElementTypes {
      *     does not appear in an annotation file.
      */
     public @Nullable AnnotationMirrorSet getDeclAnnotations(Element elt) {
+        if (stubDebug) {
+            if (isParsing()) {
+                System.out.printf("AFET.getDeclAnnotations(%s [%s])%n", elt, elt.getClass());
+            } else {
+                System.out.printf(
+                        "AFET.getDeclAnnotations(%s [%s]) IS NOT PARSING%n", elt, elt.getClass());
+            }
+        }
+
         maybeParseEnclosingJdkClass(elt);
         String eltName = ElementUtils.getQualifiedName(elt);
         if (annotationFileAnnos.declAnnos.containsKey(eltName)) {
@@ -683,6 +700,12 @@ public class AnnotationFileElementTypes {
      *     not already been parsed
      */
     private void maybeParseEnclosingJdkClass(Element e) {
+        if (stubDebug) {
+            System.out.printf(
+                    "maybeParseEnclosingJdkClass(%s encloses %s), shouldParseJdk=%s%n",
+                    getOutermostEnclosingClass(e), e, shouldParseJdk);
+        }
+
         if (!shouldParseJdk
                 || e.getKind() == ElementKind.PACKAGE
                 || e.getKind() == ElementKind.MODULE) {
@@ -713,6 +736,10 @@ public class AnnotationFileElementTypes {
             parseJdkStubFile(remainingJdkStubFiles.remove(className));
         } else if (remainingJdkStubFilesJar.containsKey(className)) {
             parseJdkJarEntry(remainingJdkStubFilesJar.remove(className));
+        } else {
+            if (stubDebug) {
+                System.out.printf("  not in remaining JDK stub files: %s%n", className);
+            }
         }
     }
 
@@ -777,6 +804,13 @@ public class AnnotationFileElementTypes {
      * @param jarEntryName name of the jar entry to parse
      */
     private void parseJdkJarEntry(String jarEntryName) {
+        if (stubDebug) {
+            System.out.printf("entered parseJdkJarEntry(%s)%n", jarEntryName);
+            if (jarEntryName.contains("String")) {
+                new Error("stack trace").printStackTrace();
+            }
+        }
+
         JarURLConnection connection = getJarURLConnectionToJdk();
         ++parsingCount;
         try (JarFile jarFile = connection.getJarFile()) {
@@ -797,6 +831,10 @@ public class AnnotationFileElementTypes {
             throw new BugInCF("Exception while parsing " + jarEntryName + ": " + e.getMessage(), e);
         } finally {
             --parsingCount;
+        }
+
+        if (stubDebug) {
+            System.out.printf("exited parseJdkJarEntry(%s)%n", jarEntryName);
         }
     }
 
@@ -895,6 +933,15 @@ public class AnnotationFileElementTypes {
                 String fqName = savepathWithoutExtension.replace(File.separatorChar, '.');
                 remainingJdkStubFiles.put(fqName, path);
             }
+            if (stubDebug) {
+                System.out.printf(
+                        "Contents of remainingJdkStubFiles for %s from %s:%n",
+                        atypeFactory.getClass().getSimpleName(), jdkDirectory);
+                printSortedIndented(remainingJdkStubFiles.keySet());
+                System.out.printf(
+                        "End of remainingJdkStubFiles for %s from %s.%n",
+                        atypeFactory.getClass().getSimpleName(), jdkDirectory);
+            }
         } catch (IOException e) {
             throw new BugInCF("prepJdkFromFile(" + jdkDirectory + ")", e);
         }
@@ -933,6 +980,36 @@ public class AnnotationFileElementTypes {
                         jarEntryName.substring(index, jarEntryName.length() - 5).replace('/', '.');
                 remainingJdkStubFilesJar.put(fqClassName, jarEntryName);
             }
+            if (stubDebug) {
+                String factoryClass = atypeFactory.getClass().getSimpleName().toString();
+                String jarFileURL = connection.getJarFileURL().toString();
+                System.out.printf(
+                        "Contents of remainingJdkStubFilesJar for %s from %s:%n",
+                        factoryClass, jarFileURL);
+                printSortedIndented(remainingJdkStubFilesJar.keySet());
+                System.out.printf(
+                        "End of remainingJdkStubFilesJar for %s from %s.%n",
+                        factoryClass, jarFileURL);
+
+                System.out.printf("Contents of %s:%n", jarFileURL);
+                assert jarFileURL.startsWith("file:");
+                ProcessBuilder pb =
+                        new ProcessBuilder(
+                                "/bin/sh",
+                                "-c",
+                                "jar tf '" + jarFileURL.substring(5) + "' | LC_ALL=C sort");
+                pb.redirectOutput(Redirect.INHERIT);
+                pb.redirectError(Redirect.INHERIT);
+                Process p = pb.start();
+                try {
+                    p.waitFor();
+                } catch (InterruptedException e) {
+                    // do nothing
+                }
+                System.out.flush();
+                SystemPlume.sleep(1);
+                System.out.printf("End of %s.%n", jarFileURL);
+            }
         } catch (IOException e) {
             throw new BugInCF("Cannot open the jar file " + connection.getJarFileURL(), e);
         }
@@ -962,6 +1039,19 @@ public class AnnotationFileElementTypes {
         boolean removed = processingClasses.remove(typeName);
         if (!removed) {
             throw new BugInCF("Cannot find the processing record for type " + typeName);
+        }
+    }
+
+    /**
+     * Print the strings, in order, each on its own line, indented by two spaces.
+     *
+     * @param strings a collection of strings
+     */
+    private void printSortedIndented(Collection<String> strings) {
+        List<String> stringList = new ArrayList<>(strings);
+        stringList.sort(String::compareTo);
+        for (String s : stringList) {
+            System.out.printf("  %s%n", s);
         }
     }
 }

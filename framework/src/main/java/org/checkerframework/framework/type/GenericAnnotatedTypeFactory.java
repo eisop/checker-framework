@@ -103,7 +103,6 @@ import org.plumelib.util.SystemPlume;
 import java.lang.annotation.Annotation;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -2338,13 +2337,12 @@ public abstract class GenericAnnotatedTypeFactory<
             res.init(args);
             return res;
         } else if (checker.hasOption("cfgviz")) {
-            String cfgviz = checker.getOption("cfgviz");
-            if (cfgviz == null) {
+            List<String> opts = checker.getStringsOption("cfgviz", ',');
+            if (opts.isEmpty()) {
                 throw new UserError(
                         "-Acfgviz specified without arguments, should be"
                                 + " -Acfgviz=VizClassName[,opts,...]");
             }
-            List<String> opts = Arrays.asList(cfgviz.split(","));
             String vizClassName = opts.get(0);
             if (!Signatures.isBinaryName(vizClassName)) {
                 throw new UserError(
