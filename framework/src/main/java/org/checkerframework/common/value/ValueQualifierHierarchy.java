@@ -1,5 +1,6 @@
 package org.checkerframework.common.value;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.regex.qual.Regex;
 import org.checkerframework.common.value.util.Range;
 import org.checkerframework.framework.type.ElementQualifierHierarchy;
@@ -14,23 +15,42 @@ import java.util.Collection;
 import java.util.List;
 
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.type.TypeMirror;
 
 /** The qualifier hierarchy for the Value type system. */
 final class ValueQualifierHierarchy extends ElementQualifierHierarchy {
 
+    // This shadows the same-named field in GenericAnnotatedTypeFactory, but has a more specific
+    // type.
     /** The type factory to use. */
+    @SuppressWarnings("HidingField")
     private final ValueAnnotatedTypeFactory atypeFactory;
 
     /**
      * Creates a ValueQualifierHierarchy from the given classes.
      *
-     * @param atypeFactory ValueAnnotatedTypeFactory
+     * @param atypeFactory a ValueAnnotatedTypeFactory
      * @param qualifierClasses classes of annotations that are the qualifiers for this hierarchy
+     * @deprecated use {@link #ValueQualifierHierarchy(Collection, ValueAnnotatedTypeFactory)} which
+     *     has the arguments in the other order
      */
+    @Deprecated // 2023-05-23
     ValueQualifierHierarchy(
             ValueAnnotatedTypeFactory atypeFactory,
             Collection<Class<? extends Annotation>> qualifierClasses) {
-        super(qualifierClasses, atypeFactory.getElementUtils());
+        this(qualifierClasses, atypeFactory);
+    }
+
+    /**
+     * Creates a ValueQualifierHierarchy from the given classes.
+     *
+     * @param qualifierClasses classes of annotations that are the qualifiers for this hierarchy
+     * @param atypeFactory the associated type factory
+     */
+    ValueQualifierHierarchy(
+            Collection<Class<? extends Annotation>> qualifierClasses,
+            ValueAnnotatedTypeFactory atypeFactory) {
+        super(qualifierClasses, atypeFactory.getElementUtils(), atypeFactory);
         this.atypeFactory = atypeFactory;
     }
 
@@ -97,10 +117,10 @@ final class ValueQualifierHierarchy extends ElementQualifierHierarchy {
     }
 
     @Override
-    public AnnotationMirror greatestLowerBound(AnnotationMirror a1, AnnotationMirror a2) {
-        if (isSubtype(a1, a2)) {
+    public AnnotationMirror greatestLowerBoundQualifiers(AnnotationMirror a1, AnnotationMirror a2) {
+        if (isSubtypeQualifiers(a1, a2)) {
             return a1;
-        } else if (isSubtype(a2, a1)) {
+        } else if (isSubtypeQualifiers(a2, a1)) {
             return a2;
         } else {
 
@@ -128,7 +148,7 @@ final class ValueQualifierHierarchy extends ElementQualifierHierarchy {
     @Override
     public AnnotationMirror widenedUpperBound(
             AnnotationMirror newQualifier, AnnotationMirror previousQualifier) {
-        AnnotationMirror lub = leastUpperBound(newQualifier, previousQualifier);
+        AnnotationMirror lub = leastUpperBoundQualifiers(newQualifier, previousQualifier);
         if (AnnotationUtils.areSameByName(lub, ValueAnnotatedTypeFactory.INTRANGE_NAME)) {
             Range lubRange = atypeFactory.getRange(lub);
             Range newRange = atypeFactory.getRange(newQualifier);
@@ -212,7 +232,8 @@ final class ValueQualifierHierarchy extends ElementQualifierHierarchy {
      * @return the least upper bound of a1 and a2
      */
     @Override
-    public AnnotationMirror leastUpperBound(AnnotationMirror a1, AnnotationMirror a2) {
+    public @Nullable AnnotationMirror leastUpperBoundQualifiers(
+            AnnotationMirror a1, AnnotationMirror a2) {
         if (!AnnotationUtils.areSameByName(getTopAnnotation(a1), getTopAnnotation(a2))) {
             // The annotations are in different hierarchies
             return null;
@@ -221,9 +242,9 @@ final class ValueQualifierHierarchy extends ElementQualifierHierarchy {
         a1 = atypeFactory.convertSpecialIntRangeToStandardIntRange(a1);
         a2 = atypeFactory.convertSpecialIntRangeToStandardIntRange(a2);
 
-        if (isSubtype(a1, a2)) {
+        if (isSubtypeQualifiers(a1, a2)) {
             return a2;
-        } else if (isSubtype(a2, a1)) {
+        } else if (isSubtypeQualifiers(a2, a1)) {
             return a1;
         }
         String qual1 = AnnotationUtils.annotationName(a1);
@@ -352,16 +373,16 @@ final class ValueQualifierHierarchy extends ElementQualifierHierarchy {
         // a StringVal with one of them, or a StringVal and a MatchesRegex.
         // Each of these converts one annotation to the other, then makes a recursive call.
         if (arrayLenAnno != null && arrayLenRangeAnno != null) {
-            return leastUpperBound(
+            return leastUpperBoundQualifiers(
                     arrayLenRangeAnno, atypeFactory.convertArrayLenToArrayLenRange(arrayLenAnno));
         } else if (stringValAnno != null && arrayLenAnno != null) {
-            return leastUpperBound(
+            return leastUpperBoundQualifiers(
                     arrayLenAnno, atypeFactory.convertStringValToArrayLen(stringValAnno));
         } else if (stringValAnno != null && arrayLenRangeAnno != null) {
-            return leastUpperBound(
+            return leastUpperBoundQualifiers(
                     arrayLenRangeAnno, atypeFactory.convertStringValToArrayLenRange(stringValAnno));
         } else if (stringValAnno != null && matchesRegexAnno != null) {
-            return leastUpperBound(
+            return leastUpperBoundQualifiers(
                     matchesRegexAnno, atypeFactory.convertStringValToMatchesRegex(stringValAnno));
         }
 
@@ -396,18 +417,41 @@ final class ValueQualifierHierarchy extends ElementQualifierHierarchy {
             if (intValAnno != null) {
                 // Convert intValAnno to a @DoubleVal AnnotationMirror
                 AnnotationMirror doubleValAnno2 = atypeFactory.convertIntValToDoubleVal(intValAnno);
-                return leastUpperBound(doubleValAnno, doubleValAnno2);
+                return leastUpperBoundQualifiers(doubleValAnno, doubleValAnno2);
             }
             return atypeFactory.UNKNOWNVAL;
         }
         if (intRangeAnno != null && intValAnno != null) {
             // Convert intValAnno to an @IntRange AnnotationMirror
             AnnotationMirror intRangeAnno2 = atypeFactory.convertIntValToIntRange(intValAnno);
-            return leastUpperBound(intRangeAnno, intRangeAnno2);
+            return leastUpperBoundQualifiers(intRangeAnno, intRangeAnno2);
         }
 
         // In all other cases, the LUB is UnknownVal.
         return atypeFactory.UNKNOWNVAL;
+    }
+
+    @Override
+    public boolean isSubtypeShallow(
+            AnnotationMirror subQualifier,
+            TypeMirror subType,
+            AnnotationMirror superQualifier,
+            TypeMirror superType) {
+        subQualifier = atypeFactory.convertSpecialIntRangeToStandardIntRange(subQualifier, subType);
+        superQualifier =
+                atypeFactory.convertSpecialIntRangeToStandardIntRange(superQualifier, superType);
+        return super.isSubtypeShallow(subQualifier, subType, superQualifier, superType);
+    }
+
+    @Override
+    public @Nullable AnnotationMirror leastUpperBoundShallow(
+            AnnotationMirror qualifier1,
+            TypeMirror tm1,
+            AnnotationMirror qualifier2,
+            TypeMirror tm2) {
+        qualifier1 = atypeFactory.convertSpecialIntRangeToStandardIntRange(qualifier1, tm1);
+        qualifier2 = atypeFactory.convertSpecialIntRangeToStandardIntRange(qualifier2, tm2);
+        return super.leastUpperBoundShallow(qualifier1, tm1, qualifier2, tm2);
     }
 
     /**
@@ -418,7 +462,7 @@ final class ValueQualifierHierarchy extends ElementQualifierHierarchy {
      * @return true if subAnno is a subtype of superAnno, false otherwise
      */
     @Override
-    public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror superAnno) {
+    public boolean isSubtypeQualifiers(AnnotationMirror subAnno, AnnotationMirror superAnno) {
         subAnno = atypeFactory.convertSpecialIntRangeToStandardIntRange(subAnno);
         superAnno = atypeFactory.convertSpecialIntRangeToStandardIntRange(superAnno);
         String subQualName = AnnotationUtils.annotationName(subAnno);

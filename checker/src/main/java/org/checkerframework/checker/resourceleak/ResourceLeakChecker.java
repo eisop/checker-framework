@@ -4,6 +4,7 @@ import org.checkerframework.checker.calledmethods.CalledMethodsChecker;
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.mustcall.MustCallChecker;
 import org.checkerframework.checker.mustcall.MustCallNoCreatesMustCallForChecker;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.qual.StubFiles;
@@ -11,7 +12,7 @@ import org.checkerframework.framework.source.SupportedOptions;
 
 import java.util.Set;
 
-import javax.tools.Diagnostic.Kind;
+import javax.tools.Diagnostic;
 
 /**
  * The entry point for the Resource Leak Checker. This checker is a modifed {@link
@@ -70,7 +71,8 @@ public class ResourceLeakChecker extends CalledMethodsChecker {
     }
 
     @Override
-    public void reportError(Object source, @CompilerMessageKey String messageKey, Object... args) {
+    public void reportError(
+            @Nullable Object source, @CompilerMessageKey String messageKey, Object... args) {
         if (messageKey.equals("required.method.not.called")) {
             // This is safe because of the message key.
             String qualifiedTypeName = (String) args[1];
@@ -85,9 +87,9 @@ public class ResourceLeakChecker extends CalledMethodsChecker {
     @Override
     public void typeProcessingOver() {
         if (hasOption(COUNT_MUST_CALL)) {
-            message(Kind.WARNING, "Found %d must call obligation(s).%n", numMustCall);
+            message(Diagnostic.Kind.WARNING, "Found %d must call obligation(s).%n", numMustCall);
             message(
-                    Kind.WARNING,
+                    Diagnostic.Kind.WARNING,
                     "Successfully verified %d must call obligation(s).%n",
                     numMustCall - numMustCallFailed);
         }

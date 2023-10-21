@@ -43,6 +43,7 @@ import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.reflection.Signatures;
 
+import java.io.File;
 import java.lang.annotation.Annotation;
 import java.util.Collection;
 import java.util.HashMap;
@@ -55,7 +56,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
 import javax.lang.model.util.Elements;
-import javax.tools.Diagnostic.Kind;
+import javax.tools.Diagnostic;
 
 /**
  * Annotated type factory for the Units Checker.
@@ -63,9 +64,9 @@ import javax.tools.Diagnostic.Kind;
  * <p>Handles multiple names for the same unit, with different prefixes, e.g. @kg is the same
  * as @g(Prefix.kilo).
  *
- * <p>Supports relations between units, e.g. if "m" is a variable of type "@m" and "s" is a variable
- * of type "@s", the division "m/s" is automatically annotated as "mPERs", the correct unit for the
- * result.
+ * <p>Supports relations between units. If {@code m} is a variable of type "@m" and {@code s} is a
+ * variable of type "@s", the division {@code m / s} is automatically annotated as "@mPERs", the
+ * correct unit for the result.
  */
 public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     private static final Class<org.checkerframework.checker.units.qual.UnitsRelations>
@@ -205,37 +206,32 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     @Override
     protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
-        // get all the loaded annotations
+        // Get all the loaded annotations.
         Set<Class<? extends Annotation>> qualSet = getBundledTypeQualifiers();
 
-        // load all the external units
+        // Load all the units specified on the command line.
         loadAllExternalUnits();
-
-        // copy all loaded external Units to qual set
         qualSet.addAll(externalQualsMap.values());
 
         return qualSet;
     }
 
+    /** Loads all the externnal units specified on the command line. */
     private void loadAllExternalUnits() {
         // load external individually named units
-        String qualNames = checker.getOption("units");
-        if (qualNames != null) {
-            for (String qualName : qualNames.split(",")) {
-                if (!Signatures.isBinaryName(qualName)) {
-                    throw new UserError(
-                            "Malformed qualifier name \"%s\" in -Aunits=%s", qualName, qualNames);
-                }
-                loadExternalUnit(qualName);
+        for (String qualName : checker.getStringsOption("units", ',')) {
+            if (!Signatures.isBinaryName(qualName)) {
+                throw new UserError("Malformed qualifier name \"%s\" in -Aunits", qualName);
             }
+            loadExternalUnit(qualName);
         }
 
         // load external directories of units
-        String qualDirectories = checker.getOption("unitsDirs");
-        if (qualDirectories != null) {
-            for (String directoryName : qualDirectories.split(":")) {
-                loadExternalDirectory(directoryName);
+        for (String directoryName : checker.getStringsOption("unitsDirs", ':')) {
+            if (!new File(directoryName).exists()) {
+                throw new UserError("Nonexistent directory in -AunitsDirs: " + directoryName);
             }
+            loadExternalDirectory(directoryName);
         }
     }
 
@@ -263,7 +259,7 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     /** Adds the annotation class to the external qualifier map if it is not an alias annotation. */
-    private void addUnitToExternalQualMap(final Class<? extends Annotation> annoClass) {
+    private void addUnitToExternalQualMap(Class<? extends Annotation> annoClass) {
         AnnotationMirror mirror =
                 UnitsRelationsTools.buildAnnoMirrorWithNoPrefix(
                         processingEnv, annoClass.getCanonicalName());
@@ -470,7 +466,7 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
                 if (bestres != null && res != null && !bestres.equals(res)) {
                     checker.message(
-                            Kind.WARNING,
+                            Diagnostic.Kind.WARNING,
                             "UnitsRelation mismatch, taking neither! Previous: "
                                     + bestres
                                     + " and current: "
@@ -554,26 +550,23 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             return null;
         }
 
-        private AnnotationMirror useUnitsRelation(
+        private @Nullable AnnotationMirror useUnitsRelation(
                 Tree.Kind kind,
                 UnitsRelations ur,
                 AnnotatedTypeMirror lht,
                 AnnotatedTypeMirror rht) {
 
-            AnnotationMirror res = null;
             if (ur != null) {
                 switch (kind) {
                     case DIVIDE:
-                        res = ur.division(lht, rht);
-                        break;
+                        return ur.division(lht, rht);
                     case MULTIPLY:
-                        res = ur.multiplication(lht, rht);
-                        break;
+                        return ur.multiplication(lht, rht);
                     default:
                         // Do nothing
                 }
             }
-            return res;
+            return null;
         }
     }
 
@@ -588,7 +581,10 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     protected class UnitsQualifierHierarchy extends MostlyNoElementQualifierHierarchy {
         /** Constructor. */
         public UnitsQualifierHierarchy() {
-            super(UnitsAnnotatedTypeFactory.this.getSupportedTypeQualifiers(), elements);
+            super(
+                    UnitsAnnotatedTypeFactory.this.getSupportedTypeQualifiers(),
+                    elements,
+                    UnitsAnnotatedTypeFactory.this);
         }
 
         @Override

@@ -13,7 +13,10 @@ import java.lang.annotation.Target;
 
 /**
  * Indicates that the method, if it terminates successfully, always invokes the given methods on the
- * given expressions. This annotation is repeatable.
+ * given expressions. This annotation is repeatable, which means that users can write more than one
+ * instance of it on the same method (users should NOT manually write an
+ * {@code @EnsuresCalledMethods.List} annotation, which the checker will create from multiple copies
+ * of this annotation automatically).
  *
  * <p>Consider the following method:
  *
@@ -44,9 +47,9 @@ import java.lang.annotation.Target;
 @Repeatable(EnsuresCalledMethods.List.class)
 public @interface EnsuresCalledMethods {
     /**
-     * The Java expressions to which the qualifier applies.
+     * The Java expressions that will have methods called on them.
      *
-     * @return the Java expressions to which the qualifier applies
+     * @return the Java expressions that will have methods called on them
      * @see org.checkerframework.framework.qual.EnsuresQualifier
      */
     // Postconditions must use "value" as the name (conditional postconditions use "expression").
@@ -61,10 +64,10 @@ public @interface EnsuresCalledMethods {
     String[] methods();
 
     /**
-     * A wrapper annotation that makes the {@link EnsuresCalledMethods} annotation repeatable.
-     *
-     * <p>Programmers generally do not need to write this. It is created by Java when a programmer
-     * writes more than one {@link EnsuresCalledMethods} annotation at the same location.
+     * A wrapper annotation that makes the {@link EnsuresCalledMethods} annotation repeatable. This
+     * annotation is an implementation detail: programmers generally do not need to write this. It
+     * is created automatically by Java when a programmer writes more than one {@link
+     * EnsuresCalledMethods} annotation at the same location.
      */
     @Documented
     @Retention(RetentionPolicy.RUNTIME)

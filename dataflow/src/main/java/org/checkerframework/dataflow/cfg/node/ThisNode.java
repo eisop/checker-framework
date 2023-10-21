@@ -5,7 +5,6 @@ import org.checkerframework.dataflow.qual.SideEffectFree;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Objects;
 
 import javax.lang.model.type.TypeMirror;
 
@@ -29,7 +28,7 @@ public abstract class ThisNode extends Node {
 
     @Override
     public int hashCode() {
-        return Objects.hash("this");
+        return 3559101; // Objects.hash("this");
     }
 
     @Override

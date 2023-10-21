@@ -21,6 +21,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.Types;
 
 /**
@@ -35,6 +36,9 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
     /** The type factory. */
     private final AnnotatedTypeFactory atypeFactory;
 
+    /** The qualifier hierarchy. */
+    private final QualifierHierarchy qualHierarchy;
+
     /**
      * Whether or not the type being visited is an uninferred type argument. If true, then the
      * underlying type may not have the correct relationship with the supertype.
@@ -48,7 +52,8 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
      */
     public AsSuperVisitor(AnnotatedTypeFactory atypeFactory) {
         this.atypeFactory = atypeFactory;
-        types = atypeFactory.types;
+        this.types = atypeFactory.types;
+        this.qualHierarchy = atypeFactory.getQualifierHierarchy();
     }
 
     /**
@@ -68,7 +73,8 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
     })
     public <T extends AnnotatedTypeMirror> T asSuper(AnnotatedTypeMirror type, T superType) {
         if (type == null || superType == null) {
-            throw new BugInCF("AsSuperVisitor type and supertype cannot be null.");
+            throw new BugInCF(
+                    "AsSuperVisitor.asSuper(%s, %s): arguments cannot be null", type, superType);
         }
 
         if (type == superType) {
@@ -90,6 +96,7 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
         return (T) result;
     }
 
+    /** Resets this. */
     private void reset() {
         isUninferredTypeArgument = false;
     }
@@ -116,26 +123,19 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
                 if (lubs == null) {
                     lubs = altern.getAnnotations();
                 } else {
+                    TypeMirror typeMirror = type.getUnderlyingType();
                     AnnotationMirrorSet newLubs = new AnnotationMirrorSet();
                     for (AnnotationMirror lub : lubs) {
                         AnnotationMirror anno = altern.getAnnotationInHierarchy(lub);
                         newLubs.add(
-                                atypeFactory.getQualifierHierarchy().leastUpperBound(anno, lub));
+                                qualHierarchy.leastUpperBoundShallow(
+                                        anno, altern.getUnderlyingType(), lub, typeMirror));
                     }
                     lubs = newLubs;
                 }
             }
             type.replaceAnnotations(lubs);
         }
-    }
-
-    @Override
-    protected String defaultErrorMessage(
-            AnnotatedTypeMirror type, AnnotatedTypeMirror superType, Void p) {
-        return String.format(
-                "AsSuperVisitor: Unexpected combination: type: %s superType: %s.%n"
-                        + "type: %s%nsuperType: %s",
-                type.getKind(), superType.getKind(), type, superType);
     }
 
     private AnnotatedTypeMirror errorTypeNotErasedSubtypeOfSuperType(
@@ -202,8 +202,7 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
             AnnotatedTypeMirror type, Void p, AnnotatedTypeMirror lowerBound) {
         if (lowerBound.getKind() == TypeKind.NULL) {
             AnnotationMirrorSet typeLowerBound =
-                    AnnotatedTypes.findEffectiveLowerBoundAnnotations(
-                            atypeFactory.getQualifierHierarchy(), type);
+                    AnnotatedTypes.findEffectiveLowerBoundAnnotations(qualHierarchy, type);
             lowerBound.replaceAnnotations(typeLowerBound);
             return lowerBound;
         }
@@ -547,29 +546,13 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
         if (TypesUtils.isBoxedPrimitive(superType.getUnderlyingType())) {
             TypeMirror unboxedSuper = types.unboxedType(superType.getUnderlyingType());
             if (unboxedSuper.getKind() != type.getKind()
-                    && canBeNarrowingPrimitiveConversion(unboxedSuper)) {
+                    && TypesUtils.canBeNarrowingPrimitiveConversion(unboxedSuper, types)) {
                 AnnotatedPrimitiveType narrowedType =
                         atypeFactory.getNarrowedPrimitive(type, unboxedSuper);
                 return visit(narrowedType, superType, p);
             }
         }
         return visitPrimitive_Other(type, superType, p);
-    }
-
-    /**
-     * Returns true if the type is byte, short, char, Byte, Short, or Character. All other
-     * narrowings require a cast. See JLS 5.1.3.
-     *
-     * @param type a type
-     * @return true if assignment to the type may be a narrowing
-     */
-    private boolean canBeNarrowingPrimitiveConversion(TypeMirror type) {
-        // See CFGBuilder.CFGTranslationPhaseOne#conversionRequiresNarrowing()
-        TypeMirror unboxedType = TypesUtils.isBoxedPrimitive(type) ? types.unboxedType(type) : type;
-        TypeKind unboxedKind = unboxedType.getKind();
-        return unboxedKind == TypeKind.BYTE
-                || unboxedKind == TypeKind.SHORT
-                || unboxedKind == TypeKind.CHAR;
     }
 
     @Override
@@ -658,8 +641,15 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
     @Override
     public AnnotatedTypeMirror visitTypevar_Wildcard(
             AnnotatedTypeVariable type, AnnotatedWildcardType superType, Void p) {
-        AnnotatedTypeMirror upperBound =
-                visit(type.getUpperBound(), superType.getExtendsBound(), p);
+        AnnotatedTypeMirror upperBound;
+        if (superType.getExtendsBound().getUnderlyingType().getKind() == TypeKind.TYPEVAR
+                && TypesUtils.areSame(
+                        type.getUnderlyingType(),
+                        (TypeVariable) superType.getExtendsBound().getUnderlyingType())) {
+            upperBound = visit(type, superType.getExtendsBound(), p);
+        } else {
+            upperBound = visit(type.getUpperBound(), superType.getExtendsBound(), p);
+        }
         superType.setExtendsBound(upperBound);
 
         AnnotatedTypeMirror lowerBound;

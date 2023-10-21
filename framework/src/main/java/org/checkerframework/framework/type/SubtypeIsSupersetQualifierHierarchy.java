@@ -34,11 +34,13 @@ public class SubtypeIsSupersetQualifierHierarchy extends MostlyNoElementQualifie
      *
      * @param qualifierClasses classes of annotations that are the qualifiers for this hierarchy
      * @param processingEnv processing environment
+     * @param atypeFactory the associated type factory
      */
     public SubtypeIsSupersetQualifierHierarchy(
             Collection<Class<? extends Annotation>> qualifierClasses,
-            ProcessingEnvironment processingEnv) {
-        super(qualifierClasses, processingEnv.getElementUtils());
+            ProcessingEnvironment processingEnv,
+            GenericAnnotatedTypeFactory<?, ?, ?, ?> atypeFactory) {
+        super(qualifierClasses, processingEnv.getElementUtils(), atypeFactory);
         this.processingEnv = processingEnv;
     }
 
@@ -66,7 +68,7 @@ public class SubtypeIsSupersetQualifierHierarchy extends MostlyNoElementQualifie
         if (qualifierKind1 == qualifierKind2) {
             List<String> a1Values = valuesStringList(a1);
             List<String> a2Values = valuesStringList(a2);
-            LinkedHashSet<String> set = new LinkedHashSet<>(a1Values);
+            Set<String> set = new LinkedHashSet<>(a1Values);
             set.retainAll(a2Values);
             return createAnnotationMirrorWithValue(lubKind, set);
         } else if (lubKind == qualifierKind1) {
@@ -89,7 +91,7 @@ public class SubtypeIsSupersetQualifierHierarchy extends MostlyNoElementQualifie
         if (qualifierKind1 == qualifierKind2) {
             List<String> a1Values = valuesStringList(a1);
             List<String> a2Values = valuesStringList(a2);
-            LinkedHashSet<String> set = new LinkedHashSet<>(a1Values);
+            Set<String> set = new LinkedHashSet<>(a1Values);
             set.addAll(a2Values);
             return createAnnotationMirrorWithValue(glbKind, set);
         } else if (glbKind == qualifierKind1) {

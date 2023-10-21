@@ -25,8 +25,8 @@ import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
-import org.checkerframework.javacutil.Pair;
 import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.IPair;
 import org.plumelib.util.ToStringComparator;
 import org.plumelib.util.UniqueId;
 
@@ -232,7 +232,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      * Furthermore, if the method is deterministic, we store its result {@code val} in the store.
      *
      * @param methodInvocationNode method whose information is being updated
-     * @param atypeFactory AnnotatedTypeFactory of the associated checker
+     * @param atypeFactory the type factory of the associated checker
      * @param val abstract value of the method call
      */
     public void updateForMethodCall(
@@ -355,7 +355,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
             if (actual != null
                     && atypeFactory
                             .getQualifierHierarchy()
-                            .isSubtype(actual, monotonicAnnotation)) {
+                            .isSubtypeQualifiersOnly(actual, monotonicAnnotation)) {
                 newValue =
                         analysis.createSingleAnnotationValue(
                                         monotonicAnnotation, value.getUnderlyingType())
@@ -713,10 +713,10 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         // TODO: Update the javadoc of this method when the above to-do item is addressed.
         if (!sequentialSemantics) { // only compute if necessary
             AnnotatedTypeFactory atypeFactory = this.analysis.atypeFactory;
-            List<Pair<AnnotationMirror, AnnotationMirror>> fieldAnnotations =
+            List<IPair<AnnotationMirror, AnnotationMirror>> fieldAnnotations =
                     atypeFactory.getAnnotationWithMetaAnnotation(
                             fieldAcc.getField(), MonotonicQualifier.class);
-            for (Pair<AnnotationMirror, AnnotationMirror> fieldAnnotation : fieldAnnotations) {
+            for (IPair<AnnotationMirror, AnnotationMirror> fieldAnnotation : fieldAnnotations) {
                 AnnotationMirror monotonicAnnotation = fieldAnnotation.second;
                 @SuppressWarnings("deprecation") // permitted for use in the framework
                 Name annotation =
@@ -980,8 +980,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *     abstract value is not known).
      */
     protected void removeConflicting(FieldAccess fieldAccess, @Nullable V val) {
-        final Iterator<Map.Entry<FieldAccess, V>> fieldValuesIterator =
-                fieldValues.entrySet().iterator();
+        Iterator<Map.Entry<FieldAccess, V>> fieldValuesIterator = fieldValues.entrySet().iterator();
         while (fieldValuesIterator.hasNext()) {
             Map.Entry<FieldAccess, V> entry = fieldValuesIterator.next();
             FieldAccess otherFieldAccess = entry.getKey();
@@ -1006,8 +1005,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
             }
         }
 
-        final Iterator<Map.Entry<ArrayAccess, V>> arrayValuesIterator =
-                arrayValues.entrySet().iterator();
+        Iterator<Map.Entry<ArrayAccess, V>> arrayValuesIterator = arrayValues.entrySet().iterator();
         while (arrayValuesIterator.hasNext()) {
             Map.Entry<ArrayAccess, V> entry = arrayValuesIterator.next();
             ArrayAccess otherArrayAccess = entry.getKey();
@@ -1041,8 +1039,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *     abstract value is not known).
      */
     protected void removeConflicting(ArrayAccess arrayAccess, @Nullable V val) {
-        final Iterator<Map.Entry<ArrayAccess, V>> arrayValuesIterator =
-                arrayValues.entrySet().iterator();
+        Iterator<Map.Entry<ArrayAccess, V>> arrayValuesIterator = arrayValues.entrySet().iterator();
         while (arrayValuesIterator.hasNext()) {
             Map.Entry<ArrayAccess, V> entry = arrayValuesIterator.next();
             ArrayAccess otherArrayAccess = entry.getKey();
@@ -1057,8 +1054,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         }
 
         // case 2:
-        final Iterator<Map.Entry<FieldAccess, V>> fieldValuesIterator =
-                fieldValues.entrySet().iterator();
+        Iterator<Map.Entry<FieldAccess, V>> fieldValuesIterator = fieldValues.entrySet().iterator();
         while (fieldValuesIterator.hasNext()) {
             Map.Entry<FieldAccess, V> entry = fieldValuesIterator.next();
             FieldAccess otherFieldAccess = entry.getKey();
@@ -1088,8 +1084,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      * </ol>
      */
     protected void removeConflicting(LocalVariable var) {
-        final Iterator<Map.Entry<FieldAccess, V>> fieldValuesIterator =
-                fieldValues.entrySet().iterator();
+        Iterator<Map.Entry<FieldAccess, V>> fieldValuesIterator = fieldValues.entrySet().iterator();
         while (fieldValuesIterator.hasNext()) {
             Map.Entry<FieldAccess, V> entry = fieldValuesIterator.next();
             FieldAccess otherFieldAccess = entry.getKey();
@@ -1099,8 +1094,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
             }
         }
 
-        final Iterator<Map.Entry<ArrayAccess, V>> arrayValuesIterator =
-                arrayValues.entrySet().iterator();
+        Iterator<Map.Entry<ArrayAccess, V>> arrayValuesIterator = arrayValues.entrySet().iterator();
         while (arrayValuesIterator.hasNext()) {
             Map.Entry<ArrayAccess, V> entry = arrayValuesIterator.next();
             ArrayAccess otherArrayAccess = entry.getKey();
@@ -1110,7 +1104,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
             }
         }
 
-        final Iterator<Map.Entry<MethodCall, V>> methodValuesIterator =
+        Iterator<Map.Entry<MethodCall, V>> methodValuesIterator =
                 methodValues.entrySet().iterator();
         while (methodValuesIterator.hasNext()) {
             Map.Entry<MethodCall, V> entry = methodValuesIterator.next();

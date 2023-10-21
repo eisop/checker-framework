@@ -7,6 +7,7 @@ import com.sun.source.tree.Tree;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 
 import org.checkerframework.afu.scenelib.util.JVMNames;
+import org.checkerframework.checker.index.qual.Positive;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.dataflow.analysis.Analysis;
@@ -37,6 +38,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedNullType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
+import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
 import org.checkerframework.javacutil.AnnotationBuilder;
@@ -46,6 +48,7 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.List;
@@ -58,6 +61,7 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 
 /**
@@ -317,7 +321,8 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
             }
         }
 
-        for (int i = 0; i < arguments.size(); i++) {
+        int numArguments = arguments.size();
+        for (int i = 0; i < numArguments; i++) {
             Node arg = arguments.get(i);
             Tree argTree = arg.getTree();
 
@@ -340,10 +345,11 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
                 }
                 return;
             }
+            List<? extends VariableElement> params = methodElt.getParameters();
             if (varargsParam) {
-                ve = methodElt.getParameters().get(methodElt.getParameters().size() - 1);
+                ve = params.get(params.size() - 1);
             } else {
-                ve = methodElt.getParameters().get(i);
+                ve = params.get(i);
             }
             AnnotatedTypeMirror paramATM = atypeFactory.getAnnotatedType(ve);
             AnnotatedTypeMirror argATM = atypeFactory.getAnnotatedType(argTree);
@@ -389,7 +395,7 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
             // If storage.getParameterAnnotations receives an index that's larger than the size
             // of the parameter list, scenes-backed inference can create duplicate entries
             // for the varargs parameter (it indexes inferred annotations by the parameter number).
-            int paramIndex = varargsParam ? methodElt.getParameters().size() - 1 : i;
+            int paramIndex = varargsParam ? methodElt.getParameters().size() : i + 1;
             T paramAnnotations =
                     storage.getParameterAnnotations(
                             methodElt, paramIndex, paramATM, ve, atypeFactory);
@@ -576,13 +582,14 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
 
         String file = storage.getFileForElement(methodElt);
 
-        for (int i = 0; i < overriddenMethod.getParameterTypes().size(); i++) {
+        int numParams = overriddenMethod.getParameterTypes().size();
+        for (int i = 0; i < numParams; i++) {
             VariableElement ve = methodElt.getParameters().get(i);
             AnnotatedTypeMirror paramATM = atypeFactory.getAnnotatedType(ve);
             AnnotatedTypeMirror argATM = overriddenMethod.getParameterTypes().get(i);
             atypeFactory.wpiAdjustForUpdateNonField(argATM);
             T paramAnnotations =
-                    storage.getParameterAnnotations(methodElt, i, paramATM, ve, atypeFactory);
+                    storage.getParameterAnnotations(methodElt, i + 1, paramATM, ve, atypeFactory);
             updateAnnotationSet(
                     paramAnnotations, TypeUseLocation.PARAMETER, argATM, paramATM, file);
         }
@@ -624,8 +631,8 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
 
         ExecutableElement methodElt = (ExecutableElement) paramElt.getEnclosingElement();
 
-        int i = methodElt.getParameters().indexOf(paramElt);
-        if (i == -1) {
+        int index_1based = methodElt.getParameters().indexOf(paramElt) + 1;
+        if (index_1based == 0) {
             // When paramElt is the parameter of a lambda contained in another
             // method body, the enclosing element is the outer method body
             // rather than the lambda itself (which has no element). WPI
@@ -645,7 +652,8 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
         AnnotatedTypeMirror argATM = atypeFactory.getAnnotatedType(rhsTree);
         atypeFactory.wpiAdjustForUpdateNonField(argATM);
         T paramAnnotations =
-                storage.getParameterAnnotations(methodElt, i, paramATM, paramElt, atypeFactory);
+                storage.getParameterAnnotations(
+                        methodElt, index_1based, paramATM, paramElt, atypeFactory);
         String file = storage.getFileForElement(methodElt);
         updateAnnotationSet(paramAnnotations, TypeUseLocation.PARAMETER, argATM, paramATM, file);
     }
@@ -937,14 +945,18 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
 
     @Override
     public void addDeclarationAnnotationToFormalParameter(
-            ExecutableElement methodElt, int index, AnnotationMirror anno) {
+            ExecutableElement methodElt, @Positive int index_1based, AnnotationMirror anno) {
+        if (index_1based == 0) {
+            throw new TypeSystemError(
+                    "0 is illegal as index argument to addDeclarationAnnotationToFormalParameter");
+        }
         if (!ElementUtils.isElementFromSourceCode(methodElt)) {
             return;
         }
 
         String file = storage.getFileForElement(methodElt);
         boolean isNewAnnotation =
-                storage.addDeclarationAnnotationToFormalParameter(methodElt, index, anno);
+                storage.addDeclarationAnnotationToFormalParameter(methodElt, index_1based, anno);
         if (isNewAnnotation) {
             storage.setFileModified(file);
         }
@@ -1038,12 +1050,13 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
 
             // If the inferred type is a subtype of the upper bounds of the
             // current type in the source code, do nothing.
+            TypeMirror rhsTM = rhsATM.getUnderlyingType();
+            TypeMirror declTM = decl.getUnderlyingType();
+            QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
             for (AnnotationMirror anno : rhsATM.getAnnotations()) {
                 AnnotationMirror upperAnno =
-                        atypeFactory
-                                .getQualifierHierarchy()
-                                .findAnnotationInSameHierarchy(upperAnnos, anno);
-                if (atypeFactory.getQualifierHierarchy().isSubtype(anno, upperAnno)) {
+                        qualHierarchy.findAnnotationInSameHierarchy(upperAnnos, anno);
+                if (qualHierarchy.isSubtypeShallow(anno, rhsTM, upperAnno, declTM)) {
                     rhsATM.removeAnnotation(anno);
                 }
             }
@@ -1073,15 +1086,8 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
         System.out.println("WPI failed to make an inference: " + reason);
     }
 
-    /**
-     * Updates sourceCodeATM to contain the LUB between sourceCodeATM and ajavaATM, ignoring missing
-     * AnnotationMirrors from ajavaATM -- it considers the LUB between an AnnotationMirror am and a
-     * missing AnnotationMirror to be am. The results are stored in sourceCodeATM.
-     *
-     * @param sourceCodeATM the annotated type on the source code; side effected by this method
-     * @param ajavaATM the annotated type on the ajava file
-     */
-    private void updateAtmWithLub(AnnotatedTypeMirror sourceCodeATM, AnnotatedTypeMirror ajavaATM) {
+    @Override
+    public void updateAtmWithLub(AnnotatedTypeMirror sourceCodeATM, AnnotatedTypeMirror ajavaATM) {
 
         if (sourceCodeATM.getKind() != ajavaATM.getKind()) {
             // Ignore null types: passing them to asSuper causes a crash, as they cannot be
@@ -1158,7 +1164,14 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
             // amAjava only contains annotations from the ajava file, so it might be missing
             // an annotation in the hierarchy.
             if (amAjava != null) {
-                amSource = atypeFactory.getQualifierHierarchy().leastUpperBound(amSource, amAjava);
+                amSource =
+                        atypeFactory
+                                .getQualifierHierarchy()
+                                .leastUpperBoundShallow(
+                                        amSource,
+                                        sourceCodeATM.getUnderlyingType(),
+                                        amAjava,
+                                        ajavaATM.getUnderlyingType());
             }
             annosToReplace.add(amSource);
         }

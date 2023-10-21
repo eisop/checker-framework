@@ -100,7 +100,7 @@ public class ObjectCreationNode extends Node {
     }
 
     /**
-     * Returns the explicit arguments to the object creation
+     * Returns the explicit arguments to the object creation.
      *
      * @return the arguments
      */
@@ -110,7 +110,7 @@ public class ObjectCreationNode extends Node {
     }
 
     /**
-     * Returns the i-th explicit argument to the object creation
+     * Returns the i-th explicit argument to the object creation.
      *
      * @param i the index of the argument
      * @return the argument
@@ -122,7 +122,7 @@ public class ObjectCreationNode extends Node {
 
     /**
      * Returns the enclosing expression node, which only exists if it is an inner class
-     * instantiation
+     * instantiation.
      *
      * @return the enclosing type expression node
      */
@@ -132,7 +132,7 @@ public class ObjectCreationNode extends Node {
     }
 
     /**
-     * Returns the classbody
+     * Returns the classbody.
      *
      * @return the classbody
      */

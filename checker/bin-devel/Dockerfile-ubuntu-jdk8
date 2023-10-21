@@ -5,7 +5,7 @@
 # See releases at https://hub.docker.com/_/ubuntu for available images.
 # See https://packages.ubuntu.com/search?suite=default&section=all&arch=any&keywords=openjdk-20-jdk&searchon=names
 # to see what Ubuntu versions support a particular OpenJDK version.
-FROM ubuntu:22.10
+FROM ubuntu
 MAINTAINER Werner Dietl <wdietl@gmail.com>
 
 # According to
@@ -15,25 +15,31 @@ MAINTAINER Werner Dietl <wdietl@gmail.com>
 
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get -qqy update \
-&& apt-get -qqy install \
-  openjdk-8-jdk \
-&& update-java-alternatives --set java-1.8.0-openjdk-amd64
+&& apt-get -y install aptitude \
+&& aptitude -y install \
+  apt-utils
 
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get -qqy update \
-&& apt-get -qqy install \
+&& aptitude -y install \
+  openjdk-8-jdk \
+  openjdk-17-jdk \
+&& update-java-alternatives -s java-1.8.0-openjdk-amd64
+
+RUN export DEBIAN_FRONTEND=noninteractive \
+&& apt-get -qqy update \
+&& aptitude -y install \
   ant \
   binutils \
   build-essential \
   cpp \
   git \
-  gradle \
   jq \
   libcurl3-gnutls \
   make \
   maven \
-  mercurial \
   python3-pip \
+  python3-distutils \
   python3-requests \
   unzip \
   wget
@@ -41,5 +47,6 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 RUN pip3 install --no-cache-dir lithium-reducer PyGithub pyyaml
 
 RUN export DEBIAN_FRONTEND=noninteractive \
+&& apt-get autoremove \
 && apt-get clean \
 && rm -rf /var/lib/apt/lists/*

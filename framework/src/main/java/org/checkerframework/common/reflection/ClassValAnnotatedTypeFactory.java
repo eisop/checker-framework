@@ -8,6 +8,7 @@ import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.ArrayType;
 import com.sun.tools.javac.code.Type.UnionClassType;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.reflection.qual.ClassBound;
@@ -139,7 +140,7 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          */
         public ClassValQualifierHierarchy(
                 Set<Class<? extends Annotation>> qualifierClasses, Elements elements) {
-            super(qualifierClasses, elements);
+            super(qualifierClasses, elements, ClassValAnnotatedTypeFactory.this);
         }
 
         /*
@@ -148,12 +149,13 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          * obtained by combining the values of both annotations.
          */
         @Override
-        public AnnotationMirror leastUpperBound(AnnotationMirror a1, AnnotationMirror a2) {
+        public @Nullable AnnotationMirror leastUpperBoundQualifiers(
+                AnnotationMirror a1, AnnotationMirror a2) {
             if (!AnnotationUtils.areSameByName(getTopAnnotation(a1), getTopAnnotation(a2))) {
                 return null;
-            } else if (isSubtype(a1, a2)) {
+            } else if (isSubtypeQualifiers(a1, a2)) {
                 return a2;
-            } else if (isSubtype(a2, a1)) {
+            } else if (isSubtypeQualifiers(a2, a1)) {
                 return a1;
             } else {
                 List<String> a1ClassNames = getClassNamesFromAnnotation(a1);
@@ -171,12 +173,13 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         @Override
-        public AnnotationMirror greatestLowerBound(AnnotationMirror a1, AnnotationMirror a2) {
+        public @Nullable AnnotationMirror greatestLowerBoundQualifiers(
+                AnnotationMirror a1, AnnotationMirror a2) {
             if (!AnnotationUtils.areSameByName(getTopAnnotation(a1), getTopAnnotation(a2))) {
                 return null;
-            } else if (isSubtype(a1, a2)) {
+            } else if (isSubtypeQualifiers(a1, a2)) {
                 return a1;
-            } else if (isSubtype(a2, a1)) {
+            } else if (isSubtypeQualifiers(a2, a1)) {
                 return a2;
             } else {
                 List<String> a1ClassNames = getClassNamesFromAnnotation(a1);
@@ -202,7 +205,7 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          * a subtype of lhs iff lhs contains  every element of rhs.
          */
         @Override
-        public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror superAnno) {
+        public boolean isSubtypeQualifiers(AnnotationMirror subAnno, AnnotationMirror superAnno) {
             if (AnnotationUtils.areSame(subAnno, superAnno)
                     || areSameByClass(superAnno, UnknownClass.class)
                     || areSameByClass(subAnno, ClassValBottom.class)) {
@@ -312,7 +315,7 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             return getDeclAnnotation(TreeUtils.elementFromUse(tree), GetClass.class) != null;
         }
 
-        private List<String> getStringValues(ExpressionTree arg) {
+        private @Nullable List<String> getStringValues(ExpressionTree arg) {
             ValueAnnotatedTypeFactory valueATF = getTypeFactoryOfSubchecker(ValueChecker.class);
             AnnotationMirror annotation = valueATF.getAnnotationMirror(arg, StringVal.class);
             if (annotation == null) {

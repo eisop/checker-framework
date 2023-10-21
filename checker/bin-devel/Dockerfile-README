@@ -19,13 +19,16 @@ Create the Docker image:
 
 # Alias to create the Docker image, in an empty directory, and upload to Docker Hub.
 # Takes about 12 minutes for jdk*, about 1 hour for jdk*-plus.
+DOCKERTESTING=""
+# DOCKERTESTING="-testing"
 alias create_upload_docker_image=' \
   rm -rf dockerdir && \
   mkdir -p dockerdir && \
   (cd dockerdir && \
   \cp -pf ../Dockerfile-$OS-$JDKVER Dockerfile && \
-  docker build -t wmdietl/$PROJECT-$OS-$JDKVER . && \
-  docker push wmdietl/$PROJECT-$OS-$JDKVER) && \
+  DOCKERIMAGE="wmdietl/$PROJECT-$OS-$JDKVER$DOCKERTESTING"
+  docker build -t $DOCKERIMAGE . && \
+  docker push $DOCKERIMAGE) && \
   rm -rf dockerdir'
 
 export OS=ubuntu
@@ -59,6 +62,16 @@ export PROJECT=cf
 create_upload_docker_image
 
 export OS=ubuntu
+export JDKVER=jdk21
+export PROJECT=cf
+create_upload_docker_image
+
+export OS=ubuntu
+export JDKVER=jdk21-plus
+export PROJECT=cf
+create_upload_docker_image
+
+export OS=ubuntu
 export JDKVER=jdk-latest
 export PROJECT=cf
 create_upload_docker_image
@@ -77,7 +90,6 @@ export OS=ubuntu
 export JDKVER=jdk-next-plus
 export PROJECT=cf
 create_upload_docker_image
-
 
 Use numbered JDK releases for versions that should be supported longer term.
 jdk-latest is for the latest release and jdk-next is for pre-releases of

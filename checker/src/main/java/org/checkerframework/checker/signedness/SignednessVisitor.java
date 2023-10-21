@@ -16,13 +16,11 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
-import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
-
-import java.util.Collections;
-import java.util.Set;
+import org.plumelib.util.IPair;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
@@ -41,7 +39,7 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
     }
 
     /**
-     * Determines if an annotated type is annotated as {@link Unsigned} or {@link PolySigned}
+     * Returns true if an annotated type is annotated as {@link Unsigned} or {@link PolySigned}
      *
      * @param type the annotated type to be checked
      * @return true if the annotated type is annotated as {@link Unsigned} or {@link PolySigned}
@@ -51,7 +49,7 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
     }
 
     /**
-     * Determines if an annotated type is annotated as {@link Signed} or {@link PolySigned}
+     * Returns true if an annotated type is annotated as {@link Signed} or {@link PolySigned}
      *
      * @param type the annotated type to be checked
      * @return true if the annotated type is annotated as {@link Signed} or {@link PolySigned}
@@ -81,7 +79,7 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
         ExpressionTree leftOp = tree.getLeftOperand();
         ExpressionTree rightOp = tree.getRightOperand();
 
-        Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> argTypes =
+        IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> argTypes =
                 atypeFactory.binaryTreeArgTypes(tree);
         AnnotatedTypeMirror leftOpType = argTypes.first;
         AnnotatedTypeMirror rightOpType = argTypes.second;
@@ -102,16 +100,18 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
 
             case RIGHT_SHIFT:
                 if (hasUnsignedAnnotation(leftOpType)
-                        && !atypeFactory.isMaskedShiftEitherSignedness(tree, getCurrentPath())
-                        && !atypeFactory.isCastedShiftEitherSignedness(tree, getCurrentPath())) {
+                        && !SignednessShifts.isMaskedShiftEitherSignedness(tree, getCurrentPath())
+                        && !SignednessShifts.isCastedShiftEitherSignedness(
+                                tree, getCurrentPath())) {
                     checker.reportError(leftOp, "shift.signed", kind, leftOpType, rightOpType);
                 }
                 break;
 
             case UNSIGNED_RIGHT_SHIFT:
                 if (hasSignedAnnotation(leftOpType)
-                        && !atypeFactory.isMaskedShiftEitherSignedness(tree, getCurrentPath())
-                        && !atypeFactory.isCastedShiftEitherSignedness(tree, getCurrentPath())) {
+                        && !SignednessShifts.isMaskedShiftEitherSignedness(tree, getCurrentPath())
+                        && !SignednessShifts.isCastedShiftEitherSignedness(
+                                tree, getCurrentPath())) {
                     checker.reportError(leftOp, "shift.unsigned", kind, leftOpType, rightOpType);
                 }
                 break;
@@ -136,12 +136,12 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
                         || !atypeFactory.maybeIntegral(rightOpType)) {
                     break;
                 }
-                if (leftOpType.hasAnnotation(Unsigned.class)
-                        && rightOpType.hasAnnotation(Signed.class)) {
+                if (leftOpType.hasEffectiveAnnotation(Unsigned.class)
+                        && rightOpType.hasEffectiveAnnotation(Signed.class)) {
                     checker.reportError(
                             tree, "comparison.mixed.unsignedlhs", leftOpType, rightOpType);
-                } else if (leftOpType.hasAnnotation(Signed.class)
-                        && rightOpType.hasAnnotation(Unsigned.class)) {
+                } else if (leftOpType.hasEffectiveAnnotation(Signed.class)
+                        && rightOpType.hasEffectiveAnnotation(Unsigned.class)) {
                     checker.reportError(
                             tree, "comparison.mixed.unsignedrhs", leftOpType, rightOpType);
                 }
@@ -149,29 +149,25 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
 
             case PLUS:
                 if (TreeUtils.isStringConcatenation(tree)) {
-                    AnnotationMirror leftAnno =
-                            leftOpType.getEffectiveAnnotations().iterator().next();
-                    AnnotationMirror rightAnno =
-                            rightOpType.getEffectiveAnnotations().iterator().next();
-
                     // Note that leftOpType.getUnderlyingType() and rightOpType.getUnderlyingType()
                     // are always java.lang.String. Please refer to binaryTreeArgTypes for more
                     // details.
                     // Here, the original types of operands can be something different from string.
                     // For example, "123" + obj is a string concatenation in which the original type
                     // of the right operand is java.lang.Object.
-                    TypeMirror leftOpOriginalType = TreeUtils.typeOf(leftOp);
-                    TypeMirror rightOpOriginalType = TreeUtils.typeOf(rightOp);
-
-                    if (!TypesUtils.isCharType(leftOpOriginalType)
-                            && !atypeFactory
-                                    .getQualifierHierarchy()
-                                    .isSubtype(leftAnno, atypeFactory.SIGNED)) {
+                    TypeMirror leftOpTM = TreeUtils.typeOf(leftOp);
+                    AnnotationMirror leftAnno =
+                            leftOpType.getEffectiveAnnotationInHierarchy(atypeFactory.SIGNED);
+                    TypeMirror rightOpTM = TreeUtils.typeOf(rightOp);
+                    AnnotationMirror rightAnno =
+                            rightOpType.getEffectiveAnnotationInHierarchy(atypeFactory.SIGNED);
+                    if (!TypesUtils.isCharType(leftOpTM)
+                            && !qualHierarchy.isSubtypeQualifiersOnly(
+                                    leftAnno, atypeFactory.SIGNED)) {
                         checker.reportError(leftOp, "unsigned.concat");
-                    } else if (!TypesUtils.isCharType(rightOpOriginalType)
-                            && !atypeFactory
-                                    .getQualifierHierarchy()
-                                    .isSubtype(rightAnno, atypeFactory.SIGNED)) {
+                    } else if (!TypesUtils.isCharType(rightOpTM)
+                            && !qualHierarchy.isSubtypeQualifiersOnly(
+                                    rightAnno, atypeFactory.SIGNED)) {
                         checker.reportError(rightOp, "unsigned.concat");
                     }
                     break;
@@ -179,12 +175,12 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
                 // Other plus binary trees should be handled in the default case.
                 // fall through
             default:
-                if (leftOpType.hasAnnotation(Unsigned.class)
-                        && rightOpType.hasAnnotation(Signed.class)) {
+                if (leftOpType.hasEffectiveAnnotation(Unsigned.class)
+                        && rightOpType.hasEffectiveAnnotation(Signed.class)) {
                     checker.reportError(
                             tree, "operation.mixed.unsignedlhs", kind, leftOpType, rightOpType);
-                } else if (leftOpType.hasAnnotation(Signed.class)
-                        && rightOpType.hasAnnotation(Unsigned.class)) {
+                } else if (leftOpType.hasEffectiveAnnotation(Signed.class)
+                        && rightOpType.hasEffectiveAnnotation(Unsigned.class)) {
                     checker.reportError(
                             tree, "operation.mixed.unsignedrhs", kind, leftOpType, rightOpType);
                 }
@@ -292,7 +288,7 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
         ExpressionTree var = tree.getVariable();
         ExpressionTree expr = tree.getExpression();
 
-        Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> argTypes =
+        IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> argTypes =
                 atypeFactory.compoundAssignmentTreeArgTypes(tree);
         AnnotatedTypeMirror varType = argTypes.first;
         AnnotatedTypeMirror exprType = argTypes.second;
@@ -348,14 +344,13 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
                 if (TreeUtils.isStringCompoundConcatenation(tree)) {
                     // Note that exprType.getUnderlyingType() is always java.lang.String.
                     // Please refer to compoundAssignmentTreeArgTypes for more details.
-                    if (!TypesUtils.isCharType(TreeUtils.typeOf(expr))) {
-                        AnnotationMirror anno =
-                                exprType.getEffectiveAnnotations().iterator().next();
-                        if (!atypeFactory
-                                .getQualifierHierarchy()
-                                .isSubtype(anno, atypeFactory.SIGNED)) {
-                            checker.reportError(tree.getExpression(), "unsigned.concat");
-                        }
+                    if (TypesUtils.isCharType(TreeUtils.typeOf(expr))) {
+                        break;
+                    }
+                    AnnotationMirror exprAnno =
+                            exprType.getEffectiveAnnotationInHierarchy(atypeFactory.SIGNED);
+                    if (!qualHierarchy.isSubtypeQualifiersOnly(exprAnno, atypeFactory.SIGNED)) {
+                        checker.reportError(tree.getExpression(), "unsigned.concat");
                     }
                     break;
                 }
@@ -393,16 +388,11 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
     }
 
     @Override
-    protected Set<? extends AnnotationMirror> getExceptionParameterLowerBoundAnnotations() {
-        return Collections.singleton(atypeFactory.SIGNED);
+    protected AnnotationMirrorSet getExceptionParameterLowerBoundAnnotations() {
+        return new AnnotationMirrorSet(atypeFactory.SIGNED);
     }
 
     @Override
     protected void checkConstructorResult(
             AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {}
-
-    @Override
-    protected boolean shouldWarnAboutIrrelevantJavaTypes() {
-        return true;
-    }
 }

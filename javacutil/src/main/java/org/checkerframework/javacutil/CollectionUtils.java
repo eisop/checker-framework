@@ -2,9 +2,9 @@ package org.checkerframework.javacutil;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
-import org.checkerframework.checker.signedness.qual.PolySigned;
+import org.plumelib.util.DeepCopyable;
+import org.plumelib.util.UtilPlume;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -12,13 +12,24 @@ import java.util.Map;
 /** Utility methods related to Java Collections. */
 public class CollectionUtils {
 
+    /** Do not instantiate. */
+    private CollectionUtils() {
+        throw new Error("Do not instantiate");
+    }
+
+    ///
+    /// Deprecated utility methods
+    ///
+
     /**
      * Creates a LRU cache.
      *
      * @param size size of the cache
      * @return a new cache with the provided size
+     * @deprecated use org.plumelib.util.CollectionsPlume.createLruCache
      */
-    public static <K, V> Map<K, V> createLRUCache(final int size) {
+    @Deprecated // 2023-06-02
+    public static <K, V> Map<K, V> createLRUCache(int size) {
         return new LinkedHashMap<K, V>(size, .75F, true) {
 
             private static final long serialVersionUID = 5261489276168775084L;
@@ -30,13 +41,6 @@ public class CollectionUtils {
         };
     }
 
-    ///
-    /// Temporary utility methods
-    ///
-
-    // TODO: After code review, copy these methods into plume-util.
-    // After plume-util 1.6.6 is released, use these methods from it.
-
     // A "deep copy" uses the deepCopy() method of the DeepCopyable interface.
 
     /**
@@ -47,19 +51,21 @@ public class CollectionUtils {
      * @param <C> the type of the collection
      * @param orig a collection
      * @return a copy of {@code orig}, as described above
+     * @deprecated use org.plumelib.util.CollectionsPlume.cloneElements
      */
     @SuppressWarnings({
         "signedness", // problem with clone()
         "nullness" // generics problem
     })
+    @Deprecated // 2023-06-02
     public static <T extends @Nullable Object, C extends @Nullable Collection<T>> @PolyNull C cloneElements(@PolyNull C orig) {
         if (orig == null) {
             return null;
         }
-        C result = clone(orig);
+        C result = UtilPlume.clone(orig);
         result.clear();
         for (T elt : orig) {
-            result.add(clone(elt));
+            result.add(UtilPlume.clone(elt));
         }
         return result;
     }
@@ -73,7 +79,9 @@ public class CollectionUtils {
      * @param <M> the type of the map
      * @param orig a map
      * @return a copy of {@code orig}, as described above
+     * @deprecated use org.plumelib.util.CollectionsPlume.cloneElements
      */
+    @Deprecated // 2023-06-02
     @SuppressWarnings({"nullness", "signedness"}) // generics problem with clone
     public static <K, V, M extends @Nullable Map<K, V>> @PolyNull M cloneElements(
             @PolyNull M orig) {
@@ -89,7 +97,9 @@ public class CollectionUtils {
      * @param <M> the type of the map
      * @param orig a map
      * @return a copy of {@code orig}, as described above
+     * @deprecated use org.plumelib.util.CollectionsPlume.cloneValues
      */
+    @Deprecated // 2023-06-02
     @SuppressWarnings({"nullness", "signedness"}) // generics problem with clone
     public static <K, V, M extends @Nullable Map<K, V>> @PolyNull M cloneValues(@PolyNull M orig) {
         return cloneElements(orig, false);
@@ -105,19 +115,21 @@ public class CollectionUtils {
      * @param orig a map
      * @param cloneKeys if true, clone keys; otherwise, re-use them
      * @return a copy of {@code orig}, as described above
+     * @deprecated use org.plumelib.util.CollectionsPlume.cloneElements
      */
+    @Deprecated // 2023-06-02
     @SuppressWarnings({"nullness", "signedness"}) // generics problem with clone
     private static <K, V, M extends @Nullable Map<K, V>> @PolyNull M cloneElements(
             @PolyNull M orig, boolean cloneKeys) {
         if (orig == null) {
             return null;
         }
-        M result = clone(orig);
+        M result = UtilPlume.clone(orig);
         result.clear();
         for (Map.Entry<K, V> mapEntry : orig.entrySet()) {
             K oldKey = mapEntry.getKey();
-            K newKey = cloneKeys ? clone(oldKey) : oldKey;
-            result.put(newKey, clone(mapEntry.getValue()));
+            K newKey = cloneKeys ? UtilPlume.clone(oldKey) : oldKey;
+            result.put(newKey, UtilPlume.clone(mapEntry.getValue()));
         }
         return result;
     }
@@ -130,13 +142,15 @@ public class CollectionUtils {
      * @param <C> the type of the collection
      * @param orig a collection
      * @return a copy of {@code orig}, as described above
+     * @deprecated use org.plumelib.util.CollectionsPlume.deepCopy
      */
+    @Deprecated // 2023-06-02
     @SuppressWarnings({"signedness", "nullness:argument"}) // problem with clone()
     public static <T extends @Nullable DeepCopyable<T>, C extends @Nullable Collection<T>> @PolyNull C deepCopy(@PolyNull C orig) {
         if (orig == null) {
             return null;
         }
-        C result = clone(orig);
+        C result = UtilPlume.clone(orig);
         result.clear();
         for (T elt : orig) {
             result.add(DeepCopyable.deepCopyOrNull(elt));
@@ -156,7 +170,9 @@ public class CollectionUtils {
      * @param <M> the type of the map
      * @param orig a map
      * @return a copy of {@code orig}, as described above
+     * @deprecated use org.plumelib.util.CollectionsPlume.deepCopy
      */
+    @Deprecated // 2023-06-02
     @SuppressWarnings({"nullness", "signedness"}) // generics problem with clone
     public static <
                     K extends @Nullable DeepCopyable<K>,
@@ -166,7 +182,7 @@ public class CollectionUtils {
         if (orig == null) {
             return null;
         }
-        M result = clone(orig);
+        M result = UtilPlume.clone(orig);
         result.clear();
         for (Map.Entry<K, V> mapEntry : orig.entrySet()) {
             K oldKey = mapEntry.getKey();
@@ -186,13 +202,15 @@ public class CollectionUtils {
      * @param <M> the type of the map
      * @param orig a map
      * @return a copy of {@code orig}, as described above
+     * @deprecated use org.plumelib.util.CollectionsPlume.deepCopyValues
      */
+    @Deprecated // 2023-06-02
     @SuppressWarnings({"nullness", "signedness"}) // generics problem with clone
     public static <K, V extends @Nullable DeepCopyable<V>, M extends @Nullable Map<K, V>> @PolyNull M deepCopyValues(@PolyNull M orig) {
         if (orig == null) {
             return null;
         }
-        M result = clone(orig);
+        M result = UtilPlume.clone(orig);
         result.clear();
         for (Map.Entry<K, V> mapEntry : orig.entrySet()) {
             K oldKey = mapEntry.getKey();
@@ -200,33 +218,5 @@ public class CollectionUtils {
             result.put(oldKey, DeepCopyable.deepCopyOrNull(oldValue));
         }
         return result;
-    }
-
-    ///////////////////////////////////////////////////////////////////////////
-    /// Object
-    ///
-
-    /**
-     * Clones the given object by calling {@code clone()} reflectively. It is not possible to call
-     * {@code Object.clone()} directly because it has protected visibility.
-     *
-     * @param <T> the type of the object to clone
-     * @param data the object to clone
-     * @return a clone of the object
-     */
-    @SuppressWarnings({
-        "nullness:return", // result of clone() is non-null
-        "signedness", // signedness is not relevant
-        "unchecked"
-    })
-    public static <T> @PolyNull @PolySigned T clone(@PolyNull @PolySigned T data) {
-        if (data == null) {
-            return null;
-        }
-        try {
-            return (T) data.getClass().getMethod("clone").invoke(data);
-        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-            throw new Error(e);
-        }
     }
 }

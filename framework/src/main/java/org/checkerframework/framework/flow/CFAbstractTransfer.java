@@ -8,8 +8,8 @@ import com.sun.source.tree.Tree;
 import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.interning.qual.InternedDistinct;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
 import org.checkerframework.dataflow.analysis.ForwardTransferFunction;
 import org.checkerframework.dataflow.analysis.RegularTransferResult;
@@ -24,6 +24,7 @@ import org.checkerframework.dataflow.cfg.node.AssignmentNode;
 import org.checkerframework.dataflow.cfg.node.CaseNode;
 import org.checkerframework.dataflow.cfg.node.ClassNameNode;
 import org.checkerframework.dataflow.cfg.node.ConditionalNotNode;
+import org.checkerframework.dataflow.cfg.node.DeconstructorPatternNode;
 import org.checkerframework.dataflow.cfg.node.EqualToNode;
 import org.checkerframework.dataflow.cfg.node.ExpressionStatementNode;
 import org.checkerframework.dataflow.cfg.node.FieldAccessNode;
@@ -218,10 +219,14 @@ public abstract class CFAbstractTransfer<
     }
 
     /** The fixed initial store. */
-    private @MonotonicNonNull S fixedInitialStore = null;
+    private @Nullable S fixedInitialStore = null;
 
-    /** Set a fixed initial Store. */
-    public void setFixedInitialStore(S s) {
+    /**
+     * Set a fixed initial Store.
+     *
+     * @param s initial store; possible null
+     */
+    public void setFixedInitialStore(@Nullable S s) {
         fixedInitialStore = s;
     }
 
@@ -238,9 +243,9 @@ public abstract class CFAbstractTransfer<
         }
 
         S store;
+        AnnotatedTypeFactory atypeFactory = analysis.getTypeFactory();
 
         if (underlyingAST.getKind() == UnderlyingAST.Kind.METHOD) {
-
             if (fixedInitialStore != null) {
                 // copy knowledge
                 store = analysis.createCopiedStore(fixedInitialStore);
@@ -248,9 +253,8 @@ public abstract class CFAbstractTransfer<
                 store = analysis.createEmptyStore(sequentialSemantics);
             }
 
-            AnnotatedTypeFactory factory = analysis.getTypeFactory();
             for (LocalVariableNode p : parameters) {
-                AnnotatedTypeMirror anno = factory.getAnnotatedType(p.getElement());
+                AnnotatedTypeMirror anno = atypeFactory.getAnnotatedType(p.getElement());
                 store.initializeMethodParameter(p, analysis.createAbstractValue(anno));
             }
 
@@ -258,51 +262,53 @@ public abstract class CFAbstractTransfer<
             CFGMethod method = (CFGMethod) underlyingAST;
             MethodTree methodDeclTree = method.getMethod();
             ExecutableElement methodElem = TreeUtils.elementFromDeclaration(methodDeclTree);
-            addInformationFromPreconditions(store, factory, method, methodDeclTree, methodElem);
+            addInformationFromPreconditions(
+                    store, atypeFactory, method, methodDeclTree, methodElem);
 
             addInitialFieldValues(store, method.getClassTree(), methodDeclTree);
 
             addFinalLocalValues(store, methodElem);
 
             /* NO-AFU
-                   if (shouldPerformWholeProgramInference(methodDeclTree, methodElem)) {
-                       Map<AnnotatedDeclaredType, ExecutableElement> overriddenMethods =
-                               AnnotatedTypes.overriddenMethods(
-                                       analysis.atypeFactory.getElementUtils(),
-                                       analysis.atypeFactory,
-                                       methodElem);
-                       for (Map.Entry<AnnotatedDeclaredType, ExecutableElement> pair :
-                               overriddenMethods.entrySet()) {
-                           AnnotatedExecutableType overriddenMethod =
-                                   AnnotatedTypes.asMemberOf(
-                                           analysis.atypeFactory.getProcessingEnv().getTypeUtils(),
-                                           analysis.atypeFactory,
-                                           pair.getKey(),
-                                           pair.getValue());
+            if (shouldPerformWholeProgramInference(methodDeclTree, methodElem)) {
+              Map<AnnotatedDeclaredType, ExecutableElement> overriddenMethods =
+                  AnnotatedTypes.overriddenMethods(
+                      atypeFactory.getElementUtils(), atypeFactory, methodElem);
+              for (Map.Entry<AnnotatedDeclaredType, ExecutableElement> pair :
+                  overriddenMethods.entrySet()) {
+                AnnotatedExecutableType overriddenMethod =
+                    AnnotatedTypes.asMemberOf(
+                        atypeFactory.getProcessingEnv().getTypeUtils(),
+                        atypeFactory,
+                        pair.getKey(),
+                        pair.getValue());
 
-                           // Infers parameter and receiver types of the method based
-                           // on the overridden method.
-                           analysis.atypeFactory
-                                   .getWholeProgramInference()
-                                   .updateFromOverride(methodDeclTree, methodElem, overriddenMethod);
-                       }
-                   }
+                // Infers parameter and receiver types of the method based
+                // on the overridden method.
+                atypeFactory
+                    .getWholeProgramInference()
+                    .updateFromOverride(methodDeclTree, methodElem, overriddenMethod);
+              }
+            }
             */
 
         } else if (underlyingAST.getKind() == UnderlyingAST.Kind.LAMBDA) {
-            // Create a copy and keep only the field values (nothing else applies).
-            store = analysis.createCopiedStore(fixedInitialStore);
-            // Allow that local variables are retained; they are effectively final,
-            // otherwise Java wouldn't allow access from within the lambda.
-            // TODO: what about the other information? Can code further down be simplified?
-            // store.localVariableValues.clear();
-            store.classValues.clear();
-            store.arrayValues.clear();
-            store.methodValues.clear();
+            if (fixedInitialStore != null) {
+                // Create a copy and keep only the field values (nothing else applies).
+                store = analysis.createCopiedStore(fixedInitialStore);
+                // Allow that local variables are retained; they are effectively final,
+                // otherwise Java wouldn't allow access from within the lambda.
+                // TODO: what about the other information? Can code further down be simplified?
+                // store.localVariableValues.clear();
+                store.classValues.clear();
+                store.arrayValues.clear();
+                store.methodValues.clear();
+            } else {
+                store = analysis.createEmptyStore(sequentialSemantics);
+            }
 
-            AnnotatedTypeFactory factory = analysis.getTypeFactory();
             for (LocalVariableNode p : parameters) {
-                AnnotatedTypeMirror anno = factory.getAnnotatedType(p.getElement());
+                AnnotatedTypeMirror anno = atypeFactory.getAnnotatedType(p.getElement());
                 store.initializeMethodParameter(p, analysis.createAbstractValue(anno));
             }
 
@@ -310,7 +316,7 @@ public abstract class CFAbstractTransfer<
             @SuppressWarnings("interning:assignment.type.incompatible") // used in == tests
             @InternedDistinct Tree enclosingTree =
                     TreePathUtil.enclosingOfKind(
-                            factory.getPath(lambda.getLambdaTree()),
+                            atypeFactory.getPath(lambda.getLambdaTree()),
                             TreeUtils.classAndMethodTreeKinds());
 
             Element enclosingElement = null;
@@ -325,7 +331,7 @@ public abstract class CFAbstractTransfer<
                 // Find any enclosing element of the lambda (using trees).
                 // Then go up the elements to find an initializer element (which can't be found with
                 // the tree).
-                TreePath loopTree = factory.getPath(lambda.getLambdaTree()).getParentPath();
+                TreePath loopTree = atypeFactory.getPath(lambda.getLambdaTree()).getParentPath();
                 Element anEnclosingElement = null;
                 while (loopTree.getLeaf() != enclosingTree) {
                     Element sym = TreeUtils.elementFromTree(loopTree.getLeaf());
@@ -353,7 +359,7 @@ public abstract class CFAbstractTransfer<
             Map<FieldAccess, V> fieldValuesClone = new HashMap<>(store.fieldValues);
             for (Map.Entry<FieldAccess, V> fieldValue : fieldValuesClone.entrySet()) {
                 AnnotatedTypeMirror declaredType =
-                        factory.getAnnotatedType(fieldValue.getKey().getField());
+                        atypeFactory.getAnnotatedType(fieldValue.getKey().getField());
                 V lubbedValue =
                         analysis.createAbstractValue(declaredType)
                                 .leastUpperBound(fieldValue.getValue());
@@ -780,7 +786,7 @@ public abstract class CFAbstractTransfer<
      * @param notEqualTo if true, indicates that the logic is flipped (i.e., the information is
      *     added to the {@code elseStore} instead of the {@code thenStore}) for a not-equal
      *     comparison.
-     * @return the conditional transfer result (if information has been added), or {@code null}
+     * @return the conditional transfer result (if information has been added), or {@code res}
      */
     protected TransferResult<V, S> strengthenAnnotationOfEqualTo(
             TransferResult<V, S> res,
@@ -1009,11 +1015,28 @@ public abstract class CFAbstractTransfer<
     }
 
     @Override
+    public TransferResult<V, S> visitDeconstructorPattern(
+            DeconstructorPatternNode n, TransferInput<V, S> in) {
+        // TODO: dummy implementation to avoid crash.
+        V value = null;
+        return createTransferResult(value, in);
+    }
+
+    @Override
     public TransferResult<V, S> visitInstanceOf(InstanceOfNode node, TransferInput<V, S> in) {
         TransferResult<V, S> result = super.visitInstanceOf(node, in);
+        for (LocalVariableNode bindingVar : node.getBindingVariables()) {
+            JavaExpression expr = JavaExpression.fromNode(bindingVar);
+            AnnotatedTypeMirror expType =
+                    analysis.atypeFactory.getAnnotatedType(node.getTree().getExpression());
+            for (AnnotationMirror anno : expType.getAnnotations()) {
+                in.getRegularStore().insertOrRefine(expr, anno);
+            }
+        }
+
         // The "reference type" is the type after "instanceof".
         Tree refTypeTree = node.getTree().getType();
-        if (refTypeTree.getKind() == Tree.Kind.ANNOTATED_TYPE) {
+        if (refTypeTree != null && refTypeTree.getKind() == Tree.Kind.ANNOTATED_TYPE) {
             AnnotatedTypeMirror refType = analysis.atypeFactory.getAnnotatedType(refTypeTree);
             AnnotatedTypeMirror expType =
                     analysis.atypeFactory.getAnnotatedType(node.getTree().getExpression());
@@ -1025,15 +1048,6 @@ public abstract class CFAbstractTransfer<
                     in.getRegularStore().insertOrRefine(expr, anno);
                 }
                 return new RegularTransferResult<>(result.getResultValue(), in.getRegularStore());
-            }
-        }
-        // TODO: Should this be an else if?
-        if (node.getBindingVariable() != null) {
-            JavaExpression expr = JavaExpression.fromNode(node.getBindingVariable());
-            AnnotatedTypeMirror expType =
-                    analysis.atypeFactory.getAnnotatedType(node.getTree().getExpression());
-            for (AnnotationMirror anno : expType.getAnnotations()) {
-                in.getRegularStore().insertOrRefine(expr, anno);
             }
         }
         return result;
@@ -1048,7 +1062,7 @@ public abstract class CFAbstractTransfer<
      */
     /* NO-AFU
     private boolean shouldPerformWholeProgramInference(Tree tree) {
-      @Nullable TreePath path = this.analysis.atypeFactory.getPath(tree);
+      TreePath path = this.analysis.atypeFactory.getPath(tree);
       return infer && (tree == null || !analysis.checker.shouldSuppressWarnings(path, ""));
     }
     */
@@ -1281,8 +1295,8 @@ public abstract class CFAbstractTransfer<
      * Returns the abstract value of {@code (value1, value2)} that is more specific. If the two are
      * incomparable, then {@code value1} is returned.
      *
-     * @param value1 an abstract value to be compared with
-     * @param value2 an abstract value to be compared with
+     * @param value1 an abstract value
+     * @param value2 another abstract value
      * @return the more specific value of the two parameters, or, if they are incomparable, {@code
      *     value1}
      */
@@ -1325,7 +1339,7 @@ public abstract class CFAbstractTransfer<
      *     annotatedValue}; returns null if {@code annotatedValue} is null
      */
     @SideEffectFree
-    protected V getNarrowedValue(TypeMirror type, V annotatedValue) {
+    protected @PolyNull V getNarrowedValue(TypeMirror type, @PolyNull V annotatedValue) {
         if (annotatedValue == null) {
             return null;
         }
@@ -1348,7 +1362,7 @@ public abstract class CFAbstractTransfer<
      *     annotatedValue}; returns null if {@code annotatedValue} is null
      */
     @SideEffectFree
-    protected V getWidenedValue(TypeMirror type, V annotatedValue) {
+    protected @PolyNull V getWidenedValue(TypeMirror type, @PolyNull V annotatedValue) {
         if (annotatedValue == null) {
             return null;
         }

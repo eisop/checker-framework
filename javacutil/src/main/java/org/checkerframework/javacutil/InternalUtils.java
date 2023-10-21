@@ -5,6 +5,8 @@ import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 import javax.annotation.processing.ProcessingEnvironment;
 
 /** Miscellaneous static utility methods. */
@@ -33,7 +35,7 @@ public class InternalUtils {
      * @return the class loader used to {@code clazz}, or the system class loader, or null if both
      *     are unavailable
      */
-    public static ClassLoader getClassLoaderForClass(Class<? extends Object> clazz) {
+    public static @Nullable ClassLoader getClassLoaderForClass(Class<? extends Object> clazz) {
         ClassLoader classLoader = clazz.getClassLoader();
         return classLoader == null ? ClassLoader.getSystemClassLoader() : classLoader;
     }

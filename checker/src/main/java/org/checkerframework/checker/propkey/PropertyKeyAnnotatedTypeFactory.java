@@ -13,6 +13,7 @@ import org.checkerframework.framework.type.treeannotator.ListTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.plumelib.reflection.Signatures;
+import org.plumelib.util.CollectionsPlume;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -21,13 +22,14 @@ import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
-import javax.tools.Diagnostic.Kind;
+import javax.tools.Diagnostic;
 
 /**
  * This AnnotatedTypeFactory adds PropertyKey annotations to String literals that contain values
@@ -72,7 +74,7 @@ public class PropertyKeyAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
         @Override
         public Void visitLiteral(LiteralTree tree, AnnotatedTypeMirror type) {
-            if (!type.isAnnotatedInHierarchy(theAnnot)
+            if (!type.hasAnnotationInHierarchy(theAnnot)
                     && tree.getKind() == Tree.Kind.STRING_LITERAL
                     && strContains(lookupKeys, tree.getValue().toString())) {
                 type.addAnnotation(theAnnot);
@@ -135,10 +137,11 @@ public class PropertyKeyAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         Set<String> result = new HashSet<>();
 
         if (checker.hasOption("propfiles")) {
-            result.addAll(keysOfPropertyFiles(checker.getOption("propfiles")));
+            result.addAll(
+                    keysOfPropertyFiles(checker.getStringsOption("propfiles", File.pathSeparator)));
         }
         if (checker.hasOption("bundlenames")) {
-            result.addAll(keysOfResourceBundle(checker.getOption("bundlenames")));
+            result.addAll(keysOfResourceBundle(checker.getStringsOption("bundlenames", ':')));
         }
 
         return result;
@@ -147,20 +150,17 @@ public class PropertyKeyAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     /**
      * Obtains the keys from all the property files.
      *
-     * @param names a list of property files, separated by {@link File#pathSeparator}
+     * @param propfiles a list of property file names
      * @return a set of all the keys found in all the property files
      */
-    private Set<String> keysOfPropertyFiles(String names) {
-        String[] namesArr = names.split(File.pathSeparator);
-
-        if (namesArr == null) {
-            checker.message(Kind.WARNING, "Couldn't parse the properties files: <" + names + ">");
+    private Set<String> keysOfPropertyFiles(List<String> propfiles) {
+        if (propfiles.isEmpty()) {
             return Collections.emptySet();
         }
 
-        Set<String> result = new HashSet<>(namesArr.length);
+        Set<String> result = new HashSet<>(CollectionsPlume.mapCapacity(propfiles));
 
-        for (String name : namesArr) {
+        for (String propfile : propfiles) {
             try {
                 Properties prop = new Properties();
 
@@ -170,18 +170,19 @@ public class PropertyKeyAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                     cl = ClassLoader.getSystemClassLoader();
                 }
 
-                try (InputStream in = cl.getResourceAsStream(name)) {
+                try (InputStream in = cl.getResourceAsStream(propfile)) {
                     if (in != null) {
                         prop.load(in);
                     } else {
                         // If the classloader didn't manage to load the file, try whether a
                         // FileInputStream works. For absolute paths this might help.
-                        try (InputStream fis = new FileInputStream(name)) {
+                        try (InputStream fis = new FileInputStream(propfile)) {
                             prop.load(fis);
                         } catch (FileNotFoundException e) {
                             checker.message(
-                                    Kind.WARNING, "Couldn't find the properties file: " + name);
-                            // report(null, "propertykeychecker.filenotfound", name);
+                                    Diagnostic.Kind.WARNING,
+                                    "Couldn't find the properties file: " + propfile);
+                            // report(null, "propertykeychecker.filenotfound", propfile);
                             // return Collections.emptySet();
                             continue;
                         }
@@ -189,13 +190,13 @@ public class PropertyKeyAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                 }
 
                 result.addAll(prop.stringPropertyNames());
-
             } catch (Exception e) {
                 // TODO: is there a nicer way to report messages, that are not connected to an AST
                 // node?
                 // One cannot use `report`, because it needs a node.
                 checker.message(
-                        Kind.WARNING, "Exception in PropertyKeyChecker.keysOfPropertyFile: " + e);
+                        Diagnostic.Kind.WARNING,
+                        "Exception in PropertyKeyChecker.keysOfPropertyFile: " + e);
                 e.printStackTrace();
             }
         }
@@ -203,18 +204,20 @@ public class PropertyKeyAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         return result;
     }
 
-    private Set<String> keysOfResourceBundle(String bundleNames) {
-        String[] namesArr = bundleNames.split(":");
-
-        if (namesArr == null) {
-            checker.message(
-                    Kind.WARNING, "Couldn't parse the resource bundles: <" + bundleNames + ">");
+    /**
+     * Returns the keys for the given resource bundles.
+     *
+     * @param bundleNames names of resource bundles
+     * @return the keys for the given resource bundles
+     */
+    private Set<String> keysOfResourceBundle(List<String> bundleNames) {
+        if (bundleNames.isEmpty()) {
             return Collections.emptySet();
         }
 
-        Set<String> result = new HashSet<>(namesArr.length);
+        Set<String> result = new HashSet<>(CollectionsPlume.mapCapacity(bundleNames));
 
-        for (String bundleName : namesArr) {
+        for (String bundleName : bundleNames) {
             if (!Signatures.isBinaryName(bundleName)) {
                 System.err.println(
                         "Malformed resource bundle: <" + bundleName + "> should be a binary name.");
@@ -223,7 +226,7 @@ public class PropertyKeyAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             ResourceBundle bundle = ResourceBundle.getBundle(bundleName);
             if (bundle == null) {
                 checker.message(
-                        Kind.WARNING,
+                        Diagnostic.Kind.WARNING,
                         "Couldn't find the resource bundle: <"
                                 + bundleName
                                 + "> for locale <"

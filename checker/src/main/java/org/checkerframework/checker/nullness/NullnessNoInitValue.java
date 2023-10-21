@@ -42,7 +42,7 @@ public class NullnessNoInitValue extends CFAbstractValue<NullnessNoInitValue> {
     }
 
     @Override
-    public NullnessNoInitValue leastUpperBound(NullnessNoInitValue other) {
+    public NullnessNoInitValue leastUpperBound(@Nullable NullnessNoInitValue other) {
         NullnessNoInitValue result = super.leastUpperBound(other);
 
         AnnotationMirror resultNullableAnno =

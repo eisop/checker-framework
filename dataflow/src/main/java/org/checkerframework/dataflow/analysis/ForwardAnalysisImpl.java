@@ -20,8 +20,8 @@ import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.ReturnNode;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.BugInCF;
-import org.checkerframework.javacutil.Pair;
 import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.IPair;
 
 import java.util.Collections;
 import java.util.IdentityHashMap;
@@ -87,11 +87,11 @@ public class ForwardAnalysisImpl<
      * Construct an object that can perform a org.checkerframework.dataflow forward analysis over a
      * control flow graph given a transfer function.
      *
-     * @param transfer the transfer function
+     * @param transferFunction the transfer function
      */
-    public ForwardAnalysisImpl(T transfer) {
+    public ForwardAnalysisImpl(T transferFunction) {
         this(-1);
-        this.transferFunction = transfer;
+        this.transferFunction = transferFunction;
     }
 
     @Override
@@ -233,10 +233,11 @@ public class ForwardAnalysisImpl<
     @Override
     @SuppressWarnings("nullness:contracts.precondition.override.invalid") // implementation field
     @RequiresNonNull("cfg")
-    public List<Pair<ReturnNode, @Nullable TransferResult<V, S>>> getReturnStatementStores() {
+    public List<IPair<ReturnNode, @Nullable TransferResult<V, S>>> getReturnStatementStores() {
         return CollectionsPlume
-                .<ReturnNode, Pair<ReturnNode, @Nullable TransferResult<V, S>>>mapList(
-                        returnNode -> Pair.of(returnNode, storesAtReturnStatements.get(returnNode)),
+                .<ReturnNode, IPair<ReturnNode, @Nullable TransferResult<V, S>>>mapList(
+                        returnNode ->
+                                IPair.of(returnNode, storesAtReturnStatements.get(returnNode)),
                         cfg.getReturnNodes());
     }
 
@@ -246,7 +247,8 @@ public class ForwardAnalysisImpl<
             Analysis.BeforeOrAfter preOrPost,
             TransferInput<V, S> blockTransferInput,
             IdentityHashMap<Node, V> nodeValues,
-            Map<TransferInput<V, S>, IdentityHashMap<Node, TransferResult<V, S>>> analysisCaches) {
+            @Nullable Map<TransferInput<V, S>, IdentityHashMap<Node, TransferResult<V, S>>>
+                    analysisCaches) {
         Block block = node.getBlock();
         assert block != null : "@AssumeAssertion(nullness): invariant";
         Node oldCurrentNode = currentNode;
