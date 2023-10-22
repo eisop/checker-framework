@@ -3101,10 +3101,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 Types typesUtil = atypeFactory.getProcessingEnv().getTypeUtils();
                 if (typesUtil.isSubtype(
                         exception.getUnderlyingType(), throwType.getUnderlyingType())) {
-                    required =
-                            exception.getAnnotations().isEmpty()
-                                    ? required
-                                    : exception.getAnnotations();
+                    required = exception.getAnnotations();
                     break;
                 }
             }
