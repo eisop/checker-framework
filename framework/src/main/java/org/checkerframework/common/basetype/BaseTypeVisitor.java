@@ -1642,14 +1642,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     /**
      * Validate if the qualifiers on the VariableTree are at the right locations, which is specified
-     * by the meta-annotation @TargetLocations. The difference of this method between {@link
+     * by the meta-annotation @TargetLocations. The difference between this method and {@link
      * BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)} is that
      * this one is only used in {@link BaseTypeVisitor#visitVariable(VariableTree, Void)}. The three
      * different validate methods in the visitor and validator file achieve the same goal and the
      * need for having three is due to implementation reasons. We perform checks for types in
      * VariableTree at {@link BaseTypeVisitor#visitVariable(VariableTree, Void)}; checks for types
      * in wildcards at {@link BaseTypeValidator#visitWildcard(AnnotatedWildcardType, Tree)}; the
-     * rest done in the {@link BaseTypeVisitor#validateTypeOf(Tree)}.
+     * rest is done in the {@link BaseTypeVisitor#validateTypeOf(Tree)}.
      *
      * @param tree qualifiers on this VariableTree will be validated
      * @param type the type of the tree
