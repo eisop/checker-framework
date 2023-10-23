@@ -109,11 +109,12 @@ public final class Effect {
     }
 
     @Override
+    @SuppressWarnings("interning:not.interned") // equality
     public boolean equals(@Nullable Object o) {
         if (o instanceof Effect) {
             return this.equals((Effect) o);
         } else {
-            return super.equals(o);
+            return this == o;
         }
     }
 
