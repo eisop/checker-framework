@@ -82,4 +82,11 @@ public class EISOPIssue363a {
             ex.cause.field.toString();
         }
     }
+
+    public static <X extends Throwable> void throwIfInstanceOf(
+            Throwable throwable, Class<X> declaredType) throws X {
+        if (declaredType.isInstance(throwable)) {
+            throw declaredType.cast(throwable);
+        }
+    }
 }
