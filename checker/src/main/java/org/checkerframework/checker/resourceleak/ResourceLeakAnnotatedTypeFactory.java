@@ -35,7 +35,6 @@ import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.javacutil.AnnotationUtils;
-import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 
@@ -102,16 +101,14 @@ public class ResourceLeakAnnotatedTypeFactory extends CalledMethodsAnnotatedType
   }
 
   /**
-   * Is the given element a candidate to be an owning field? A candidate owning field must be final
-   * and have a non-empty must-call obligation.
+   * Is the given element a candidate to be an owning field? A candidate owning field must have a
+   * non-empty must-call obligation.
    *
    * @param element a element
-   * @return true iff the given element is a final field with non-empty @MustCall obligation
+   * @return true iff the given element is a field with non-empty @MustCall obligation
    */
-  /*package-private*/ boolean isCandidateOwningField(Element element) {
-    return (element.getKind().isField()
-        && ElementUtils.isFinal(element)
-        && !hasEmptyMustCallValue(element));
+  /*package-private*/ boolean isFieldWithNonemptyMustCallValue(Element element) {
+    return element.getKind().isField() && !hasEmptyMustCallValue(element);
   }
 
   @Override
@@ -136,12 +133,12 @@ public class ResourceLeakAnnotatedTypeFactory extends CalledMethodsAnnotatedType
         new MustCallConsistencyAnalyzer(this, this.analysis);
     mustCallConsistencyAnalyzer.analyze(cfg);
 
-    // Inferring owning annotations for final owning fields
+    // Inferring owning annotations for @Owning fields/parameters, @EnsuresCalledMethods for
+    // finalizer methods and @InheritableMustCall annotations for the class declarations.
     /* NO-AFU
     if (getWholeProgramInference() != null) {
       if (cfg.getUnderlyingAST().getKind() == UnderlyingAST.Kind.METHOD) {
-        MustCallInference mustCallInferenceLogic = new MustCallInference(this, cfg);
-        mustCallInferenceLogic.runInference();
+        MustCallInference.runMustCallInference(this, cfg, mustCallConsistencyAnalyzer);
       }
     }
     */
@@ -222,7 +219,7 @@ public class ResourceLeakAnnotatedTypeFactory extends CalledMethodsAnnotatedType
    * @param element an element
    * @return the strings in its must-call type
    */
-  /*package-private*/ List<String> getMustCallValue(Element element) {
+  /*package-private*/ List<String> getMustCallValues(Element element) {
     MustCallAnnotatedTypeFactory mustCallAnnotatedTypeFactory =
         getTypeFactoryOfSubchecker(MustCallChecker.class);
     AnnotatedTypeMirror mustCallAnnotatedType =
