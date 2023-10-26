@@ -1,5 +1,5 @@
-Version 3.39.0-eisop2 (October ??, 2023)
-----------------------------------------
+Version 3.40.0-eisop1 (November ??, 2023)
+-----------------------------------------
 
 **User-visible changes:**
 
@@ -13,6 +13,19 @@ is an enhanced switch statement.
 **Closed issues:**
 
 eisop#609, eisop#610, eisop#612.
+
+
+Version 3.40.0 (November 1, 2023)
+---------------------------------
+
+**User-visible changes:**
+
+Optional Checker:  `checker-qual.jar` defines `OptionalUtil.castPresent()` for
+suppressing false positive warnings from the Optional Checker.
+
+**Implementation details:**
+
+**Closed issues:**
 
 
 Version 3.39.0-eisop1 (October 22, 2023)
