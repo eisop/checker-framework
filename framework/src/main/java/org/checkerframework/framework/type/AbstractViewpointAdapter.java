@@ -8,6 +8,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedNullType
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiveType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
+import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.plumelib.util.IPair;
@@ -408,6 +409,11 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             // Base case where actual type argument is extracted
             if (lhs.getKind() == TypeKind.DECLARED) {
                 rhs = getTypeVariableSubstitution((AnnotatedDeclaredType) lhs, atv);
+                if (AnnotationUtils.areSame(
+                        atv.getLowerBound().getAnnotations(),
+                        atv.getUpperBound().getAnnotations())) {
+                    rhs.replaceAnnotations(atv.getLowerBound().getAnnotations());
+                }
             }
         } else if (rhs.getKind() == TypeKind.DECLARED) {
             AnnotatedDeclaredType adt = (AnnotatedDeclaredType) rhs.shallowCopy();

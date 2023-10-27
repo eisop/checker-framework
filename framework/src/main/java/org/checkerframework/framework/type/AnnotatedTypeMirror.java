@@ -1934,6 +1934,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 if (lowerBound != null) {
                     lowerBound.replaceAnnotations(newAnnos);
                 }
+                this.getAnnotationsField().clear();
             }
         }
 
