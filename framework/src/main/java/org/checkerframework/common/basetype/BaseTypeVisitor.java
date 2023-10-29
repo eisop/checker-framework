@@ -113,6 +113,8 @@ import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TreeUtils.MemberReferenceKind;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11.BindingPatternUtils;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11.InstanceOfUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.ArrayMap;
 import org.plumelib.util.ArraySet;
@@ -445,7 +447,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * <p>Subclasses may override this method to disable the test if even the option is provided.
      */
     protected void testJointJavacJavaParserVisitor() {
-        if (root == null || !ajavaChecks) {
+        if (root == null
+                || !ajavaChecks
+                // TODO: Make annotation insertion work for Java 21.
+                || root.getSourceFile().toUri().toString().contains("java21")) {
             return;
         }
 
@@ -491,7 +496,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * <p>Subclasses may override this method to disable the test even if the option is provided.
      */
     protected void testAnnotationInsertion() {
-        if (root == null || !ajavaChecks) {
+        if (root == null
+                || !ajavaChecks
+                // TODO: Make annotation insertion work for Java 21.
+                || root.getSourceFile().toUri().toString().contains("java21")) {
             return;
         }
 
@@ -1597,7 +1605,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     public Void visitVariable(VariableTree tree, Void p) {
         warnAboutTypeAnnotationsTooEarly(tree, tree.getModifiers());
 
-        visitAnnotatedType(tree.getModifiers().getAnnotations(), tree.getType());
+        // VariableTree#getType returns null for binding variables from a DeconstructionPatternTree.
+        if (tree.getType() != null) {
+            visitAnnotatedType(tree.getModifiers().getAnnotations(), tree.getType());
+        }
 
         AnnotatedTypeMirror variableType;
         if (getCurrentPath().getParentPath() != null
@@ -2805,16 +2816,22 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     @Override
     public Void visitInstanceOf(InstanceOfTree tree, Void p) {
         // The "reference type" is the type after "instanceof".
-        Tree patternTree = TreeUtils.instanceOfTreeGetPattern(tree);
+        Tree patternTree = InstanceOfUtils.getPattern(tree);
         if (patternTree != null) {
-            VariableTree variableTree = TreeUtils.bindingPatternTreeGetVariable(patternTree);
-            validateTypeOf(variableTree);
-            if (variableTree.getModifiers() != null) {
-                AnnotatedTypeMirror variableType = atypeFactory.getAnnotatedType(variableTree);
-                AnnotatedTypeMirror expType = atypeFactory.getAnnotatedType(tree.getExpression());
-                if (!isTypeCastSafe(variableType, expType)) {
-                    checker.reportWarning(tree, "instanceof.pattern.unsafe", expType, variableTree);
+            if (TreeUtils.isBindingPatternTree(patternTree)) {
+                VariableTree variableTree = BindingPatternUtils.getVariable(patternTree);
+                validateTypeOf(variableTree);
+                if (variableTree.getModifiers() != null) {
+                    AnnotatedTypeMirror variableType = atypeFactory.getAnnotatedType(variableTree);
+                    AnnotatedTypeMirror expType =
+                            atypeFactory.getAnnotatedType(tree.getExpression());
+                    if (!isTypeCastSafe(variableType, expType)) {
+                        checker.reportWarning(
+                                tree, "instanceof.pattern.unsafe", expType, variableTree);
+                    }
                 }
+            } else {
+                // TODO: implement deconstructed patterns.
             }
         } else {
             Tree refTypeTree = tree.getType();

@@ -1,5 +1,6 @@
 package org.checkerframework.javacutil;
 
+import com.google.common.base.Splitter;
 import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.util.Context;
@@ -12,6 +13,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -23,6 +26,36 @@ public class SystemUtil {
     /** Do not instantiate. */
     private SystemUtil() {
         throw new AssertionError("Class SystemUtil cannot be instantiated.");
+    }
+
+    /** A splitter that splits on periods. The result contains no empty strings. */
+    public static final Splitter DOT_SPLITTER = Splitter.on('.').omitEmptyStrings();
+
+    /** A splitter that splits on commas. The result contains no empty strings. */
+    public static final Splitter COMMA_SPLITTER = Splitter.on(',').omitEmptyStrings();
+
+    /** A splitter that splits on colons. The result contains no empty strings. */
+    public static final Splitter COLON_SPLITTER = Splitter.on(':').omitEmptyStrings();
+
+    /**
+     * A splitter that splits on {@code File.pathSeparator}. The result contains no empty strings.
+     */
+    public static final Splitter PATH_SEPARATOR_SPLITTER =
+            Splitter.on(File.pathSeparator).omitEmptyStrings();
+
+    /**
+     * Like {@code System.getProperty}, but splits on the path separator and never returns null.
+     *
+     * @param propName a system property name
+     * @return the paths in the system property; may be an empty array
+     */
+    public static final List<String> getPathsProperty(String propName) {
+        String propValue = System.getProperty(propName);
+        if (propValue == null) {
+            return Collections.emptyList();
+        } else {
+            return PATH_SEPARATOR_SPLITTER.splitToList(propValue);
+        }
     }
 
     /**
@@ -113,9 +146,9 @@ public class SystemUtil {
      * byte. The only valid values are 1, 2 3 or 4. If the byte has an invalid bit pattern an
      * IllegalArgumentException is thrown.
      *
-     * @param b The first byte of a UTF-8 character.
-     * @return The number of bytes for this UTF-* character.
-     * @throws IllegalArgumentException if the bit pattern is invalid.
+     * @param b the first byte of a UTF-8 character
+     * @return the number of bytes for this UTF-* character
+     * @throws IllegalArgumentException if the bit pattern is invalid
      */
     private static @IntVal({1, 2, 3, 4}) int getByteCount(byte b) throws IllegalArgumentException {
         if ((b >= 0)) return 1; // Pattern is 0xxxxxxx.

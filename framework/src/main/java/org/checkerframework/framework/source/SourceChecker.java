@@ -1,5 +1,6 @@
 package org.checkerframework.framework.source;
 
+import com.google.common.base.Splitter;
 import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
@@ -632,10 +633,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 && jreVersion != 8
                 && jreVersion != 11
                 && jreVersion != 17
-                && jreVersion != 19) {
+                && jreVersion != 21) {
             message(
                     Diagnostic.Kind.NOTE,
-                    "The Checker Framework is tested with JDK 8, 11, 17, and 19."
+                    "The Checker Framework is tested with JDK 8, 11, 17, and 21."
                             + " You are using version %d.",
                     jreVersion);
         }
@@ -1588,7 +1589,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return Collections.singleton("all");
         }
 
-        List<String> lintStrings = Arrays.asList(lintString.split(","));
+        List<String> lintStrings = SystemUtil.COMMA_SPLITTER.splitToList(lintString);
         Set<String> activeLint = ArraySet.newArraySetOrHashSet(lintStrings.size());
         for (String s : lintStrings) {
             if (!this.getSupportedLintOptions().contains(s)
@@ -1965,7 +1966,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         if (value == null) {
             return defaultValue;
         }
-        return Arrays.asList(value.split(Pattern.quote(Character.toString(separator))));
+        return Splitter.on(separator).omitEmptyStrings().splitToList(value);
     }
 
     /**
@@ -1980,7 +1981,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         if (value == null) {
             return defaultValue;
         }
-        return Arrays.asList(value.split(separator));
+        return Splitter.on(separator).omitEmptyStrings().splitToList(value);
     }
 
     /**
@@ -2749,7 +2750,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @param ce the internal error to output
      */
     private void logBugInCF(BugInCF ce) {
-        logBug(ce, "The Checker Framework crashed.  Please report the crash.");
+        String checkerVersion;
+        checkerVersion = getCheckerVersion();
+        String msg = "The Checker Framework crashed.  Please report the crash.  ";
+        if (checkerVersion != null) {
+            msg += String.format("Version: Checker Framework %s. ", checkerVersion);
+        }
+        logBug(ce, msg);
     }
 
     /**
@@ -2802,31 +2809,32 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                         msg.add(line);
                     }
                 }
-            }
-        }
 
-        if (ce.getCause() != null) {
-            msg.add(
-                    "Exception: "
-                            + ce.getCause()
-                            + "; "
-                            + UtilPlume.stackTraceToString(ce.getCause()));
-            boolean printClasspath = ce.getCause() instanceof NoClassDefFoundError;
-            Throwable cause = ce.getCause().getCause();
-            while (cause != null) {
-                msg.add(
-                        "Underlying Exception: "
-                                + cause
-                                + "; "
-                                + UtilPlume.stackTraceToString(cause));
-                printClasspath |= cause instanceof NoClassDefFoundError;
-                cause = cause.getCause();
-            }
+                Throwable forStackTrace = ce.getCause() != null ? ce.getCause() : ce;
+                if (forStackTrace != null) {
+                    msg.add(
+                            "Exception: "
+                                    + forStackTrace
+                                    + "; "
+                                    + UtilPlume.stackTraceToString(forStackTrace));
+                    boolean printClasspath = forStackTrace instanceof NoClassDefFoundError;
+                    Throwable cause = forStackTrace.getCause();
+                    while (cause != null) {
+                        msg.add(
+                                "Underlying Exception: "
+                                        + cause
+                                        + "; "
+                                        + UtilPlume.stackTraceToString(cause));
+                        printClasspath |= cause instanceof NoClassDefFoundError;
+                        cause = cause.getCause();
+                    }
 
-            if (printClasspath) {
-                msg.add("Classpath:");
-                for (URI uri : new ClassGraph().getClasspathURIs()) {
-                    msg.add(uri.toString());
+                    if (printClasspath) {
+                        msg.add("Classpath:");
+                        for (URI uri : new ClassGraph().getClasspathURIs()) {
+                            msg.add(uri.toString());
+                        }
+                    }
                 }
             }
         }
@@ -2958,28 +2966,35 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /**
      * Returns the version of the Checker Framework.
      *
-     * @return the Checker Framework version
+     * @return the Checker Framework version, or null if not available
      */
-    private String getCheckerVersion() {
-        Properties gitProperties = getProperties(getClass(), "/git.properties", false);
-        String version = gitProperties.getProperty("git.build.version");
-        if (version == null) {
-            throw new BugInCF("Could not find the version in git.properties");
-        }
-        String branch = gitProperties.getProperty("git.branch");
-        // git.dirty indicates modified tracked files and staged changes.  Untracked content doesn't
-        // count, so not being dirty doesn't mean that exactly the printed commit is being run.
-        String dirty = gitProperties.getProperty("git.dirty");
-        if (version.endsWith("-SNAPSHOT") || !branch.equals("master")) {
-            // Sometimes the branch is HEAD, which is not informative.
-            // How does that happen, and how can I fix it?
-            version += ", branch " + branch;
-            // For brevity, only date but not time of day.
-            version += ", " + gitProperties.getProperty("git.commit.time").substring(0, 10);
-            version += ", commit " + gitProperties.getProperty("git.commit.id.abbrev");
-            if (dirty.equals("true")) {
-                version += ", dirty=true";
+    private @Nullable String getCheckerVersion() {
+        String version;
+        try {
+            Properties gitProperties = getProperties(getClass(), "/git.properties", false);
+            version = gitProperties.getProperty("git.build.version");
+            if (version == null) {
+                throw new BugInCF("Could not find the version in git.properties");
             }
+            String branch = gitProperties.getProperty("git.branch");
+            // git.dirty indicates modified tracked files and staged changes.  Untracked content
+            // doesn't count, so not being dirty doesn't mean that exactly the printed commit is
+            // being run.
+            String dirty = gitProperties.getProperty("git.dirty");
+            if (version.endsWith("-SNAPSHOT") || !branch.equals("master")) {
+                // Sometimes the branch is HEAD, which is not informative.
+                // How does that happen, and how can I fix it?
+                version += ", branch " + branch;
+                // For brevity, only date but not time of day.
+                version += ", " + gitProperties.getProperty("git.commit.time").substring(0, 10);
+                version += ", commit " + gitProperties.getProperty("git.commit.id.abbrev");
+                if (dirty.equals("true")) {
+                    version += ", dirty=true";
+                }
+            }
+        } catch (Exception ex) {
+            // throws an exception when invoked during Junit tests.
+            version = null;
         }
         return version;
     }
