@@ -178,6 +178,9 @@ import io.github.classgraph.ClassGraph;
     // org.checkerframework.framework.source.SourceChecker.useConservativeDefault
     "useConservativeDefaultsForUncheckedCode",
 
+    // Whether to store defaulted annotations in bytecode
+    "noBytecodeStorage",
+
     // Whether to assume sound concurrent semantics or
     // simplified sequential semantics
     // org.checkerframework.framework.flow.CFAbstractTransfer.sequentialSemantics
