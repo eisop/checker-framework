@@ -15,6 +15,16 @@ eisop#628.
 eisop#635, eisop#640, eisop#641.
 
 
+Version 3.40.1 (December 1, 2023)
+---------------------------------
+
+**User-visible changes:**
+
+**Implementation details:**
+
+**Closed issues:**
+
+
 Version 3.40.0-eisop2 (November 24, 2023)
 -----------------------------------------
 
