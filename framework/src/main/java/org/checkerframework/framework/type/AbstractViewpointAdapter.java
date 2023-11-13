@@ -287,6 +287,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
                         combineAnnotationWithType(receiverAnnotation, atv.getLowerBound());
                 mappings.put(atv.getLowerBound(), resLower);
 
+                atv.clearAnnotations();
                 AnnotatedTypeMirror result =
                         AnnotatedTypeCopierWithReplacement.replace(atv, mappings);
 
