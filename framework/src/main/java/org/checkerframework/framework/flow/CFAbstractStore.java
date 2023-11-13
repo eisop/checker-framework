@@ -1,15 +1,15 @@
 package org.checkerframework.framework.flow;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.StringJoiner;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BinaryOperator;
-import java.util.stream.Collectors;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
@@ -214,11 +214,11 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
    *       org.checkerframework.dataflow.qual.SideEffectFree} or {@link
    *       org.checkerframework.dataflow.qual.Pure}), then no information needs to be removed.
    *   <li>Otherwise, all information about field accesses {@code a.f} needs to be removed, except
-   *       if the method {@code n} cannot modify {@code a.f}. This holds if {@code a} is a local
-   *       variable or {@code this}, and {@code f} is final, or if {@code a.f} has a {@link
-   *       MonotonicQualifier} in the current store. Subclasses can change this behavior by
-   *       overriding {@link #newFieldValueAfterMethodCall(FieldAccess, GenericAnnotatedTypeFactory,
-   *       CFAbstractValue)}.
+   *       if the method {@code n} cannot modify {@code a.f}. This unmodifiability property holds if
+   *       {@code a} is a local variable or {@code this}, and {@code f} is final, or if {@code a.f}
+   *       has a {@link MonotonicQualifier} in the current store. Subclasses can change this
+   *       behavior by overriding {@link #newFieldValueAfterMethodCall(FieldAccess,
+   *       GenericAnnotatedTypeFactory, CFAbstractValue)}.
    *   <li>Furthermore, if the field has a monotonic annotation, then its information can also be
    *       kept.
    * </ol>
@@ -312,34 +312,29 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
    */
   protected V newMonotonicFieldValueAfterMethodCall(
       FieldAccess fieldAccess, GenericAnnotatedTypeFactory<V, S, ?, ?> atypeFactory, V value) {
+    // case 3: the field has a monotonic annotation
     if (atypeFactory.getSupportedMonotonicTypeQualifiers().isEmpty()) {
       return null;
     }
 
-    Set<AnnotationMirror> fieldAnnotations =
-        atypeFactory
-            .getAnnotationWithMetaAnnotation(fieldAccess.getField(), MonotonicQualifier.class)
-            .stream()
-            .map(p -> p.second)
-            .map(
-                anno -> {
-                  @SuppressWarnings("deprecation") // permitted for use in
-                  // the framework
-                  Name name = AnnotationUtils.getElementValueClassName(anno, "value", false);
-                  return AnnotationBuilder.fromName(atypeFactory.getElementUtils(), name);
-                })
-            .collect(Collectors.toSet());
+    List<IPair<AnnotationMirror, AnnotationMirror>> fieldAnnotationPairs =
+        atypeFactory.getAnnotationWithMetaAnnotation(
+            fieldAccess.getField(), MonotonicQualifier.class);
+    List<AnnotationMirror> metaAnnotations =
+        CollectionsPlume.withoutDuplicates(
+            CollectionsPlume.mapList(pair -> pair.second, fieldAnnotationPairs));
+    List<AnnotationMirror> monotonicAnnotations = new ArrayList<>(metaAnnotations.size());
+    for (AnnotationMirror metaAnnotation : metaAnnotations) {
+      @SuppressWarnings("deprecation") // permitted for use in the framework
+      Name annoName = AnnotationUtils.getElementValueClassName(metaAnnotation, "value", false);
+      monotonicAnnotations.add(
+          AnnotationBuilder.fromName(atypeFactory.getElementUtils(), annoName));
+    }
+    Collection<AnnotationMirror> valueAnnos = value.getAnnotations();
     V newValue = null;
-    for (AnnotationMirror monotonicAnnotation : fieldAnnotations) {
+    for (AnnotationMirror monotonicAnnotation : monotonicAnnotations) {
       // Make sure the target annotation is present.
-      AnnotationMirror actual =
-          atypeFactory
-              .getQualifierHierarchy()
-              .findAnnotationInHierarchy(value.getAnnotations(), monotonicAnnotation);
-      if (actual != null
-          && atypeFactory
-              .getQualifierHierarchy()
-              .isSubtypeQualifiersOnly(actual, monotonicAnnotation)) {
+      if (AnnotationUtils.containsSame(valueAnnos, monotonicAnnotation)) {
         newValue =
             analysis
                 .createSingleAnnotationValue(monotonicAnnotation, value.getUnderlyingType())
@@ -368,6 +363,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
 
       V newValue = newFieldValueAfterMethodCall(fieldAccess, atypeFactory, value);
       if (newValue != null) {
+        // Keep information for all hierarchies where we had a monotonic annotation.
         newFieldValues.put(fieldAccess, newValue);
       }
     }
@@ -696,14 +692,13 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
           atypeFactory.getAnnotationWithMetaAnnotation(
               fieldAcc.getField(), MonotonicQualifier.class);
       for (IPair<AnnotationMirror, AnnotationMirror> fieldAnnotation : fieldAnnotations) {
-        AnnotationMirror monotonicAnnotation = fieldAnnotation.second;
+        AnnotationMirror metaAnnotation = fieldAnnotation.second;
         @SuppressWarnings("deprecation") // permitted for use in the framework
-        Name annotation =
-            AnnotationUtils.getElementValueClassName(monotonicAnnotation, "value", false);
-        AnnotationMirror target =
-            AnnotationBuilder.fromName(atypeFactory.getElementUtils(), annotation);
+        Name annoName = AnnotationUtils.getElementValueClassName(metaAnnotation, "value", false);
+        AnnotationMirror monotonicAnnotation =
+            AnnotationBuilder.fromName(atypeFactory.getElementUtils(), annoName);
         // Make sure the 'target' annotation is present.
-        if (AnnotationUtils.containsSame(value.getAnnotations(), target)) {
+        if (AnnotationUtils.containsSame(value.getAnnotations(), monotonicAnnotation)) {
           isMonotonic = true;
           break;
         }
