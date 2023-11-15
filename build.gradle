@@ -108,32 +108,34 @@ switch (JavaVersion.current()) {
 task cloneAndBuildJspecify {
     description 'Obtain or update JSpecify.'
     doLast {
-        if (file(jspecifyHome).exists()) {
+        if (JavaVersion.current() > JavaVersion.VERSION_1_8) {
+            if (file(jspecifyHome).exists()) {
+                exec {
+                    workingDir jspecifyHome
+                    executable 'git'
+                    args = ['pull', '-q']
+                    ignoreExitValue = true
+                }
+            } else {
+                println 'Cloning JSpecify repository.'
+                exec {
+                    workingDir "${jspecifyHome}/../"
+                    executable 'git'
+                    args = [
+                        'clone',
+                        '-q',
+                        '--depth',
+                        '1',
+                        'https://github.com/jspecify/jspecify.git'
+                    ]
+                }
+            }
+            println 'Building JSpecify repository.'
             exec {
+                println "Executing in directory: ${jspecifyHome}"
                 workingDir jspecifyHome
-                executable 'git'
-                args = ['pull', '-q']
-                ignoreExitValue = true
+                commandLine 'sh', '-c', './gradlew assemble'
             }
-        } else {
-            println 'Cloning JSpecify repository.'
-            exec {
-                workingDir "${jspecifyHome}/../"
-                executable 'git'
-                args = [
-                    'clone',
-                    '-q',
-                    '--depth',
-                    '1',
-                    'https://github.com/jspecify/jspecify.git'
-                ]
-            }
-        }
-        println 'Building JSpecify repository.'
-        exec {
-            println "Executing in directory: ${jspecifyHome}"
-            workingDir jspecifyHome
-            commandLine 'sh', '-c', './gradlew assemble'
         }
     }
 }
