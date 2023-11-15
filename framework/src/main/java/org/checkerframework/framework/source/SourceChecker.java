@@ -178,7 +178,8 @@ import io.github.classgraph.ClassGraph;
     // org.checkerframework.framework.source.SourceChecker.useConservativeDefault
     "useConservativeDefaultsForUncheckedCode",
 
-    // Whether to store defaulted annotations in bytecode
+    // Whether to store defaulted annotations in bytecode.
+    // org.checkerframework.framework.type.AnnotatedTypeFactory.postProcessClassTree
     "noBytecodeStorage",
 
     // Whether to assume sound concurrent semantics or
