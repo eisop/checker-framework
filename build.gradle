@@ -88,6 +88,7 @@ ext {
         plumeUtil       : '1.8.1',
         reflectionUtil  : '1.1.0',
     ]
+    jspecifyHome = '../jspecify'
 }
 
 // Keep in sync with check in
@@ -103,6 +104,41 @@ switch (JavaVersion.current()) {
         ' You are using JDK ' + JavaVersion.current().majorVersion + '.');
         break;
 }
+
+task cloneAndBuildJspecify {
+    description 'Obtain or update JSpecify.'
+    doLast {
+        if (file(jspecifyHome).exists()) {
+            exec {
+                workingDir jspecifyHome
+                executable 'git'
+                args = ['pull', '-q']
+                ignoreExitValue = true
+            }
+        } else {
+            println 'Cloning JSpecify repository.'
+            exec {
+                workingDir "${jspecifyHome}/../"
+                executable 'git'
+                args = [
+                    'clone',
+                    '-q',
+                    '--depth',
+                    '1',
+                    'https://github.com/jspecify/jspecify.git'
+                ]
+            }
+        }
+        println 'Building JSpecify repository.'
+        exec {
+            println "Executing in directory: ${jspecifyHome}"
+            workingDir jspecifyHome
+            commandLine 'sh', '-c', './gradlew assemble'
+        }
+    }
+}
+
+test.dependsOn cloneAndBuildJspecify
 
 task setLocalRepo(type:Exec) {
     commandLine 'git', 'worktree', 'list'
