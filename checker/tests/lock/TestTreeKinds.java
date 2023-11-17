@@ -335,7 +335,7 @@ public class TestTreeKinds {
         // throwing a guarded object - when throwing an exception, it must be @GuardedBy({}). Even
         // @GuardedByUnknown is not allowed.
         try {
-            // :: error: (throw.type.invalid)
+            // :: error: (throw.type.incompatible)
             throw exception;
         } catch (Exception e) {
         }
