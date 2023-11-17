@@ -399,6 +399,14 @@ public class AnnotationFileElementTypes {
                         SourceChecker currentChecker = checker;
                         boolean findByParentCheckers = false;
                         while (currentChecker != null) {
+                            URL normalResource = currentChecker.getClass().getResource(path);
+                            if (normalResource != null) {
+                                // If the parent checker supports the stub file, there is no need
+                                // for a warning.
+                                findByParentCheckers = true;
+                                break;
+                            }
+                            // See whether the stub file is mis-placed and issue a helpful warning.
                             URL topLevelResource =
                                     currentChecker.getClass().getResource("/" + path);
                             if (topLevelResource != null) {
