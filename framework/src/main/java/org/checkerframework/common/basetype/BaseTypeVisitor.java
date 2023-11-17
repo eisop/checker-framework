@@ -3039,7 +3039,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             AnnotationMirror found = excParamType.getAnnotationInHierarchy(required);
             assert found != null;
             if (!typeHierarchy.isSubtypeShallowEffective(required, excParamType)) {
-                checker.reportError(excParamTree, "exception.parameter.incompatible", found, required);
+                checker.reportError(
+                        excParamTree, "exception.parameter.incompatible", found, required);
             }
 
             if (excParamType.getKind() == TypeKind.UNION) {
@@ -3111,7 +3112,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 AnnotationMirrorSet foundPrimary = unionType.getAnnotations();
                 if (!qualHierarchy.isSubtypeShallow(foundPrimary, required, throwTM)) {
                     checker.reportError(
-                            tree.getExpression(), "throw.type.incompatible", foundPrimary, required);
+                            tree.getExpression(),
+                            "throw.type.incompatible",
+                            foundPrimary,
+                            required);
                 }
                 for (AnnotatedTypeMirror altern : unionType.getAlternatives()) {
                     TypeMirror alternTM = altern.getUnderlyingType();
