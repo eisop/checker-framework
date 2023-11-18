@@ -116,7 +116,7 @@ Before: InitializationStore#19(
 3 -> 0
 
 2:
-Before: NullnessNoInitStore#26(
+Before: NullnessNoInitStore#27(
 
   isPolyNullNonNull = false
   isPolyNullNull = false)
@@ -124,7 +124,7 @@ Before: NullnessNoInitStore#26(
 <entry>
 
 3:
-Before: NullnessNoInitStore#26(
+Before: NullnessNoInitStore#27(
 
   isPolyNullNonNull = false
   isPolyNullNull = false)
@@ -133,7 +133,7 @@ Before: NullnessNoInitStore#26(
 (this).sf = ""   [ Assignment ]    > NV{@NonNull, String, poly nn/n=f/f}
 
 0:
-Before: NullnessNoInitStore#27(
+Before: NullnessNoInitStore#28(
   Issue5174Super<S>.sf > NV{@NonNull, String, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
@@ -143,7 +143,7 @@ Before: NullnessNoInitStore#27(
 8 -> 5
 
 7:
-Before: NullnessNoInitStore#31(
+Before: NullnessNoInitStore#32(
   in > NV{, S, poly nn/n=f/f}
   Issue5174Super<S>.sf > NV{@NonNull, Object, poly nn/n=f/f}
   this.f > NV{, S, poly nn/n=f/f}
@@ -153,7 +153,7 @@ Before: NullnessNoInitStore#31(
 <entry>
 
 8:
-Before: NullnessNoInitStore#31(
+Before: NullnessNoInitStore#32(
   in > NV{, S, poly nn/n=f/f}
   Issue5174Super<S>.sf > NV{@NonNull, Object, poly nn/n=f/f}
   this.f > NV{, S, poly nn/n=f/f}
@@ -164,7 +164,7 @@ in   [ LocalVariable ]    > NV{, S, poly nn/n=f/f}
 return in   [ Return ]    > NV{@NonNull, boolean, poly nn/n=f/f}
 
 5:
-Before: NullnessNoInitStore#32(
+Before: NullnessNoInitStore#33(
   in > NV{, S, poly nn/n=f/f}
   Issue5174Super<S>.sf > NV{@NonNull, Object, poly nn/n=f/f}
   this.f > NV{, S, poly nn/n=f/f}
@@ -180,7 +180,7 @@ Before: NullnessNoInitStore#32(
 16 -> 11
 
 13:
-Before: NullnessNoInitStore#36(
+Before: NullnessNoInitStore#37(
   f > NV{, S, poly nn/n=f/f}
   Issue5174Super<S>.sf > NV{@NonNull, Object, poly nn/n=f/f}
   isPolyNullNonNull = false
@@ -189,7 +189,7 @@ Before: NullnessNoInitStore#36(
 <entry>
 
 14:
-Before: NullnessNoInitStore#36(
+Before: NullnessNoInitStore#37(
   f > NV{, S, poly nn/n=f/f}
   Issue5174Super<S>.sf > NV{@NonNull, Object, poly nn/n=f/f}
   isPolyNullNonNull = false
@@ -199,7 +199,7 @@ Before: NullnessNoInitStore#36(
 (this).<init>   [ MethodAccess ]    > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
 
 15:
-Before: NullnessNoInitStore#37(
+Before: NullnessNoInitStore#38(
   f > NV{, S, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
   Issue5174Super<S>.sf > NV{@NonNull, Object, poly nn/n=f/f}
@@ -209,7 +209,7 @@ Before: NullnessNoInitStore#37(
 (this).<init>()   [ MethodInvocation ]    > NV{@NonNull, Object, poly nn/n=f/f}
 
 16:
-Before: NullnessNoInitStore#38(
+Before: NullnessNoInitStore#39(
   f > NV{, S, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
   Issue5174Super<S>.sf > NV{@NonNull, Object, poly nn/n=f/f}
@@ -225,7 +225,7 @@ this.f = f   [ Assignment ]    > NV{, S, poly nn/n=f/f}
 expression statement this.f = f   [ ExpressionStatement ]
 
 12:
-Before: NullnessNoInitStore#39(
+Before: NullnessNoInitStore#40(
   f > NV{, S, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
   Issue5174Super<S>.sf > NV{@NonNull, Object, poly nn/n=f/f}
@@ -235,7 +235,7 @@ Before: NullnessNoInitStore#39(
 <exceptional-exit>
 
 11:
-Before: NullnessNoInitStore#42(
+Before: NullnessNoInitStore#43(
   f > NV{, S, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
   Issue5174Super<S>.sf > NV{@NonNull, Object, poly nn/n=f/f}
@@ -413,12 +413,12 @@ Before: InitializationStore#93(
 ~~~~~~~~~
 o   [ VariableDeclaration ]
 (this)   [ ImplicitThis ]
-(this).f   [ FieldAccess ]    > CFAV{@Initialized, Object}
-o = (this).f   [ Assignment ]    > CFAV{@Initialized, Object}
+(this).f   [ FieldAccess ]    > CFAV{, T}
+o = (this).f   [ Assignment ]    > CFAV{, T}
 
 39:
 Before: InitializationStore#94(
-  o > CFAV{@Initialized, Object}
+  o > CFAV{, T}
   initialized fields = [])
 ~~~~~~~~~
 <exit>
@@ -437,12 +437,12 @@ Before: InitializationStore#98(
 ~~~~~~~~~
 o   [ VariableDeclaration ]
 this   [ ExplicitThis ]    > CFAV{@Initialized, Issue5174Sub}
-this.f   [ FieldAccess ]    > CFAV{@Initialized, Object}
-o = this.f   [ Assignment ]    > CFAV{@Initialized, Object}
+this.f   [ FieldAccess ]    > CFAV{, T}
+o = this.f   [ Assignment ]    > CFAV{, T}
 
 44:
 Before: InitializationStore#99(
-  o > CFAV{@Initialized, Object}
+  o > CFAV{, T}
   initialized fields = [])
 ~~~~~~~~~
 <exit>
@@ -739,12 +739,12 @@ Before: InitializationStore#203(
 ~~~~~~~~~
 o   [ VariableDeclaration ]
 (this)   [ ImplicitThis ]
-(this).f   [ FieldAccess ]    > CFAV{@Initialized, Object}
-o = (this).f   [ Assignment ]    > CFAV{@Initialized, Object}
+(this).f   [ FieldAccess ]    > CFAV{, T}
+o = (this).f   [ Assignment ]    > CFAV{, T}
 
 87:
 Before: InitializationStore#204(
-  o > CFAV{@Initialized, Object}
+  o > CFAV{, T}
   initialized fields = [])
 ~~~~~~~~~
 <exit>
@@ -795,17 +795,17 @@ Before: InitializationStore#211(
 Before: InitializationStore#218(
   initialized fields = [])
 ~~~~~~~~~
-Issue5174Sub.this.f   [ FieldAccess ]    > CFAV{@Initialized, Object}
+Issue5174Sub.this.f   [ FieldAccess ]    > CFAV{, T}
 
 101:
 Before: InitializationStore#221(
   initialized fields = [])
 ~~~~~~~~~
-o = Issue5174Sub.this.f   [ Assignment ]    > CFAV{@Initialized, Object}
+o = Issue5174Sub.this.f   [ Assignment ]    > CFAV{, T}
 
 92:
 Before: InitializationStore#224(
-  o > CFAV{@Initialized, Object}
+  o > CFAV{, T}
   initialized fields = [])
 ~~~~~~~~~
 <exit>
