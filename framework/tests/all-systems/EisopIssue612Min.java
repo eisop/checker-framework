@@ -4,6 +4,6 @@
             g(new Object());
         }
 
-        void g(Object... xs) {}
+        static void g(Object... xs) {}
     }
 }
