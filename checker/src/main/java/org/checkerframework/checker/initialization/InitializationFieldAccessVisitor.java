@@ -24,6 +24,7 @@ public class InitializationFieldAccessVisitor
         // and InitializationChecker, this checker performs the flow analysis
         // (which is handled in the BaseTypeVisitor), but does not perform
         // any type checking.
-        // Thus, this method does nothing.
+        // Thus, this method does nothing but scan through the members.
+        scan(classTree.getMembers(), null);
     }
 }
