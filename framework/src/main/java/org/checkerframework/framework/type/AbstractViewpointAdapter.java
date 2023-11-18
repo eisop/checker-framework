@@ -286,7 +286,11 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
                 AnnotatedTypeMirror resLower =
                         combineAnnotationWithType(receiverAnnotation, atv.getLowerBound());
                 mappings.put(atv.getLowerBound(), resLower);
-
+                // The values of the mappings are the viewpoint adapted lower and upper bounds,
+                // and we wish to replace the old bounds of atv with the new mappings.
+                // However, we need to first remove the primary annotations of atv, otherwise
+                // in later replacement, the primary annotations would override our computed
+                // new mappings (see method fixupBoundAnnotations).
                 atv.clearAnnotations();
                 AnnotatedTypeMirror result =
                         AnnotatedTypeCopierWithReplacement.replace(atv, mappings);
@@ -410,6 +414,20 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             // Base case where actual type argument is extracted
             if (lhs.getKind() == TypeKind.DECLARED) {
                 rhs = getTypeVariableSubstitution((AnnotatedDeclaredType) lhs, atv);
+                // When substituting an annotated type variable use (e.g., fields, return type), we
+                // don't want to replace the type qualifier of it with the qualifier on the
+                // type argument, as specified in
+                // https://checkerframework.org/manual/#type-variable-use. However, method
+                // getTypeVariableSubstitution will replace the annotated type qualifier as well.
+                // We fix up the substitution by checking if the types of the lower and upper bound
+                // are the same. If they are the same: (1) either the type variable use is
+                // annotated, and we need to fix up the
+                // primary annotation of the substituted result (rhs) by replacing it with the
+                // previous annotated type qualifier (from atv); (2) or the use is not annotated,
+                // but
+                // the type parameter is declared with the same upper and lower bounds, and it's no
+                // harm doing the same replacement as (1) because the qualifiers of the substituted
+                // result (rhs) and the old type variable use (atv) must be the same.
                 if (AnnotationUtils.areSame(
                         atv.getLowerBound().getAnnotations(),
                         atv.getUpperBound().getAnnotations())) {
