@@ -9,6 +9,9 @@ import org.checkerframework.common.basetype.BaseTypeVisitor;
 public class InitializationFieldAccessVisitor
         extends BaseTypeVisitor<InitializationFieldAccessAnnotatedTypeFactory> {
 
+    /** The value of the assumeInitialized option. */
+    private final boolean assumeInitialized;
+
     /**
      * Create an InitializationFieldAccessVisitor.
      *
@@ -16,6 +19,7 @@ public class InitializationFieldAccessVisitor
      */
     public InitializationFieldAccessVisitor(BaseTypeChecker checker) {
         super(checker);
+        assumeInitialized = checker.hasOption("assumeInitialized");
     }
 
     @Override
@@ -25,6 +29,8 @@ public class InitializationFieldAccessVisitor
         // (which is handled in the BaseTypeVisitor), but does not perform
         // any type checking.
         // Thus, this method does nothing but scan through the members.
-        scan(classTree.getMembers(), null);
+        if (!assumeInitialized) {
+            scan(classTree.getMembers(), null);
+        }
     }
 }
