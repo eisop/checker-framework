@@ -17,18 +17,18 @@ import org.checkerframework.javacutil.TreeUtils;
  * addition or subtraction of several Java expressions. For example, {@code array.length - 1}.
  */
 public class OffsetDependentTypesHelper extends DependentTypesHelper {
-    public OffsetDependentTypesHelper(AnnotatedTypeFactory factory) {
-        super(factory);
+    public OffsetDependentTypesHelper(AnnotatedTypeFactory atypeFactory) {
+        super(atypeFactory);
     }
 
     @Override
     protected @Nullable JavaExpression transform(JavaExpression javaExpr) {
-        return ValueCheckerUtils.optimize(javaExpr, factory);
+        return ValueCheckerUtils.optimize(javaExpr, atypeFactory);
     }
 
     @Override
     public TreeAnnotator createDependentTypesTreeAnnotator() {
-        return new DependentTypesTreeAnnotator(factory, this) {
+        return new DependentTypesTreeAnnotator(atypeFactory, this) {
             @Override
             public Void visitMemberSelect(MemberSelectTree tree, AnnotatedTypeMirror type) {
                 // UpperBoundTreeAnnotator changes the type of array.length to @LTEL("array").

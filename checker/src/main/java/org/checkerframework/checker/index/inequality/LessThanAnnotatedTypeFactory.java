@@ -10,6 +10,7 @@ import org.checkerframework.checker.index.qual.LessThan;
 import org.checkerframework.checker.index.qual.LessThanBottom;
 import org.checkerframework.checker.index.qual.LessThanUnknown;
 import org.checkerframework.checker.index.upperbound.OffsetEquation;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.value.ValueAnnotatedTypeFactory;
 import org.checkerframework.common.value.ValueChecker;
@@ -103,11 +104,11 @@ public class LessThanAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForInd
          */
         public LessThanQualifierHierarchy(
                 Set<Class<? extends Annotation>> qualifierClasses, Elements elements) {
-            super(qualifierClasses, elements);
+            super(qualifierClasses, elements, LessThanAnnotatedTypeFactory.this);
         }
 
         @Override
-        public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror superAnno) {
+        public boolean isSubtypeQualifiers(AnnotationMirror subAnno, AnnotationMirror superAnno) {
             List<String> subList = getLessThanExpressions(subAnno);
             if (subList == null) {
                 return true;
@@ -121,10 +122,11 @@ public class LessThanAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForInd
         }
 
         @Override
-        public AnnotationMirror leastUpperBound(AnnotationMirror a1, AnnotationMirror a2) {
-            if (isSubtype(a1, a2)) {
+        public AnnotationMirror leastUpperBoundQualifiers(
+                AnnotationMirror a1, AnnotationMirror a2) {
+            if (isSubtypeQualifiers(a1, a2)) {
                 return a2;
-            } else if (isSubtype(a2, a1)) {
+            } else if (isSubtypeQualifiers(a2, a1)) {
                 return a1;
             }
 
@@ -135,10 +137,11 @@ public class LessThanAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForInd
         }
 
         @Override
-        public AnnotationMirror greatestLowerBound(AnnotationMirror a1, AnnotationMirror a2) {
-            if (isSubtype(a1, a2)) {
+        public AnnotationMirror greatestLowerBoundQualifiers(
+                AnnotationMirror a1, AnnotationMirror a2) {
+            if (isSubtypeQualifiers(a1, a2)) {
                 return a1;
-            } else if (isSubtype(a2, a1)) {
+            } else if (isSubtypeQualifiers(a2, a1)) {
                 return a2;
             }
 
@@ -182,10 +185,11 @@ public class LessThanAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForInd
      *
      * @param smaller the first value to compare
      * @param bigger the second value to compare
+     * @param path used to parse expressions strings
      * @return {@code smaller < bigger}, using information from the Value Checker
      */
     public boolean isLessThanByValue(Tree smaller, String bigger, TreePath path) {
-        Long smallerValue = ValueCheckerUtils.getMinValue(smaller, getValueAnnotatedTypeFactory());
+        Long smallerValue = ValueCheckerUtils.getMaxValue(smaller, getValueAnnotatedTypeFactory());
         if (smallerValue == null) {
             return false;
         }
@@ -305,7 +309,7 @@ public class LessThanAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForInd
      * @param expression an expression
      * @return expressions that {@code expression} is less than
      */
-    public List<String> getLessThanExpressions(ExpressionTree expression) {
+    public @Nullable List<String> getLessThanExpressions(ExpressionTree expression) {
         AnnotatedTypeMirror annotatedTypeMirror = getAnnotatedType(expression);
         return getLessThanExpressions(
                 annotatedTypeMirror.getAnnotationInHierarchy(LESS_THAN_UNKNOWN));
@@ -320,7 +324,7 @@ public class LessThanAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForInd
      * @param expressions a list of expressions
      * @return a @LessThan qualifier with the given arguments
      */
-    public AnnotationMirror createLessThanQualifier(List<String> expressions) {
+    public AnnotationMirror createLessThanQualifier(@Nullable List<String> expressions) {
         if (expressions == null) {
             return LESS_THAN_BOTTOM;
         } else if (expressions.isEmpty()) {
@@ -345,7 +349,7 @@ public class LessThanAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForInd
      * @param annotation an annotation from the same hierarchy as LessThan
      * @return the list of expressions in the annotation
      */
-    public List<String> getLessThanExpressions(AnnotationMirror annotation) {
+    public @Nullable List<String> getLessThanExpressions(AnnotationMirror annotation) {
         if (AnnotationUtils.areSameByName(
                 annotation, "org.checkerframework.checker.index.qual.LessThanBottom")) {
             return null;

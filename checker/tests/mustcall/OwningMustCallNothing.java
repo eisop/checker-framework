@@ -12,7 +12,7 @@ public class OwningMustCallNothing implements Closeable {
     protected @Owning AnnotationClassLoader loader;
 
     @CreatesMustCallFor("this")
-    private final void loadTypeAnnotationsFromQualDir() {
+    private void loadTypeAnnotationsFromQualDir() {
         if (loader != null) {
             loader.close();
         }
@@ -32,7 +32,7 @@ public class OwningMustCallNothing implements Closeable {
     protected @Owning AnnotationClassLoader loader;
 
     @CreatesMustCallFor("this")
-    private final void loadTypeAnnotationsFromQualDir() {
+    private void loadTypeAnnotationsFromQualDir() {
         if (loader != null) {
             loader.close();
         }

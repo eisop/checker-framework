@@ -124,6 +124,7 @@ public class DependentTypesError {
      * Like toString, but uses better formatting sometimes. Use this only for the final output,
      * because of the design that hides error messages in toString().
      */
+    @SuppressWarnings("nullness:return") // regex groups always match text
     public String format() {
         Matcher m = FORMAL_PARAM_NAME_PATTERN.matcher(error);
         if (m.matches()) {

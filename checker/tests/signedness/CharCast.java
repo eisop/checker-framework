@@ -8,13 +8,11 @@ public class CharCast {
 
     void m1(short s) {
         int x = s;
-        // :: error: (cast.incomparable)
         char c = (char) x;
     }
 
     void m2(int i) {
         int x = (short) i;
-        // :: error: (cast.incomparable)
         char c = (char) x;
     }
 

@@ -231,7 +231,7 @@ public class AnnotationBuilder {
             Elements elements,
             @FullyQualifiedName CharSequence name,
             Map<String, AnnotationValue> elementNamesValues) {
-        final TypeElement annoElt = elements.getTypeElement(name);
+        TypeElement annoElt = elements.getTypeElement(name);
         if (annoElt == null) {
             return null;
         }
@@ -239,7 +239,7 @@ public class AnnotationBuilder {
             throw new BugInCF(annoElt + " is not an annotation");
         }
 
-        final DeclaredType annoType = (DeclaredType) annoElt.asType();
+        DeclaredType annoType = (DeclaredType) annoElt.asType();
         if (annoType == null) {
             return null;
         }
@@ -681,7 +681,7 @@ public class AnnotationBuilder {
      * @param obj the value to be stored in an annotation element/field
      * @return an AnnotationValue for the given Java value
      */
-    private static AnnotationValue createValue(final Object obj) {
+    private static AnnotationValue createValue(Object obj) {
         return new CheckerFrameworkAnnotationValue(obj);
     }
 
@@ -712,7 +712,7 @@ public class AnnotationBuilder {
                 DeclaredType annotationType,
                 Map<ExecutableElement, AnnotationValue> elementValues) {
             this.annotationType = annotationType;
-            final TypeElement elm = (TypeElement) annotationType.asElement();
+            TypeElement elm = (TypeElement) annotationType.asElement();
             this.annotationName = elm.getQualifiedName().toString().intern();
             this.elementValues = elementValues;
         }

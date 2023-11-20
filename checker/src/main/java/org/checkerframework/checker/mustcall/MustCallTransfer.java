@@ -103,6 +103,7 @@ public class MustCallTransfer extends CFTransfer {
                     atypeFactory
                             .getAnnotatedType(TypesUtils.getTypeElement(n.getType()))
                             .getAnnotationInHierarchy(atypeFactory.TOP);
+            assert this.defaultStringType != null : "@AssumeAssertion(nullness): same hierarchy";
         }
         return this.defaultStringType;
     }
@@ -282,7 +283,7 @@ public class MustCallTransfer extends CFTransfer {
     }
 
     /** A unique identifier counter for node names. */
-    protected static AtomicLong uid = new AtomicLong();
+    private static AtomicLong uid = new AtomicLong();
 
     /**
      * Creates a unique, arbitrary string that can be used as a name for a temporary variable, using

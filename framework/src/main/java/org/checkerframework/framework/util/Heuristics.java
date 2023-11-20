@@ -24,7 +24,7 @@ import java.util.Arrays;
 public class Heuristics {
 
     /**
-     * Determines whether a tree has a particular set of direct parents, ignoring blocks and
+     * Returns true if a tree has a particular set of direct parents, ignoring blocks and
      * parentheses.
      *
      * <p>For example, to test whether an expression (specified by {@code path}) is immediately

@@ -15,6 +15,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.javacutil.AbstractTypeProcessor;
 import org.checkerframework.javacutil.AnnotationProvider;
+import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.reflection.Signatures;
 
@@ -137,10 +138,10 @@ public class SignaturePrinter extends AbstractTypeProcessor {
 
         private final PrintStream out;
         private String indent = "";
-        private final AnnotatedTypeFactory factory;
+        private final AnnotatedTypeFactory atypeFactory;
 
-        public ElementPrinter(AnnotatedTypeFactory factory, PrintStream out) {
-            this.factory = factory;
+        public ElementPrinter(AnnotatedTypeFactory atypeFactory, PrintStream out) {
+            this.atypeFactory = atypeFactory;
             this.out = out;
         }
 
@@ -219,7 +220,7 @@ public class SignaturePrinter extends AbstractTypeProcessor {
         public Void visitExecutable(ExecutableElement e, Void p) {
             out.print(indent);
 
-            AnnotatedExecutableType type = factory.getAnnotatedType(e);
+            AnnotatedExecutableType type = atypeFactory.getAnnotatedType(e);
             printTypeParams(type.getTypeVariables());
             if (e.getKind() != ElementKind.CONSTRUCTOR) {
                 printType(type.getReturnType());
@@ -248,7 +249,7 @@ public class SignaturePrinter extends AbstractTypeProcessor {
                 case ENUM:
                     return "enum";
                 default:
-                    if (e.getKind().name().equals("RECORD")) {
+                    if (ElementUtils.isRecordElement(e)) {
                         return "record";
                     }
                     throw new IllegalArgumentException("Not a type element: " + e.getKind());
@@ -264,7 +265,7 @@ public class SignaturePrinter extends AbstractTypeProcessor {
             out.print(' ');
             out.print(e.getSimpleName());
             out.print(' ');
-            AnnotatedDeclaredType dt = factory.getAnnotatedType(e);
+            AnnotatedDeclaredType dt = atypeFactory.getAnnotatedType(e);
             printSupers(dt);
             out.println("{");
 
@@ -316,7 +317,7 @@ public class SignaturePrinter extends AbstractTypeProcessor {
             }
 
             out.print(indent);
-            AnnotatedTypeMirror type = factory.getAnnotatedType(e);
+            AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(e);
             this.printVariable(type, e.getSimpleName());
             out.println(';');
 

@@ -74,19 +74,13 @@ public class WideningConversion {
 
         char c;
         c = (char) (c1 + c2);
-        // :: error: (cast.incomparable)
         c = (char) (c1 + i2);
-        // :: error: (cast.incomparable)
         c = (char) (i1 + c2);
-        // :: error: (cast.incomparable)
         c = (char) (i1 + i2);
 
         c = (char) (c1 + c2);
-        // :: error: (cast.incomparable)
         c = (char) (c1 + si2);
-        // :: error: (cast.incomparable)
         c = (char) (si1 + c2);
-        // :: error: (cast.incomparable)
         c = (char) (si1 + si2);
 
         c = (char) (c1 + c2);

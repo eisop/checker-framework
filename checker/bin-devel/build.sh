@@ -34,11 +34,11 @@ echo "JAVA_HOME=${JAVA_HOME}"
 # Using `(cd "$CHECKERFRAMEWORK" && ./gradlew getPlumeScripts -q)` leads to infinite regress.
 PLUME_SCRIPTS="$CHECKERFRAMEWORK/checker/bin-devel/.plume-scripts"
 if [ -d "$PLUME_SCRIPTS" ] ; then
-  (cd "$PLUME_SCRIPTS" && git pull -q)
+  (cd "$PLUME_SCRIPTS" && (git pull -q || true))
 else
   (cd "$CHECKERFRAMEWORK/checker/bin-devel" && \
       (git clone --depth 1 -q https://github.com/eisop-plume-lib/plume-scripts.git .plume-scripts || \
-       git clone --depth 1 -q https://github.com/eisop-plume-lib/plume-scripts.git .plume-scripts))
+       (sleep 1m && git clone --depth 1 -q https://github.com/eisop-plume-lib/plume-scripts.git .plume-scripts)))
 fi
 
 # Clone the annotated JDK into ../jdk .
@@ -59,12 +59,6 @@ fi
 # (cd "${AT}" && ./.build-without-test.sh)
 # echo "... done: (cd ${AT} && ./.build-without-test.sh)"
 
-
-## Build stubparser
-"$PLUME_SCRIPTS/git-clone-related" ${DEBUG_FLAG} eisop stubparser
-echo "Running:  (cd ../stubparser/ && ./.build-without-test.sh)"
-(cd ../stubparser/ && ./.build-without-test.sh)
-echo "... done: (cd ../stubparser/ && ./.build-without-test.sh)"
 
 # TODO: NullnessNullMarkedTest depends on JSpecify annotations.
 # Find a way to not run that test, to avoid this dependency and
@@ -93,8 +87,8 @@ fi
 ## Compile
 
 # Download dependencies, trying a second time if there is a failure.
-(./gradlew --write-verification-metadata sha256 help --dry-run ||
-     (sleep 60 && ./gradlew --write-verification-metadata sha256 help --dry-run))
+(TERM=dumb timeout 300 ./gradlew --write-verification-metadata sha256 help --dry-run || \
+     (sleep 1m && ./gradlew --write-verification-metadata sha256 help --dry-run))
 
 echo "running \"./gradlew assembleForJavac\" for checker-framework"
 ./gradlew assembleForJavac --console=plain --warning-mode=all -s -Dorg.gradle.internal.http.socketTimeout=60000 -Dorg.gradle.internal.http.connectionTimeout=60000

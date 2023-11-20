@@ -2,21 +2,19 @@ import org.checkerframework.checker.signedness.qual.PolySigned;
 import org.checkerframework.checker.signedness.qual.Signed;
 import org.checkerframework.checker.signedness.qual.Unsigned;
 
-import java.util.Date;
-
 public class RestrictedPolymorphism {
 
-    @Signed Date sd;
-    @Unsigned Date ud;
+    @Signed Number sn;
+    @Unsigned Number un;
 
     public void foo(@PolySigned Object a, @PolySigned Object b) {}
 
     void client() {
-        foo(sd, sd);
+        foo(sn, sn);
         // :: error: (argument.type.incompatible)
-        foo(sd, ud);
+        foo(sn, un);
         // :: error: (argument.type.incompatible)
-        foo(ud, sd);
-        foo(ud, ud);
+        foo(un, sn);
+        foo(un, un);
     }
 }

@@ -6,6 +6,7 @@ import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.util.AnnotatedTypes;
@@ -37,9 +38,26 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
         Element elt = TreeUtils.elementFromDeclaration(variableTree);
 
         // Create the ATM and add non-primary annotations
-        // (variableTree.getType() does not include the annotation before the type, so those
-        // are added to the type below).
-        AnnotatedTypeMirror result = TypeFromTree.fromTypeTree(f, variableTree.getType());
+        AnnotatedTypeMirror result;
+        // Propagate initializer annotated type to variable if declared using var.
+        // Skip propagation of annotations when initializer can be null.
+        // E.g.
+        // for (var i : list) {}
+        if (TreeUtils.isVariableTreeDeclaredUsingVar(variableTree)
+                && variableTree.getInitializer() != null) {
+            result = f.getAnnotatedType(variableTree.getInitializer());
+            // Let normal defaulting happen for the primary annotation.
+            result.clearAnnotations();
+        } else if (TreeUtils.isVariableTreeDeclaredUsingVar(variableTree)
+                || variableTree.getType() == null) {
+            // VariableTree#getType returns null for binding variables from a
+            // DeconstructionPatternTree.
+            result = f.type(variableTree);
+        } else {
+            // (variableTree.getType() does not include the annotation before the type, so those
+            // are added to the type below).
+            result = TypeFromTree.fromTypeTree(f, variableTree.getType());
+        }
 
         // Handle any annotations in variableTree.getModifiers().
         List<AnnotationMirror> modifierAnnos;
@@ -71,8 +89,14 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
             AnnotatedDeclaredType annotatedDeclaredType = (AnnotatedDeclaredType) result;
             // The underlying type of result does not have all annotations, but the TypeMirror of
             // variableTree.getType() does.
-            DeclaredType declaredType = (DeclaredType) TreeUtils.typeOf(variableTree.getType());
-            AnnotatedTypes.applyAnnotationsFromDeclaredType(annotatedDeclaredType, declaredType);
+            // VariableTree#getType returns null for binding variables from a
+            // DeconstructionPatternTree.
+            if (variableTree.getType() != null
+                    && !TreeUtils.isVariableTreeDeclaredUsingVar(variableTree)) {
+                DeclaredType declaredType = (DeclaredType) TreeUtils.typeOf(variableTree.getType());
+                AnnotatedTypes.applyAnnotationsFromDeclaredType(
+                        annotatedDeclaredType, declaredType);
+            }
 
             // Handle declaration annotations
             for (AnnotationMirror anno : modifierAnnos) {
@@ -137,7 +161,7 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
      *
      * @return the type of the lambda parameter, or null if paramElement is not a lambda parameter
      */
-    private static AnnotatedTypeMirror inferLambdaParamAnnotations(
+    private static @Nullable AnnotatedTypeMirror inferLambdaParamAnnotations(
             AnnotatedTypeFactory f, AnnotatedTypeMirror lambdaParam, Element paramElement) {
         if (paramElement.getKind() != ElementKind.PARAMETER
                 || f.declarationFromElement(paramElement) == null

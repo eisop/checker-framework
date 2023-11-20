@@ -27,11 +27,13 @@ public class LessThanVisitor extends BaseTypeVisitor<LessThanAnnotatedTypeFactor
     }
 
     @Override
-    protected void commonAssignmentCheck(
+    protected boolean commonAssignmentCheck(
             Tree varTree,
             ExpressionTree valueTree,
             @CompilerMessageKey String errorKey,
             Object... extraArgs) {
+
+        boolean result = true;
 
         // check that when an assignment to a variable declared as @HasSubsequence(a, from, to)
         // occurs, from <= to.
@@ -59,14 +61,16 @@ public class LessThanVisitor extends BaseTypeVisitor<LessThanAnnotatedTypeFactor
                         anm == null ? "@LessThanUnknown" : anm,
                         subSeq.to,
                         subSeq.to);
+                result = false;
             }
         }
 
-        super.commonAssignmentCheck(varTree, valueTree, errorKey, extraArgs);
+        result = super.commonAssignmentCheck(varTree, valueTree, errorKey, extraArgs) && result;
+        return result;
     }
 
     @Override
-    protected void commonAssignmentCheck(
+    protected boolean commonAssignmentCheck(
             AnnotatedTypeMirror varType,
             AnnotatedTypeMirror valueType,
             Tree valueTree,
@@ -106,10 +110,10 @@ public class LessThanVisitor extends BaseTypeVisitor<LessThanAnnotatedTypeFactor
                 commonAssignmentCheckEndDiagnostic(
                         true, "isLessThan", varType, valueType, valueTree);
                 // skip call to super, everything is OK.
-                return;
+                return true;
             }
         }
-        super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);
+        return super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);
     }
 
     @Override

@@ -45,7 +45,7 @@ public class CFCFGBuilder extends CFGBuilder {
             CompilationUnitTree root,
             UnderlyingAST underlyingAST,
             BaseTypeChecker checker,
-            AnnotatedTypeFactory factory,
+            AnnotatedTypeFactory atypeFactory,
             ProcessingEnvironment env) {
         boolean assumeAssertionsEnabled = checker.hasOption("assumeAssertionsAreEnabled");
         boolean assumeAssertionsDisabled = checker.hasOption("assumeAssertionsAreDisabled");
@@ -56,9 +56,9 @@ public class CFCFGBuilder extends CFGBuilder {
 
         // Subcheckers with dataflow share control-flow graph structure to
         // allow a super-checker to query the stores of a subchecker.
-        if (factory instanceof GenericAnnotatedTypeFactory) {
+        if (atypeFactory instanceof GenericAnnotatedTypeFactory) {
             GenericAnnotatedTypeFactory<?, ?, ?, ?> asGATF =
-                    (GenericAnnotatedTypeFactory<?, ?, ?, ?>) factory;
+                    (GenericAnnotatedTypeFactory<?, ?, ?, ?>) atypeFactory;
             if (asGATF.hasOrIsSubchecker) {
                 ControlFlowGraph sharedCFG = asGATF.getSharedCFGForTree(underlyingAST.getCode());
                 if (sharedCFG != null) {
@@ -72,16 +72,16 @@ public class CFCFGBuilder extends CFGBuilder {
                 new CFCFGTranslationPhaseOne(
                                 builder,
                                 checker,
-                                factory,
+                                atypeFactory,
                                 assumeAssertionsEnabled,
                                 assumeAssertionsDisabled,
                                 env)
                         .process(root, underlyingAST);
         ControlFlowGraph phase2result = CFGTranslationPhaseTwo.process(phase1result);
         ControlFlowGraph phase3result = CFGTranslationPhaseThree.process(phase2result);
-        if (factory instanceof GenericAnnotatedTypeFactory) {
+        if (atypeFactory instanceof GenericAnnotatedTypeFactory) {
             GenericAnnotatedTypeFactory<?, ?, ?, ?> asGATF =
-                    (GenericAnnotatedTypeFactory<?, ?, ?, ?>) factory;
+                    (GenericAnnotatedTypeFactory<?, ?, ?, ?>) atypeFactory;
             if (asGATF.hasOrIsSubchecker) {
                 asGATF.addSharedCFGForTree(underlyingAST.getCode(), phase3result);
             }
@@ -129,18 +129,18 @@ public class CFCFGBuilder extends CFGBuilder {
         protected final BaseTypeChecker checker;
 
         /** Type factory to provide types used during CFG building. */
-        protected final AnnotatedTypeFactory factory;
+        protected final AnnotatedTypeFactory atypeFactory;
 
         public CFCFGTranslationPhaseOne(
                 CFTreeBuilder builder,
                 BaseTypeChecker checker,
-                AnnotatedTypeFactory factory,
+                AnnotatedTypeFactory atypeFactory,
                 boolean assumeAssertionsEnabled,
                 boolean assumeAssertionsDisabled,
                 ProcessingEnvironment env) {
-            super(builder, factory, assumeAssertionsEnabled, assumeAssertionsDisabled, env);
+            super(builder, atypeFactory, assumeAssertionsEnabled, assumeAssertionsDisabled, env);
             this.checker = checker;
-            this.factory = factory;
+            this.atypeFactory = atypeFactory;
         }
 
         @Override
@@ -165,7 +165,7 @@ public class CFCFGBuilder extends CFGBuilder {
             // path makes more sense, it has the risk of improperly changing the defaulting scope
             // of the artificial tree.
             TreePath artificialPath = new TreePath(getCurrentPath(), tree);
-            factory.setPathForArtificialTree(tree, artificialPath);
+            atypeFactory.setPathForArtificialTree(tree, artificialPath);
         }
 
         @Override

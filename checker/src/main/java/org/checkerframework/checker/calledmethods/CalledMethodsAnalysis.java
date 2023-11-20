@@ -3,8 +3,8 @@ package org.checkerframework.checker.calledmethods;
 import com.google.common.collect.ImmutableSet;
 import com.sun.tools.javac.code.Type;
 
+import org.checkerframework.common.accumulation.AccumulationAnalysis;
 import org.checkerframework.common.basetype.BaseTypeChecker;
-import org.checkerframework.framework.flow.CFAnalysis;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -15,7 +15,7 @@ import javax.lang.model.type.TypeMirror;
  * The analysis for the Called Methods Checker. The analysis is specialized to ignore certain
  * exception types; see {@link #isIgnoredExceptionType(TypeMirror)}.
  */
-public class CalledMethodsAnalysis extends CFAnalysis {
+public class CalledMethodsAnalysis extends AccumulationAnalysis {
 
     /**
      * The fully-qualified names of the exception types that are ignored by this checker when

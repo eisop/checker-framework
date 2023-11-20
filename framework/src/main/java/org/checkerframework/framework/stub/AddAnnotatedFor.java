@@ -124,12 +124,12 @@ public class AddAnnotatedFor {
     private static final ElementVisitor<Void, Set<String>> annotatedForVisitor =
             new ElementVisitor<Void, Set<String>>() {
                 @Override
-                public Void visitAnnotationDef(AnnotationDef el, final Set<String> annotatedFor) {
+                public Void visitAnnotationDef(AnnotationDef el, Set<String> annotatedFor) {
                     return null;
                 }
 
                 @Override
-                public Void visitBlock(ABlock el, final Set<String> annotatedFor) {
+                public Void visitBlock(ABlock el, Set<String> annotatedFor) {
                     for (AField e : el.locals.values()) {
                         e.accept(this, annotatedFor);
                     }
@@ -137,7 +137,7 @@ public class AddAnnotatedFor {
                 }
 
                 @Override
-                public Void visitClass(AClass el, final Set<String> annotatedFor) {
+                public Void visitClass(AClass el, Set<String> annotatedFor) {
                     for (ATypeElement e : el.bounds.values()) {
                         e.accept(this, annotatedFor);
                     }
@@ -163,7 +163,7 @@ public class AddAnnotatedFor {
                 }
 
                 @Override
-                public Void visitDeclaration(ADeclaration el, final Set<String> annotatedFor) {
+                public Void visitDeclaration(ADeclaration el, Set<String> annotatedFor) {
                     for (ATypeElement e : el.insertAnnotations.values()) {
                         e.accept(this, annotatedFor);
                     }
@@ -174,7 +174,7 @@ public class AddAnnotatedFor {
                 }
 
                 @Override
-                public Void visitExpression(AExpression el, final Set<String> annotatedFor) {
+                public Void visitExpression(AExpression el, Set<String> annotatedFor) {
                     for (ATypeElement e : el.calls.values()) {
                         e.accept(this, annotatedFor);
                     }
@@ -197,7 +197,7 @@ public class AddAnnotatedFor {
                 }
 
                 @Override
-                public Void visitField(AField el, final Set<String> annotatedFor) {
+                public Void visitField(AField el, Set<String> annotatedFor) {
                     if (el.init != null) {
                         el.init.accept(this, annotatedFor);
                     }
@@ -205,7 +205,7 @@ public class AddAnnotatedFor {
                 }
 
                 @Override
-                public Void visitMethod(AMethod el, final Set<String> annotatedFor) {
+                public Void visitMethod(AMethod el, Set<String> annotatedFor) {
                     if (el.body != null) {
                         el.body.accept(this, annotatedFor);
                     }
@@ -228,7 +228,7 @@ public class AddAnnotatedFor {
                 }
 
                 @Override
-                public Void visitTypeElement(ATypeElement el, final Set<String> annotatedFor) {
+                public Void visitTypeElement(ATypeElement el, Set<String> annotatedFor) {
                     for (ATypeElement e : el.innerTypes.values()) {
                         e.accept(this, annotatedFor);
                     }
@@ -237,12 +237,12 @@ public class AddAnnotatedFor {
 
                 @Override
                 public Void visitTypeElementWithType(
-                        ATypeElementWithType el, final Set<String> annotatedFor) {
+                        ATypeElementWithType el, Set<String> annotatedFor) {
                     return visitTypeElement(el, annotatedFor);
                 }
 
                 @Override
-                public Void visitElement(AElement el, final Set<String> annotatedFor) {
+                public Void visitElement(AElement el, Set<String> annotatedFor) {
                     for (Annotation a : el.tlAnnotationsHere) {
                         String s = a.def().name;
                         int j = s.indexOf(".qual.");

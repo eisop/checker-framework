@@ -2,8 +2,8 @@ package org.checkerframework.framework.test.diagnostics;
 
 import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.javacutil.Pair;
 import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.IPair;
 
 import java.io.File;
 import java.util.Arrays;
@@ -96,7 +96,7 @@ public class TestDiagnosticUtils {
         // However, diagnostic.toString() may contain "[unchecked]" even though getMessage() does
         // not.
         // Since we want to match the error messages reported by javac exactly, we must parse.
-        Pair<String, String> trimmed = formatJavaxToolString(diagnosticString, noMsgText);
+        IPair<String, String> trimmed = formatJavaxToolString(diagnosticString, noMsgText);
         return fromPatternMatching(
                 DIAGNOSTIC_PATTERN,
                 DIAGNOSTIC_WARNING_PATTERN,
@@ -157,7 +157,7 @@ public class TestDiagnosticUtils {
 
         Matcher diagnosticMatcher = diagnosticPattern.matcher(diagnosticString);
         if (diagnosticMatcher.matches()) {
-            Pair<DiagnosticKind, Boolean> categoryToFixable =
+            IPair<DiagnosticKind, Boolean> categoryToFixable =
                     parseCategoryString(diagnosticMatcher.group(1 + capturingGroupOffset));
             kind = categoryToFixable.first;
             isFixable = categoryToFixable.second;
@@ -217,7 +217,7 @@ public class TestDiagnosticUtils {
      * @param noMsgText whether to do work; if false, this returns a pair of (argument, "")
      * @return the diagnostic, split into message and filename
      */
-    public static Pair<String, String> formatJavaxToolString(String original, boolean noMsgText) {
+    public static IPair<String, String> formatJavaxToolString(String original, boolean noMsgText) {
         String trimmed = original;
         String filename = "";
         if (noMsgText) {
@@ -236,7 +236,7 @@ public class TestDiagnosticUtils {
             }
         }
 
-        return Pair.of(trimmed, filename);
+        return IPair.of(trimmed, filename);
     }
 
     /**
@@ -258,9 +258,9 @@ public class TestDiagnosticUtils {
      * Given a category string that may be prepended with "fixable-", return the category enum that
      * corresponds with the category and whether or not it is a isFixable error
      */
-    private static Pair<DiagnosticKind, Boolean> parseCategoryString(String category) {
-        final String fixable = "fixable-";
-        final boolean isFixable = category.startsWith(fixable);
+    private static IPair<DiagnosticKind, Boolean> parseCategoryString(String category) {
+        String fixable = "fixable-";
+        boolean isFixable = category.startsWith(fixable);
         if (isFixable) {
             category = category.substring(fixable.length());
         }
@@ -269,7 +269,7 @@ public class TestDiagnosticUtils {
             throw new Error("Unparsable category: " + category);
         }
 
-        return Pair.of(categoryEnum, isFixable);
+        return IPair.of(categoryEnum, isFixable);
     }
 
     /**
@@ -277,7 +277,7 @@ public class TestDiagnosticUtils {
      * continued on the next line.
      */
     public static boolean isJavaDiagnosticLineStart(String originalLine) {
-        final String trimmedLine = originalLine.trim();
+        String trimmedLine = originalLine.trim();
         return trimmedLine.startsWith("// ::") || trimmedLine.startsWith("// warning:");
     }
 
@@ -310,7 +310,7 @@ public class TestDiagnosticUtils {
         if (originalLine == null) {
             return false;
         }
-        final String trimmedLine = originalLine.trim();
+        String trimmedLine = originalLine.trim();
         // Unlike with errors, there is no logic elsewhere for splitting multiple "warning:"s.  So,
         // avoid concatenating them.  Also, each one must begin a line.  They are allowed to wrap to
         // the next line, though.
@@ -333,7 +333,7 @@ public class TestDiagnosticUtils {
      */
     public static TestDiagnosticLine fromJavaSourceLine(
             String filename, String line, long lineNumber) {
-        final String trimmedLine = line.trim();
+        String trimmedLine = line.trim();
         long errorLine = lineNumber + 1;
 
         if (trimmedLine.startsWith("// ::")) {
@@ -377,7 +377,7 @@ public class TestDiagnosticUtils {
 
     /** Convert a line in a DiagnosticFile to a TestDiagnosticLine. */
     public static TestDiagnosticLine fromDiagnosticFileLine(String diagnosticLine) {
-        final String trimmedLine = diagnosticLine.trim();
+        String trimmedLine = diagnosticLine.trim();
         if (trimmedLine.startsWith("#") || trimmedLine.isEmpty()) {
             return new TestDiagnosticLine("", -1, diagnosticLine, Collections.emptyList());
         }
@@ -394,7 +394,7 @@ public class TestDiagnosticUtils {
         for (Diagnostic<? extends JavaFileObject> diagnostic : javaxDiagnostics) {
             // See TestDiagnosticUtils as to why we use diagnostic.toString rather
             // than convert from the diagnostic itself
-            final String diagnosticString = diagnostic.toString();
+            String diagnosticString = diagnostic.toString();
 
             // suppress Xlint warnings
             if (diagnosticString.contains("uses unchecked or unsafe operations.")

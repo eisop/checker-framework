@@ -1,4 +1,4 @@
-- compiler.warn.proc.messager: UnknownField.astub:(line 5,col 19): Static field NonNull is not imported
-- compiler.warn.proc.messager: UnknownField.astub:(line 5,col 19): For annotation @DefaultQualifier(NonNull), could not add  value=NonNull  because variable NonNull not found
-- compiler.warn.proc.messager: UnknownField.astub:(line 5,col 1): Unknown annotation @DefaultQualifier(NonNull)
+- compiler.warn.proc.messager: UnknownField.astub:(line 5,col 19): static field NonNull is not imported
+- compiler.warn.proc.messager: UnknownField.astub:(line 5,col 19): for annotation @DefaultQualifier(NonNull), could not add  value=NonNull  because variable NonNull not found
+- compiler.warn.proc.messager: UnknownField.astub:(line 5,col 1): unknown annotation @DefaultQualifier(NonNull)
 3 warnings

@@ -3,7 +3,6 @@ import org.checkerframework.checker.signedness.qual.Unsigned;
 public class PrimitiveCasts {
 
     void shortToChar1(short s) {
-        // :: error: (cast.incomparable)
         char c = (char) s;
     }
 
