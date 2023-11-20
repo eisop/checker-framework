@@ -2810,8 +2810,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         AnnotatedTypes.findEffectiveAnnotations(qualifierHierarchy, exprType);
 
                 // return SAFE only it satisfies the below condition
-                if (qualifierHierarchy.isSubtype(exprLower, castLower)
-                        && qualifierHierarchy.isSubtype(exprUpper, castUpper)) {
+                if (qualifierHierarchy.isSubtypeShallow(exprLower, exprTV, castLower, castTV)
+                        && qualifierHierarchy.isSubtypeShallow(
+                                exprUpper, exprTV, castUpper, castTV)) {
                     return TypecastKind.SAFE;
                 }
                 return TypecastKind.WARNING;
@@ -2849,7 +2850,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotationMirrorSet exprAnnos = exprType.getEffectiveAnnotations();
         QualifierHierarchy qualifierHierarchy = atypeFactory.getQualifierHierarchy();
 
-        if (!qualifierHierarchy.isComparable(castAnnos, exprAnnos)) { // exists an incomparable cast
+        if (!qualifierHierarchy.isComparable(
+                castAnnos,
+                castType.getUnderlyingType(),
+                exprAnnos,
+                exprType.getUnderlyingType())) { // exists an incomparable cast
             return TypecastKind.NOT_DOWNCAST;
         }
 
