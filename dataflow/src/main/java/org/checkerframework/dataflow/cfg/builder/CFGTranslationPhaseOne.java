@@ -2447,6 +2447,14 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                                 env.getTypeUtils()));
             }
 
+            // JSL 14.11.2
+            // https://docs.oracle.com/javase/specs/jls/se21/html/jls-14.html#jls-14.11.2
+            // states "For compatibility reasons, switch statements that are not enhanced switch
+            // statements are not required to be exhaustive".
+            // Switch expressions and enhanced switch statements are exhaustive.
+            boolean switchExprOrEnhanced =
+                    !TreeUtils.isSwitchStatement(switchTree)
+                            || TreeUtils.isEnhancedSwitchStatement((SwitchTree) switchTree);
             // Build CFG for the cases.
             int defaultIndex = -1;
             for (int i = 0; i < numCases; ++i) {
@@ -2458,14 +2466,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                     defaultIndex = i;
                 } else if (i == numCases - 1 && defaultIndex == -1) {
                     // This is the last case, and there is no default case.
-                    // Switch statements without a default case are not exhaustive.
-                    // Note that even if all cases of an enum are covered, the enum class could add
-                    // more constants, leading to none of the cases matching. So a switch statement
-                    // without default case is not exhaustive.
-                    // Switch expressions are always exhaustive.
-                    // TODO: check exhaustiveness rules for null cases, binding patterns,
-                    // and deconstruction patterns.
-                    buildCase(caseTree, i, !TreeUtils.isSwitchStatement(switchTree));
+                    // Switch expressions and enhanced switch statements are exhaustive.
+                    buildCase(caseTree, i, switchExprOrEnhanced);
                 } else {
                     buildCase(caseTree, i, false);
                 }
