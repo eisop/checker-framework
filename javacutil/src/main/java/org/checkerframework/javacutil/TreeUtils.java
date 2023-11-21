@@ -2424,9 +2424,11 @@ public final class TreeUtils {
         TypeMirror exprType = typeOf(switchTree.getExpression());
         // TODO: this should be only char, byte, short, int, Character, Byte, Short, Integer. Is the
         // over-approximation a problem?
+        Element exprElem = TypesUtils.getTypeElement(exprType);
+        boolean isNotEnum = exprElem == null || exprElem.getKind() != ElementKind.ENUM;
         if (!TypesUtils.isPrimitiveOrBoxed(exprType)
                 && !TypesUtils.isString(exprType)
-                && TypesUtils.getTypeElement(exprType).getKind() != ElementKind.ENUM) {
+                && isNotEnum) {
             return true;
         }
 
