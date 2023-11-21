@@ -816,7 +816,7 @@ createCloneTask('getHtmlTools', 'https://github.com/plume-lib/html-tools.git', h
 createCloneTask('getDoLikeJavac', 'https://github.com/opprop/do-like-javac.git', doLikeJavacHome)
 createCloneTask('getJSpecify', 'https://github.com/jspecify/jspecify.git', jspecifyHome)
 
-task cloneAndBuildJspecify(dependsOn: getJSpecify) {
+task cloneAndBuildJSpecify(dependsOn: getJSpecify) {
     description 'Obtain or update and build JSpecify.'
     doLast {
         // JSpecify requires Java 9 or later.
@@ -828,12 +828,12 @@ task cloneAndBuildJspecify(dependsOn: getJSpecify) {
                 commandLine 'sh', '-c', './gradlew assemble'
             }
         } else {
-            println 'Java version is not greater than 1.8, skipping build.'
+            println 'Java version is not greater than 1.8, skipping build of JSpecify.'
         }
     }
 }
 
-test.dependsOn cloneAndBuildJspecify
+test.dependsOn cloneAndBuildJSpecify
 
 // No group so it does not show up in the output of `gradlew tasks`
 task pythonIsInstalled(type: Exec) {
@@ -1085,7 +1085,7 @@ subprojects {
                 testClassesDirs = testing.suites.test.sources.output.classesDirs
                 classpath = testing.suites.test.sources.runtimeClasspath
                 if (junitClassName == 'NullnessNullMarkedTest') {
-                    dependsOn ':cloneAndBuildJspecify'
+                    dependsOn ':cloneAndBuildJSpecify'
                 }
             }
         }
