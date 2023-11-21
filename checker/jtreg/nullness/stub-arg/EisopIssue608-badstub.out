@@ -1,0 +1,5 @@
+- compiler.warn.proc.messager: EisopIssue608-bad.astub:(line 5,col 1): direct supertype Bad not found
+- compiler.warn.proc.messager: EisopIssue608-bad.astub:(line 5,col 1): stub file does not match bytecode: could not find direct superclass Bad<E> from type List<E extends Object>
+- compiler.err.warnings.and.werror
+1 error
+2 warnings

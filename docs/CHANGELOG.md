@@ -1,5 +1,22 @@
-Version 3.39.0-eisop1 (October ?, 2023)
----------------------------------------
+Version 3.39.0-eisop2 (October ??, 2023)
+----------------------------------------
+
+**User-visible changes:**
+
+**Implementation details:**
+
+Improvements to initialization type frames in the Initialization Checker.
+
+New method `TreeUtils#isEnhancedSwitchStatement` to determine if a switch statement tree
+is an enhanced switch statement.
+
+**Closed issues:**
+
+eisop#609, eisop#610, eisop#612.
+
+
+Version 3.39.0-eisop1 (October 22, 2023)
+----------------------------------------
 
 **User-visible changes:**
 

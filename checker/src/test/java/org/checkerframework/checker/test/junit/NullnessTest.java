@@ -17,7 +17,7 @@ import java.util.List;
  *       {@code nullness-initialization}),
  *   <li>test cases for the Nullness Checker that should behave the same regardless of whether
  *       initialization checking is on or off (in directory {@code nullness}; these are run both by
- *       this test and by the {@code NullnessAssumeInitializedTest},
+ *       this test and by the {@link NullnessAssumeInitializedTest},
  *   <li>test cases for the Initialization Checker that do not involve any nullness annotations (in
  *       directory {@code initialization})
  * </ul>
