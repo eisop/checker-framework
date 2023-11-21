@@ -25,6 +25,7 @@ import com.sun.source.tree.ParameterizedTypeTree;
 import com.sun.source.tree.ParenthesizedTree;
 import com.sun.source.tree.PrimitiveTypeTree;
 import com.sun.source.tree.StatementTree;
+import com.sun.source.tree.SwitchTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TreeVisitor;
 import com.sun.source.tree.TypeCastTree;
@@ -2409,6 +2410,39 @@ public final class TreeUtils {
      */
     public static boolean isSwitchStatement(Tree tree) {
         return tree.getKind() == Tree.Kind.SWITCH;
+    }
+
+    /**
+     * Returns true if the given switch statement tree is an enhanced switch statement, as described
+     * in <a href="https://docs.oracle.com/javase/specs/jls/se21/html/jls-14.html#jls-14.11.2">JSL
+     * 14.11.2</a>.
+     *
+     * @param switchTree the switch statement to check
+     * @return true if the given tree is an enhanced switch statement
+     */
+    public static boolean isEnhancedSwitchStatement(SwitchTree switchTree) {
+        TypeMirror exprType = typeOf(switchTree.getExpression());
+        // TODO: this should be only char, byte, short, int, Character, Byte, Short, Integer. Is the
+        // over-approximation a problem?
+        Element exprElem = TypesUtils.getTypeElement(exprType);
+        boolean isNotEnum = exprElem == null || exprElem.getKind() != ElementKind.ENUM;
+        if (!TypesUtils.isPrimitiveOrBoxed(exprType)
+                && !TypesUtils.isString(exprType)
+                && isNotEnum) {
+            return true;
+        }
+
+        for (CaseTree caseTree : switchTree.getCases()) {
+            for (Tree caseLabel : CaseUtils.getLabels(caseTree)) {
+                if (caseLabel.getKind() == Tree.Kind.NULL_LITERAL
+                        || TreeUtils.isBindingPatternTree(caseLabel)
+                        || TreeUtils.isDeconstructionPatternTree(caseLabel)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
