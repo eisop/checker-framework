@@ -3,9 +3,8 @@ Version 3.39.0-eisop2 (October ??, 2023)
 
 **User-visible changes:**
 
-A new error message `cast.incomparable` will be raised if casting an expression to a target type which
-does not share a subtype relationship with the expression type in the lattice. No longer issue errors
-for statically verifiable downcast.
+A new error message `cast.incomparable` will be raised if the target type qualifier is neither the subtype
+nor the supertype of the expression type qualifier. No longer issue errors for statically verifiable downcast.
 
 **Implementation details:**
 
