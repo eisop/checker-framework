@@ -1,12 +1,11 @@
 package org.checkerframework.checker.units.qual;
 
-import org.checkerframework.framework.qual.SubtypeOf;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import org.checkerframework.framework.qual.SubtypeOf;
 
 /**
  * Meter.
@@ -24,5 +23,5 @@ import java.lang.annotation.Target;
 // @UnitsMultiple(quantity=m.class, prefix=Prefix.one)
 @SuppressWarnings("checkstyle:typename")
 public @interface m {
-    Prefix value() default Prefix.one;
+  Prefix value() default Prefix.one;
 }
