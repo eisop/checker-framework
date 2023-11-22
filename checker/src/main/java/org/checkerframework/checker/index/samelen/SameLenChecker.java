@@ -14,6 +14,6 @@ import org.checkerframework.framework.source.SuppressWarningsPrefix;
 // @RelevantJavaTypes({CharSequence.class, Object[].class, Object.class})
 @SuppressWarningsPrefix({"index", "samelen"})
 public class SameLenChecker extends BaseTypeChecker {
-  /** Create a new SameLenChecker. */
-  public SameLenChecker() {}
+    /** Create a new SameLenChecker. */
+    public SameLenChecker() {}
 }

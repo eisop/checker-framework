@@ -1,8 +1,8 @@
 public class ForEach {
-  <T extends Object> T iterate(T[] constants) {
-    for (T constant : constants) {
-      return constant;
+    <T extends Object> T iterate(T[] constants) {
+        for (T constant : constants) {
+            return constant;
+        }
+        return null;
     }
-    return null;
-  }
 }
