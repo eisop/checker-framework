@@ -72,6 +72,9 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
     /** List of fields in the current compilation unit that have been initialized. */
     protected final List<VariableTree> initializedFields;
 
+    /** The value of the assumeInitialized option. */
+    protected final boolean assumeInitialized;
+
     /**
      * Create an InitializationVisitor.
      *
@@ -80,6 +83,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
     public InitializationVisitor(BaseTypeChecker checker) {
         super(checker);
         initializedFields = new ArrayList<>();
+        assumeInitialized = checker.hasOption("assumeInitialized");
     }
 
     @Override
@@ -90,7 +94,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
     @Override
     public void visit(TreePath path) {
         // This visitor does nothing if init checking is turned off.
-        if (!checker.hasOption("assumeInitialized")) {
+        if (!assumeInitialized) {
             super.visit(path);
         }
     }

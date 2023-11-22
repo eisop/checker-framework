@@ -107,6 +107,9 @@ public abstract class InitializationParentAnnotatedTypeFactory
     /** The UnknownInitialization.value field/element. */
     protected final ExecutableElement unknownInitializationValueElement;
 
+    /** The value of the assumeInitialized option. */
+    protected final boolean assumeInitialized;
+
     /**
      * Create a new InitializationParentAnnotatedTypeFactory.
      *
@@ -131,6 +134,8 @@ public abstract class InitializationParentAnnotatedTypeFactory
                 TreeUtils.getMethod(UnderInitialization.class, "value", 0, processingEnv);
         unknownInitializationValueElement =
                 TreeUtils.getMethod(UnknownInitialization.class, "value", 0, processingEnv);
+
+        assumeInitialized = checker.hasOption("assumeInitialized");
     }
 
     @Override
@@ -233,7 +238,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
     public @Nullable AnnotatedDeclaredType getSelfType(Tree tree) {
         AnnotatedDeclaredType selfType = super.getSelfType(tree);
 
-        if (checker.hasOption("assumeInitialized")) {
+        if (assumeInitialized) {
             return selfType;
         }
 
