@@ -366,6 +366,18 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
             return;
         }
 
+        GenericAnnotatedTypeFactory<?, ?, ?, ?> targetFactory =
+                checker.getTypeFactoryOfSubcheckerOrNull(
+                        ((InitializationChecker) checker).getTargetCheckerClass());
+        List<VariableTree> uninitializedFields =
+                atypeFactory.getUninitializedFields(
+                        atypeFactory.getStoreBefore(node),
+                        targetFactory.getStoreBefore(node),
+                        getCurrentPath(),
+                        false,
+                        Collections.emptyList());
+        uninitializedFields.removeAll(initializedFields);
+
         AnnotationMirror init = expected.getAnnotation(Initialized.class);
         AnnotationMirror unknownInit = expected.getAnnotation(UnknownInitialization.class);
         AnnotationMirror underInit = expected.getAnnotation(UnderInitialization.class);
@@ -389,7 +401,12 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
                 && ElementUtils.isFinal(TypesUtils.getTypeElement(expected.getUnderlyingType()))) {
             frame = expected.getUnderlyingType();
         } else {
-            super.reportMethodInvocabilityError(node, found, expected);
+            if (!uninitializedFields.isEmpty()) {
+                reportMethodInvocabilityErrorWithUninitializedFields(
+                        node, found, expected, uninitializedFields);
+            } else {
+                super.reportMethodInvocabilityError(node, found, expected);
+            }
             return;
         }
 
@@ -402,31 +419,36 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
             return;
         }
 
-        GenericAnnotatedTypeFactory<?, ?, ?, ?> targetFactory =
-                checker.getTypeFactoryOfSubcheckerOrNull(
-                        ((InitializationChecker) checker).getTargetCheckerClass());
-        List<VariableTree> uninitializedFields =
-                atypeFactory.getUninitializedFields(
-                        atypeFactory.getStoreBefore(node),
-                        targetFactory.getStoreBefore(node),
-                        getCurrentPath(),
-                        false,
-                        Collections.emptyList());
-        uninitializedFields.removeAll(initializedFields);
-
         if (!uninitializedFields.isEmpty()) {
-            // TODO: improve the error message by showing the uninitialized fields
-            // StringJoiner fieldsString = new StringJoiner(", ");
-            // for (VariableTree f : uninitializedFields) {
-            //     fieldsString.add(f.getName());
-            // }
-            checker.reportError(
-                    node,
-                    "method.invocation.invalid",
-                    TreeUtils.elementFromUse(node),
-                    found.toString(),
-                    expected.toString());
+            reportMethodInvocabilityErrorWithUninitializedFields(
+                    node, found, expected, uninitializedFields);
         }
+    }
+
+    /**
+     * Report a method invocability error with uninitialized fields.
+     *
+     * @param node the AST node at which to report the error
+     * @param found the actual type of the receiver
+     * @param expected the expected type of the receiver
+     * @param uninitializedFields the list of uninitialized fields
+     */
+    private void reportMethodInvocabilityErrorWithUninitializedFields(
+            MethodInvocationTree node,
+            AnnotatedTypeMirror found,
+            AnnotatedTypeMirror expected,
+            List<VariableTree> uninitializedFields) {
+        StringJoiner fieldsString = new StringJoiner(", ");
+        for (VariableTree f : uninitializedFields) {
+            fieldsString.add(f.getName());
+        }
+        checker.reportError(
+                node,
+                "initialization.method.invocation.invalid",
+                TreeUtils.elementFromUse(node),
+                fieldsString.toString(),
+                found.toString(),
+                expected.toString());
     }
 
     /**
