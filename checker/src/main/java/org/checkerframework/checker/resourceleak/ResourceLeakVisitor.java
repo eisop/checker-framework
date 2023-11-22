@@ -195,10 +195,12 @@ public class ResourceLeakVisitor extends CalledMethodsVisitor {
     }
   }
 
+  /* NO-AFU
   @Override
   protected boolean shouldPerformContractInference() {
     return atypeFactory.getWholeProgramInference() != null && isWpiEnabledForRLC();
   }
+  */
 
   // Overwritten to check that destructors (i.e. methods responsible for resolving
   // the must-call obligations of owning fields) enforce a stronger version of

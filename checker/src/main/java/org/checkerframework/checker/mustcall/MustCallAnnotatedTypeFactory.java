@@ -305,9 +305,11 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
     // as their @MustCall obligation is set to Top in this method. However, this computation is not
     // desirable for RLC _inference_ in unannotated programs, where a goal is to infer and add
     // @Owning annotations to formal parameters.
+    /* NO-AFU
     if (getWholeProgramInference() != null && !isWpiEnabledForRLC()) {
       return;
     }
+    */
     List<AnnotatedTypeMirror> parameterTypes = type.getParameterTypes();
     for (int i = 0; i < parameterTypes.size(); i++) {
       Element paramDecl = declaration.getParameters().get(i);
@@ -505,8 +507,8 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
       // The following changes are not desired for RLC _inference_ in unannotated programs, where a
       // goal is to infer and add @Owning annotations to formal parameters. Therefore, if WPI is
       // enabled, they should not be executed.
-      if (getWholeProgramInference() == null
-          && elt.getKind() == ElementKind.PARAMETER
+      if ( // NO-AFU getWholeProgramInference() == null
+      elt.getKind() == ElementKind.PARAMETER
           && (noLightweightOwnership || getDeclAnnotation(elt, Owning.class) == null)) {
         if (!type.hasAnnotation(POLY)) {
           // Parameters that are not annotated with @Owning should be treated as bottom

@@ -1067,7 +1067,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
   }
 
-  /**
+  /* NO-AFU
    * Should Whole Program Inference attempt to infer contract annotations? Typically, the answer is
    * "yes" whenever WPI is enabled, but this method exists to allow subclasses to customize that
    * behavior.
@@ -1075,9 +1075,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
    * @return true if contract inference should be performed, false if it should be disabled (even
    *     when WPI is enabled)
    */
+  /* NO-AFU
   protected boolean shouldPerformContractInference() {
     return atypeFactory.getWholeProgramInference() != null;
   }
+  */
 
   /**
    * Check method purity if needed. Note that overriding rules are checked as part of {@link

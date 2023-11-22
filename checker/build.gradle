@@ -9,6 +9,10 @@ plugins {
 
 sourceSets {
   main {
+    java {
+      // NO-AFU
+      exclude '**/org/checkerframework/checker/resourceleak/MustCallInference.java'
+    }
     resources {
       // Stub files, message.properties, etc.
       srcDirs += ['src/main/java']

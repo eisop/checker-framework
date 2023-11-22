@@ -3,7 +3,6 @@ package org.checkerframework.checker.mustcall;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
-import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
 import java.util.List;
@@ -184,7 +183,7 @@ public class MustCallTransfer extends CFTransfer {
     store.insertValue(expr, newValue);
   }
 
-  /**
+  /* NO-AFU
    * See {@link ResourceLeakChecker#ENABLE_WPI_FOR_RLC}.
    *
    * @param tree a tree
@@ -192,6 +191,7 @@ public class MustCallTransfer extends CFTransfer {
    *     -AenableWpiForRlc flag is not passed as a command line argument, otherwise returns the
    *     result of the super call
    */
+  /* NO-AFU
   @Override
   protected boolean shouldPerformWholeProgramInference(Tree tree) {
     if (!isWpiEnabledForRLC()
@@ -200,8 +200,9 @@ public class MustCallTransfer extends CFTransfer {
     }
     return super.shouldPerformWholeProgramInference(tree);
   }
+  /*
 
-  /**
+  /* NO-AFU
    * See {@link ResourceLeakChecker#ENABLE_WPI_FOR_RLC}.
    *
    * @param expressionTree a tree
@@ -210,6 +211,7 @@ public class MustCallTransfer extends CFTransfer {
    *     -AenableWpiForRlc flag is not passed as a command line argument, otherwise returns the
    *     result of the super call
    */
+  /* NO-AFU
   @Override
   protected boolean shouldPerformWholeProgramInference(Tree expressionTree, Tree lhsTree) {
     if (!isWpiEnabledForRLC()
@@ -218,6 +220,7 @@ public class MustCallTransfer extends CFTransfer {
     }
     return super.shouldPerformWholeProgramInference(expressionTree, lhsTree);
   }
+  */
 
   @Override
   public TransferResult<CFValue, CFStore> visitObjectCreation(

@@ -1000,14 +1000,6 @@ public abstract class CFAbstractTransfer<
   @Override
   public TransferResult<V, S> visitDeconstructorPattern(
       DeconstructorPatternNode n, TransferInput<V, S> in) {
-    // TODO: dummy implementation to avoid crash.
-    V value = null;
-    return createTransferResult(value, in);
-  }
-
-  @Override
-  public TransferResult<V, S> visitDeconstructorPattern(
-      DeconstructorPatternNode n, TransferInput<V, S> in) {
     // TODO: Implement getting the type of a DeconstructorPatternTree.
     V value = null;
     return createTransferResult(value, in);
