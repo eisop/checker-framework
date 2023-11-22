@@ -82,8 +82,8 @@ public class FlowSwitch {
     String s = null;
     I e = null;
     switch (p2) {
-      case Pair<I>(I i, C c) -> {e = c; s="";}
-      case Pair<I>(I i, D d) -> {e = d; s="";}
+      case Pair<I>(I i, C c) -> { e = c; s = ""; }
+      case Pair<I>(I i, D d) -> { e = d; s = ""; }
     }
     s.toString();
     e.toString();
@@ -94,5 +94,6 @@ public class FlowSwitch {
       case Pair<I>(D d, C c) -> e2 = d;
       case Pair<I>(D d1, D d2) -> e2 = d2;
     }
+    e2.toString();
   }
 }

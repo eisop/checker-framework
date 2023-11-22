@@ -13,8 +13,14 @@ Refactored the implementation of `isTypeCastSafe` to categorize the kinds of a t
 it is an upcast, downcast or incomparable cast. Based on that, further determine if the typecast
 is statically verifiable or not.
 
+Improvements to initialization type frames in the Initialization Checker.
+
+New method `TreeUtils#isEnhancedSwitchStatement` to determine if a switch statement tree
+is an enhanced switch statement.
+
 **Closed issues:**
-eisop#155
+
+eisop#155, eisop#609, eisop#610, eisop#612.
 
 Version 3.39.0-eisop1 (October 22, 2023)
 ----------------------------------------
