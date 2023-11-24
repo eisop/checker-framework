@@ -103,6 +103,7 @@ import org.plumelib.util.SystemPlume;
 import java.lang.annotation.Annotation;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -368,7 +369,8 @@ public abstract class GenericAnnotatedTypeFactory<
             Types types = getChecker().getTypeUtils();
             Elements elements = getElementUtils();
             Class<?>[] classes = relevantJavaTypesAnno.value();
-            this.relevantJavaTypes = new HashSet<>(CollectionsPlume.mapCapacity(classes.length));
+            Set<TypeMirror> relevantJavaTypesTemp =
+                    new HashSet<>(CollectionsPlume.mapCapacity(classes.length));
             boolean arraysAreRelevantTemp = false;
             for (Class<?> clazz : classes) {
                 if (clazz == Object[].class) {
@@ -379,9 +381,11 @@ public abstract class GenericAnnotatedTypeFactory<
                                     + this.getClass().getSimpleName());
                 } else {
                     TypeMirror relevantType = TypesUtils.typeFromClass(clazz, types, elements);
-                    relevantJavaTypes.add(types.erasure(relevantType));
+                    TypeMirror erased = types.erasure(relevantType);
+                    relevantJavaTypesTemp.add(erased);
                 }
             }
+            this.relevantJavaTypes = Collections.unmodifiableSet(relevantJavaTypesTemp);
             this.arraysAreRelevant = arraysAreRelevantTemp;
         }
 
@@ -454,6 +458,7 @@ public abstract class GenericAnnotatedTypeFactory<
 
         super.setRoot(root);
         this.scannedClasses.clear();
+        // this.reachableNodes.clear();
         this.flowResult = null;
         this.regularExitStores.clear();
         this.exceptionalExitStores.clear();
@@ -1066,6 +1071,33 @@ public abstract class GenericAnnotatedTypeFactory<
         return value != null ? value.getAnnotations().iterator().next() : null;
     }
 
+    /*
+     * Returns true if the {@code exprTree} is unreachable. This is a conservative estimate and may
+     * return {@code false} even though the {@code exprTree} is unreachable.
+     *
+     * @param exprTree an expression tree
+     * @return true if the {@code exprTree} is unreachable
+     *
+    public boolean isUnreachable(ExpressionTree exprTree) {
+        if (!everUseFlow) {
+            return false;
+        }
+        Set<Node> nodes = getNodesForTree(exprTree);
+        if (nodes == null) {
+            // Dataflow has no any information about the tree, so conservatively consider the tree
+            // reachable.
+            return false;
+        }
+        for (Node n : nodes) {
+            if (n.getTree() != null && reachableNodes.contains(n.getTree())) {
+                return false;
+            }
+        }
+        // None of the corresponding nodes is reachable, so this tree is dead.
+        return true;
+    }
+    */
+
     /**
      * Track the state of org.checkerframework.dataflow analysis scanning for each class tree in the
      * compilation unit.
@@ -1079,6 +1111,16 @@ public abstract class GenericAnnotatedTypeFactory<
 
     /** Map from ClassTree to their dataflow analysis state. */
     protected final Map<ClassTree, ScanState> scannedClasses = new HashMap<>();
+
+    /*
+     * A set of trees whose corresponding nodes are reachable. This is not an exhaustive set of
+     * reachable trees. Use {@link #isUnreachable(ExpressionTree)} instead of this set directly.
+     *
+     * <p>This cannot be a set of Nodes, because two LocalVariableNodes are equal if they have the
+     * same name but represent different uses of the variable. So instead of storing Nodes, it
+     * stores the result of {@code Node#getTree}.
+     */
+    // private final Set<Tree> reachableNodes = new HashSet<>();
 
     /**
      * The result of the flow analysis. Invariant:
@@ -1270,10 +1312,11 @@ public abstract class GenericAnnotatedTypeFactory<
     /**
      * See {@link org.checkerframework.dataflow.analysis.AnalysisResult#getNodesForTree(Tree)}.
      *
+     * @param tree a tree
      * @return the {@link Node}s for a given {@link Tree}
      * @see org.checkerframework.dataflow.analysis.AnalysisResult#getNodesForTree(Tree)
      */
-    public Set<Node> getNodesForTree(Tree tree) {
+    public @Nullable Set<Node> getNodesForTree(Tree tree) {
         return flowResult.getNodesForTree(tree);
     }
 
@@ -1555,7 +1598,15 @@ public abstract class GenericAnnotatedTypeFactory<
             boolean isStatic,
             @Nullable Store capturedStore) {
         ControlFlowGraph cfg = CFCFGBuilder.build(root, ast, checker, this, processingEnv);
-
+        /*
+             cfg.getAllNodes(this::isIgnoredExceptionType)
+                     .forEach(
+                             node -> {
+                                 if (node.getTree() != null) {
+                                     reachableNodes.add(node.getTree());
+                                 }
+                             });
+        */
         if (isInitializationCode) {
             Store initStore = !isStatic ? initializationStore : initializationStaticStore;
             if (initStore != null) {
@@ -1632,6 +1683,16 @@ public abstract class GenericAnnotatedTypeFactory<
         }
 
         postAnalyze(cfg);
+    }
+
+    /**
+     * Returns true if {@code typeMirror} is an exception type that should be ignored.
+     *
+     * @param typeMirror an exception type
+     * @return true if {@code typeMirror} is an exception type that should be ignored
+     */
+    public boolean isIgnoredExceptionType(TypeMirror typeMirror) {
+        return false;
     }
 
     /**
@@ -2480,8 +2541,9 @@ public abstract class GenericAnnotatedTypeFactory<
      * Returns true if users can write type annotations from this type system directly on the given
      * Java type.
      *
-     * <p>May return false for a compound type (for which it is possible to write type qualifiers on
-     * elements of the type).
+     * <p>For a compound type, returns true only if a programmer may write a type qualifier on the
+     * top level of the compound type. That is, this method may return false, when it is possible to
+     * write type qualifiers on elements of the type.
      *
      * <p>Subclasses should override {@code #isRelevantImpl} instead of this method.
      *
@@ -2490,6 +2552,9 @@ public abstract class GenericAnnotatedTypeFactory<
      *     Java type
      */
     public final boolean isRelevant(TypeMirror tm) {
+        if (relevantJavaTypes == null) {
+            return true;
+        }
         if (tm.getKind() != TypeKind.PACKAGE && tm.getKind() != TypeKind.MODULE) {
             tm = types.erasure(tm);
         }
@@ -2506,8 +2571,9 @@ public abstract class GenericAnnotatedTypeFactory<
      * Returns true if users can write type annotations from this type system directly on the given
      * Java type.
      *
-     * <p>May return false for a compound type (for which it is possible to write type qualifiers on
-     * elements of the type).
+     * <p>For a compound type, returns true only if it a programmer may write a type qualifier on
+     * the top level of the compound type. That is, this method may return false, when it is
+     * possible to write type qualifiers on elements of the type.
      *
      * <p>Subclasses should override {@code #isRelevantImpl} instead of this method.
      *
@@ -2531,7 +2597,11 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     protected boolean isRelevantImpl(TypeMirror tm) {
 
-        if (relevantJavaTypes == null || relevantJavaTypes.contains(tm)) {
+        if (relevantJavaTypes == null) {
+            return true;
+        }
+
+        if (relevantJavaTypes.contains(tm)) {
             return true;
         }
 

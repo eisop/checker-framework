@@ -9,9 +9,16 @@ plugins {
 
 sourceSets {
     main {
+        java {
+            // NO-AFU
+            exclude '**/org/checkerframework/checker/resourceleak/MustCallInference.java'
+        }
         resources {
             // Stub files, message.properties, etc.
             srcDirs += ['src/main/java']
+
+            // NO-AFU
+            exclude '**/org/checkerframework/checker/resourceleak/MustCallInference.java'
         }
     }
     testannotations
@@ -73,7 +80,7 @@ dependencies {
     // For the Resource Leak Checker's support for JavaEE.
     testImplementation 'javax.servlet:javax.servlet-api:4.0.1'
     // For the Resource Leak Checker's support for IOUtils.
-    testImplementation 'commons-io:commons-io:2.14.0'
+    testImplementation 'commons-io:commons-io:2.15.0'
 
     // Required for checker/tests/index-initializedfields/RequireJavadoc.java
     if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
@@ -959,7 +966,9 @@ task wpiManyTest(group: 'Verification') {
                         '-i', "${project.projectDir}/tests/wpi-many/testin.txt",
                         '-o', "${project.projectDir}/build/wpi-many-tests",
                         '-s',
-                        '--', '--checker', 'nullness,interning,lock,regex,signature,calledmethods,resourceleak'
+                        '--',
+                        '--checker', 'nullness,interning,lock,regex,signature,calledmethods,resourceleak',
+                        '--extraJavacArgs=-AenableWpiForRlc'
             }
         } catch (Exception e) {
             println('Failure: Running wpi-many.sh failed with a non-zero exit code.')

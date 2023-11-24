@@ -28,7 +28,6 @@ import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.javacutil.AnnotationUtils;
-import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 
@@ -77,9 +76,6 @@ public class ResourceLeakAnnotatedTypeFactory extends CalledMethodsAnnotatedType
     /** True if -AnoResourceAliases was passed on the command line. */
     private final boolean noResourceAliases;
 
-    /** True if -AnoLightweightOwnership was passed on the command line. */
-    public final boolean noLightweightOwnership;
-
     /**
      * Bidirectional map to store temporary variables created for expressions with
      * non-empty @MustCall obligations and the corresponding trees. Keys are the artificial local
@@ -105,21 +101,18 @@ public class ResourceLeakAnnotatedTypeFactory extends CalledMethodsAnnotatedType
     public ResourceLeakAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         this.noResourceAliases = checker.hasOption(MustCallChecker.NO_RESOURCE_ALIASES);
-        this.noLightweightOwnership = checker.hasOption(MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP);
         this.postInit();
     }
 
     /**
-     * Is the given element a candidate to be an owning field? A candidate owning field must be
-     * final and have a non-empty must-call obligation.
+     * Is the given element a candidate to be an owning field? A candidate owning field must have a
+     * non-empty must-call obligation.
      *
      * @param element a element
-     * @return true iff the given element is a final field with non-empty @MustCall obligation
+     * @return true iff the given element is a field with non-empty @MustCall obligation
      */
-    /*package-private*/ boolean isCandidateOwningField(Element element) {
-        return (element.getKind().isField()
-                && ElementUtils.isFinal(element)
-                && !hasEmptyMustCallValue(element));
+    /*package-private*/ boolean isFieldWithNonemptyMustCallValue(Element element) {
+        return element.getKind().isField() && !hasEmptyMustCallValue(element);
     }
 
     @Override
@@ -141,15 +134,15 @@ public class ResourceLeakAnnotatedTypeFactory extends CalledMethodsAnnotatedType
     @Override
     public void postAnalyze(ControlFlowGraph cfg) {
         MustCallConsistencyAnalyzer mustCallConsistencyAnalyzer =
-                new MustCallConsistencyAnalyzer(this, this.analysis);
+                new MustCallConsistencyAnalyzer(this, (ResourceLeakAnalysis) this.analysis);
         mustCallConsistencyAnalyzer.analyze(cfg);
 
-        // Inferring owning annotations for final owning fields
+        // Inferring owning annotations for @Owning fields/parameters, @EnsuresCalledMethods for
+        // finalizer methods and @InheritableMustCall annotations for the class declarations.
         /* NO-AFU
         if (getWholeProgramInference() != null) {
           if (cfg.getUnderlyingAST().getKind() == UnderlyingAST.Kind.METHOD) {
-            MustCallInference mustCallInferenceLogic = new MustCallInference(this, cfg);
-            mustCallInferenceLogic.runInference();
+            MustCallInference.runMustCallInference(this, cfg, mustCallConsistencyAnalyzer);
           }
         }
         */
@@ -160,7 +153,7 @@ public class ResourceLeakAnnotatedTypeFactory extends CalledMethodsAnnotatedType
 
     @Override
     protected ResourceLeakAnalysis createFlowAnalysis() {
-        return new ResourceLeakAnalysis(checker, this);
+        return new ResourceLeakAnalysis((ResourceLeakChecker) checker, this);
     }
 
     /**
@@ -219,7 +212,7 @@ public class ResourceLeakAnnotatedTypeFactory extends CalledMethodsAnnotatedType
      * Returns the {@link MustCall#value} element/argument of the @MustCall annotation on the class
      * type of {@code element}. If there is no such annotation, returns the empty list.
      *
-     * <p>Do not use this method to get the MustCall value of an {@link
+     * <p>Do not use this method to get the MustCall values of an {@link
      * org.checkerframework.checker.resourceleak.MustCallConsistencyAnalyzer.Obligation}. Instead,
      * use {@link
      * org.checkerframework.checker.resourceleak.MustCallConsistencyAnalyzer.Obligation#getMustCallMethods(ResourceLeakAnnotatedTypeFactory,
@@ -231,7 +224,7 @@ public class ResourceLeakAnnotatedTypeFactory extends CalledMethodsAnnotatedType
      * @param element an element
      * @return the strings in its must-call type
      */
-    /*package-private*/ List<String> getMustCallValue(Element element) {
+    /*package-private*/ List<String> getMustCallValues(Element element) {
         MustCallAnnotatedTypeFactory mustCallAnnotatedTypeFactory =
                 getTypeFactoryOfSubchecker(MustCallChecker.class);
         AnnotatedTypeMirror mustCallAnnotatedType =
