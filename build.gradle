@@ -159,7 +159,7 @@ allprojects {
     //   * any new checkers have been added, or
     //   * backward-incompatible changes have been made to APIs or elsewhere.
     // To make a snapshot release: ./gradlew publish
-    version '3.39.0-eisop2-SNAPSHOT'
+    version '3.40.0-eisop1'
 
     tasks.withType(JavaCompile).configureEach {
         options.fork = true
@@ -324,6 +324,11 @@ allprojects {
                 // endWithNewline() // Don't want to end empty files with a newline
             }
         }
+    }
+
+    test {
+        minHeapSize = "256m" // initial heap size
+        maxHeapSize = "4g" // maximum heap size
     }
 
     // After all the tasks have been created, modify some of them.
@@ -532,11 +537,6 @@ allprojects {
         }
     } // end afterEvaluate
 } // end allProjects
-
-task cloneAndBuildDependencies(type: Exec, group: 'Build') {
-    description 'Clones (or updates) and builds all dependencies'
-    executable 'checker/bin-devel/build.sh'
-}
 
 task version(group: 'Documentation') {
     description 'Print Checker Framework version'
@@ -971,6 +971,9 @@ subprojects {
         createCheckTypeTask(project.name, 'Signature',
                 'org.checkerframework.checker.signature.SignatureChecker')
 
+        // The checkNullness task runs on all code, but it only *checks* the following code:
+        //  * All files outside the 'framework' and 'checker' subprojects.
+        //  * In the 'framework' and 'checker' subprojects, files with `@AnnotatedFor("nullness")`.
         if (project.name.is('framework') || project.name.is('checker')) {
             createCheckTypeTask(project.name, 'Nullness',
                     'org.checkerframework.checker.nullness.NullnessChecker',
