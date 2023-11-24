@@ -1017,7 +1017,7 @@ public abstract class CFAbstractTransfer<
     @Override
     public TransferResult<V, S> visitDeconstructorPattern(
             DeconstructorPatternNode n, TransferInput<V, S> in) {
-        // TODO: dummy implementation to avoid crash.
+        // TODO: Implement getting the type of a DeconstructorPatternTree.
         V value = null;
         return createTransferResult(value, in);
     }
@@ -1061,7 +1061,7 @@ public abstract class CFAbstractTransfer<
      * @return whether to perform whole-program inference on the tree
      */
     /* NO-AFU
-    private boolean shouldPerformWholeProgramInference(Tree tree) {
+    protected boolean shouldPerformWholeProgramInference(Tree tree) {
       TreePath path = this.analysis.atypeFactory.getPath(tree);
       return infer && (tree == null || !analysis.checker.shouldSuppressWarnings(path, ""));
     }
@@ -1076,7 +1076,7 @@ public abstract class CFAbstractTransfer<
      * @return whether to perform whole-program inference
      */
     /* NO-AFU
-    private boolean shouldPerformWholeProgramInference(Tree expressionTree, Tree lhsTree) {
+    protected boolean shouldPerformWholeProgramInference(Tree expressionTree, Tree lhsTree) {
       // Check that infer is true and the tree isn't in scope of a @SuppressWarnings
       // before calling InternalUtils.symbol(lhs).
       if (!shouldPerformWholeProgramInference(expressionTree)) {

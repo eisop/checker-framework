@@ -1,11 +1,21 @@
-Version 3.39.0-eisop2 (October ??, 2023)
-----------------------------------------
+Version 3.40.0-eisop2 (November ??, 2023)
+-----------------------------------------
 
 **User-visible changes:**
 
 **Implementation details:**
 
+**Closed issues:**
+
+
+Version 3.40.0-eisop1 (November 24, 2023)
+-----------------------------------------
+
+**User-visible changes:**
+
 Improvements to initialization type frames in the Initialization Checker.
+
+**Implementation details:**
 
 New method `TreeUtils#isEnhancedSwitchStatement` to determine if a switch statement tree
 is an enhanced switch statement.
@@ -13,6 +23,19 @@ is an enhanced switch statement.
 **Closed issues:**
 
 eisop#609, eisop#610, eisop#612.
+
+
+Version 3.40.0 (November 1, 2023)
+---------------------------------
+
+**User-visible changes:**
+
+Optional Checker:  `checker-util.jar` defines `OptionalUtil.castPresent()` for
+suppressing false positive warnings from the Optional Checker.
+
+**Closed issues:**
+
+#4947, #6179, #6215, #6218, #6222, #6247, #6259, #6260.
 
 
 Version 3.39.0-eisop1 (October 22, 2023)
@@ -76,7 +99,7 @@ crash when compiling them.
 
 **Implementation details:**
 
-Dataflow supports all the new Java 21 langauge features.
+Dataflow supports all the new Java 21 language features.
  * A new node, `DeconstructorPatternNode`, was added, so any implementation of
    `NodeVisitor` must be updated.
  * Method `InstanceOfNode.getBindingVariable()` is deprecated; use
@@ -99,7 +122,7 @@ advised against using.
 
 **Implementation details:**
 
-Renamed `SourceChecker.processArg()' to `processErrorMessageArg()`.
+Renamed `SourceChecker.processArg()` to `processErrorMessageArg()`.
 
 **Closed issues:**
 
@@ -124,7 +147,7 @@ to be written on a non-integral type.
     * `isSubtype()` has been renamed to `isSubypeQualifiers()` and made protected.
       Clients that are not in a qualifier hierarchy should call `isSubtypeShallow()`
       or, rarely, new method `isSubtypeQualifiersOnly()`.
-    * New public method `isSubtypeShallow()' that takes two more arguments than
+    * New public method `isSubtypeShallow()` that takes two more arguments than
       `isSubypeQualifiers()`.
  * Similar changes to `greatestLowerBound()` and `leastUpperBound()`.
 

@@ -27,6 +27,7 @@ import com.sun.source.tree.PrimitiveTypeTree;
 import com.sun.source.tree.StatementTree;
 import com.sun.source.tree.SwitchTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TreeVisitor;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.TypeParameterTree;
@@ -2400,6 +2401,33 @@ public final class TreeUtils {
     @Deprecated // 2023-09-26
     public static List<? extends CaseTree> switchExpressionTreeGetCases(Tree switchExpressionTree) {
         return SwitchExpressionUtils.getCases(switchExpressionTree);
+    }
+
+    /**
+     * Returns true if {@code switchTree} has a null case label.
+     *
+     * @param switchTree a {@link SwitchTree} or a {@code SwitchExpressionTree}
+     * @return true if {@code switchTree} has a null case label
+     */
+    public static boolean hasNullCaseLabel(Tree switchTree) {
+        if (!atLeastJava21) {
+            return false;
+        }
+        List<? extends CaseTree> cases;
+        if (isSwitchStatement(switchTree)) {
+            cases = ((SwitchTree) switchTree).getCases();
+        } else {
+            cases = SwitchExpressionUtils.getCases(switchTree);
+        }
+        for (CaseTree caseTree : cases) {
+            List<? extends Tree> labels = CaseUtils.getLabels(caseTree);
+            for (Tree label : labels) {
+                if (label.getKind() == Kind.NULL_LITERAL) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**

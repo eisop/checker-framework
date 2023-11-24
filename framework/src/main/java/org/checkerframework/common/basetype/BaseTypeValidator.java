@@ -298,6 +298,13 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         }
 
         boolean skipChecks = checker.shouldSkipUses(type.getUnderlyingType().asElement());
+        if (type.containsUninferredTypeArguments()) {
+            if (!atypeFactory.ignoreUninferredTypeArguments) {
+                // TODO: document the logic here.
+                isValid = true;
+            }
+            return null;
+        }
 
         if (checkTopLevelDeclaredOrPrimitiveType && !skipChecks) {
             // Ensure that type use is a subtype of the element type
