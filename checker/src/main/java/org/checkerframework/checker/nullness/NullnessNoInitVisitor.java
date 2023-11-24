@@ -54,6 +54,7 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11.SwitchExpressionUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
 import java.lang.annotation.Annotation;
@@ -289,6 +290,9 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     /** Case 1: Check for null dereferencing. */
     @Override
     public Void visitMemberSelect(MemberSelectTree tree, Void p) {
+        // if (atypeFactory.isUnreachable(tree)) {
+        //     return super.visitMemberSelect(tree, p);
+        // }
         Element e = TreeUtils.elementFromUse(tree);
         if (e.getKind() == ElementKind.CLASS) {
             if (atypeFactory.containsNullnessAnnotation(null, tree.getExpression())) {
@@ -760,8 +764,19 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
 
     @Override
     public Void visitSwitch(SwitchTree tree, Void p) {
-        checkForNullability(tree.getExpression(), SWITCHING_NULLABLE);
+        if (!TreeUtils.hasNullCaseLabel(tree)) {
+            checkForNullability(tree.getExpression(), SWITCHING_NULLABLE);
+        }
         return super.visitSwitch(tree, p);
+    }
+
+    @Override
+    public void visitSwitchExpression17(Tree switchExprTree) {
+        if (!TreeUtils.hasNullCaseLabel(switchExprTree)) {
+            checkForNullability(
+                    SwitchExpressionUtils.getExpression(switchExprTree), SWITCHING_NULLABLE);
+        }
+        super.visitSwitchExpression17(switchExprTree);
     }
 
     @Override

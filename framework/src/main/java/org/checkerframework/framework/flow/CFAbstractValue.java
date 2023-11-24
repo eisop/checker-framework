@@ -370,7 +370,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
          *
          * @param qual1 a qualifier
          * @param qual2 a qualifier
-         * @return the qualifier that is the lowest in the hierarchy.
+         * @return the qualifier that is the lowest in the hierarchy
          */
         private final AnnotationMirror lowestQualifier(
                 AnnotationMirror qual1, AnnotationMirror qual2) {

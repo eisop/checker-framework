@@ -25,7 +25,9 @@ import com.sun.source.tree.ParameterizedTypeTree;
 import com.sun.source.tree.ParenthesizedTree;
 import com.sun.source.tree.PrimitiveTypeTree;
 import com.sun.source.tree.StatementTree;
+import com.sun.source.tree.SwitchTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TreeVisitor;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.TypeParameterTree;
@@ -2402,6 +2404,33 @@ public final class TreeUtils {
     }
 
     /**
+     * Returns true if {@code switchTree} has a null case label.
+     *
+     * @param switchTree a {@link SwitchTree} or a {@code SwitchExpressionTree}
+     * @return true if {@code switchTree} has a null case label
+     */
+    public static boolean hasNullCaseLabel(Tree switchTree) {
+        if (!atLeastJava21) {
+            return false;
+        }
+        List<? extends CaseTree> cases;
+        if (isSwitchStatement(switchTree)) {
+            cases = ((SwitchTree) switchTree).getCases();
+        } else {
+            cases = SwitchExpressionUtils.getCases(switchTree);
+        }
+        for (CaseTree caseTree : cases) {
+            List<? extends Tree> labels = CaseUtils.getLabels(caseTree);
+            for (Tree label : labels) {
+                if (label.getKind() == Kind.NULL_LITERAL) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
      * Returns true if the given tree is a switch statement (as opposed to a switch expression).
      *
      * @param tree the switch statement or expression to check
@@ -2409,6 +2438,39 @@ public final class TreeUtils {
      */
     public static boolean isSwitchStatement(Tree tree) {
         return tree.getKind() == Tree.Kind.SWITCH;
+    }
+
+    /**
+     * Returns true if the given switch statement tree is an enhanced switch statement, as described
+     * in <a href="https://docs.oracle.com/javase/specs/jls/se21/html/jls-14.html#jls-14.11.2">JSL
+     * 14.11.2</a>.
+     *
+     * @param switchTree the switch statement to check
+     * @return true if the given tree is an enhanced switch statement
+     */
+    public static boolean isEnhancedSwitchStatement(SwitchTree switchTree) {
+        TypeMirror exprType = typeOf(switchTree.getExpression());
+        // TODO: this should be only char, byte, short, int, Character, Byte, Short, Integer. Is the
+        // over-approximation a problem?
+        Element exprElem = TypesUtils.getTypeElement(exprType);
+        boolean isNotEnum = exprElem == null || exprElem.getKind() != ElementKind.ENUM;
+        if (!TypesUtils.isPrimitiveOrBoxed(exprType)
+                && !TypesUtils.isString(exprType)
+                && isNotEnum) {
+            return true;
+        }
+
+        for (CaseTree caseTree : switchTree.getCases()) {
+            for (Tree caseLabel : CaseUtils.getLabels(caseTree)) {
+                if (caseLabel.getKind() == Tree.Kind.NULL_LITERAL
+                        || TreeUtils.isBindingPatternTree(caseLabel)
+                        || TreeUtils.isDeconstructionPatternTree(caseLabel)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
