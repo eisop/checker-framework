@@ -6,6 +6,7 @@ import com.sun.source.tree.ArrayAccessTree;
 import com.sun.source.tree.ArrayTypeTree;
 import com.sun.source.tree.AssertTree;
 import com.sun.source.tree.BinaryTree;
+import com.sun.source.tree.CaseTree;
 import com.sun.source.tree.CatchTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompoundAssignmentTree;
@@ -766,6 +767,23 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     public Void visitSwitch(SwitchTree tree, Void p) {
         if (!TreeUtils.hasNullCaseLabel(tree)) {
             checkForNullability(tree.getExpression(), SWITCHING_NULLABLE);
+        }
+        if (checker.getLintOption(
+                NullnessChecker.LINT_REDUNDANTNULLCOMPARISON,
+                NullnessChecker.LINT_DEFAULT_REDUNDANTNULLCOMPARISON)) {
+            ExpressionTree expression = tree.getExpression();
+            List<? extends CaseTree> cases = tree.getCases();
+            AnnotatedTypeMirror annotatedType = atypeFactory.getAnnotatedType(expression);
+            for (CaseTree caseTree : cases) {
+                List<? extends ExpressionTree> caseExpression = caseTree.getExpressions();
+                for (ExpressionTree expressionTree : caseExpression) {
+                    if (expressionTree.getKind() == Tree.Kind.NULL_LITERAL
+                            && annotatedType.hasEffectiveAnnotation(NONNULL)) {
+                        checker.reportWarning(
+                                expressionTree, "nulltest.redundant", expression.toString());
+                    }
+                }
+            }
         }
         return super.visitSwitch(tree, p);
     }

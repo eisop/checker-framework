@@ -10,6 +10,7 @@ public class FlowSwitch {
   void test0(Number n) {
     String s = null;
     switch (n) {
+      // :: warning: (nulltest.redundant)
       case null, default: {
         // TODO: this should issue a dereference of nullable error.
         n.toString();
