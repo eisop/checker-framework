@@ -773,15 +773,15 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 NullnessChecker.LINT_DEFAULT_REDUNDANTNULLCOMPARISON)) {
             ExpressionTree expression = tree.getExpression();
             List<? extends CaseTree> cases = tree.getCases();
-            AnnotatedTypeMirror annotatedType = atypeFactory.getAnnotatedType(expression);
+            AnnotatedTypeMirror switchType = atypeFactory.getAnnotatedType(expression);
             for (CaseTree caseTree : cases) {
-                List<? extends ExpressionTree> caseExpression = caseTree.getExpressions();
-                for (ExpressionTree expressionTree : caseExpression) {
-                    if (expressionTree.getKind() == Tree.Kind.NULL_LITERAL
-                            && annotatedType.hasEffectiveAnnotation(NONNULL)) {
-                        checker.reportWarning(
-                                expressionTree, "nulltest.redundant", expression.toString());
-                    }
+                @SuppressWarnings("deprecation")
+                ExpressionTree caseExpression = caseTree.getExpression();
+                if (caseExpression != null
+                        && caseExpression.getKind() == Tree.Kind.NULL_LITERAL
+                        && switchType.hasEffectiveAnnotation(NONNULL)) {
+                    checker.reportWarning(
+                            caseExpression, "nulltest.redundant", expression.toString());
                 }
             }
         }
