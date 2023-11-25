@@ -145,12 +145,8 @@ public final class TreeUtils {
 
     static {
         try {
-            if (atLeastJava21) {
-                TREEMAKER_SELECT =
-                        TreeMaker.class.getMethod("Select", JCExpression.class, Symbol.class);
-            } else {
-                TREEMAKER_SELECT = null;
-            }
+            TREEMAKER_SELECT =
+                    TreeMaker.class.getMethod("Select", JCExpression.class, Symbol.class);
         } catch (NoSuchMethodException e) {
             Error err = new AssertionError("Unexpected error in TreeUtils static initializer");
             err.initCause(e);
@@ -2610,23 +2606,26 @@ public final class TreeUtils {
      * @return the JCFieldAccess tree to select sym in base
      */
     public static JCFieldAccess Select(TreeMaker treeMaker, Tree base, Symbol sym) {
-        if (atLeastJava21) {
-            try {
-                assert TREEMAKER_SELECT != null : "@AssumeAssertion(nullness): initialization";
-                JCFieldAccess jfa = (JCFieldAccess) TREEMAKER_SELECT.invoke(treeMaker, base, sym);
-                if (jfa != null) {
-                    return jfa;
-                } else {
-                    throw new BugInCF(
-                            "TreeUtils.Select: TreeMaker.Select returned null for tree: %s", base);
-                }
-            } catch (InvocationTargetException | IllegalAccessException e) {
-                throw new BugInCF("TreeUtils.Select: reflection failed for tree: %s", base, e);
+        // The return type of TreeMaker.Select changed in
+        // https://github.com/openjdk/jdk/commit/a917fb3fcf0fe1a4c4de86c08ae4041462848b82#diff-0f1b4da56622ccb5ff716ce5a9532819fc5573179a1eb2c803d053196824891aR726
+        // When the ECF is compiled with Java 21+, even with `--source/target 8`, this will lead to
+        // a java.lang.NoSuchMethodError: 'com.sun.tools.javac.tree.JCTree$JCFieldAccess
+        // com.sun.tools.javac.tree.TreeMaker.Select(com.sun.tools.javac.tree.JCTree$JCExpression,
+        // com.sun.tools.javac.code.Symbol)'
+        // when executed on Java <21.
+        // Therefore, always use reflection to access TreeMaker.Select.
+        // Hopefully, the JVM optimizes the reflective access quickly.
+        try {
+            assert TREEMAKER_SELECT != null : "@AssumeAssertion(nullness): initialization";
+            JCFieldAccess jfa = (JCFieldAccess) TREEMAKER_SELECT.invoke(treeMaker, base, sym);
+            if (jfa != null) {
+                return jfa;
+            } else {
+                throw new BugInCF(
+                        "TreeUtils.Select: TreeMaker.Select returned null for tree: %s", base);
             }
-        } else {
-            @SuppressWarnings("cast") // Redundant on JDK 21+
-            JCFieldAccess jfa = (JCFieldAccess) treeMaker.Select((JCExpression) base, sym);
-            return jfa;
+        } catch (InvocationTargetException | IllegalAccessException e) {
+            throw new BugInCF("TreeUtils.Select: reflection failed for tree: %s", base, e);
         }
     }
 
