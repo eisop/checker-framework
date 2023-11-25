@@ -1077,13 +1077,12 @@ public abstract class GenericAnnotatedTypeFactory<
         return value != null ? value.getAnnotations().iterator().next() : null;
     }
 
-    /*
+    /**
      * Returns true if the {@code exprTree} is unreachable. This is a conservative estimate and may
      * return {@code false} even though the {@code exprTree} is unreachable.
      *
      * @param exprTree an expression tree
      * @return true if the {@code exprTree} is unreachable
-     *
      */
     public boolean isUnreachable(ExpressionTree exprTree) {
         if (!everUseFlow) {
@@ -1118,7 +1117,7 @@ public abstract class GenericAnnotatedTypeFactory<
     /** Map from ClassTree to their dataflow analysis state. */
     protected final Map<ClassTree, ScanState> scannedClasses = new HashMap<>();
 
-    /*
+    /**
      * A set of trees whose corresponding nodes are reachable. This is not an exhaustive set of
      * reachable trees. Use {@link #isUnreachable(ExpressionTree)} instead of this set directly.
      *
