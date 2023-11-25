@@ -150,6 +150,9 @@ import io.github.classgraph.ClassGraph;
     // org.checkerframework.framework.source.SourceChecker.report
     "warns",
 
+    // Make checker ignore the expression in dead branch
+    "notCheckDeadCode",
+
     ///
     /// More sound (strict checking): enable errors that are disabled by default
     ///

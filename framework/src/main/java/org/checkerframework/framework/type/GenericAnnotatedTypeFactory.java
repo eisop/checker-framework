@@ -458,7 +458,9 @@ public abstract class GenericAnnotatedTypeFactory<
 
         super.setRoot(root);
         this.scannedClasses.clear();
-        // this.reachableNodes.clear();
+        if (checker.hasOption("notCheckDeadCode")) {
+            this.reachableNodes.clear();
+        }
         this.flowResult = null;
         this.regularExitStores.clear();
         this.exceptionalExitStores.clear();
@@ -1078,6 +1080,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * @param exprTree an expression tree
      * @return true if the {@code exprTree} is unreachable
      *
+     */
     public boolean isUnreachable(ExpressionTree exprTree) {
         if (!everUseFlow) {
             return false;
@@ -1096,7 +1099,6 @@ public abstract class GenericAnnotatedTypeFactory<
         // None of the corresponding nodes is reachable, so this tree is dead.
         return true;
     }
-    */
 
     /**
      * Track the state of org.checkerframework.dataflow analysis scanning for each class tree in the
@@ -1120,7 +1122,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * same name but represent different uses of the variable. So instead of storing Nodes, it
      * stores the result of {@code Node#getTree}.
      */
-    // private final Set<Tree> reachableNodes = new HashSet<>();
+    private final Set<Tree> reachableNodes = new HashSet<>();
 
     /**
      * The result of the flow analysis. Invariant:
@@ -1598,15 +1600,15 @@ public abstract class GenericAnnotatedTypeFactory<
             boolean isStatic,
             @Nullable Store capturedStore) {
         ControlFlowGraph cfg = CFCFGBuilder.build(root, ast, checker, this, processingEnv);
-        /*
-             cfg.getAllNodes(this::isIgnoredExceptionType)
-                     .forEach(
-                             node -> {
-                                 if (node.getTree() != null) {
-                                     reachableNodes.add(node.getTree());
-                                 }
-                             });
-        */
+        if (checker.hasOption("notCheckDeadCode")) {
+            cfg.getAllNodes(this::isIgnoredExceptionType)
+                    .forEach(
+                            node -> {
+                                if (node.getTree() != null) {
+                                    reachableNodes.add(node.getTree());
+                                }
+                            });
+        }
         if (isInitializationCode) {
             Store initStore = !isStatic ? initializationStore : initializationStaticStore;
             if (initStore != null) {

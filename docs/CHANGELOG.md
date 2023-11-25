@@ -3,6 +3,9 @@ Version 3.40.0-eisop2 (November ??, 2023)
 
 **User-visible changes:**
 
+Add a new command-line argument `-AnotCheckDeadCode` disables the checker for code in dead expression.
+This option is not enabled by default.
+
 **Implementation details:**
 
 **Closed issues:**
