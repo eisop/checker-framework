@@ -151,6 +151,7 @@ import io.github.classgraph.ClassGraph;
     "warns",
 
     // Make checker ignore the expression in dead branch
+    // org.checkerframework.framework.common.basetype.BaseTypeVisitor.shouldSkipUses
     "ignoreCheckDeadCode",
 
     ///
