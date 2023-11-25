@@ -458,7 +458,7 @@ public abstract class GenericAnnotatedTypeFactory<
 
         super.setRoot(root);
         this.scannedClasses.clear();
-        if (checker.hasOption("notCheckDeadCode")) {
+        if (checker.hasOption("ignoreCheckDeadCode")) {
             this.reachableNodes.clear();
         }
         this.flowResult = null;
@@ -1600,7 +1600,7 @@ public abstract class GenericAnnotatedTypeFactory<
             boolean isStatic,
             @Nullable Store capturedStore) {
         ControlFlowGraph cfg = CFCFGBuilder.build(root, ast, checker, this, processingEnv);
-        if (checker.hasOption("notCheckDeadCode")) {
+        if (checker.hasOption("ignoreCheckDeadCode")) {
             cfg.getAllNodes(this::isIgnoredExceptionType)
                     .forEach(
                             node -> {

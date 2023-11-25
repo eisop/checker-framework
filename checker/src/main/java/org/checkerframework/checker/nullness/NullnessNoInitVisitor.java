@@ -290,7 +290,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     /** Case 1: Check for null dereferencing. */
     @Override
     public Void visitMemberSelect(MemberSelectTree tree, Void p) {
-        if (checker.hasOption("notCheckDeadCode")) {
+        if (checker.hasOption("ignoreCheckDeadCode")) {
             if (atypeFactory.isUnreachable(tree)) {
                 return super.visitMemberSelect(tree, p);
             }

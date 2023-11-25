@@ -5181,7 +5181,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @return true if checker should not test exprTree
      */
     protected final boolean shouldSkipUses(ExpressionTree exprTree) {
-        if (checker.hasOption("notCheckDeadCode")) {
+        if (checker.hasOption("ignoreCheckDeadCode")) {
             System.out.printf("shouldSkipUses: %s: %s%n", exprTree.getClass(), exprTree);
             if (atypeFactory.isUnreachable(exprTree)) {
                 return true;

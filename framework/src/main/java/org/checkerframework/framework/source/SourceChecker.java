@@ -151,7 +151,7 @@ import io.github.classgraph.ClassGraph;
     "warns",
 
     // Make checker ignore the expression in dead branch
-    "notCheckDeadCode",
+    "ignoreCheckDeadCode",
 
     ///
     /// More sound (strict checking): enable errors that are disabled by default
