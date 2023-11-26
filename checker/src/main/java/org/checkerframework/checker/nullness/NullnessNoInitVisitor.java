@@ -126,6 +126,9 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     /** True if -AassumeAssertionsAreDisabled was passed on the command line. */
     private final boolean assumeAssertionsAreDisabled;
 
+    /** True if -Alint=permitRedundantNullComparison was passed on the command line. */
+    private final boolean lintredundantNullComparison;
+
     /**
      * Create a new NullnessVisitor.
      *
@@ -152,6 +155,10 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                         NullnessChecker.LINT_DEFAULT_PERMITCLEARPROPERTY);
         assumeAssertionsAreEnabled = checker.hasOption("assumeAssertionsAreEnabled");
         assumeAssertionsAreDisabled = checker.hasOption("assumeAssertionsAreDisabled");
+        lintredundantNullComparison =
+                checker.getLintOption(
+                        NullnessChecker.LINT_REDUNDANTNULLCOMPARISON,
+                        NullnessChecker.LINT_DEFAULT_REDUNDANTNULLCOMPARISON);
     }
 
     @Override
@@ -494,9 +501,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         ExpressionTree rightOp = tree.getRightOperand();
 
         // respect command-line option
-        if (!checker.getLintOption(
-                NullnessChecker.LINT_REDUNDANTNULLCOMPARISON,
-                NullnessChecker.LINT_DEFAULT_REDUNDANTNULLCOMPARISON)) {
+        if (!lintredundantNullComparison) {
             return;
         }
 
@@ -768,9 +773,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         if (!TreeUtils.hasNullCaseLabel(tree)) {
             checkForNullability(tree.getExpression(), SWITCHING_NULLABLE);
         }
-        if (checker.getLintOption(
-                NullnessChecker.LINT_REDUNDANTNULLCOMPARISON,
-                NullnessChecker.LINT_DEFAULT_REDUNDANTNULLCOMPARISON)) {
+        if (lintredundantNullComparison) {
             ExpressionTree expression = tree.getExpression();
             List<? extends CaseTree> cases = tree.getCases();
             AnnotatedTypeMirror switchType = atypeFactory.getAnnotatedType(expression);
