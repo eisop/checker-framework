@@ -3,7 +3,7 @@ Version 3.40.0-eisop3 (November ??, 2023)
 
 **User-visible changes:**
 
-The nullness checker now issues redundant test against null warnings for switch statements when the expression is
+The Nullness Checker now issues redundant test against null warnings for switch statements when the expression is
 non-null and the case expression is null literal.
 
 **Implementation details:**
