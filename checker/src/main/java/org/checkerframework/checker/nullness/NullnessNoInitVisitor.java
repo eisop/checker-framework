@@ -55,6 +55,7 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.SwitchExpressionUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
@@ -778,13 +779,15 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             List<? extends CaseTree> cases = tree.getCases();
             AnnotatedTypeMirror switchType = atypeFactory.getAnnotatedType(expression);
             for (CaseTree caseTree : cases) {
-                @SuppressWarnings("deprecation")
-                ExpressionTree caseExpression = caseTree.getExpression();
-                if (caseExpression != null
-                        && caseExpression.getKind() == Tree.Kind.NULL_LITERAL
-                        && switchType.hasEffectiveAnnotation(NONNULL)) {
-                    checker.reportWarning(
-                            caseExpression, "nulltest.redundant", expression.toString());
+                List<? extends ExpressionTree> caseExpressions =
+                        TreeUtilsAfterJava11.CaseUtils.getExpressions(caseTree);
+                for (ExpressionTree caseExpression : caseExpressions) {
+                    if (caseExpression != null
+                            && caseExpression.getKind() == Tree.Kind.NULL_LITERAL
+                            && switchType.hasEffectiveAnnotation(NONNULL)) {
+                        checker.reportWarning(
+                                caseExpression, "nulltest.redundant", expression.toString());
+                    }
                 }
             }
         }
