@@ -12,21 +12,11 @@ class NullRedundant {
             case null: System.out.println("null"); break;
             default: System.out.println("anything else");
         }
-        switch(o) {
-            case Number n -> System.out.println("Number: " + n); break;
-            // :: (nulltest.redundant)
-            case null -> System.out.println("null"); break;
-            // :: (nulltest.redundant)
-            case Number n, null -> System.out.println("Number: " + n); break;
-            default -> System.out.println("anything else");
-        }
 
-        void output = switch(o) {
+        var output = switch(o) {
             case Number n -> "Number: " + n;
             // :: (nulltest.redundant)
             case null -> "null";
-            // :: (nulltest.redundant)
-            case Number n, null -> "Number: " + n;
             default -> "anything else";
         };
 
