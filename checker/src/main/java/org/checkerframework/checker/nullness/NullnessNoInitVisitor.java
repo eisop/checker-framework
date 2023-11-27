@@ -777,19 +777,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         if (lintredundantNullComparison) {
             ExpressionTree expression = tree.getExpression();
             List<? extends CaseTree> cases = tree.getCases();
-            AnnotatedTypeMirror switchType = atypeFactory.getAnnotatedType(expression);
-            for (CaseTree caseTree : cases) {
-                List<? extends ExpressionTree> caseExpressions =
-                        TreeUtilsAfterJava11.CaseUtils.getExpressions(caseTree);
-                for (ExpressionTree caseExpression : caseExpressions) {
-                    if (caseExpression != null
-                            && caseExpression.getKind() == Tree.Kind.NULL_LITERAL
-                            && switchType.hasEffectiveAnnotation(NONNULL)) {
-                        checker.reportWarning(
-                                caseExpression, "nulltest.redundant", expression.toString());
-                    }
-                }
-            }
+            checkSwitchNullRedundant(expression, cases);
         }
         return super.visitSwitch(tree, p);
     }
@@ -800,7 +788,36 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             checkForNullability(
                     SwitchExpressionUtils.getExpression(switchExprTree), SWITCHING_NULLABLE);
         }
+        if (lintredundantNullComparison) {
+            ExpressionTree expression = SwitchExpressionUtils.getExpression(switchExprTree);
+            List<? extends CaseTree> cases = SwitchExpressionUtils.getCases(switchExprTree);
+            checkSwitchNullRedundant(expression, cases);
+        }
         super.visitSwitchExpression17(switchExprTree);
+    }
+
+    /**
+     * Reports an error if the switch expression is @NonNull and the case expression is null
+     * literal.
+     *
+     * @param expression the switch expression
+     * @param cases the case expressions
+     */
+    private void checkSwitchNullRedundant(
+            ExpressionTree expression, List<? extends CaseTree> cases) {
+        AnnotatedTypeMirror switchType = atypeFactory.getAnnotatedType(expression);
+        for (CaseTree caseTree : cases) {
+            List<? extends ExpressionTree> caseExpressions =
+                    TreeUtilsAfterJava11.CaseUtils.getExpressions(caseTree);
+            for (ExpressionTree caseExpression : caseExpressions) {
+                if (caseExpression != null
+                        && caseExpression.getKind() == Tree.Kind.NULL_LITERAL
+                        && switchType.hasEffectiveAnnotation(NONNULL)) {
+                    checker.reportWarning(
+                            caseExpression, "nulltest.redundant", expression.toString());
+                }
+            }
+        }
     }
 
     @Override
