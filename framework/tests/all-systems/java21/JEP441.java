@@ -8,7 +8,8 @@
 // These are examples copied from:
 // https://openjdk.org/jeps/441
 
-@SuppressWarnings({"i18n", "nullness:nulltest.redundant"}) // true postives.
+import org.checkerframework.checker.nullness.qual.Nullable;
+@SuppressWarnings({"i18n"}) // true postives.
 public class JEP441 {
 
   // JEP 441 enhances switch statements and expressions in four ways:
@@ -53,7 +54,7 @@ public class JEP441 {
     };
   }
   // As of Java 21
-  static void testFooBarNew(String s) {
+  static void testFooBarNew(@Nullable String s) {
     switch (s) {
       case null         -> System.out.println("Oops");
       case "Foo", "Bar" -> System.out.println("Great");
@@ -61,7 +62,7 @@ public class JEP441 {
     }
   }
 
-  static void testStringOld(String response) {
+  static void testStringOld(@Nullable String response) {
     switch (response) {
       case null -> { }
       case String s -> {
@@ -75,7 +76,7 @@ public class JEP441 {
     }
   }
 
-  static void testStringNew(String response) {
+  static void testStringNew(@Nullable String response) {
     switch (response) {
       case null -> { }
       case String s
@@ -92,7 +93,7 @@ public class JEP441 {
     }
   }
 
-  static void testStringEnhanced(String response) {
+  static void testStringEnhanced(@Nullable String response) {
     switch (response) {
       case null -> { }
       case "y", "Y" -> {
@@ -186,7 +187,7 @@ public class JEP441 {
   record Point(int i, int j) {}
   enum Color { RED, GREEN, BLUE; }
 
-  static void typeTester(Object obj) {
+  static void typeTester(@Nullable Object obj) {
     switch (obj) {
       case null     -> System.out.println("null");
       case String s -> System.out.println("String");
