@@ -10,6 +10,8 @@ The Nullness Checker now warns about unnecessary null checks in switch block whe
 
 **Closed issues:**
 
+eisop#635.
+
 
 Version 3.40.0-eisop2 (November 24, 2023)
 -----------------------------------------
