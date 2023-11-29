@@ -57,6 +57,7 @@ import com.sun.source.tree.WildcardTree;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.TreeScanner;
 import com.sun.source.util.Trees;
+import com.sun.tools.javac.code.Type;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -67,6 +68,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -160,8 +162,10 @@ import org.checkerframework.dataflow.cfg.node.UnsignedRightShiftNode;
 import org.checkerframework.dataflow.cfg.node.ValueLiteralNode;
 import org.checkerframework.dataflow.cfg.node.VariableDeclarationNode;
 import org.checkerframework.dataflow.cfg.node.WideningConversionNode;
+import org.checkerframework.dataflow.qual.AssertMethod;
 import org.checkerframework.dataflow.qual.TerminatesExecution;
 import org.checkerframework.javacutil.AnnotationProvider;
+import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.SystemUtil;
@@ -378,7 +382,18 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
    */
   protected final Set<TypeMirror> newArrayExceptionTypes;
 
+  /** The AssertMethod.value argument/element. */
+  protected final ExecutableElement assertMethodValueElement;
+
+  /** The AssertMethod.parameter argument/element. */
+  protected final ExecutableElement assertMethodParameterElement;
+
+  /** The {@link AssertMethod#isAssertFalse()} argument/element. */
+  protected final ExecutableElement assertMethodIsAssertFalseElement;
+
   /**
+   * Creates {@link CFGTranslationPhaseOne}.
+   *
    * @param treeBuilder builder for new AST nodes
    * @param annotationProvider extracts annotations from AST nodes
    * @param assumeAssertionsDisabled can assertions be assumed to be disabled?
@@ -442,6 +457,11 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     if (outOfMemoryErrorType != null) {
       newArrayExceptionTypes.add(outOfMemoryErrorType);
     }
+
+    assertMethodValueElement = TreeUtils.getMethod(AssertMethod.class, "value", 0, env);
+    assertMethodParameterElement = TreeUtils.getMethod(AssertMethod.class, "parameter", 0, env);
+    assertMethodIsAssertFalseElement =
+        TreeUtils.getMethod(AssertMethod.class, "isAssertFalse", 0, env);
   }
 
   /**
@@ -1285,6 +1305,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
    * is null when we visit {@link MethodInvocationTree}, and is non-null when we visit {@link
    * NewClassTree}.
    *
+   * @param tree the invocation tree for the call
    * @param executable an ExecutableElement representing a method/constructor to be called
    * @param executableType an ExecutableType representing the type of the method/constructor call;
    *     the type must be viewpoint-adapted to the call
@@ -1294,6 +1315,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
    *     this method
    */
   protected List<Node> convertCallArguments(
+      ExpressionTree tree,
       ExecutableElement executable,
       ExecutableType executableType,
       List<? extends ExpressionTree> actualExprs,
@@ -1306,6 +1328,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     int numFormals = formals.size();
 
     ArrayList<Node> convertedNodes = new ArrayList<>(numFormals);
+    AssertMethodTuple assertMethodTuple = getAssertMethodTuple(executable);
 
     int numActuals = actualExprs.size();
     if (executable.isVarArgs()) {
@@ -1319,6 +1342,9 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         // invocation conversion to all arguments.
         for (int i = 0; i < numActuals; i++) {
           Node actualVal = scan(actualExprs.get(i), null);
+          if (i == assertMethodTuple.booleanParam) {
+            treatMethodAsAssert((MethodInvocationTree) tree, assertMethodTuple, actualVal);
+          }
           if (actualVal == null) {
             throw new BugInCF(
                 "CFGBuilder: scan returned null for %s [%s]",
@@ -1349,6 +1375,9 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         // remaining ones to initialize an array.
         for (int i = 0; i < lastArgIndex; i++) {
           Node actualVal = scan(actualExprs.get(i), null);
+          if (i == assertMethodTuple.booleanParam) {
+            treatMethodAsAssert((MethodInvocationTree) tree, assertMethodTuple, actualVal);
+          }
           convertedNodes.add(methodInvocationConvert(actualVal, formals.get(i)));
         }
 
@@ -1378,11 +1407,77 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     } else {
       for (int i = 0; i < numActuals; i++) {
         Node actualVal = scan(actualExprs.get(i), null);
+        if (i == assertMethodTuple.booleanParam) {
+          treatMethodAsAssert((MethodInvocationTree) tree, assertMethodTuple, actualVal);
+        }
         convertedNodes.add(methodInvocationConvert(actualVal, formals.get(i)));
       }
     }
 
     return convertedNodes;
+  }
+
+  /**
+   * Returns the AssertMethodTuple for {@code method}. If {@code method} is not an assert method,
+   * then {@link AssertMethodTuple#NONE} is returned.
+   *
+   * @param method a method element that might be an assert method
+   * @return the AssertMethodTuple for {@code method}
+   */
+  protected AssertMethodTuple getAssertMethodTuple(ExecutableElement method) {
+    AnnotationMirror assertMethodAnno =
+        annotationProvider.getDeclAnnotation(method, AssertMethod.class);
+    if (assertMethodAnno == null) {
+      return AssertMethodTuple.NONE;
+    }
+
+    int booleanParam =
+        AnnotationUtils.getElementValue(
+                assertMethodAnno, assertMethodParameterElement, Integer.class, 1)
+            - 1;
+    TypeMirror exceptionType =
+        AnnotationUtils.getElementValue(
+            assertMethodAnno,
+            assertMethodValueElement,
+            Type.ClassType.class,
+            (Type.ClassType) assertionErrorType);
+    boolean isAssertFalse =
+        AnnotationUtils.getElementValue(
+            assertMethodAnno, assertMethodIsAssertFalseElement, Boolean.class, false);
+    return new AssertMethodTuple(booleanParam, exceptionType, isAssertFalse);
+  }
+
+  /** Holds the elements of an {@link AssertMethod} annotation. */
+  protected static class AssertMethodTuple {
+
+    /** A tuple representing the lack of an {@link AssertMethodTuple}. */
+    protected static final AssertMethodTuple NONE = new AssertMethodTuple(-1, null, false);
+
+    /**
+     * 0-based index of the parameter of the expression that is tested by the assert method. (Or -1
+     * if this isn't an assert method.)
+     */
+    public final int booleanParam;
+
+    /** The type of the exception thrown by the assert method. */
+    public final TypeMirror exceptionType;
+
+    /** Is this an assert false method? */
+    public final boolean isAssertFalse;
+
+    /**
+     * Creates an AssertMethodTuple.
+     *
+     * @param booleanParam 0-based index of the parameter of the expression that is tested by the
+     *     assert method
+     * @param exceptionType the type of the exception thrown by the assert method
+     * @param isAssertFalse is this an assert false method
+     */
+    public AssertMethodTuple(int booleanParam, TypeMirror exceptionType, boolean isAssertFalse) {
+      this.booleanParam = booleanParam;
+      this.exceptionType = exceptionType;
+      this.isAssertFalse = isAssertFalse;
+    }
   }
 
   /**
@@ -1521,7 +1616,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
       // See also BaseTypeVisitor.visitMethodInvocation and QualifierPolymorphism.annotate.
       arguments = Collections.emptyList();
     } else {
-      arguments = convertCallArguments(method, TreeUtils.typeFromUse(tree), actualExprs, null);
+      arguments =
+          convertCallArguments(tree, method, TreeUtils.typeFromUse(tree), actualExprs, null);
     }
 
     // TODO: lock the receiver for synchronized methods
@@ -1536,7 +1632,6 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     if (terminatesExecution) {
       extendedNode.setTerminatesExecution(true);
     }
-
     return node;
   }
 
@@ -1670,6 +1765,35 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
     // then branch (nothing happens)
     addLabelForNextNode(assertEnd);
+  }
+
+  /**
+   * Translates a method marked as {@link AssertMethod} into CFG nodes corresponding to an {@code
+   * assert} statement.
+   *
+   * @param tree the method invocation tree for a method marked as {@link AssertMethod}
+   * @param assertMethodTuple the assert method tuple for the method
+   * @param condition the boolean expression node for the argument that the method tests
+   */
+  protected void treatMethodAsAssert(
+      MethodInvocationTree tree, AssertMethodTuple assertMethodTuple, Node condition) {
+
+    // all necessary labels
+    Label thenLabel = new Label();
+    Label elseLabel = new Label();
+    ConditionalJump cjump = new ConditionalJump(thenLabel, elseLabel);
+    extendWithExtendedNode(cjump);
+
+    addLabelForNextNode(assertMethodTuple.isAssertFalse ? thenLabel : elseLabel);
+    AssertionErrorNode assertNode =
+        new AssertionErrorNode(tree, condition, null, assertMethodTuple.exceptionType);
+    extendWithNode(assertNode);
+    NodeWithExceptionsHolder exNode =
+        extendWithNodeWithException(
+            new ThrowNode(null, assertNode, env.getTypeUtils()), assertMethodTuple.exceptionType);
+    exNode.setTerminatesExecution(true);
+
+    addLabelForNextNode(assertMethodTuple.isAssertFalse ? elseLabel : thenLabel);
   }
 
   @Override
@@ -3397,7 +3521,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     List<? extends ExpressionTree> actualExprs = tree.getArguments();
 
     List<Node> arguments =
-        convertCallArguments(constructor, TreeUtils.typeFromUse(tree), actualExprs, tree);
+        convertCallArguments(tree, constructor, TreeUtils.typeFromUse(tree), actualExprs, tree);
 
     // TODO: for anonymous classes, don't use the identifier alone.
     // See https://github.com/typetools/checker-framework/issues/890 .
