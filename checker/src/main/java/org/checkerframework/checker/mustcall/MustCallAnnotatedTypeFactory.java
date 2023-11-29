@@ -521,9 +521,6 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
           type.replaceAnnotation(BOTTOM);
         }
       }
-      if (ElementUtils.isResourceVariable(elt)) {
-        type.replaceAnnotation(withoutClose(type.getAnnotationInHierarchy(TOP)));
-      }
       return super.visitIdentifier(tree, type);
     }
   }
