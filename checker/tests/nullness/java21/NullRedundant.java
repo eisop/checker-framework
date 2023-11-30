@@ -1,3 +1,4 @@
+// Test case for EISOP issue 628:
 // https://github.com/eisop/checker-framework/issues/628
 // @below-java21-jdk-skip-test
 
