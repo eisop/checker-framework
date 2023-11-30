@@ -127,7 +127,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     /** True if -AassumeAssertionsAreDisabled was passed on the command line. */
     private final boolean assumeAssertionsAreDisabled;
 
-    /** True if -Alint=permitRedundantNullComparison was passed on the command line. */
+    /** True if -Alint=redundantNullComparison was passed on the command line. */
     private final boolean redundantNullComparison;
 
     /**
@@ -156,7 +156,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                         NullnessChecker.LINT_DEFAULT_PERMITCLEARPROPERTY);
         assumeAssertionsAreEnabled = checker.hasOption("assumeAssertionsAreEnabled");
         assumeAssertionsAreDisabled = checker.hasOption("assumeAssertionsAreDisabled");
-        lintredundantNullComparison =
+        redundantNullComparison =
                 checker.getLintOption(
                         NullnessChecker.LINT_REDUNDANTNULLCOMPARISON,
                         NullnessChecker.LINT_DEFAULT_REDUNDANTNULLCOMPARISON);
@@ -502,7 +502,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         ExpressionTree rightOp = tree.getRightOperand();
 
         // respect command-line option
-        if (!lintredundantNullComparison) {
+        if (!redundantNullComparison) {
             return;
         }
 
@@ -774,7 +774,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         if (!TreeUtils.hasNullCaseLabel(tree)) {
             checkForNullability(tree.getExpression(), SWITCHING_NULLABLE);
         }
-        if (lintredundantNullComparison && TreeUtils.isEnhancedSwitchStatement(tree)) {
+        if (redundantNullComparison && TreeUtils.isEnhancedSwitchStatement(tree)) {
             ExpressionTree expression = tree.getExpression();
             List<? extends CaseTree> cases = tree.getCases();
             checkSwitchNullRedundant(expression, cases);
@@ -788,7 +788,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             checkForNullability(
                     SwitchExpressionUtils.getExpression(switchExprTree), SWITCHING_NULLABLE);
         }
-        if (lintredundantNullComparison) {
+        if (redundantNullComparison) {
             ExpressionTree expression = SwitchExpressionUtils.getExpression(switchExprTree);
             List<? extends CaseTree> cases = SwitchExpressionUtils.getCases(switchExprTree);
             checkSwitchNullRedundant(expression, cases);
@@ -797,8 +797,8 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     }
 
     /**
-     * Reports an error if the switch expression is {@code @NonNull} and the case expression is null
-     * literal.
+     * Reports a warning if the switch expression is {@code @NonNull} and one of the case expression
+     * in the case trees is null literal.
      *
      * @param expression the switch expression
      * @param cases the case expressions
@@ -806,13 +806,14 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     private void checkSwitchNullRedundant(
             ExpressionTree expression, List<? extends CaseTree> cases) {
         AnnotatedTypeMirror switchType = atypeFactory.getAnnotatedType(expression);
+        if (!switchType.hasEffectiveAnnotation(NONNULL)) {
+            return;
+        }
         for (CaseTree caseTree : cases) {
             List<? extends ExpressionTree> caseExpressions =
                     TreeUtilsAfterJava11.CaseUtils.getExpressions(caseTree);
             for (ExpressionTree caseExpression : caseExpressions) {
-                if (caseExpression != null
-                        && caseExpression.getKind() == Tree.Kind.NULL_LITERAL
-                        && switchType.hasEffectiveAnnotation(NONNULL)) {
+                if (caseExpression != null && caseExpression.getKind() == Tree.Kind.NULL_LITERAL) {
                     checker.reportWarning(
                             caseExpression, "nulltest.redundant", expression.toString());
                 }
