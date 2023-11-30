@@ -128,7 +128,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     private final boolean assumeAssertionsAreDisabled;
 
     /** True if -Alint=permitRedundantNullComparison was passed on the command line. */
-    private final boolean lintredundantNullComparison;
+    private final boolean redundantNullComparison;
 
     /**
      * Create a new NullnessVisitor.
@@ -774,7 +774,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         if (!TreeUtils.hasNullCaseLabel(tree)) {
             checkForNullability(tree.getExpression(), SWITCHING_NULLABLE);
         }
-        if (lintredundantNullComparison) {
+        if (lintredundantNullComparison && TreeUtils.isEnhancedSwitchStatement(tree)) {
             ExpressionTree expression = tree.getExpression();
             List<? extends CaseTree> cases = tree.getCases();
             checkSwitchNullRedundant(expression, cases);
@@ -797,7 +797,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     }
 
     /**
-     * Reports an error if the switch expression is @NonNull and the case expression is null
+     * Reports an error if the switch expression is {@code @NonNull} and the case expression is null
      * literal.
      *
      * @param expression the switch expression

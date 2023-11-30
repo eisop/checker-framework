@@ -10,6 +10,8 @@ The Nullness Checker now warns about unnecessary null checks in switch block whe
 
 **Closed issues:**
 
+eisop#628.
+
 eisop#635, eisop#640, eisop#641.
 
 

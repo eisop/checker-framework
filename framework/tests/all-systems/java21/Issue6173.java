@@ -5,6 +5,7 @@
 // @infer-ajava-skip-test
 // @infer-stubs-skip-test
 import org.checkerframework.checker.nullness.qual.Nullable;
+
 public class Issue6173 {
 
   static Object toGroupByQueryWithExtractor2(@Nullable GroupBy groupBy) {

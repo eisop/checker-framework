@@ -9,6 +9,7 @@
 // https://openjdk.org/jeps/441
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+
 @SuppressWarnings({"i18n"}) // true postives.
 public class JEP441 {
 
