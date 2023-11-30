@@ -1,3 +1,24 @@
+Version 3.40.0-eisop3 (November ??, 2023)
+-----------------------------------------
+
+**User-visible changes:**
+
+**Implementation details:**
+
+**Closed issues:**
+
+eisop#635, eisop#640, eisop#641.
+
+
+Version 3.40.0-eisop2 (November 24, 2023)
+-----------------------------------------
+
+**Implementation details:**
+
+Always use reflective access for `TreeMaker#Select`, to allow artifacts built with
+Java 21+ to be executed on Java <21.
+
+
 Version 3.40.0-eisop1 (November 24, 2023)
 -----------------------------------------
 
