@@ -797,8 +797,8 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     }
 
     /**
-     * Reports a warning if the switch expression is {@code @NonNull} and one of the case expression
-     * in the case trees is null literal.
+     * Reports a warning if the switch expression is {@code @NonNull} and one of the case label the
+     * case trees is null literal.
      *
      * @param expression the switch expression
      * @param cases the case expressions
@@ -810,12 +810,10 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             return;
         }
         for (CaseTree caseTree : cases) {
-            List<? extends ExpressionTree> caseExpressions =
-                    TreeUtilsAfterJava11.CaseUtils.getExpressions(caseTree);
-            for (ExpressionTree caseExpression : caseExpressions) {
-                if (caseExpression != null && caseExpression.getKind() == Tree.Kind.NULL_LITERAL) {
-                    checker.reportWarning(
-                            caseExpression, "nulltest.redundant", expression.toString());
+            List<? extends Tree> caseLabels = TreeUtilsAfterJava11.CaseUtils.getLabels(caseTree);
+            for (Tree caseLabel : caseLabels) {
+                if (caseLabel.getKind() == Tree.Kind.NULL_LITERAL) {
+                    checker.reportWarning(caseLabel, "nulltest.redundant", expression.toString());
                 }
             }
         }
