@@ -26,6 +26,13 @@ Version 3.40.0-eisop1 (November 24, 2023)
 
 Improvements to initialization type frames in the Initialization Checker.
 
+Replace several error message keys(current still supported):
+* `exception.parameter.invalid`
+* `throw.type.invalid`
+  by new message keys:
+* `exception.parameter.incompatible`
+* `throw.type.incompatible `
+
 **Implementation details:**
 
 New method `TreeUtils#isEnhancedSwitchStatement` to determine if a switch statement tree
