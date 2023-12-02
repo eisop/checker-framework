@@ -5,7 +5,7 @@
 # See releases at https://hub.docker.com/_/ubuntu for available images.
 # See https://packages.ubuntu.com/search?suite=default&section=all&arch=any&keywords=openjdk-21-jdk&searchon=names
 # to see what Ubuntu versions support a particular OpenJDK version.
-FROM ubuntu:23.10
+FROM ubuntu:mantic-20231128
 MAINTAINER Werner Dietl <wdietl@gmail.com>
 
 # According to
