@@ -797,8 +797,8 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     }
 
     /**
-     * Reports a warning if the expression of the switch statement or expression is {@code @NonNull} and one of the case labels in the
-     * case trees is the null literal.
+     * Reports a warning if the expression of the switch statement or expression is {@code @NonNull}
+     * and one of the case labels in the case trees is the null literal.
      *
      * @param expression the expression of the switch statement or expression
      * @param cases the cases of the switch statement or expression
@@ -809,7 +809,8 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         if (!switchType.hasEffectiveAnnotation(NONNULL)) {
             return;
         }
-        outer: for (CaseTree caseTree : cases) {
+        outer:
+        for (CaseTree caseTree : cases) {
             List<? extends Tree> caseLabels = TreeUtilsAfterJava11.CaseUtils.getLabels(caseTree);
             for (Tree caseLabel : caseLabels) {
                 if (caseLabel.getKind() == Tree.Kind.NULL_LITERAL) {
