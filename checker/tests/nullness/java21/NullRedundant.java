@@ -1,5 +1,6 @@
 // Test case for EISOP issue 628:
 // https://github.com/eisop/checker-framework/issues/628
+
 // @below-java21-jdk-skip-test
 
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -34,7 +35,7 @@ class NullRedundant {
 
         switch (o) {
             // :: warning: (nulltest.redundant)
-            case null, default -> {System.out.println("null"); break;}
+            case null, default -> System.out.println("null");
         }
 
         var output = switch (o) {
@@ -64,7 +65,7 @@ class NullRedundant {
         }
 
         switch (o) {
-            case null, default: {System.out.println("null"); break;}
+            case null, default: System.out.println("null"); break;
         }
     }
 
@@ -76,7 +77,7 @@ class NullRedundant {
         };
 
         switch (o) {
-            case null, default -> {System.out.println("null"); break;}
+            case null, default -> System.out.println("null");
         }
 
         var output = switch (o) {
