@@ -1,4 +1,4 @@
-Version 3.40.0-eisop3 (November ??, 2023)
+Version 3.41.0-eisop1 (December ??, 2023)
 -----------------------------------------
 
 **User-visible changes:**
@@ -10,12 +10,10 @@ using the `-Alint=redundantNullComparison` command-line argument.
 
 **Closed issues:**
 
-eisop#628.
-
-eisop#635, eisop#640, eisop#641.
+eisop#628, eisop#635, eisop#640, eisop#641.
 
 
-Version 3.40.1 (December 1, 2023)
+Version 3.41.0 (December 4, 2023)
 ---------------------------------
 
 **User-visible changes:**
@@ -32,6 +30,8 @@ final.  Subclasses should override method `CFAbstractValue#upperBound(V,
 TypeMirror, boolean)` instead.
 
 **Closed issues:**
+
+#1497, #3345, #6037, #6204, #6276, #6282, #6290, #6296, #6319, #6327.
 
 
 Version 3.40.0-eisop2 (November 24, 2023)
