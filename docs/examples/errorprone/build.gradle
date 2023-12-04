@@ -3,47 +3,47 @@
 ///
 
 plugins {
-    id 'java'
-    id 'net.ltgt.errorprone' version '3.1.0'
-    // Checker Framework pluggable type-checking
-    id 'org.checkerframework' version '0.6.34'
+  id 'java'
+  id 'net.ltgt.errorprone' version '3.1.0'
+  // Checker Framework pluggable type-checking
+  id 'org.checkerframework' version '0.6.34'
 }
 
 ext {
-    versions = [
-        eisopVersion: '3.40.0-eisop2',
-    ]
+  versions = [
+    eisopVersion: '3.40.0-eisop2',
+  ]
 }
 
 apply plugin: 'org.checkerframework'
 dependencies {
-    compileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
-    testCompileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
-    checkerFramework "io.github.eisop:checker:${versions.eisopVersion}"
+  compileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
+  testCompileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
+  checkerFramework "io.github.eisop:checker:${versions.eisopVersion}"
 }
 
 dependencies {
-    // Must use at least version 2.4.0 of Error Prone.
-    if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
-        errorprone 'com.google.errorprone:error_prone_core:2.10.0'
-    } else {
-        errorprone 'com.google.errorprone:error_prone_core:2.23.0'
-    }
+  // Must use at least version 2.4.0 of Error Prone.
+  if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
+    errorprone 'com.google.errorprone:error_prone_core:2.10.0'
+  } else {
+    errorprone 'com.google.errorprone:error_prone_core:2.23.0'
+  }
 }
 
 repositories {
-    mavenCentral()
+  mavenCentral()
 }
 
 checkerFramework {
-    checkers = [
-        'org.checkerframework.checker.nullness.NullnessChecker',
-    ]
+  checkers = [
+    'org.checkerframework.checker.nullness.NullnessChecker',
+  ]
 }
 
 compileJava {
-    // A checker will only run if Error Prone does not issue any warnings.  So
-    // convert the expected error to a warning to test that both Error Prone
-    // and the Nullness Checker run.
-    options.errorprone.warn('CollectionIncompatibleType')
+  // A checker will only run if Error Prone does not issue any warnings.  So
+  // convert the expected error to a warning to test that both Error Prone
+  // and the Nullness Checker run.
+  options.errorprone.warn('CollectionIncompatibleType')
 }

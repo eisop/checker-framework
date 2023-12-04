@@ -1,13 +1,12 @@
 package org.checkerframework.checker.optional.qual;
 
-import org.checkerframework.framework.qual.ConditionalPostconditionAnnotation;
-import org.checkerframework.framework.qual.InheritedAnnotation;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import org.checkerframework.framework.qual.ConditionalPostconditionAnnotation;
+import org.checkerframework.framework.qual.InheritedAnnotation;
 
 /**
  * Indicates that the given expressions of type Optional&lt;T&gt; are present, if the method returns
@@ -54,38 +53,38 @@ import java.lang.annotation.Target;
 @ConditionalPostconditionAnnotation(qualifier = Present.class)
 @InheritedAnnotation
 public @interface EnsuresPresentIf {
-    /**
-     * Returns the return value of the method under which the postcondition holds.
-     *
-     * @return the return value of the method under which the postcondition holds
-     */
-    boolean result();
+  /**
+   * Returns the return value of the method under which the postcondition holds.
+   *
+   * @return the return value of the method under which the postcondition holds
+   */
+  boolean result();
 
-    /**
-     * Returns the Java expressions of type Optional&lt;T&gt; that are present after the method
-     * returns the given result.
-     *
-     * @return the Java expressions of type Optional&lt;T&gt; that are present after the method
-     *     returns the given result.
-     * @checker_framework.manual #java-expressions-as-arguments Syntax of Java expressions
-     */
-    String[] expression();
+  /**
+   * Returns the Java expressions of type Optional&lt;T&gt; that are present after the method
+   * returns the given result.
+   *
+   * @return the Java expressions of type Optional&lt;T&gt; that are present after the method
+   *     returns the given result.
+   * @checker_framework.manual #java-expressions-as-arguments Syntax of Java expressions
+   */
+  String[] expression();
 
+  /**
+   * A wrapper annotation that makes the {@link EnsuresPresentIf} annotation repeatable.
+   *
+   * <p>Programmers generally do not need to write this. It is created by Java when a programmer
+   * writes more than one {@link EnsuresPresentIf} annotation at the same location.
+   */
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
+  @ConditionalPostconditionAnnotation(qualifier = Present.class)
+  public static @interface List {
     /**
-     * A wrapper annotation that makes the {@link EnsuresPresentIf} annotation repeatable.
+     * Returns the repeatable annotations.
      *
-     * <p>Programmers generally do not need to write this. It is created by Java when a programmer
-     * writes more than one {@link EnsuresPresentIf} annotation at the same location.
+     * @return the repeatable annotations
      */
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
-    @ConditionalPostconditionAnnotation(qualifier = Present.class)
-    public static @interface List {
-        /**
-         * Returns the repeatable annotations.
-         *
-         * @return the repeatable annotations
-         */
-        EnsuresPresentIf[] value();
-    }
+    EnsuresPresentIf[] value();
+  }
 }

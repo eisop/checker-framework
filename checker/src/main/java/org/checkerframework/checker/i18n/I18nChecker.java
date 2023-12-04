@@ -1,10 +1,9 @@
 package org.checkerframework.checker.i18n;
 
-import org.checkerframework.framework.source.AggregateChecker;
-import org.checkerframework.framework.source.SourceChecker;
-
 import java.util.ArrayList;
 import java.util.Collection;
+import org.checkerframework.framework.source.AggregateChecker;
+import org.checkerframework.framework.source.SourceChecker;
 
 /**
  * A type-checker that enforces (and finds the violations of) two properties:
@@ -21,11 +20,11 @@ import java.util.Collection;
  */
 public class I18nChecker extends AggregateChecker {
 
-    @Override
-    protected Collection<Class<? extends SourceChecker>> getSupportedCheckers() {
-        Collection<Class<? extends SourceChecker>> checkers = new ArrayList<>(2);
-        checkers.add(I18nSubchecker.class);
-        checkers.add(LocalizableKeyChecker.class);
-        return checkers;
-    }
+  @Override
+  protected Collection<Class<? extends SourceChecker>> getSupportedCheckers() {
+    Collection<Class<? extends SourceChecker>> checkers = new ArrayList<>(2);
+    checkers.add(I18nSubchecker.class);
+    checkers.add(LocalizableKeyChecker.class);
+    return checkers;
+  }
 }
