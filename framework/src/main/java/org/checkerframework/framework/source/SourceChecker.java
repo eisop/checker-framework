@@ -2475,6 +2475,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 // The currentSuppressWarningsInEffect is not a prefix or a prefix:message-key, so
                 // it might be a message key.
                 messageKeyInSuppressWarningsString = currentSuppressWarningsInEffect;
+                if (messageKeyInSuppressWarningsString.equals("throw.type.invalid"))
+                    messageKeyInSuppressWarningsString = "throw.type.incompatible";
+                if (messageKeyInSuppressWarningsString.equals("exception.parameter.invalid"))
+                    messageKeyInSuppressWarningsString = "exception.parameter.incompatible";
             } else {
                 // The SuppressWarnings string has a colon; that is, it has a prefix.
                 String currentSuppressWarningsPrefix =
