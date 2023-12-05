@@ -159,7 +159,7 @@ allprojects {
     //   * any new checkers have been added, or
     //   * backward-incompatible changes have been made to APIs or elsewhere.
     // To make a snapshot release: ./gradlew publish
-    version '3.40.0-eisop3-SNAPSHOT'
+    version '3.41.0-eisop2-SNAPSHOT'
 
     tasks.withType(JavaCompile).configureEach {
         options.fork = true
@@ -757,8 +757,7 @@ void clone(url, directory, ignoreError, extraArgs = []){
         args = [
             'clone',
             '-q',
-            '--depth',
-            '1',
+            '--filter=blob:none',
             url,
             file(directory).toPath().last()
         ]
@@ -964,6 +963,13 @@ subprojects {
                 [
                     '-Astubs=javax-lang-model-element-name.astub'
                 ])
+        createCheckTypeTask(project.name, 'Optional',
+                'org.checkerframework.checker.optional.OptionalChecker',
+                [
+                    // to avoid having to annotate JavaParser
+                    '-AassumePureGetters',
+                    '-AassumeAssertionsAreEnabled',
+                ])
         createCheckTypeTask(project.name, 'Purity',
                 'org.checkerframework.framework.util.PurityChecker')
         createCheckTypeTask(project.name, 'ResourceLeak',
@@ -1141,7 +1147,7 @@ subprojects {
 
         // Create a nonJunitTests task per project
         tasks.create(name: 'nonJunitTests', group: 'Verification') {
-            description 'Run all Checker Framework tests except for the Junit tests and inference tests.'
+            description 'Run all Checker Framework tests except for the JUnit tests and inference tests.'
             if (project.name.is('framework') || project.name.is('checker')) {
                 dependsOn('jtregTests')
             }
@@ -1193,7 +1199,7 @@ subprojects {
         }
         tasks.create(name: 'typecheck-part1', group: 'Verification') {
             description 'Run the Checker Framework on itself (part 1)'
-            dependsOn('checkFormatter', 'checkInterning', 'checkPurity')
+            dependsOn('checkFormatter', 'checkInterning', 'checkOptional', 'checkPurity')
         }
         tasks.create(name: 'typecheck-part2', group: 'Verification') {
             description 'Run the Checker Framework on itself (part 2)'

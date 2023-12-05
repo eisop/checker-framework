@@ -325,12 +325,12 @@ task demosTests(dependsOn: assembleForJavac, group: 'Verification') {
 }
 
 task allNullnessTests(type: Test, group: 'Verification') {
-    description 'Run all Junit tests for the Nullness Checker.'
+    description 'Run all JUnit tests for the Nullness Checker.'
     include '**/Nullness*.class'
 }
 
 task allCalledMethodsTests(type: Test, group: 'Verification') {
-    description 'Run all Junit tests for the Called Methods Checker.'
+    description 'Run all JUnit tests for the Called Methods Checker.'
     include '**/CalledMethods*.class'
     if (!skipDelombok) {
         dependsOn 'delombok'
@@ -338,7 +338,7 @@ task allCalledMethodsTests(type: Test, group: 'Verification') {
 }
 
 task allResourceLeakTests(type: Test, group: 'Verification') {
-    description 'Run all Junit tests for the Resource Leak Checker.'
+    description 'Run all JUnit tests for the Resource Leak Checker.'
     include '**/ResourceLeak*.class'
     include '**/MustCall*.class'
 }

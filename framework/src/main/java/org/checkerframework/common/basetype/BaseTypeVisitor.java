@@ -272,6 +272,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /** True if "-AassumeDeterministic" or "-AassumePure" was passed on the command line. */
     private final boolean assumeDeterministic;
 
+    /** True if "-AassumePureGetters" was passed on the command line. */
+    public final boolean assumePureGetters;
+
     /** True if "-AcheckCastElementType" was passed on the command line. */
     private final boolean checkCastElementType;
 
@@ -344,6 +347,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 checker.hasOption("assumeSideEffectFree") || checker.hasOption("assumePure");
         assumeDeterministic =
                 checker.hasOption("assumeDeterministic") || checker.hasOption("assumePure");
+        assumePureGetters = checker.hasOption("assumePureGetters");
         checkCastElementType = checker.hasOption("checkCastElementType");
         conservativeUninferredTypeArguments =
                 checker.hasOption("conservativeUninferredTypeArguments");
@@ -1145,7 +1149,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         } else {
             r =
                     PurityChecker.checkPurity(
-                            body, atypeFactory, assumeSideEffectFree, assumeDeterministic);
+                            body,
+                            atypeFactory,
+                            assumeSideEffectFree,
+                            assumeDeterministic,
+                            assumePureGetters);
         }
         if (!r.isPure(kinds)) {
             reportPurityErrors(r, tree, kinds);
@@ -1486,7 +1494,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param qualifier the expression's type, or null if no information is available
      * @return a string representation of the expression and type qualifier
      */
-    private String contractExpressionAndType(
+    protected String contractExpressionAndType(
             String expression, @Nullable AnnotationMirror qualifier) {
         if (qualifier == null) {
             return "no information about " + expression;

@@ -1,18 +1,49 @@
-Version 3.40.0-eisop3 (November ??, 2023)
------------------------------------------
+Version 3.41.0-eisop2 (December ?, 2023)
+----------------------------------------
+
+**User-visible changes:**
+
+**Implementation details:**
+
+**Closed issues:**
+
+
+Version 3.41.0-eisop1 (December 5, 2023)
+----------------------------------------
 
 **User-visible changes:**
 
 The Nullness Checker now warns about redundant null cases in switch statements and expressions when
 using the `-Alint=redundantNullComparison` command-line argument.
 
+**Closed issues:**
+
+eisop#628, eisop#635, eisop#640, eisop#641.
+
+
+Version 3.41.0 (December 4, 2023)
+---------------------------------
+
+**User-visible changes:**
+
+New command-line options:
+* `-AassumePureGetters`: Unsoundly assume that every getter method is pure.
+
 **Implementation details:**
+
+Added method `isDeterministic()` to the `AnnotationProvider` interface.
+
+`CFAbstractValue#leastUpperBound` and `CFAbstractValue#widenUpperBound` are now
+final.  Subclasses should override method `CFAbstractValue#upperBound(V,
+TypeMirror, boolean)` instead.
+
+(EISOP note: typetools added the new method annotation `org.checkerframework.dataflow.qual.AssertMethod`
+to treat such methods like assert statements. EISOP might change the implementation of this feature
+in a future release.)
 
 **Closed issues:**
 
-eisop#628.
-
-eisop#635, eisop#640, eisop#641.
+#1497, #3345, #6037, #6204, #6276, #6282, #6290, #6296, #6319, #6327.
 
 
 Version 3.40.0-eisop2 (November 24, 2023)
