@@ -1,3 +1,29 @@
+Version 3.40.0-eisop3 (November ??, 2023)
+-----------------------------------------
+
+**User-visible changes:**
+
+The Nullness Checker now warns about redundant null cases in switch statements and expressions when
+using the `-Alint=redundantNullComparison` command-line argument.
+
+**Implementation details:**
+
+**Closed issues:**
+
+eisop#628.
+
+eisop#635, eisop#640, eisop#641.
+
+
+Version 3.40.0-eisop2 (November 24, 2023)
+-----------------------------------------
+
+**Implementation details:**
+
+Always use reflective access for `TreeMaker#Select`, to allow artifacts built with
+Java 21+ to be executed on Java <21.
+
+
 Version 3.40.0-eisop1 (November 24, 2023)
 -----------------------------------------
 

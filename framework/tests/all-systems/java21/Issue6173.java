@@ -4,10 +4,11 @@
 // @infer-jaifs-skip-test
 // @infer-ajava-skip-test
 // @infer-stubs-skip-test
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class Issue6173 {
 
-  static Object toGroupByQueryWithExtractor2(GroupBy groupBy) {
+  static Object toGroupByQueryWithExtractor2(@Nullable GroupBy groupBy) {
     return switch (groupBy) {
       case OWNER -> new Object();
       case CHANNEL -> new Object();

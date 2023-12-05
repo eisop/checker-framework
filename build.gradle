@@ -6,7 +6,7 @@ buildscript {
             // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
             // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
             // Only works on JDK 11+.
-            classpath 'com.diffplug.spotless:spotless-plugin-gradle:6.22.0'
+            classpath 'com.diffplug.spotless:spotless-plugin-gradle:6.23.3'
         }
     }
 }
@@ -159,7 +159,7 @@ allprojects {
     //   * any new checkers have been added, or
     //   * backward-incompatible changes have been made to APIs or elsewhere.
     // To make a snapshot release: ./gradlew publish
-    version '3.40.0-eisop1'
+    version '3.40.0-eisop3-SNAPSHOT'
 
     tasks.withType(JavaCompile).configureEach {
         options.fork = true
