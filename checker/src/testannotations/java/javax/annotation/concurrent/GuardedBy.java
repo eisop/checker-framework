@@ -1,12 +1,13 @@
 package javax.annotation.concurrent;
 
+import org.checkerframework.checker.lock.qual.LockHeld;
+import org.checkerframework.framework.qual.PreconditionAnnotation;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.checkerframework.checker.lock.qual.LockHeld;
-import org.checkerframework.framework.qual.PreconditionAnnotation;
 
 // The JCIP annotation can be used on a field (in which case it corresponds to the Lock Checker's
 // @GuardedBy annotation) or on a method (in which case it is a declaration annotation corresponding
@@ -20,11 +21,11 @@ import org.checkerframework.framework.qual.PreconditionAnnotation;
 @Target({ElementType.METHOD, ElementType.FIELD})
 @PreconditionAnnotation(qualifier = LockHeld.class)
 public @interface GuardedBy {
-  /**
-   * The Java expressions that need to be held.
-   *
-   * @see <a href="https://eisop.github.io/cf/manual/#java-expressions-as-arguments">Syntax of Java
-   *     expressions</a>
-   */
-  String[] value() default {};
+    /**
+     * The Java expressions that need to be held.
+     *
+     * @see <a href="https://eisop.github.io/cf/manual/#java-expressions-as-arguments">Syntax of
+     *     Java expressions</a>
+     */
+    String[] value() default {};
 }

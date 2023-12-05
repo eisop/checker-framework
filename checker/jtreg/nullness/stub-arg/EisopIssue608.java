@@ -9,7 +9,7 @@
 import java.util.List;
 
 public class EisopIssue608 {
-  boolean go(List<String> l) {
-    return l.contains(null);
-  }
+    boolean go(List<String> l) {
+        return l.contains(null);
+    }
 }
