@@ -6,14 +6,18 @@ Version 3.40.0-eisop3 (November ??, 2023)
 The Nullness Checker now warns about redundant null cases in switch statements and expressions when
 using the `-Alint=redundantNullComparison` command-line argument.
 
+Replace several error message keys(current still supported):
+* `exception.parameter.invalid`
+* `throw.type.invalid`
+  by new message keys:
+* `exception.parameter.incompatible`
+* `throw.type.incompatible`
+
 **Implementation details:**
 
 **Closed issues:**
 
-eisop#628.
-
-eisop#635, eisop#640, eisop#641.
-
+eisop#628, eisop#635, eisop#640, eisop#641.
 
 Version 3.40.0-eisop2 (November 24, 2023)
 -----------------------------------------
@@ -30,13 +34,6 @@ Version 3.40.0-eisop1 (November 24, 2023)
 **User-visible changes:**
 
 Improvements to initialization type frames in the Initialization Checker.
-
-Replace several error message keys(current still supported):
-* `exception.parameter.invalid`
-* `throw.type.invalid`
-  by new message keys:
-* `exception.parameter.incompatible`
-* `throw.type.incompatible `
 
 **Implementation details:**
 
