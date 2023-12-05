@@ -3,9 +3,14 @@ Version 3.40.0-eisop3 (November ??, 2023)
 
 **User-visible changes:**
 
+The Nullness Checker now warns about redundant null cases in switch statements and expressions when
+using the `-Alint=redundantNullComparison` command-line argument.
+
 **Implementation details:**
 
 **Closed issues:**
+
+eisop#628.
 
 eisop#635, eisop#640, eisop#641.
 
