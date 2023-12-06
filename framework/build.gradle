@@ -100,8 +100,7 @@ task cloneAnnotatedJdk() {
                 args = [
                     'clone',
                     '-q',
-                    '--depth',
-                    '1',
+                    '--filter=blob:none',
                     'https://github.com/eisop/jdk.git',
                     'jdk'
                 ]

@@ -6,12 +6,12 @@ plugins {
     id 'java'
     id 'net.ltgt.errorprone' version '3.1.0'
     // Checker Framework pluggable type-checking
-    id 'org.checkerframework' version '0.6.34'
+    id 'org.checkerframework' version '0.6.35'
 }
 
 ext {
     versions = [
-        eisopVersion: '3.40.0-eisop2',
+        eisopVersion: '3.41.0-eisop1',
     ]
 }
 

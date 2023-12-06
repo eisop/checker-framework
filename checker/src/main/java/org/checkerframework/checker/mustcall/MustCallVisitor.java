@@ -9,7 +9,6 @@ import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.Tree;
 
-import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.mustcall.qual.InheritableMustCall;
 import org.checkerframework.checker.mustcall.qual.MustCall;
 import org.checkerframework.checker.mustcall.qual.MustCallAlias;
@@ -286,75 +285,6 @@ public class MustCallVisitor extends BaseTypeVisitor<MustCallAnnotatedTypeFactor
         // be part of the must-call annotation on the class declaration! So skipping this check is
         // always sound.
         return true;
-    }
-
-    /**
-     * This boolean is used to communicate between different levels of the common assignment check
-     * whether a given check is being carried out on a (pseudo-)assignment to a resource variable.
-     * In those cases, close doesn't need to be considered when doing the check, since close will
-     * always be called by Java.
-     *
-     * <p>The check for whether the LHS is a resource variable can only be carried out on the
-     * element, but the effect needs to happen at the stage where the type is available (i.e. close
-     * needs to be removed from the type). Thus, this variable is used to communicate that a
-     * resource variable was detected on the LHS.
-     */
-    private boolean commonAssignmentCheckOnResourceVariable = false;
-
-    /**
-     * {@inheritDoc}
-     *
-     * <p>Mark (using the {@code #commonAssignmentCheckOnResourceVariable} field of this class) any
-     * assignments where the LHS is a resource variable, so that close doesn't need to be
-     * considered. See {@link #commonAssignmentCheck(AnnotatedTypeMirror, AnnotatedTypeMirror, Tree,
-     * String, Object...)} for the code that uses and removes the mark.
-     */
-    @Override
-    protected boolean commonAssignmentCheck(
-            Tree varTree,
-            ExpressionTree valueExp,
-            @CompilerMessageKey String errorKey,
-            Object... extraArgs) {
-        Element elt = TreeUtils.elementFromTree(varTree);
-        if (elt != null && elt.getKind() == ElementKind.RESOURCE_VARIABLE) {
-            commonAssignmentCheckOnResourceVariable = true;
-        }
-        return super.commonAssignmentCheck(varTree, valueExp, errorKey, extraArgs);
-    }
-
-    /**
-     * {@inheritDoc}
-     *
-     * <p>Iff the LHS is a resource variable, then {@code #commonAssignmentCheckOnResourceVariable}
-     * will be true. This method guarantees that {@code #commonAssignmentCheckOnResourceVariable}
-     * will be false when it returns.
-     */
-    @Override
-    protected boolean commonAssignmentCheck(
-            AnnotatedTypeMirror varType,
-            AnnotatedTypeMirror valueType,
-            Tree valueTree,
-            @CompilerMessageKey String errorKey,
-            Object... extraArgs) {
-
-        if (commonAssignmentCheckOnResourceVariable) {
-            commonAssignmentCheckOnResourceVariable = false;
-            // The LHS has been marked as a resource variable.  Skip the standard common assignment
-            // check; instead do a check that does not include "close".
-            AnnotationMirror varAnno = varType.getAnnotationInHierarchy(atypeFactory.TOP);
-            AnnotationMirror valueAnno = valueType.getAnnotationInHierarchy(atypeFactory.TOP);
-            if (qualHierarchy.isSubtypeShallow(
-                    atypeFactory.withoutClose(valueAnno),
-                    valueType.getUnderlyingType(),
-                    atypeFactory.withoutClose(varAnno),
-                    varType.getUnderlyingType())) {
-                return true;
-            }
-            // Note that in this case, the rest of the common assignment check should fail (barring
-            // an exception).  Control falls through here to avoid duplicating error-issuing code.
-        }
-        // commonAssignmentCheckOnResourceVariable is already false, so no need to set it.
-        return super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);
     }
 
     /**
