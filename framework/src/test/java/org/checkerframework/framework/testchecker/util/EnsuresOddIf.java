@@ -19,7 +19,7 @@ import java.lang.annotation.Target;
 @ConditionalPostconditionAnnotation(qualifier = Odd.class)
 @InheritedAnnotation
 public @interface EnsuresOddIf {
-    String[] expression();
-
     boolean result();
+
+    String[] expression();
 }

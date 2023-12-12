@@ -132,11 +132,21 @@ import io.github.classgraph.ClassGraph;
     "assumeSideEffectFree",
     "assumeDeterministic",
     "assumePure",
+    // Unsoundly assume getter methods have no side effects and are deterministic.
+    "assumePureGetters",
 
     // Whether to assume that assertions are enabled or disabled
     // org.checkerframework.framework.flow.CFCFGBuilder.CFCFGBuilder
     "assumeAssertionsAreEnabled",
     "assumeAssertionsAreDisabled",
+
+    // Whether to ignore all subtype tests for type arguments that
+    // were inferred for a raw type. Defaults to true.
+    // org.checkerframework.framework.type.TypeHierarchy.isSubtypeTypeArguments
+    "ignoreRawTypeArguments",
+
+    // Do not validate meta-annotation @TargetLocations
+    "ignoreTargetLocations",
 
     // Treat checker errors as warnings
     // org.checkerframework.framework.source.SourceChecker.report
@@ -190,11 +200,6 @@ import io.github.classgraph.ClassGraph;
     // Issues a "redundant.anno" warning if the annotation explicitly written on the type is
     // the same as the default annotation for this type and location.
     "warnRedundantAnnotations",
-
-    // Whether to ignore all subtype tests for type arguments that
-    // were inferred for a raw type. Defaults to true.
-    // org.checkerframework.framework.type.TypeHierarchy.isSubtypeTypeArguments
-    "ignoreRawTypeArguments",
 
     ///
     /// Type-checking modes:  enable/disable functionality
@@ -271,30 +276,38 @@ import io.github.classgraph.ClassGraph;
     // Additional stub files to use
     // org.checkerframework.framework.type.AnnotatedTypeFactory.parseStubFiles()
     "stubs",
+
     // Additional ajava files to use
     // org.checkerframework.framework.type.AnnotatedTypeFactory.parserAjavaFiles()
     "ajava",
+
     // Whether to print warnings about types/members in a stub file
     // that were not found on the class path
     // org.checkerframework.framework.stub.AnnotationFileParser.warnIfNotFound
     "stubWarnIfNotFound",
     "stubNoWarnIfNotFound",
+
     // Whether to ignore missing classes even when warnIfNotFound is set to true and other classes
     // from the same package are present (useful if a package spans more than one jar).
     // org.checkerframework.framework.stub.AnnotationFileParser.warnIfNotFoundIgnoresClasses
     "stubWarnIfNotFoundIgnoresClasses",
+
     // Whether to print warnings about stub files that overwrite annotations from bytecode.
     "stubWarnIfOverwritesBytecode",
+
     // Whether to print warnings about stub files that are redundant with the annotations from
     // bytecode.
     "stubWarnIfRedundantWithBytecode",
+
     // Whether to issue a NOTE rather than a WARNING for -AstubWarn* command-line options
     "stubWarnNote",
+
     // With this option, annotations in stub files are used EVEN IF THE SOURCE FILE IS
     // PRESENT. Only use this option when you intend to store types in stub files rather than
     // directly in source code, such as during whole-program inference. The annotations in the
     // stub files will be glb'd with those in the source code before local inference begins.
     "mergeStubsWithSource",
+
     // Already listed above, but worth noting again in this section:
     // "useConservativeDefaultsForUncheckedCode"
 
@@ -306,6 +319,7 @@ import io.github.classgraph.ClassGraph;
 
     // Print the version of the Checker Framework
     "version",
+
     // Print info about git repository from which the Checker Framework was compiled
     "printGitProperties",
 
@@ -336,8 +350,6 @@ import io.github.classgraph.ClassGraph;
     // Do not perform a JRE version check.
     "noJreVersionCheck",
 
-    // Do not validate meta-annotation @TargetLocations
-    "ignoreTargetLocations",
     /// Format of messages
 
     // Output detailed message in simple-to-parse format, useful
@@ -802,7 +814,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      */
     public AnnotationProvider getAnnotationProvider() {
         throw new UnsupportedOperationException(
-                "getAnnotationProvider is not implemented for this class.");
+                "getAnnotationProvider is not implemented for "
+                        + this.getClass().getSimpleName()
+                        + ".");
     }
 
     /**
@@ -883,10 +897,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         if (options.containsKey(patternName)) {
             pattern = options.get(patternName);
             if (pattern == null) {
-                message(
-                        Diagnostic.Kind.WARNING,
+                throw new UserError(
                         "The " + patternName + " property is empty; please fix your command line");
-                pattern = "";
             }
         } else {
             pattern = System.getProperty("checkers." + patternName);
@@ -899,8 +911,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         }
 
         if (pattern.indexOf("/") != -1) {
-            message(
-                    Diagnostic.Kind.WARNING,
+            throw new UserError(
                     "The "
                             + patternName
                             + " property contains \"/\", which will never match a class name: "
@@ -911,7 +922,12 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             pattern = defaultPattern;
         }
 
-        return Pattern.compile(pattern);
+        try {
+            return Pattern.compile(pattern);
+        } catch (PatternSyntaxException e) {
+            throw new UserError(
+                    "The " + patternName + " property is not a regular expression: " + pattern);
+        }
     }
 
     private Pattern getSkipUsesPattern(Map<String, String> options) {
@@ -2990,7 +3006,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 }
             }
         } catch (Exception ex) {
-            // throws an exception when invoked during Junit tests.
+            // throws an exception when invoked during JUnit tests.
             version = null;
         }
         return version;

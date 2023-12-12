@@ -24,6 +24,7 @@ import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
+import org.checkerframework.framework.flow.CFAbstractStore;
 import org.checkerframework.framework.flow.CFValue;
 import org.checkerframework.framework.qual.Unused;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
@@ -106,6 +107,9 @@ public abstract class InitializationParentAnnotatedTypeFactory
     /** The UnknownInitialization.value field/element. */
     protected final ExecutableElement unknownInitializationValueElement;
 
+    /** The value of the assumeInitialized option. */
+    protected final boolean assumeInitialized;
+
     /**
      * Create a new InitializationParentAnnotatedTypeFactory.
      *
@@ -130,6 +134,8 @@ public abstract class InitializationParentAnnotatedTypeFactory
                 TreeUtils.getMethod(UnderInitialization.class, "value", 0, processingEnv);
         unknownInitializationValueElement =
                 TreeUtils.getMethod(UnknownInitialization.class, "value", 0, processingEnv);
+
+        assumeInitialized = checker.hasOption("assumeInitialized");
     }
 
     @Override
@@ -232,7 +238,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
     public @Nullable AnnotatedDeclaredType getSelfType(Tree tree) {
         AnnotatedDeclaredType selfType = super.getSelfType(tree);
 
-        if (checker.hasOption("assumeInitialized")) {
+        if (assumeInitialized) {
             return selfType;
         }
 
@@ -423,7 +429,15 @@ public abstract class InitializationParentAnnotatedTypeFactory
     }
 
     /**
-     * Returns the fields that are not yet initialized in a given store.
+     * Returns the fields that are possibly uninitialized in a given store, without taking into
+     * account the target checker.
+     *
+     * <p>I.e., this method returns all fields that have not been assigned, without considering
+     * fields that may be considered initialized by the target checker even though they have not
+     * been explicitly assigned. See {@link
+     * InitializationAnnotatedTypeFactory#getUninitializedFields( InitializationStore,
+     * CFAbstractStore, TreePath, boolean, Collection)} for a method that does take the target
+     * checker into account.
      *
      * @param store a store
      * @param path the current path, used to determine the current class

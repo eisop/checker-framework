@@ -6,7 +6,7 @@ buildscript {
             // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
             // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
             // Only works on JDK 11+.
-            classpath 'com.diffplug.spotless:spotless-plugin-gradle:6.22.0'
+            classpath 'com.diffplug.spotless:spotless-plugin-gradle:6.23.3'
         }
     }
 }
@@ -68,6 +68,7 @@ ext {
     // afu = "${annotationTools}/annotation-file-utilities"
 
     jtregHome = "${parentDir}/jtreg"
+    jspecifyHome = "${parentDir}/jspecify"
     plumeScriptsHome = "${project(':checker').projectDir}/bin-devel/.plume-scripts"
     htmlToolsHome = "${project(':checker').projectDir}/bin-devel/.html-tools"
     doLikeJavacHome = "${project(':checker').projectDir}/bin/.do-like-javac"
@@ -158,7 +159,7 @@ allprojects {
     //   * any new checkers have been added, or
     //   * backward-incompatible changes have been made to APIs or elsewhere.
     // To make a snapshot release: ./gradlew publish
-    version '3.39.0-eisop2-SNAPSHOT'
+    version '3.41.0-eisop2-SNAPSHOT'
 
     tasks.withType(JavaCompile).configureEach {
         options.fork = true
@@ -323,6 +324,11 @@ allprojects {
                 // endWithNewline() // Don't want to end empty files with a newline
             }
         }
+    }
+
+    test {
+        minHeapSize = "256m" // initial heap size
+        maxHeapSize = "4g" // maximum heap size
     }
 
     // After all the tasks have been created, modify some of them.
@@ -531,11 +537,6 @@ allprojects {
         }
     } // end afterEvaluate
 } // end allProjects
-
-task cloneAndBuildDependencies(type: Exec, group: 'Build') {
-    description 'Clones (or updates) and builds all dependencies'
-    executable 'checker/bin-devel/build.sh'
-}
 
 task version(group: 'Documentation') {
     description 'Print Checker Framework version'
@@ -756,8 +757,7 @@ void clone(url, directory, ignoreError, extraArgs = []){
         args = [
             'clone',
             '-q',
-            '--depth',
-            '1',
+            '--filter=blob:none',
             url,
             file(directory).toPath().last()
         ]
@@ -813,7 +813,26 @@ def createCloneTask(taskName, url, directory, extraArgs = []) {
 createCloneTask('getPlumeScripts', 'https://github.com/eisop-plume-lib/plume-scripts.git', plumeScriptsHome)
 createCloneTask('getHtmlTools', 'https://github.com/plume-lib/html-tools.git', htmlToolsHome)
 createCloneTask('getDoLikeJavac', 'https://github.com/opprop/do-like-javac.git', doLikeJavacHome)
+createCloneTask('getJSpecify', 'https://github.com/jspecify/jspecify.git', jspecifyHome)
 
+task cloneAndBuildJSpecify(dependsOn: getJSpecify) {
+    description 'Obtain or update and build JSpecify.'
+    doLast {
+        // JSpecify requires Java 9 or later.
+        if (JavaVersion.current() > JavaVersion.VERSION_1_8) {
+            println 'Building JSpecify repository.'
+            exec {
+                println "Executing in directory: ${jspecifyHome}"
+                workingDir jspecifyHome
+                commandLine 'sh', '-c', './gradlew assemble'
+            }
+        } else {
+            println 'Java version is not greater than 1.8, skipping build of JSpecify.'
+        }
+    }
+}
+
+test.dependsOn cloneAndBuildJSpecify
 
 // No group so it does not show up in the output of `gradlew tasks`
 task pythonIsInstalled(type: Exec) {
@@ -944,6 +963,13 @@ subprojects {
                 [
                     '-Astubs=javax-lang-model-element-name.astub'
                 ])
+        createCheckTypeTask(project.name, 'Optional',
+                'org.checkerframework.checker.optional.OptionalChecker',
+                [
+                    // to avoid having to annotate JavaParser
+                    '-AassumePureGetters',
+                    '-AassumeAssertionsAreEnabled',
+                ])
         createCheckTypeTask(project.name, 'Purity',
                 'org.checkerframework.framework.util.PurityChecker')
         createCheckTypeTask(project.name, 'ResourceLeak',
@@ -951,6 +977,9 @@ subprojects {
         createCheckTypeTask(project.name, 'Signature',
                 'org.checkerframework.checker.signature.SignatureChecker')
 
+        // The checkNullness task runs on all code, but it only *checks* the following code:
+        //  * All files outside the 'framework' and 'checker' subprojects.
+        //  * In the 'framework' and 'checker' subprojects, files with `@AnnotatedFor("nullness")`.
         if (project.name.is('framework') || project.name.is('checker')) {
             createCheckTypeTask(project.name, 'Nullness',
                     'org.checkerframework.checker.nullness.NullnessChecker',
@@ -1064,6 +1093,9 @@ subprojects {
                 include "**/${name}.class"
                 testClassesDirs = testing.suites.test.sources.output.classesDirs
                 classpath = testing.suites.test.sources.runtimeClasspath
+                if (junitClassName == 'NullnessNullMarkedTest') {
+                    dependsOn ':cloneAndBuildJSpecify'
+                }
             }
         }
 
@@ -1115,7 +1147,7 @@ subprojects {
 
         // Create a nonJunitTests task per project
         tasks.create(name: 'nonJunitTests', group: 'Verification') {
-            description 'Run all Checker Framework tests except for the Junit tests and inference tests.'
+            description 'Run all Checker Framework tests except for the JUnit tests and inference tests.'
             if (project.name.is('framework') || project.name.is('checker')) {
                 dependsOn('jtregTests')
             }
@@ -1167,7 +1199,7 @@ subprojects {
         }
         tasks.create(name: 'typecheck-part1', group: 'Verification') {
             description 'Run the Checker Framework on itself (part 1)'
-            dependsOn('checkFormatter', 'checkInterning', 'checkPurity')
+            dependsOn('checkFormatter', 'checkInterning', 'checkOptional', 'checkPurity')
         }
         tasks.create(name: 'typecheck-part2', group: 'Verification') {
             description 'Run the Checker Framework on itself (part 2)'

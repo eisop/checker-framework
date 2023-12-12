@@ -1,5 +1,5 @@
 import org.checkerframework.checker.initialization.qual.UnknownInitialization;
-import org.checkerframework.checker.nullness.qual.*;
+import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
 
 public class TypeFrames3 {
     public Object f;

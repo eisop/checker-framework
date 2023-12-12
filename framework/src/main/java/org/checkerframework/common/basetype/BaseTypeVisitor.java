@@ -271,6 +271,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /** True if "-AassumeDeterministic" or "-AassumePure" was passed on the command line. */
     private final boolean assumeDeterministic;
 
+    /** True if "-AassumePureGetters" was passed on the command line. */
+    public final boolean assumePureGetters;
+
     /** True if "-AcheckCastElementType" was passed on the command line. */
     private final boolean checkCastElementType;
 
@@ -343,6 +346,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 checker.hasOption("assumeSideEffectFree") || checker.hasOption("assumePure");
         assumeDeterministic =
                 checker.hasOption("assumeDeterministic") || checker.hasOption("assumePure");
+        assumePureGetters = checker.hasOption("assumePureGetters");
         checkCastElementType = checker.hasOption("checkCastElementType");
         conservativeUninferredTypeArguments =
                 checker.hasOption("conservativeUninferredTypeArguments");
@@ -1069,20 +1073,20 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             checkContractsAtMethodDeclaration(
                     tree, methodElement, formalParamNames, abstractMethod);
             /* NO-AFU
-                   // Infer postconditions
-                   if (atypeFactory.getWholeProgramInference() != null) {
-                       assert ElementUtils.isElementFromSourceCode(methodElement);
+            // Infer postconditions
+            if (shouldPerformContractInference()) {
+              assert ElementUtils.isElementFromSourceCode(methodElement);
 
-                       // TODO: Infer conditional postconditions too.
-                       CFAbstractStore<?, ?> store = atypeFactory.getRegularExitStore(tree);
-                       // The store is null if the method has no normal exit, for example if its body is a
-                       // throw statement.
-                       if (store != null) {
-                           atypeFactory
-                                   .getWholeProgramInference()
-                                   .updateContracts(Analysis.BeforeOrAfter.AFTER, methodElement, store);
-                       }
-                   }
+              // TODO: Infer conditional postconditions too.
+              CFAbstractStore<?, ?> store = atypeFactory.getRegularExitStore(tree);
+              // The store is null if the method has no normal exit, for example if its body is a
+              // throw statement.
+              if (store != null) {
+                atypeFactory
+                    .getWholeProgramInference()
+                    .updateContracts(Analysis.BeforeOrAfter.AFTER, methodElement, store);
+              }
+            }
             */
 
             checkForPolymorphicQualifiers(tree.getTypeParameters());
@@ -1092,6 +1096,20 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             methodTree = preMT;
         }
     }
+
+    /* NO-AFU
+     * Should Whole Program Inference attempt to infer contract annotations? Typically, the answer is
+     * "yes" whenever WPI is enabled, but this method exists to allow subclasses to customize that
+     * behavior.
+     *
+     * @return true if contract inference should be performed, false if it should be disabled (even
+     *     when WPI is enabled)
+     */
+    /* NO-AFU
+    protected boolean shouldPerformContractInference() {
+      return atypeFactory.getWholeProgramInference() != null;
+    }
+    */
 
     /**
      * Check method purity if needed. Note that overriding rules are checked as part of {@link
@@ -1130,7 +1148,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         } else {
             r =
                     PurityChecker.checkPurity(
-                            body, atypeFactory, assumeSideEffectFree, assumeDeterministic);
+                            body,
+                            atypeFactory,
+                            assumeSideEffectFree,
+                            assumeDeterministic,
+                            assumePureGetters);
         }
         if (!r.isPure(kinds)) {
             reportPurityErrors(r, tree, kinds);
@@ -1471,7 +1493,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param qualifier the expression's type, or null if no information is available
      * @return a string representation of the expression and type qualifier
      */
-    private String contractExpressionAndType(
+    protected String contractExpressionAndType(
             String expression, @Nullable AnnotationMirror qualifier) {
         if (qualifier == null) {
             return "no information about " + expression;
@@ -5168,7 +5190,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     protected final boolean shouldSkipUses(ExpressionTree exprTree) {
         // System.out.printf("shouldSkipUses: %s: %s%n", exprTree.getClass(), exprTree);
-
+        // if (atypeFactory.isUnreachable(exprTree)) {
+        //     return true;
+        // }
         Element elm = TreeUtils.elementFromTree(exprTree);
         return checker.shouldSkipUses(elm);
     }
