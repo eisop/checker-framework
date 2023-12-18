@@ -1657,6 +1657,8 @@ public class AnnotationFileParser {
             atypeFactory.replaceAnnotations(typePar.getLowerBound(), typeVarUse.getLowerBound());
           }
         }
+        // Add back the primary annotations.
+        annotate(atype, primaryAnnotations, astNode);
         break;
       default:
         // No additional annotations to add.
@@ -1794,7 +1796,7 @@ public class AnnotationFileParser {
    * {@code elt} is a field declaration, the type annotation will be ignored.
    *
    * @param elt the element to be annotated
-   * @param annotations set of annotations that may be applicable to elt
+   * @param annotations the set of annotations that may be applicable to elt
    * @param astNode where to report errors
    */
   private void recordDeclAnnotation(

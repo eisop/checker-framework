@@ -734,7 +734,13 @@ public abstract class InitializationParentAnnotatedTypeFactory
       boolean allInitialized = true;
       Type type = ((JCTree) tree).type;
       for (ExpressionTree a : tree.getArguments()) {
+        if (!TreeUtils.isStandaloneExpression(a)) {
+          continue;
+        }
+        boolean oldShouldCache = shouldCache;
+        shouldCache = false;
         AnnotatedTypeMirror t = getAnnotatedType(a);
+        shouldCache = oldShouldCache;
         allInitialized &= (isInitialized(t) || isFbcBottom(t));
       }
       if (!allInitialized) {

@@ -451,7 +451,7 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
     @Override
     public String visitWildcard(AnnotatedWildcardType type, Set<AnnotatedTypeMirror> visiting) {
       StringBuilder sb = new StringBuilder();
-      if (type.isUninferredTypeArgument()) {
+      if (type.isTypeArgOfRawType()) {
         if (currentlyPrintingRaw) {
           sb.append("/*RAW TYPE ARGUMENT:*/ ");
         } else {

@@ -680,8 +680,42 @@ public class QualifierDefaults {
       return elementDefaults.get(elt);
     }
 
-    DefaultSet qualifiers = defaultsAtDirect(elt);
-    DefaultSet parentDefaults;
+    DefaultSet qualifiers = null;
+
+    {
+      AnnotationMirror dqAnno = atypeFactory.getDeclAnnotation(elt, DefaultQualifier.class);
+
+      if (dqAnno != null) {
+        qualifiers = new DefaultSet();
+        Set<Default> p = fromDefaultQualifier(dqAnno);
+
+        if (p != null) {
+          qualifiers.addAll(p);
+        }
+      }
+    }
+
+    {
+      AnnotationMirror dqListAnno =
+          atypeFactory.getDeclAnnotation(elt, DefaultQualifier.List.class);
+      if (dqListAnno != null) {
+        if (qualifiers == null) {
+          qualifiers = new DefaultSet();
+        }
+
+        List<AnnotationMirror> values =
+            AnnotationUtils.getElementValueArray(
+                dqListAnno, defaultQualifierListValueElement, AnnotationMirror.class);
+        for (AnnotationMirror dqAnno : values) {
+          Set<Default> p = fromDefaultQualifier(dqAnno);
+          if (p != null) {
+            qualifiers.addAll(p);
+          }
+        }
+      }
+    }
+
+    Element parent;
     if (elt.getKind() == ElementKind.PACKAGE) {
       Element parent = ElementUtils.parentPackage((PackageElement) elt, elements);
       DefaultSet origParentDefaults = defaultsAt(parent);
