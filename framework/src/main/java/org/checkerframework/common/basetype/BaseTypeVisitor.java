@@ -1650,8 +1650,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             commonAssignmentCheck(
                     tree, tree.getInitializer(), "enum.declaration.type.incompatible");
         } else if (tree.getInitializer() != null) {
-            // If there's no assignment in this variable declaration, skip it.
-            commonAssignmentCheck(tree, tree.getInitializer(), "assignment.type.incompatible");
+            if (!TreeUtils.isVariableTreeDeclaredUsingVar(tree)) {
+                // If there is no assignment in this variable declaration or it is declared using
+                // `var`, skip it.
+                // For a `var` declaration, TypeFromMemberVisitor#visitVariable already uses the
+                // type of the initializer for the variable type, so it would be redundant to check
+                // for compatibility here.
+                commonAssignmentCheck(tree, tree.getInitializer(), "assignment.type.incompatible");
+            }
         } else {
             // commonAssignmentCheck validates the type of `tree`,
             // so only validate if commonAssignmentCheck wasn't called

@@ -1466,11 +1466,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         addComputedTypeAnnotations(tree, type);
 
-        if (TreeUtils.isClassTree(tree) || tree.getKind() == Tree.Kind.METHOD) {
+        if (shouldCache && (TreeUtils.isClassTree(tree) || tree.getKind() == Tree.Kind.METHOD)) {
             // Don't cache VARIABLE
-            if (shouldCache) {
-                classAndMethodTreeCache.put(tree, type.deepCopy());
-            }
+            classAndMethodTreeCache.put(tree, type.deepCopy());
         } else {
             // No caching otherwise
         }
