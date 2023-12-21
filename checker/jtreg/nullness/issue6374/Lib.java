@@ -1,6 +1,7 @@
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.jmlspecs.annotation.NonNull;
 
+@SuppressWarnings("unchecked") // ignore heap pollution
 class Lib {
     // element type inferred, array non-null
     static <T> void none(T... o) {}
