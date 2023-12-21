@@ -61,7 +61,6 @@ public class TypeVarUseApplier {
     }
 
     private static AnnotatedTypeMirror getNestedComponentType(AnnotatedTypeMirror type) {
-
         AnnotatedTypeMirror componentType = type;
         while (componentType instanceof AnnotatedArrayType) {
             componentType = ((AnnotatedArrayType) componentType).getComponentType();
@@ -131,10 +130,15 @@ public class TypeVarUseApplier {
      * @throws UnexpectedAnnotationLocationException if invalid location for an annotation was found
      */
     public void extractAndApply() throws UnexpectedAnnotationLocationException {
-        ElementAnnotationUtil.addDeclarationAnnotationsFromElement(
-                typeVariable, useElem.getAnnotationMirrors());
+        if (arrayType != null) {
+            ElementAnnotationUtil.addDeclarationAnnotationsFromElement(
+                    arrayType, useElem.getAnnotationMirrors());
+        } else {
+            ElementAnnotationUtil.addDeclarationAnnotationsFromElement(
+                    typeVariable, useElem.getAnnotationMirrors());
+        }
 
-        // apply declaration annotations
+        // apply annotations from the type parameter declaration
         ElementAnnotationApplier.apply(typeVariable, declarationElem, atypeFactory);
 
         List<Attribute.TypeCompound> annotations = getAnnotations(useElem, declarationElem);
@@ -145,7 +149,6 @@ public class TypeVarUseApplier {
             // are not applied as the type variables primary annotation
             typeVarAnnotations = removeComponentAnnotations(arrayType, annotations);
             ElementAnnotationUtil.annotateViaTypeAnnoPosition(arrayType, annotations);
-
         } else {
             typeVarAnnotations = annotations;
         }
@@ -155,9 +158,8 @@ public class TypeVarUseApplier {
         }
     }
 
-    private List<Attribute.TypeCompound> removeComponentAnnotations(
+    private static List<Attribute.TypeCompound> removeComponentAnnotations(
             AnnotatedArrayType arrayType, List<Attribute.TypeCompound> annotations) {
-
         List<Attribute.TypeCompound> componentAnnotations = new ArrayList<>();
 
         if (arrayType != null) {
@@ -175,7 +177,8 @@ public class TypeVarUseApplier {
         return componentAnnotations;
     }
 
-    private boolean isBaseComponent(AnnotatedArrayType arrayType, Attribute.TypeCompound anno) {
+    private static boolean isBaseComponent(
+            AnnotatedArrayType arrayType, Attribute.TypeCompound anno) {
         try {
             return ElementAnnotationUtil.getTypeAtLocation(arrayType, anno.getPosition().location)
                             .getKind()
@@ -235,7 +238,6 @@ public class TypeVarUseApplier {
         List<Attribute.TypeCompound> annotations = new ArrayList<>();
 
         for (Attribute.TypeCompound anno : varSymbol.getRawTypeAttributes()) {
-
             TypeAnnotationPosition pos = anno.position;
             switch (pos.type) {
                 case FIELD:
