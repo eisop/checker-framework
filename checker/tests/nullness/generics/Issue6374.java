@@ -8,7 +8,7 @@ import org.jmlspecs.annotation.NonNull;
 public class Issue6374 {
 
     @SuppressWarnings("unchecked") // ignore heap pollution
-    class Lib {
+    static class Lib {
         // element type inferred, array non-null
         static <T> void none(T... o) {}
 
