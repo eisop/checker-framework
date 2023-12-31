@@ -243,8 +243,8 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
      *
      * <p>In the case that the right-hand side is an object, this is used by {@link
      * #reportCommonAssignmentError(AnnotatedTypeMirror, AnnotatedTypeMirror, Tree, String,
-     * Object...)} to get the correct store value for the right-hand side's fields and checker
-     * whether they are initialized according to the target checker.
+     * Object...)} to get the correct store value for the right-hand side's fields and check whether
+     * they are initialized according to the target checker.
      */
     protected Tree commonAssignmentTree;
 

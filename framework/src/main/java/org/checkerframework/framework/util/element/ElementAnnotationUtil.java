@@ -94,11 +94,16 @@ public class ElementAnnotationUtil {
         // org.checkerframework.framework.type.TypeFromMemberVisitor.visitVariable
         AnnotatedTypeMirror innerType = AnnotatedTypes.innerMostType(type);
         if (innerType != type) {
-            for (AnnotationMirror annotation : annotations) {
-                if (AnnotationUtils.annotationName(annotation).startsWith("org.checkerframework")) {
-                    innerType.addAnnotation(annotation);
+            for (AnnotationMirror anno : annotations) {
+                if (AnnotationUtils.isDeclarationAnnotation(anno)
+                        // Always treat Checker Framework annotations as type annotations.
+                        && !AnnotationUtils.annotationName(anno)
+                                .startsWith("org.checkerframework")) {
+                    // Declaration annotations apply to the outer type.
+                    type.addAnnotation(anno);
                 } else {
-                    type.addAnnotation(annotation);
+                    // Type annotations apply to the innermost type.
+                    innerType.addAnnotation(anno);
                 }
             }
         } else {
