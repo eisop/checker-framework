@@ -3,7 +3,7 @@
  * @summary Test case for issue #6373: https://github.com/typetools/checker-framework/issues/6373
  *
  * @requires jdk.version.major >= 10
- * @compile/timeout=140 -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker Issue6373.java
+ * @compile/timeout=70 -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker Issue6373.java
  */
 public class Issue6373 {
 
@@ -72,7 +72,7 @@ public class Issue6373 {
                 CR extends C5<CR>,
                 RpT extends C5<RpT>> {
 
-            public abstract Builder<C, Q, B, D, CR, RpT> f(C9<?> x);
+            public abstract Builder<C, Q, B, D, CR, RpT> f(C9<?> p);
 
             public C8<C, Q, B, D, CR, RpT> b() {
                 throw new AssertionError();
@@ -123,5 +123,17 @@ public class Issue6373 {
 
     void f() {
         var x = C8.n(C13.q().b()).f(C13.n().b()).b();
+        var y = x;
+        x = y;
+        x = y;
+        x = y;
+    }
+
+    void g() {
+        Object x = C8.n(C13.q().b()).f(C13.n().b()).b();
+        Object y = x;
+        x = y;
+        x = y;
+        x = y;
     }
 }
