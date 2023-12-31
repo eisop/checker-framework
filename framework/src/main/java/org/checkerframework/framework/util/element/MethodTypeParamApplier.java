@@ -37,7 +37,7 @@ public class MethodTypeParamApplier extends TypeParamElementAnnotationApplier {
 
     private final Symbol.MethodSymbol enclosingMethod;
 
-    MethodTypeParamApplier(
+    /*package-private*/ MethodTypeParamApplier(
             AnnotatedTypeVariable type, Element element, AnnotatedTypeFactory typeFactory) {
         super(type, element, typeFactory);
 

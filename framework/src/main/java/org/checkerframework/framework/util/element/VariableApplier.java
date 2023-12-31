@@ -43,7 +43,7 @@ public class VariableApplier extends TargetedElementAnnotationApplier {
 
     private final Symbol.VarSymbol varSymbol;
 
-    VariableApplier(AnnotatedTypeMirror type, Element element) {
+    /*package-private*/ VariableApplier(AnnotatedTypeMirror type, Element element) {
         super(type, element);
         varSymbol = (Symbol.VarSymbol) element;
 

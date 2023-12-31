@@ -93,7 +93,7 @@ public class TypeVarUseApplier {
      * @param element the element for the variable use
      * @param atypeFactory the type factory
      */
-    TypeVarUseApplier(
+    /*package-private*/ TypeVarUseApplier(
             AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory atypeFactory) {
         if (!accepts(type, element)) {
             throw new BugInCF(
@@ -112,7 +112,6 @@ public class TypeVarUseApplier {
                     (TypeParameterElement) typeVariable.getUnderlyingType().asElement();
             this.useElem = element;
             this.atypeFactory = atypeFactory;
-
         } else {
             this.arrayType = null;
             this.typeVariable = (AnnotatedTypeVariable) type;

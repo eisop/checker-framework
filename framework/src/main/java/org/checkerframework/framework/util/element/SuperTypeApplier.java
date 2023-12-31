@@ -63,7 +63,8 @@ public class SuperTypeApplier extends IndexedElementAnnotationApplier {
      * is intended to be used for annotate super types via the static annotateSuper method, hence
      * the private constructor.
      */
-    SuperTypeApplier(AnnotatedTypeMirror supertype, TypeElement subclassElement, int index) {
+    private SuperTypeApplier(
+            AnnotatedTypeMirror supertype, TypeElement subclassElement, int index) {
         super(supertype, subclassElement);
         this.subclassSymbol = (Symbol.ClassSymbol) subclassElement;
         this.index = index;

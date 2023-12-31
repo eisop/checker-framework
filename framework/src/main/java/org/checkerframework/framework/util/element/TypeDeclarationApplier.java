@@ -45,7 +45,7 @@ public class TypeDeclarationApplier extends TargetedElementAnnotationApplier {
     private final Symbol.ClassSymbol typeSymbol;
     private final AnnotatedDeclaredType declaredType;
 
-    TypeDeclarationApplier(
+    /*package-private*/ TypeDeclarationApplier(
             AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory atypeFactory) {
         super(type, element);
         this.atypeFactory = atypeFactory;

@@ -41,7 +41,7 @@ public class ClassTypeParamApplier extends TypeParamElementAnnotationApplier {
     /** The class that holds the type parameter element. */
     private final Symbol.ClassSymbol enclosingClass;
 
-    ClassTypeParamApplier(
+    /*package-private*/ ClassTypeParamApplier(
             AnnotatedTypeVariable type, Element element, AnnotatedTypeFactory typeFactory) {
         super(type, element, typeFactory);
 

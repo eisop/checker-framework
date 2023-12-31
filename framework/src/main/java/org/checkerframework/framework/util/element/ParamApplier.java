@@ -51,7 +51,7 @@ public class ParamApplier extends IndexedElementAnnotationApplier {
     private final Integer lambdaParamIndex;
     private final LambdaExpressionTree lambdaTree;
 
-    ParamApplier(
+    /*package-private*/ ParamApplier(
             AnnotatedTypeMirror type, VariableElement element, AnnotatedTypeFactory typeFactory) {
         super(type, element);
         enclosingMethod = getParentMethod(element);
@@ -230,7 +230,6 @@ public class ParamApplier extends IndexedElementAnnotationApplier {
     @Override
     protected void handleTargeted(List<TypeCompound> targeted)
             throws UnexpectedAnnotationLocationException {
-
         List<TypeCompound> formalParams = new ArrayList<>();
         Map<TargetType, List<TypeCompound>> targetToAnnos =
                 ElementAnnotationUtil.partitionByTargetType(

@@ -47,7 +47,8 @@ public class MethodApplier extends TargetedElementAnnotationApplier {
 
     private final AnnotatedExecutableType methodType;
 
-    MethodApplier(AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory atypeFactory) {
+    /*package-private*/ MethodApplier(
+            AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory atypeFactory) {
         super(type, element);
         this.atypeFactory = atypeFactory;
         this.methodSymbol = (Symbol.MethodSymbol) element;
