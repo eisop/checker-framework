@@ -29,6 +29,7 @@ import java.util.function.Supplier;
  * @see java.util.Optional
  */
 @AnnotatedFor("nullness")
+@SuppressWarnings("NullableWildcard") // Set upper and lower bound of wildcards
 public final class Opt {
 
     /** The Opt class cannot be instantiated. */
