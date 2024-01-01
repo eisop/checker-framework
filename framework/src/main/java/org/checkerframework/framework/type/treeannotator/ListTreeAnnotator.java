@@ -1,13 +1,11 @@
 package org.checkerframework.framework.type.treeannotator;
 
 import com.sun.source.tree.Tree;
-
-import org.checkerframework.framework.type.AnnotatedTypeMirror;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.checkerframework.framework.type.AnnotatedTypeMirror;
 
 /**
  * ListTreeAnnotator is a TreeVisitor that executes a list of {@link TreeAnnotator} for each tree
@@ -21,44 +19,44 @@ import java.util.List;
  */
 public class ListTreeAnnotator extends TreeAnnotator {
 
-    protected final List<TreeAnnotator> annotators;
+  protected final List<TreeAnnotator> annotators;
 
-    /**
-     * @param annotators the annotators that will be executed for each tree scanned by this
-     *     TreeAnnotator. They are executed in the order passed in.
-     */
-    public ListTreeAnnotator(TreeAnnotator... annotators) {
-        this(Arrays.asList(annotators));
+  /**
+   * @param annotators the annotators that will be executed for each tree scanned by this
+   *     TreeAnnotator. They are executed in the order passed in.
+   */
+  public ListTreeAnnotator(TreeAnnotator... annotators) {
+    this(Arrays.asList(annotators));
+  }
+
+  /**
+   * @param annotators the annotators that will be executed for each tree scanned by this
+   *     TreeAnnotator. They are executed in the order passed in.
+   */
+  public ListTreeAnnotator(List<TreeAnnotator> annotators) {
+    super(null);
+    List<TreeAnnotator> annotatorList = new ArrayList<>(annotators.size());
+    for (TreeAnnotator annotator : annotators) {
+      if (annotator instanceof ListTreeAnnotator) {
+        annotatorList.addAll(((ListTreeAnnotator) annotator).annotators);
+      } else {
+        annotatorList.add(annotator);
+      }
+    }
+    this.annotators = Collections.unmodifiableList(annotatorList);
+  }
+
+  @Override
+  public Void defaultAction(Tree tree, AnnotatedTypeMirror type) {
+    for (TreeAnnotator annotator : annotators) {
+      annotator.visit(tree, type);
     }
 
-    /**
-     * @param annotators the annotators that will be executed for each tree scanned by this
-     *     TreeAnnotator. They are executed in the order passed in.
-     */
-    public ListTreeAnnotator(List<TreeAnnotator> annotators) {
-        super(null);
-        List<TreeAnnotator> annotatorList = new ArrayList<>(annotators.size());
-        for (TreeAnnotator annotator : annotators) {
-            if (annotator instanceof ListTreeAnnotator) {
-                annotatorList.addAll(((ListTreeAnnotator) annotator).annotators);
-            } else {
-                annotatorList.add(annotator);
-            }
-        }
-        this.annotators = Collections.unmodifiableList(annotatorList);
-    }
+    return null;
+  }
 
-    @Override
-    public Void defaultAction(Tree tree, AnnotatedTypeMirror type) {
-        for (TreeAnnotator annotator : annotators) {
-            annotator.visit(tree, type);
-        }
-
-        return null;
-    }
-
-    @Override
-    public String toString() {
-        return "ListTreeAnnotator(" + annotators + ")";
-    }
+  @Override
+  public String toString() {
+    return "ListTreeAnnotator(" + annotators + ")";
+  }
 }

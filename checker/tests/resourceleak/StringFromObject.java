@@ -6,15 +6,15 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 class StringFromObject {
-    boolean test(Map<Object, Object> map) {
-        boolean isHierarchical = false;
-        for (Entry<Object, Object> entry : map.entrySet()) {
-            String key = entry.getKey().toString().trim();
-            if (key.startsWith("group") || key.startsWith("weight")) {
-                isHierarchical = true;
-                break;
-            }
-        }
-        return isHierarchical;
+  boolean test(Map<Object, Object> map) {
+    boolean isHierarchical = false;
+    for (Entry<Object, Object> entry : map.entrySet()) {
+      String key = entry.getKey().toString().trim();
+      if (key.startsWith("group") || key.startsWith("weight")) {
+        isHierarchical = true;
+        break;
+      }
     }
+    return isHierarchical;
+  }
 }
