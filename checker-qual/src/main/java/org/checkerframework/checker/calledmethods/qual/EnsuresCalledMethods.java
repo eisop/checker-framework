@@ -1,14 +1,15 @@
 package org.checkerframework.checker.calledmethods.qual;
 
+import org.checkerframework.framework.qual.InheritedAnnotation;
+import org.checkerframework.framework.qual.PostconditionAnnotation;
+import org.checkerframework.framework.qual.QualifierArgument;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.checkerframework.framework.qual.InheritedAnnotation;
-import org.checkerframework.framework.qual.PostconditionAnnotation;
-import org.checkerframework.framework.qual.QualifierArgument;
 
 /**
  * Indicates that the method, if it terminates successfully, always invokes the given methods on the
@@ -47,40 +48,40 @@ import org.checkerframework.framework.qual.QualifierArgument;
 @Repeatable(EnsuresCalledMethods.List.class)
 @InheritedAnnotation
 public @interface EnsuresCalledMethods {
-  /**
-   * The Java expressions that will have methods called on them.
-   *
-   * @return the Java expressions that will have methods called on them
-   * @see org.checkerframework.framework.qual.EnsuresQualifier
-   */
-  // Postconditions must use "value" as the name (conditional postconditions use "expression").
-  String[] value();
-
-  /**
-   * The methods guaranteed to be invoked on the expressions.
-   *
-   * @return the methods guaranteed to be invoked on the expressions
-   */
-  @QualifierArgument("value")
-  String[] methods();
-
-  /**
-   * A wrapper annotation that makes the {@link EnsuresCalledMethods} annotation repeatable. This
-   * annotation is an implementation detail: programmers generally do not need to write this. It is
-   * created automatically by Java when a programmer writes more than one {@link
-   * EnsuresCalledMethods} annotation at the same location.
-   */
-  @Documented
-  @Retention(RetentionPolicy.RUNTIME)
-  @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
-  @InheritedAnnotation
-  @PostconditionAnnotation(qualifier = CalledMethods.class)
-  public static @interface List {
     /**
-     * Return the repeatable annotations.
+     * The Java expressions that will have methods called on them.
      *
-     * @return the repeatable annotations
+     * @return the Java expressions that will have methods called on them
+     * @see org.checkerframework.framework.qual.EnsuresQualifier
      */
-    EnsuresCalledMethods[] value();
-  }
+    // Postconditions must use "value" as the name (conditional postconditions use "expression").
+    String[] value();
+
+    /**
+     * The methods guaranteed to be invoked on the expressions.
+     *
+     * @return the methods guaranteed to be invoked on the expressions
+     */
+    @QualifierArgument("value")
+    String[] methods();
+
+    /**
+     * A wrapper annotation that makes the {@link EnsuresCalledMethods} annotation repeatable. This
+     * annotation is an implementation detail: programmers generally do not need to write this. It
+     * is created automatically by Java when a programmer writes more than one {@link
+     * EnsuresCalledMethods} annotation at the same location.
+     */
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
+    @InheritedAnnotation
+    @PostconditionAnnotation(qualifier = CalledMethods.class)
+    public static @interface List {
+        /**
+         * Return the repeatable annotations.
+         *
+         * @return the repeatable annotations
+         */
+        EnsuresCalledMethods[] value();
+    }
 }

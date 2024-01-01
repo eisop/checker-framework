@@ -1,7 +1,5 @@
 package org.checkerframework.checker.nullness;
 
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.type.TypeMirror;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
@@ -14,90 +12,95 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.type.TypeMirror;
+
 /**
  * Behaves just like {@link CFValue}, but additionally tracks whether at this point {@link PolyNull}
  * is known to be {@link NonNull} or {@link Nullable} (or not known to be either)
  */
 public class NullnessNoInitValue extends CFAbstractValue<NullnessNoInitValue> {
 
-  /** True if, at this point, {@link PolyNull} is known to be {@link NonNull}. */
-  protected boolean isPolyNullNonNull;
+    /** True if, at this point, {@link PolyNull} is known to be {@link NonNull}. */
+    protected boolean isPolyNullNonNull;
 
-  /** True if, at this point, {@link PolyNull} is known to be {@link Nullable}. */
-  protected boolean isPolyNullNull;
+    /** True if, at this point, {@link PolyNull} is known to be {@link Nullable}. */
+    protected boolean isPolyNullNull;
 
-  /**
-   * Creates a new NullnessValue.
-   *
-   * @param analysis the analysis
-   * @param annotations the annotations
-   * @param underlyingType the underlying type
-   */
-  public NullnessNoInitValue(
-      CFAbstractAnalysis<NullnessNoInitValue, ?, ?> analysis,
-      AnnotationMirrorSet annotations,
-      TypeMirror underlyingType) {
-    super(analysis, annotations, underlyingType);
-  }
-
-  @Override
-  protected NullnessNoInitValue upperBound(
-      @Nullable NullnessNoInitValue other, TypeMirror upperBoundTypeMirror, boolean shouldWiden) {
-    NullnessNoInitValue result = super.upperBound(other, upperBoundTypeMirror, shouldWiden);
-
-    AnnotationMirror resultNullableAnno =
-        analysis.getTypeFactory().getAnnotationByClass(result.annotations, Nullable.class);
-
-    if (resultNullableAnno != null && other != null) {
-      if ((this.isPolyNullNonNull
-              && this.containsNonNullOrPolyNull()
-              && other.isPolyNullNull
-              && other.containsNullableOrPolyNull())
-          || (other.isPolyNullNonNull
-              && other.containsNonNullOrPolyNull()
-              && this.isPolyNullNull
-              && this.containsNullableOrPolyNull())) {
-        result.annotations.remove(resultNullableAnno);
-        result.annotations.add(
-            ((NullnessNoInitAnnotatedTypeFactory) analysis.getTypeFactory()).POLYNULL);
-      }
+    /**
+     * Creates a new NullnessValue.
+     *
+     * @param analysis the analysis
+     * @param annotations the annotations
+     * @param underlyingType the underlying type
+     */
+    public NullnessNoInitValue(
+            CFAbstractAnalysis<NullnessNoInitValue, ?, ?> analysis,
+            AnnotationMirrorSet annotations,
+            TypeMirror underlyingType) {
+        super(analysis, annotations, underlyingType);
     }
-    return result;
-  }
 
-  /**
-   * Returns true if this value contains {@code @NonNull} or {@code @PolyNull}.
-   *
-   * @return true if this value contains {@code @NonNull} or {@code @PolyNull}
-   */
-  @Pure
-  private boolean containsNonNullOrPolyNull() {
-    return analysis.getTypeFactory().containsSameByClass(annotations, NonNull.class)
-        || analysis.getTypeFactory().containsSameByClass(annotations, PolyNull.class);
-  }
+    @Override
+    protected NullnessNoInitValue upperBound(
+            @Nullable NullnessNoInitValue other,
+            TypeMirror upperBoundTypeMirror,
+            boolean shouldWiden) {
+        NullnessNoInitValue result = super.upperBound(other, upperBoundTypeMirror, shouldWiden);
 
-  /**
-   * Returns true if this value contans {@code @Nullable} or {@code @PolyNull}.
-   *
-   * @return true if this value contans {@code @Nullable} or {@code @PolyNull}
-   */
-  @Pure
-  private boolean containsNullableOrPolyNull() {
-    return analysis.getTypeFactory().containsSameByClass(annotations, Nullable.class)
-        || analysis.getTypeFactory().containsSameByClass(annotations, PolyNull.class);
-  }
+        AnnotationMirror resultNullableAnno =
+                analysis.getTypeFactory().getAnnotationByClass(result.annotations, Nullable.class);
 
-  @SideEffectFree
-  @Override
-  public String toStringSimple() {
-    return "NV{"
-        + AnnotationUtils.toStringSimple(annotations)
-        + ", "
-        + TypesUtils.simpleTypeName(underlyingType)
-        + ", poly nn/n="
-        + (isPolyNullNonNull ? 't' : 'f')
-        + '/'
-        + (isPolyNullNull ? 't' : 'f')
-        + '}';
-  }
+        if (resultNullableAnno != null && other != null) {
+            if ((this.isPolyNullNonNull
+                            && this.containsNonNullOrPolyNull()
+                            && other.isPolyNullNull
+                            && other.containsNullableOrPolyNull())
+                    || (other.isPolyNullNonNull
+                            && other.containsNonNullOrPolyNull()
+                            && this.isPolyNullNull
+                            && this.containsNullableOrPolyNull())) {
+                result.annotations.remove(resultNullableAnno);
+                result.annotations.add(
+                        ((NullnessNoInitAnnotatedTypeFactory) analysis.getTypeFactory()).POLYNULL);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Returns true if this value contains {@code @NonNull} or {@code @PolyNull}.
+     *
+     * @return true if this value contains {@code @NonNull} or {@code @PolyNull}
+     */
+    @Pure
+    private boolean containsNonNullOrPolyNull() {
+        return analysis.getTypeFactory().containsSameByClass(annotations, NonNull.class)
+                || analysis.getTypeFactory().containsSameByClass(annotations, PolyNull.class);
+    }
+
+    /**
+     * Returns true if this value contans {@code @Nullable} or {@code @PolyNull}.
+     *
+     * @return true if this value contans {@code @Nullable} or {@code @PolyNull}
+     */
+    @Pure
+    private boolean containsNullableOrPolyNull() {
+        return analysis.getTypeFactory().containsSameByClass(annotations, Nullable.class)
+                || analysis.getTypeFactory().containsSameByClass(annotations, PolyNull.class);
+    }
+
+    @SideEffectFree
+    @Override
+    public String toStringSimple() {
+        return "NV{"
+                + AnnotationUtils.toStringSimple(annotations)
+                + ", "
+                + TypesUtils.simpleTypeName(underlyingType)
+                + ", poly nn/n="
+                + (isPolyNullNonNull ? 't' : 'f')
+                + '/'
+                + (isPolyNullNull ? 't' : 'f')
+                + '}';
+    }
 }

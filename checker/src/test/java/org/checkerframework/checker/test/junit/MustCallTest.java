@@ -1,22 +1,23 @@
 package org.checkerframework.checker.test.junit;
 
-import java.io.File;
-import java.util.List;
 import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
 import org.junit.runners.Parameterized.Parameters;
 
-public class MustCallTest extends CheckerFrameworkPerDirectoryTest {
-  public MustCallTest(List<File> testFiles) {
-    super(
-        testFiles,
-        org.checkerframework.checker.mustcall.MustCallChecker.class,
-        "mustcall",
-        // "-AstubDebug");
-        "-nowarn");
-  }
+import java.io.File;
+import java.util.List;
 
-  @Parameters
-  public static String[] getTestDirs() {
-    return new String[] {"mustcall"};
-  }
+public class MustCallTest extends CheckerFrameworkPerDirectoryTest {
+    public MustCallTest(List<File> testFiles) {
+        super(
+                testFiles,
+                org.checkerframework.checker.mustcall.MustCallChecker.class,
+                "mustcall",
+                // "-AstubDebug");
+                "-nowarn");
+    }
+
+    @Parameters
+    public static String[] getTestDirs() {
+        return new String[] {"mustcall"};
+    }
 }
