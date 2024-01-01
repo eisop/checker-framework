@@ -1832,7 +1832,32 @@ public abstract class GenericAnnotatedTypeFactory<
         AnnotatedTypeMirror res;
         switch (lhsTree.getKind()) {
             case VARIABLE:
+                boolean isVarTree =
+                        TreeUtils.isVariableTreeDeclaredUsingVar((VariableTree) lhsTree);
+                if (isVarTree) {
+                    // If this variable is declared using `var`, re-enable caching to avoid
+                    // re-computing the initializer expression type.
+                    shouldCache = oldShouldCache;
+                }
+                res = getAnnotatedType(lhsTree);
+                // Value of shouldCache no longer used below, so no need to reset.
+                break;
             case IDENTIFIER:
+                Element elt = TreeUtils.elementFromTree(lhsTree);
+                if (elt != null) {
+                    Tree decl = declarationFromElement(elt);
+                    if (decl != null
+                            && decl.getKind() == Tree.Kind.VARIABLE
+                            && TreeUtils.isVariableTreeDeclaredUsingVar((VariableTree) decl)) {
+                        // If this identifier accesses a variable that was declared using `var`,
+                        // re-enable caching to avoid re-computing the initializer expression type.
+                        shouldCache = oldShouldCache;
+                    }
+                }
+                res = getAnnotatedType(lhsTree);
+                // Value of shouldCache no longer used below, so no need to reset.
+                break;
+
             case MEMBER_SELECT:
             case ARRAY_ACCESS:
                 res = getAnnotatedType(lhsTree);

@@ -43,13 +43,14 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
         // Skip propagation of annotations when initializer can be null.
         // E.g.
         // for (var i : list) {}
-        if (TreeUtils.isVariableTreeDeclaredUsingVar(variableTree)
-                && variableTree.getInitializer() != null) {
+        if (variableTree.getInitializer() != null
+                && TreeUtils.isVariableTreeDeclaredUsingVar(variableTree)) {
+            // BaseTypeVisitor#visitVariable does not need to check the type of `var` declarations.
             result = f.getAnnotatedType(variableTree.getInitializer());
             // Let normal defaulting happen for the primary annotation.
             result.clearAnnotations();
-        } else if (TreeUtils.isVariableTreeDeclaredUsingVar(variableTree)
-                || variableTree.getType() == null) {
+        } else if (variableTree.getType() == null
+                || TreeUtils.isVariableTreeDeclaredUsingVar(variableTree)) {
             // VariableTree#getType returns null for binding variables from a
             // DeconstructionPatternTree.
             result = f.type(variableTree);
@@ -78,14 +79,12 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
                 // Annotations on enum constants are not in the TypeMirror and always apply to the
                 // innermost type, so handle them in the else block.
                 elt.getKind() != ElementKind.ENUM_CONSTANT) {
-
             // Decode the annotations from the type mirror because the annotations are already in
             // the correct place for enclosing types.  The annotations in
-            // variableTree.getModifiers()
-            // might apply to the enclosing type or the type itself. For example, @Tainted
-            // Outer.Inner y and @Tainted
-            // Inner x.  @Tainted is stored in variableTree.getModifiers() of the variable tree
-            // corresponding to both x and y, but @Tainted applies to different types.
+            // variableTree.getModifiers() might apply to the enclosing type or the type itself.
+            // For example, @Tainted Outer.Inner y and @Tainted Inner x.
+            // @Tainted is stored in variableTree.getModifiers() of the variable tree corresponding
+            // to both x and y, but @Tainted applies to different types.
             AnnotatedDeclaredType annotatedDeclaredType = (AnnotatedDeclaredType) result;
             // The underlying type of result does not have all annotations, but the TypeMirror of
             // variableTree.getType() does.
