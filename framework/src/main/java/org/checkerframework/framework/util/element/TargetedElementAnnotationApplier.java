@@ -89,6 +89,8 @@ abstract class TargetedElementAnnotationApplier {
     protected abstract boolean isAccepted();
 
     /**
+     * Constructor.
+     *
      * @param type the type to annotate
      * @param element an element identifying type
      */

@@ -55,6 +55,13 @@ abstract class TypeParamElementAnnotationApplier extends IndexedElementAnnotatio
      */
     protected abstract TargetType upperBoundTarget();
 
+    /**
+     * Constructor.
+     *
+     * @param type the type to annotate
+     * @param element the corresponding element
+     * @param atypeFactory the type factory
+     */
     /*package-private*/ TypeParamElementAnnotationApplier(
             AnnotatedTypeVariable type, Element element, AnnotatedTypeFactory atypeFactory) {
         super(type, element);

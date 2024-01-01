@@ -59,7 +59,6 @@ public class ElementAnnotationUtil {
             List<? extends AnnotatedTypeMirror> types,
             List<? extends Element> elements,
             AnnotatedTypeFactory typeFactory) {
-
         if (types.size() != elements.size()) {
             throw new BugInCF(
                     "Number of types and elements don't match. "
@@ -242,7 +241,6 @@ public class ElementAnnotationUtil {
                     anno.getPosition().location.last() != TypePathEntry.WILDCARD;
             if (isInFrontOfWildcard && isUnbounded) {
                 possiblyBoth.add(anno);
-
             } else {
                 // A TypePathEntry of WILDCARD indicates that it is placed on the bound
                 // use the type of the wildcard bound to determine which set to put it in
@@ -551,7 +549,6 @@ public class ElementAnnotationUtil {
             } else {
                 return getTypeAtLocation(type.getExtendsBound(), tail(location));
             }
-
         } else {
             throw new UnexpectedAnnotationLocationException(
                     "ElementAnnotationUtil.getLocationTypeAWT: "
