@@ -89,10 +89,13 @@ abstract class TargetedElementAnnotationApplier {
     protected abstract boolean isAccepted();
 
     /**
+     * Constructor.
+     *
      * @param type the type to annotate
      * @param element an element identifying type
      */
-    TargetedElementAnnotationApplier(AnnotatedTypeMirror type, Element element) {
+    /*package-private*/ TargetedElementAnnotationApplier(
+            AnnotatedTypeMirror type, Element element) {
         this.type = type;
         this.element = element;
     }
@@ -161,7 +164,6 @@ abstract class TargetedElementAnnotationApplier {
      */
     protected Map<TargetClass, List<Attribute.TypeCompound>> sift(
             Iterable<Attribute.TypeCompound> typeCompounds) {
-
         Map<TargetClass, List<Attribute.TypeCompound>> targetClassToCompound =
                 new EnumMap<>(TargetClass.class);
         for (TargetClass targetClass : TargetClass.values()) {
@@ -174,10 +176,8 @@ abstract class TargetedElementAnnotationApplier {
 
             if (ElementAnnotationUtil.contains(typeCompoundTarget, annotatedTargets())) {
                 destList = targetClassToCompound.get(TargetClass.TARGETED);
-
             } else if (ElementAnnotationUtil.contains(typeCompoundTarget, validTargets())) {
                 destList = targetClassToCompound.get(TargetClass.VALID);
-
             } else {
                 destList = targetClassToCompound.get(TargetClass.INVALID);
             }

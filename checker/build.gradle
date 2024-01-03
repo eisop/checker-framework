@@ -9,9 +9,16 @@ plugins {
 
 sourceSets {
     main {
+        java {
+            // NO-AFU
+            exclude '**/org/checkerframework/checker/resourceleak/MustCallInference.java'
+        }
         resources {
             // Stub files, message.properties, etc.
             srcDirs += ['src/main/java']
+
+            // NO-AFU
+            exclude '**/org/checkerframework/checker/resourceleak/MustCallInference.java'
         }
     }
     testannotations
@@ -69,11 +76,11 @@ dependencies {
     testImplementation 'com.amazonaws:aws-java-sdk-ec2'
     testImplementation 'com.amazonaws:aws-java-sdk-kms'
     // The AWS SDK is used for testing the Called Methods Checker.
-    testImplementation platform('com.amazonaws:aws-java-sdk-bom:1.12.585')
+    testImplementation platform('com.amazonaws:aws-java-sdk-bom:1.12.629')
     // For the Resource Leak Checker's support for JavaEE.
     testImplementation 'javax.servlet:javax.servlet-api:4.0.1'
     // For the Resource Leak Checker's support for IOUtils.
-    testImplementation 'commons-io:commons-io:2.15.0'
+    testImplementation 'commons-io:commons-io:2.15.1'
 
     // Required for checker/tests/index-initializedfields/RequireJavadoc.java
     if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
@@ -318,12 +325,12 @@ task demosTests(dependsOn: assembleForJavac, group: 'Verification') {
 }
 
 task allNullnessTests(type: Test, group: 'Verification') {
-    description 'Run all Junit tests for the Nullness Checker.'
+    description 'Run all JUnit tests for the Nullness Checker.'
     include '**/Nullness*.class'
 }
 
 task allCalledMethodsTests(type: Test, group: 'Verification') {
-    description 'Run all Junit tests for the Called Methods Checker.'
+    description 'Run all JUnit tests for the Called Methods Checker.'
     include '**/CalledMethods*.class'
     if (!skipDelombok) {
         dependsOn 'delombok'
@@ -331,7 +338,7 @@ task allCalledMethodsTests(type: Test, group: 'Verification') {
 }
 
 task allResourceLeakTests(type: Test, group: 'Verification') {
-    description 'Run all Junit tests for the Resource Leak Checker.'
+    description 'Run all JUnit tests for the Resource Leak Checker.'
     include '**/ResourceLeak*.class'
     include '**/MustCall*.class'
 }
@@ -959,7 +966,9 @@ task wpiManyTest(group: 'Verification') {
                         '-i', "${project.projectDir}/tests/wpi-many/testin.txt",
                         '-o', "${project.projectDir}/build/wpi-many-tests",
                         '-s',
-                        '--', '--checker', 'nullness,interning,lock,regex,signature,calledmethods,resourceleak'
+                        '--',
+                        '--checker', 'nullness,interning,lock,regex,signature,calledmethods,resourceleak',
+                        '--extraJavacArgs=-AenableWpiForRlc'
             }
         } catch (Exception e) {
             println('Failure: Running wpi-many.sh failed with a non-zero exit code.')

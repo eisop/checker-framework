@@ -27,6 +27,7 @@ import com.sun.source.tree.PrimitiveTypeTree;
 import com.sun.source.tree.StatementTree;
 import com.sun.source.tree.SwitchTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TreeVisitor;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.TypeParameterTree;
@@ -144,12 +145,8 @@ public final class TreeUtils {
 
     static {
         try {
-            if (atLeastJava21) {
-                TREEMAKER_SELECT =
-                        TreeMaker.class.getMethod("Select", JCExpression.class, Symbol.class);
-            } else {
-                TREEMAKER_SELECT = null;
-            }
+            TREEMAKER_SELECT =
+                    TreeMaker.class.getMethod("Select", JCExpression.class, Symbol.class);
         } catch (NoSuchMethodException e) {
             Error err = new AssertionError("Unexpected error in TreeUtils static initializer");
             err.initCause(e);
@@ -477,6 +474,23 @@ public final class TreeUtils {
         if (!(result instanceof ExecutableElement)) {
             throw new BugInCF(
                     "Method elements should be ExecutableElement. Found: %s [%s]",
+                    result, result.getClass());
+        }
+        return (ExecutableElement) result;
+    }
+
+    /**
+     * Returns the ExecutableElement for the method reference.
+     *
+     * @param tree a method reference
+     * @return the ExecutableElement for the method reference
+     */
+    @Pure
+    public static ExecutableElement elementFromUse(MemberReferenceTree tree) {
+        Element result = elementFromUse((ExpressionTree) tree);
+        if (!(result instanceof ExecutableElement)) {
+            throw new BugInCF(
+                    "Method reference elements should be ExecutableElement. Found: %s [%s]",
                     result, result.getClass());
         }
         return (ExecutableElement) result;
@@ -1179,14 +1193,25 @@ public final class TreeUtils {
     /**
      * Returns true if the argument is an invocation of one of the given methods, or of any method
      * that overrides them.
+     *
+     * @param tree a tree that might be a method invocation
+     * @param methods the methods to check for
+     * @param processingEnv the processing environment
+     * @return true if the argument is an invocation of one of the given methods, or of any method
+     *     that overrides them
      */
     public static boolean isMethodInvocation(
-            Tree methodTree, List<ExecutableElement> methods, ProcessingEnvironment processingEnv) {
-        if (!(methodTree instanceof MethodInvocationTree)) {
+            Tree tree, List<ExecutableElement> methods, ProcessingEnvironment processingEnv) {
+        if (!(tree instanceof MethodInvocationTree)) {
             return false;
         }
-        for (ExecutableElement Method : methods) {
-            if (isMethodInvocation(methodTree, Method, processingEnv)) {
+        MethodInvocationTree methInvok = (MethodInvocationTree) tree;
+        ExecutableElement invoked = TreeUtils.elementFromUse(methInvok);
+        if (invoked == null) {
+            return false;
+        }
+        for (ExecutableElement method : methods) {
+            if (ElementUtils.isMethod(invoked, method, processingEnv)) {
                 return true;
             }
         }
@@ -1827,16 +1852,15 @@ public final class TreeUtils {
                     type);
         }
         ExecutableType executableType = (ExecutableType) type;
-        if (((ExecutableType) type).getParameterTypes().isEmpty()
-                && elementFromUse(tree).isVarArgs()) {
+        ExecutableElement element = elementFromUse(tree);
+        if (executableType.getParameterTypes().size() != element.getParameters().size()) {
             // Sometimes when the method type is viewpoint-adapted, the vararg parameter disappears,
             // just return the declared type.
             // For example,
             // static void call(MethodHandle methodHandle) throws Throwable {
             //   methodHandle.invoke();
             // }
-            ExecutableElement ele = elementFromUse(tree);
-            return (ExecutableType) ele.asType();
+            return (ExecutableType) element.asType();
         }
         return executableType;
     }
@@ -1942,6 +1966,15 @@ public final class TreeUtils {
          */
         public boolean isUnbound() {
             return unbound;
+        }
+
+        /**
+         * Returns whether this kind is a constructor reference.
+         *
+         * @return whether this kind is a constructor reference
+         */
+        public boolean isConstructorReference() {
+            return mode == ReferenceMode.NEW;
         }
 
         /**
@@ -2403,6 +2436,33 @@ public final class TreeUtils {
     }
 
     /**
+     * Returns true if {@code switchTree} has a null case label.
+     *
+     * @param switchTree a {@link SwitchTree} or a {@code SwitchExpressionTree}
+     * @return true if {@code switchTree} has a null case label
+     */
+    public static boolean hasNullCaseLabel(Tree switchTree) {
+        if (!atLeastJava21) {
+            return false;
+        }
+        List<? extends CaseTree> cases;
+        if (isSwitchStatement(switchTree)) {
+            cases = ((SwitchTree) switchTree).getCases();
+        } else {
+            cases = SwitchExpressionUtils.getCases(switchTree);
+        }
+        for (CaseTree caseTree : cases) {
+            List<? extends Tree> labels = CaseUtils.getLabels(caseTree);
+            for (Tree label : labels) {
+                if (label.getKind() == Kind.NULL_LITERAL) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
      * Returns true if the given tree is a switch statement (as opposed to a switch expression).
      *
      * @param tree the switch statement or expression to check
@@ -2582,23 +2642,26 @@ public final class TreeUtils {
      * @return the JCFieldAccess tree to select sym in base
      */
     public static JCFieldAccess Select(TreeMaker treeMaker, Tree base, Symbol sym) {
-        if (atLeastJava21) {
-            try {
-                assert TREEMAKER_SELECT != null : "@AssumeAssertion(nullness): initialization";
-                JCFieldAccess jfa = (JCFieldAccess) TREEMAKER_SELECT.invoke(treeMaker, base, sym);
-                if (jfa != null) {
-                    return jfa;
-                } else {
-                    throw new BugInCF(
-                            "TreeUtils.Select: TreeMaker.Select returned null for tree: %s", base);
-                }
-            } catch (InvocationTargetException | IllegalAccessException e) {
-                throw new BugInCF("TreeUtils.Select: reflection failed for tree: %s", base, e);
+        // The return type of TreeMaker.Select changed in
+        // https://github.com/openjdk/jdk/commit/a917fb3fcf0fe1a4c4de86c08ae4041462848b82#diff-0f1b4da56622ccb5ff716ce5a9532819fc5573179a1eb2c803d053196824891aR726
+        // When the ECF is compiled with Java 21+, even with `--source/target 8`, this will lead to
+        // a java.lang.NoSuchMethodError: 'com.sun.tools.javac.tree.JCTree$JCFieldAccess
+        // com.sun.tools.javac.tree.TreeMaker.Select(com.sun.tools.javac.tree.JCTree$JCExpression,
+        // com.sun.tools.javac.code.Symbol)'
+        // when executed on Java <21.
+        // Therefore, always use reflection to access TreeMaker.Select.
+        // Hopefully, the JVM optimizes the reflective access quickly.
+        try {
+            assert TREEMAKER_SELECT != null : "@AssumeAssertion(nullness): initialization";
+            JCFieldAccess jfa = (JCFieldAccess) TREEMAKER_SELECT.invoke(treeMaker, base, sym);
+            if (jfa != null) {
+                return jfa;
+            } else {
+                throw new BugInCF(
+                        "TreeUtils.Select: TreeMaker.Select returned null for tree: %s", base);
             }
-        } else {
-            @SuppressWarnings("cast") // Redundant on JDK 21+
-            JCFieldAccess jfa = (JCFieldAccess) treeMaker.Select((JCExpression) base, sym);
-            return jfa;
+        } catch (InvocationTargetException | IllegalAccessException e) {
+            throw new BugInCF("TreeUtils.Select: reflection failed for tree: %s", base, e);
         }
     }
 

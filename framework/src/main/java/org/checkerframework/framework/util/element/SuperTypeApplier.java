@@ -40,6 +40,7 @@ public class SuperTypeApplier extends IndexedElementAnnotationApplier {
         }
     }
 
+    /** The subclass symbol. */
     private final Symbol.ClassSymbol subclassSymbol;
 
     /**
@@ -59,11 +60,18 @@ public class SuperTypeApplier extends IndexedElementAnnotationApplier {
     private final int index;
 
     /**
-     * Note: This is not meant to be used in apply explicitly unlike all other AnnotationAppliers it
-     * is intended to be used for annotate super types via the static annotateSuper method, hence
+     * Constructor.
+     *
+     * <p>Note: This is not meant to be used in apply explicitly unlike all other AnnotationAppliers
+     * it is intended to be used for annotate super types via the static annotateSuper method, hence
      * the private constructor.
+     *
+     * @param supertype the supertype
+     * @param subclassElement the corresponding subclass element
+     * @param index the type index of the supertype being annotated
      */
-    SuperTypeApplier(AnnotatedTypeMirror supertype, TypeElement subclassElement, int index) {
+    private SuperTypeApplier(
+            AnnotatedTypeMirror supertype, TypeElement subclassElement, int index) {
         super(supertype, subclassElement);
         this.subclassSymbol = (Symbol.ClassSymbol) subclassElement;
         this.index = index;

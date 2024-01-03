@@ -158,7 +158,9 @@ public class InitializationStore extends CFAbstractStore<CFValue, Initialization
         InitializationParentAnnotatedTypeFactory atypeFactory =
                 (InitializationParentAnnotatedTypeFactory) analysis.getTypeFactory();
         AnnotatedTypeMirror receiverType;
-        if (thisValue != null && thisValue.getUnderlyingType().getKind() != TypeKind.ERROR) {
+        if (thisValue != null
+                && thisValue.getUnderlyingType().getKind() != TypeKind.ERROR
+                && thisValue.getUnderlyingType().getKind() != TypeKind.NULL) {
             receiverType =
                     AnnotatedTypeMirror.createType(
                             thisValue.getUnderlyingType(), atypeFactory, false);

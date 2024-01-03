@@ -5,6 +5,8 @@ import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
+import com.sun.tools.javac.code.Type;
+import com.sun.tools.javac.tree.JCTree;
 
 import org.checkerframework.checker.initialization.qual.HoldsForDefaultValue;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -33,6 +35,7 @@ import org.plumelib.util.IPair;
 
 import java.lang.annotation.Annotation;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -111,6 +114,63 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
     public List<IPair<ReturnNode, TransferResult<CFValue, InitializationStore>>>
             getReturnStatementStores(MethodTree methodTree) {
         return getFieldAccessFactory().getReturnStatementStores(methodTree);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This implementaiton also takes the target checker into account.
+     *
+     * @see #getUninitializedFields(InitializationStore, CFAbstractStore, TreePath, boolean,
+     *     Collection)
+     */
+    @Override
+    protected void setSelfTypeInInitializationCode(
+            Tree tree, AnnotatedTypeMirror.AnnotatedDeclaredType selfType, TreePath path) {
+        ClassTree enclosingClass = TreePathUtil.enclosingClass(path);
+        Type classType = ((JCTree) enclosingClass).type;
+        AnnotationMirror annotation;
+
+        // If all fields are initialized-only, and they are all initialized,
+        // then:
+        //  - if the class is final, this is @Initialized
+        //  - otherwise, this is @UnderInitialization(CurrentClass) as
+        //    there might still be subclasses that need initialization.
+        if (areAllFieldsInitializedOnly(enclosingClass)) {
+            GenericAnnotatedTypeFactory<?, ?, ?, ?> targetFactory =
+                    checker.getTypeFactoryOfSubcheckerOrNull(
+                            ((InitializationChecker) checker).getTargetCheckerClass());
+            InitializationStore initStore = getStoreBefore(tree);
+            CFAbstractStore<?, ?> targetStore = targetFactory.getStoreBefore(tree);
+            if (initStore != null
+                    && targetStore != null
+                    && getUninitializedFields(
+                                    initStore, targetStore, path, false, Collections.emptyList())
+                            .isEmpty()) {
+                if (classType.isFinal()) {
+                    annotation = INITIALIZED;
+                } else {
+                    annotation = createUnderInitializationAnnotation(classType);
+                }
+            } else if (initStore != null
+                    && getUninitializedFields(initStore, path, false, Collections.emptyList())
+                            .isEmpty()) {
+                if (classType.isFinal()) {
+                    annotation = INITIALIZED;
+                } else {
+                    annotation = createUnderInitializationAnnotation(classType);
+                }
+            } else {
+                annotation = null;
+            }
+        } else {
+            annotation = null;
+        }
+
+        if (annotation == null) {
+            annotation = getUnderInitializationAnnotationOfSuperType(classType);
+        }
+        selfType.replaceAnnotation(annotation);
     }
 
     /**

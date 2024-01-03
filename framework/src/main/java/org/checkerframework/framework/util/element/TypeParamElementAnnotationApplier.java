@@ -55,7 +55,14 @@ abstract class TypeParamElementAnnotationApplier extends IndexedElementAnnotatio
      */
     protected abstract TargetType upperBoundTarget();
 
-    TypeParamElementAnnotationApplier(
+    /**
+     * Constructor.
+     *
+     * @param type the type to annotate
+     * @param element the corresponding element
+     * @param atypeFactory the type factory
+     */
+    /*package-private*/ TypeParamElementAnnotationApplier(
             AnnotatedTypeVariable type, Element element, AnnotatedTypeFactory atypeFactory) {
         super(type, element);
         this.typeParam = type;
@@ -112,10 +119,8 @@ abstract class TypeParamElementAnnotationApplier extends IndexedElementAnnotatio
 
             if (ElementAnnotationUtil.isOnComponentType(anno)) {
                 applyComponentAnnotation(anno);
-
             } else if (anno.position.type == upperBoundTarget()) {
                 upperBoundAnnos.add(anno);
-
             } else {
                 lowerBoundAnnos.add(anno);
             }
@@ -134,7 +139,6 @@ abstract class TypeParamElementAnnotationApplier extends IndexedElementAnnotatio
             AnnotatedTypeMirror upperBoundType = typeParam.getUpperBound();
 
             if (upperBoundType.getKind() == TypeKind.INTERSECTION) {
-
                 List<AnnotatedTypeMirror> bounds =
                         ((AnnotatedIntersectionType) upperBoundType).getBounds();
                 int boundIndexOffset = ElementAnnotationUtil.getBoundIndexOffset(bounds);
@@ -199,7 +203,6 @@ abstract class TypeParamElementAnnotationApplier extends IndexedElementAnnotatio
         Map<AnnotatedTypeMirror, List<TypeCompound>> typeToAnnotations = new HashMap<>();
 
         if (anno.position.type == upperBoundTarget()) {
-
             if (upperBoundType.getKind() == TypeKind.INTERSECTION) {
                 List<AnnotatedTypeMirror> bounds =
                         ((AnnotatedIntersectionType) upperBoundType).getBounds();
@@ -219,11 +222,9 @@ abstract class TypeParamElementAnnotationApplier extends IndexedElementAnnotatio
                                     + " )");
                 }
                 addAnnotationToMap(bounds.get(boundIndex), anno, typeToAnnotations);
-
             } else {
                 addAnnotationToMap(upperBoundType, anno, typeToAnnotations);
             }
-
         } else {
             addAnnotationToMap(typeParam.getLowerBound(), anno, typeToAnnotations);
         }

@@ -1,5 +1,7 @@
 // Test case for EISOP issue #609:
 // https://github.com/eisop/checker-framework/issues/609
+// A similar test is in
+// checker/tests/nullness/Issue6260.java
 enum EnumSwitch {
     FOO;
 

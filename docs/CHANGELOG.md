@@ -1,5 +1,5 @@
-Version 3.39.0-eisop2 (October ??, 2023)
-----------------------------------------
+Version 3.42.0-eisop2 (January ?, 2024)
+---------------------------------------
 
 **User-visible changes:**
 
@@ -12,7 +12,88 @@ Refactored the implementation of `isTypeCastSafe` to categorize the kinds of a t
 it is an upcast, downcast or incomparable cast. Based on that, further determine if the typecast
 is statically verifiable or not.
 
+**Closed issues:**
+
+
+Version 3.42.0-eisop1 (January 2, 2024)
+---------------------------------------
+
+**Closed issues:**
+
+typetools#6373, typetools#6374.
+
+
+Version 3.42.0 (December 15, 2023)
+----------------------------------
+
+**User-visible changes:**
+
+Method annotation `@AssertMethod` indicates that a method checks a value and
+possibly throws an assertion.  Using it can make flow-sensitive type refinement
+more effective.
+
+In `org.checkerframework.common.util.debug`, renamed `EmptyProcessor` to `DoNothingProcessor`.
+Removed `org.checkerframework.common.util.report.DoNothingChecker`.
+Moved `ReportChecker` from `org.checkerframework.common.util.report` to `org.checkerframework.common.util.count.report`.
+(EISOP note: we did not follow this renaming - if anything, `counting` could be a special case of `reporting`, not
+the other way around.)
+
+
+Version 3.41.0-eisop1 (December 5, 2023)
+----------------------------------------
+
+**User-visible changes:**
+
+The Nullness Checker now warns about redundant null cases in switch statements and expressions when
+using the `-Alint=redundantNullComparison` command-line argument.
+
+**Closed issues:**
+
+eisop#628, eisop#635, eisop#640, eisop#641.
+
+
+Version 3.41.0 (December 4, 2023)
+---------------------------------
+
+**User-visible changes:**
+
+New command-line options:
+* `-AassumePureGetters`: Unsoundly assume that every getter method is pure.
+
+**Implementation details:**
+
+Added method `isDeterministic()` to the `AnnotationProvider` interface.
+
+`CFAbstractValue#leastUpperBound` and `CFAbstractValue#widenUpperBound` are now
+final.  Subclasses should override method `CFAbstractValue#upperBound(V,
+TypeMirror, boolean)` instead.
+
+(EISOP note: typetools added the new method annotation `org.checkerframework.dataflow.qual.AssertMethod`
+to treat such methods like assert statements. EISOP might change the implementation of this feature
+in a future release.)
+
+**Closed issues:**
+
+#1497, #3345, #6037, #6204, #6276, #6282, #6290, #6296, #6319, #6327.
+
+
+Version 3.40.0-eisop2 (November 24, 2023)
+-----------------------------------------
+
+**Implementation details:**
+
+Always use reflective access for `TreeMaker#Select`, to allow artifacts built with
+Java 21+ to be executed on Java <21.
+
+
+Version 3.40.0-eisop1 (November 24, 2023)
+-----------------------------------------
+
+**User-visible changes:**
+
 Improvements to initialization type frames in the Initialization Checker.
+
+**Implementation details:**
 
 New method `TreeUtils#isEnhancedSwitchStatement` to determine if a switch statement tree
 is an enhanced switch statement.
@@ -20,6 +101,19 @@ is an enhanced switch statement.
 **Closed issues:**
 
 eisop#155, eisop#609, eisop#610, eisop#612.
+
+Version 3.40.0 (November 1, 2023)
+---------------------------------
+
+**User-visible changes:**
+
+Optional Checker:  `checker-util.jar` defines `OptionalUtil.castPresent()` for
+suppressing false positive warnings from the Optional Checker.
+
+**Closed issues:**
+
+#4947, #6179, #6215, #6218, #6222, #6247, #6259, #6260.
+
 
 Version 3.39.0-eisop1 (October 22, 2023)
 ----------------------------------------
@@ -82,7 +176,7 @@ crash when compiling them.
 
 **Implementation details:**
 
-Dataflow supports all the new Java 21 langauge features.
+Dataflow supports all the new Java 21 language features.
  * A new node, `DeconstructorPatternNode`, was added, so any implementation of
    `NodeVisitor` must be updated.
  * Method `InstanceOfNode.getBindingVariable()` is deprecated; use
@@ -105,7 +199,7 @@ advised against using.
 
 **Implementation details:**
 
-Renamed `SourceChecker.processArg()' to `processErrorMessageArg()`.
+Renamed `SourceChecker.processArg()` to `processErrorMessageArg()`.
 
 **Closed issues:**
 
@@ -130,7 +224,7 @@ to be written on a non-integral type.
     * `isSubtype()` has been renamed to `isSubypeQualifiers()` and made protected.
       Clients that are not in a qualifier hierarchy should call `isSubtypeShallow()`
       or, rarely, new method `isSubtypeQualifiersOnly()`.
-    * New public method `isSubtypeShallow()' that takes two more arguments than
+    * New public method `isSubtypeShallow()` that takes two more arguments than
       `isSubypeQualifiers()`.
  * Similar changes to `greatestLowerBound()` and `leastUpperBound()`.
 

@@ -110,10 +110,11 @@ public class TreeBuilder {
             // Remove captured type variable from a wildcard.
             if (elementType instanceof Type.CapturedType) {
                 elementType = ((Type.CapturedType) elementType).wildcard;
+                TypeElement iteratorElt = (TypeElement) modelTypes.asElement(iteratorType);
+                assert iteratorElt != null
+                        : "@AssumeAssertion(nullness): the iterator type always has an element";
 
-                iteratorType =
-                        modelTypes.getDeclaredType(
-                                (TypeElement) modelTypes.asElement(iteratorType), elementType);
+                iteratorType = modelTypes.getDeclaredType(iteratorElt, elementType);
             }
         }
 
@@ -130,6 +131,41 @@ public class TreeBuilder {
         iteratorAccess.setType(updatedMethodType);
 
         return iteratorAccess;
+    }
+
+    /**
+     * Build a {@link MemberSelectTree} for accessing the {@code close} method of an expression that
+     * implements {@link AutoCloseable}. This method is used when desugaring try-with-resources
+     * statements during CFG construction.
+     *
+     * @param autoCloseableExpr the expression
+     * @return the member select tree
+     */
+    public MemberSelectTree buildCloseMethodAccess(ExpressionTree autoCloseableExpr) {
+        DeclaredType exprType =
+                (DeclaredType) TypesUtils.upperBound(TreeUtils.typeOf(autoCloseableExpr));
+        assert exprType != null
+                : "expression must be of declared type AutoCloseable: " + autoCloseableExpr;
+
+        TypeElement exprElement = (TypeElement) exprType.asElement();
+
+        // Find the close() method
+        Symbol.MethodSymbol closeMethod = null;
+
+        for (ExecutableElement method :
+                ElementFilter.methodsIn(elements.getAllMembers(exprElement))) {
+            if (method.getParameters().isEmpty() && method.getSimpleName().contentEquals("close")) {
+                closeMethod = (Symbol.MethodSymbol) method;
+                break;
+            }
+        }
+
+        assert closeMethod != null
+                : "@AssumeAssertion(nullness): no close method declared for expression type";
+
+        JCTree.JCFieldAccess closeAccess = TreeUtils.Select(maker, autoCloseableExpr, closeMethod);
+
+        return closeAccess;
     }
 
     /**

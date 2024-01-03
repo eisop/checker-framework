@@ -59,7 +59,6 @@ public class ElementAnnotationUtil {
             List<? extends AnnotatedTypeMirror> types,
             List<? extends Element> elements,
             AnnotatedTypeFactory typeFactory) {
-
         if (types.size() != elements.size()) {
             throw new BugInCF(
                     "Number of types and elements don't match. "
@@ -94,11 +93,16 @@ public class ElementAnnotationUtil {
         // org.checkerframework.framework.type.TypeFromMemberVisitor.visitVariable
         AnnotatedTypeMirror innerType = AnnotatedTypes.innerMostType(type);
         if (innerType != type) {
-            for (AnnotationMirror annotation : annotations) {
-                if (AnnotationUtils.annotationName(annotation).startsWith("org.checkerframework")) {
-                    innerType.addAnnotation(annotation);
+            for (AnnotationMirror anno : annotations) {
+                if (AnnotationUtils.isDeclarationAnnotation(anno)
+                        // Always treat Checker Framework annotations as type annotations.
+                        && !AnnotationUtils.annotationName(anno)
+                                .startsWith("org.checkerframework")) {
+                    // Declaration annotations apply to the outer type.
+                    type.addAnnotation(anno);
                 } else {
-                    type.addAnnotation(annotation);
+                    // Type annotations apply to the innermost type.
+                    innerType.addAnnotation(anno);
                 }
             }
         } else {
@@ -237,7 +241,6 @@ public class ElementAnnotationUtil {
                     anno.getPosition().location.last() != TypePathEntry.WILDCARD;
             if (isInFrontOfWildcard && isUnbounded) {
                 possiblyBoth.add(anno);
-
             } else {
                 // A TypePathEntry of WILDCARD indicates that it is placed on the bound
                 // use the type of the wildcard bound to determine which set to put it in
@@ -546,7 +549,6 @@ public class ElementAnnotationUtil {
             } else {
                 return getTypeAtLocation(type.getExtendsBound(), tail(location));
             }
-
         } else {
             throw new UnexpectedAnnotationLocationException(
                     "ElementAnnotationUtil.getLocationTypeAWT: "
