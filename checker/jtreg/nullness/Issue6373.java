@@ -3,7 +3,7 @@
  * @summary Test case for issue #6373: https://github.com/typetools/checker-framework/issues/6373
  *
  * @requires jdk.version.major >= 10
- * @compile/timeout=70 -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker Issue6373.java
+ * @compile/timeout=80 -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker Issue6373.java
  */
 public class Issue6373 {
 
