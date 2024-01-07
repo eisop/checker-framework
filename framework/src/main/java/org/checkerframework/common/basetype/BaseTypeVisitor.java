@@ -3017,7 +3017,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         List<AnnotationTree> result = new ArrayList<>(1);
         for (AnnotationTree at : annoTrees) {
             AnnotationMirror anno = TreeUtils.annotationFromAnnotationTree(at);
-            if (!AnnotationUtils.isDeclarationAnnotation(anno)
+            if (AnnotationUtils.isTypeUseAnnotation(anno)
                     && atypeFactory.isSupportedQualifier(anno)) {
                 result.add(at);
             }

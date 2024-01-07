@@ -5,7 +5,11 @@ Version 3.42.0-eisop2 (January ?, 2024)
 
 **Implementation details:**
 
+Deprecated `AnnotationUtils#isDeclarationAnnotation` and added the clearer `AnnotationUtils#isTypeUseAnnotation`.
+
 **Closed issues:**
+
+eisop$673.
 
 
 Version 3.42.0-eisop1 (January 2, 2024)
