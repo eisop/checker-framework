@@ -348,8 +348,11 @@ public class AnnotationFileElementTypes {
                     AnnotationFileUtil.allAnnotationFiles(fullPath, fileType);
             if (allFiles != null) {
                 for (AnnotationFileResource resource : allFiles) {
-                    try (BufferedInputStream annotationFileStream =
-                            new BufferedInputStream(resource.getInputStream())) {
+                    // See note with the SuppressWarnings on this method for why this is not a
+                    // try-with-resources.
+                    BufferedInputStream annotationFileStream;
+                    try {
+                        annotationFileStream = new BufferedInputStream(resource.getInputStream());
                         // We use parseStubFile here even for ajava files because at this stage
                         // ajava files are parsed as stub files. The extra annotation data in an
                         // ajava file is parsed when type-checking the ajava file's corresponding
