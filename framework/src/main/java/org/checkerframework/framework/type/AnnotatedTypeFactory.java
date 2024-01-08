@@ -4140,14 +4140,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * Parses all annotation files in the following order:
      *
      * <ol>
-     *   <li>jdk.astub in the same directory as the checker, if it exists and ignorejdkastub option
-     *       is not supplied
-     *   <li>jdkN.astub (where N is the Java version or any higher value) in the same directory as
-     *       the checker, if it exists and ignorejdkastub option is not supplied
-     *   <li>Stub files listed in @StubFiles annotation on the checker; must be in same directory as
-     *       the checker
-     *   <li>Stub files provided via {@code -Astubs} compiler option
-     *   <li>Ajava files provided via {@code -Aajava} compiler option
+     *   <li>Stub files, see {@link AnnotationFileElementTypes#parseStubFiles()};
+     *   <li>Ajava files, see {@link AnnotationFileElementTypes$parseAjavaFiles()}.
      * </ol>
      *
      * <p>If a type is annotated with a qualifier from the same hierarchy in more than one stub
