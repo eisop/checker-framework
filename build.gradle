@@ -895,8 +895,9 @@ subprojects {
         relocate 'org.plumelib', 'org.checkerframework.org.plumelib'
         relocate 'org.codehaus', 'org.checkerframework.org.codehaus'
         relocate 'org.objectweb.asm', 'org.checkerframework.org.objectweb.asm'
-        relocate 'io.github.classgraph', 'org.checkerframework.io.github.classgraph'
-        relocate 'nonapi.io.github.classgraph', 'org.checkerframework.nonapi.io.github.classgraph'
+        // Add the classgraph relocations if it is included in releases.
+        // relocate 'io.github.classgraph', 'org.checkerframework.io.github.classgraph'
+        // relocate 'nonapi.io.github.classgraph', 'org.checkerframework.nonapi.io.github.classgraph'
         // relocate 'sun', 'org.checkerframework.sun'
         relocate 'com.google', 'org.checkerframework.com.google'
 

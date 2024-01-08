@@ -5,6 +5,9 @@ Version 3.42.0-eisop2 (January ?, 2024)
 
 **Implementation details:**
 
+Removed the dependency on the classgraph library, which added over 500kB to `checker.jar`.
+It is easy to add the dependency for debugging.
+
 **Closed issues:**
 
 
