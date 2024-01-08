@@ -4141,7 +4141,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *
      * <ol>
      *   <li>Stub files, see {@link AnnotationFileElementTypes#parseStubFiles()};
-     *   <li>Ajava files, see {@link AnnotationFileElementTypes$parseAjavaFiles()}.
+     *   <li>Ajava files, see {@link AnnotationFileElementTypes#parseAjavaFiles()}.
      * </ol>
      *
      * <p>If a type is annotated with a qualifier from the same hierarchy in more than one stub
