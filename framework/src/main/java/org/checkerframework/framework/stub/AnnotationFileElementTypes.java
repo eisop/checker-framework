@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ProcessBuilder.Redirect;
 import java.net.JarURLConnection;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
@@ -59,7 +58,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 
-import io.github.classgraph.ClassGraph;
+// import io.github.classgraph.ClassGraph;
 
 /**
  * Holds information about types parsed from annotation files (stub files or ajava files). When
@@ -440,10 +439,12 @@ public class AnnotationFileElementTypes {
                                             + (fullPath.equals(path) ? "" : (" or at " + fullPath));
                             StringJoiner sj = new StringJoiner(System.lineSeparator() + "  ");
                             sj.add(msg);
-                            sj.add("Classpath:");
-                            for (URI uri : new ClassGraph().getClasspathURIs()) {
-                                sj.add(uri.toString());
-                            }
+                            /*
+                              sj.add("Classpath:");
+                              for (URI uri : new ClassGraph().getClasspathURIs()) {
+                                  sj.add(uri.toString());
+                              }
+                            */
                             checker.message(Diagnostic.Kind.WARNING, sj.toString());
                         }
                     }
