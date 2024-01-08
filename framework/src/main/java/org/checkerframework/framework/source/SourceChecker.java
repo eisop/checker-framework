@@ -57,7 +57,6 @@ import java.lang.management.MemoryPoolMXBean;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
-import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -91,7 +90,7 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 
-import io.github.classgraph.ClassGraph;
+// import io.github.classgraph.ClassGraph;
 
 /**
  * An abstract annotation processor designed for implementing a source-file checker as an annotation
@@ -2843,10 +2842,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                     }
 
                     if (printClasspath) {
-                        msg.add("Classpath:");
-                        for (URI uri : new ClassGraph().getClasspathURIs()) {
-                            msg.add(uri.toString());
-                        }
+                        msg.add("Inspect your classpath, as there was a NoClassDefFoundError.");
+                        /*
+                          msg.add("Classpath:");
+                          for (URI uri : new ClassGraph().getClasspathURIs()) {
+                              msg.add(uri.toString());
+                          }
+                        */
                     }
                 }
             }
