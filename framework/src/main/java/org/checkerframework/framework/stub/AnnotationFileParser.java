@@ -697,6 +697,8 @@ public class AnnotationFileParser {
             for (Problem p : e.getProblems()) {
                 afp.warn(null, p.getVerboseMessage());
             }
+        } catch (Throwable t) {
+            afp.warn(null, "Parse problem: " + t);
         }
     }
 
@@ -736,6 +738,8 @@ public class AnnotationFileParser {
             for (Problem p : e.getProblems()) {
                 afp.warn(null, filename + ": " + p.getVerboseMessage());
             }
+        } catch (Throwable t) {
+            afp.warn(null, "Parse problem: " + t);
         }
     }
 
