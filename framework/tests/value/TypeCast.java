@@ -45,12 +45,12 @@ public class TypeCast {
 
     void rangeCast(@IntRange(from = 127, to = 128) int a, @IntRange(from = 128, to = 129) int b) {
         @IntRange(from = 0, to = 128)
-        // :: error: (assignment.type.incompatible) :: warning: (cast.unsafe)
+        // :: error: (assignment.type.incompatible) :: error: (cast.incomparable)
         byte c = (byte) a;
         // (byte) a is @IntRange(from = -128, to = 127) because of casting
 
         @IntRange(from = -128, to = -127)
-        // :: warning: (cast.unsafe)
+        // :: error: (cast.incomparable)
         byte d = (byte) b;
     }
 }
