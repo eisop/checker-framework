@@ -91,18 +91,21 @@ public class ElementAnnotationUtil {
             AnnotatedTypeMirror type, List<? extends AnnotationMirror> annotations) {
         // The code here should be similar to
         // org.checkerframework.framework.type.TypeFromMemberVisitor.visitVariable
+        // However, in this version, note that there is no check whether the annotation is a type
+        // use annotation, using `AnnotationUtils.isTypeUseAnnotation`.
+        // The declaration annotation could also be a type use annotation, but it appears as a
+        // declaration annotation on the element, so treat it as a declaration annotation, unless it
+        // is a Checker Framework annotation.
         AnnotatedTypeMirror innerType = AnnotatedTypes.innerMostType(type);
         if (innerType != type) {
             for (AnnotationMirror anno : annotations) {
-                if (AnnotationUtils.isDeclarationAnnotation(anno)
-                        // Always treat Checker Framework annotations as type annotations.
-                        && !AnnotationUtils.annotationName(anno)
-                                .startsWith("org.checkerframework")) {
+                if (AnnotationUtils.annotationName(anno).startsWith("org.checkerframework")) {
+                    // Always treat Checker Framework annotations as type annotations, even if they
+                    // are declaration annotations.
+                    innerType.addAnnotation(anno);
+                } else {
                     // Declaration annotations apply to the outer type.
                     type.addAnnotation(anno);
-                } else {
-                    // Type annotations apply to the innermost type.
-                    innerType.addAnnotation(anno);
                 }
             }
         } else {

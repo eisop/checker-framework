@@ -99,7 +99,7 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
 
             // Handle declaration annotations
             for (AnnotationMirror anno : modifierAnnos) {
-                if (AnnotationUtils.isDeclarationAnnotation(anno)) {
+                if (!AnnotationUtils.isTypeUseAnnotation(anno)) {
                     // This does not treat Checker Framework compatqual annotations differently,
                     // because it's not clear whether the annotation should apply to the outermost
                     // enclosing type or the innermost.
@@ -114,15 +114,15 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
             for (AnnotationMirror anno : modifierAnnos) {
                 // The code here is similar to
                 // org.checkerframework.framework.util.element.ElementAnnotationUtil.addDeclarationAnnotationsFromElement.
-                if (AnnotationUtils.isDeclarationAnnotation(anno)
+                if (AnnotationUtils.isTypeUseAnnotation(anno)
                         // Always treat Checker Framework annotations as type annotations.
-                        && !AnnotationUtils.annotationName(anno)
+                        || AnnotationUtils.annotationName(anno)
                                 .startsWith("org.checkerframework")) {
-                    // Declaration annotations apply to the outer type.
-                    result.addAnnotation(anno);
-                } else {
                     // Type annotations apply to the innermost type.
                     innerType.addAnnotation(anno);
+                } else {
+                    // Declaration annotations apply to the outer type.
+                    result.addAnnotation(anno);
                 }
             }
         }
