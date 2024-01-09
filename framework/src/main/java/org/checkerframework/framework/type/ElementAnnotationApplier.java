@@ -10,7 +10,6 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclared
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
 import org.checkerframework.framework.util.element.ClassTypeParamApplier;
-import org.checkerframework.framework.util.element.ElementAnnotationUtil.ErrorTypeKindException;
 import org.checkerframework.framework.util.element.ElementAnnotationUtil.UnexpectedAnnotationLocationException;
 import org.checkerframework.framework.util.element.MethodApplier;
 import org.checkerframework.framework.util.element.MethodTypeParamApplier;
@@ -82,17 +81,12 @@ public final class ElementAnnotationApplier {
     public static void apply(
             AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory typeFactory) {
         try {
-            try {
-                applyInternal(type, element, typeFactory);
-            } catch (UnexpectedAnnotationLocationException e) {
-                reportInvalidLocation(element, typeFactory);
-            }
-            // Also copy annotations from type parameters to their uses.
-            new TypeVarAnnotator().visit(type, typeFactory);
-        } catch (ErrorTypeKindException e) {
-            // Do nothing if an ERROR TypeKind was found.
-            // This is triggered by Issue #244.
+            applyInternal(type, element, typeFactory);
+        } catch (UnexpectedAnnotationLocationException e) {
+            reportInvalidLocation(element, typeFactory);
         }
+        // Also copy annotations from type parameters to their uses.
+        new TypeVarAnnotator().visit(type, typeFactory);
     }
 
     /** Issues an "invalid.annotation.location.bytecode warning. */

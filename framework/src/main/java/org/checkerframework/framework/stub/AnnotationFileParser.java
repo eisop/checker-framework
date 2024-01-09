@@ -74,8 +74,8 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclared
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.ErrorTypeKindException;
 import org.checkerframework.framework.util.JavaParserUtil;
-import org.checkerframework.framework.util.element.ElementAnnotationUtil.ErrorTypeKindException;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
@@ -1330,7 +1330,14 @@ public class AnnotationFileParser {
         }
         markAsFromStubFile(elt);
 
-        AnnotatedExecutableType methodType = atypeFactory.fromElement(elt);
+        AnnotatedExecutableType methodType;
+        try {
+            methodType = atypeFactory.fromElement(elt);
+        } catch (ErrorTypeKindException e) {
+            stubWarnNotFound(decl, "Error type kind occurred: " + e.getLocalizedMessage());
+            return Collections.emptyList();
+        }
+
         AnnotatedExecutableType origMethodType =
                 warnIfStubRedundantWithBytecode ? methodType.deepCopy() : null;
 
@@ -1360,7 +1367,9 @@ public class AnnotationFileParser {
                         decl.getAnnotations(),
                         decl);
             } catch (ErrorTypeKindException e) {
-                // Do nothing, per https://github.com/typetools/checker-framework/issues/244 .
+                // See https://github.com/typetools/checker-framework/issues/244 .
+                // Issue a warning, to enable fixes to the classpath.
+                stubWarnNotFound(decl, "Error type kind occurred: " + e);
             }
         } else {
             assert decl.isConstructorDeclaration();

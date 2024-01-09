@@ -629,20 +629,4 @@ public class ElementAnnotationUtil {
             super(String.format(format, args));
         }
     }
-
-    /** An ERROR TypeKind was found. */
-    @SuppressWarnings("serial")
-    public static class ErrorTypeKindException extends Error {
-
-        /**
-         * Creates an ErrorTypeKindException.
-         *
-         * @param format format string
-         * @param args arguments to the format string
-         */
-        @FormatMethod
-        public ErrorTypeKindException(String format, Object... args) {
-            super(String.format(format, args));
-        }
-    }
 }
