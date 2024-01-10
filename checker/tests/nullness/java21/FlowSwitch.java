@@ -1,6 +1,6 @@
 // @below-java21-jdk-skip-test
 
-// None of the WPI formats support the new Java 21 languages features, so skip inference until they
+// None of the WPI formats supports the new Java 21 languages features, so skip inference until they
 // do.
 // @infer-jaifs-skip-test
 // @infer-ajava-skip-test
@@ -11,7 +11,7 @@ public class FlowSwitch {
   void test0(Number n) {
     String s = null;
     switch (n) {
-      default:
+      case null, default:
         {
           // TODO: this should issue a dereference of nullable error.
           n.toString();

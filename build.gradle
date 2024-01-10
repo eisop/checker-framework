@@ -76,6 +76,7 @@ ext {
   versions = [
     autoValue       : '1.11.0',
     errorprone      : '2.36.0',
+    googleJavaFormat : '1.19.2',
     hashmapUtil     : '0.0.1',
     junit           : '4.13.2',
     lombok          : '1.18.36',
@@ -145,7 +146,7 @@ if (currentRuntimeJavaVersion >= 11) {
     //     > Could not create task ':spotlessJava'.
     //        > Add a step with [com.google.googlejavaformat:google-java-format:1.15.0] into the `spotlessPredeclare` block in the root project.
     java {
-      googleJavaFormat()
+      googleJavaFormat(versions.googleJavaFormat)
     }
     groovyGradle {
       greclipse()
@@ -277,12 +278,6 @@ allprojects { currentProj ->
             'tests/*record*/'
           ]
         }
-        // As of 2023-09-24, google-java-format cannot parse Java 21 language features.
-        // See https://github.com/google/google-java-format/releases.
-        if (true) {
-          doNotFormat += ['tests/**/java21/']
-        }
-
         if (currentRuntimeJavaVersion < 21) {
           doNotFormat += ['tests/**/java21/']
         }
@@ -319,7 +314,7 @@ allprojects { currentProj ->
         }
         targetExclude doNotFormat
 
-        googleJavaFormat()// .aosp()
+        googleJavaFormat(versions.googleJavaFormat)// .aosp()
         // importOrder('com', 'jdk', 'lib', 'lombok', 'org', 'java', 'javax')
         formatAnnotations().addTypeAnnotation("PolyInitialized").addTypeAnnotation("PolyVP").addTypeAnnotation("ReceiverDependentQual")
       }
