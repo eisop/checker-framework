@@ -91,6 +91,7 @@ public abstract class AbstractTypeInformationPresenter implements TypeInformatio
      * Creates the {@link TypeInformationReporter} to use.
      *
      * @param tree a {@link ClassTree} that has been annotated by the factory
+     * @return the {@link TypeInformationReporter} to use
      */
     protected abstract TypeInformationReporter createTypeInformationReporter(ClassTree tree);
 
@@ -125,7 +126,7 @@ public abstract class AbstractTypeInformationPresenter implements TypeInformatio
         /**
          * Constructs a new reporter for the given class tree.
          *
-         * @param classTree a ClassTree
+         * @param classTree the {@link ClassTree}
          */
         public TypeInformationReporter(ClassTree classTree) {
             this.classTree = classTree;

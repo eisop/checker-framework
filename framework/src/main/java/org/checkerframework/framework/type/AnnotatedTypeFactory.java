@@ -1307,11 +1307,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     /**
      * Creates the {@link AnnotatedTypeFormatter} used by this type factory and all {@link
-     * AnnotatedTypeMirrors} it creates. The {@link AnnotatedTypeFormatter} is used in {@link
+     * AnnotatedTypeMirror}s it creates. The {@link AnnotatedTypeFormatter} is used in {@link
      * AnnotatedTypeMirror#toString()} and will affect the error messages printed for checkers that
      * use this type factory.
      *
-     * @return the {@link AnnotatedTypeFormatter} to pass to all {@link AnnotatedTypeMirrors}
+     * @return the {@link AnnotatedTypeFormatter} to pass to all {@link AnnotatedTypeMirror}s
      */
     protected AnnotatedTypeFormatter createAnnotatedTypeFormatter() {
         boolean printVerboseGenerics = checker.hasOption("printVerboseGenerics");
@@ -1342,7 +1342,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /**
      * Return the current {@link AnnotationFormatter}.
      *
-     * @return the current {@link AnnotationTypeFormatter}
+     * @return the current {@link AnnotationFormatter}
      */
     public AnnotationFormatter getAnnotationFormatter() {
         return annotationFormatter;

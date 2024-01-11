@@ -46,9 +46,13 @@ public class LspTypeInformationPresenter extends AbstractTypeInformationPresente
         /** Computes positions of a sub-tree. */
         protected final SourcePositions sourcePositions;
 
-        /** Constructor. */
-        LspTypeInformationReporter(ClassTree tree) {
-            super(tree);
+        /**
+         * Constructor.
+         *
+         * @param classTree the {@link ClassTree}
+         */
+        LspTypeInformationReporter(ClassTree classTree) {
+            super(classTree);
             this.sourcePositions = atypeFactory.getTreeUtils().getSourcePositions();
         }
 
