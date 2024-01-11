@@ -71,10 +71,11 @@ import org.checkerframework.framework.util.CheckerMain;
 import org.checkerframework.framework.util.DefaultAnnotationFormatter;
 import org.checkerframework.framework.util.FieldInvariants;
 import org.checkerframework.framework.util.TreePathCacher;
-import org.checkerframework.framework.util.TypeInformationPresenter;
 import org.checkerframework.framework.util.typeinference.DefaultTypeArgumentInference;
 import org.checkerframework.framework.util.typeinference.TypeArgInferenceUtil;
 import org.checkerframework.framework.util.typeinference.TypeArgumentInference;
+import org.checkerframework.framework.util.visualize.LspTypeInformationPresenter;
+import org.checkerframework.framework.util.visualize.TypeInformationPresenter;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationProvider;
@@ -557,7 +558,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * every type-checked class. This information can be visualized by an editor/IDE that supports
      * LSP.
      */
-    private final TypeInformationPresenter typeInformationPresenter;
+    protected final TypeInformationPresenter typeInformationPresenter;
 
     /**
      * Constructs a factory from the given checker.
@@ -614,12 +615,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         this.typeFormatter = createAnnotatedTypeFormatter();
         this.annotationFormatter = createAnnotationFormatter();
-
-        if (checker.hasOption("lspTypeInfo")) {
-            this.typeInformationPresenter = new TypeInformationPresenter(this);
-        } else {
-            this.typeInformationPresenter = null;
-        }
+        this.typeInformationPresenter = createTypeInformationPresenter();
 
         // Alias provided via -AaliasedTypeAnnos command-line option.
         // This can only be used for annotations whose attributes have the same names as in the
@@ -1310,11 +1306,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Creates the AnnotatedTypeFormatter used by this type factory and all AnnotatedTypeMirrors it
-     * creates. The AnnotatedTypeFormatter is used in AnnotatedTypeMirror.toString and will affect
-     * the error messages printed for checkers that use this type factory.
+     * Creates the {@link AnnotatedTypeFormatter} used by this type factory and all {@link
+     * AnnotatedTypeMirrors} it creates. The {@link AnnotatedTypeFormatter} is used in {@link
+     * AnnotatedTypeMirror#toString()} and will affect the error messages printed for checkers that
+     * use this type factory.
      *
-     * @return the AnnotatedTypeFormatter to pass to all instantiated AnnotatedTypeMirrors
+     * @return the {@link AnnotatedTypeFormatter} to pass to all {@link AnnotatedTypeMirrors}
      */
     protected AnnotatedTypeFormatter createAnnotatedTypeFormatter() {
         boolean printVerboseGenerics = checker.hasOption("printVerboseGenerics");
@@ -1324,16 +1321,46 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 printVerboseGenerics || checker.hasOption("printAllQualifiers"));
     }
 
+    /**
+     * Return the current {@link AnnotatedTypeFormatter}.
+     *
+     * @return the current {@link AnnotatedTypeFormatter}
+     */
     public AnnotatedTypeFormatter getAnnotatedTypeFormatter() {
         return typeFormatter;
     }
 
+    /**
+     * Creates the {@link AnnotationFormatter} used by this type factory.
+     *
+     * @return the {@link AnnotationFormatter} used by this type factory
+     */
     protected AnnotationFormatter createAnnotationFormatter() {
         return new DefaultAnnotationFormatter();
     }
 
+    /**
+     * Return the current {@link AnnotationFormatter}.
+     *
+     * @return the current {@link AnnotationTypeFormatter}
+     */
     public AnnotationFormatter getAnnotationFormatter() {
         return annotationFormatter;
+    }
+
+    /**
+     * Creates the {@link TypeInformationPresenter} used in {@link #postProcessClassTree(ClassTree)}
+     * to output type information about the current class.
+     *
+     * @return the {@link TypeInformationPresenter} used by this type factory, or null
+     */
+    protected @Nullable TypeInformationPresenter createTypeInformationPresenter() {
+        // TODO: look into a similar mechanism as for CFG visualization.
+        if (checker.hasOption("lspTypeInfo")) {
+            return new LspTypeInformationPresenter(this);
+        } else {
+            return null;
+        }
     }
 
     /**
@@ -1497,7 +1524,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         DeclarationsIntoElements.store(processingEnv, this, tree);
 
         if (typeInformationPresenter != null) {
-            typeInformationPresenter.process(tree);
+            typeInformationPresenter.process(tree, getPath(tree));
         }
 
         /* NO-AFU
