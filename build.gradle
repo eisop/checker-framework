@@ -6,7 +6,7 @@ buildscript {
             // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
             // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
             // Only works on JDK 11+.
-            classpath 'com.diffplug.spotless:spotless-plugin-gradle:6.23.3'
+            classpath 'com.diffplug.spotless:spotless-plugin-gradle:6.24.0'
         }
     }
 }
@@ -266,11 +266,6 @@ allprojects {
                 // as they  only contain examples for switch expressions, which were
                 // added in Java 14, not Java 17.
                 doNotFormat += ['**/java17/']
-            }
-            // As of 2023-09-24, google-java-format cannot parse Java 21 language features.
-            // See https://github.com/google/google-java-format/releases.
-            if (true) {
-                doNotFormat += ['**/java21/']
             }
             if (!isJava21plus) {
                 doNotFormat += ['**/java21/']
