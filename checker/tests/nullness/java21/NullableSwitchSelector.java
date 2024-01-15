@@ -25,8 +25,7 @@ public class NullableSwitchSelector {
             case Integer i -> obj.toString();
             case String s -> String.format("String %s", s);
                 // TODO: If obj is null, this case isn't reachable, because a null pointer exception
-                // happens
-                // at the selector expression.
+                // happens at the selector expression.
                 // :: error: (dereference.of.nullable)
             default -> obj.toString();
         };

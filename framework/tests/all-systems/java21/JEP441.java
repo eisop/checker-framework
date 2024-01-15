@@ -18,10 +18,8 @@ public class JEP441 {
     //  * Improve enum constant case labels
     //  * Extend case labels to include patterns and null in addition to constants
     //  * Broaden the range of types permitted for the selector expressions of both switch
-    // statements
-    //    and switch expressions (along with the required richer analysis of exhaustiveness of
-    // switch
-    //    blocks)
+    //    statements and switch expressions (along with the required richer analysis of
+    //    exhaustiveness of switch blocks)
     //  * Allow optional when clauses to follow case labels.
 
     // Prior to Java 21
@@ -56,7 +54,6 @@ public class JEP441 {
             default:
                 obj.toString();
         }
-        ;
     }
 
     static String formatterPatternSwitch(Object obj) {
@@ -235,7 +232,6 @@ public class JEP441 {
     }
 
     record MyPair<S, T>(S fst, T snd) {}
-    ;
 
     static void recordInference(MyPair<String, Integer> pair) {
         switch (pair) {
