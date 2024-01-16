@@ -30,7 +30,6 @@ import com.sun.tools.javac.util.Options;
 
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.interning.qual.FindDistinct;
-import org.checkerframework.checker.interning.qual.InternedDistinct;
 import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -3443,40 +3442,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Returns the types of the two arguments to a binary operation, accounting for widening and
-     * unboxing if applicable.
-     *
-     * @param left the type of the left argument of a binary operation
-     * @param right the type of the right argument of a binary operation
-     * @return the types of the two arguments
-     * @deprecated use {@link #binaryTreeArgTypes(BinaryTree)} or {@link
-     *     #compoundAssignmentTreeArgTypes(CompoundAssignmentTree)}
-     */
-    @Deprecated // 2022-06-03
-    public IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> binaryTreeArgTypes(
-            AnnotatedTypeMirror left, AnnotatedTypeMirror right) {
-        TypeKind resultTypeKind =
-                TypeKindUtils.widenedNumericType(
-                        left.getUnderlyingType(), right.getUnderlyingType());
-        if (TypeKindUtils.isNumeric(resultTypeKind)) {
-            TypeMirror resultTypeMirror = types.getPrimitiveType(resultTypeKind);
-            AnnotatedPrimitiveType leftUnboxed = applyUnboxing(left);
-            AnnotatedPrimitiveType rightUnboxed = applyUnboxing(right);
-            AnnotatedPrimitiveType leftWidened =
-                    (leftUnboxed.getKind() == resultTypeKind
-                            ? leftUnboxed
-                            : getWidenedPrimitive(leftUnboxed, resultTypeMirror));
-            AnnotatedPrimitiveType rightWidened =
-                    (rightUnboxed.getKind() == resultTypeKind
-                            ? rightUnboxed
-                            : getWidenedPrimitive(rightUnboxed, resultTypeMirror));
-            return IPair.of(leftWidened, rightWidened);
-        } else {
-            return IPair.of(left, right);
-        }
-    }
-
-    /**
      * Returns AnnotatedPrimitiveType with underlying type {@code narrowedTypeMirror} and with
      * annotations copied or adapted from {@code type}.
      *
@@ -3916,56 +3881,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             elementToTreeCache.put(elt, fromElt);
         }
         return fromElt;
-    }
-
-    /**
-     * Returns the class tree enclosing {@code tree}.
-     *
-     * @param tree the tree whose enclosing class is returned
-     * @return the class tree enclosing {@code tree}
-     * @deprecated Use {@code TreePathUtil.enclosingClass(getPath(tree))} instead.
-     */
-    @Deprecated // 2021-11-01
-    protected final ClassTree getCurrentClassTree(Tree tree) {
-        return TreePathUtil.enclosingClass(getPath(tree));
-    }
-
-    /**
-     * Returns the receiver type of the method enclosing {@code tree}.
-     *
-     * <p>The method uses the parameter only if the most enclosing method cannot be found directly.
-     *
-     * @param tree the tree used to find the enclosing method
-     * @return receiver type of the most enclosing method being visited
-     * @deprecated Use {@link #getSelfType(Tree)} instead
-     */
-    @Deprecated // 2021-11-01
-    protected final @Nullable AnnotatedDeclaredType getCurrentMethodReceiver(Tree tree) {
-        TreePath path = getPath(tree);
-        if (path == null) {
-            return null;
-        }
-        @SuppressWarnings("interning:assignment") // used for == test
-        @InternedDistinct MethodTree enclosingMethod = TreePathUtil.enclosingMethod(path);
-        ClassTree enclosingClass = TreePathUtil.enclosingClass(path);
-
-        boolean found = false;
-
-        for (Tree member : enclosingClass.getMembers()) {
-            if (member.getKind() == Tree.Kind.METHOD) {
-                if (member == enclosingMethod) {
-                    found = true;
-                }
-            }
-        }
-
-        if (found && enclosingMethod != null) {
-            AnnotatedExecutableType method = getAnnotatedType(enclosingMethod);
-            return method.getReceiverType();
-        } else {
-            // We are within an anonymous class or field initializer
-            return this.getAnnotatedType(enclosingClass);
-        }
     }
 
     /**

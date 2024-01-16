@@ -55,8 +55,6 @@ public class SystemUtil {
     }
 
     /** The major version number of the Java runtime (JRE), such as 8, 11, or 17. */
-    @SuppressWarnings(
-            "deprecation") // remove @SuppressWarnings when getJreVersion() isn't deprecated
     public static final int jreVersion = getJreVersion();
 
     // Keep in sync with BCELUtil.java (in the bcel-util project).
@@ -74,12 +72,11 @@ public class SystemUtil {
      * <p>Starting in Java 9, there is the int {@code Runtime.version().feature()}, but that does
      * not exist on JDK 8.
      *
+     * <p>External users should use field {@link #jreVersion} instead.
+     *
      * @return the major version of the Java runtime
-     * @deprecated use field {@link #jreVersion} instead
      */
-    @Deprecated // 2022-07-14 not for removal, just to make private (and then it won't be
-    // deprecated)
-    public static int getJreVersion() {
+    private static int getJreVersion() {
         String version = System.getProperty("java.version");
 
         // Up to Java 8, from a version string like "1.8.whatever", extract "8".

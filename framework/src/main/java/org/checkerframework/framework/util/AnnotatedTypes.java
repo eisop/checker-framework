@@ -970,31 +970,6 @@ public class AnnotatedTypes {
     }
 
     /**
-     * Returns the method parameters for the invoked method, with the same number of arguments
-     * passed in the methodInvocation tree.
-     *
-     * <p>If the invoked method is not a vararg method or it is a vararg method but the invocation
-     * passes an array to the vararg parameter, it would simply return the method parameters.
-     *
-     * <p>Otherwise, it would return the list of parameters as if the vararg is expanded to match
-     * the size of the passed arguments.
-     *
-     * @param atypeFactory the type factory to use for fetching annotated types
-     * @param method the method's type
-     * @param args the arguments to the method invocation
-     * @return the types that the method invocation arguments need to be subtype of
-     * @deprecated Use {@link #adaptParameters(AnnotatedTypeFactory,
-     *     AnnotatedTypeMirror.AnnotatedExecutableType, List, NewClassTree)} instead
-     */
-    @Deprecated
-    public static List<AnnotatedTypeMirror> expandVarArgsParameters(
-            AnnotatedTypeFactory atypeFactory,
-            AnnotatedExecutableType method,
-            List<? extends ExpressionTree> args) {
-        return adaptParameters(atypeFactory, method, args, null);
-    }
-
-    /**
      * Returns the method parameters for the invoked method (or constructor), with the same number
      * of arguments as passed to the invocation tree.
      *
@@ -1126,33 +1101,6 @@ public class AnnotatedTypes {
             }
         }
         return parameterTypes.get(index);
-    }
-
-    /**
-     * Return a list of the AnnotatedTypeMirror of the passed expression trees, in the same order as
-     * the trees.
-     *
-     * @param atypeFactory a type factory
-     * @param paramTypes the parameter types to use as assignment context
-     * @param trees the AST nodes
-     * @return a list with the AnnotatedTypeMirror of each tree in trees
-     * @deprecated use CollectionsPlume.mapList(atypeFactory::getAnnotatedType, trees) instead.
-     */
-    @Deprecated // 2021-11-01
-    public static List<AnnotatedTypeMirror> getAnnotatedTypes(
-            AnnotatedTypeFactory atypeFactory,
-            List<AnnotatedTypeMirror> paramTypes,
-            List<? extends ExpressionTree> trees) {
-        if (paramTypes.size() != trees.size()) {
-            throw new BugInCF(
-                    "AnnotatedTypes.getAnnotatedTypes: size mismatch! "
-                            + "Parameter types: "
-                            + paramTypes
-                            + " Arguments: "
-                            + trees);
-        }
-
-        return CollectionsPlume.mapList(atypeFactory::getAnnotatedType, trees);
     }
 
     /**

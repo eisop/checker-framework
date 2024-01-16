@@ -717,7 +717,7 @@ public final class TreeUtils {
      *
      * @param newClassTree the constructor invocation
      * @return the super constructor invoked in the body of the anonymous constructor; or {@link
-     *     #constructor(NewClassTree)} if {@code newClassTree} is not creating an anonymous class
+     *     #elementFromUse(NewClassTree)} if {@code newClassTree} is not creating an anonymous class
      */
     public static ExecutableElement getSuperConstructor(NewClassTree newClassTree) {
         if (newClassTree.getClassBody() == null) {
@@ -740,19 +740,6 @@ public final class TreeUtils {
         JCExpressionStatement stmt = (JCExpressionStatement) anonConstructor.body.stats.head;
         JCMethodInvocation superInvok = (JCMethodInvocation) stmt.expr;
         return (ExecutableElement) TreeInfo.symbol(superInvok.meth);
-    }
-
-    /**
-     * Determines the element for a constructor given an invocation via {@code new}.
-     *
-     * @see #elementFromUse(NewClassTree)
-     * @param tree the constructor invocation
-     * @return the {@link ExecutableElement} corresponding to the constructor call in {@code tree}
-     * @deprecated use elementFromUse instead
-     */
-    @Deprecated // 2022-09-12
-    public static ExecutableElement constructor(NewClassTree tree) {
-        return (ExecutableElement) ((JCNewClass) tree).constructor;
     }
 
     /**
