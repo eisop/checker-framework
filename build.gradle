@@ -87,7 +87,7 @@ ext {
         lombok          : '1.18.30',
         // plume-util includes a version of reflection-util. When updating ensure the versions are consistent.
         plumeUtil       : '1.9.0',
-        reflectionUtil  : '1.1.2',
+        reflectionUtil  : '1.1.3',
     ]
 }
 
