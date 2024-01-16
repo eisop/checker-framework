@@ -5,6 +5,9 @@ Version 3.42.0-eisop3 (January ?, 2024)
 
 **Implementation details:**
 
+Refactored the `TypeInformationPresenter` into several classes in the new
+`org.checkerframework.framework.util.visualize` package.
+
 **Closed issues:**
 
 
