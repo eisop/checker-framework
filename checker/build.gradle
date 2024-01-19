@@ -90,6 +90,9 @@ dependencies {
   testImplementation 'org.apiguardian:apiguardian-api:1.1.2'
   // For tests that use JSpecify annotations
   testImplementation 'org.jspecify:jspecify:1.0.0'
+  // To test for an obscure crash in CFG construction for try-with-resources;
+  // see https://github.com/typetools/checker-framework/issues/6396
+  testImplementation 'org.apache.spark:spark-sql_2.12:3.3.2'
 
   // Required for checker/tests/index-initializedfields/RequireJavadoc.java
   if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
@@ -1201,3 +1204,4 @@ publishing {
 signing {
   sign publishing.publications.checker
 }
+
