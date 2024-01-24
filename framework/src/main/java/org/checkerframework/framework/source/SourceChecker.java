@@ -2200,7 +2200,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     } else if (src == null) {
       return false;
     } else {
-      throw new BugInCF("Unexpected source " + src);
+      throw new BugInCF("Unexpected source [" + src.getClass() + "] " + src);
     }
   }
 
