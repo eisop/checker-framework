@@ -247,6 +247,7 @@ allprojects { currentProj ->
     // patterns of files to skip for individual sub-projects
     def perProjectDoNotFormat = [
       'checker': [
+        'bin-devel/.git-scripts/**',
         'bin-devel/.plume-scripts/**',
         'dist/**',
         'tests/ainfer-*/annotated/*',
