@@ -79,7 +79,8 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
    */
   @Override
   public Set<Contract.Precondition> getPreconditions(ExecutableElement executableElement) {
-    return getContracts(executableElement, Contract.Kind.PRECONDITION, Contract.Precondition.class);
+    return getContractsOfKind(
+        executableElement, Contract.Kind.PRECONDITION, Contract.Precondition.class);
   }
 
   /**
@@ -90,7 +91,7 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
    */
   @Override
   public Set<Contract.Postcondition> getPostconditions(ExecutableElement executableElement) {
-    return getContracts(
+    return getContractsOfKind(
         executableElement, Contract.Kind.POSTCONDITION, Contract.Postcondition.class);
   }
 
@@ -103,7 +104,7 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
   @Override
   public Set<Contract.ConditionalPostcondition> getConditionalPostconditions(
       ExecutableElement methodElement) {
-    return getContracts(
+    return getContractsOfKind(
         methodElement,
         Contract.Kind.CONDITIONALPOSTCONDITION,
         Contract.ConditionalPostcondition.class);
@@ -121,7 +122,7 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
    * @param clazz the class to determine the return type
    * @return the contracts on {@code executableElement}
    */
-  private <T extends Contract> Set<T> getContracts(
+  private <T extends Contract> Set<T> getContractsOfKind(
       ExecutableElement executableElement, Contract.Kind kind, Class<T> clazz) {
     Set<T> result = new LinkedHashSet<>();
     // Check for a single framework-defined contract annotation.
