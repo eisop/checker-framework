@@ -52,6 +52,7 @@ import org.checkerframework.framework.source.SupportedLintOptions;
   "jspecifyNullMarkedAlias",
   "conservativeArgumentNullnessAfterInvocation"
 })
+@StubFiles({"junit-assertions.astub", "log4j.astub"})
 public class NullnessChecker extends InitializationChecker {
 
   /** Should we be strict about initialization of {@link MonotonicNonNull} variables? */
