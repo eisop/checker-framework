@@ -3,6 +3,8 @@ Version 3.42.0-eisop3 (January ?, 2024)
 
 **User-visible changes:**
 
+The new command-line argument '-AnoBytecodeStorage' allows the option to not store defaulted annotations in bytecode.
+
 **Implementation details:**
 
 Refactored the `TypeInformationPresenter` into several classes in the new
