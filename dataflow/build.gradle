@@ -132,8 +132,7 @@ def testDataflowAnalysis(taskName, dirName, className, diff) {
             }
             if (diff) {
                 exec {
-                    String filePath = "tests"+File.separator+dirName
-                    workingDir = filePath 
+                    workingDir = "tests/${dirName}"
                     executable 'diff'
                     args = [
                         '-u',
