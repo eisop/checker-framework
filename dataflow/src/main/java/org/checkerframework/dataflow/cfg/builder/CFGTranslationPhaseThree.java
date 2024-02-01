@@ -166,7 +166,7 @@ public class CFGTranslationPhaseThree {
                     Block succ = b.getRegularSuccessor();
                     if (succ.getType() == BlockType.REGULAR_BLOCK) {
                         RegularBlockImpl rs = (RegularBlockImpl) succ;
-                        if (rs.getPredecessors().size() == 1) {
+                        if (rs.getPredecessors().size() == 1 && rs.getRegularSuccessor() != rs) {
                             b.setSuccessor(rs.getRegularSuccessor());
                             b.addNodes(rs.getNodes());
                             rs.getRegularSuccessor().removePredecessor(rs);
