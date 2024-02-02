@@ -959,3 +959,12 @@ jobs:
 #     fetchDepth: 25
 #   - bash: ./checker/bin-devel/test-downstream.sh
 #     displayName: test-downstream.sh
+
+- job: windows_test
+  pool:
+    vmImage: 'windows-latest'
+  steps:
+  - checkout: self
+    fetchDepth: 25
+  - bash: ./checker/bin-devel/test-cftests-junit.sh
+    displayName: test-cftests-junit.sh
