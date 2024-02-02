@@ -37,9 +37,7 @@ jobs:
    # - misc_jdk_latest
   pool:
     vmImage: 'ubuntu-latest'
-  steps:
-  - bash: true
-    displayName: canary_jobs
+  steps: []
 
 - job: framework_jobs
   dependsOn:
@@ -66,9 +64,7 @@ jobs:
    # - typecheck_jdk_next
   pool:
     vmImage: 'ubuntu-latest'
-  steps:
-  - bash: true
-    displayName: framework_jobs
+  steps: []
 
 - job: required_jobs
   dependsOn:
@@ -99,9 +95,7 @@ jobs:
    # Not jspecify_jdk_next
   pool:
     vmImage: 'ubuntu-latest'
-  steps:
-  - bash: true
-    displayName: required_jobs
+  steps: []
 
 - job: junit_jdk8
   dependsOn:
@@ -511,11 +505,7 @@ jobs:
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk21-plus:latest
-  steps:
-  - checkout: self
-    fetchDepth: 25
-  - bash: true
-    displayName: typecheck_jdk21
+  steps: []
 # Disable until JDK 22 is stable
 # - job: typecheck_jdk_latest
 #   dependsOn:
@@ -618,11 +608,7 @@ jobs:
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk21-plus:latest
-  steps:
-  - checkout: self
-    fetchDepth: 25
-  - bash: true
-    displayName: daikon_jdk21
+  steps: []
 # Disable until JDK 22 is stable
 # - job: daikon_jdk_latest
 #   dependsOn:
