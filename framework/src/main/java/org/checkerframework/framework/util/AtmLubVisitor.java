@@ -213,6 +213,13 @@ class AtmLubVisitor extends AbstractAtmComboVisitor<Void, AnnotatedTypeMirror> {
         return null;
     }
 
+    /**
+     * Annotate the least upper bound of two type arguments.
+     *
+     * @param type1 the first type argument
+     * @param type2 the second type argument
+     * @param lub the least upper bound
+     */
     private void lubTypeArgument(
             AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, AnnotatedTypeMirror lub) {
         if ((type1.getKind() == TypeKind.WILDCARD
