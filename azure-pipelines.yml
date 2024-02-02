@@ -91,12 +91,6 @@ jobs:
    - plume_lib_jdk21
    # - plume_lib_jdk_latest
    # Not plume_lib_jdk_next
-   - jspecify_jdk8
-   - jspecify_jdk11
-   - jspecify_jdk17
-   - jspecify_jdk21
-   # - jspecify_jdk_latest
-   # Not jspecify_jdk_next
   pool:
     vmImage: 'ubuntu-latest'
   steps:
@@ -819,85 +813,6 @@ jobs:
   - bash: ./checker/bin-devel/test-plume-lib.sh
     continueOnError: true
     displayName: test-plume-lib.sh
-
-- job: jspecify_jdk8
-  dependsOn:
-   - canary_jobs
-   - jspecify_jdk21
-  pool:
-    vmImage: 'ubuntu-latest'
-  container: wmdietl/cf-ubuntu-jdk8:latest
-  timeoutInMinutes: 70
-  steps:
-  - checkout: self
-    fetchDepth: 25
-  - bash: ./checker/bin-devel/test-jspecify.sh
-    displayName: test-jspecify.sh
-- job: jspecify_jdk11
-  dependsOn:
-   - canary_jobs
-   - jspecify_jdk21
-  pool:
-    vmImage: 'ubuntu-latest'
-  container: wmdietl/cf-ubuntu-jdk11:latest
-  steps:
-  - checkout: self
-    fetchDepth: 25
-  - bash: ./checker/bin-devel/test-jspecify.sh
-    displayName: test-jspecify.sh
-- job: jspecify_jdk17
-  dependsOn:
-   - canary_jobs
-   - jspecify_jdk21
-  pool:
-    vmImage: 'ubuntu-latest'
-  container: wmdietl/cf-ubuntu-jdk17:latest
-  timeoutInMinutes: 70
-  steps:
-  - checkout: self
-    fetchDepth: 25
-  - bash: ./checker/bin-devel/test-jspecify.sh
-    displayName: test-jspecify.sh
-- job: jspecify_jdk21
-  pool:
-    vmImage: 'ubuntu-latest'
-  container: wmdietl/cf-ubuntu-jdk21:latest
-  timeoutInMinutes: 70
-  steps:
-  - checkout: self
-    fetchDepth: 25
-  - bash: ./checker/bin-devel/test-jspecify.sh
-    displayName: test-jspecify.sh
-# Disable until JDK 22 is stable
-# - job: jspecify_jdk_latest
-#   dependsOn:
-#    - canary_jobs
-#    - jspecify_jdk21
-#   pool:
-#     vmImage: 'ubuntu-latest'
-#   container: wmdietl/cf-ubuntu-jdk-latest:latest
-#   timeoutInMinutes: 70
-#   steps:
-#   - checkout: self
-#     fetchDepth: 25
-#   - bash: ./checker/bin-devel/test-jspecify.sh
-#     displayName: test-jspecify.sh
-- job: jspecify_jdk_next
-  dependsOn:
-   - canary_jobs
-   - jspecify_jdk21
-  pool:
-    vmImage: 'ubuntu-latest'
-  container: wmdietl/cf-ubuntu-jdk-next:latest
-  timeoutInMinutes: 70
-  steps:
-  - checkout: self
-    fetchDepth: 25
-  # Run test, but do not cause overall failure
-  - bash: ./checker/bin-devel/test-jspecify.sh
-    continueOnError: true
-    displayName: test-jspecify.sh
-
 
 ## The downstream jobs are not currently needed because test-downstream.sh is empty.
 # - job: downstream_jdk8

@@ -84,6 +84,8 @@ dependencies {
     // For the Nullness Checker test of junit-assertions.astub in JUnitNull.java
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.1'
     testImplementation 'org.apiguardian:apiguardian-api:1.1.2'
+    // For tests that use JSpecify annotations
+    testImplementation 'org.jspecify:jspecify:0.3.0'
 
     // Required for checker/tests/index-initializedfields/RequireJavadoc.java
     if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
@@ -387,12 +389,6 @@ task jtregJdk11Tests(dependsOn: ':downloadJtreg', group: 'Verification') {
             ]
         }
     }
-}
-
-// JSpecify tests are excluded by default.  To run them:
-// ./gradlew NullnessJSpecifySamplesTest
-test {
-    exclude '**/org/checkerframework/checker/test/junit/NullnessJSpecifySamplesTest.class'
 }
 
 task delombok {
