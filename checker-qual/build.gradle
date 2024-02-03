@@ -2,7 +2,7 @@ buildscript {
     dependencies {
         if (JavaVersion.current() >= JavaVersion.VERSION_17) {
             // bnd builder depends on Java 17.
-            // As EISOP release are made on Java 21, this shouldn't impact releases.
+            // As EISOP releases are made on Java 21, this shouldn't impact releases.
             classpath('biz.aQute.bnd:biz.aQute.bnd.gradle:7.0.0')
         }
     }
