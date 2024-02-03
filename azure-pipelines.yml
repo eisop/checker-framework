@@ -877,6 +877,8 @@ jobs:
 #     displayName: test-downstream.sh
 
 - job: windows_test
+  dependsOn:
+   - junit_jdk21
   pool:
     vmImage: 'windows-latest'
   steps:
