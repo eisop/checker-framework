@@ -97,6 +97,7 @@ jobs:
    - jspecify_jdk21
    # - jspecify_jdk_latest
    # Not jspecify_jdk_next
+   - windows_test
   pool:
     vmImage: 'ubuntu-latest'
   steps:
