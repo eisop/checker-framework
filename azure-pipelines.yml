@@ -966,5 +966,6 @@ jobs:
   steps:
   - checkout: self
     fetchDepth: 25
+  - bash: ./gradlew NullnessTest
   - bash: ./checker/bin-devel/test-cftests-junit.sh
     displayName: test-cftests-junit.sh
