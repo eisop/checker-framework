@@ -10,7 +10,7 @@ Refactored the `TypeInformationPresenter` into several classes in the new
 
 **Closed issues:**
 
-typetools#6433.
+typetools#6433, typetools#6438.
 
 
 Version 3.42.0-eisop2 (January 9, 2024)
