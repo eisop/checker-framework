@@ -68,7 +68,6 @@ ext {
     // afu = "${annotationTools}/annotation-file-utilities"
 
     jtregHome = "${parentDir}/jtreg"
-    jspecifyHome = "${parentDir}/jspecify"
     plumeScriptsHome = "${project(':checker').projectDir}/bin-devel/.plume-scripts"
     htmlToolsHome = "${project(':checker').projectDir}/bin-devel/.html-tools"
     doLikeJavacHome = "${project(':checker').projectDir}/bin/.do-like-javac"
@@ -808,26 +807,7 @@ def createCloneTask(taskName, url, directory, extraArgs = []) {
 createCloneTask('getPlumeScripts', 'https://github.com/eisop-plume-lib/plume-scripts.git', plumeScriptsHome)
 createCloneTask('getHtmlTools', 'https://github.com/plume-lib/html-tools.git', htmlToolsHome)
 createCloneTask('getDoLikeJavac', 'https://github.com/opprop/do-like-javac.git', doLikeJavacHome)
-createCloneTask('getJSpecify', 'https://github.com/jspecify/jspecify.git', jspecifyHome)
 
-task cloneAndBuildJSpecify(dependsOn: getJSpecify) {
-    description 'Obtain or update and build JSpecify.'
-    doLast {
-        // JSpecify requires Java 9 or later.
-        if (JavaVersion.current() > JavaVersion.VERSION_1_8) {
-            println 'Building JSpecify repository.'
-            exec {
-                println "Executing in directory: ${jspecifyHome}"
-                workingDir jspecifyHome
-                commandLine 'sh', '-c', './gradlew assemble'
-            }
-        } else {
-            println 'Java version is not greater than 1.8, skipping build of JSpecify.'
-        }
-    }
-}
-
-test.dependsOn cloneAndBuildJSpecify
 
 // No group so it does not show up in the output of `gradlew tasks`
 task pythonIsInstalled(type: Exec) {
@@ -1089,9 +1069,6 @@ subprojects {
                 include "**/${name}.class"
                 testClassesDirs = testing.suites.test.sources.output.classesDirs
                 classpath = testing.suites.test.sources.runtimeClasspath
-                if (junitClassName == 'NullnessNullMarkedTest') {
-                    dependsOn ':cloneAndBuildJSpecify'
-                }
             }
         }
 

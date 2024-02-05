@@ -213,8 +213,26 @@ class AtmLubVisitor extends AbstractAtmComboVisitor<Void, AnnotatedTypeMirror> {
         return null;
     }
 
+    /**
+     * Annotate the least upper bound of two type arguments.
+     *
+     * @param type1 the first type argument
+     * @param type2 the second type argument
+     * @param lub the least upper bound
+     */
     private void lubTypeArgument(
             AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, AnnotatedTypeMirror lub) {
+        if ((type1.getKind() == TypeKind.WILDCARD
+                        && ((AnnotatedWildcardType) type1).isUninferredTypeArgument())
+                || (type2.getKind() == TypeKind.WILDCARD
+                        && ((AnnotatedWildcardType) type2).isUninferredTypeArgument())) {
+            // The asSuper calls below don't seem to retain if a type variable was uninferred.
+            // There is a similar check in the wildcards branch below, not sure when that is
+            // actually hit.
+            // TODO: see whether anything else should be done. See issue 6438.
+            return;
+        }
+
         // In lub(), asSuper is called on type1 and type2, but asSuper does not recur into type
         // arguments, so call asSuper on the type arguments so that they have the same underlying
         // type.
