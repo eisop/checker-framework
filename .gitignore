@@ -13,6 +13,7 @@ tags
 *.swp
 *.orig
 .DS_Store
+dot_files
 
 # Eclipse files
 .metadata
@@ -20,7 +21,6 @@ tags
 .project
 .externalToolBuilders
 .settings
-dot_files
 
 # Intellij files
 .idea
