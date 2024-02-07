@@ -141,7 +141,7 @@ possibly throws an assertion.  Using it can make flow-sensitive type refinement
 more effective.
 
 In `org.checkerframework.common.util.debug`, renamed `EmptyProcessor` to `DoNothingProcessor`.
-Removed `org.checkerframework.common.util.report.DoNothingChecker`.
+Removed `org.checkerframework.common.util.report.DoNothingChecker`; use `DoNothingProcessor`.
 Moved `ReportChecker` from `org.checkerframework.common.util.report` to `org.checkerframework.common.util.count.report`.
 (EISOP note: we did not follow this renaming - if anything, `counting` could be a special case of `reporting`, not
 the other way around.)
