@@ -13,7 +13,7 @@ source "$SCRIPTDIR"/clone-related.sh
 
 
 ./gradlew nonJunitTests -x javadoc -x allJavadoc --console=plain --warning-mode=all
-./gradlew publishToMavenLocal --console=plain --warning-mode=all
+./gradlew publishToMavenLocal -x javadoc -x allJavadoc --console=plain --warning-mode=all
 # Moved example-tests out of all tests because it fails in
 # the release script because the newest maven artifacts are not published yet.
 ./gradlew :checker:exampleTests -x javadoc -x allJavadoc --console=plain --warning-mode=all
