@@ -1162,13 +1162,13 @@ public class QualifierDefaults {
             boundType = BoundType.TYPEVAR_UNBOUNDED;
         }
 
-        // are we currently defaulting the lower bound of a type variable or wildcard
+        /** Are we currently defaulting the lower bound of a type variable or wildcard? */
         private boolean isLowerBound = false;
 
-        // are we currently defaulting the upper bound of a type variable or wildcard
+        /** Are we currently defaulting the upper bound of a type variable or wildcard? */
         private boolean isUpperBound = false;
 
-        // the bound type of the current wildcard or type variable being defaulted
+        /** The bound type of the current wildcard or type variable being defaulted. */
         private BoundType boundType = BoundType.TYPEVAR_UNBOUNDED;
 
         @Override
