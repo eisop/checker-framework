@@ -132,7 +132,8 @@ public class QualifierDefaults {
                             TypeUseLocation.LOCAL_VARIABLE,
                             TypeUseLocation.RESOURCE_VARIABLE,
                             TypeUseLocation.EXCEPTION_PARAMETER,
-                            TypeUseLocation.IMPLICIT_UPPER_BOUND));
+                            TypeUseLocation.IMPLICIT_UPPER_BOUND,
+                            TypeUseLocation.IMPLICIT_WILDCARD_UPPER_BOUND));
 
     /** CLIMB locations whose standard default is bottom for a given type system. */
     public static final List<TypeUseLocation> STANDARD_CLIMB_DEFAULTS_BOTTOM =
@@ -1087,33 +1088,55 @@ public class QualifierDefaults {
                     break;
                 case IMPLICIT_LOWER_BOUND:
                     if (isLowerBound
-                            && (boundType == BoundType.UNBOUNDED || boundType == BoundType.UPPER)) {
+                            && (boundType == BoundType.TYPEVAR_UNBOUNDED
+                                    || boundType == BoundType.TYPEVAR_UPPER
+                                    || boundType == BoundType.WILDCARD_UNBOUNDED
+                                    || boundType == BoundType.WILDCARD_UPPER)) {
+                        // TODO: split type variables and wildcards?
                         outer.addAnnotation(t, qual);
                     }
                     break;
                 case EXPLICIT_LOWER_BOUND:
-                    if (isLowerBound && boundType == BoundType.LOWER) {
+                    if (isLowerBound
+                            && (boundType == BoundType.TYPEVAR_LOWER
+                                    || boundType == BoundType.WILDCARD_LOWER)) {
+                        // TODO: split type variables and wildcards?
                         outer.addAnnotation(t, qual);
                     }
                     break;
                 case LOWER_BOUND:
                     if (isLowerBound) {
+                        // TODO: split type variables and wildcards?
                         outer.addAnnotation(t, qual);
                     }
                     break;
                 case IMPLICIT_UPPER_BOUND:
                     if (isUpperBound
-                            && (boundType == BoundType.UNBOUNDED || boundType == BoundType.LOWER)) {
+                            && (boundType == BoundType.TYPEVAR_UNBOUNDED
+                                    || boundType == BoundType.TYPEVAR_LOWER)) {
+                        outer.addAnnotation(t, qual);
+                    }
+                    break;
+                case IMPLICIT_WILDCARD_UPPER_BOUND:
+                    if (isUpperBound
+                            && (boundType == BoundType.WILDCARD_UNBOUNDED
+                                    || boundType == BoundType.WILDCARD_LOWER)) {
                         outer.addAnnotation(t, qual);
                     }
                     break;
                 case EXPLICIT_UPPER_BOUND:
-                    if (isUpperBound && boundType == BoundType.UPPER) {
+                    if (isUpperBound && boundType == BoundType.TYPEVAR_UPPER) {
+                        outer.addAnnotation(t, qual);
+                    }
+                    break;
+                case EXPLICIT_WILDCARD_UPPER_BOUND:
+                    if (isUpperBound && boundType == BoundType.WILDCARD_UPPER) {
                         outer.addAnnotation(t, qual);
                     }
                     break;
                 case UPPER_BOUND:
                     if (isUpperBound) {
+                        // TODO: split type variables and wildcards?
                         outer.addAnnotation(t, qual);
                     }
                     break;
@@ -1136,7 +1159,7 @@ public class QualifierDefaults {
             super.reset();
             isLowerBound = false;
             isUpperBound = false;
-            boundType = BoundType.UNBOUNDED;
+            boundType = BoundType.TYPEVAR_UNBOUNDED;
         }
 
         // are we currently defaulting the lower bound of a type variable or wildcard
@@ -1146,7 +1169,7 @@ public class QualifierDefaults {
         private boolean isUpperBound = false;
 
         // the bound type of the current wildcard or type variable being defaulted
-        private BoundType boundType = BoundType.UNBOUNDED;
+        private BoundType boundType = BoundType.TYPEVAR_UNBOUNDED;
 
         @Override
         public Void visitTypeVariable(AnnotatedTypeVariable type, AnnotationMirror qual) {
@@ -1210,18 +1233,27 @@ public class QualifierDefaults {
      */
     protected enum BoundType {
 
-        /** Indicates an upper-bounded type variable or wildcard. */
-        UPPER,
+        /** Indicates an upper-bounded type variable. */
+        TYPEVAR_UPPER,
 
-        /** Indicates a lower-bounded type variable or wildcard. */
-        LOWER,
+        /** Indicates a lower-bounded type variable. */
+        TYPEVAR_LOWER,
 
         /**
          * Neither bound is specified, BOTH are implicit. (If a type variable is declared in
          * bytecode and the type of the upper bound is Object, then the checker assumes that the
          * bound was not explicitly written in source code.)
          */
-        UNBOUNDED;
+        TYPEVAR_UNBOUNDED,
+
+        /** Indicates an upper-bounded wildcard. */
+        WILDCARD_UPPER,
+
+        /** Indicates a lower-bounded wildcard. */
+        WILDCARD_LOWER,
+
+        /** Neither bound is specified, BOTH are implicit. */
+        WILDCARD_UNBOUNDED;
     }
 
     /**
@@ -1254,10 +1286,12 @@ public class QualifierDefaults {
     }
 
     /**
-     * Returns the boundType (UPPER or UNBOUNDED) of the declaration of typeParamElem.
+     * Returns the boundType (TYPEVAR_UPPER or TYPEVAR_UNBOUNDED) of the declaration of
+     * typeParamElem.
      *
      * @param typeParamElem the type parameter element
-     * @return the boundType (UPPER or UNBOUNDED) of the declaration of typeParamElem
+     * @return the boundType (TYPEVAR_UPPER or TYPEVAR_UNBOUNDED) of the declaration of
+     *     typeParamElem
      */
     // Results are cached in {@link elementToBoundType}.
     private BoundType getTypeVarBoundType(TypeParameterElement typeParamElem) {
@@ -1277,11 +1311,11 @@ public class QualifierDefaults {
                     && TypesUtils.isObject(typeParamElem.getBounds().get(0))) {
                 // If the bound was Object, then it may or may not have been explicitly written.
                 // Assume that it was not.
-                boundType = BoundType.UNBOUNDED;
+                boundType = BoundType.TYPEVAR_UNBOUNDED;
             } else {
                 // The bound is not Object, so it must have been explicitly written and thus the
                 // type variable has an upper bound.
-                boundType = BoundType.UPPER;
+                boundType = BoundType.TYPEVAR_UPPER;
             }
         } else {
             if (typeParamDecl.getKind() == Tree.Kind.TYPE_PARAMETER) {
@@ -1289,9 +1323,9 @@ public class QualifierDefaults {
 
                 List<? extends Tree> bnds = tptree.getBounds();
                 if (bnds != null && !bnds.isEmpty()) {
-                    boundType = BoundType.UPPER;
+                    boundType = BoundType.TYPEVAR_UPPER;
                 } else {
-                    boundType = BoundType.UNBOUNDED;
+                    boundType = BoundType.TYPEVAR_UNBOUNDED;
                 }
             } else {
                 throw new BugInCF(
@@ -1314,11 +1348,11 @@ public class QualifierDefaults {
      */
     private BoundType getWildcardBoundType(AnnotatedWildcardType wildcardType) {
         if (AnnotatedTypes.hasNoExplicitBound(wildcardType)) {
-            return BoundType.UNBOUNDED;
+            return BoundType.WILDCARD_UNBOUNDED;
         } else if (AnnotatedTypes.hasExplicitSuperBound(wildcardType)) {
-            return BoundType.LOWER;
+            return BoundType.WILDCARD_LOWER;
         } else {
-            return BoundType.UPPER;
+            return BoundType.WILDCARD_UPPER;
         }
     }
 }

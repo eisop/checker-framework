@@ -76,13 +76,25 @@ public enum TypeUseLocation {
     UPPER_BOUND,
 
     /**
-     * Apply default annotations to unannotated, but explicit upper bounds: {@code <T extends
-     * Object>}.
+     * Apply default annotations to unannotated, but explicit type variable upper bounds: {@code <T
+     * extends Object>}.
      */
     EXPLICIT_UPPER_BOUND,
 
+    /**
+     * Apply default annotations to unannotated, but explicit wildcard upper bounds: {@code <?
+     * extends C>}.
+     */
+    EXPLICIT_WILDCARD_UPPER_BOUND,
+
     /** Apply default annotations to unannotated type variables: {@code <T>}. */
     IMPLICIT_UPPER_BOUND,
+
+    /**
+     * Apply default annotations to unannotated wildcard upper bounds: {@code <?>} or {@code <?
+     * super C>}.
+     */
+    IMPLICIT_WILDCARD_UPPER_BOUND,
 
     /** Apply if nothing more concrete is provided. TODO: clarify relation to ALL. */
     OTHERWISE,

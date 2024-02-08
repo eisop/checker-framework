@@ -5,6 +5,8 @@ Version 3.42.0-eisop3 (February ?, 2024)
 
 **Implementation details:**
 
+Support separate defaults for wildcard and type variable upper bounds.
+
 Refactored the `TypeInformationPresenter` into several classes in the new
 `org.checkerframework.framework.util.visualize` package.
 
