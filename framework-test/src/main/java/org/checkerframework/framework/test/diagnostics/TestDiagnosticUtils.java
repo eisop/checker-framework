@@ -29,7 +29,7 @@ public class TestDiagnosticUtils {
     public static final Pattern DIAGNOSTIC_IN_JAVA_PATTERN =
             Pattern.compile(DIAGNOSTIC_IN_JAVA_REGEX);
 
-    public static final String DIAGNOSTIC_WARNING_IN_JAVA_REGEX = "\\s*warning:\\s*(.*\\s*.*)\\s*";
+    public static final String DIAGNOSTIC_WARNING_IN_JAVA_REGEX = "\\s*warning:\\s*(.*)(\\r?\\n|$)";
     public static final Pattern DIAGNOSTIC_WARNING_IN_JAVA_PATTERN =
             Pattern.compile(DIAGNOSTIC_WARNING_IN_JAVA_REGEX);
 
