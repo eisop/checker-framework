@@ -21,15 +21,9 @@ import javax.tools.JavaFileObject;
 /** A set of utilities and factory methods useful for working with TestDiagnostics. */
 public class TestDiagnosticUtils {
 
-//    * What went wrong:
-//    Execution failed for task ':framework-test:jar'.
-//            > Unable to delete file 'D:\emily_cf\checker-framework\framework-test\build\libs\framework-test-3.42.0-eisop3-SNAPSHOT.jar'
-
-
     /** How the diagnostics appear in Java source files. */
     public static final String DIAGNOSTIC_IN_JAVA_REGEX =
-//            "\\s*(error|fixable-error|warning|fixable-warning|other):\\s*(\\(?.*\\)?)\\s*";
-                "\\s*(error|fixable-error|warning|fixable-warning|other):\\s*(\\(?[^\\r\\n]*\\)?)\\s*\n";
+            "\\s*(error|fixable-error|warning|fixable-warning|other):\\s*(\\(?[^\\r\\n]*\\)?)\\s*\n";
 
     /** How the diagnostics appear in Java source files. */
     public static final Pattern DIAGNOSTIC_IN_JAVA_PATTERN =
@@ -152,7 +146,6 @@ public class TestDiagnosticUtils {
                     msg.equals("") || msg.charAt(0) != '(' || msg.charAt(msg.length() - 1) != ')';
             message = noParentheses ? msg : msg.substring(1, msg.length() - 1);
 
-//            if (lineNumber == null) {
             if (Objects.isNull(lineNumber)) {
                 lineNo = Long.parseLong(diagnosticMatcher.group(1));
             }
@@ -165,7 +158,6 @@ public class TestDiagnosticUtils {
                 message = warningMatcher.group(1 + capturingGroupOffset);
                 noParentheses = true;
 
-//                if (lineNumber == null) {
                 if (Objects.isNull(lineNumber)) {
                     lineNo = Long.parseLong(diagnosticMatcher.group(1));
                 }
@@ -187,11 +179,8 @@ public class TestDiagnosticUtils {
                 message = diagnosticString;
                 noParentheses = true;
 
-                // this should only happen if we are parsing a Java Diagnostic from the compiler
-                // that we did do not handle
-//                if (lineNumber == null) {
                 if (Objects.isNull(lineNumber)) {
-                    lineNo = 123;
+                    lineNo = -1;
                 }
             }
         }
