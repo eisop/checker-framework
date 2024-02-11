@@ -23,13 +23,13 @@ public class TestDiagnosticUtils {
 
     /** How the diagnostics appear in Java source files. */
     public static final String DIAGNOSTIC_IN_JAVA_REGEX =
-            "\\s*(error|fixable-error|warning|fixable-warning|other):\\s*(\\(?[^\\r\\n]*\\)?)\\s*\n";
+            "(?s)\\s*(error|fixable-error|warning|fixable-warning|other):\\s*(\\(?.*\\)?)\\s*";
 
     /** How the diagnostics appear in Java source files. */
     public static final Pattern DIAGNOSTIC_IN_JAVA_PATTERN =
             Pattern.compile(DIAGNOSTIC_IN_JAVA_REGEX);
 
-    public static final String DIAGNOSTIC_WARNING_IN_JAVA_REGEX = "\\s*warning:\\s*(.*)(\\r?\\n|$)";
+    public static final String DIAGNOSTIC_WARNING_IN_JAVA_REGEX = "(?s)\\s*warning:\\s*(.*\\s*.*)\\s*";
     public static final Pattern DIAGNOSTIC_WARNING_IN_JAVA_PATTERN =
             Pattern.compile(DIAGNOSTIC_WARNING_IN_JAVA_REGEX);
 
