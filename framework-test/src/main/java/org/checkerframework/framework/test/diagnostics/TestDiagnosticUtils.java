@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -20,9 +21,15 @@ import javax.tools.JavaFileObject;
 /** A set of utilities and factory methods useful for working with TestDiagnostics. */
 public class TestDiagnosticUtils {
 
+//    * What went wrong:
+//    Execution failed for task ':framework-test:jar'.
+//            > Unable to delete file 'D:\emily_cf\checker-framework\framework-test\build\libs\framework-test-3.42.0-eisop3-SNAPSHOT.jar'
+
+
     /** How the diagnostics appear in Java source files. */
     public static final String DIAGNOSTIC_IN_JAVA_REGEX =
-            "\\s*(error|fixable-error|warning|fixable-warning|other):\\s*(\\(?.*\\)?)\\s*";
+//            "\\s*(error|fixable-error|warning|fixable-warning|other):\\s*(\\(?.*\\)?)\\s*";
+                "\\s*(error|fixable-error|warning|fixable-warning|other):\\s*(\\(?[^\\r\\n]*\\)?)\\s*\n";
 
     /** How the diagnostics appear in Java source files. */
     public static final Pattern DIAGNOSTIC_IN_JAVA_PATTERN =
@@ -82,7 +89,7 @@ public class TestDiagnosticUtils {
                 DIAGNOSTIC_IN_JAVA_PATTERN,
                 DIAGNOSTIC_WARNING_IN_JAVA_PATTERN,
                 filename,
-                lineNumber,
+                Long.valueOf(lineNumber),
                 stringFromJavaFile);
     }
 
@@ -130,7 +137,7 @@ public class TestDiagnosticUtils {
         int capturingGroupOffset = 1;
 
         if (lineNumber != null) {
-            lineNo = lineNumber;
+            lineNo = lineNumber.longValue();
             capturingGroupOffset = 0;
         }
 
@@ -145,7 +152,8 @@ public class TestDiagnosticUtils {
                     msg.equals("") || msg.charAt(0) != '(' || msg.charAt(msg.length() - 1) != ')';
             message = noParentheses ? msg : msg.substring(1, msg.length() - 1);
 
-            if (lineNumber == null) {
+//            if (lineNumber == null) {
+            if (Objects.isNull(lineNumber)) {
                 lineNo = Long.parseLong(diagnosticMatcher.group(1));
             }
 
@@ -157,7 +165,8 @@ public class TestDiagnosticUtils {
                 message = warningMatcher.group(1 + capturingGroupOffset);
                 noParentheses = true;
 
-                if (lineNumber == null) {
+//                if (lineNumber == null) {
+                if (Objects.isNull(lineNumber)) {
                     lineNo = Long.parseLong(diagnosticMatcher.group(1));
                 }
 
@@ -166,8 +175,8 @@ public class TestDiagnosticUtils {
                 isFixable = false;
                 message = diagnosticString.substring("warning:".length()).trim();
                 noParentheses = true;
-                if (lineNumber != null) {
-                    lineNo = lineNumber;
+                if (Objects.nonNull(lineNumber)) {
+                    lineNo = lineNumber.longValue();
                 } else {
                     lineNo = 0;
                 }
@@ -180,8 +189,9 @@ public class TestDiagnosticUtils {
 
                 // this should only happen if we are parsing a Java Diagnostic from the compiler
                 // that we did do not handle
-                if (lineNumber == null) {
-                    lineNo = -1;
+//                if (lineNumber == null) {
+                if (Objects.isNull(lineNumber)) {
+                    lineNo = 123;
                 }
             }
         }
