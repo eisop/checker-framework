@@ -873,7 +873,25 @@ jobs:
   steps:
   - checkout: self
     fetchDepth: 25
-  - bash: ./gradlew clean assemble RegexTest
+
+  - powershell: |
+      Write-Host "System Information:"
+      Get-ComputerInfo
+    displayName: 'Display system information'
+
+  - powershell: |
+      Write-Host "Environment Variables:"
+      Get-ChildItem env: | Sort-Object Name
+    displayName: 'Display environment variables'
+
+  - powershell: |
+      Write-Host "Java Version:"
+      java -version
+      Write-Host "Gradle Version:"
+      ./gradlew --version
+    displayName: 'Display software versions'
+
+  - bash: ./gradlew RegexTest
     displayName: Run regex tests
   - bash: ./checker/bin-devel/test-cftests-junit.sh
     displayName: Run all JUnit tests
