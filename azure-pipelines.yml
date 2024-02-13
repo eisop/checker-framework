@@ -873,7 +873,7 @@ jobs:
   steps:
   - checkout: self
     fetchDepth: 25
-  - bash: ./gradlew RegexTest
+  - bash: ./gradlew clean assemble RegexTest
     displayName: Run regex tests
   - bash: ./checker/bin-devel/test-cftests-junit.sh
     displayName: Run all JUnit tests
