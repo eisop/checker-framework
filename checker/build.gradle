@@ -35,6 +35,8 @@ configurations {
         canBeConsumed = true
         canBeResolved = false
     }
+
+    conformanceTestSuite
 }
 
 dependencies {
@@ -86,6 +88,9 @@ dependencies {
     testImplementation 'org.apiguardian:apiguardian-api:1.1.2'
     // For tests that use JSpecify annotations
     testImplementation 'org.jspecify:jspecify:0.3.0'
+    // For JSpecify conformance tests
+    testImplementation 'org.jspecify.conformance:conformance-test-framework:0.0.0-SNAPSHOT'
+    conformanceTestSuite 'org.jspecify.conformance:conformance-tests:0.0.0-SNAPSHOT'
 
     // Required for checker/tests/index-initializedfields/RequireJavadoc.java
     if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
@@ -433,6 +438,9 @@ test {
         excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferNullnessAjavaGenerationTest'
         excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferIndexAjavaGenerationTest'
         excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferResourceLeakAjavaGenerationTest'
+
+        // This test is run via the conformanceTests task so inputs can be configured.
+        exclude '**/NullnessJSpecifyConformanceTest.class'
     }
 }
 
@@ -1084,6 +1092,39 @@ task wpiPlumeLibTest(group: 'Verification') {
         }
     }
 }
+
+// Unzip JSpecify conformance tests using the artifact
+task unzipConformanceTestSuite(group: 'Verification') {
+    description 'Unzips the conformance test suite into the build directory.'
+    copy {
+        from zipTree(configurations.conformanceTestSuite.singleFile)
+        into "${buildDir}/conformance-test-suite"
+    }
+}
+
+// Run JSpecify conformance tests
+task conformanceTests(type: Test, group: 'Verification') {
+    description 'Runs the conformance tests.'
+    include '**/*ConformanceTest.class'
+
+    shouldRunAfter test
+
+    environment "JSPECIFY_CONFORMANCE_TEST_MODE", "WRITE"
+
+    // Conformance tests
+    inputs.files(unzipConformanceTestSuite)
+    inputs.files("${projectDir}/report/ConformanceTest-report.txt")
+
+    doFirst {
+        systemProperties([
+            "ConformanceTest.inputs": "${buildDir}/conformance-test-suite/assertions/org/jspecify/conformance/tests",
+            "ConformanceTest.report": "${projectDir}/report/ConformanceTest-report.txt",
+            "ConformanceTest.deps"  : fileTree("tests/nullness-jspecifyconformance/deps").join(":")
+        ])
+    }
+}
+
+tasks.test.finalizedBy(conformanceTests)
 
 apply from: rootProject.file('gradle-mvn-push.gradle')
 
