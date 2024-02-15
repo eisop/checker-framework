@@ -26,19 +26,20 @@ import java.nio.file.Paths;
 /** An object to run the conformance tests against the EISOP Checker Framework. */
 public final class NullnessJSpecifyConformanceTest {
 
+    /** Directory of the JSpecify Conformance Tests */
     private final Path testDir;
+
+    /** Location of the report */
     private final Path reportPath;
+
+    /** JSpecify conformance test dependencies */
     private final ImmutableList<Path> deps;
 
+    /** Options to pass to the checker */
     private static final ImmutableList<String> TEST_OPTIONS =
-            ImmutableList.of(
-                    "-AassumePure",
-                    "-Adetailedmsgtext",
-                    "-AcheckImpl",
-                    "-AsuppressWarnings=conditional",
-                    "-Astrict",
-                    "-AshowTypes");
+            ImmutableList.of("-AassumePure", "-Adetailedmsgtext");
 
+    /** Create a NullnessJSpecifyConformanceTest */
     public NullnessJSpecifyConformanceTest() {
         this.testDir = getSystemPropertyPath("ConformanceTest.inputs");
         this.reportPath = getSystemPropertyPath("ConformanceTest.report");
@@ -48,6 +49,11 @@ public final class NullnessJSpecifyConformanceTest {
                         .collect(toImmutableList());
     }
 
+    /**
+     * Get an equivalent path from a system property
+     *
+     * @param propertyName the name of the property
+     */
     private Path getSystemPropertyPath(String propertyName) {
         String path = System.getProperty(propertyName);
         if (path == null) {
@@ -56,6 +62,7 @@ public final class NullnessJSpecifyConformanceTest {
         return Paths.get(path);
     }
 
+    /** Run the conformance tests */
     @Test
     public void conformanceTests() throws IOException {
         ConformanceTestRunner runner =
@@ -63,6 +70,13 @@ public final class NullnessJSpecifyConformanceTest {
         runner.checkConformance(testDir, deps, reportPath);
     }
 
+    /**
+     * Analyze the conformance tests by comparing reported facts against expected facts
+     *
+     * @param testDir the directory of the conformance tests
+     * @param files the files to analyze
+     * @param deps the dependencies of the conformance tests
+     */
     private static ImmutableSet<ReportedFact> analyze(
             Path testDir, ImmutableList<Path> files, ImmutableList<Path> deps) {
         ImmutableSet<File> fileInputs = files.stream().map(Path::toFile).collect(toImmutableSet());
@@ -84,7 +98,7 @@ public final class NullnessJSpecifyConformanceTest {
                 result.getUnexpectedDiagnostics().stream()
                         .map(
                                 diagnostic ->
-                                        new FinalReportedFact(
+                                        new ReportedFactMessage(
                                                 Path.of(diagnostic.getFilename()),
                                                 diagnostic.getLineNumber(),
                                                 diagnostic.getMessage()))
@@ -93,19 +107,31 @@ public final class NullnessJSpecifyConformanceTest {
     }
 }
 
-final class FinalReportedFact extends ReportedFact {
+/** A reported fact with a message as a string */
+final class ReportedFactMessage extends ReportedFact {
+
+    /** The message that the fact describes */
     private final String message;
 
-    FinalReportedFact(Path filename, long lineNumber, String message) {
+    /**
+     * Create a ReportedFactMessage
+     *
+     * @param filename the file that the fact is in
+     * @param lineNumber the line number of the fact
+     * @param message the message that the fact describes
+     */
+    ReportedFactMessage(Path filename, long lineNumber, String message) {
         super(filename, lineNumber);
         this.message = requireNonNull(message);
     }
 
+    /** Indicates if the fact must be an expected fact */
     @Override
     protected boolean mustBeExpected() {
         return false;
     }
 
+    /** Get the message that the fact describes */
     @Override
     protected String getFactText() {
         return message;
