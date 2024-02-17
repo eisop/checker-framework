@@ -1094,7 +1094,7 @@ task wpiPlumeLibTest(group: 'Verification') {
 }
 
 // Unzip JSpecify conformance tests using the artifact
-task unzipJSpecifyConformanceTestSuite(type: Copy) {
+tasks.register('unzipJSpecifyConformanceTestSuite', Copy) {
     description 'Unzips the JSpecify conformance test suite into the build directory.'
     copy {
         from zipTree(configurations.jSpecifyConformanceTestSuite.singleFile)
@@ -1103,7 +1103,8 @@ task unzipJSpecifyConformanceTestSuite(type: Copy) {
 }
 
 // Run JSpecify conformance tests
-task jSpecifyConformanceTests(type: Test, group: 'Verification') {
+tasks.register('jSpecifyConformanceTests', Test) {
+    group = 'Verification'
     description 'Runs the conformance tests.'
     include '**/NullnessJSpecifyConformanceTest.class'
 
