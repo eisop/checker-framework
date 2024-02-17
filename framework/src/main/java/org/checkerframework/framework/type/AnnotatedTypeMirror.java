@@ -385,8 +385,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
    * @return a set of the annotations on this
    */
   // TODO: When the current, deprecated `getAnnotations()` (deprecation date 2023-06-15) is
-  // removed,
-  // rename all the "getEffectiveAnnotation...()" methods to just "getAnnotation...()".
+  // removed, rename all the "getEffectiveAnnotation...()" methods to just "getAnnotation...()".
   // EISOP will not do this renaming, it would introduce inconsistent behavior with how
   // getAnnotations in javac APIs works.
   // Removed getEffectiveAnnotation
@@ -1079,7 +1078,8 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
       if (typeArgs != null) {
         return typeArgs;
       } else if (isUnderlyingTypeRaw()) {
-        // Initialize the type arguments with wildcards marks as type arguments from raw types.
+        // Initialize the type arguments with wildcards marks as type arguments from raw
+        // types.
         BoundsInitializer.initializeTypeArgs(this);
         return typeArgs;
       } else if (getUnderlyingType().getTypeArguments().isEmpty()) {

@@ -3758,8 +3758,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
    */
   private void handleTryResourcesAndBlock(TryTree tryTree, Void p, List<? extends Tree> resources) {
     if (resources.isEmpty()) {
-      // Either `tryTree` was not a try-with-resources, or this method was called recursively
-      // and all the resources have been handled.  Just scan the main try block.
+      // Either `tryTree` was not a try-with-resources, or this method was called
+      // recursively and all the resources have been handled.  Just scan the main try block.
       scan(tryTree.getBlock(), p);
       return;
     }
@@ -3785,9 +3785,9 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
     // Add nodes for the resource declaration to the CFG.  NOTE: it is critical to add these
     // nodes *before* pushing a TryFinallyFrame for the finally block that will close the
-    // resource.
-    // If any exception occurs due to code within the resource declaration, the corresponding
-    // variable or field is *not* automatically closed (as it was never assigned a value).
+    // resource.  If any exception occurs due to code within the resource declaration, the
+    // corresponding variable or field is *not* automatically closed (as it was never
+    // assigned a value).
     Node resourceCloseNode = scan(resourceDeclarationTree, p);
 
     // Now, set things up for our synthetic finally block that closes the resource.

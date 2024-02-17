@@ -180,8 +180,8 @@ public class ResourceLeakVisitor extends CalledMethodsVisitor {
       MethodTree tree, ExecutableElement overrider, MustCallAnnotatedTypeFactory mcAtf) {
     for (ExecutableElement overridden : ElementUtils.getOverriddenMethods(overrider, this.types)) {
       // Check for @Owning parameters. Must use an explicitly-indexed for loop so that the
-      // same parameter index can be accessed in the overrider's parameter list, which is the
-      // same length.
+      // same parameter index can be accessed in the overrider's parameter list, which is
+      // the same length.
       for (int i = 0; i < overridden.getParameters().size(); i++) {
         if (mcAtf.getDeclAnnotation(overridden.getParameters().get(i), Owning.class) != null) {
           if (mcAtf.getDeclAnnotation(overrider.getParameters().get(i), Owning.class) == null) {
@@ -555,7 +555,7 @@ public class ResourceLeakVisitor extends CalledMethodsVisitor {
             }
 
             // Optimization: stop early as soon as we've exhausted the list of
-            // obligations
+            // obligations.
             if (unsatisfiedMustCallObligationsOfOwningField.isEmpty()) {
               return;
             }

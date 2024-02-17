@@ -265,7 +265,8 @@ public class ResourceLeakChecker extends CalledMethodsChecker {
     } else if (!exceptionSpecifier.trim().isEmpty()) {
       message(
           Diagnostic.Kind.WARNING,
-          "The string '%s' appears in the -A%s=%s option, but it is not a legal exception specifier",
+          "The string '%s' appears in the -A%s=%s option,"
+              + " but it is not a legal exception specifier",
           exceptionSpecifier,
           IGNORED_EXCEPTIONS,
           ignoredExceptionsOptionValue);
@@ -281,7 +282,6 @@ public class ResourceLeakChecker extends CalledMethodsChecker {
    */
   @SuppressWarnings({
     "signature:argument", // `s` is not a qualified name, but we pass it to getTypeElement
-    // anyway
   })
   protected @Nullable TypeMirror checkCanonicalName(String s) {
     TypeElement elem = getProcessingEnvironment().getElementUtils().getTypeElement(s);

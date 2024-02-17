@@ -751,13 +751,13 @@ public class WholeProgramInferenceJavaParserStorage
                 throw new BugInCF("Missing getFullyQualifiedName() for " + javaParserClass);
               }
               if ("".contentEquals(tree.getSimpleName())) {
-                @SuppressWarnings("signature:assignment") // computed from string
-                // concatenation
+                @SuppressWarnings("signature:assignment" // computed from string concatenation
+                )
                 @BinaryName String computedName = ofqn.get() + "$" + ++innerClassCount;
                 className = computedName;
               } else {
-                @SuppressWarnings("signature:assignment") // computed from string
-                // concatenation
+                @SuppressWarnings("signature:assignment" // computed from string concatenation
+                )
                 @BinaryName String computedName = ofqn.get() + "$" + tree.getSimpleName().toString();
                 className = computedName;
               }
@@ -993,8 +993,7 @@ public class WholeProgramInferenceJavaParserStorage
   // programmer-written annotations.  The latter are stored in elements and, with the given formal
   // parameter list, are not accessible to this method.  In the future, the annotations stored in
   // elements should also be passed to this method (or maybe they are already available to the
-  // type
-  // factory?).  I'm leaving that enhancement until later.
+  // type factory?).  I'm leaving that enhancement until later.
   public void wpiPrepareMethodForWriting(
       CallableDeclarationAnnos methodAnnos,
       Collection<CallableDeclarationAnnos> inSupertypes,
@@ -1067,12 +1066,11 @@ public class WholeProgramInferenceJavaParserStorage
    */
   private void writeAjavaFile(File outputPath, CompilationUnitAnnos root) {
     try (Writer writer = new BufferedWriter(new FileWriter(outputPath))) {
-
-      // JavaParser can output using lexical preserving printing, which writes the file such
-      // that its formatting is close to the original source file it was parsed from as
-      // possible. Currently, this feature is very buggy and crashes when adding annotations
-      // in certain locations. This implementation could be used instead if it's fixed in
-      // JavaParser.LexicalPreservingPrinter.print(root.declaration, writer);
+      // This implementation uses JavaParser's lexical preserving printing, which writes the
+      // file such that its formatting is close to the original source file it was parsed from
+      // as possible. It is commented out because, this feature is very buggy and crashes when
+      // adding annotations in certain locations.
+      // LexicalPreservingPrinter.print(root.declaration, writer);
 
       // Do not print invisible qualifiers, to avoid cluttering the output.
       Set<String> invisibleQualifierNames = getInvisibleQualifierNames(this.atypeFactory);
@@ -1354,9 +1352,8 @@ public class WholeProgramInferenceJavaParserStorage
       String fieldsString = fields.toString();
       if (fieldsString.length() > 100) {
         // The quoting increases the likelihood that all delimiters are balanced in the
-        // result.
-        // That makes it easier to manipulate the result (such as skipping over it) in an
-        // editor.  The quoting also makes clear that the value is truncated.
+        // result.  That makes it easier to manipulate the result (such as skipping over it)
+        // in an editor.  The quoting also makes clear that the value is truncated.
         fieldsString = "\"" + fieldsString.substring(0, 95) + "...\"";
       }
 

@@ -798,10 +798,10 @@ public class WholeProgramInferenceImplementation<T> implements WholeProgramInfer
       annoToAdd = anno;
     } else {
       // It's a purity annotation and `lubPurity` is true. Do a "least upper bound" between
-      // the current purity annotation inferred for the method and anno. This is necessary to
-      // avoid WPI inferring incompatible purity annotations on methods that override methods
-      // from their superclass. TODO: this would be unnecessary if purity was implemented as a
-      // type system.
+      // the current purity annotation inferred for the method and anno. This is necessary
+      // to avoid WPI inferring incompatible purity annotations on methods that override
+      // methods from their superclass.
+      // TODO: this would be unnecessary if purity was implemented as a type system.
       AnnotationMirror currentPurityAnno = getPurityAnnotation(methodElt);
       if (currentPurityAnno == null) {
         annoToAdd = anno;

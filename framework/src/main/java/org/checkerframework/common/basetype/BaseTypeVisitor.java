@@ -1147,12 +1147,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
           WholeProgramInference wpi = atypeFactory.getWholeProgramInference();
           ExecutableElement methodElt = TreeUtils.elementFromDeclaration(tree);
           inferPurityAnno(additionalKinds, wpi, methodElt);
-          // The purity of overridden methods is impacted by the purity of this method. If a
-          // superclass method is pure, but an implementation in a subclass is not, WPI ought to
-          // treat  **neither** as pure. The purity kind of the superclass method is the LUB of
-          // its own purity and the purity of all the methods that override it. Logically, this
-          // rule is the same as the WPI rule for overrides, but purity isn't a type system and
-          // therefore must be special-cased.
+          // The purity of overridden methods is impacted by the purity of this method. If
+          // a superclass method is pure, but an implementation in a subclass is not, WPI
+          // ought to treat **neither** as pure. The purity kind of the superclass method
+          // is the LUB of its own purity and the purity of all the methods that override
+          // it. Logically, this rule is the same as the WPI rule for overrides, but
+          // purity isn't a type system and therefore must be special-cased.
           Set<? extends ExecutableElement> overriddenMethods =
               ElementUtils.getOverriddenMethods(methodElt, types);
           for (ExecutableElement overriddenElt : overriddenMethods) {
@@ -2486,9 +2486,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
   public Void visitConditionalExpression(ConditionalExpressionTree tree, Void p) {
     if (TreeUtils.isPolyExpression(tree)) {
       // From the JLS:
-      // A poly reference conditional expression is compatible with a target type T if its second
-      // and third operand expressions are compatible with T.  In the Checker Framework this check
-      // happens in #commonAssignmentCheck.
+      // A poly reference conditional expression is compatible with a target type T if its
+      // second and third operand expressions are compatible with T.  In the Checker
+      // Framework this check happens in #commonAssignmentCheck.
       return super.visitConditionalExpression(tree, p);
     }
 
@@ -4100,8 +4100,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
               functionTypeReturnType);
       return overrideChecker.checkOverride();
     } else {
-      // If the functionalInterface is not a declared type, it must be from a wildcard from a raw
-      // type. In that case, only return false if raw types should not be ignored.
+      // If the functionalInterface is not a declared type, it must be from a wildcard from a
+      // raw type. In that case, only return false if raw types should not be ignored.
       return !atypeFactory.ignoreRawTypeArguments;
     }
   }

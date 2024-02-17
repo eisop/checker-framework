@@ -452,9 +452,9 @@ public class MustCallInference {
       // If the owning field is present in the disposedFields map and there is an assignment
       // to the field, it must be removed from the set. This is essential since the
       // disposedFields map is used for adding @EnsuresCalledMethods annotations to the
-      // current method later. Note that this removal doesn't affect the owning annotation we
-      // inferred for the field, as the owningField set is updated with the inferred owning
-      // field in the 'inferOwningField' method.
+      // current method later. Note that this removal doesn't affect the owning annotation
+      // we inferred for the field, as the owningField set is updated with the inferred
+      // owning field in the 'inferOwningField' method.
       if (!TreeUtils.isConstructor(methodTree)) {
         disposedFields.remove((VariableElement) lhsElement);
       }
@@ -580,11 +580,11 @@ public class MustCallInference {
 
       // If the enclosing class already has a non-empty @MustCall type, either added by
       // programmers or inferred in previous iterations (not-inherited), we do not change it
-      // in the current analysis round to prevent potential inconsistencies and guarantee the
-      // termination of the inference algorithm. This becomes particularly important when
-      // multiple methods could satisfy the must-call obligation of the enclosing class. To
-      // ensure the existing @MustCall annotation is included in the inference result for this
-      // iteration, we re-add it.
+      // in the current analysis round to prevent potential inconsistencies and guarantee
+      // the termination of the inference algorithm. This becomes particularly important
+      // when multiple methods could satisfy the must-call obligation of the enclosing
+      // class. To ensure the existing @MustCall annotation is included in the inference
+      // result for this iteration, we re-add it.
       assert currentMustCallValues.size() == 1 : "TODO: Handle multiple must-call values";
       AnnotationMirror am = createInheritableMustCall(new String[] {currentMustCallValues.get(0)});
       wpi.addClassDeclarationAnnotation(classElt, am);
@@ -595,9 +595,9 @@ public class MustCallInference {
     // fields, then add (to the class) an InheritableMustCall annotation with the name of this
     // method.
     if (!methodTree.getModifiers().getFlags().contains(Modifier.PRIVATE)) {
-      // Since the result of getOwningFields() is a superset of the key set in disposedFields
-      // map, it is sufficient to check the equality of their sizes to determine if both sets
-      // are equal.
+      // Since the result of getOwningFields() is a superset of the key set in
+      // disposedFields map, it is sufficient to check the equality of their sizes to
+      // determine if both sets are equal.
       if (!disposedFields.isEmpty() && disposedFields.size() == getOwningFields().size()) {
         AnnotationMirror am =
             createInheritableMustCall(new String[] {methodTree.getName().toString()});
@@ -685,8 +685,8 @@ public class MustCallInference {
     for (Node argument : mcca.getArgumentsOfInvocation(invocation)) {
       Node arg = mcca.removeCastsAndGetTmpVarIfPresent(argument);
       // In the CFG, explicit passing of multiple arguments in the varargs position is
-      // represented via an ArrayCreationNode. In this case, it checks the called methods set
-      // of each argument passed in this position.
+      // represented via an ArrayCreationNode. In this case, it checks the called methods
+      // set of each argument passed in this position.
       if (arg instanceof ArrayCreationNode) {
         ArrayCreationNode varArgsNode = (ArrayCreationNode) arg;
         for (Node varArgNode : varArgsNode.getInitializers()) {
