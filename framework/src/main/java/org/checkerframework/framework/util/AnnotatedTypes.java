@@ -1543,7 +1543,7 @@ public class AnnotatedTypes {
    * @return true if wildcard type is explicitly super bounded
    * @deprecated Use {@link #hasExplicitSuperBound(AnnotatedTypeMirror)}
    */
-  @Deprecated // 2023-03-01
+  @Deprecated // 2023-02-28
   public static boolean isExplicitlySuperBounded(AnnotatedWildcardType wildcardType) {
     return hasExplicitSuperBound(wildcardType);
   }
@@ -1565,7 +1565,7 @@ public class AnnotatedTypes {
    * @return true if wildcard type is explicitly extends bounded
    * @deprecated Use {@link #hasExplicitExtendsBound(AnnotatedTypeMirror)}.
    */
-  @Deprecated // 2023-03-01
+  @Deprecated // 2023-02-28
   public static boolean isExplicitlyExtendsBounded(AnnotatedWildcardType wildcardType) {
     return hasExplicitExtendsBound(wildcardType);
   }
