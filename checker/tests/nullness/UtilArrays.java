@@ -1,6 +1,7 @@
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Arrays;
+import java.util.List;
 
 // Illustrate various mis-uses of java.util.Arrays.
 public class UtilArrays {
@@ -36,6 +37,16 @@ public class UtilArrays {
             arrayWithoutNull[0].toString();
         } catch (NullPointerException e) {
             System.out.println("got NPE for fill");
+        }
+
+        try {
+            // TODO: false negative: covariant arrays and captured argument cause that this call is
+            // allowed.
+            List<@Nullable Object> ls = Arrays.asList(arrayWithoutNull);
+            ls.set(0, null);
+            arrayWithoutNull[0].toString();
+        } catch (NullPointerException e) {
+            System.out.println("got NPE for asList");
         }
     }
 }
