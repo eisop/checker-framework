@@ -1,5 +1,5 @@
-Version 3.42.0-eisop3 (January ?, 2024)
----------------------------------------
+Version 3.42.0-eisop3 (February ?, 2024)
+----------------------------------------
 
 **User-visible changes:**
 
@@ -10,7 +10,7 @@ Refactored the `TypeInformationPresenter` into several classes in the new
 
 **Closed issues:**
 
-typetools#6433, typetools#6438.
+eisop#703, typetools#6433, typetools#6438.
 
 
 Version 3.42.0-eisop2 (January 9, 2024)
