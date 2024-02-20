@@ -21,6 +21,8 @@ import javax.tools.JavaFileObject;
 public class TestDiagnosticUtils {
 
     /** How the diagnostics appear in Java source files. */
+    // (?s) enables the dot-all mode, which allows the dot to match any character, so it detects
+    // line separator \r\n in Windows.
     public static final String DIAGNOSTIC_IN_JAVA_REGEX =
             "(?s)\\s*(error|fixable-error|warning|fixable-warning|other):\\s*(\\(?.*\\)?)\\s*";
 
