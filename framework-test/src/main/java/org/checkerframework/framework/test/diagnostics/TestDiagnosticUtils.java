@@ -10,7 +10,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -132,7 +131,7 @@ public class TestDiagnosticUtils {
         int capturingGroupOffset = 1;
 
         if (lineNumber != null) {
-            lineNo = lineNumber.longValue();
+            lineNo = lineNumber;
             capturingGroupOffset = 0;
         }
 
@@ -147,7 +146,7 @@ public class TestDiagnosticUtils {
                     msg.equals("") || msg.charAt(0) != '(' || msg.charAt(msg.length() - 1) != ')';
             message = noParentheses ? msg : msg.substring(1, msg.length() - 1);
 
-            if (Objects.isNull(lineNumber)) {
+            if (lineNumber == null) {
                 lineNo = Long.parseLong(diagnosticMatcher.group(1));
             }
 
@@ -159,7 +158,7 @@ public class TestDiagnosticUtils {
                 message = warningMatcher.group(1 + capturingGroupOffset);
                 noParentheses = true;
 
-                if (Objects.isNull(lineNumber)) {
+                if (lineNumber == null) {
                     lineNo = Long.parseLong(diagnosticMatcher.group(1));
                 }
 
@@ -168,8 +167,8 @@ public class TestDiagnosticUtils {
                 isFixable = false;
                 message = diagnosticString.substring("warning:".length()).trim();
                 noParentheses = true;
-                if (Objects.nonNull(lineNumber)) {
-                    lineNo = lineNumber.longValue();
+                if (lineNumber == null) {
+                    lineNo = lineNumber;
                 } else {
                     lineNo = 0;
                 }
@@ -180,7 +179,9 @@ public class TestDiagnosticUtils {
                 message = diagnosticString;
                 noParentheses = true;
 
-                if (Objects.isNull(lineNumber)) {
+                // this should only happen if we are parsing a Java Diagnostic from the compiler
+                // that we did do not handle
+                if (lineNumber == null) {
                     lineNo = -1;
                 }
             }
