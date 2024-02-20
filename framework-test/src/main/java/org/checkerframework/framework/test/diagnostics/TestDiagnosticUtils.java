@@ -83,7 +83,7 @@ public class TestDiagnosticUtils {
                 DIAGNOSTIC_IN_JAVA_PATTERN,
                 DIAGNOSTIC_WARNING_IN_JAVA_PATTERN,
                 filename,
-                Long.valueOf(lineNumber),
+                lineNumber,
                 stringFromJavaFile);
     }
 
@@ -167,7 +167,7 @@ public class TestDiagnosticUtils {
                 isFixable = false;
                 message = diagnosticString.substring("warning:".length()).trim();
                 noParentheses = true;
-                if (lineNumber == null) {
+                if (lineNumber != null) {
                     lineNo = lineNumber;
                 } else {
                     lineNo = 0;
