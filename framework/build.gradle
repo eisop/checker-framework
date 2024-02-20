@@ -128,7 +128,7 @@ task copyAndMinimizeAnnotatedJdkFiles(dependsOn: cloneAnnotatedJdk, group: 'Buil
             if (!fvd.file.isDirectory() && fvd.file.name.matches('.*\\.java')
                     && !fvd.file.path.contains('org/checkerframework')) {
                 fvd.getFile().readLines().any { line ->
-                    if (line.contains('@AnnotatedFor') || line.contains('org.checkerframework')) {
+                    if (line.contains('@AnnotatedFor') || line.contains('org.checkerframework') || line.contains('org.jspecify')) {
                         annotatedForFiles.add(fvd.file.absolutePath)
                         return true;
                     }
