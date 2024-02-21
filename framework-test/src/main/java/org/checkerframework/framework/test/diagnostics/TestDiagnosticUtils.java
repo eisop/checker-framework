@@ -40,6 +40,7 @@ public class TestDiagnosticUtils {
     public static final String DIAGNOSTIC_WARNING_IN_JAVA_REGEX =
             "(?s)\\s*warning:\\s*(.*\\s*.*)\\s*";
 
+    /** Regular expression pattern to match Java diagnostic warnings. */
     public static final Pattern DIAGNOSTIC_WARNING_IN_JAVA_PATTERN =
             Pattern.compile(DIAGNOSTIC_WARNING_IN_JAVA_REGEX);
 
