@@ -30,10 +30,16 @@ public class TestDiagnosticUtils {
     public static final Pattern DIAGNOSTIC_IN_JAVA_PATTERN =
             Pattern.compile(DIAGNOSTIC_IN_JAVA_REGEX);
 
-    // (?s) enables the dot-all mode, which allows the dot to match any character, so it detects
-    // line separator \r\n in Windows.
+    /**
+     * Regular expression pattern to match Java diagnostic warnings.
+     *
+     * <p>The pattern uses the dot-all mode (?s) to ensure that the dot (.) matches any character,
+     * including line terminators, which is necessary for detecting multi-line warning messages on
+     * both linux and Windows operating system.
+     */
     public static final String DIAGNOSTIC_WARNING_IN_JAVA_REGEX =
             "(?s)\\s*warning:\\s*(.*\\s*.*)\\s*";
+
     public static final Pattern DIAGNOSTIC_WARNING_IN_JAVA_PATTERN =
             Pattern.compile(DIAGNOSTIC_WARNING_IN_JAVA_REGEX);
 
