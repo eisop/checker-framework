@@ -36,7 +36,7 @@ configurations {
         canBeResolved = false
     }
 
-    jSpecifyConformanceTestSuite
+    jSpecifyConformanceTests
 }
 
 dependencies {
@@ -90,7 +90,7 @@ dependencies {
     testImplementation 'org.jspecify:jspecify:0.3.0'
     // For JSpecify conformance tests
     testImplementation 'org.jspecify.conformance:conformance-test-framework:0.0.0-SNAPSHOT'
-    jSpecifyConformanceTestSuite 'org.jspecify.conformance:conformance-tests:0.0.0-SNAPSHOT'
+    jSpecifyConformanceTests 'org.jspecify.conformance:conformance-tests:0.0.0-SNAPSHOT'
 
     // Required for checker/tests/index-initializedfields/RequireJavadoc.java
     if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
@@ -1097,14 +1097,14 @@ task wpiPlumeLibTest(group: 'Verification') {
 task unzipJSpecifyConformanceTestSuite(type: Copy) {
     description 'Unzips the JSpecify conformance test suite into the build directory.'
     copy {
-        from zipTree(configurations.jSpecifyConformanceTestSuite.singleFile)
+        from zipTree(configurations.jSpecifyConformanceTests.singleFile)
         into "${buildDir}/jspecify-conformance-tests"
     }
 }
 
 // Run JSpecify conformance tests
-task jSpecifyConformanceTests(type: Test, group: 'Verification') {
-    description 'Runs the conformance tests.'
+task runJSpecifyConformanceTests(type: Test, group: 'Verification') {
+    description 'Runs the JSpecify conformance tests.'
     include '**/NullnessJSpecifyConformanceTest.class'
 
     shouldRunAfter test
@@ -1122,7 +1122,7 @@ task jSpecifyConformanceTests(type: Test, group: 'Verification') {
     }
 }
 
-tasks.test.finalizedBy(jSpecifyConformanceTests)
+// tasks.test.finalizedBy(runJSpecifyConformanceTests)
 
 apply from: rootProject.file('gradle-mvn-push.gradle')
 

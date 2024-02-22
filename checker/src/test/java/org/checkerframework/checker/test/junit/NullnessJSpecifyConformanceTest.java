@@ -26,20 +26,20 @@ import java.nio.file.Paths;
 /** An object to run the conformance tests against the EISOP Checker Framework. */
 public final class NullnessJSpecifyConformanceTest {
 
-    /** Directory of the JSpecify Conformance Tests */
+    /** Directory of the JSpecify Conformance Tests. */
     private final Path testDir;
 
-    /** Location of the report */
+    /** Location of the report. */
     private final Path reportPath;
 
-    /** JSpecify conformance test dependencies */
+    /** JSpecify conformance test dependencies. */
     private final ImmutableList<Path> deps;
 
-    /** Options to pass to the checker */
+    /** Options to pass to the checker. */
     private static final ImmutableList<String> TEST_OPTIONS =
             ImmutableList.of("-AassumePure", "-Adetailedmsgtext");
 
-    /** Create a NullnessJSpecifyConformanceTest */
+    /** Create a NullnessJSpecifyConformanceTest. */
     public NullnessJSpecifyConformanceTest() {
         this.testDir = getSystemPropertyPath("ConformanceTest.inputs");
         this.reportPath = getSystemPropertyPath("ConformanceTest.report");
@@ -50,9 +50,9 @@ public final class NullnessJSpecifyConformanceTest {
     }
 
     /**
-     * Get an equivalent path from a system property
+     * Get an equivalent path from a system property.
      *
-     * @param propertyName the name of the property
+     * @param propertyName the name of the property.
      */
     private Path getSystemPropertyPath(String propertyName) {
         String path = System.getProperty(propertyName);
@@ -62,7 +62,7 @@ public final class NullnessJSpecifyConformanceTest {
         return Paths.get(path);
     }
 
-    /** Run the conformance tests */
+    /** Run the conformance tests. */
     @Test
     public void conformanceTests() throws IOException {
         ConformanceTestRunner runner =
@@ -71,11 +71,11 @@ public final class NullnessJSpecifyConformanceTest {
     }
 
     /**
-     * Analyze the conformance tests by comparing reported facts against expected facts
+     * Analyze the conformance tests by comparing reported facts against expected facts.
      *
-     * @param testDir the directory of the conformance tests
-     * @param files the files to analyze
-     * @param deps the dependencies of the conformance tests
+     * @param testDir the directory of the conformance tests.
+     * @param files the files to analyze.
+     * @param deps the dependencies of the conformance tests.
      */
     private static ImmutableSet<ReportedFact> analyze(
             Path testDir, ImmutableList<Path> files, ImmutableList<Path> deps) {
@@ -107,31 +107,31 @@ public final class NullnessJSpecifyConformanceTest {
     }
 }
 
-/** A reported fact with a message as a string */
+/** A reported fact with a message as a string. */
 final class ReportedFactMessage extends ReportedFact {
 
-    /** The message that the fact describes */
+    /** The message that the fact describes. */
     private final String message;
 
     /**
-     * Create a ReportedFactMessage
+     * Create a ReportedFactMessage.
      *
-     * @param filename the file that the fact is in
-     * @param lineNumber the line number of the fact
-     * @param message the message that the fact describes
+     * @param filename the file that the fact is in.
+     * @param lineNumber the line number of the fact.
+     * @param message the message that the fact describes.
      */
     ReportedFactMessage(Path filename, long lineNumber, String message) {
         super(filename, lineNumber);
         this.message = requireNonNull(message);
     }
 
-    /** Indicates if the fact must be an expected fact */
+    /** Indicates if the fact must be an expected fact. */
     @Override
     protected boolean mustBeExpected() {
         return false;
     }
 
-    /** Get the message that the fact describes */
+    /** Get the message that the fact describes. */
     @Override
     protected String getFactText() {
         return message;
