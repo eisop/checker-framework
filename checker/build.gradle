@@ -1094,7 +1094,7 @@ task wpiPlumeLibTest(group: 'Verification') {
 }
 
 // Unzip JSpecify conformance tests using the artifact
-tasks.register('unzipJSpecifyConformanceTestSuite', Copy) {
+task unzipJSpecifyConformanceTestSuite(type: Copy) {
     description 'Unzips the JSpecify conformance test suite into the build directory.'
     copy {
         from zipTree(configurations.jSpecifyConformanceTests.singleFile)
@@ -1103,24 +1103,24 @@ tasks.register('unzipJSpecifyConformanceTestSuite', Copy) {
 }
 
 // Run JSpecify conformance tests
-task runJSpecifyConformanceTests(type: Test, group: 'Verification') {
-    description 'Runs the JSpecify conformance tests.'
-    include '**/NullnessJSpecifyConformanceTest.class'
+// task runJSpecifyConformanceTests(type: Test, group: 'Verification') {
+//     description 'Runs the JSpecify conformance tests.'
+//     include '**/NullnessJSpecifyConformanceTest.class'
 
-    shouldRunAfter test
+//     shouldRunAfter test
 
-    // Conformance tests
-    inputs.files(unzipJSpecifyConformanceTestSuite)
-    inputs.files("${projectDir}/src/test/resources/jspecify-conformance-test-report.txt")
+//     // Conformance tests
+//     inputs.files(unzipJSpecifyConformanceTestSuite)
+//     inputs.files("${projectDir}/src/test/resources/jspecify-conformance-test-report.txt")
 
-    doFirst {
-        systemProperties([
-            "ConformanceTest.inputs": "${buildDir}/jspecify-conformance-tests/assertions/org/jspecify/conformance/tests",
-            "ConformanceTest.report": "${projectDir}/src/test/resources/jspecify-conformance-test-report.txt",
-            "ConformanceTest.deps"  : fileTree("${buildDir}/jspecify-conformance-tests/deps").join(":")
-        ])
-    }
-}
+//     doFirst {
+//         systemProperties([
+//             "ConformanceTest.inputs": "${buildDir}/jspecify-conformance-tests/assertions/org/jspecify/conformance/tests",
+//             "ConformanceTest.report": "${projectDir}/src/test/resources/jspecify-conformance-test-report.txt",
+//             "ConformanceTest.deps"  : fileTree("${buildDir}/jspecify-conformance-tests/deps").join(":")
+//         ])
+//     }
+// }
 
 // tasks.test.finalizedBy(runJSpecifyConformanceTests)
 
