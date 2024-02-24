@@ -58,6 +58,7 @@ ext {
     isJava15plus = isJava15 || isJava16plus
     isJava14plus = isJava14 || isJava15plus
     isJava11plus = JavaVersion.current() >= JavaVersion.VERSION_11
+    isJava9plus = JavaVersion.current() >= JavaVersion.VERSION_1_9
 
     // As of 2023-09-23, delombok doesn't yet support JDK 22; see https://projectlombok.org/changelog .
     skipDelombok = JavaVersion.current() > JavaVersion.VERSION_21
