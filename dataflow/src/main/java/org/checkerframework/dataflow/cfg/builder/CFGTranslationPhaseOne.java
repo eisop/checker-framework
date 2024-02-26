@@ -2520,7 +2520,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 env.getTypeUtils()));
       }
 
-      // JSL 14.11.2
+      // JLS 14.11.2
       // https://docs.oracle.com/javase/specs/jls/se21/html/jls-14.html#jls-14.11.2
       // states "For compatibility reasons, switch statements that are not enhanced switch
       // statements are not required to be exhaustive".
