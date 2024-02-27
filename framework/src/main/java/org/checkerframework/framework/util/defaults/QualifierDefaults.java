@@ -916,19 +916,25 @@ public class QualifierDefaults {
         /** The default element applier implementation. */
         protected final DefaultApplierElementImpl impl;
 
-        /*
-          Local type variables are defaulted to top when flow is turned on
-          We only want to default the top level type variable (and not type variables that are nested
-          in its bounds). E.g.,
-            <T extends List<E>, E extends Object> void method() {
-               T t;
-            }
-          We would like t to have its primary annotation defaulted but NOT the E inside its upper bound.
-          we use referential equality with the top level type var to determine which ones are definite
-          type uses, i.e. uses which can be defaulted
-        */
+        /**
+         * Local type variables are defaulted to top when flow is turned on We only want to default
+         * the top level type variable (and not type variables that are nested in its bounds). E.g.,
+         * {@code <T extends List<E>, E extends Object> void method() { T t; } }.
+         *
+         * <p>We would like t to have its primary annotation defaulted but NOT the E inside its
+         * upper bound. we use referential equality with the top level type var to determine which
+         * ones are definite type uses, i.e. uses which can be defaulted
+         */
         private final @Nullable AnnotatedTypeVariable defaultableTypeVar;
 
+        /**
+         * Create an instance.
+         *
+         * @param atypeFactory the type factory
+         * @param scope the scope for the defaults
+         * @param type the type to default
+         * @param applyToTypeVar whether to apply defaults to type variable uses
+         */
         public DefaultApplierElement(
                 AnnotatedTypeFactory atypeFactory,
                 Element scope,
