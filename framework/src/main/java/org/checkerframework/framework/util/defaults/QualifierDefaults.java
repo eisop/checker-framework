@@ -902,6 +902,9 @@ public class QualifierDefaults {
         /** The annotated type factory. */
         protected final AnnotatedTypeFactory atypeFactory;
 
+        /** The qualifier hierarchy. */
+        protected final QualifierHierarchy qualHierarchy;
+
         /** The scope of the default. */
         protected final Element scope;
 
@@ -941,6 +944,7 @@ public class QualifierDefaults {
                 AnnotatedTypeMirror type,
                 boolean applyToTypeVar) {
             this.atypeFactory = atypeFactory;
+            this.qualHierarchy = atypeFactory.getQualifierHierarchy();
             this.scope = scope;
             this.type = type;
             this.impl = new DefaultApplierElementImpl(this);
@@ -1227,10 +1231,7 @@ public class QualifierDefaults {
             if (isTopLevelType
                     && !type.isDeclaration()
                     && outer.location == TypeUseLocation.TYPE_VARIABLE_USE
-                    // TODO: instead, look whether qual has a meta-annotation
-                    && !AnnotationUtils.areSameByName(
-                            qual,
-                            "org.checkerframework.framework.qual.ParametricTypeVariableUse")) {
+                    && !outer.qualHierarchy.isParametricQualifier(qual)) {
                 outer.addAnnotation(type, qual);
             } else {
                 visitBounds(type, type.getUpperBound(), type.getLowerBound(), qual);
