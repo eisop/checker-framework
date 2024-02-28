@@ -130,9 +130,9 @@ public enum TypeUseLocation {
     /**
      * Apply default annotations to unannotated type variable uses: {@code T}.
      *
-     * <p>To get parametric polymorphism: add {@link ParametricTypeVariableUse} to your type system
-     * and use it as default for {@code TYPE_VARIABLE_USE}, which is treated like no annotation on
-     * the type variable use.
+     * <p>To get parametric polymorphism: add a qualifier that is meta-annotated with {@link
+     * ParametricTypeVariableUseQualifier} to your type system and use it as default for {@code
+     * TYPE_VARIABLE_USE}, which is treated like no annotation on the type variable use.
      */
     TYPE_VARIABLE_USE,
 
