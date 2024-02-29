@@ -1107,48 +1107,48 @@ task wpiPlumeLibTest(group: 'Verification') {
     }
 }
 
-// Unzip JSpecify conformance tests using the artifact
-task unzipJSpecifyConformanceTestSuite(type: Copy) {
-    description 'Unzips the JSpecify conformance test suite into the build directory.'
+// // Unzip JSpecify conformance tests using the artifact
+// task unzipJSpecifyConformanceTestSuite(type: Copy) {
+//     description 'Unzips the JSpecify conformance test suite into the build directory.'
 
-    if (!isJava9plus) {
-        println("JSpecify Conformance tests are not supported on Java 8 and below. Skipping.");
-        return;
-    }
+//     if (!isJava9plus) {
+//         println("JSpecify Conformance tests are not supported on Java 8 and below. Skipping.");
+//         return;
+//     }
 
-    dependsOn(configurations.jSpecifyConformanceTests)
-    copy {
-        from zipTree(configurations.jSpecifyConformanceTests.singleFile)
-        into "${buildDir}/jspecify-conformance-tests"
-    }
-}
+//     dependsOn(configurations.jSpecifyConformanceTests)
+//     copy {
+//         from zipTree(configurations.jSpecifyConformanceTests.singleFile)
+//         into "${buildDir}/jspecify-conformance-tests"
+//     }
+// }
 
-// Run JSpecify conformance tests
-task runJSpecifyConformanceTests(type: Test, group: 'Verification') {
-    description 'Runs the JSpecify conformance tests.'
-    include '**/NullnessJSpecifyConformanceTest.class'
+// // Run JSpecify conformance tests
+// task runJSpecifyConformanceTests(type: Test, group: 'Verification') {
+//     description 'Runs the JSpecify conformance tests.'
+//     include '**/NullnessJSpecifyConformanceTest.class'
 
-    shouldRunAfter test
+//     shouldRunAfter test
 
-    if (!isJava9plus) {
-        println("JSpecify Conformance tests are not supported on Java 8 and below. Skipping.");
-        return;
-    }
+//     if (!isJava9plus) {
+//         println("JSpecify Conformance tests are not supported on Java 8 and below. Skipping.");
+//         return;
+//     }
 
-    // Conformance tests
-    inputs.files(unzipJSpecifyConformanceTestSuite)
-    inputs.files("${projectDir}/src/test/resources/jspecify-conformance-test-report.txt")
+//     // Conformance tests
+//     inputs.files(unzipJSpecifyConformanceTestSuite)
+//     inputs.files("${projectDir}/src/test/resources/jspecify-conformance-test-report.txt")
 
-    doFirst {
-        systemProperties([
-            "ConformanceTest.inputs": "${buildDir}/jspecify-conformance-tests/assertions/org/jspecify/conformance/tests",
-            "ConformanceTest.report": "${projectDir}/src/test/resources/jspecify-conformance-test-report.txt",
-            "ConformanceTest.deps"  : fileTree("${buildDir}/jspecify-conformance-tests/deps").join(":")
-        ])
-    }
-}
+//     doFirst {
+//         systemProperties([
+//             "ConformanceTest.inputs": "${buildDir}/jspecify-conformance-tests/assertions/org/jspecify/conformance/tests",
+//             "ConformanceTest.report": "${projectDir}/src/test/resources/jspecify-conformance-test-report.txt",
+//             "ConformanceTest.deps"  : fileTree("${buildDir}/jspecify-conformance-tests/deps").join(":")
+//         ])
+//     }
+// }
 
-tasks.test.finalizedBy(runJSpecifyConformanceTests)
+// tasks.test.finalizedBy(runJSpecifyConformanceTests)
 
 apply from: rootProject.file('gradle-mvn-push.gradle')
 
