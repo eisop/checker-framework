@@ -24,7 +24,7 @@ public class UtilArrays {
         }
 
         try {
-            // :: error: (type.argument.type.incompatible)
+            // :: error: (argument.type.incompatible)
             Arrays.sort(arrayWithNull, null);
         } catch (NullPointerException e) {
             System.out.println("got NPE for sort");
