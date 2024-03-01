@@ -5,6 +5,11 @@ Version 3.42.0-eisop3 (February ?, 2024)
 
 **Implementation details:**
 
+Support separate defaults for wildcard and type variable upper bounds.
+Add support for defaults for type variable uses.
+See changes in `TypeUseLocation`, `QualiferDefaults`, and `QualifierHierarchy`,
+as well as the new `ParametricTypeVariableUseQualifier` meta-annotation.
+
 Refactored the `TypeInformationPresenter` into several classes in the new
 `org.checkerframework.framework.util.visualize` package.
 
