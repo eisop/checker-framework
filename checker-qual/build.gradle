@@ -16,6 +16,34 @@ if (JavaVersion.current() >= JavaVersion.VERSION_17) {
   apply plugin: 'biz.aQute.bnd.builder'
 }
 
+sourceSets {
+  main {
+    java {
+      exclude 'module-info.java'
+    }
+  }
+  module_info {
+    java {
+      srcDirs ('src/main')
+    }
+  }
+}
+
+task compileJava9(type: JavaCompile) {
+  source = sourceSets.module_info.java
+  destinationDirectory = sourceSets.main.output.classesDirs[0]
+  classpath = configurations.allProjects
+  options.release = 9
+}
+
+compileJava {
+  dependsOn compileJava9
+}
+
+javadoc {
+  modularity.inferModulePath = false
+}
+
 jar {
   manifest {
     attributes('Export-Package': '*')
