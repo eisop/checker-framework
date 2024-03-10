@@ -121,6 +121,30 @@ public abstract class QualifierHierarchy {
      */
     public abstract boolean isPolymorphicQualifier(AnnotationMirror qualifier);
 
+    /**
+     * Returns the parametric qualifier for the hierarchy containing {@code qualifier}, or {@code
+     * null} if there is no parametric qualifier in that hierarchy.
+     *
+     * @param qualifier any qualifier from one of the qualifier hierarchies represented by this
+     * @return the parametric qualifier for the hierarchy containing {@code qualifier}, or {@code
+     *     null} if there is no polymorphic qualifier in that hierarchy
+     */
+    public @Nullable AnnotationMirror getParametricQualifier(AnnotationMirror qualifier) {
+        return null;
+    }
+
+    /**
+     * Returns {@code true} if the qualifier is a parametric qualifier; otherwise, returns {@code
+     * false}.
+     *
+     * @param qualifier qualifier
+     * @return {@code true} if the qualifier is a parametric qualifier; otherwise, returns {@code
+     *     false}.
+     */
+    public boolean isParametricQualifier(AnnotationMirror qualifier) {
+        return false;
+    }
+
     // **********************************************************************
     // Qualifier Hierarchy Queries
     // **********************************************************************
