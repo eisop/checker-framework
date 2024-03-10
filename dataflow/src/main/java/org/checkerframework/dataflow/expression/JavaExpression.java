@@ -43,6 +43,7 @@ import org.checkerframework.dataflow.cfg.node.ThisNode;
 import org.checkerframework.dataflow.cfg.node.UnaryOperationNode;
 import org.checkerframework.dataflow.cfg.node.ValueLiteralNode;
 import org.checkerframework.dataflow.cfg.node.WideningConversionNode;
+import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
@@ -88,8 +89,10 @@ public abstract class JavaExpression {
     return type;
   }
 
+  @Pure
   public abstract boolean containsOfClass(Class<? extends JavaExpression> clazz);
 
+  @Pure
   public boolean containsUnknown() {
     return containsOfClass(Unknown.class);
   }
@@ -100,6 +103,7 @@ public abstract class JavaExpression {
    * @param provider an annotation provider (a type factory)
    * @return true if this expression is deterministic
    */
+  @Pure
   public abstract boolean isDeterministic(AnnotationProvider provider);
 
   /**
@@ -109,6 +113,7 @@ public abstract class JavaExpression {
    * @param provider an annotation provider (a type factory)
    * @return true if all the expressions in the list are deterministic
    */
+  @Pure
   public static boolean listIsDeterministic(
       List<? extends @Nullable JavaExpression> list, AnnotationProvider provider) {
     return list.stream().allMatch(je -> je == null || je.isDeterministic(provider));
@@ -122,6 +127,7 @@ public abstract class JavaExpression {
    *
    * @see #isUnmodifiableByOtherCode
    */
+  @Pure
   public abstract boolean isUnassignableByOtherCode();
 
   /**
@@ -133,6 +139,7 @@ public abstract class JavaExpression {
    *
    * @see #isUnassignableByOtherCode
    */
+  @Pure
   public abstract boolean isUnmodifiableByOtherCode();
 
   /**
@@ -144,6 +151,7 @@ public abstract class JavaExpression {
    * @return true if and only if the two Java expressions are syntactically identical
    */
   @EqualsMethod
+  @Pure
   public abstract boolean syntacticEquals(JavaExpression je);
 
   /**
@@ -153,6 +161,7 @@ public abstract class JavaExpression {
    * @param lst2 the second list to compare
    * @return true if the corresponding list elements satisfy {@link #syntacticEquals}
    */
+  @Pure
   public static boolean syntacticEqualsList(
       List<? extends @Nullable JavaExpression> lst1,
       List<? extends @Nullable JavaExpression> lst2) {
@@ -183,6 +192,7 @@ public abstract class JavaExpression {
    * @return true if and only if this contains a JavaExpression that is syntactically equal to
    *     {@code other}
    */
+  @Pure
   public abstract boolean containsSyntacticEqualJavaExpression(JavaExpression other);
 
   /**
@@ -194,6 +204,7 @@ public abstract class JavaExpression {
    * @return true if and only if the list contains a JavaExpression that is syntactically equal to
    *     {@code other}
    */
+  @Pure
   public static boolean listContainsSyntacticEqualJavaExpression(
       List<? extends @Nullable JavaExpression> list, JavaExpression other) {
     return list.stream()
@@ -207,6 +218,7 @@ public abstract class JavaExpression {
    * <p>This is always true, except for cases where the Java type information prevents aliasing and
    * none of the subexpressions can alias 'other'.
    */
+  @Pure
   public boolean containsModifiableAliasOf(Store<?> store, JavaExpression other) {
     return this.equals(other) || store.canAlias(this, other);
   }
@@ -216,6 +228,7 @@ public abstract class JavaExpression {
    *
    * @return a verbose string representation of this
    */
+  @Pure
   public String toStringDebug() {
     return String.format("%s(%s): %s", getClass().getSimpleName(), type, toString());
   }
