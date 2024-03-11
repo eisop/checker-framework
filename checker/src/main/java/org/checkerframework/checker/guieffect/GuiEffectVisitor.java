@@ -257,7 +257,7 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
   }
 
   @Override
-  protected void checkForPolymorphicQualifiers(ClassTree classTree) {
+  protected void warnInvalidPolymorphicQualifier(ClassTree classTree) {
     // Polymorphic qualifiers are legal on classes, so skip this check.
   }
 
