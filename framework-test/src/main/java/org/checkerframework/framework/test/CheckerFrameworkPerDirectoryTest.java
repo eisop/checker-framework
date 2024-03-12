@@ -136,7 +136,9 @@ public abstract class CheckerFrameworkPerDirectoryTest extends CheckerFrameworkR
     this.checkerNames = checkerNames;
     this.testDir = testDir;
     this.classpathExtra = classpathExtra;
-    this.checkerOptions = Arrays.asList(checkerOptions);
+    this.checkerOptions = new ArrayList<>(Arrays.asList(checkerOptions));
+    this.checkerOptions.add("-AajavaChecks");
+    this.checkerOptions.add("-AconvertTypeArgInferenceCrashToWarning=false");
   }
 
   /** Run the tests. */
