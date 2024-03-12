@@ -213,8 +213,15 @@ public class TestDiagnosticUtils {
         String filename = "";
         if (noMsgText) {
             if (!retainAllLines(trimmed)) {
-                int lineSepPos = trimmed.indexOf(System.lineSeparator());
-                if (lineSepPos != -1) {
+
+                // when the source file doesn't use the system default line separator,
+                // System.lineSeparator() can't detect which
+                int lineSepPos = Math.max(trimmed.indexOf("\n"), trimmed.indexOf("\r\n"));
+                if (trimmed.contains("\r\n")) {
+                    trimmed =
+                            trimmed.substring(
+                                    0, lineSepPos + 1); // Include the \r part of the \r\n separator
+                } else {
                     trimmed = trimmed.substring(0, lineSepPos);
                 }
 
