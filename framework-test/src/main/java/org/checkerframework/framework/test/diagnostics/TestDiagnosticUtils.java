@@ -221,7 +221,7 @@ public class TestDiagnosticUtils {
                     trimmed =
                             trimmed.substring(
                                     0, lineSepPos + 1); // Include the \r part of the \r\n separator
-                } else {
+                } else if (trimmed.contains("\n")){
                     trimmed = trimmed.substring(0, lineSepPos);
                 }
 
