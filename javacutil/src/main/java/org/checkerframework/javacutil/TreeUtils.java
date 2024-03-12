@@ -307,6 +307,11 @@ public final class TreeUtils {
   /**
    * Returns the type element corresponding to the given class declaration.
    *
+   * <p>This method returns null instead of crashing when no element exists for the class tree,
+   * which can happen for certain kinds of anonymous classes, such as Ordering$1 in
+   * PolyCollectorTypeVar.java in the all-systems test suite and "class MyFileFilter" in
+   * PurgeTxnLog.java.
+   *
    * @param tree class declaration
    * @return the element for the given class
    */
@@ -514,7 +519,7 @@ public final class TreeUtils {
    * Returns the ExecutableElement for the given method declaration.
    *
    * <p>The result can be null, when {@code tree} is a method in an anonymous class and that class
-   * has not been processed yet. An exception will be raised. Adapt your processing order.
+   * has not been processed yet. To work around this, adapt your processing order.
    *
    * @param tree a method declaration
    * @return the element for the given method
@@ -1909,6 +1914,19 @@ public final class TreeUtils {
   }
 
   /**
+   * Determines the symbol for a constructor given an invocation via {@code new}.
+   *
+   * @see #elementFromUse(NewClassTree)
+   * @param tree the constructor invocation
+   * @return the {@link ExecutableElement} corresponding to the constructor call in {@code tree}
+   * @deprecated use elementFromUse instead
+   */
+  @Deprecated // 2022-09-12
+  public static ExecutableElement constructor(NewClassTree tree) {
+    return (ExecutableElement) ((JCNewClass) tree).constructor;
+  }
+
+  /**
    * The type of the lambda or method reference tree is a functional interface type. This method
    * returns the single abstract method declared by that functional interface. (The type of this
    * method is referred to as the function type.)
@@ -2263,8 +2281,8 @@ public final class TreeUtils {
       ProcessingEnvironment processingEnv) {
     Context context = ((JavacProcessingEnvironment) processingEnv).getContext();
     TreeMaker maker = TreeMaker.instance(context);
-    JCLiteral result = maker.Literal(typeTag, value);
-    result.type = (Type) typeMirror;
+    LiteralTree result = maker.Literal(typeTag, value);
+    ((JCLiteral) result).type = (Type) typeMirror;
     return result;
   }
 
@@ -2730,10 +2748,8 @@ public final class TreeUtils {
    */
   public static JCFieldAccess Select(
       TreeMaker treeMaker, Tree base, com.sun.tools.javac.util.Name name) {
-    /*
-     * There's no need for reflection here. The only reason we even declare this method is so that
-     * callers don't have to remember which overload we provide a wrapper around.
-     */
+    // There's no need for reflection here. The only reason we even declare this method
+    // is so that callers don't have to remember which overload we provide a wrapper around.
     return treeMaker.Select((JCExpression) base, name);
   }
 
