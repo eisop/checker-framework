@@ -58,36 +58,18 @@ public class Resolver {
   // Note that currently access(...) is defined in InvalidSymbolError, a superclass of AccessError
   private static final Method ACCESSERROR_ACCESS;
 
+  /** The latest source version supported by this compiler. */
+  private static final int sourceVersionNumber =
+      Integer.parseInt(SourceVersion.latest().toString().substring("RELEASE_".length()));
+
   /** Whether we are running on at least Java 13. */
-  private static final boolean atLeastJava13;
+  private static final boolean atLeastJava13 = sourceVersionNumber >= 13;
 
   /** Whether we are running on at least Java 23. */
-  private static final boolean atLeastJava23;
-
-  /**
-   * Determines whether the given {@link SourceVersion} release version string is supported.
-   *
-   * @param release the {@link SourceVersion} release version
-   * @return whether the given version is supported
-   */
-  private static boolean atLeastJava(String release) {
-    final SourceVersion latestSource = SourceVersion.latest();
-    SourceVersion javaVersion;
-    try {
-      javaVersion = SourceVersion.valueOf(release);
-    } catch (IllegalArgumentException e) {
-      javaVersion = null;
-    }
-    @SuppressWarnings("EnumOrdinal") // No better way to compare.
-    boolean atLeastJava = javaVersion != null && latestSource.ordinal() >= javaVersion.ordinal();
-    return atLeastJava;
-  }
+  private static final boolean atLeastJava23 = sourceVersionNumber >= 23;
 
   static {
     try {
-      atLeastJava13 = atLeastJava("RELEASE_13");
-      atLeastJava23 = atLeastJava("RELEASE_23");
-
       FIND_METHOD =
           Resolve.class.getDeclaredMethod(
               "findMethod",
