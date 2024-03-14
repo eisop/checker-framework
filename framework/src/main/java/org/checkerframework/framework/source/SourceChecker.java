@@ -2486,8 +2486,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
    * Does the given messageKey match a messageKey that appears in a SuppressWarnings? Subclasses
    * should override this method if they need additional logic to compare message keys.
    *
-   * @param messageKey the message key
-   * @param messageKeyInSuppressWarningsString the message key in a SuppressWarnings
+   * @param messageKey the message key of the error that is being emitted, without any "checker:"
+   *     prefix
+   * @param messageKeyInSuppressWarningsString the message key in a {@code @SuppressWarnings}
+   *     annotation
    * @return true if the arguments match
    */
   protected boolean messageKeyMatches(
