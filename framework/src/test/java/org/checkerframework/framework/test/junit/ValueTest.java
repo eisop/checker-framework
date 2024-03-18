@@ -26,7 +26,9 @@ public class ValueTest extends CheckerFrameworkPerDirectoryTest {
                 "value",
                 // Ignore the test suite's usage of qualifiers in illegal locations.
                 "-AignoreTargetLocations",
-                "-Astubs=tests/value/minints-stub.astub:tests/value/lowercase.astub",
+                ("-Astubs=tests/value/minints-stub.astub").replace("/", File.separator)
+                        + File.pathSeparator
+                        + ("tests/value/lowercase.astub").replace("/", File.separator),
                 "-A" + ValueChecker.REPORT_EVAL_WARNS);
     }
 
