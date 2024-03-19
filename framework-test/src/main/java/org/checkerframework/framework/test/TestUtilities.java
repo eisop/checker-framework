@@ -133,6 +133,7 @@ public class TestUtilities {
      * @param parent parent directory of the dirNames directories
      * @param dirNames names of directories to search
      * @return list where each item is a list of Java test files grouped by directory
+     * @throws FileNotFoundException if the path point to the file all-systems is not found
      */
     public static List<List<File>> findJavaFilesPerDirectory(File parent, String... dirNames)
             throws FileNotFoundException {
