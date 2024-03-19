@@ -171,12 +171,15 @@ public class TestUtilities {
                     BufferedReader br = new BufferedReader(new FileReader(dir));
                     File p = null;
                     try {
-                        p =
-                                new File(parent, br.readLine().replace("/", File.separator))
-                                        .toPath()
-                                        .toAbsolutePath()
-                                        .normalize()
-                                        .toFile();
+                        String line = br.readLine();
+                        if (line != null) {
+                            p =
+                                    new File(parent, br.readLine().replace("/", File.separator))
+                                            .toPath()
+                                            .toAbsolutePath()
+                                            .normalize()
+                                            .toFile();
+                        }
 
                     } catch (IOException e) {
                         throw new RuntimeException(e);
