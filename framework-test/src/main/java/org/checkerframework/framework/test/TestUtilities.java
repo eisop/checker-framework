@@ -9,10 +9,12 @@ import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.StringsPlume;
 import org.plumelib.util.SystemPlume;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -132,7 +134,8 @@ public class TestUtilities {
      * @param dirNames names of directories to search
      * @return list where each item is a list of Java test files grouped by directory
      */
-    public static List<List<File>> findJavaFilesPerDirectory(File parent, String... dirNames) {
+    public static List<List<File>> findJavaFilesPerDirectory(File parent, String... dirNames)
+            throws FileNotFoundException {
         if (!parent.exists()) {
             throw new BugInCF(
                     "test parent directory does not exist: %s %s",
@@ -143,7 +146,6 @@ public class TestUtilities {
                     "test parent directory is not a directory: %s %s",
                     parent, parent.getAbsoluteFile());
         }
-
         List<List<File>> filesPerDirectory = new ArrayList<>();
 
         for (String dirName : dirNames) {
@@ -152,7 +154,6 @@ public class TestUtilities {
                 filesPerDirectory.addAll(findJavaTestFilesInDirectory(dir));
             } else {
                 // `dir` is not an existent directory.
-
                 // If delombok does not yet work on a given JDK, this directory does not exist.
                 if (dir.getName().contains("delomboked")) {
                     continue;
@@ -162,6 +163,24 @@ public class TestUtilities {
                 if (dir.getName().equals("annotated")
                         && dir.getParentFile() != null
                         && dir.getParentFile().getName().startsWith("ainfer-")) {
+                    continue;
+                }
+
+                if (dir.isFile()) {
+                    BufferedReader br = new BufferedReader(new FileReader(dir));
+                    File p = null;
+                    try {
+                        p =
+                                new File(parent, br.readLine().replace("/", File.separator))
+                                        .toPath()
+                                        .toAbsolutePath()
+                                        .normalize()
+                                        .toFile();
+
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                    filesPerDirectory.addAll(findJavaTestFilesInDirectory(p));
                     continue;
                 }
 
