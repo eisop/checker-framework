@@ -169,17 +169,18 @@ public class TestUtilities {
 
                 if (dir.isFile()) {
                     BufferedReader br = new BufferedReader(new FileReader(dir));
-                    File p = null;
+                    File p = dir;
                     try {
-                        String line = br.readLine();
-                        if (line != null) {
-                            p =
-                                    new File(parent, br.readLine().replace("/", File.separator))
-                                            .toPath()
-                                            .toAbsolutePath()
-                                            .normalize()
-                                            .toFile();
+                        String allSystemPath = br.readLine();
+                        if (allSystemPath == null) {
+                            throw new BugInCF("test directory does not exist: %s", dir);
                         }
+                        p =
+                                new File(parent, allSystemPath.replace("/", File.separator))
+                                        .toPath()
+                                        .toAbsolutePath()
+                                        .normalize()
+                                        .toFile();
 
                     } catch (IOException e) {
                         throw new RuntimeException(e);
