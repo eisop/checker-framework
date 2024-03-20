@@ -168,9 +168,8 @@ public class TestUtilities {
                 }
 
                 if (dir.isFile()) {
-                    BufferedReader br = new BufferedReader(new FileReader(dir));
                     File p = dir;
-                    try {
+                    try (BufferedReader br = new BufferedReader(new FileReader(dir))) {
                         String allSystemPath = br.readLine();
                         if (allSystemPath == null) {
                             throw new BugInCF("test directory does not exist: %s", dir);
