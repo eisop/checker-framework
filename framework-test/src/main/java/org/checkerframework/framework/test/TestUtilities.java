@@ -133,10 +133,8 @@ public class TestUtilities {
      * @param parent parent directory of the dirNames directories
      * @param dirNames names of directories to search
      * @return list where each item is a list of Java test files grouped by directory
-     * @throws FileNotFoundException if the path point to the file all-systems is not found
      */
-    public static List<List<File>> findJavaFilesPerDirectory(File parent, String... dirNames)
-            throws FileNotFoundException {
+    public static List<List<File>> findJavaFilesPerDirectory(File parent, String... dirNames) {
         if (!parent.exists()) {
             throw new BugInCF(
                     "test parent directory does not exist: %s %s",
@@ -166,7 +164,9 @@ public class TestUtilities {
                         && dir.getParentFile().getName().startsWith("ainfer-")) {
                     continue;
                 }
-
+                // When it reaches the file all-system, Windows needs to explicitly read the content
+                // recorded in this file, which is the path to the real dir of all-system.
+                // Without this check Windows will treat the file as a meaningless one and skip it.
                 if (dir.isFile()) {
                     File p = dir;
                     try (BufferedReader br = new BufferedReader(new FileReader(dir))) {
