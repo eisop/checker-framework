@@ -154,7 +154,7 @@ public class TestUtilities {
             if (dir.isDirectory()) {
                 filesPerDirectory.addAll(findJavaTestFilesInDirectory(dir));
             } else {
-                // `dir` is not an existent directory.
+                // `dir` is not an existing directory.
                 // If delombok does not yet work on a given JDK, this directory does not exist.
                 if (dir.getName().contains("delomboked")) {
                     continue;
