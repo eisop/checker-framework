@@ -213,9 +213,8 @@ public class TestDiagnosticUtils {
         String filename = "";
         if (noMsgText) {
             if (!retainAllLines(trimmed)) {
-
-                // when the source file doesn't use the system default line separator,
-                // System.lineSeparator() can't detect which
+                // When the source file doesn't use the system default line separator,
+                // System.lineSeparator() can't detect which is actually used.
                 int lineSepPos = Math.max(trimmed.indexOf("\n"), trimmed.indexOf("\r\n"));
                 if (trimmed.contains("\r\n") || trimmed.contains("\n")) {
                     trimmed = trimmed.substring(0, lineSepPos);
