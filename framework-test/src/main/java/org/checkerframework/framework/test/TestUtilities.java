@@ -182,7 +182,7 @@ public class TestUtilities {
                                         .toFile();
 
                     } catch (IOException e) {
-                        throw new RuntimeException(e);
+                        throw new BugInCF("File is not readable: %s", dir);
                     }
                     filesPerDirectory.addAll(findJavaTestFilesInDirectory(p));
                     continue;
