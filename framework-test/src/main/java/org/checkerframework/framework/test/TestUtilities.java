@@ -568,4 +568,8 @@ public class TestUtilities {
     public static boolean getShouldEmitDebugInfo() {
         return SystemPlume.getBooleanSystemProperty("emit.test.debug");
     }
+
+    public static String adapt(String input) {
+        return input.replace("/", File.separator);
+    }
 }

@@ -28,9 +28,9 @@ public class NullnessGenericWildcardTest extends CheckerFrameworkPerDirectoryTes
                 "nullness",
                 // This test reads bytecode .class files created by NullnessGenericWildcardLibTest
                 "-cp",
-                ("dist/checker.jar").replace("/", File.separator)
+                TestUtilities.adapt("dist/checker.jar")
                         + File.pathSeparator
-                        + ("tests/build/testclasses/").replace("/", File.separator));
+                        + TestUtilities.adapt("tests/build/testclasses/"));
     }
 
     @Parameters
