@@ -569,6 +569,12 @@ public class TestUtilities {
         return SystemPlume.getBooleanSystemProperty("emit.test.debug");
     }
 
+    /**
+     * If the operating system is Windows, convert all forward slash in the dir path to backslash
+     *
+     * @param input the raw path
+     * @return return a corrected dir path if on Windows: switch to backslash
+     */
     public static String adapt(String input) {
         return input.replace("/", File.separator);
     }
