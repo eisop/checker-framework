@@ -570,7 +570,7 @@ public class TestUtilities {
     }
 
     /**
-     * If the operating system is Windows, convert all forward slash in the dir path to backslash
+     * Convert line separator to fit the dir path on different operating systems
      *
      * @param input the raw path
      * @return return a corrected dir path if on Windows: switch to backslash
