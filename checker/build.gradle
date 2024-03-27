@@ -21,15 +21,6 @@ sourceSets {
             exclude '**/org/checkerframework/checker/resourceleak/MustCallInference.java'
         }
     }
-
-    test {
-        java {
-            // Exclude JSpecify Conformance Tests for Java 8 and below
-            if (!isJava9plus) {
-                exclude '**/NullnessJSpecifyConformanceTest.java'
-            }
-        }
-    }
     testannotations
 }
 
@@ -43,10 +34,6 @@ configurations {
     fatJar {
         canBeConsumed = true
         canBeResolved = false
-    }
-
-    if (isJava9plus) {
-        jSpecifyConformanceTests
     }
 }
 
@@ -99,12 +86,6 @@ dependencies {
     testImplementation 'org.apiguardian:apiguardian-api:1.1.2'
     // For tests that use JSpecify annotations
     testImplementation 'org.jspecify:jspecify:0.3.0'
-
-    // For JSpecify conformance tests
-    if (isJava9plus) {
-        testImplementation 'org.jspecify.conformance:conformance-test-framework:0.0.0-SNAPSHOT'
-        jSpecifyConformanceTests 'org.jspecify.conformance:conformance-tests:0.0.0-SNAPSHOT'
-    }
 
     // Required for checker/tests/index-initializedfields/RequireJavadoc.java
     if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
@@ -452,9 +433,6 @@ test {
         excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferNullnessAjavaGenerationTest'
         excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferIndexAjavaGenerationTest'
         excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferResourceLeakAjavaGenerationTest'
-
-        // This test is run via the conformanceTests task so inputs can be configured.
-        exclude '**/NullnessJSpecifyConformanceTest.class'
     }
 }
 
@@ -1106,49 +1084,6 @@ task wpiPlumeLibTest(group: 'Verification') {
         }
     }
 }
-
-// // Unzip JSpecify conformance tests using the artifact
-// task unzipJSpecifyConformanceTestSuite(type: Copy) {
-//     description 'Unzips the JSpecify conformance test suite into the build directory.'
-
-//     if (!isJava9plus) {
-//         println("JSpecify Conformance tests are not supported on Java 8 and below. Skipping.");
-//         return;
-//     }
-
-//     dependsOn(configurations.jSpecifyConformanceTests)
-//     copy {
-//         from zipTree(configurations.jSpecifyConformanceTests.singleFile)
-//         into "${buildDir}/jspecify-conformance-tests"
-//     }
-// }
-
-// // Run JSpecify conformance tests
-// task runJSpecifyConformanceTests(type: Test, group: 'Verification') {
-//     description 'Runs the JSpecify conformance tests.'
-//     include '**/NullnessJSpecifyConformanceTest.class'
-
-//     shouldRunAfter test
-
-//     if (!isJava9plus) {
-//         println("JSpecify Conformance tests are not supported on Java 8 and below. Skipping.");
-//         return;
-//     }
-
-//     // Conformance tests
-//     inputs.files(unzipJSpecifyConformanceTestSuite)
-//     inputs.files("${projectDir}/src/test/resources/jspecify-conformance-test-report.txt")
-
-//     doFirst {
-//         systemProperties([
-//             "ConformanceTest.inputs": "${buildDir}/jspecify-conformance-tests/assertions/org/jspecify/conformance/tests",
-//             "ConformanceTest.report": "${projectDir}/src/test/resources/jspecify-conformance-test-report.txt",
-//             "ConformanceTest.deps"  : fileTree("${buildDir}/jspecify-conformance-tests/deps").join(":")
-//         ])
-//     }
-// }
-
-// tasks.test.finalizedBy(runJSpecifyConformanceTests)
 
 apply from: rootProject.file('gradle-mvn-push.gradle')
 

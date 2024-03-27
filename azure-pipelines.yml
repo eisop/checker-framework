@@ -89,6 +89,7 @@ jobs:
    - plume_lib_jdk21
    # - plume_lib_jdk_latest
    # Not plume_lib_jdk_next
+   - jspecify_conformance
   pool:
     vmImage: 'ubuntu-latest'
   steps:
@@ -802,6 +803,17 @@ jobs:
   - bash: ./checker/bin-devel/test-plume-lib.sh
     continueOnError: true
     displayName: test-plume-lib.sh
+
+- job: jspecify_conformance
+  dependsOn:
+   - canary_jobs
+  pool:
+    vmImage: 'ubuntu-latest'
+  steps:
+  - checkout: self
+    fetchDepth: 25
+  - bash: ./checker/bin-devel/test-jspecify-conformance.sh
+    displayName: test-jspecify-conformance.sh
 
 ## The downstream jobs are not currently needed because test-downstream.sh is empty.
 # - job: downstream_jdk8
