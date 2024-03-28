@@ -14,4 +14,4 @@ source "$SCRIPTDIR"/clone-related.sh
 PLUME_SCRIPTS="$SCRIPTDIR/.plume-scripts"
 "$PLUME_SCRIPTS/git-clone-related" eisop jspecify-conformance
 cd ../jspecify-conformance
-./gradlew clean test --console=plain -PcfLocal
+./gradlew test --console=plain -PcfLocal

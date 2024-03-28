@@ -89,7 +89,7 @@ jobs:
    - plume_lib_jdk21
    # - plume_lib_jdk_latest
    # Not plume_lib_jdk_next
-   - jspecify_conformance
+   - jspecify_conformance_jdk21
   pool:
     vmImage: 'ubuntu-latest'
   steps:
@@ -804,11 +804,12 @@ jobs:
     continueOnError: true
     displayName: test-plume-lib.sh
 
-- job: jspecify_conformance
+- job: jspecify_conformance_jdk21
   dependsOn:
    - canary_jobs
   pool:
     vmImage: 'ubuntu-latest'
+  container: wmdietl/cf-ubuntu-jdk21:latest
   steps:
   - checkout: self
     fetchDepth: 25

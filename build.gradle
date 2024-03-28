@@ -29,7 +29,6 @@ apply plugin: 'de.undercouch.download'
 
 // There is another `repositories { ... }` block below; if you change this one, change that one as well.
 repositories {
-    maven { url 'https://s01.oss.sonatype.org/content/repositories/snapshots'}
     maven { url 'https://oss.sonatype.org/content/repositories/snapshots/'}
     mavenCentral()
 }
@@ -58,7 +57,6 @@ ext {
     isJava15plus = isJava15 || isJava16plus
     isJava14plus = isJava14 || isJava15plus
     isJava11plus = JavaVersion.current() >= JavaVersion.VERSION_11
-    isJava9plus = JavaVersion.current() >= JavaVersion.VERSION_1_9
 
     // As of 2023-09-23, delombok doesn't yet support JDK 22; see https://projectlombok.org/changelog .
     skipDelombok = JavaVersion.current() > JavaVersion.VERSION_21
@@ -176,7 +174,6 @@ allprojects {
 
     // Keep in sync with "repositories { ... }" block above.
     repositories {
-        maven { url 'https://s01.oss.sonatype.org/content/repositories/snapshots'}
         maven { url 'https://oss.sonatype.org/content/repositories/snapshots/'}
         mavenCentral()
     }
