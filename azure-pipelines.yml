@@ -870,7 +870,7 @@ jobs:
     - junit_jdk21
   pool:
     vmImage: 'windows-latest'
-  timeoutInMinutes: 90
+  timeoutInMinutes: 120
   steps:
     - checkout: self
       fetchDepth: 25
