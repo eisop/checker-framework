@@ -27,7 +27,7 @@ public class DependentTypesError {
 
     /** Regular expression for unparsing string representations of this class (gross). */
     private static final Pattern ERROR_PATTERN =
-            Pattern.compile("\\[error for expression: (.*); error: (.*)\\]", Pattern.DOTALL);
+            Pattern.compile("\\[error for expression: (.*); error: ([\\s\\S]*)\\]");
 
     /**
      * Returns whether or not the given expression string is an error. That is, whether it is a
@@ -87,6 +87,7 @@ public class DependentTypesError {
      * @param formattedError the toString() representation of a DependentTypesError
      */
     public static DependentTypesError unparse(String formattedError) {
+        System.out.println("===" + formattedError);
         Matcher matcher = ERROR_PATTERN.matcher(formattedError);
         if (matcher.matches()) {
             assert matcher.groupCount() == 2;
