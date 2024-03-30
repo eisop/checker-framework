@@ -87,7 +87,6 @@ public class DependentTypesError {
      * @param formattedError the toString() representation of a DependentTypesError
      */
     public static DependentTypesError unparse(String formattedError) {
-        System.out.println("===" + formattedError);
         Matcher matcher = ERROR_PATTERN.matcher(formattedError);
         if (matcher.matches()) {
             assert matcher.groupCount() == 2;
