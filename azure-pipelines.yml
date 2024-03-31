@@ -870,11 +870,11 @@ jobs:
     - junit_jdk21
   pool:
     vmImage: 'windows-latest'
-  timeoutInMinutes: 120
+  timeoutInMinutes: 90
   steps:
     - checkout: self
       fetchDepth: 25
-    - bash: ./gradlew clean assemble RegexTest
+    - bash: ./gradlew RegexTest
       displayName: Run regex tests
     - bash: ./checker/bin-devel/test-cftests-junit.sh
       displayName: Run all JUnit tests

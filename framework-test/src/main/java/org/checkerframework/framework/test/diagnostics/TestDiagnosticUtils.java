@@ -25,16 +25,14 @@ public class TestDiagnosticUtils {
             "\\s*(error|fixable-error|warning|fixable-warning|other):\\s*(\\(?[\\s\\S]*\\)?)\\s*";
 
     /** How the diagnostics appear in Java source files. */
-    // Enables the dot-all mode, which allows the dot to match any character, so it detects
-    // line separator \r\n in Windows.
+    // Enables whitespace check, so it detects line separator \r\n in Windows.
     public static final Pattern DIAGNOSTIC_IN_JAVA_PATTERN =
             Pattern.compile(DIAGNOSTIC_IN_JAVA_REGEX);
 
     /**
      * Regular expression pattern to match Java diagnostic warnings.
      *
-     * <p>The pattern uses the dot-all mode (?s) to ensure that the dot (.) matches any character,
-     * including line terminators, which is necessary for detecting multi-line warning messages on
+     * <p>Include white space check, which is necessary for detecting multi-line warning messages on
      * both linux and Windows operating system.
      */
     public static final String DIAGNOSTIC_WARNING_IN_JAVA_REGEX =
