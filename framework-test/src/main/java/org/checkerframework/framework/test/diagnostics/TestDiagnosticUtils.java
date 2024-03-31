@@ -38,7 +38,7 @@ public class TestDiagnosticUtils {
      * both linux and Windows operating system.
      */
     public static final String DIAGNOSTIC_WARNING_IN_JAVA_REGEX =
-            "(?s)\\s*warning:\\s*(.*\\s*.*)\\s*";
+            "\\s*warning:\\s*([\\s\\S]*\\s*[\\s\\S]*)\\s*";
 
     /** Regular expression pattern to match Java diagnostic warnings. */
     public static final Pattern DIAGNOSTIC_WARNING_IN_JAVA_PATTERN =
