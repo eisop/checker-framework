@@ -874,8 +874,6 @@ jobs:
   steps:
     - checkout: self
       fetchDepth: 25
-    - bash: ./gradlew RegexTest
-      displayName: Run regex tests
     - bash: ./checker/bin-devel/test-cftests-junit.sh
       displayName: Run all JUnit tests
       env:
