@@ -874,12 +874,10 @@ jobs:
   steps:
     - checkout: self
       fetchDepth: 25
-    - name: Set up Java
-      uses: actions/setup-java@v4
-      with:
-        distribution: temurin
-        java-version: 21
     - bash: ./gradlew RegexTest
       displayName: Run regex tests
     - bash: ./checker/bin-devel/test-cftests-junit.sh
       displayName: Run all JUnit tests
+      env:
+        JAVA_HOME: $(JAVA_HOME_21_X64)
+        PATH: $(JAVA_HOME_21_X64)/bin:$(PATH)
