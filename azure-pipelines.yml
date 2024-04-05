@@ -874,6 +874,11 @@ jobs:
   steps:
     - checkout: self
       fetchDepth: 25
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: 21
     - bash: ./gradlew RegexTest
       displayName: Run regex tests
     - bash: ./checker/bin-devel/test-cftests-junit.sh
