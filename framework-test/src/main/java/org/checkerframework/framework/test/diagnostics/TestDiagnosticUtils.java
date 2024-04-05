@@ -25,7 +25,6 @@ public class TestDiagnosticUtils {
             "\\s*(error|fixable-error|warning|fixable-warning|other):\\s*(\\(?[\\s\\S]*\\)?)\\s*";
 
     /** How the diagnostics appear in Java source files. */
-    // Enables whitespace check, so it detects line separator \r\n in Windows.
     public static final Pattern DIAGNOSTIC_IN_JAVA_PATTERN =
             Pattern.compile(DIAGNOSTIC_IN_JAVA_REGEX);
 
