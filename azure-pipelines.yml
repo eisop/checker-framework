@@ -865,7 +865,7 @@ jobs:
 #   - bash: ./checker/bin-devel/test-downstream.sh
 #     displayName: test-downstream.sh
 
-- job: windows_test
+- job: windows_junit_jdk21
   dependsOn:
     - junit_jdk21
   pool:
