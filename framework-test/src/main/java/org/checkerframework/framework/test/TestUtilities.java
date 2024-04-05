@@ -572,8 +572,8 @@ public class TestUtilities {
     /**
      * Adapt a string that uses Unix file separators to use the correct operating system separator.
      *
-     * @param input the raw path
-     * @return return a corrected dir path if on Windows: switch to backslash
+     * @param input a path with Unix file separators
+     * @return a path with the correct operating system separator
      */
     public static String adapt(String input) {
         return input.replace("/", File.separator);
