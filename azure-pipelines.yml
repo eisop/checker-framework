@@ -89,7 +89,7 @@ jobs:
    - plume_lib_jdk21
    # - plume_lib_jdk_latest
    # Not plume_lib_jdk_next
-   - windows_test
+   - windows_junit_jdk21
   pool:
     vmImage: 'ubuntu-latest'
   steps:
