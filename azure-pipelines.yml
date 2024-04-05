@@ -806,7 +806,7 @@ jobs:
 
 - job: jspecify_conformance_jdk21
   dependsOn:
-   - canary_jobs
+   - junit_jdk21
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk21:latest
