@@ -22,7 +22,7 @@ public class TestDiagnosticUtils {
 
     /** How the diagnostics appear in Java source files. */
     public static final String DIAGNOSTIC_IN_JAVA_REGEX =
-            "\\s*(error|fixable-error|warning|fixable-warning|other):\\s*(\\(?[\\s\\S]*\\)?)\\s*";
+            "\\s*(error|fixable-error|warning|fixable-warning|other):\\s*(\\(?.*\\)?)\\s*";
 
     /** How the diagnostics appear in Java source files. */
     public static final Pattern DIAGNOSTIC_IN_JAVA_PATTERN =
@@ -34,8 +34,7 @@ public class TestDiagnosticUtils {
      * <p>Include white space check, which is necessary for detecting multi-line warning messages on
      * both linux and Windows operating system.
      */
-    public static final String DIAGNOSTIC_WARNING_IN_JAVA_REGEX =
-            "\\s*warning:\\s*([\\s\\S]*\\s*[\\s\\S]*)\\s*";
+    public static final String DIAGNOSTIC_WARNING_IN_JAVA_REGEX = "\\s*warning:\\s*(.*\\s*.*)\\s*";
 
     /** Regular expression pattern to match Java diagnostic warnings. */
     public static final Pattern DIAGNOSTIC_WARNING_IN_JAVA_PATTERN =
