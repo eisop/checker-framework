@@ -89,7 +89,7 @@ jobs:
    - plume_lib_jdk21
    # - plume_lib_jdk_latest
    # Not plume_lib_jdk_next
-   - windows_junit_jdk21
+   - windows_junit_jdk17
   pool:
     vmImage: 'ubuntu-latest'
   steps:
@@ -865,7 +865,7 @@ jobs:
 #   - bash: ./checker/bin-devel/test-downstream.sh
 #     displayName: test-downstream.sh
 
-- job: windows_junit_jdk21
+- job: windows_junit_jdk17
   dependsOn:
     - junit_jdk21
   pool:
@@ -877,5 +877,5 @@ jobs:
     - bash: ./checker/bin-devel/test-cftests-junit.sh
       displayName: Run all JUnit tests
       env:
-        JAVA_HOME: $(JAVA_HOME_21_X64)
-        PATH: $(JAVA_HOME_21_X64)/bin:$(JAVA_HOME_17_X64)/bin:$(PATH)
+        JAVA_HOME: $(JAVA_HOME_17_X64)
+        PATH: $(JAVA_HOME_17_X64)/bin:$(PATH)
