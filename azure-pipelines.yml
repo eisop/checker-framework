@@ -876,3 +876,6 @@ jobs:
       fetchDepth: 25
     - bash: ./checker/bin-devel/test-cftests-junit.sh
       displayName: Run all JUnit tests
+      env:
+        JAVA_HOME: $(JAVA_HOME_17_X64)
+        PATH: $(JAVA_HOME_17_X64)/bin:$(PATH)
