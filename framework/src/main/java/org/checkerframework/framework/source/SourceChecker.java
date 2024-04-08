@@ -27,6 +27,7 @@ import java.lang.management.MemoryPoolMXBean;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -3002,7 +3003,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     gitPropertiesPrinted = true;
 
     try (InputStream in = getClass().getResourceAsStream("/git.properties");
-        BufferedReader reader = new BufferedReader(new InputStreamReader(in)); ) {
+        BufferedReader reader =
+            new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8)); ) {
       String line;
       while ((line = reader.readLine()) != null) {
         System.out.println(line);
