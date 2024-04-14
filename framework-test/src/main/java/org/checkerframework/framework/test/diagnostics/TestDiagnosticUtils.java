@@ -25,31 +25,44 @@ public class TestDiagnosticUtils {
     public static final String DIAGNOSTIC_IN_JAVA_REGEX =
             "\\s*(?<kind>error|fixable-error|warning|fixable-warning|Note|other):\\s*(?<message>[\\s\\S]*)";
 
-    /** How the diagnostics appear in Java source files. */
+    /** Pattern compiled from {@link #DIAGNOSTIC_IN_JAVA_REGEX}. */
     public static final Pattern DIAGNOSTIC_IN_JAVA_PATTERN =
             Pattern.compile(DIAGNOSTIC_IN_JAVA_REGEX);
 
+    /** How the diagnostic warnings appear in Java source files. */
     public static final String DIAGNOSTIC_WARNING_IN_JAVA_REGEX =
             "\\s*warning:\\s*(.*\\s*.*)[\\s\\S]*";
+
+    /** Pattern compiled from {@link #DIAGNOSTIC_WARNING_IN_JAVA_REGEX}. */
     public static final Pattern DIAGNOSTIC_WARNING_IN_JAVA_PATTERN =
             Pattern.compile(DIAGNOSTIC_WARNING_IN_JAVA_REGEX);
 
-    // How the diagnostics appear in javax tools diagnostics from the compiler.
+    /** How the diagnostics appear in javax tools diagnostics from the compiler. */
     public static final String DIAGNOSTIC_REGEX =
             "(?<linenogroup>:(?<lineno>\\d+):)?" + DIAGNOSTIC_IN_JAVA_REGEX;
+
+    /** Pattern compiled from {@link #DIAGNOSTIC_REGEX}. */
     public static final Pattern DIAGNOSTIC_PATTERN = Pattern.compile(DIAGNOSTIC_REGEX);
 
+    /** How the diagnostic warnings appear in javax tools diagnostics from the compiler. */
     public static final String DIAGNOSTIC_WARNING_REGEX =
-            ":(\\d+):" + DIAGNOSTIC_WARNING_IN_JAVA_REGEX;
+            "(?<linenogroup>:(?<lineno>\\d+):)?" + DIAGNOSTIC_WARNING_IN_JAVA_REGEX;
+
+    /** Pattern compiled from {@link #DIAGNOSTIC_WARNING_REGEX}. */
     public static final Pattern DIAGNOSTIC_WARNING_PATTERN =
             Pattern.compile(DIAGNOSTIC_WARNING_REGEX);
 
-    // How the diagnostics appear in diagnostic files (.out).
+    /** How the diagnostics appear in diagnostic files (.out). */
     public static final String DIAGNOSTIC_FILE_REGEX = ".+\\.java" + DIAGNOSTIC_REGEX;
+
+    /** Pattern compiled from {@link #DIAGNOSTIC_FILE_REGEX}. */
     public static final Pattern DIAGNOSTIC_FILE_PATTERN = Pattern.compile(DIAGNOSTIC_FILE_REGEX);
 
+    /** How the diagnostic warnings appear in diagnostic files (.out). */
     public static final String DIAGNOSTIC_FILE_WARNING_REGEX =
             ".+\\.java" + DIAGNOSTIC_WARNING_REGEX;
+
+    /** Pattern compiled from {@link #DIAGNOSTIC_FILE_WARNING_REGEX}. */
     public static final Pattern DIAGNOSTIC_FILE_WARNING_PATTERN =
             Pattern.compile(DIAGNOSTIC_FILE_WARNING_REGEX);
 
@@ -64,7 +77,8 @@ public class TestDiagnosticUtils {
         return fromPatternMatching(
                 DIAGNOSTIC_FILE_PATTERN,
                 DIAGNOSTIC_WARNING_IN_JAVA_PATTERN,
-                Paths.get("<unknown file>"),
+                // Important to use "" to make input of expected warnings easy.
+                Paths.get(""),
                 null,
                 stringFromDiagnosticFile);
     }
@@ -205,7 +219,8 @@ public class TestDiagnosticUtils {
             file = Paths.get(firstline.substring(0, extensionPos + 5).trim());
             trimmed = original.substring(extensionPos + 5).trim();
         } else {
-            file = Paths.get("<unknown file>");
+            // Important to use "" to make input of expected warnings easy.
+            file = Paths.get("");
             trimmed = original;
         }
 
@@ -313,8 +328,8 @@ public class TestDiagnosticUtils {
         } else if (trimmedLine.startsWith("// warning:")) {
             // This special diagnostic does not expect a line number nor a file name
             String diagnosticString = trimmedLine.substring(2);
-            TestDiagnostic diagnostic = fromJavaFileComment("", 0, diagnosticString);
-            return new TestDiagnosticLine("", 0, line, Collections.singletonList(diagnostic));
+            TestDiagnostic diagnostic = fromJavaFileComment("", -1, diagnosticString);
+            return new TestDiagnosticLine("", -1, line, Collections.singletonList(diagnostic));
         } else if (trimmedLine.startsWith("//::")) {
             TestDiagnostic diagnostic =
                     new TestDiagnostic(
