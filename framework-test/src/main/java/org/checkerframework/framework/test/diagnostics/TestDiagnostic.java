@@ -52,29 +52,44 @@ public class TestDiagnostic {
      * @param isFixable whether WPI can fix the test
      */
     public TestDiagnostic(
-            @Nullable Path file,
-            long lineNumber,
-            DiagnosticKind kind,
-            String message,
-            boolean isFixable) {
+            Path file, long lineNumber, DiagnosticKind kind, String message, boolean isFixable) {
         this.file = file;
-        this.filename = file != null ? file.getFileName().toString() : "<unkown file>";
+        this.filename =
+                file.getFileName() != null ? file.getFileName().toString() : file.toString();
         this.lineNumber = lineNumber;
         this.kind = kind;
         this.message = message;
         this.isFixable = isFixable;
 
-        String[] msgSplit = this.message.split(System.lineSeparator(), 2);
-        String firstline = msgSplit[0];
-        int open = firstline.indexOf("(");
-        int close = firstline.indexOf(")");
-        if (open >= 0 && close >= 0) {
-            this.errorkey = firstline.substring(open + 1, close).trim();
-            this.errorkeyparens = true;
-        } else {
-            errorkey = firstline;
+        if (keepFullMessage(message)) {
+            this.errorkey = message;
             this.errorkeyparens = false;
+        } else {
+            String[] msgSplit = this.message.split(System.lineSeparator(), 2);
+            String firstline = msgSplit[0];
+            int open = firstline.indexOf("(");
+            int close = firstline.indexOf(")");
+            if (open >= 0 && close >= 0) {
+                this.errorkey = firstline.substring(open + 1, close).trim();
+                this.errorkeyparens = true;
+            } else {
+                this.errorkey = firstline;
+                this.errorkeyparens = false;
+            }
         }
+    }
+
+    /**
+     * Determine whether the full error message should be used as error key. This is useful to
+     * ensure e.g. stack traces are fully shown.
+     *
+     * @param message the full message
+     * @return whether the full error message should be used
+     */
+    public static boolean keepFullMessage(String message) {
+        return message.contains("unexpected Throwable")
+                || message.contains("Compilation unit")
+                || message.contains("OutOfMemoryError");
     }
 
     /**
