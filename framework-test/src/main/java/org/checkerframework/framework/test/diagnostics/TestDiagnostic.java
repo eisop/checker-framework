@@ -69,7 +69,7 @@ public class TestDiagnostic {
             String firstline = msgSplit[0];
             int open = firstline.indexOf("(");
             int close = firstline.indexOf(")");
-            if (open >= 0 && close >= 0) {
+            if (open == 0 && close > open) {
                 this.errorkey = firstline.substring(open + 1, close).trim();
                 this.errorkeyparens = true;
             } else {
