@@ -5,7 +5,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.IPair;
 
-import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -22,39 +23,46 @@ public class TestDiagnosticUtils {
 
     /** How the diagnostics appear in Java source files. */
     public static final String DIAGNOSTIC_IN_JAVA_REGEX =
-            "\\s*(error|fixable-error|warning|fixable-warning|other):\\s*(\\(?.*\\)?)\\s*";
+            "\\s*(?<kind>error|fixable-error|warning|fixable-warning|Note|other):\\s*(?<message>[\\s\\S]*)";
 
-    /** How the diagnostics appear in Java source files. */
+    /** Pattern compiled from {@link #DIAGNOSTIC_IN_JAVA_REGEX}. */
     public static final Pattern DIAGNOSTIC_IN_JAVA_PATTERN =
             Pattern.compile(DIAGNOSTIC_IN_JAVA_REGEX);
 
-    /**
-     * Regular expression pattern to match Java diagnostic warnings.
-     *
-     * <p>Include white space check, which is necessary for detecting multi-line warning messages on
-     * both linux and Windows operating system.
-     */
-    public static final String DIAGNOSTIC_WARNING_IN_JAVA_REGEX = "\\s*warning:\\s*(.*\\s*.*)\\s*";
+    /** How the diagnostic warnings appear in Java source files. */
+    public static final String DIAGNOSTIC_WARNING_IN_JAVA_REGEX =
+            "\\s*warning:\\s*(.*\\s*.*)[\\s\\S]*";
 
-    /** Regular expression pattern to match Java diagnostic warnings. */
+    /** Pattern compiled from {@link #DIAGNOSTIC_WARNING_IN_JAVA_REGEX}. */
     public static final Pattern DIAGNOSTIC_WARNING_IN_JAVA_PATTERN =
             Pattern.compile(DIAGNOSTIC_WARNING_IN_JAVA_REGEX);
 
-    // How the diagnostics appear in javax tools diagnostics from the compiler.
-    public static final String DIAGNOSTIC_REGEX = ":(\\d+):" + DIAGNOSTIC_IN_JAVA_REGEX;
+    /** How the diagnostics appear in javax tools diagnostics from the compiler. */
+    public static final String DIAGNOSTIC_REGEX =
+            "(?<linenogroup>:(?<lineno>\\d+):)?" + DIAGNOSTIC_IN_JAVA_REGEX;
+
+    /** Pattern compiled from {@link #DIAGNOSTIC_REGEX}. */
     public static final Pattern DIAGNOSTIC_PATTERN = Pattern.compile(DIAGNOSTIC_REGEX);
 
+    /** How the diagnostic warnings appear in javax tools diagnostics from the compiler. */
     public static final String DIAGNOSTIC_WARNING_REGEX =
-            ":(\\d+):" + DIAGNOSTIC_WARNING_IN_JAVA_REGEX;
+            "(?<linenogroup>:(?<lineno>\\d+):)?" + DIAGNOSTIC_WARNING_IN_JAVA_REGEX;
+
+    /** Pattern compiled from {@link #DIAGNOSTIC_WARNING_REGEX}. */
     public static final Pattern DIAGNOSTIC_WARNING_PATTERN =
             Pattern.compile(DIAGNOSTIC_WARNING_REGEX);
 
-    // How the diagnostics appear in diagnostic files (.out).
+    /** How the diagnostics appear in diagnostic files (.out). */
     public static final String DIAGNOSTIC_FILE_REGEX = ".+\\.java" + DIAGNOSTIC_REGEX;
+
+    /** Pattern compiled from {@link #DIAGNOSTIC_FILE_REGEX}. */
     public static final Pattern DIAGNOSTIC_FILE_PATTERN = Pattern.compile(DIAGNOSTIC_FILE_REGEX);
 
+    /** How the diagnostic warnings appear in diagnostic files (.out). */
     public static final String DIAGNOSTIC_FILE_WARNING_REGEX =
             ".+\\.java" + DIAGNOSTIC_WARNING_REGEX;
+
+    /** Pattern compiled from {@link #DIAGNOSTIC_FILE_WARNING_REGEX}. */
     public static final Pattern DIAGNOSTIC_FILE_WARNING_PATTERN =
             Pattern.compile(DIAGNOSTIC_FILE_WARNING_REGEX);
 
@@ -69,7 +77,8 @@ public class TestDiagnosticUtils {
         return fromPatternMatching(
                 DIAGNOSTIC_FILE_PATTERN,
                 DIAGNOSTIC_WARNING_IN_JAVA_PATTERN,
-                "",
+                // Important to use "" to make input of expected warnings easy.
+                Paths.get(""),
                 null,
                 stringFromDiagnosticFile);
     }
@@ -89,7 +98,7 @@ public class TestDiagnosticUtils {
         return fromPatternMatching(
                 DIAGNOSTIC_IN_JAVA_PATTERN,
                 DIAGNOSTIC_WARNING_IN_JAVA_PATTERN,
-                filename,
+                Paths.get(filename),
                 lineNumber,
                 stringFromJavaFile);
     }
@@ -97,14 +106,18 @@ public class TestDiagnosticUtils {
     /**
      * Instantiate a diagnostic from output produced by the Java compiler. The resulting diagnostic
      * is never fixable and always has parentheses.
+     *
+     * @param diagnosticString the compiler diagnostics string
+     * @return the corresponding test diagnostic
      */
-    public static TestDiagnostic fromJavaxToolsDiagnostic(
-            String diagnosticString, boolean noMsgText) {
+    public static TestDiagnostic fromJavaxToolsDiagnostic(String diagnosticString) {
         // It would be nice not to parse this from the diagnostic string.
         // However, diagnostic.toString() may contain "[unchecked]" even though getMessage() does
         // not.
         // Since we want to match the error messages reported by javac exactly, we must parse.
-        IPair<String, String> trimmed = formatJavaxToolString(diagnosticString, noMsgText);
+        // diagnostic.getCode() returns "compiler.warn.prob.found.req" for "[unchecked]" messages,
+        // but not clear how to map from one to the other.
+        IPair<String, Path> trimmed = formatJavaxToolString(diagnosticString);
         return fromPatternMatching(
                 DIAGNOSTIC_PATTERN,
                 DIAGNOSTIC_WARNING_PATTERN,
@@ -118,7 +131,7 @@ public class TestDiagnosticUtils {
      *
      * @param diagnosticPattern a pattern that matches any diagnostic
      * @param warningPattern a pattern that matches a warning diagnostic
-     * @param filename the file name
+     * @param file the test file
      * @param lineNumber the line number
      * @param diagnosticString the string to parse
      * @return a diagnostic parsed from the given string
@@ -127,65 +140,50 @@ public class TestDiagnosticUtils {
     protected static TestDiagnostic fromPatternMatching(
             Pattern diagnosticPattern,
             Pattern warningPattern,
-            String filename,
+            Path file,
             @Nullable Long lineNumber,
             String diagnosticString) {
         final DiagnosticKind kind;
         final String message;
         final boolean isFixable;
-        final boolean noParentheses;
         long lineNo = -1;
-        int capturingGroupOffset = 1;
 
         if (lineNumber != null) {
             lineNo = lineNumber;
-            capturingGroupOffset = 0;
         }
 
         Matcher diagnosticMatcher = diagnosticPattern.matcher(diagnosticString);
         if (diagnosticMatcher.matches()) {
             IPair<DiagnosticKind, Boolean> categoryToFixable =
-                    parseCategoryString(diagnosticMatcher.group(1 + capturingGroupOffset));
+                    parseCategoryString(diagnosticMatcher.group("kind"));
             kind = categoryToFixable.first;
             isFixable = categoryToFixable.second;
-            String msg = diagnosticMatcher.group(2 + capturingGroupOffset).trim();
-            noParentheses =
-                    msg.equals("") || msg.charAt(0) != '(' || msg.charAt(msg.length() - 1) != ')';
-            message = noParentheses ? msg : msg.substring(1, msg.length() - 1);
-
-            if (lineNumber == null) {
-                lineNo = Long.parseLong(diagnosticMatcher.group(1));
+            message = diagnosticMatcher.group("message").trim();
+            if (lineNumber == null && diagnosticMatcher.group("linenogroup") != null) {
+                lineNo = Long.parseLong(diagnosticMatcher.group("lineno"));
             }
-
         } else {
             Matcher warningMatcher = warningPattern.matcher(diagnosticString);
             if (warningMatcher.matches()) {
                 kind = DiagnosticKind.Warning;
                 isFixable = false;
-                message = warningMatcher.group(1 + capturingGroupOffset);
-                noParentheses = true;
-
-                if (lineNumber == null) {
-                    lineNo = Long.parseLong(diagnosticMatcher.group(1));
+                message = warningMatcher.group("message");
+                if (lineNumber == null && diagnosticMatcher.group("linenogroup") != null) {
+                    lineNo = Long.parseLong(diagnosticMatcher.group("lineno"));
                 }
-
             } else if (diagnosticString.startsWith("warning:")) {
                 kind = DiagnosticKind.Warning;
                 isFixable = false;
                 message = diagnosticString.substring("warning:".length()).trim();
-                noParentheses = true;
                 if (lineNumber != null) {
                     lineNo = lineNumber;
                 } else {
                     lineNo = 0;
                 }
-
             } else {
                 kind = DiagnosticKind.Other;
                 isFixable = false;
                 message = diagnosticString;
-                noParentheses = true;
-
                 // this should only happen if we are parsing a Java Diagnostic from the compiler
                 // that we did do not handle
                 if (lineNumber == null) {
@@ -193,59 +191,48 @@ public class TestDiagnosticUtils {
                 }
             }
         }
-        return new TestDiagnostic(filename, lineNo, kind, message, isFixable, noParentheses);
+        return new TestDiagnostic(file, lineNo, kind, message, isFixable);
     }
 
     /**
-     * Given a javax diagnostic, return a pair of (trimmed, filename), where "trimmed" is the first
-     * line of the message, without the leading filename.
+     * Given a javax diagnostic, return a pair of (trimmed, file), where "trimmed" is the message
+     * without the leading filename and the file path. As an example: "foo/bar/Baz.java:49: My error
+     * message" is turned into {@code IPair.of(":49: My error message", Path("foo/bar/Baz.java"))}.
+     * If the file path cannot be determined, it uses {@code "<unknown file>"}.
      *
      * @param original a javax diagnostic
-     * @param noMsgText whether to do work; if false, this returns a pair of (argument, "")
-     * @return the diagnostic, split into message and filename
+     * @return the diagnostic, split into message and file
      */
-    public static IPair<String, String> formatJavaxToolString(String original, boolean noMsgText) {
-        String trimmed = original;
-        String filename = "";
-        if (noMsgText) {
-            if (!retainAllLines(trimmed)) {
-                // When the source file doesn't use the system default line separator,
-                // System.lineSeparator() can't detect which is actually used.
-                int lineSepPos = Math.max(trimmed.indexOf("\n"), trimmed.indexOf("\r\n"));
-                if (trimmed.contains("\r\n") || trimmed.contains("\n")) {
-                    trimmed = trimmed.substring(0, lineSepPos);
-                }
-
-                int extensionPos = trimmed.indexOf(".java:");
-                if (extensionPos != -1) {
-                    int basenameStart = trimmed.lastIndexOf(File.separator);
-                    filename = trimmed.substring(basenameStart + 1, extensionPos + 5).trim();
-                    trimmed = trimmed.substring(extensionPos + 5).trim();
-                }
-            }
+    public static IPair<String, Path> formatJavaxToolString(String original) {
+        String firstline;
+        int lineSepPos = original.indexOf(System.lineSeparator());
+        if (lineSepPos != -1) {
+            firstline = original.substring(0, lineSepPos);
+        } else {
+            firstline = original;
         }
 
-        return IPair.of(trimmed, filename);
-    }
+        String trimmed;
+        Path file;
+        int extensionPos = firstline.indexOf(".java:");
+        if (extensionPos != -1) {
+            file = Paths.get(firstline.substring(0, extensionPos + 5).trim());
+            trimmed = original.substring(extensionPos + 5).trim();
+        } else {
+            // Important to use "" to make input of expected warnings easy.
+            file = Paths.get("");
+            trimmed = original;
+        }
 
-    /**
-     * Returns true if all lines of the message should be shown, false if only the first line should
-     * be shown.
-     *
-     * @param message a diagnostic message
-     * @return true if all lines of the message should be shown
-     */
-    private static boolean retainAllLines(String message) {
-        // Retain all if it is a thrown exception "unexpected Throwable" or it is a Checker
-        // Framework Error (contains "Compilation unit") or is OutOfMemoryError.
-        return message.contains("unexpected Throwable")
-                || message.contains("Compilation unit")
-                || message.contains("OutOfMemoryError");
+        return IPair.of(trimmed, file);
     }
 
     /**
      * Given a category string that may be prepended with "fixable-", return the category enum that
-     * corresponds with the category and whether or not it is a isFixable error
+     * corresponds with the category and whether or not it is a isFixable error.
+     *
+     * @param category a category string
+     * @return the corresponding diagnostic kind and whether it is fixable
      */
     private static IPair<DiagnosticKind, Boolean> parseCategoryString(String category) {
         String fixable = "fixable-";
@@ -264,6 +251,9 @@ public class TestDiagnosticUtils {
     /**
      * Return true if this line in a Java file indicates an expected diagnostic that might be
      * continued on the next line.
+     *
+     * @param originalLine the input line
+     * @return whether the diagnostic might be continued on the next line
      */
     public static boolean isJavaDiagnosticLineStart(String originalLine) {
         String trimmedLine = originalLine.trim();
@@ -335,21 +325,19 @@ public class TestDiagnosticUtils {
                             diagnosticStrs);
             return new TestDiagnosticLine(
                     filename, errorLine, line, Collections.unmodifiableList(diagnostics));
-
         } else if (trimmedLine.startsWith("// warning:")) {
             // This special diagnostic does not expect a line number nor a file name
             String diagnosticString = trimmedLine.substring(2);
-            TestDiagnostic diagnostic = fromJavaFileComment("", 0, diagnosticString);
-            return new TestDiagnosticLine("", 0, line, Collections.singletonList(diagnostic));
+            TestDiagnostic diagnostic = fromJavaFileComment("", -1, diagnosticString);
+            return new TestDiagnosticLine("", -1, line, Collections.singletonList(diagnostic));
         } else if (trimmedLine.startsWith("//::")) {
             TestDiagnostic diagnostic =
                     new TestDiagnostic(
-                            filename,
+                            Paths.get(filename),
                             lineNumber,
                             DiagnosticKind.Error,
                             "Use \"// ::\", not \"//::\"",
-                            false,
-                            true);
+                            false);
             return new TestDiagnosticLine(
                     filename, lineNumber, line, Collections.singletonList(diagnostic));
         } else {
@@ -371,12 +359,18 @@ public class TestDiagnosticUtils {
                 "", diagnostic.getLineNumber(), diagnosticLine, Arrays.asList(diagnostic));
     }
 
-    public static Set<TestDiagnostic> fromJavaxDiagnosticList(
-            List<Diagnostic<? extends JavaFileObject>> javaxDiagnostics, boolean noMsgText) {
+    /**
+     * Convert a list of compiler diagnostics into test diagnostics.
+     *
+     * @param javaxDiagnostics the list of compiler diagnostics
+     * @return the corresponding test diagnostics
+     */
+    public static Set<TestDiagnostic> fromJavaxToolsDiagnosticList(
+            List<Diagnostic<? extends JavaFileObject>> javaxDiagnostics) {
         Set<TestDiagnostic> diagnostics = new LinkedHashSet<>(javaxDiagnostics.size());
 
         for (Diagnostic<? extends JavaFileObject> diagnostic : javaxDiagnostics) {
-            // See TestDiagnosticUtils as to why we use diagnostic.toString rather
+            // See fromJavaxToolsDiagnostic as to why we use diagnostic.toString rather
             // than convert from the diagnostic itself
             String diagnosticString = diagnostic.toString();
 
@@ -388,8 +382,7 @@ public class TestDiagnosticUtils {
                 continue;
             }
 
-            diagnostics.add(
-                    TestDiagnosticUtils.fromJavaxToolsDiagnostic(diagnosticString, noMsgText));
+            diagnostics.add(fromJavaxToolsDiagnostic(diagnosticString));
         }
 
         return diagnostics;
@@ -404,16 +397,5 @@ public class TestDiagnosticUtils {
      */
     public static List<String> diagnosticsToString(List<TestDiagnostic> diagnostics) {
         return CollectionsPlume.mapList(TestDiagnostic::toString, diagnostics);
-    }
-
-    public static void removeDiagnosticsOfKind(
-            DiagnosticKind kind, List<TestDiagnostic> expectedDiagnostics) {
-        for (int i = 0; i < expectedDiagnostics.size(); /*no-increment*/ ) {
-            if (expectedDiagnostics.get(i).getKind() == kind) {
-                expectedDiagnostics.remove(i);
-            } else {
-                ++i;
-            }
-        }
     }
 }
