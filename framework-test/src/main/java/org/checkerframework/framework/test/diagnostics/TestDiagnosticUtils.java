@@ -31,7 +31,7 @@ public class TestDiagnosticUtils {
 
     /** How the diagnostic warnings appear in Java source files. */
     public static final String DIAGNOSTIC_WARNING_IN_JAVA_REGEX =
-            "\\s*warning:\\s*(.*\\s*.*)[\\s\\S]*";
+            "\\s*warning:\\s*(?<message>[\\s\\S]*)";
 
     /** Pattern compiled from {@link #DIAGNOSTIC_WARNING_IN_JAVA_REGEX}. */
     public static final Pattern DIAGNOSTIC_WARNING_IN_JAVA_PATTERN =
