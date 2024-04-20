@@ -167,7 +167,7 @@ public class TestDiagnosticUtils {
             if (warningMatcher.matches()) {
                 kind = DiagnosticKind.Warning;
                 isFixable = false;
-                message = warningMatcher.group("message");
+                message = warningMatcher.group("message").trim();
                 if (lineNumber == null && diagnosticMatcher.group("linenogroup") != null) {
                     lineNo = Long.parseLong(diagnosticMatcher.group("lineno"));
                 }
