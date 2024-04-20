@@ -68,7 +68,7 @@ public class TestDiagnostic {
             String firstline;
             int lineSepPos = this.message.indexOf(System.lineSeparator());
             if (lineSepPos != -1) {
-                firstline = this.message.substring(0, lineSepPos);
+                firstline = this.message.substring(0, lineSepPos).trim();
             } else {
                 firstline = this.message;
             }
