@@ -205,6 +205,9 @@ public class TestDiagnosticUtils {
      */
     public static IPair<String, Path> formatJavaxToolString(String original) {
         String firstline;
+        // In TestDiagnostic we manually check for "\r\n" and "\n". Here, we only use
+        // `firstline` to find the file name. Using the system line separator is not
+        // problem here, it seems.
         int lineSepPos = original.indexOf(System.lineSeparator());
         if (lineSepPos != -1) {
             firstline = original.substring(0, lineSepPos);
