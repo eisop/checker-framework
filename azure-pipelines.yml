@@ -28,12 +28,12 @@ jobs:
 - job: canary_jobs
   dependsOn:
    - junit_jdk21
-   #   - nonjunit_jdk21
+   - nonjunit_jdk21
    # - inference_part1_jdk21
    # - inference_part2_jdk21
-   #   - typecheck_part1_jdk21
-   #   - typecheck_part2_jdk21
-   #   - misc_jdk21
+   - typecheck_part1_jdk21
+   - typecheck_part2_jdk21
+   - misc_jdk21
    # - misc_jdk_latest
   pool:
     vmImage: 'ubuntu-latest'
@@ -70,27 +70,27 @@ jobs:
 
 - job: required_jobs
   dependsOn:
-   #   - framework_jobs
+   - framework_jobs
    # - daikon_jdk8
    # - daikon_jdk11
-   #   - daikon_jdk17
-   #   - daikon_jdk21
+   - daikon_jdk17
+   - daikon_jdk21
    # - daikon_jdk_latest
    # Not daikon_jdk_next
    # - guava_jdk8
    # - guava_jdk11
-   #   - guava_jdk17
-   #   - guava_jdk21
+   - guava_jdk17
+   - guava_jdk21
    # - guava_jdk_latest
    # Not guava_jdk_next
    # - plume_lib_jdk8
    # - plume_lib_jdk11
-   #   - plume_lib_jdk17
-   #   - plume_lib_jdk21
+   - plume_lib_jdk17
+   - plume_lib_jdk21
    # - plume_lib_jdk_latest
    # Not plume_lib_jdk_next
    - windows_junit_jdk17
-   #   - jspecify_conformance_jdk21
+   - jspecify_conformance_jdk21
   pool:
     vmImage: 'ubuntu-latest'
   steps:
