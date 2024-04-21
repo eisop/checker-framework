@@ -576,6 +576,6 @@ public class TestUtilities {
      * @return a path with the correct operating system separator
      */
     public static String adapt(String input) {
-        return input.replace("/", File.separator);
+        return input.replace("/", File.separator).replace(":", File.pathSeparator);
     }
 }
