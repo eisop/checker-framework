@@ -19,13 +19,10 @@ public class NullnessStubfileTest extends CheckerFrameworkPerDirectoryTest {
                 testFiles,
                 org.checkerframework.checker.nullness.NullnessChecker.class,
                 "nullness",
-                "-Astubs="
-                        + String.join(
-                                File.pathSeparator,
-                                TestUtilities.adapt("tests/nullness-stubfile/stubfile1.astub"),
-                                TestUtilities.adapt("tests/nullness-stubfile/stubfile2.astub"),
-                                TestUtilities.adapt(
-                                        "tests/nullness-stubfile/requireNonNull.astub")));
+                TestUtilities.adapt(
+                        "-Astubs=tests/nullness-stubfile/stubfile1.astub:"
+                                + "tests/nullness-stubfile/stubfile2.astub:"
+                                + "tests/nullness-stubfile/requireNonNull.astub"));
     }
 
     @Parameters
