@@ -164,8 +164,8 @@ public class TestUtilities {
                         && dir.getParentFile().getName().startsWith("ainfer-")) {
                     continue;
                 }
-                // When it reaches the file all-system, Windows needs to explicitly read the content
-                // recorded in this file, which is the path to the real dir of all-system.
+                // When this reaches a sym-linked dir like all-system, Windows needs to explicitly
+                // read the content recorded in this file, which is the path to the real dir.
                 // Without this check Windows will treat the file as a meaningless one and skip it.
                 if (dir.isFile()) {
                     File p = dir;
@@ -182,7 +182,7 @@ public class TestUtilities {
                                         .toFile();
 
                     } catch (IOException e) {
-                        throw new BugInCF("File is not readable: %s", dir);
+                        throw new BugInCF("file is not readable: %s", dir);
                     }
                     filesPerDirectory.addAll(findJavaTestFilesInDirectory(p));
                     continue;
@@ -570,9 +570,10 @@ public class TestUtilities {
     }
 
     /**
-     * Adapt a string that uses Unix file separators to use the correct operating system separator.
+     * Adapt a string that uses Unix file and path separators to use the correct operating system
+     * separator.
      *
-     * @param input a path with Unix file separators
+     * @param input a path with Unix file and path separators
      * @return a path with the correct operating system separator
      */
     public static String adapt(String input) {
