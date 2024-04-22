@@ -198,7 +198,8 @@ public class TestDiagnosticUtils {
      * Given a javax diagnostic, return a pair of (trimmed, file), where "trimmed" is the message
      * without the leading filename and the file path. As an example: "foo/bar/Baz.java:49: My error
      * message" is turned into {@code IPair.of(":49: My error message", Path("foo/bar/Baz.java"))}.
-     * If the file path cannot be determined, it uses {@code "<unknown file>"}.
+     * If the file path cannot be determined, it uses {@code ""}. This is necessary to make writing
+     * the expected warnings easy.
      *
      * @param original a javax diagnostic
      * @return the diagnostic, split into message and file
@@ -223,6 +224,8 @@ public class TestDiagnosticUtils {
             trimmed = original.substring(extensionPos + 5).trim();
         } else {
             // Important to use "" to make input of expected warnings easy.
+            // For an example, see file
+            // ./checker/tests/nullness-stubfile/NullnessStubfileMerge.java
             file = Paths.get("");
             trimmed = original;
         }
