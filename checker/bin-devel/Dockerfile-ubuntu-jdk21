@@ -4,7 +4,8 @@
 # Checker Framework and Annotation Tools repositories) for: (java|jdk).?21\b
 
 # "ubuntu" is the latest LTS release.  "ubuntu:rolling" is the latest release.
-FROM ubuntu:rolling
+# As of 2023-11-15, "ubuntu:rolling" is still 23.04.
+FROM ubuntu:24.04
 MAINTAINER Werner Dietl <wdietl@gmail.com>
 
 # According to
