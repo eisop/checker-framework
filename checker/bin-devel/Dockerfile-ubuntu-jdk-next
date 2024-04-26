@@ -5,7 +5,7 @@
 # See releases at https://hub.docker.com/_/ubuntu for available images.
 # See https://packages.ubuntu.com/search?suite=default&section=all&arch=any&keywords=openjdk-22-jdk&searchon=names
 # to see what Ubuntu versions support a particular OpenJDK version.
-FROM ubuntu:mantic
+FROM ubuntu:noble
 MAINTAINER Werner Dietl <wdietl@gmail.com>
 
 # According to
