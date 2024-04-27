@@ -1231,7 +1231,7 @@ public class QualifierDefaults {
             if (isTopLevelType && isLocalVariable) {
                 if (QualifierDefaults.this.shouldDefaultTypeVarLocals
                         && outer.location == TypeUseLocation.LOCAL_VARIABLE) {
-                    outer.addAnnotation(type, qual);
+                    //                    outer.addAnnotation(type, qual);
                 } else {
                     // TODO: Should `TYPE_VARIABLE_USE` default apply to top-level local variables,
                     // if they should not be defaulted according to `shouldDefaultTypeVarLocals`?
