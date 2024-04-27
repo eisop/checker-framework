@@ -452,8 +452,6 @@ public final class RegexUtil {
      * @param iterable an iterable
      * @return a list of the results of applying {@code f} to the elements of {@code iterable}
      */
-    @SuppressWarnings(
-            "builder:required.method.not.known") // TODO: `FROM elt : iterable` gives error.
     // Error message says this is expected for un-constrained type variables, which we have here.
     public static <
                     @KeyForBottom FROM extends @Nullable @UnknownKeyFor Object,
