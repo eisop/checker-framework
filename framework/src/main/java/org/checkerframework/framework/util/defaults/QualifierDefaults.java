@@ -172,13 +172,6 @@ public class QualifierDefaults {
     private final boolean useConservativeDefaultsBytecode;
 
     /**
-     * True if type variable uses as top-level type of local variables should be defaulted.
-     *
-     * @see GenericAnnotatedTypeFactory#getShouldDefaultTypeVarLocals()
-     */
-    private final boolean shouldDefaultTypeVarLocals;
-
-    /**
      * Returns an array of locations that are valid for the unchecked value defaults. These are
      * simply by syntax, since an entire file is typechecked, it is not possible for local variables
      * to be unchecked.
@@ -207,10 +200,6 @@ public class QualifierDefaults {
                 TreeUtils.getMethod(DefaultQualifier.class, "applyToSubpackages", 0, processingEnv);
         this.defaultQualifierListValueElement =
                 TreeUtils.getMethod(DefaultQualifier.List.class, "value", 0, processingEnv);
-        this.shouldDefaultTypeVarLocals =
-                (atypeFactory instanceof GenericAnnotatedTypeFactory<?, ?, ?, ?>)
-                        && ((GenericAnnotatedTypeFactory<?, ?, ?, ?>) atypeFactory)
-                                .getShouldDefaultTypeVarLocals();
     }
 
     @Override
@@ -571,7 +560,7 @@ public class QualifierDefaults {
      * @param tree the tree associated with the type
      * @param type the type to which defaults will be applied
      * @see #applyDefaultsElement(javax.lang.model.element.Element,
-     *     org.checkerframework.framework.type.AnnotatedTypeMirror, boolean)
+     *     org.checkerframework.framework.type.AnnotatedTypeMirror)
      */
     private void applyDefaults(Tree tree, AnnotatedTypeMirror type) {
         // The location to take defaults from.
@@ -911,6 +900,13 @@ public class QualifierDefaults {
         protected final AnnotatedTypeMirror type;
 
         /**
+         * True if type variable uses as top-level type of local variables should be defaulted.
+         *
+         * @see GenericAnnotatedTypeFactory#getShouldDefaultTypeVarLocals()
+         */
+        private final boolean shouldDefaultTypeVarLocals;
+
+        /**
          * Location to which to apply the default. (Should only be set by the applyDefault method.)
          */
         protected TypeUseLocation location;
@@ -931,6 +927,10 @@ public class QualifierDefaults {
             this.qualHierarchy = atypeFactory.getQualifierHierarchy();
             this.scope = scope;
             this.type = type;
+            this.shouldDefaultTypeVarLocals =
+                    (atypeFactory instanceof GenericAnnotatedTypeFactory<?, ?, ?, ?>)
+                            && ((GenericAnnotatedTypeFactory<?, ?, ?, ?>) atypeFactory)
+                                    .getShouldDefaultTypeVarLocals();
             this.impl = new DefaultApplierElementImpl(this);
         }
 
@@ -1229,7 +1229,7 @@ public class QualifierDefaults {
                     outer.scope != null && ElementUtils.isLocalVariable(outer.scope);
 
             if (isTopLevelType && isLocalVariable) {
-                if (QualifierDefaults.this.shouldDefaultTypeVarLocals
+                if (outer.shouldDefaultTypeVarLocals
                         && outer.location == TypeUseLocation.LOCAL_VARIABLE) {
                     outer.addAnnotation(type, qual);
                 } else {

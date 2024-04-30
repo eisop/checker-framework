@@ -71,8 +71,7 @@ class GenericAnnotatedTypeFactoryInferTypeArgs<
 
     @SuppressWarnings("immutability:type.argument.type.incompatible")
     protected FlowAnalysis createFlowAnalysis() {
-        // TODO: revisit once #979 is fixed and remove the explicit type argument.
-        FlowAnalysis result = this.<FlowAnalysis>invokeConstructorFor();
+        FlowAnalysis result = invokeConstructorFor();
         return result;
     }
 
