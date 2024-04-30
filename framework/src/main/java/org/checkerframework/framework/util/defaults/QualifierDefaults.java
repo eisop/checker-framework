@@ -472,7 +472,7 @@ public class QualifierDefaults {
             }
         }
 
-        applyDefaultsElement(elt, type);
+        applyDefaultsElement(elt, type, false);
     }
 
     /**
@@ -560,7 +560,7 @@ public class QualifierDefaults {
      * @param tree the tree associated with the type
      * @param type the type to which defaults will be applied
      * @see #applyDefaultsElement(javax.lang.model.element.Element,
-     *     org.checkerframework.framework.type.AnnotatedTypeMirror)
+     *     org.checkerframework.framework.type.AnnotatedTypeMirror,boolean)
      */
     private void applyDefaults(Tree tree, AnnotatedTypeMirror type) {
         // The location to take defaults from.
@@ -594,7 +594,7 @@ public class QualifierDefaults {
         // System.out.println("applyDefaults on tree " + tree +
         //        " gives elt: " + elt + "(" + elt.getKind() + ")");
 
-        applyDefaultsElement(elt, type);
+        applyDefaultsElement(elt, type, true);
     }
 
     /** The default {@code value} element for a @DefaultQualifier annotation. */
@@ -833,13 +833,15 @@ public class QualifierDefaults {
      * @param annotationScope the element representing the nearest enclosing default annotation
      *     scope for the type
      * @param type the type to which defaults will be applied
+     * @param fromTree whether the element came from a tree
      * @checker_framework.manual #effective-qualifier The effective qualifier on a type (defaults
      *     and inference)
      * @checker_framework.manual #annotating-libraries Annotating libraries
      */
-    private void applyDefaultsElement(Element annotationScope, AnnotatedTypeMirror type) {
+    private void applyDefaultsElement(
+            Element annotationScope, AnnotatedTypeMirror type, boolean fromTree) {
         DefaultApplierElement applier =
-                createDefaultApplierElement(atypeFactory, annotationScope, type);
+                createDefaultApplierElement(atypeFactory, annotationScope, type, fromTree);
 
         DefaultSet defaults = defaultsAt(annotationScope);
 
@@ -877,11 +879,15 @@ public class QualifierDefaults {
      * @param atypeFactory the annotated type factory
      * @param annotationScope the scope of the default
      * @param type the type to which to apply the default
+     * @param fromTree whether the element came from a tree
      * @return the default applier element
      */
     protected DefaultApplierElement createDefaultApplierElement(
-            AnnotatedTypeFactory atypeFactory, Element annotationScope, AnnotatedTypeMirror type) {
-        return new DefaultApplierElement(atypeFactory, annotationScope, type);
+            AnnotatedTypeFactory atypeFactory,
+            Element annotationScope,
+            AnnotatedTypeMirror type,
+            boolean fromTree) {
+        return new DefaultApplierElement(atypeFactory, annotationScope, type, fromTree);
     }
 
     /** A default applier element. */
@@ -898,6 +904,9 @@ public class QualifierDefaults {
 
         /** The type to which to apply the default. */
         protected final AnnotatedTypeMirror type;
+
+        /** Whether the element came from a tree. */
+        protected final boolean fromTree;
 
         /**
          * True if type variable uses as top-level type of local variables should be defaulted.
@@ -920,13 +929,18 @@ public class QualifierDefaults {
          * @param atypeFactory the type factory
          * @param scope the scope for the defaults
          * @param type the type to default
+         * @param fromTree whether the element came from a tree
          */
         public DefaultApplierElement(
-                AnnotatedTypeFactory atypeFactory, Element scope, AnnotatedTypeMirror type) {
+                AnnotatedTypeFactory atypeFactory,
+                Element scope,
+                AnnotatedTypeMirror type,
+                boolean fromTree) {
             this.atypeFactory = atypeFactory;
             this.qualHierarchy = atypeFactory.getQualifierHierarchy();
             this.scope = scope;
             this.type = type;
+            this.fromTree = fromTree;
             this.shouldDefaultTypeVarLocals =
                     (atypeFactory instanceof GenericAnnotatedTypeFactory<?, ?, ?, ?>)
                             && ((GenericAnnotatedTypeFactory<?, ?, ?, ?>) atypeFactory)
@@ -1230,6 +1244,7 @@ public class QualifierDefaults {
 
             if (isTopLevelType && isLocalVariable) {
                 if (outer.shouldDefaultTypeVarLocals
+                        && outer.fromTree
                         && outer.location == TypeUseLocation.LOCAL_VARIABLE) {
                     outer.addAnnotation(type, qual);
                 } else {
