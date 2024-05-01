@@ -10,8 +10,6 @@ dependencies {
     // Node implements org.plumelib.util.UniqueId, so this dependency must be "api".
     api "org.plumelib:plume-util:${versions.plumeUtil}"
 
-    testImplementation "junit:junit:${versions.junit}"
-
     // External dependencies:
     // If you add an external dependency, you must shadow its packages both in the dataflow-shaded
     // artifact (see shadowJar block below) and also in checker.jar (see the comment in
@@ -67,13 +65,8 @@ task manual(group: 'Documentation') {
     }
 }
 
-test {
-    filter {
-        failOnNoMatchingTests = false
-    }
-}
-
 tasks.withType(Test) {
+    enabled = false
     dependsOn('allDataflowTests')
 }
 
