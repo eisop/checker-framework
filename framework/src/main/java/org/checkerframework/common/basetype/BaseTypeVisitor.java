@@ -160,7 +160,8 @@ import javax.lang.model.util.ElementFilter;
 
 /**
  * A {@link SourceVisitor} that performs assignment and pseudo-assignment checking, method
- * invocation checking, and assignability checking.
+ * invocation checking, and assignability checking. The visitor visits every construct in a program,
+ * not just types.
  *
  * <p>This implementation uses the {@link AnnotatedTypeFactory} implementation provided by an
  * associated {@link BaseTypeChecker}; its visitor methods will invoke this factory on parts of the
@@ -798,7 +799,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
 
             for (AnnotationMirror poly : polys) {
-                if (type.hasAnnotationRelaxed(poly)) {
+                if (type.hasAnnotation(poly)) {
                     return Collections.singletonList(
                             DiagMessage.error("invalid.polymorphic.qualifier.use", poly));
                 }
@@ -1650,8 +1651,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             commonAssignmentCheck(
                     tree, tree.getInitializer(), "enum.declaration.type.incompatible");
         } else if (tree.getInitializer() != null) {
-            // If there's no assignment in this variable declaration, skip it.
-            commonAssignmentCheck(tree, tree.getInitializer(), "assignment.type.incompatible");
+            if (!TreeUtils.isVariableTreeDeclaredUsingVar(tree)) {
+                // If there is no assignment in this variable declaration or it is declared using
+                // `var`, skip it.
+                // For a `var` declaration, TypeFromMemberVisitor#visitVariable already uses the
+                // type of the initializer for the variable type, so it would be redundant to check
+                // for compatibility here.
+                commonAssignmentCheck(tree, tree.getInitializer(), "assignment.type.incompatible");
+            }
         } else {
             // commonAssignmentCheck validates the type of `tree`,
             // so only validate if commonAssignmentCheck wasn't called
@@ -3010,7 +3017,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         List<AnnotationTree> result = new ArrayList<>(1);
         for (AnnotationTree at : annoTrees) {
             AnnotationMirror anno = TreeUtils.annotationFromAnnotationTree(at);
-            if (!AnnotationUtils.isDeclarationAnnotation(anno)
+            if (AnnotationUtils.isTypeUseAnnotation(anno)
                     && atypeFactory.isSupportedQualifier(anno)) {
                 result.add(at);
             }
@@ -4037,7 +4044,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     /**
      * Type checks that a method may override another method. Uses an OverrideChecker subclass as
-     * created by {@link #createOverrideChecker}. This version of the method exposes
+     * created by {@link #createOverrideChecker}. This version of the method exposes the
      * AnnotatedExecutableType of the overriding method. Override this version of the method if you
      * need to access that type.
      *
@@ -4078,7 +4085,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Check that a method reference is allowed. Using the OverrideChecker class.
+     * Check that a method reference is allowed. Uses the OverrideChecker class.
      *
      * @param memberReferenceTree the tree for the method reference
      * @return true if the method reference is allowed
@@ -4116,9 +4123,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         // ========= Overriding Executable =========
         // The ::method element, see JLS 15.13.1 Compile-Time Declaration of a Method Reference
-        ExecutableElement compileTimeDeclaration =
-                (ExecutableElement) TreeUtils.elementFromUse(memberReferenceTree);
-
+        ExecutableElement compileTimeDeclaration = TreeUtils.elementFromUse(memberReferenceTree);
         if (enclosingType.getKind() == TypeKind.DECLARED
                 && ((AnnotatedDeclaredType) enclosingType).isUnderlyingTypeRaw()) {
             if (memRefKind == MemberReferenceKind.UNBOUND) {
@@ -4259,7 +4264,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     public class OverrideChecker {
 
-        /** The declaration of an overriding method. */
+        /**
+         * The declaration of an overriding method. Or, it could be a method reference that is being
+         * passed to a method.
+         */
         protected final Tree overriderTree;
 
         /** True if {@link #overriderTree} is a MEMBER_REFERENCE. */
@@ -4311,10 +4319,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             this.overriderTree = overriderTree;
             this.overrider = overrider;
             this.overriderType = overriderType;
+            this.overriderReturnType = overriderReturnType;
             this.overridden = overridden;
             this.overriddenType = overriddenType;
             this.overriddenReturnType = overriddenReturnType;
-            this.overriderReturnType = overriderReturnType;
 
             this.isMethodReference = overriderTree.getKind() == Tree.Kind.MEMBER_REFERENCE;
         }
@@ -4443,7 +4451,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          */
         protected boolean checkMemberReferenceReceivers() {
             if (overriderType.getKind() == TypeKind.ARRAY) {
-                // Assume the receiver for all method on arrays are @Top
+                // Assume the receiver for all method on arrays are @Top.
                 // This simplifies some logic because an AnnotatedExecutableType for an array method
                 // (ie String[]::clone) has a receiver of "Array." The UNBOUND check would then
                 // have to compare "Array" to "String[]".

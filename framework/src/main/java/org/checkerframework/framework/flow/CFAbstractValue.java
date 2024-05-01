@@ -296,6 +296,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
          * @param bTypeMirror type of the "b" value
          * @param backup value to use if no most specific value is found
          */
+        @SuppressWarnings("UnusedVariable") // TODO clean this up
         public MostSpecificVisitor(TypeMirror aTypeMirror, TypeMirror bTypeMirror, V backup) {
             if (backup != null) {
                 this.backupAMSet = backup.getAnnotations();

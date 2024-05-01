@@ -3,6 +3,7 @@ package org.checkerframework.checker.optional;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.qual.RelevantJavaTypes;
 import org.checkerframework.framework.qual.StubFiles;
+import org.checkerframework.framework.source.SupportedOptions;
 
 import java.util.Optional;
 
@@ -15,6 +16,7 @@ import java.util.Optional;
 // @NonNull, make the return type have type @Present.
 @RelevantJavaTypes(Optional.class)
 @StubFiles({"javaparser.astub"})
+@SupportedOptions("optionalMapAssumeNonNull")
 public class OptionalChecker extends BaseTypeChecker {
     /** Create an OptionalChecker. */
     public OptionalChecker() {}

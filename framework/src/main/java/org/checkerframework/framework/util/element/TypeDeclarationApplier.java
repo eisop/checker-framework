@@ -18,6 +18,14 @@ import javax.lang.model.element.Element;
 /** Apply annotations to a declared type based on its declaration. */
 public class TypeDeclarationApplier extends TargetedElementAnnotationApplier {
 
+    /**
+     * Apply annotations from {@code element} to {@code type}.
+     *
+     * @param type the type to annotate
+     * @param element the corresponding element
+     * @param atypeFactory the type factory
+     * @throws UnexpectedAnnotationLocationException if there is trouble
+     */
     public static void apply(
             final AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory atypeFactory)
             throws UnexpectedAnnotationLocationException {
@@ -41,11 +49,23 @@ public class TypeDeclarationApplier extends TargetedElementAnnotationApplier {
         return type instanceof AnnotatedDeclaredType && element instanceof Symbol.ClassSymbol;
     }
 
+    /** The type factory to use. */
     private final AnnotatedTypeFactory atypeFactory;
+
+    /** The type symbol. */
     private final Symbol.ClassSymbol typeSymbol;
+
+    /** The declared type. */
     private final AnnotatedDeclaredType declaredType;
 
-    TypeDeclarationApplier(
+    /**
+     * Constructor.
+     *
+     * @param type the type to annotate
+     * @param element the corresponding element
+     * @param atypeFactory the type factory
+     */
+    /*package-private*/ TypeDeclarationApplier(
             AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory atypeFactory) {
         super(type, element);
         this.atypeFactory = atypeFactory;

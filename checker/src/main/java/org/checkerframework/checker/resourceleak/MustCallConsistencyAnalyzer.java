@@ -1474,7 +1474,7 @@ class MustCallConsistencyAnalyzer {
             } else {
                 replacements.put(
                         obligation,
-                        new Obligation(newResourceAliasesForObligation, MethodExitKind.ALL));
+                        new Obligation(newResourceAliasesForObligation, obligation.whenToEnforce));
             }
         }
 
@@ -1830,7 +1830,7 @@ class MustCallConsistencyAnalyzer {
      * @param node a node
      * @return either a tempvar for node's content sans typecasts, or node
      */
-    private Node removeCastsAndGetTmpVarIfPresent(Node node) {
+    /*package-private*/ Node removeCastsAndGetTmpVarIfPresent(Node node) {
         // TODO: Create temp vars for TypeCastNodes as well, so there is no need to explicitly
         // remove casts here.
         node = NodeUtils.removeCasts(node);

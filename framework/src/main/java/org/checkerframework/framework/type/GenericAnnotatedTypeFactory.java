@@ -1404,7 +1404,7 @@ public abstract class GenericAnnotatedTypeFactory<
             TreePath preTreePath = getVisitorTreePath();
 
             // Don't call AnnotatedTypeFactory#getPath, because it uses visitorTreePath.
-            setVisitorTreePath(TreePath.getPath(this.root, ct));
+            setVisitorTreePath(TreePath.getPath(this.getRoot(), ct));
 
             // start with the captured store as initialization store
             initializationStaticStore = capturedStore;
@@ -1597,7 +1597,8 @@ public abstract class GenericAnnotatedTypeFactory<
             boolean updateInitializationStore,
             boolean isStatic,
             @Nullable Store capturedStore) {
-        ControlFlowGraph cfg = CFCFGBuilder.build(root, ast, checker, this, processingEnv);
+        ControlFlowGraph cfg =
+                CFCFGBuilder.build(this.getRoot(), ast, checker, this, processingEnv);
         /*
              cfg.getAllNodes(this::isIgnoredExceptionType)
                      .forEach(
@@ -1832,7 +1833,32 @@ public abstract class GenericAnnotatedTypeFactory<
         AnnotatedTypeMirror res;
         switch (lhsTree.getKind()) {
             case VARIABLE:
+                boolean isVarTree =
+                        TreeUtils.isVariableTreeDeclaredUsingVar((VariableTree) lhsTree);
+                if (isVarTree) {
+                    // If this variable is declared using `var`, re-enable caching to avoid
+                    // re-computing the initializer expression type.
+                    shouldCache = oldShouldCache;
+                }
+                res = getAnnotatedType(lhsTree);
+                // Value of shouldCache no longer used below, so no need to reset.
+                break;
             case IDENTIFIER:
+                Element elt = TreeUtils.elementFromTree(lhsTree);
+                if (elt != null) {
+                    Tree decl = declarationFromElement(elt);
+                    if (decl != null
+                            && decl.getKind() == Tree.Kind.VARIABLE
+                            && TreeUtils.isVariableTreeDeclaredUsingVar((VariableTree) decl)) {
+                        // If this identifier accesses a variable that was declared using `var`,
+                        // re-enable caching to avoid re-computing the initializer expression type.
+                        shouldCache = oldShouldCache;
+                    }
+                }
+                res = getAnnotatedType(lhsTree);
+                // Value of shouldCache no longer used below, so no need to reset.
+                break;
+
             case MEMBER_SELECT:
             case ARRAY_ACCESS:
                 res = getAnnotatedType(lhsTree);
@@ -1991,10 +2017,10 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     protected void addComputedTypeAnnotations(
             Tree tree, AnnotatedTypeMirror type, boolean iUseFlow) {
-        if (root == null && ajavaTypes.isParsing()) {
+        if (this.getRoot() == null && ajavaTypes.isParsing()) {
             return;
         }
-        assert root != null
+        assert this.getRoot() != null
                 : "GenericAnnotatedTypeFactory.addComputedTypeAnnotations: "
                         + " root needs to be set when used on trees; factory: "
                         + this.getClass();
