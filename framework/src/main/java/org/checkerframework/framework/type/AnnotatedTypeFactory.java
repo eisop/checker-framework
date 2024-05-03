@@ -181,7 +181,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     // TODO: when should root be null? What are the use cases?
     // None of the existing test checkers has a null root.
     // Should not be modified between calls to "visit".
-    protected @Nullable CompilationUnitTree root;
+    private @Nullable CompilationUnitTree root;
 
     /** The processing environment to use for accessing compiler internals. */
     protected final ProcessingEnvironment processingEnv;
@@ -974,6 +974,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
             reflectionResolver = new DefaultReflectionResolver(checker, methodValATF, debug);
         }
+    }
+
+    /**
+     * Get the current CompilationUnitTree.
+     *
+     * @return the current compilation unit being used, or null
+     */
+    protected @Nullable CompilationUnitTree getRoot() {
+        return root;
     }
 
     /**
