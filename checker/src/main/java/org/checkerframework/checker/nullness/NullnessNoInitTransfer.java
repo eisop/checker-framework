@@ -412,7 +412,7 @@ public class NullnessNoInitTransfer
     Node receiver = n.getTarget().getReceiver();
     if (nonNullAssumptionAfterInvocation
         || isMethodSideEffectFree
-        || JavaExpression.fromNode(receiver).isUnassignableByOtherCode()) {
+        || !JavaExpression.fromNode(receiver).isAssignableByOtherCode()) {
       // Make receiver non-null.
       makeNonNull(result, receiver);
     }
@@ -428,7 +428,7 @@ public class NullnessNoInitTransfer
       if (methodParams.get(i).hasAnnotation(NONNULL)
           && (nonNullAssumptionAfterInvocation
               || isMethodSideEffectFree
-              || JavaExpression.fromTree(methodArgs.get(i)).isUnassignableByOtherCode())) {
+              || !JavaExpression.fromTree(methodArgs.get(i)).isAssignableByOtherCode())) {
         makeNonNull(result, n.getArgument(i));
       }
     }
