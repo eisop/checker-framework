@@ -191,6 +191,50 @@ public class TestDiagnosticUtils {
                 }
             }
         }
+
+        // Check if message matches detailed message format
+        // Trim the message to remove leading/trailing whitespace
+        String[] diagnosticStrings =
+                Arrays.stream(message.split(" \\$\\$ ")).map(String::trim).toArray(String[]::new);
+        if (diagnosticStrings.length > 1) {
+            // The parts of the detailed message are:
+
+            // (1) error key
+            String errorKey = diagnosticStrings[0];
+
+            // (2) number of additional tokens, and those tokens; this depends on the error message,
+            // and
+            // an example is the found and expected types
+            int numAdditionalTokens = Integer.parseInt(diagnosticStrings[1]);
+            int lastAdditionalToken = 2 + numAdditionalTokens;
+            List<String> additionalTokens =
+                    Arrays.asList(diagnosticStrings).subList(2, 2 + numAdditionalTokens);
+
+            // (3) the error position, given by the format (startPosition, endPosition)
+            String[] errorPositionString = diagnosticStrings[lastAdditionalToken].split(",");
+            // remove the parentheses
+            int startPosition = Integer.parseInt(errorPositionString[0].substring(1).trim());
+            int endPosition =
+                    Integer.parseInt(
+                            errorPositionString[1]
+                                    .substring(0, errorPositionString[1].length() - 1)
+                                    .trim());
+
+            // (4) the human-readable error message
+            String readableMessage = diagnosticStrings[lastAdditionalToken + 1];
+
+            return new DetailedTestDiagnostic(
+                    file,
+                    lineNo,
+                    kind,
+                    errorKey,
+                    additionalTokens,
+                    startPosition,
+                    endPosition,
+                    readableMessage,
+                    isFixable);
+        }
+
         return new TestDiagnostic(file, lineNo, kind, message, isFixable);
     }
 
