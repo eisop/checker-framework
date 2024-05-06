@@ -884,7 +884,7 @@ public abstract class CFAbstractTransfer<
     /* NO-AFU
     if (shouldPerformWholeProgramInference(n.getTree())) {
       // Retrieves class containing the method
-      ClassTree classTree = analysis.getContainingClass(n.getTree());
+      ClassTree classTree = analysis.getEnclosingClass(n.getTree());
       // classTree is null e.g. if this is a return statement in a lambda.
       if (classTree == null) {
         return result;
@@ -892,7 +892,7 @@ public abstract class CFAbstractTransfer<
       ClassSymbol classSymbol = (ClassSymbol) TreeUtils.elementFromDeclaration(classTree);
 
       ExecutableElement methodElem =
-          TreeUtils.elementFromDeclaration(analysis.getContainingMethod(n.getTree()));
+          TreeUtils.elementFromDeclaration(analysis.getEnclosingMethod(n.getTree()));
 
       Map<AnnotatedDeclaredType, ExecutableElement> overriddenMethods =
           AnnotatedTypes.overriddenMethods(
@@ -903,7 +903,7 @@ public abstract class CFAbstractTransfer<
           .atypeFactory
           .getWholeProgramInference()
           .updateFromReturn(
-              n, classSymbol, analysis.getContainingMethod(n.getTree()), overriddenMethods);
+              n, classSymbol, analysis.getEnclosingMethod(n.getTree()), overriddenMethods);
     }
     */
 
