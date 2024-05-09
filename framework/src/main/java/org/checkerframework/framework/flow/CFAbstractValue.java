@@ -265,9 +265,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
             mostSpecifTypeMirror = this.getUnderlyingType();
         }
 
-        MostSpecificVisitor ms =
-                new MostSpecificVisitor(
-                        this.getUnderlyingType(), other.getUnderlyingType(), backup);
+        MostSpecificVisitor ms = new MostSpecificVisitor(backup);
         AnnotationMirrorSet mostSpecific =
                 ms.combineSets(
                         this.getUnderlyingType(),
@@ -292,8 +290,6 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
         /**
          * Create a {@link MostSpecificVisitor}.
          *
-         * @param aTypeMirror type of the "a" value
-         * @param bTypeMirror type of the "b" value
          * @param backup value to use if no most specific value is found
          */
         public MostSpecificVisitor(V backup) {
