@@ -27,7 +27,19 @@ public class DetailedTestDiagnostic extends TestDiagnostic {
     /** An error key that usually appears between parentheses in diagnostic messages. */
     private final String errorKey;
 
-    /** Constructor that sets the immutable fields of this diagnostic. */
+    /**
+     * Constructor that sets the immutable fields of this diagnostic.
+     *
+     * @param file the file in which the error occurred
+     * @param lineNo the line number in the file at which the error occurred
+     * @param kind the kind of diagnostic (error or warning)
+     * @param errorKey an error key that usually appears between parentheses in diagnostic messages
+     * @param additionalTokens additional tokens that are part of the error message
+     * @param startPosition the start position of the error in the source file
+     * @param endPosition the end position of the error in the source file
+     * @param readableMessage a human-readable message describing the error
+     * @param isFixable whether the error is fixable
+     */
     public DetailedTestDiagnostic(
             Path file,
             long lineNo,
@@ -46,18 +58,22 @@ public class DetailedTestDiagnostic extends TestDiagnostic {
         this.errorKey = errorKey;
     }
 
+    /** Gets the additional tokens that are part of the error message. */
     public List<String> getAdditionalTokens() {
         return additionalTokens;
     }
 
+    /** Gets the start position of the error in the source file. */
     public int getStartPosition() {
         return startPosition;
     }
 
+    /** Gets the end position of the error in the source file. */
     public int getEndPosition() {
         return endPosition;
     }
 
+    /** Gets the error key that usually appears between parentheses in diagnostic messages. */
     public String getErrorKey() {
         return errorKey;
     }
