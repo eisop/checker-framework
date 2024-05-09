@@ -285,14 +285,14 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
         boolean error = false;
 
         /** Set of annotations to use if a most specific value cannot be found. */
-        final AnnotationMirrorSet backupAMSet;
+        final @Nullable AnnotationMirrorSet backupAMSet;
 
         /**
          * Create a {@link MostSpecificVisitor}.
          *
          * @param backup value to use if no most specific value is found
          */
-        public MostSpecificVisitor(V backup) {
+        public MostSpecificVisitor(@Nullable V backup) {
             if (backup != null) {
                 this.backupAMSet = backup.getAnnotations();
             } else {
