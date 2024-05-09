@@ -79,6 +79,7 @@ enum AtmKind {
  *
  * @see AtmCombo#accept
  */
+@SuppressWarnings("EnumOrdinal") // Use enum ordinals as array indices.
 public enum AtmCombo {
     ARRAY_ARRAY(AtmKind.ARRAY, AtmKind.ARRAY),
     ARRAY_DECLARED(AtmKind.ARRAY, AtmKind.DECLARED),

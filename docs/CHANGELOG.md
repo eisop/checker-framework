@@ -1,16 +1,36 @@
-Version 3.42.0-eisop3 (January ?, 2024)
----------------------------------------
+Version 3.42.0-eisop4 (April ?, 2024)
+-------------------------------------
 
 **User-visible changes:**
 
 **Implementation details:**
+
+Improvements in `framework-test` to more consistently handle tests that do not use
+`-Anomsgtext`.
+
+**Closed issues:**
+
+
+Version 3.42.0-eisop3 (March 1, 2024)
+-------------------------------------
+
+**User-visible changes:**
+
+Performance improvements in the Nullness Checker.
+
+**Implementation details:**
+
+Support separate defaults for wildcard and type variable upper bounds.
+Add support for defaults for type variable uses.
+See changes in `TypeUseLocation`, `QualiferDefaults`, and `QualifierHierarchy`,
+as well as the new `ParametricTypeVariableUseQualifier` meta-annotation.
 
 Refactored the `TypeInformationPresenter` into several classes in the new
 `org.checkerframework.framework.util.visualize` package.
 
 **Closed issues:**
 
-typetools#6433, typetools#6438.
+eisop#703, typetools#6433, typetools#6438.
 
 
 Version 3.42.0-eisop2 (January 9, 2024)
