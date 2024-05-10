@@ -58,22 +58,38 @@ public class DetailedTestDiagnostic extends TestDiagnostic {
         this.errorKey = errorKey;
     }
 
-    /** Gets the additional tokens that are part of the error message. */
+    /**
+     * Gets the additional tokens that are part of the error message.
+     *
+     * @return the additional tokens
+     */
     public List<String> getAdditionalTokens() {
         return additionalTokens;
     }
 
-    /** Gets the start position of the error in the source file. */
+    /**
+     * Gets the start position of the error in the source file.
+     *
+     * @return the start position
+     */
     public int getStartPosition() {
         return startPosition;
     }
 
-    /** Gets the end position of the error in the source file. */
+    /**
+     * Gets the end position of the error in the source file.
+     *
+     * @return the end position
+     */
     public int getEndPosition() {
         return endPosition;
     }
 
-    /** Gets the error key that usually appears between parentheses in diagnostic messages. */
+    /**
+     * Gets the error key that usually appears between parentheses in diagnostic messages.
+     *
+     * @return the error key
+     */
     public String getErrorKey() {
         return errorKey;
     }
