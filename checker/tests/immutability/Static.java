@@ -28,6 +28,7 @@ public class Static {
 
     // :: error: (static.receiverdependantmutable.forbidden)
     static @ReceiverDependantMutable Object readStaticReceiverDependantMutableField(
+            // :: error: (static.receiverdependantmutable.forbidden)
             @ReceiverDependantMutable Object p) {
         return o;
         // TODO Avoid warnings for receiverdependantmutable fields in anonymous class

@@ -5,12 +5,10 @@ import org.checkerframework.checker.immutability.qual.Readonly;
 import org.checkerframework.checker.immutability.qual.ReceiverDependantMutable;
 
 // :: error: (class.bound.invalid)
-@Readonly
-public class InvalidBound {}
+@Readonly public class InvalidBound {}
 
 // :: error: (class.bound.invalid)
-@PolyMutable
-class A {}
+@PolyMutable class A {}
 
 // ok
 @Immutable

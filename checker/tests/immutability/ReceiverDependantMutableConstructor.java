@@ -11,8 +11,7 @@ public class ReceiverDependantMutableConstructor {
     @Immutable Object imf;
 
     // :: error: (initialization.fields.uninitialized)
-    @ReceiverDependantMutable
-    ReceiverDependantMutableConstructor(
+    @ReceiverDependantMutable ReceiverDependantMutableConstructor(
             @Mutable Object mo, @ReceiverDependantMutable Object po, @Immutable Object io) {}
 
     @ReceiverDependantMutable

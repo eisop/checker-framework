@@ -20,14 +20,12 @@ class A {
     }
 
     // :: error: (type.invalid.annotations.on.use)
-    @ReceiverDependantMutable
-    A(Object o1) {
+    @ReceiverDependantMutable A(Object o1) {
         d = new @ReceiverDependantMutable Date();
     }
 
     // :: error: (type.invalid.annotations.on.use)
-    @Mutable
-    A(Object o1, Object o2) {
+    @Mutable A(Object o1, Object o2) {
         d = new @Mutable Date();
     }
 }
@@ -36,19 +34,16 @@ class A {
 class AIMS extends A {}
 
 // :: error: (type.invalid.annotations.on.use) :: error: (super.invocation.invalid)
-@ReceiverDependantMutable
-class ARDMS extends A {}
+@ReceiverDependantMutable class ARDMS extends A {}
 
 // :: error: (type.invalid.annotations.on.use) :: error: (super.invocation.invalid)
-@Mutable
-class AMS extends A {}
+@Mutable class AMS extends A {}
 
 // :: error: (type.invalid.annotations.on.use) :: error: (super.invocation.invalid)
 class AUNKS extends A {}
 
 // ReceiverDependantMutable class
-@ReceiverDependantMutable
-class B {
+@ReceiverDependantMutable class B {
     @ReceiverDependantMutable Date d = new @ReceiverDependantMutable Date();
 
     {
@@ -79,12 +74,10 @@ class B {
 class BIMS extends B {}
 
 // :: error: (super.invocation.invalid)
-@ReceiverDependantMutable
-class BRDMS extends B {}
+@ReceiverDependantMutable class BRDMS extends B {}
 
 // :: error: (super.invocation.invalid)
-@Mutable
-class BMS extends B {}
+@Mutable class BMS extends B {}
 
 // mutable by default(TODO Does this make sense compared to defaulting to
 // receiver-dependant-mutable?)
@@ -92,8 +85,7 @@ class BMS extends B {}
 class BUNKS extends B {}
 
 // Mutable class
-@Mutable
-class C {
+@Mutable class C {
     @ReceiverDependantMutable Date d = new @Mutable Date();
 
     {
@@ -102,14 +94,12 @@ class C {
     }
 
     // :: error: (type.invalid.annotations.on.use)
-    @Immutable
-    C() {
+    @Immutable C() {
         d = new @Immutable Date();
     }
 
     // :: error: (type.invalid.annotations.on.use)
-    @ReceiverDependantMutable
-    C(Object o1) {
+    @ReceiverDependantMutable C(Object o1) {
         d = new @ReceiverDependantMutable Date();
     }
 
@@ -120,16 +110,13 @@ class C {
 }
 
 // :: error: (type.invalid.annotations.on.use)
-@Immutable
-class CIMS extends C {}
+@Immutable class CIMS extends C {}
 
 // :: error: (type.invalid.annotations.on.use) :: error: (super.invocation.invalid)
-@ReceiverDependantMutable
-class CRDMS extends C {}
+@ReceiverDependantMutable class CRDMS extends C {}
 
 // :: error: (super.invocation.invalid)
-@Mutable
-class CMS extends C {}
+@Mutable class CMS extends C {}
 
 // :: error: (super.invocation.invalid)
 class CUNKS extends C {}

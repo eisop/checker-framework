@@ -27,15 +27,13 @@ class H extends ArrayList<@Immutable Object> {}
 abstract class I implements @Mutable List<@Immutable Object> {}
 
 // :: error: (declaration.inconsistent.with.implements.clause)
-@Mutable
-abstract class J implements @Immutable List<@Immutable Object> {}
+@Mutable abstract class J implements @Immutable List<@Immutable Object> {}
 
 @Mutable
 abstract class K implements @ReceiverDependantMutable List<@Immutable Object> {}
 
 // :: error: (declaration.inconsistent.with.extends.clause)
-@Immutable
-class L extends @Mutable ArrayList<@Immutable Object> {}
+@Immutable class L extends @Mutable ArrayList<@Immutable Object> {}
 
 @Immutable
 class M extends @Immutable ArrayList<@Immutable Object> {}
@@ -49,12 +47,10 @@ abstract class O implements CharSequence {}
 interface ImmutableInterface<E extends @ReceiverDependantMutable Object> {}
 
 // :: error: (type.invalid.annotations.on.use)
-@Mutable
-abstract class P implements ImmutableInterface<@Mutable Object> {}
+@Mutable abstract class P implements ImmutableInterface<@Mutable Object> {}
 
 @Immutable
 abstract class Q implements ImmutableInterface<@Immutable Object> {}
 
 // :: error: (type.invalid.annotations.on.use)
-@ReceiverDependantMutable
-abstract class R implements ImmutableInterface<@ReceiverDependantMutable Object> {}
+@ReceiverDependantMutable abstract class R implements ImmutableInterface<@ReceiverDependantMutable Object> {}

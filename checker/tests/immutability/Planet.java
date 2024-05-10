@@ -2,6 +2,8 @@ import org.checkerframework.checker.immutability.qual.Immutable;
 import org.checkerframework.checker.immutability.qual.Mutable;
 import org.checkerframework.checker.immutability.qual.Readonly;
 
+import java.util.Date;
+
 /** Planet is an immutable class, since there is no way to change its state after construction. */
 @Immutable
 public class Planet {

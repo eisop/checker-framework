@@ -12,8 +12,7 @@ public class AssignableExample {
     @Assignable @Immutable Date assignableDate;
 
     // :: error: (initialization.fields.uninitialized)
-    @Mutable
-    AssignableExample() {
+    @Mutable AssignableExample() {
         o = new @Immutable Object();
     }
 
@@ -29,8 +28,7 @@ public class AssignableExample {
 }
 
 // :: error: (super.invocation.invalid)
-@ReceiverDependantMutable
-class Subclass extends AssignableExample {
+@ReceiverDependantMutable class Subclass extends AssignableExample {
     void bar(@Immutable Subclass this) {
         // :: error: (illegal.field.write)
         this.date = new @Immutable Date();

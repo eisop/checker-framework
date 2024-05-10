@@ -19,8 +19,7 @@ public class FieldsInitialized {
     @Assignable @Readonly Object f10;
 
     // :: error: (initialization.fields.uninitialized)
-    @ReceiverDependantMutable
-    FieldsInitialized() {
+    @ReceiverDependantMutable FieldsInitialized() {
         f1 = new @Immutable Object();
         f2 = new @Immutable Object();
         f3 = new @ReceiverDependantMutable Object();

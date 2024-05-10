@@ -7,12 +7,10 @@ import org.checkerframework.checker.immutability.qual.ReceiverDependantMutable;
 @Immutable
 class ImmutableClass1 {
     // :: error: (type.invalid.annotations.on.use)
-    @Mutable
-    ImmutableClass1(Object o) {}
+    @Mutable ImmutableClass1(Object o) {}
 
     // :: error: (type.invalid.annotations.on.use)
-    @ReceiverDependantMutable
-    ImmutableClass1() {}
+    @ReceiverDependantMutable ImmutableClass1() {}
 
     @Immutable
     ImmutableClass1(@Immutable Number n) {}

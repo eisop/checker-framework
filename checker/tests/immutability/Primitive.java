@@ -19,8 +19,7 @@ public class Primitive {
     @ReceiverDependantMutable int invalidInt2;
 
     // :: error: (initialization.fields.uninitialized)
-    @Immutable
-    Primitive() {
+    @Immutable Primitive() {
         // Allowed within constructor
         implicitImmutableInt = 0;
     }

@@ -11,8 +11,7 @@ public class ImmutableConstructor {
     @Immutable Object imf;
 
     // :: error: (initialization.fields.uninitialized)
-    @Immutable
-    ImmutableConstructor(
+    @Immutable ImmutableConstructor(
             @Mutable Object mo, @ReceiverDependantMutable Object po, @Immutable Object io) {}
 
     // Even if the first argument is @ReceiverDependantMutable, aliased @Mutable object cannot be

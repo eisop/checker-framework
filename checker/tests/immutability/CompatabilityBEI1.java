@@ -33,15 +33,13 @@ class H extends Object {}
 class I implements @Mutable Cloneable {}
 
 // :: error: (declaration.inconsistent.with.implements.clause)
-@Mutable
-class J implements @Immutable Cloneable {}
+@Mutable class J implements @Immutable Cloneable {}
 
 @Mutable
 class K implements @ReceiverDependantMutable Cloneable {}
 
 // :: error: (declaration.inconsistent.with.extends.clause)
-@Immutable
-class L extends @Mutable Object {}
+@Immutable class L extends @Mutable Object {}
 
 @Immutable
 class M extends @Immutable Object {}

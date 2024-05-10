@@ -8,7 +8,13 @@ import java.io.File;
 
 public class ImmutabilityTypecheckTest extends CheckerFrameworkPerFileTest {
     public ImmutabilityTypecheckTest(File testFile) {
-        super(testFile, PICOChecker.class, "immutability", "-Anomsgtext", "-Anocheckjdk");
+        super(
+                testFile,
+                PICOChecker.class,
+                "immutability",
+                "-Astubs=tests/immutability/jdk.astub",
+                "-Anomsgtext",
+                "-Anocheckjdk");
     }
 
     @Parameters
