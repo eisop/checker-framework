@@ -117,7 +117,10 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
 
     @Override
     protected boolean commonAssignmentCheck(
-            Tree varTree, ExpressionTree valueExp, String errorKey, Object... extraArgs) {
+            Tree varTree,
+            ExpressionTree valueExp,
+            @CompilerMessageKey String errorKey,
+            Object... extraArgs) {
         AnnotatedTypeMirror var = atypeFactory.getAnnotatedTypeLhs(varTree);
         assert var != null : "no variable found for tree: " + varTree;
 
@@ -591,7 +594,7 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
             AnnotatedTypeMirror varType,
             AnnotatedTypeMirror valueType,
             Tree valueTree,
-            String errorKey,
+            @CompilerMessageKey String errorKey,
             Object... extraArgs) {
         // TODO: WORKAROUND: anonymous class handling
         if (TypesUtils.isAnonymous(valueType.getUnderlyingType())) {
