@@ -1,10 +1,5 @@
 package org.checkerframework.checker.immutability;
 
-import static org.checkerframework.checker.immutability.PICOAnnotationMirrorHolder.IMMUTABLE;
-import static org.checkerframework.checker.immutability.PICOAnnotationMirrorHolder.MUTABLE;
-import static org.checkerframework.checker.immutability.PICOAnnotationMirrorHolder.READONLY;
-import static org.checkerframework.checker.immutability.PICOAnnotationMirrorHolder.RECEIVER_DEPENDANT_MUTABLE;
-
 import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.MethodTree;
@@ -42,6 +37,7 @@ import org.checkerframework.framework.type.typeannotator.IrrelevantTypeAnnotator
 import org.checkerframework.framework.type.typeannotator.ListTypeAnnotator;
 import org.checkerframework.framework.type.typeannotator.PropagationTypeAnnotator;
 import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
+import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
@@ -71,13 +67,23 @@ import javax.lang.model.type.TypeMirror;
  * TypeAnnotators. It also applies implicits to method receiver that is not so by default in super
  * implementation.
  */
-// TODO Use @Immutable for classes that extends those predefined immutable classess like String or
+// TODO Use @Immutable for classes that extends those predefined immutable classes like String or
 // Number
 // and explicitly annotated classes with @Immutable on its declaration
 public class PICONoInitAnnotatedTypeFactory
         extends GenericAnnotatedTypeFactory<
                 PICONoInitValue, PICONoInitStore, PICONoInitTransfer, PICONoInitAnalysis>
         implements ViewpointAdapterGettable {
+
+    public final AnnotationMirror READONLY = AnnotationBuilder.fromClass(elements, Readonly.class);
+    public final AnnotationMirror MUTABLE = AnnotationBuilder.fromClass(elements, Mutable.class);
+    public final AnnotationMirror POLY_MUTABLE =
+            AnnotationBuilder.fromClass(elements, PolyMutable.class);
+    public final AnnotationMirror RECEIVER_DEPENDANT_MUTABLE =
+            AnnotationBuilder.fromClass(elements, ReceiverDependantMutable.class);
+    public final AnnotationMirror IMMUTABLE =
+            AnnotationBuilder.fromClass(elements, Immutable.class);
+    public final AnnotationMirror BOTTOM = AnnotationBuilder.fromClass(elements, Bottom.class);
 
     public PICONoInitAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
@@ -154,31 +160,12 @@ public class PICONoInitAnnotatedTypeFactory
         }
         ParameterizedExecutableType mType = super.constructorFromUse(tree);
         AnnotatedExecutableType method = mType.executableType;
-        if (!hasExplicitAnnos && method.getReturnType().hasAnnotation(RECEIVER_DEPENDANT_MUTABLE)) {
+        if (!hasExplicitAnnos
+                && method.getReturnType().hasAnnotation(ReceiverDependantMutable.class)) {
             method.getReturnType().replaceAnnotation(MUTABLE);
         }
         return mType;
     }
-
-    //    /** Just to transfer the method from super class to package */
-    //    @Override
-    //    protected boolean isInitializationAnnotation(AnnotationMirror anno) {
-    //        return super.isInitializationAnnotation(anno);
-    //    }
-    //
-    //    @Override
-    //    public AnnotationMirror getFieldInvariantAnnotation() {
-    //        return IMMUTABLE;
-    //    }
-    //
-    //        /** This affects what fields pico warns not initialized in constructors */
-    //        @Override
-    //        protected boolean hasFieldInvariantAnnotation(
-    //                AnnotatedTypeMirror type, VariableElement fieldElement) {
-    //            // This affects which fields should be guaranteed to be initialized:
-    //            // Fields of any immutability should be initialized.
-    //            return !PICOTypeUtil.isAssignableField(fieldElement, this);
-    //        }
 
     /** Forbid applying top annotations to type variables if they are used on local variables */
     @Override
@@ -194,140 +181,11 @@ public class PICONoInitAnnotatedTypeFactory
     public void addComputedTypeAnnotations(Element elt, AnnotatedTypeMirror type) {
         PICOTypeUtil.addDefaultForField(this, type, elt);
         PICOTypeUtil.defaultConstructorReturnToClassBound(this, elt, type);
-        //        PICOTypeUtil.applyImmutableToEnumAndEnumConstant(type);
         super.addComputedTypeAnnotations(elt, type);
     }
 
-    /** This method gets lhs WITH flow sensitive refinement */
-    // TODO Should refactor super class to avoid too much duplicate code.
-    // This method is pretty hacky right now.
-    //    @Override
-    //    public AnnotatedTypeMirror getAnnotatedTypeLhs(Tree lhsTree) {
-    //        boolean oldComputingAnnotatedTypeMirrorOfLHS = computingAnnotatedTypeMirrorOfLHS;
-    //        computingAnnotatedTypeMirrorOfLHS = true;
-    //
-    //        AnnotatedTypeMirror result;
-    //        boolean oldShouldCache = shouldCache;
-    //        // Don't cache the result because getAnnotatedType(lhsTree) could
-    //        // be called from elsewhere and would expect flow-sensitive type refinements.
-    //        shouldCache = false;
-    //        switch (lhsTree.getKind()) {
-    //            case VARIABLE:
-    //            case IDENTIFIER:
-    //            case MEMBER_SELECT:
-    //            case ARRAY_ACCESS:
-    //                result = getAnnotatedType(lhsTree);
-    //                break;
-    //            default:
-    //                if (TreeUtils.isTypeTree(lhsTree)) {
-    //                    // lhsTree is a type tree at the pseudo assignment of a returned
-    // expression to declared return type.
-    //                    result = getAnnotatedType(lhsTree);
-    //                } else {
-    //                    throw new BugInCF(
-    //                            "GenericAnnotatedTypeFactory: Unexpected tree passed to
-    // getAnnotatedTypeLhs. "
-    //                                    + "lhsTree: "
-    //                                    + lhsTree
-    //                                    + " Tree.Kind: "
-    //                                    + lhsTree.getKind());
-    //                }
-    //        }
-    //        shouldCache = oldShouldCache;
-    //
-    //        computingAnnotatedTypeMirrorOfLHS = oldComputingAnnotatedTypeMirrorOfLHS;
-    //        return result;
-    //    }
-
-    //    /**Handles invoking static methods with polymutable on its declaration*/
-    //    @Override
-    //    public ParameterizedExecutableType methodFromUse(ExpressionTree tree, ExecutableElement
-    // methodElt, AnnotatedTypeMirror receiverType) {
-    //        ParameterizedExecutableType pair = super.methodFromUse(tree, methodElt, receiverType);
-    //        // We want to replace polymutable with substitutablepolymutable when we invoke static
-    // methods
-    //        if (ElementUtils.isStatic(methodElt)) {
-    //            AnnotatedExecutableType methodType = pair.executableType;
-    //            AnnotatedTypeMirror returnType = methodType.getReturnType();
-    //            if (returnType.hasAnnotation(POLY_MUTABLE)) {
-    //                // Only substitute polymutable but not other qualifiers! Missing the if
-    // statement
-    //                // caused bugs before!
-    //                returnType.replaceAnnotation(SUBSTITUTABLE_POLY_MUTABLE);
-    //            }
-    //            List<AnnotatedTypeMirror> parameterTypes = methodType.getParameterTypes();
-    //            for (AnnotatedTypeMirror p : parameterTypes) {
-    //                if (returnType.hasAnnotation(POLY_MUTABLE)) {
-    //                    p.replaceAnnotation(SUBSTITUTABLE_POLY_MUTABLE);
-    //                }
-    //            }
-    //        }
-    //        return pair;
-    //    }
-
-    //    protected class PICOQualifierHierarchy extends MostlyNoElementQualifierHierarchy {
-    //        protected PICOQualifierHierarchy(Collection<Class<? extends Annotation>>
-    // qualifierClasses, Elements elements, GenericAnnotatedTypeFactory<?, ?, ?, ?> atypeFactory) {
-    //            super(qualifierClasses, elements, atypeFactory);
-    //        }
-    //
-    //        //        public PICOQualifierHierarchy(MultiGraphFactory f, Object[] arg) {
-    //        //            super(f, arg);
-    //        //        }
-    //
-    //        //        @Override
-    //        //        public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror
-    // superAnno) {
-    //        //            if (isInitializationAnnotation(subAnno) ||
-    //        // isInitializationAnnotation(superAnno)) {
-    //        //                return this.isSubtypeInitialization(subAnno, superAnno);
-    //        //            }
-    //        //            return super.isSubtype(subAnno, superAnno);
-    //        //        }
-    //
-    //        @Override
-    //        protected boolean isSubtypeWithElements(
-    //                AnnotationMirror subAnno,
-    //                QualifierKind subKind,
-    //                AnnotationMirror superAnno,
-    //                QualifierKind superKind) {
-    //            return super.isSubtypeQualifiersOnly(subAnno, superAnno);
-    //        }
-    //
-    //        //        @Override
-    //        //        public AnnotationMirror leastUpperBound(AnnotationMirror a1,
-    // AnnotationMirror a2)
-    //        // {
-    //        //            if (isInitializationAnnotation(a1) || isInitializationAnnotation(a2)) {
-    //        //                return this.leastUpperBoundInitialization(a1, a2);
-    //        //            }
-    //        //            return super.leastUpperBound(a1, a2);
-    //        //        }
-    //
-    //        @Override
-    //        protected AnnotationMirror leastUpperBoundWithElements(
-    //                AnnotationMirror a1,
-    //                QualifierKind q1,
-    //                AnnotationMirror a2,
-    //                QualifierKind q2,
-    //                QualifierKind lub) {
-    //            return super.leastUpperBoundQualifiersOnly(a1, a2);
-    //        }
-    //
-    //        @Override
-    //        protected AnnotationMirror greatestLowerBoundWithElements(
-    //                AnnotationMirror annotationMirror,
-    //                QualifierKind qualifierKind,
-    //                AnnotationMirror annotationMirror1,
-    //                QualifierKind qualifierKind1,
-    //                QualifierKind qualifierKind2) {
-    //            return super.greatestLowerBoundQualifiersOnly(annotationMirror,
-    // annotationMirror1);
-    //        }
-    //    }
-
     /** Tree Annotators */
-    public static class PICOPropagationTreeAnnotator extends PropagationTreeAnnotator {
+    public class PICOPropagationTreeAnnotator extends PropagationTreeAnnotator {
         public PICOPropagationTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
@@ -340,42 +198,19 @@ public class PICONoInitAnnotatedTypeFactory
             AnnotatedTypeMirror componentType =
                     ((AnnotatedTypeMirror.AnnotatedArrayType) type).getComponentType();
             boolean noExplicitATM = false;
-            if (!componentType.hasAnnotation(RECEIVER_DEPENDANT_MUTABLE)) {
+            if (!componentType.hasAnnotation(ReceiverDependantMutable.class)) {
                 noExplicitATM = true;
             }
             super.visitNewArray(tree, type);
             // if new explicit anno before, but RDM after, the RDM must come from the type
             // declaration bound
             // however, for type has declaration bound as RDM, its default use is mutable.
-            if (noExplicitATM && componentType.hasAnnotation(RECEIVER_DEPENDANT_MUTABLE)) {
+            if (noExplicitATM && componentType.hasAnnotation(ReceiverDependantMutable.class)) {
                 componentType.replaceAnnotation(MUTABLE);
             }
             return null;
         }
 
-        //
-        //        /**Add immutable to the result type of a binary operation if the result type is
-        // implicitly immutable*/
-        //        @Override
-        //        public Void visitBinary(BinaryTree node, AnnotatedTypeMirror type) {
-        //            applyImmutableIfImplicitlyImmutable(type);// Usually there isn't existing
-        // annotation on binary trees, but to be safe, run it first
-        //            super.visitBinary(node, type);
-        //            // NullnessPropagationTreeAnnotator says result type of binary tree is always
-        // @Initialized. So replace it
-        //            // with COMMITED here.
-        //            applyCommitedIfSupported(atypeFactory, type);
-        //            return null;
-        //        }
-
-        //        @Override
-        //        public Void visitUnary(UnaryTree node, AnnotatedTypeMirror type) {
-        //            super.visitUnary(node, type);
-        //            // Same reason as above
-        //            applyCommitedIfSupported(atypeFactory, type);
-        //            return null;
-        //        }
-        //
         @Override
         public Void visitTypeCast(TypeCastTree node, AnnotatedTypeMirror type) {
             boolean hasExplicitAnnos = false;
@@ -383,7 +218,7 @@ public class PICONoInitAnnotatedTypeFactory
                 hasExplicitAnnos = true;
             }
             super.visitTypeCast(node, type);
-            if (!hasExplicitAnnos && type.hasAnnotation(RECEIVER_DEPENDANT_MUTABLE)) {
+            if (!hasExplicitAnnos && type.hasAnnotation(ReceiverDependantMutable.class)) {
                 type.replaceAnnotation(MUTABLE);
             }
             return null;
@@ -393,13 +228,6 @@ public class PICONoInitAnnotatedTypeFactory
         public Void visitBinary(BinaryTree node, AnnotatedTypeMirror type) {
             return null;
         }
-
-        //        private void applyCommitedIfSupported(AnnotatedTypeFactory annotatedTypeFactory,
-        // AnnotatedTypeMirror type) {
-        //            if (annotatedTypeFactory.isSupportedQualifier(COMMITED)) {
-        //                type.replaceAnnotation(COMMITED);
-        //            }
-        //        }
     }
 
     @Override
@@ -475,7 +303,7 @@ public class PICONoInitAnnotatedTypeFactory
     }
 
     /** Apply defaults for static fields with non-implicitly immutable types */
-    public static class PICOTreeAnnotator extends TreeAnnotator {
+    public class PICOTreeAnnotator extends TreeAnnotator {
         public PICOTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
@@ -489,7 +317,8 @@ public class PICONoInitAnnotatedTypeFactory
             // See:
             // https://github.com/opprop/checker-framework/blob/master/framework/src/org/checkerframework/framework/type/AnnotatedTypeFactory.java#L1593
             // for why constructor return is not applied class bound annotation
-            PICOTypeUtil.defaultConstructorReturnToClassBound(atypeFactory, element, p);
+            PICOTypeUtil.defaultConstructorReturnToClassBound(
+                    (PICONoInitAnnotatedTypeFactory) atypeFactory, element, p);
             return super.visitMethod(node, p);
         }
 
@@ -497,8 +326,8 @@ public class PICONoInitAnnotatedTypeFactory
         @Override
         public Void visitVariable(VariableTree node, AnnotatedTypeMirror annotatedTypeMirror) {
             VariableElement element = TreeUtils.elementFromDeclaration(node);
-            PICOTypeUtil.addDefaultForField(atypeFactory, annotatedTypeMirror, element);
-            //            PICOTypeUtil.applyImmutableToEnumAndEnumConstant(annotatedTypeMirror);
+            PICOTypeUtil.addDefaultForField(
+                    (PICONoInitAnnotatedTypeFactory) atypeFactory, annotatedTypeMirror, element);
             return super.visitVariable(node, annotatedTypeMirror);
         }
 
@@ -510,7 +339,7 @@ public class PICONoInitAnnotatedTypeFactory
     }
 
     /** Type Annotators */
-    public static class PICOTypeAnnotator extends TypeAnnotator {
+    public class PICOTypeAnnotator extends TypeAnnotator {
 
         public PICOTypeAnnotator(AnnotatedTypeFactory typeFactory) {
             super(typeFactory);
@@ -568,8 +397,7 @@ public class PICONoInitAnnotatedTypeFactory
     }
 
     // @DefaultQFU
-    public static class PICOQualifierForUseTypeAnnotator
-            extends DefaultQualifierForUseTypeAnnotator {
+    public class PICOQualifierForUseTypeAnnotator extends DefaultQualifierForUseTypeAnnotator {
 
         public PICOQualifierForUseTypeAnnotator(AnnotatedTypeFactory typeFactory) {
             super(typeFactory);
@@ -647,7 +475,7 @@ public class PICONoInitAnnotatedTypeFactory
 
     public static class PICOSuperClauseAnnotator extends TreeAnnotator {
 
-        public PICOSuperClauseAnnotator(AnnotatedTypeFactory atypeFactory) {
+        public PICOSuperClauseAnnotator(PICONoInitAnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
 
@@ -669,16 +497,20 @@ public class PICONoInitAnnotatedTypeFactory
             // Here only explicit annotation on super clause have effect because framework default
             // rule is overriden
             if (isSuperClause(path)
-                    && (!mirror.hasAnnotationInHierarchy(READONLY)
+                    && (!mirror.hasAnnotationInHierarchy(
+                                    ((PICONoInitAnnotatedTypeFactory) atypeFactory).READONLY)
                             || atypeFactory
                                             .getQualifierHierarchy()
                                             .findAnnotationInHierarchy(
                                                     TreeUtils.typeOf(tree).getAnnotationMirrors(),
-                                                    READONLY)
+                                                    ((PICONoInitAnnotatedTypeFactory) atypeFactory)
+                                                            .READONLY)
                                     == null)) {
                 AnnotatedTypeMirror enclosing =
                         atypeFactory.getAnnotatedType(TreePathUtil.enclosingClass(path));
-                AnnotationMirror mainBound = enclosing.getAnnotationInHierarchy(READONLY);
+                AnnotationMirror mainBound =
+                        enclosing.getAnnotationInHierarchy(
+                                ((PICONoInitAnnotatedTypeFactory) atypeFactory).READONLY);
                 mirror.replaceAnnotation(mainBound);
                 //                System.err.println("ANNOT: ADDED DEFAULT FOR: " + mirror);
             }
@@ -702,7 +534,7 @@ public class PICONoInitAnnotatedTypeFactory
         }
     }
 
-    public static class PICOEnumDefaultAnnotator extends TypeAnnotator {
+    public class PICOEnumDefaultAnnotator extends TypeAnnotator {
         // Defaulting only applies the same annotation to all class declarations
         // We need this to "only default enums" to immutable
 

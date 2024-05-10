@@ -6,7 +6,6 @@ import org.checkerframework.framework.flow.CFAbstractStore;
 
 import java.util.Map;
 
-/** Created by mier on 15/08/17. */
 public class PICONoInitStore extends CFAbstractStore<PICONoInitValue, PICONoInitStore> {
 
     protected Map<FieldAccess, PICONoInitValue> initializedFields;

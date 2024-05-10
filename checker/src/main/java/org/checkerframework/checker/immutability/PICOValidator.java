@@ -1,18 +1,15 @@
 package org.checkerframework.checker.immutability;
 
-import static org.checkerframework.checker.immutability.PICOAnnotationMirrorHolder.BOTTOM;
-import static org.checkerframework.checker.immutability.PICOAnnotationMirrorHolder.IMMUTABLE;
-import static org.checkerframework.checker.immutability.PICOAnnotationMirrorHolder.MUTABLE;
-import static org.checkerframework.checker.immutability.PICOAnnotationMirrorHolder.RECEIVER_DEPENDANT_MUTABLE;
-
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.VariableTree;
 
+import org.checkerframework.checker.immutability.qual.Bottom;
+import org.checkerframework.checker.immutability.qual.Immutable;
+import org.checkerframework.checker.immutability.qual.ReceiverDependantMutable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeValidator;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
-import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
@@ -30,15 +27,19 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.VariableElement;
 
 /**
- * Created by mier on 29/09/17. Enforce correct usage of immutability and assignability qualifiers.
- * TODO @PolyMutable is only used on constructor/method parameters or method return
+ * Enforce correct usage of immutability and assignability qualifiers. TODO @PolyMutable is only
+ * used on constructor/method parameters or method return
  */
 public class PICOValidator extends BaseTypeValidator {
+
+    public final PICONoInitAnnotatedTypeFactory picoTypeFactory;
+
     public PICOValidator(
             BaseTypeChecker checker,
             BaseTypeVisitor<?> visitor,
-            AnnotatedTypeFactory atypeFactory) {
+            PICONoInitAnnotatedTypeFactory atypeFactory) {
         super(checker, visitor, atypeFactory);
+        this.picoTypeFactory = atypeFactory;
     }
 
     @Override
@@ -72,16 +73,14 @@ public class PICOValidator extends BaseTypeValidator {
                 Set<AnnotationMirror> declaredBound =
                         atypeFactory.getTypeDeclarationBounds(type.getUnderlyingType());
 
-                if (AnnotationUtils.containsSameByName(declaredBound, MUTABLE)
-                        && type.hasAnnotation(RECEIVER_DEPENDANT_MUTABLE)
-                        && AnnotationUtils.containsSameByName(enclosingBound, MUTABLE)) {
+                if (AnnotationUtils.containsSameByName(declaredBound, picoTypeFactory.MUTABLE)
+                        && type.hasAnnotation(ReceiverDependantMutable.class)
+                        && AnnotationUtils.containsSameByName(
+                                enclosingBound, picoTypeFactory.MUTABLE)) {
                     return false;
                 }
             }
         }
-        //        if (TreeUtils.isLocalVariable(tree)) {
-        //            return true;
-        //        }
 
         return super.shouldCheckTopLevelDeclaredOrPrimitiveType(type, tree);
     }
@@ -110,7 +109,7 @@ public class PICOValidator extends BaseTypeValidator {
                                                         visitor.getCurrentPath()))
                                         .getSimpleName()) // Exclude @RDM usages in anonymous
                 // classes
-                && type.hasAnnotation(RECEIVER_DEPENDANT_MUTABLE)) {
+                && type.hasAnnotation(ReceiverDependantMutable.class)) {
             reportValidityResult("static.receiverdependantmutable.forbidden", type, tree);
         }
     }
@@ -122,8 +121,8 @@ public class PICOValidator extends BaseTypeValidator {
      */
     private void checkImplicitlyImmutableTypeError(AnnotatedTypeMirror type, Tree tree) {
         if (PICOTypeUtil.isImplicitlyImmutableType(type)
-                && !type.hasAnnotation(IMMUTABLE)
-                && !type.hasAnnotation(BOTTOM)) {
+                && !type.hasAnnotation(Immutable.class)
+                && !type.hasAnnotation(Bottom.class)) {
             reportInvalidAnnotationsOnUse(type, tree);
         }
     }

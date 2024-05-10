@@ -12,7 +12,6 @@ import org.checkerframework.javacutil.TreeUtils;
 
 import javax.lang.model.element.VariableElement;
 
-/** Created by mier on 15/08/17. */
 public class PICONoInitTransfer
         extends CFAbstractTransfer<PICONoInitValue, PICONoInitStore, PICONoInitTransfer> {
 

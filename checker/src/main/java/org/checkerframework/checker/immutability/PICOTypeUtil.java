@@ -1,10 +1,5 @@
 package org.checkerframework.checker.immutability;
 
-import static org.checkerframework.checker.immutability.PICOAnnotationMirrorHolder.IMMUTABLE;
-import static org.checkerframework.checker.immutability.PICOAnnotationMirrorHolder.MUTABLE;
-import static org.checkerframework.checker.immutability.PICOAnnotationMirrorHolder.READONLY;
-import static org.checkerframework.checker.immutability.PICOAnnotationMirrorHolder.RECEIVER_DEPENDANT_MUTABLE;
-
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.MethodTree;
@@ -18,6 +13,7 @@ import com.sun.tools.javac.code.Symbol;
 import org.checkerframework.checker.immutability.qual.Assignable;
 import org.checkerframework.checker.immutability.qual.Immutable;
 import org.checkerframework.checker.immutability.qual.ObjectIdentityMethod;
+import org.checkerframework.checker.immutability.qual.ReceiverDependantMutable;
 import org.checkerframework.framework.qual.DefaultFor;
 import org.checkerframework.framework.qual.TypeKind;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
@@ -170,12 +166,6 @@ public class PICOTypeUtil {
     }
 
     public static AnnotatedDeclaredType getBoundTypeOfTypeDeclaration(
-            ClassTree classTree, AnnotatedTypeFactory atypeFactory) {
-        TypeElement typeElement = TreeUtils.elementFromDeclaration(classTree);
-        return getBoundTypeOfTypeDeclaration(typeElement, atypeFactory);
-    }
-
-    public static AnnotatedDeclaredType getBoundTypeOfTypeDeclaration(
             TypeElement typeElement, AnnotatedTypeFactory atypeFactory) {
         // Reads bound annotation from source code or stub files
         // Implicitly immutable types have @Immutable in its bound
@@ -198,11 +188,6 @@ public class PICOTypeUtil {
         // TODO This method doesn't have logic of handling anonymous class! We should implement it,
         // maybe in different
         // places, at some time.
-    }
-
-    public static AnnotatedDeclaredType getBoundTypeOfTypeDeclaration(
-            TypeMirror typeMirror, AnnotatedTypeFactory atypeFactory) {
-        return getBoundTypeOfTypeDeclaration(TypesUtils.getTypeElement(typeMirror), atypeFactory);
     }
 
     public static boolean isObjectIdentityMethod(
@@ -260,20 +245,20 @@ public class PICOTypeUtil {
     }
 
     public static void addDefaultForField(
-            AnnotatedTypeFactory annotatedTypeFactory,
+            PICONoInitAnnotatedTypeFactory annotatedTypeFactory,
             AnnotatedTypeMirror annotatedTypeMirror,
             Element element) {
         if (element != null && element.getKind() == ElementKind.FIELD) {
             if (ElementUtils.isStatic(element)) {
                 AnnotatedTypeMirror explicitATM = annotatedTypeFactory.fromElement(element);
-                if (!explicitATM.hasAnnotationInHierarchy(READONLY)) {
+                if (!explicitATM.hasAnnotationInHierarchy(annotatedTypeFactory.READONLY)) {
                     if (!PICOTypeUtil.isImplicitlyImmutableType(explicitATM)) {
-                        annotatedTypeMirror.replaceAnnotation(MUTABLE);
+                        annotatedTypeMirror.replaceAnnotation(annotatedTypeFactory.MUTABLE);
                     }
                 }
             } else {
                 AnnotatedTypeMirror explicitATM = annotatedTypeFactory.fromElement(element);
-                if (!explicitATM.hasAnnotationInHierarchy(READONLY)) {
+                if (!explicitATM.hasAnnotationInHierarchy(annotatedTypeFactory.READONLY)) {
                     if (explicitATM instanceof AnnotatedDeclaredType) {
                         AnnotatedDeclaredType adt = (AnnotatedDeclaredType) explicitATM;
                         Element typeElement = adt.getUnderlyingType().asElement();
@@ -286,22 +271,27 @@ public class PICOTypeUtil {
                                                 .asType());
                         Set<AnnotationMirror> declBound =
                                 annotatedTypeFactory.getTypeDeclarationBounds(element.asType());
-                        if (AnnotationUtils.containsSameByName(declBound, MUTABLE)) {
-                            if (AnnotationUtils.containsSameByName(enclosingBound, MUTABLE)) {
-                                annotatedTypeMirror.replaceAnnotation(RECEIVER_DEPENDANT_MUTABLE);
+                        if (AnnotationUtils.containsSameByName(
+                                declBound, annotatedTypeFactory.MUTABLE)) {
+                            if (AnnotationUtils.containsSameByName(
+                                    enclosingBound, annotatedTypeFactory.MUTABLE)) {
+                                annotatedTypeMirror.replaceAnnotation(
+                                        annotatedTypeFactory.RECEIVER_DEPENDANT_MUTABLE);
                             }
                         }
                         if (typeElement instanceof TypeElement) {
                             AnnotatedDeclaredType bound =
                                     getBoundTypeOfTypeDeclaration(
                                             (TypeElement) typeElement, annotatedTypeFactory);
-                            if (bound.hasAnnotation(RECEIVER_DEPENDANT_MUTABLE)) {
-                                annotatedTypeMirror.replaceAnnotation(RECEIVER_DEPENDANT_MUTABLE);
+                            if (bound.hasAnnotation(ReceiverDependantMutable.class)) {
+                                annotatedTypeMirror.replaceAnnotation(
+                                        annotatedTypeFactory.RECEIVER_DEPENDANT_MUTABLE);
                             }
                         }
                     } else if (explicitATM instanceof AnnotatedArrayType) {
                         // Also apply rdm to array main.
-                        annotatedTypeMirror.replaceAnnotation(RECEIVER_DEPENDANT_MUTABLE);
+                        annotatedTypeMirror.replaceAnnotation(
+                                annotatedTypeFactory.RECEIVER_DEPENDANT_MUTABLE);
                     }
                 }
             }
@@ -319,36 +309,22 @@ public class PICOTypeUtil {
                         || element.getKind() == ElementKind.ENUM);
     }
 
-    public static boolean isEnumOrEnumConstant(TypeMirror type) {
-        if (!(type instanceof DeclaredType)) {
-            return false;
-        }
-        Element element = ((DeclaredType) type).asElement();
-        return element != null
-                && (element.getKind() == ElementKind.ENUM_CONSTANT
-                        || element.getKind() == ElementKind.ENUM);
-    }
-
-    public static void applyImmutableToEnumAndEnumConstant(
-            AnnotatedTypeMirror annotatedTypeMirror) {
-        if (isEnumOrEnumConstant(annotatedTypeMirror)) {
-            // I guess enum constant can't have explicit annotation, am I right?
-            annotatedTypeMirror.addMissingAnnotations(Arrays.asList(IMMUTABLE));
-        }
-    }
-
     // Default annotation on type declaration to constructor return type if elt is constructor and
     // doesn't have
     // explicit annotation(type is actually AnnotatedExecutableType of executable element - elt
     // constructor)
     public static void defaultConstructorReturnToClassBound(
-            AnnotatedTypeFactory annotatedTypeFactory, Element elt, AnnotatedTypeMirror type) {
+            PICONoInitAnnotatedTypeFactory annotatedTypeFactory,
+            Element elt,
+            AnnotatedTypeMirror type) {
         if (elt.getKind() == ElementKind.CONSTRUCTOR && type instanceof AnnotatedExecutableType) {
             AnnotatedDeclaredType bound =
                     PICOTypeUtil.getBoundTypeOfEnclosingTypeDeclaration(elt, annotatedTypeFactory);
             ((AnnotatedExecutableType) type)
                     .getReturnType()
-                    .addMissingAnnotations(Arrays.asList(bound.getAnnotationInHierarchy(READONLY)));
+                    .addMissingAnnotations(
+                            Arrays.asList(
+                                    bound.getAnnotationInHierarchy(annotatedTypeFactory.READONLY)));
         }
     }
 
