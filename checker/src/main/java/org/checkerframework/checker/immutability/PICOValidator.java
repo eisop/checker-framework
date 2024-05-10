@@ -1,7 +1,9 @@
 package org.checkerframework.checker.immutability;
 
-import static org.checkerframework.checker.immutability.PICOAnnotationMirrorHolder.*;
+import static org.checkerframework.checker.immutability.PICOAnnotationMirrorHolder.BOTTOM;
+import static org.checkerframework.checker.immutability.PICOAnnotationMirrorHolder.IMMUTABLE;
 import static org.checkerframework.checker.immutability.PICOAnnotationMirrorHolder.MUTABLE;
+import static org.checkerframework.checker.immutability.PICOAnnotationMirrorHolder.RECEIVER_DEPENDANT_MUTABLE;
 
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.Tree.Kind;
