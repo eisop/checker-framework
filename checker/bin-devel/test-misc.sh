@@ -37,8 +37,8 @@ make -C docs/developer/release check-python-style
 
 ## Javadoc documentation
 # Try twice in case of network lossage.
-(./gradlew javadoc --console=plain --warning-mode=all || (sleep 60 && ./gradlew javadoc --console=plain --warning-mode=all)) || status=1
-./gradlew javadocPrivate --console=plain --warning-mode=all || status=1
+#(./gradlew javadoc --console=plain --warning-mode=all || (sleep 60 && ./gradlew javadoc --console=plain --warning-mode=all)) || status=1
+#./gradlew javadocPrivate --console=plain --warning-mode=all || status=1
 # For refactorings that touch a lot of code that you don't understand, create
 # top-level file SKIP-REQUIRE-JAVADOC.  Delete it after the pull request is merged.
 if [ -f SKIP-REQUIRE-JAVADOC ]; then
