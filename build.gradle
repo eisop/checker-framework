@@ -256,6 +256,8 @@ allprojects {
                 '**/returnsreceiverdelomboked/*',
                 '**/build/**',
                 '*/dist/**',
+                // Don't format util the error report location is fixed
+                'checker/tests/immutability/*'
             ]
             if (!isJava14plus) {
                 doNotFormat += ['**/*record*/']
