@@ -816,8 +816,7 @@ public abstract class BaseTypeChecker extends SourceChecker {
     @Override
     public Set<String> getSupportedOptions() {
         if (supportedOptions == null) {
-            Set<String> options = new HashSet<>();
-            options.addAll(super.getSupportedOptions());
+            Set<String> options = new HashSet<>(super.getSupportedOptions());
 
             for (BaseTypeChecker checker : getSubcheckers()) {
                 options.addAll(checker.getSupportedOptions());

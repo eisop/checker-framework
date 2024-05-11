@@ -153,8 +153,7 @@ public class Resolver {
         } catch (Exception e) {
             Error err =
                     new AssertionError(
-                            "Compiler 'Resolve' class doesn't contain required 'find' method");
-            err.initCause(e);
+                            "Compiler 'Resolve' class doesn't contain required 'find' method", e);
             throw err;
         }
 
@@ -473,8 +472,8 @@ public class Resolver {
                                         methodName,
                                         receiverType,
                                         // path
-                                        argumentTypes));
-                err.initCause(t);
+                                        argumentTypes),
+                                t);
                 throw err;
             }
         } finally {

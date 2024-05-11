@@ -2688,8 +2688,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             return memberType;
         }
 
-        AnnotationFileElementTypes afet = stubTypes;
-        AnnotatedExecutableType methodType = afet.getFakeOverride(member, receiverType);
+        AnnotatedExecutableType methodType = stubTypes.getFakeOverride(member, receiverType);
         if (methodType == null) {
             methodType = memberType;
         }
@@ -3183,8 +3182,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     public AnnotatedTypeMirror getMethodReturnType(MethodTree m) {
         AnnotatedExecutableType methodType = getAnnotatedType(m);
-        AnnotatedTypeMirror ret = methodType.getReturnType();
-        return ret;
+        return methodType.getReturnType();
     }
 
     /**
@@ -3853,8 +3851,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         // Attempt to obtain the type via JCTree.
         if (TreeUtils.typeOf(tree) != null) {
-            AnnotatedTypeMirror result = toAnnotatedType(TreeUtils.typeOf(tree), isDeclaration);
-            return result;
+            return toAnnotatedType(TreeUtils.typeOf(tree), isDeclaration);
         }
 
         // Attempt to obtain the type via TreePath (slower).
@@ -3865,8 +3862,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         TypeMirror t = trees.getTypeMirror(path);
         assert validType(t) : "Invalid type " + t + " for tree " + t;
 
-        AnnotatedTypeMirror result = toAnnotatedType(t, isDeclaration);
-        return result;
+        return toAnnotatedType(t, isDeclaration);
     }
 
     /**
@@ -4123,8 +4119,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     @Override
     public final AnnotationMirror getDeclAnnotation(Element elt, Class<? extends Annotation> anno) {
-        AnnotationMirror result = getDeclAnnotation(elt, anno, true);
-        return result;
+        return getDeclAnnotation(elt, anno, true);
     }
 
     /**

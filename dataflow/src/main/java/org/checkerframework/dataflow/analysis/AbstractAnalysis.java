@@ -245,8 +245,7 @@ public abstract class AbstractAnalysis<
     public @Nullable S getExceptionalExitStore() {
         SpecialBlock exceptionalExitBlock = cfg.getExceptionalExitBlock();
         if (inputs.containsKey(exceptionalExitBlock)) {
-            S exceptionalExitStore = inputs.get(exceptionalExitBlock).getRegularStore();
-            return exceptionalExitStore;
+            return inputs.get(exceptionalExitBlock).getRegularStore();
         } else {
             return null;
         }

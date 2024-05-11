@@ -15,8 +15,8 @@ import java.util.Set;
 public class CompoundChecker extends BaseTypeChecker {
     @Override
     protected Set<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
-        LinkedHashSet<Class<? extends BaseTypeChecker>> subcheckers = new LinkedHashSet<>();
-        subcheckers.addAll(super.getImmediateSubcheckerClasses());
+        LinkedHashSet<Class<? extends BaseTypeChecker>> subcheckers =
+                new LinkedHashSet<>(super.getImmediateSubcheckerClasses());
         subcheckers.add(AliasingChecker.class);
         subcheckers.add(AnotherCompoundChecker.class);
         return subcheckers;

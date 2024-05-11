@@ -15,8 +15,8 @@ public class AnotherCompoundChecker extends BaseTypeChecker {
         // which subcheckers to run.
         @SuppressWarnings("unused")
         String option = super.getOption("nomsgtext");
-        LinkedHashSet<Class<? extends BaseTypeChecker>> subcheckers = new LinkedHashSet<>();
-        subcheckers.addAll(super.getImmediateSubcheckerClasses());
+        LinkedHashSet<Class<? extends BaseTypeChecker>> subcheckers =
+                new LinkedHashSet<>(super.getImmediateSubcheckerClasses());
         subcheckers.add(AliasingChecker.class);
         subcheckers.add(ValueChecker.class);
         return subcheckers;

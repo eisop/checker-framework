@@ -123,11 +123,10 @@ public class ContractsFromMethod {
      */
     private <T extends Contract> Set<T> getContracts(
             ExecutableElement executableElement, Contract.Kind kind, Class<T> clazz) {
-        Set<T> result = new LinkedHashSet<>();
         // Check for a single framework-defined contract annotation.
         AnnotationMirror frameworkContractAnno =
                 atypeFactory.getDeclAnnotation(executableElement, kind.frameworkContractClass);
-        result.addAll(getContract(kind, frameworkContractAnno, clazz));
+        Set<T> result = new LinkedHashSet<>(getContract(kind, frameworkContractAnno, clazz));
 
         // Check for a framework-defined wrapper around contract annotations.
         // The result is RequiresQualifier.List, EnsuresQualifier.List, or EnsuresQualifierIf.List.

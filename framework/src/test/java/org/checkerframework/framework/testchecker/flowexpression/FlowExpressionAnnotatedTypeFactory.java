@@ -7,7 +7,6 @@ import org.checkerframework.framework.testchecker.flowexpression.qual.FETop;
 import org.checkerframework.framework.testchecker.flowexpression.qual.FlowExp;
 import org.checkerframework.framework.type.MostlyNoElementQualifierHierarchy;
 import org.checkerframework.framework.util.QualifierKind;
-import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.TreeUtils;
@@ -37,11 +36,6 @@ public class FlowExpressionAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
         TOP = AnnotationBuilder.fromClass(elements, FETop.class);
         BOTTOM = AnnotationBuilder.fromClass(elements, FEBottom.class);
         postInit();
-    }
-
-    @Override
-    protected DependentTypesHelper createDependentTypesHelper() {
-        return new DependentTypesHelper(this);
     }
 
     @Override

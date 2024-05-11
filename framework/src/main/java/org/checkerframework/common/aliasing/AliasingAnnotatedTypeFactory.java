@@ -65,8 +65,7 @@ public class AliasingAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     @Override
     public CFTransfer createFlowTransferFunction(
             CFAbstractAnalysis<CFValue, CFStore, CFTransfer> analysis) {
-        CFTransfer ret = new AliasingTransfer(analysis);
-        return ret;
+        return new AliasingTransfer(analysis);
     }
 
     protected class AliasingTreeAnnotator extends TreeAnnotator {

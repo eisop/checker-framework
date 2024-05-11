@@ -162,8 +162,7 @@ public class ElementUtils {
     public static PackageElement enclosingPackage(Element elem) {
         Element result = elem;
         while (result != null && result.getKind() != ElementKind.PACKAGE) {
-            Element encl = result.getEnclosingElement();
-            result = encl;
+            result = result.getEnclosingElement();
         }
         return (PackageElement) result;
     }
@@ -186,11 +185,10 @@ public class ElementUtils {
         //   ((Symbol) elt).owner;
         // TODO: verify and see whether the change is worth it.
         String fqnstart = elem.getQualifiedName().toString();
-        String fqn = fqnstart;
-        if (fqn != null && !fqn.isEmpty()) {
-            int dotPos = fqn.lastIndexOf('.');
+        if (fqnstart != null && !fqnstart.isEmpty()) {
+            int dotPos = fqnstart.lastIndexOf('.');
             if (dotPos != -1) {
-                return elements.getPackageElement(fqn.substring(0, dotPos));
+                return elements.getPackageElement(fqnstart.substring(0, dotPos));
             }
         }
         return null;

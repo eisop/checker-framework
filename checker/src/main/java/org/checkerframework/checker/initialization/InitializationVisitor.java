@@ -130,10 +130,9 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
         if (TreeUtils.isFieldAccess(varTree)) {
             // cast is safe: a field access can only be an IdentifierTree or MemberSelectTree
             ExpressionTree lhs = (ExpressionTree) varTree;
-            ExpressionTree y = valueExp;
             VariableElement el = TreeUtils.variableElementFromUse(lhs);
             AnnotatedTypeMirror xType = atypeFactory.getReceiverType(lhs);
-            AnnotatedTypeMirror yType = atypeFactory.getAnnotatedType(y);
+            AnnotatedTypeMirror yType = atypeFactory.getAnnotatedType(valueExp);
             // the special FBC rules do not apply if there is an explicit
             // UnknownInitialization annotation
             AnnotationMirrorSet fieldAnnotations =

@@ -360,9 +360,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
                 mappings.put(zuper, combinedZuper);
             }
 
-            AnnotatedTypeMirror result = AnnotatedTypeCopierWithReplacement.replace(awt, mappings);
-
-            return result;
+            return AnnotatedTypeCopierWithReplacement.replace(awt, mappings);
         } else if (declared.getKind() == TypeKind.NULL) {
             AnnotatedNullType ant = (AnnotatedNullType) declared.shallowCopy(true);
             AnnotationMirror resultAnnotation =

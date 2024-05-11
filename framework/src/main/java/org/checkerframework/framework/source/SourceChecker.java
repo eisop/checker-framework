@@ -917,7 +917,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                             + pattern);
         }
 
-        if (pattern.equals("")) {
+        if (pattern.isEmpty()) {
             pattern = defaultPattern;
         }
 
@@ -1791,9 +1791,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
         @Nullable String[] lintArray = slValue;
         Set<String> lintSet = new HashSet<>(lintArray.length);
-        for (String s : lintArray) {
-            lintSet.add(s);
-        }
+        Collections.addAll(lintSet, lintArray);
         return Collections.unmodifiableSet(lintSet);
     }
 
@@ -2002,11 +2000,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      */
     @Override
     public Set<String> getSupportedOptions() {
-        Set<String> options = new HashSet<>();
 
         // Support all options provided with the standard {@link
         // javax.annotation.processing.SupportedOptions} annotation.
-        options.addAll(super.getSupportedOptions());
+        Set<String> options = new HashSet<>(super.getSupportedOptions());
 
         // For the Checker Framework annotation
         // {@link org.checkerframework.framework.source.SupportedOptions}
@@ -2578,9 +2575,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         SuppressWarningsPrefix prefixMetaAnno =
                 this.getClass().getAnnotation(SuppressWarningsPrefix.class);
         if (prefixMetaAnno != null) {
-            for (String prefix : prefixMetaAnno.value()) {
-                prefixes.add(prefix);
-            }
+            prefixes.addAll(Arrays.asList(prefixMetaAnno.value()));
             return prefixes;
         }
 

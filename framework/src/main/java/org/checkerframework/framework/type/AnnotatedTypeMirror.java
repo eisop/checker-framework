@@ -399,13 +399,12 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     // getAnnotations in javac APIs works.
     // Removed getEffectiveAnnotation
     public AnnotationMirrorSet getEffectiveAnnotations() {
-        AnnotationMirrorSet effectiveAnnotations = getErased().getAnnotations();
         //        assert atypeFactory.qualHierarchy.getWidth() == effectiveAnnotations
         //                .size() : "Invalid number of effective annotations ("
         //                + effectiveAnnotations + "). Should be "
         //                + atypeFactory.qualHierarchy.getWidth() + " but is "
         //                + effectiveAnnotations.size() + ". Type: " + this;
-        return effectiveAnnotations;
+        return getErased().getAnnotations();
     }
 
     /**
