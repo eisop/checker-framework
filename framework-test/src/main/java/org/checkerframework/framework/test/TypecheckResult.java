@@ -148,9 +148,8 @@ public class TypecheckResult {
         Set<TestDiagnostic> actualDiagnostics =
                 TestDiagnosticUtils.fromJavaxToolsDiagnosticList(result.getDiagnostics());
 
-        Set<TestDiagnostic> unexpectedDiagnostics = new LinkedHashSet<>();
-        unexpectedDiagnostics.addAll(actualDiagnostics);
-        unexpectedDiagnostics.removeAll(expectedDiagnostics);
+        Set<TestDiagnostic> unexpectedDiagnostics = new LinkedHashSet<>(actualDiagnostics);
+        expectedDiagnostics.forEach(unexpectedDiagnostics::remove);
 
         List<TestDiagnostic> missingDiagnostics = new ArrayList<>(expectedDiagnostics);
         missingDiagnostics.removeAll(actualDiagnostics);
