@@ -1110,6 +1110,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
       return;
     }
 
+    if (isExplicitlySideEffectFreeAndDeterministic(tree)) {
+      checker.reportWarning(tree, "purity.effectively.pure", tree.getName());
+    }
+
     // `body` is lazily assigned.
     TreePath body = null;
     boolean bodyAssigned = false;
@@ -1192,6 +1196,21 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
       bodyAssigned = true;
     }
     // ...
+  }
+
+  /**
+   * Returns true if the given method is explicitly annotated with both @{@link SideEffectFree}
+   * and @{@link Deterministic}.
+   *
+   * @param tree a method
+   * @return true if a method is explicitly annotated with both @{@link SideEffectFree} and @{@link
+   *     Deterministic}
+   */
+  private boolean isExplicitlySideEffectFreeAndDeterministic(MethodTree tree) {
+    List<AnnotationMirror> annotationMirrors =
+        TreeUtils.annotationsFromTypeAnnotationTrees(tree.getModifiers().getAnnotations());
+    return AnnotationUtils.containsSame(annotationMirrors, SIDE_EFFECT_FREE)
+        && AnnotationUtils.containsSame(annotationMirrors, DETERMINISTIC);
   }
 
   /* NO-AFU
