@@ -570,7 +570,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
   }
 
   @Override
-  public Void visitMethod(MethodTree tree, Void p) {
+  public void processMethodTree(MethodTree tree) {
     VariableTree receiver = tree.getReceiverParameter();
 
     if (TreeUtils.isConstructor(tree)) {
@@ -589,7 +589,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
       }
     }
 
-    return super.visitMethod(tree, p);
+    super.processMethodTree(tree);
   }
 
   @Override

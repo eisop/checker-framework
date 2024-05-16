@@ -978,7 +978,23 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
    * Also, it issues a "missing.this" error for static method annotated receivers.
    */
   @Override
-  public Void visitMethod(MethodTree tree, Void p) {
+  public final Void visitMethod(MethodTree tree, Void p) {
+    ClassTree enclosingClass = TreePathUtil.enclosingClass(getCurrentPath());
+    if (checker.shouldSkipDefs(enclosingClass, tree)) {
+      return null;
+    }
+    processMethodTree(tree);
+    return null;
+  }
+
+  /**
+   * Type-check {@literal methodTree}. Subclasses should override this method instead of {@link
+   * #visitMethod(MethodTree, Void)}.
+   *
+   * @param tree the method to type-check
+   */
+  public void processMethodTree(MethodTree tree) {
+
     // We copy the result from getAnnotatedType to ensure that circular types (e.g. K extends
     // Comparable<K>) are represented by circular AnnotatedTypeMirrors, which avoids problems
     // with later checks.
@@ -1003,7 +1019,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     try {
       if (TreeUtils.isAnonymousConstructor(tree)) {
         // We shouldn't dig deeper
-        return null;
+        return;
       }
 
       if (TreeUtils.isConstructor(tree)) {
@@ -1072,7 +1088,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
       warnInvalidPolymorphicQualifier(tree.getTypeParameters());
 
-      return super.visitMethod(tree, p);
+      super.visitMethod(tree, null);
     } finally {
       methodTree = preMT;
     }

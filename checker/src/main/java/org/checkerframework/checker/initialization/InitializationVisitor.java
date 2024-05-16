@@ -207,7 +207,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
   }
 
   @Override
-  public Void visitMethod(MethodTree tree, Void p) {
+  public void processMethodTree(MethodTree tree) {
     if (TreeUtils.isConstructor(tree)) {
       Collection<? extends AnnotationMirror> returnTypeAnnotations =
           AnnotationUtils.getExplicitAnnotationsOnConstructorResult(tree);
@@ -228,7 +228,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
       List<? extends AnnotationMirror> receiverAnnotations = getAllReceiverAnnotations(tree);
       checkFieldsInitialized(tree, isStatic, store, receiverAnnotations);
     }
-    return super.visitMethod(tree, p);
+    super.processMethodTree(tree);
   }
 
   /**

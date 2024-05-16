@@ -2743,7 +2743,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
    * checker.skipDefs} property.
    *
    * @param tree class to potentially skip
-   * @return true if checker should not test {@code tree}
+   * @return true if checker should not type-check {@code tree}
    */
   public boolean shouldSkipDefs(ClassTree tree) {
     String qualifiedName = TreeUtils.typeOf(tree).toString();
@@ -2769,14 +2769,25 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
    * Tests whether the method definition should not be checked because it matches the {@code
    * checker.skipDefs} property.
    *
+   * @param tree method to potentially skip
+   * @return true if checker should not type-check {@code tree}
+   */
+  public boolean shouldSkipDefs(MethodTree tree) {
+    return false; // subclasses may override this implementation
+  }
+
+  /**
+   * Tests whether the method definition should not be checked because it matches the {@code
+   * checker.skipDefs} property.
+   *
    * <p>TODO: currently only uses the class definition. Refine pattern. Same for skipUses.
    *
    * @param cls class to potentially skip
    * @param meth method to potentially skip
-   * @return true if checker should not test {@code meth}
+   * @return true if checker should not type-check {@code meth}
    */
-  public boolean shouldSkipDefs(ClassTree cls, MethodTree meth) {
-    return shouldSkipDefs(cls);
+  public final boolean shouldSkipDefs(ClassTree cls, MethodTree meth) {
+    return shouldSkipDefs(cls) || shouldSkipDefs(meth);
   }
 
   ///////////////////////////////////////////////////////////////////////////
