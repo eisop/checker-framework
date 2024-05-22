@@ -342,7 +342,7 @@ import javax.tools.Diagnostic;
     // constraints.
     "noWarnMemoryConstraints",
 
-    // Only output error code, useful for testing framework
+    // Only output error code, useful for testing framework.
     // org.checkerframework.framework.source.SourceChecker.message(Kind, Object, String, Object...)
     "nomsgtext",
 
