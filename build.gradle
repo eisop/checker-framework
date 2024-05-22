@@ -80,7 +80,7 @@ ext {
 
     versions = [
         autoValue       : '1.10.4',
-        errorprone      : '2.26.1',
+        errorprone      : '2.27.1',
         hashmapUtil     : '0.0.1',
         junit           : '4.13.2',
         lombok          : '1.18.32',
@@ -504,6 +504,8 @@ allprojects {
                     '-Xep:CanIgnoreReturnValueSuggester:OFF',
                     // Should be turned off when using the Checker Framework.
                     '-Xep:ExtendsObject:OFF',
+                    // For Visitors it is convenient to just pass a Void parameter.
+                    '-Xep:VoidUsed:OFF',
                     // -Werror halts the build if Error Prone issues a warning, which ensures that
                     // the errors get fixed.  On the downside, Error Prone (or maybe the compiler?)
                     // stops as soon as it issues one warning, rather than outputting them all.
