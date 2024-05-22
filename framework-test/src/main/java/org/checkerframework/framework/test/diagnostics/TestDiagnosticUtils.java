@@ -142,7 +142,7 @@ public class TestDiagnosticUtils {
             isFixable = categoryToFixable.second;
             String msg = diagnosticMatcher.group(2 + capturingGroupOffset).trim();
             noParentheses =
-                    msg.equals("") || msg.charAt(0) != '(' || msg.charAt(msg.length() - 1) != ')';
+                    msg.isEmpty() || msg.charAt(0) != '(' || msg.charAt(msg.length() - 1) != ')';
             message = noParentheses ? msg : msg.substring(1, msg.length() - 1);
 
             if (lineNumber == null) {

@@ -917,7 +917,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                             + pattern);
         }
 
-        if (pattern.equals("")) {
+        if (pattern.isEmpty()) {
             pattern = defaultPattern;
         }
 
