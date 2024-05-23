@@ -142,6 +142,28 @@ public class InitializationTransfer
    * initialization.
    */
   @Override
+  public TransferResult<CFValue, InitializationStore> visitFieldAccess(
+      FieldAccessNode n, TransferInput<CFValue, InitializationStore> p) {
+    TransferResult<CFValue, InitializationStore> result = super.visitFieldAccess(n, p);
+    assert !result.containsTwoStores();
+    S store = result.getRegularStore();
+    if (store.isFieldInitialized(n.getElement()) && n.getReceiver() instanceof ThisNode) {
+      AnnotatedTypeMirror fieldAnno = analysis.getTypeFactory().getAnnotatedType(n.getElement());
+      // Only if the field has the type system's invariant annotation,
+      // such as @NonNull.
+      if (fieldAnno.hasPrimaryAnnotation(atypeFactory.getFieldInvariantAnnotation())) {
+        AnnotationMirror inv = atypeFactory.getFieldInvariantAnnotation();
+        V oldResultValue = result.getResultValue();
+        V refinedResultValue =
+            analysis.createSingleAnnotationValue(inv, oldResultValue.getUnderlyingType());
+        V newResultValue = refinedResultValue.mostSpecific(oldResultValue, null);
+        return recreateTransferResult(newResultValue, result);
+      }
+    }
+    return result;
+  }
+
+  @Override
   public TransferResult<CFValue, InitializationStore> visitMethodInvocation(
       MethodInvocationNode n, TransferInput<CFValue, InitializationStore> in) {
     TransferResult<CFValue, InitializationStore> result = super.visitMethodInvocation(n, in);
