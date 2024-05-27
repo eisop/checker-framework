@@ -274,7 +274,8 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
                         other.getAnnotations(),
                         canBeMissingAnnotations(mostSpecifTypeMirror));
         if (ms.error) {
-            return backup;
+            // return null because error only set to true when backup is null
+            return null;
         }
         return analysis.createAbstractValue(mostSpecific, mostSpecifTypeMirror);
     }
