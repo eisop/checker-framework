@@ -304,9 +304,12 @@ public class FormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                             ConversionCategory.intersect(
                                     shorterArgTypesList[i], longerArgTypesList[i]);
                 }
-                for (int i = shorterArgTypesList.length; i < longerArgTypesList.length; ++i) {
-                    resultArgTypes[i] = longerArgTypesList[i];
-                }
+                System.arraycopy(
+                        longerArgTypesList,
+                        shorterArgTypesList.length,
+                        resultArgTypes,
+                        shorterArgTypesList.length,
+                        longerArgTypesList.length - shorterArgTypesList.length);
                 return treeUtil.categoriesToFormatAnnotation(resultArgTypes);
             } else if (qualifierKind1 == INVALIDFORMAT_KIND
                     && qualifierKind2 == INVALIDFORMAT_KIND) {
