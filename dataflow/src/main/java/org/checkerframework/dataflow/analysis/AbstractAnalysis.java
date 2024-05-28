@@ -5,6 +5,7 @@ import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.Tree;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Objects;
 import java.util.PriorityQueue;
@@ -485,7 +486,10 @@ public abstract class AbstractAnalysis<
      * Comparators to allow priority queue to order blocks by their depth-first order, using by
      * forward analysis.
      */
-    public class ForwardDFOComparator implements Comparator<Block> {
+    public class ForwardDfoComparator implements Comparator<Block> {
+      /** Creates a new ForwardDfoComparator. */
+      public ForwardDfoComparator() {}
+
       @SuppressWarnings("nullness:unboxing.of.nullable")
       @Override
       public int compare(Block b1, Block b2) {
@@ -497,7 +501,10 @@ public abstract class AbstractAnalysis<
      * Comparators to allow priority queue to order blocks by their depth-first order, using by
      * backward analysis.
      */
-    public class BackwardDFOComparator implements Comparator<Block> {
+    public class BackwardDfoComparator implements Comparator<Block> {
+      /** Creates a new BackwardDfoComparator. */
+      public BackwardDfoComparator() {}
+
       @SuppressWarnings("nullness:unboxing.of.nullable")
       @Override
       public int compare(Block b1, Block b2) {
@@ -508,6 +515,9 @@ public abstract class AbstractAnalysis<
     /** The backing priority queue. */
     protected final PriorityQueue<Block> queue;
 
+    /** Contains the same elements as {@link #queue}, for faster lookup. */
+    protected final Set<Block> queueSet;
+
     /**
      * Create a Worklist.
      *
@@ -515,16 +525,21 @@ public abstract class AbstractAnalysis<
      */
     public Worklist(Direction direction) {
       if (direction == Direction.FORWARD) {
-        queue = new PriorityQueue<>(new ForwardDFOComparator());
+        queue = new PriorityQueue<>(new ForwardDfoComparator());
+        queueSet = new HashSet<>();
       } else if (direction == Direction.BACKWARD) {
-        queue = new PriorityQueue<>(new BackwardDFOComparator());
+        queue = new PriorityQueue<>(new BackwardDfoComparator());
+        queueSet = new HashSet<>();
       } else {
-        throw new BugInCF("Unexpected Direction meet: " + direction.name());
+        throw new BugInCF("Unexpected Direction: " + direction.name());
       }
     }
 
     /**
-     * Process the control flow graph, add the blocks to {@link #depthFirstOrder}.
+     * Process the control flow graph.
+     *
+     * <p>This implementation sets the depth-first order for each block, by adding the blocks to
+     * {@link #depthFirstOrder}.
      *
      * @param cfg the control flow graph to process
      */
@@ -536,6 +551,7 @@ public abstract class AbstractAnalysis<
       }
 
       queue.clear();
+      queueSet.clear();
     }
 
     /**
@@ -548,6 +564,7 @@ public abstract class AbstractAnalysis<
     @EnsuresNonNullIf(result = false, expression = "poll()")
     @SuppressWarnings("nullness:contracts.conditional.postcondition.not.satisfied") // forwarded
     public boolean isEmpty() {
+      assert queue.isEmpty() == queueSet.isEmpty();
       return queue.isEmpty();
     }
 
@@ -558,7 +575,7 @@ public abstract class AbstractAnalysis<
      * @return true if {@link #queue} contains the given block
      */
     public boolean contains(Block block) {
-      return queue.contains(block);
+      return queueSet.contains(block);
     }
 
     /**
@@ -569,6 +586,7 @@ public abstract class AbstractAnalysis<
      */
     public void add(Block block) {
       queue.add(block);
+      queueSet.add(block);
     }
 
     /**
@@ -579,7 +597,11 @@ public abstract class AbstractAnalysis<
      */
     @Pure
     public @Nullable Block poll() {
-      return queue.poll();
+      Block result = queue.poll();
+      if (result != null) {
+        queueSet.remove(result);
+      }
+      return result;
     }
 
     @Override
