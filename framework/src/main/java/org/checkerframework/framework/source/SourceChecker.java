@@ -1791,9 +1791,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
         @Nullable String[] lintArray = slValue;
         Set<String> lintSet = new HashSet<>(lintArray.length);
-        for (String s : lintArray) {
-            lintSet.add(s);
-        }
+        lintSet.addAll(Arrays.asList(lintArray));
         return Collections.unmodifiableSet(lintSet);
     }
 
