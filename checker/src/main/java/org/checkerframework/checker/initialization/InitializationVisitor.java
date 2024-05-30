@@ -131,7 +131,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
             // cast is safe: a field access can only be an IdentifierTree or MemberSelectTree
             ExpressionTree lhs = (ExpressionTree) varTree;
             VariableElement el = TreeUtils.variableElementFromUse(lhs);
-            AnnotatedTypeMirror lhsType = atypeFactory.getReceiverType(lhs);
+            AnnotatedTypeMirror lhsReceiverType = atypeFactory.getReceiverType(lhs);
             AnnotatedTypeMirror valueExpType = atypeFactory.getAnnotatedType(valueExpTree);
             // the special FBC rules do not apply if there is an explicit
             // UnknownInitialization annotation
@@ -141,10 +141,10 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
                     fieldAnnotations, atypeFactory.UNKNOWN_INITIALIZATION)) {
                 if (!ElementUtils.isStatic(el)
                         && !(atypeFactory.isInitialized(valueExpType)
-                                || atypeFactory.isUnderInitialization(lhsType)
+                                || atypeFactory.isUnderInitialization(lhsReceiverType)
                                 || atypeFactory.isFbcBottom(valueExpType))) {
                     @CompilerMessageKey String err;
-                    if (atypeFactory.isInitialized(lhsType)) {
+                    if (atypeFactory.isInitialized(lhsReceiverType)) {
                         err = COMMITMENT_INVALID_FIELD_WRITE_INITIALIZED;
                     } else {
                         err = COMMITMENT_INVALID_FIELD_WRITE_UNKNOWN_INITIALIZATION;
