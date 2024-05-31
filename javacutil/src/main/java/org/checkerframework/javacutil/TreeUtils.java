@@ -148,7 +148,7 @@ public final class TreeUtils {
             TREEMAKER_SELECT =
                     TreeMaker.class.getMethod("Select", JCExpression.class, Symbol.class);
         } catch (NoSuchMethodException e) {
-            throw (Error) new AssertionError("Unexpected error in TreeUtils static initializer", e);
+            throw new AssertionError("Unexpected error in TreeUtils static initializer", e);
         }
     }
 
