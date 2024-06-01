@@ -1433,25 +1433,38 @@ public class AnnotationUtils {
     }
 
     /**
-     * Returns true if anno is a declaration annotation. In other words, returns true if anno cannot
-     * be written on uses of types.
+     * Returns true if {@code anno} is not a type use annotation, that is, it cannot be written on
+     * uses of types.
+     *
+     * @param anno the AnnotationMirror
+     * @return true if anno is a declaration annotation
+     * @deprecated use {@link #isTypeUseAnnotation(AnnotationMirror)} instead
+     */
+    @Deprecated // 2024-01-06
+    public static boolean isDeclarationAnnotation(AnnotationMirror anno) {
+        return !isTypeUseAnnotation(anno);
+    }
+
+    /**
+     * Returns true if {@code anno} is a type use annotation, that is, it can be written on uses of
+     * types.
      *
      * @param anno the AnnotationMirror
      * @return true if anno is a declaration annotation
      */
-    public static boolean isDeclarationAnnotation(AnnotationMirror anno) {
+    public static boolean isTypeUseAnnotation(AnnotationMirror anno) {
         TypeElement elem = (TypeElement) anno.getAnnotationType().asElement();
         Target t = elem.getAnnotation(Target.class);
         if (t == null) {
-            return true;
+            return false;
         }
 
         for (ElementType elementType : t.value()) {
             if (elementType == ElementType.TYPE_USE) {
-                return false;
+                return true;
             }
         }
-        return true;
+        return false;
     }
 
     /**

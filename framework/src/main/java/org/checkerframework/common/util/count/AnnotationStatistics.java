@@ -62,6 +62,7 @@ import javax.tools.Diagnostic;
  * </ul>
  *
  * @see JavaCodeStatistics
+ * @see org.checkerframework.common.util.report.ReportChecker
  */
 /*
  * TODO: add an option to only list declaration or type annotations.

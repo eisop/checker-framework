@@ -36,6 +36,7 @@ import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -404,7 +405,11 @@ public class AnnotationClassLoader implements Closeable {
         URL jarURL = null;
 
         try {
-            jarURL = new URI("jar:file:" + absolutePathToJarFile + "!/").toURL();
+            String normalizedPath = absolutePathToJarFile.replace("\\", "/");
+            String osName = System.getProperty("os.name").toString().toLowerCase(Locale.ENGLISH);
+            String prefix = osName.startsWith("windows") ? "jar:file:///" : "jar:file:";
+
+            jarURL = new URI(prefix + normalizedPath + "!/").toURL();
         } catch (MalformedURLException | URISyntaxException e) {
             processingEnv
                     .getMessager()

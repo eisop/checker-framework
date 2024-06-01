@@ -298,9 +298,12 @@ public class I18nFormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory 
                             I18nConversionCategory.intersect(
                                     shorterArgTypesList[i], longerArgTypesList[i]);
                 }
-                for (int i = shorterArgTypesList.length; i < longerArgTypesList.length; ++i) {
-                    resultArgTypes[i] = longerArgTypesList[i];
-                }
+                System.arraycopy(
+                        longerArgTypesList,
+                        shorterArgTypesList.length,
+                        resultArgTypes,
+                        shorterArgTypesList.length,
+                        longerArgTypesList.length - shorterArgTypesList.length);
                 return treeUtil.categoriesToFormatAnnotation(resultArgTypes);
             } else if (qualifierKind1 == I18NINVALIDFORMAT_KIND
                     && qualifierKind2 == I18NINVALIDFORMAT_KIND) {

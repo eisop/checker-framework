@@ -827,7 +827,7 @@ public class NullnessNoInitAnnotatedTypeFactory
     protected boolean containsNullnessAnnotation(List<? extends AnnotationTree> annoTrees) {
         for (AnnotationTree annoTree : annoTrees) {
             AnnotationMirror am = TreeUtils.annotationFromAnnotationTree(annoTree);
-            if (isNullnessAnnotation(am) && !AnnotationUtils.isDeclarationAnnotation(am)) {
+            if (isNullnessAnnotation(am) && AnnotationUtils.isTypeUseAnnotation(am)) {
                 return true;
             }
         }

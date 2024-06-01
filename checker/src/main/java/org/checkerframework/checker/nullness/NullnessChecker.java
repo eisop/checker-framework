@@ -3,7 +3,6 @@ package org.checkerframework.checker.nullness;
 import org.checkerframework.checker.initialization.InitializationChecker;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.common.basetype.BaseTypeChecker;
-import org.checkerframework.framework.qual.StubFiles;
 import org.checkerframework.framework.source.SupportedLintOptions;
 
 import javax.annotation.processing.SupportedOptions;
@@ -54,7 +53,6 @@ import javax.annotation.processing.SupportedOptions;
     "jspecifyNullMarkedAlias",
     "conservativeArgumentNullnessAfterInvocation"
 })
-@StubFiles({"junit-assertions.astub"})
 public class NullnessChecker extends InitializationChecker {
 
     /** Should we be strict about initialization of {@link MonotonicNonNull} variables? */
