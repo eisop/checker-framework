@@ -79,7 +79,7 @@ ext {
     localRepo = '.git'
 
     versions = [
-        autoValue       : '1.10.4',
+        autoValue       : '1.11.0',
         errorprone      : '2.27.1',
         hashmapUtil     : '0.0.1',
         junit           : '4.13.2',
