@@ -822,6 +822,10 @@ export CHECKERFRAMEWORK=$(pwd)/checker-framework
 You might want to add an \<export CHECKERFRAMEWORK=...> line to your
 \<.bashrc> file.
 
+\textbf{Ensure Line Endings are Handled Properly}: Run
+\texttt{git config --global core.autocrlf true} in Git Bash to prevent line ending
+issues between Windows and Unix-based systems, or execute Git commands directly
+from the Ubuntu terminal.
 
 \subsectionAndLabel{Build the Checker Framework}{building}
 
