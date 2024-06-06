@@ -5,7 +5,6 @@ import org.checkerframework.checker.units.qual.N;
 import org.checkerframework.checker.units.qual.Prefix;
 import org.checkerframework.checker.units.qual.g;
 import org.checkerframework.checker.units.qual.h;
-import org.checkerframework.checker.units.qual.kg;
 import org.checkerframework.checker.units.qual.km2;
 import org.checkerframework.checker.units.qual.km3;
 import org.checkerframework.checker.units.qual.kmPERh;

@@ -11,6 +11,8 @@ public enum DiagnosticKind {
     Warning("warning"),
     /** An error. */
     Error("error"),
+    /** A note. */
+    Note("Note"),
     /** Something else. */
     Other("other");
 

@@ -342,7 +342,7 @@ import javax.tools.Diagnostic;
     // constraints.
     "noWarnMemoryConstraints",
 
-    // Only output error code, useful for testing framework
+    // Only output error code, useful for testing framework.
     // org.checkerframework.framework.source.SourceChecker.message(Kind, Object, String, Object...)
     "nomsgtext",
 
@@ -917,7 +917,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                             + pattern);
         }
 
-        if (pattern.equals("")) {
+        if (pattern.isEmpty()) {
             pattern = defaultPattern;
         }
 
@@ -1791,9 +1791,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
         @Nullable String[] lintArray = slValue;
         Set<String> lintSet = new HashSet<>(lintArray.length);
-        for (String s : lintArray) {
-            lintSet.add(s);
-        }
+        lintSet.addAll(Arrays.asList(lintArray));
         return Collections.unmodifiableSet(lintSet);
     }
 

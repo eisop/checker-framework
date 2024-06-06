@@ -79,8 +79,8 @@ ext {
     localRepo = '.git'
 
     versions = [
-        autoValue       : '1.10.4',
-        errorprone      : '2.26.1',
+        autoValue       : '1.11.0',
+        errorprone      : '2.28.0',
         hashmapUtil     : '0.0.1',
         junit           : '4.13.2',
         lombok          : '1.18.32',
@@ -504,6 +504,8 @@ allprojects {
                     '-Xep:CanIgnoreReturnValueSuggester:OFF',
                     // Should be turned off when using the Checker Framework.
                     '-Xep:ExtendsObject:OFF',
+                    // For Visitors it is convenient to just pass a Void parameter.
+                    '-Xep:VoidUsed:OFF',
                     // -Werror halts the build if Error Prone issues a warning, which ensures that
                     // the errors get fixed.  On the downside, Error Prone (or maybe the compiler?)
                     // stops as soon as it issues one warning, rather than outputting them all.
@@ -1062,7 +1064,8 @@ subprojects {
         }
 
         // Create a task for each JUnit test class whose name is the same as the JUnit class name.
-        sourceSets.test.allJava.filter { it.path.contains('test/junit') }.forEach { file ->
+        // Regex [\\\\/] matches Unix and Windows directory separators.
+        sourceSets.test.allJava.filter {it.path.matches('.*test[\\\\/]junit.*')}.forEach { file ->
             String junitClassName = file.name.replaceAll('.java', '')
             tasks.create(name: "${junitClassName}", type: Test) {
                 description "Run ${junitClassName} tests."

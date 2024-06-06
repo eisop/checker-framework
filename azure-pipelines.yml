@@ -89,6 +89,7 @@ jobs:
    - plume_lib_jdk21
    # - plume_lib_jdk_latest
    # Not plume_lib_jdk_next
+   - windows_junit_jdk17
    - jspecify_conformance_jdk21
   pool:
     vmImage: 'ubuntu-latest'
@@ -876,3 +877,18 @@ jobs:
 #     fetchDepth: 25
 #   - bash: ./checker/bin-devel/test-downstream.sh
 #     displayName: test-downstream.sh
+
+- job: windows_junit_jdk17
+  dependsOn:
+    - junit_jdk21
+  pool:
+    vmImage: 'windows-latest'
+  timeoutInMinutes: 90
+  steps:
+    - checkout: self
+      fetchDepth: 25
+    - bash: ./checker/bin-devel/test-cftests-junit.sh
+      displayName: Run all JUnit tests
+      env:
+        JAVA_HOME: $(JAVA_HOME_17_X64)
+        PATH: $(JAVA_HOME_17_X64)/bin:$(PATH)

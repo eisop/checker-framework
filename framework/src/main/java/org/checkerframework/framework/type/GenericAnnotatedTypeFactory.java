@@ -1404,7 +1404,7 @@ public abstract class GenericAnnotatedTypeFactory<
             TreePath preTreePath = getVisitorTreePath();
 
             // Don't call AnnotatedTypeFactory#getPath, because it uses visitorTreePath.
-            setVisitorTreePath(TreePath.getPath(this.root, ct));
+            setVisitorTreePath(TreePath.getPath(this.getRoot(), ct));
 
             // start with the captured store as initialization store
             initializationStaticStore = capturedStore;
@@ -1597,7 +1597,8 @@ public abstract class GenericAnnotatedTypeFactory<
             boolean updateInitializationStore,
             boolean isStatic,
             @Nullable Store capturedStore) {
-        ControlFlowGraph cfg = CFCFGBuilder.build(root, ast, checker, this, processingEnv);
+        ControlFlowGraph cfg =
+                CFCFGBuilder.build(this.getRoot(), ast, checker, this, processingEnv);
         /*
              cfg.getAllNodes(this::isIgnoredExceptionType)
                      .forEach(
@@ -2016,10 +2017,10 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     protected void addComputedTypeAnnotations(
             Tree tree, AnnotatedTypeMirror type, boolean iUseFlow) {
-        if (root == null && ajavaTypes.isParsing()) {
+        if (this.getRoot() == null && ajavaTypes.isParsing()) {
             return;
         }
-        assert root != null
+        assert this.getRoot() != null
                 : "GenericAnnotatedTypeFactory.addComputedTypeAnnotations: "
                         + " root needs to be set when used on trees; factory: "
                         + this.getClass();
@@ -2409,7 +2410,7 @@ public abstract class GenericAnnotatedTypeFactory<
     protected @Nullable CFGVisualizer<Value, Store, TransferFunction> createCFGVisualizer() {
         if (checker.hasOption("flowdotdir")) {
             String flowdotdir = checker.getOption("flowdotdir");
-            if (flowdotdir.equals("")) {
+            if (flowdotdir.isEmpty()) {
                 throw new UserError("Empty string provided for -Aflowdotdir command-line argument");
             }
             boolean verbose = checker.hasOption("verbosecfg");
