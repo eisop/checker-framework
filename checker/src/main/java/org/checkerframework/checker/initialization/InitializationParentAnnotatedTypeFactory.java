@@ -441,7 +441,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
       boolean isStatic,
       Collection<? extends AnnotationMirror> receiverAnnotations) {
     ClassTree currentClass = TreePathUtil.enclosingClass(path);
-    List<VariableTree> fields = InitializationChecker.getAllFields(currentClass);
+    List<VariableTree> fields = TreeUtils.fieldsFromClassTree(currentClass);
     List<VariableTree> uninit = new ArrayList<>();
     for (VariableTree field : fields) {
       if (isUnused(field, receiverAnnotations)) {
@@ -468,7 +468,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
     // TODO: Instead of passing the TreePath around, can we use
     // getCurrentClassTree?
     ClassTree currentClass = TreePathUtil.enclosingClass(path);
-    List<VariableTree> fields = InitializationChecker.getAllFields(currentClass);
+    List<VariableTree> fields = TreeUtils.fieldsFromClassTree(currentClass);
     List<VariableTree> initializedFields = new ArrayList<>();
     for (VariableTree field : fields) {
       VariableElement fieldElem = TreeUtils.elementFromDeclaration(field);
