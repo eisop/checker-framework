@@ -15,16 +15,15 @@ public class VarargsConstructor {
     }
 
     void invokeConstructor(@A Object aObj, @B Object bObj, @Top Object topObj) {
-        new @A VarargsConstructor(aObj);
-        new @B VarargsConstructor(bObj);
-        new @Top VarargsConstructor(topObj);
+        @A Object a = new @A VarargsConstructor(aObj);
+        @B Object b = new @B VarargsConstructor(bObj);
+        @Top Object top = new @Top VarargsConstructor(topObj);
         // :: error: (argument.type.incompatible)
         new @A VarargsConstructor(bObj);
         // :: error: (argument.type.incompatible)
         new @B VarargsConstructor(aObj);
     }
 
-    // inner class
     class Inner {
         Inner(Object... args) {}
 
