@@ -38,7 +38,7 @@ public class VarargsConstructor {
 
     // anonymous class
     Object o =
-            new VarargType("testStr", new Object()) {
+            new VarargsConstructor("testStr", new Object()) {
                 void foo() {
                     VarargsConstructor a = new VarargsConstructor("testStr", new Object());
                 }
