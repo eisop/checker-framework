@@ -66,6 +66,9 @@ task manual(group: 'Documentation') {
 }
 
 tasks.withType(Test) {
+    // Disable the gradle generated test task as the dataflow framework does not use JUnit for testing. If it were kept enabled (which is the default), gradlew would produce a deprecation warning.
+    // The `allDataflowTests` task dependency is still enabled.
+    enabled = false
     dependsOn('allDataflowTests')
 }
 

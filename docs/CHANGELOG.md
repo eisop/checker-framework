@@ -1,9 +1,15 @@
-Version 3.42.0-eisop4 (March ?, 2024)
+Version 3.42.0-eisop4 (April ?, 2024)
 -------------------------------------
 
 **User-visible changes:**
 
 **Implementation details:**
+
+Improvements in `framework-test` to more consistently handle tests that do not use
+`-Anomsgtext`.
+
+Changed the return type of `AnnotatedTypeFactory#getEnumConstructorQualifiers` from `Set<AnnotationMirror>` to
+`AnnotationMirrorSet`.
 
 **Closed issues:**
 

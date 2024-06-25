@@ -799,7 +799,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
 
             for (AnnotationMirror poly : polys) {
-                if (type.hasAnnotationRelaxed(poly)) {
+                if (type.hasAnnotation(poly)) {
                     return Collections.singletonList(
                             DiagMessage.error("invalid.polymorphic.qualifier.use", poly));
                 }
@@ -2209,7 +2209,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
             CFAbstractStore<?, ?> store = atypeFactory.getStoreBefore(tree);
 
-            Set<AnnotationMirror> annos =
+            AnnotationMirrorSet annos =
                     atypeFactory.getAnnotatedTypeBefore(exprJe, tree).getAnnotations();
 
             AnnotationMirror inferredAnno =

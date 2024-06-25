@@ -265,9 +265,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
             mostSpecifTypeMirror = this.getUnderlyingType();
         }
 
-        MostSpecificVisitor ms =
-                new MostSpecificVisitor(
-                        this.getUnderlyingType(), other.getUnderlyingType(), backup);
+        MostSpecificVisitor ms = new MostSpecificVisitor(backup);
         AnnotationMirrorSet mostSpecific =
                 ms.combineSets(
                         this.getUnderlyingType(),
@@ -276,7 +274,8 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
                         other.getAnnotations(),
                         canBeMissingAnnotations(mostSpecifTypeMirror));
         if (ms.error) {
-            return backup;
+            // return null because `ms.error` is only set to true when `backup` is null.
+            return null;
         }
         return analysis.createAbstractValue(mostSpecific, mostSpecifTypeMirror);
     }
@@ -287,24 +286,17 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
         boolean error = false;
 
         /** Set of annotations to use if a most specific value cannot be found. */
-        final AnnotationMirrorSet backupAMSet;
+        final @Nullable AnnotationMirrorSet backupAMSet;
 
         /**
          * Create a {@link MostSpecificVisitor}.
          *
-         * @param aTypeMirror type of the "a" value
-         * @param bTypeMirror type of the "b" value
          * @param backup value to use if no most specific value is found
          */
-        @SuppressWarnings("UnusedVariable") // TODO clean this up
-        public MostSpecificVisitor(TypeMirror aTypeMirror, TypeMirror bTypeMirror, V backup) {
+        public MostSpecificVisitor(@Nullable V backup) {
             if (backup != null) {
                 this.backupAMSet = backup.getAnnotations();
-                // this.backupTypeMirror = backup.getUnderlyingType();
-                // this.backupAtv = getEffectiveTypeVar(backupTypeMirror);
             } else {
-                // this.backupAtv = null;
-                // this.backupTypeMirror = null;
                 this.backupAMSet = null;
             }
         }
