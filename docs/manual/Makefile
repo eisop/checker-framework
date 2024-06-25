@@ -74,12 +74,12 @@ manual.html: manual.pdf CFLogo.png favicon-checkerframework.png ../api
 	sed -i -e 's%\(<a href="#[^"]*"\)\(><span style="font-size:small">&\#X1F517;</span></a>\)%\1 style="color:inherit; text-decoration:none"\2%g' manual.html
 
 ../../checker/bin-devel/.plume-scripts:
-	cd ../.. && ./gradlew --stacktrace getPlumeScripts
+	cd ../.. && ./gradlew --stacktrace getGitScripts
 
 .PHONY: contributors.tex
 contributors.tex:
-# Update plume-scripts even if it is already cloned
-	cd ../.. && (./gradlew --stacktrace getPlumeScripts || (sleep 60 && ./gradlew --stacktrace getPlumeScripts))
+# Update git-scripts even if it is already cloned
+	cd ../.. && (./gradlew --stacktrace getGitScripts || (sleep 60 && ./gradlew --stacktrace getGitScripts))
 	../../checker/bin-devel/.plume-scripts/git-authors --latex --punctuation > contributors.tex
 
 ../api:

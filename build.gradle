@@ -614,7 +614,7 @@ task htmlValidate(type: Exec, group: 'Format') {
 //   in the subproject or `./gradlew :checker:javadoc` at the top level.
 task allJavadoc(type: Javadoc, group: 'Documentation') {
     description = 'Generates API documentation that includes all the modules.'
-    dependsOn(':checker:shadowJar', 'getPlumeScripts', 'getHtmlTools')
+    dependsOn(':checker:shadowJar', 'getGitScripts', 'getHtmlTools')
     destinationDir = file("${rootDir}/docs/api")
     source(
             project(':checker-util').sourceSets.main.allJava,
@@ -806,7 +806,7 @@ def createCloneTask(taskName, url, directory, extraArgs = []) {
 }
 
 
-createCloneTask('getPlumeScripts', 'https://github.com/eisop-plume-lib/plume-scripts.git', plumeScriptsHome)
+createCloneTask('getGitScripts', 'https://github.com/eisop-plume-lib/git-scripts.git', plumeScriptsHome)
 createCloneTask('getHtmlTools', 'https://github.com/plume-lib/html-tools.git', htmlToolsHome)
 createCloneTask('getDoLikeJavac', 'https://github.com/opprop/do-like-javac.git', doLikeJavacHome)
 

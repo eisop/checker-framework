@@ -31,14 +31,14 @@ else
 fi
 echo "JAVA_HOME=${JAVA_HOME}"
 
-# Using `(cd "$CHECKERFRAMEWORK" && ./gradlew getPlumeScripts -q)` leads to infinite regress.
+# Using `(cd "$CHECKERFRAMEWORK" && ./gradlew getGitScripts -q)` leads to infinite regress.
 PLUME_SCRIPTS="$CHECKERFRAMEWORK/checker/bin-devel/.plume-scripts"
 if [ -d "$PLUME_SCRIPTS" ] ; then
   (cd "$PLUME_SCRIPTS" && (git pull -q || true))
 else
   (cd "$CHECKERFRAMEWORK/checker/bin-devel" && \
-      (git clone --filter=blob:none -q https://github.com/eisop-plume-lib/plume-scripts.git .plume-scripts || \
-       (sleep 1m && git clone --filter=blob:none -q https://github.com/eisop-plume-lib/plume-scripts.git .plume-scripts)))
+      (git clone --filter=blob:none -q https://github.com/eisop-plume-lib/git-scripts.git .plume-scripts || \
+       (sleep 1m && git clone --filter=blob:none -q https://github.com/eisop-plume-lib/git-scripts.git .plume-scripts)))
 fi
 
 # Clone the annotated JDK into ../jdk .
