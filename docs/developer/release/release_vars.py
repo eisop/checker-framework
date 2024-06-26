@@ -151,8 +151,6 @@ os.environ["PLUME_SCRIPTS"] = PLUME_SCRIPTS
 os.environ["CHECKLINK"] = CHECKLINK
 os.environ["BIBINPUTS"] = ".:" + PLUME_BIB
 os.environ["TEXINPUTS"] = ".:..:"
-# Still needed for santiy checks
-os.environ["JAVA_8_HOME"] = "/usr/lib/jvm/java-8-openjdk-amd64/"
 os.environ["JAVA_17_HOME"] = "/usr/lib/jvm/java-17-openjdk-amd64/"
 os.environ["JAVA_HOME"] = os.environ["JAVA_17_HOME"]
 

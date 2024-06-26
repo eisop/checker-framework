@@ -907,9 +907,10 @@ public class JavaExpressionParseUtil {
             List<@Nullable JavaExpression> dimensions =
                     CollectionsPlume.mapList(
                             (ArrayCreationLevel dimension) ->
-                                    dimension.getDimension().isPresent()
-                                            ? dimension.getDimension().get().accept(this, aVoid)
-                                            : null,
+                                    dimension
+                                            .getDimension()
+                                            .map(dim -> dim.accept(this, aVoid))
+                                            .orElse(null),
                             expr.getLevels());
 
             List<JavaExpression> initializers;

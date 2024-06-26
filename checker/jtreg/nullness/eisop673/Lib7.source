@@ -1,0 +1,5 @@
+import org.jetbrains.annotations.Nullable;
+
+interface Lib7 {
+    @Nullable String[] get();
+}

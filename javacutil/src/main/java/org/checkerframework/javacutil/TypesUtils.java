@@ -171,10 +171,10 @@ public final class TypesUtils {
     }
 
     /**
-     * Returns the simple type name, without annotations.
+     * Returns the simple type name, without annotations but including array brackets.
      *
      * @param type a type
-     * @return the simple type name, without annotations
+     * @return the simple type name
      */
     public static String simpleTypeName(TypeMirror type) {
         switch (type.getKind()) {
@@ -207,6 +207,8 @@ public final class TypesUtils {
                     sj.add(simpleTypeName(alternative));
                 }
                 return sj.toString();
+            case PACKAGE:
+                return "PACKAGE:" + type;
             default:
                 if (type.getKind().isPrimitive()) {
                     return TypeAnnotationUtils.unannotatedType(type).toString();
@@ -219,10 +221,10 @@ public final class TypesUtils {
     }
 
     /**
-     * Returns the binary name.
+     * Returns the binary name of a type.
      *
      * @param type a type
-     * @return the binary name
+     * @return its binary name
      */
     public static @BinaryName String binaryName(TypeMirror type) {
         if (type.getKind() != TypeKind.DECLARED) {
@@ -354,12 +356,27 @@ public final class TypesUtils {
     /**
      * Returns true iff the type represents a declared type of the given qualified name.
      *
-     * @param type the type to check
-     * @return type iff type represents a declared type of the qualified name
+     * @param type the type
+     * @param qualifiedName the name to check {@code type} against
+     * @return true iff type represents a declared type of the qualified name
      */
     public static boolean isDeclaredOfName(TypeMirror type, CharSequence qualifiedName) {
         return type.getKind() == TypeKind.DECLARED
                 && getQualifiedName((DeclaredType) type).contentEquals(qualifiedName);
+    }
+
+    /**
+     * Returns true iff the type represents a declared type whose fully-qualified name is any of the
+     * given names.
+     *
+     * @param type the type
+     * @param qualifiedNames fully-qualified type names to check for
+     * @return true iff type represents a declared type whose fully-qualified name is one of the
+     *     given names
+     */
+    public static boolean isDeclaredOfName(TypeMirror type, Collection<String> qualifiedNames) {
+        return type.getKind() == TypeKind.DECLARED
+                && qualifiedNames.contains(getQualifiedName((DeclaredType) type));
     }
 
     /**

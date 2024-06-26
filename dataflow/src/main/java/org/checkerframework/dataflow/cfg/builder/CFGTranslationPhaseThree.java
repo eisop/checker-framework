@@ -125,23 +125,64 @@ public class CFGTranslationPhaseThree {
         }
         */
 
-        // merge consecutive basic blocks if possible
-        worklist = cfg.getAllBlocks();
+        mergeConsecutiveBlocks(cfg);
+        return cfg;
+    }
+
+    /**
+     * Simplify the CFG by merging consecutive single-successor blocks.
+     *
+     * @param cfg the control flow graph
+     */
+    @SuppressWarnings({
+        "interning:not.interned", // CFG node comparisons
+        "nullness" // TODO: successors
+    })
+    protected static void mergeConsecutiveBlocks(ControlFlowGraph cfg) {
+        Set<Block> worklist = cfg.getAllBlocks();
+
+        // This transformation removes blocks from the CFG.  If those blocks appear in `worklist`
+        // then we might visit a block AFTER it has been removed and its nodes have been moved
+        // somewhere else.  When this happens the correct behavior is to just skip the removed
+        // block; to do so, we need to remember which blocks have been removed.
+        Set<Block> removedBlocks = new HashSet<>();
+
         for (Block cur : worklist) {
-            if (cur.getType() == BlockType.REGULAR_BLOCK) {
-                RegularBlockImpl b = (RegularBlockImpl) cur;
-                Block succ = b.getRegularSuccessor();
-                if (succ.getType() == BlockType.REGULAR_BLOCK) {
-                    RegularBlockImpl rs = (RegularBlockImpl) succ;
-                    if (rs.getPredecessors().size() == 1) {
-                        b.setSuccessor(rs.getRegularSuccessor());
-                        b.addNodes(rs.getNodes());
-                        rs.getRegularSuccessor().removePredecessor(rs);
+            // Skip this block if it was already merged into another.
+            if (removedBlocks.contains(cur)) {
+                continue;
+            }
+
+            // There may be many blocks to merge in series.
+            //
+            // ... \                   /> ...
+            // ... --> cur -> b2 -> b3 -> ...
+            // ... /                   \> ...
+            //
+            // This loop merges the successor into `cur` until it can't do so anymore.
+            boolean didMerge;
+            do {
+                didMerge = false;
+                if (cur.getType() == BlockType.REGULAR_BLOCK) {
+                    RegularBlockImpl b = (RegularBlockImpl) cur;
+                    Block succ = b.getRegularSuccessor();
+                    if (succ.getType() == BlockType.REGULAR_BLOCK) {
+                        RegularBlockImpl rs = (RegularBlockImpl) succ;
+                        if (rs.getRegularSuccessor() == rs) {
+                            // An infinite loop, do not try to merge.
+                            break;
+                        }
+                        if (rs.getPredecessors().size() == 1) {
+                            b.setSuccessor(rs.getRegularSuccessor());
+                            b.addNodes(rs.getNodes());
+                            rs.getRegularSuccessor().removePredecessor(rs);
+                            removedBlocks.add(rs);
+                            didMerge = true;
+                        }
                     }
                 }
-            }
+            } while (didMerge);
         }
-        return cfg;
     }
 
     /**
@@ -156,7 +197,7 @@ public class CFGTranslationPhaseThree {
      * @return the single successor of the set of the empty basic blocks
      */
     @SuppressWarnings({
-        "interning:not.interned", // AST node comparisons
+        "interning:not.interned", // CFG node comparisons
         "nullness" // successors
     })
     protected static BlockImpl computeNeighborhoodOfEmptyBlock(

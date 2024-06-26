@@ -8,6 +8,7 @@ import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.ClassGetName;
+import org.checkerframework.dataflow.qual.Pure;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -497,6 +498,7 @@ public class TreeUtilsAfterJava11 {
          * @param instanceOfTree the {@link InstanceOfTree} whose pattern is returned
          * @return the {@code PatternTree} of {@code instanceOfTree} or null if it doesn't exist
          */
+        @Pure
         public static @Nullable Tree getPattern(InstanceOfTree instanceOfTree) {
             if (sourceVersionNumber < 16) {
                 return null;

@@ -765,21 +765,21 @@ public class WholeProgramInferenceJavaParserStorage
                             // be reliable, but it should be sufficient for WPI's purposes here: if
                             // the wrong name is computed, the worst outcome is a false positive
                             // because WPI inferred an untrue annotation.
+                            Optional<String> ofqn = javaParserClass.getFullyQualifiedName();
+                            if (ofqn.isEmpty()) {
+                                throw new BugInCF(
+                                        "Missing getFullyQualifiedName() for " + javaParserClass);
+                            }
                             if ("".contentEquals(tree.getSimpleName())) {
                                 @SuppressWarnings("signature:assignment") // computed from string
                                 // concatenation
-                                @BinaryName String computedName =
-                                        javaParserClass.getFullyQualifiedName().get()
-                                                + "$"
-                                                + ++innerClassCount;
+                                @BinaryName String computedName = ofqn.get() + "$" + ++innerClassCount;
                                 className = computedName;
                             } else {
                                 @SuppressWarnings("signature:assignment") // computed from string
                                 // concatenation
                                 @BinaryName String computedName =
-                                        javaParserClass.getFullyQualifiedName().get()
-                                                + "$"
-                                                + tree.getSimpleName().toString();
+                                        ofqn.get() + "$" + tree.getSimpleName().toString();
                                 className = computedName;
                             }
                         } else {
@@ -1960,10 +1960,6 @@ public class WholeProgramInferenceJavaParserStorage
          * JavaParser nodes for that field.
          */
         public void transferAnnotations() {
-            if (type == null) {
-                return;
-            }
-
             if (declarationAnnotations != null) {
                 // Don't add directly to the type of the variable declarator,
                 // because declaration annotations need to be attached to the FieldDeclaration

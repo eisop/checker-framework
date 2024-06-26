@@ -8,6 +8,7 @@ import org.checkerframework.checker.initialization.InitializationFieldAccessSubc
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
+import org.checkerframework.framework.qual.StubFiles;
 
 import java.util.NavigableSet;
 import java.util.Set;
@@ -19,6 +20,7 @@ import java.util.Set;
  * <p>The {@link NullnessChecker} uses this checker as the target (see {@link
  * InitializationChecker#getTargetCheckerClass()}) for its initialization type system.
  */
+@StubFiles({"junit-assertions.astub"})
 public class NullnessNoInitSubchecker extends BaseTypeChecker {
 
     /** Default constructor for NonNullChecker. */
