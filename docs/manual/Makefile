@@ -73,14 +73,17 @@ manual.html: manual.pdf CFLogo.png favicon-checkerframework.png ../api
 # Add CSS styling for some links, since \ahrefloc doesn't permit styling
 	sed -i -e 's%\(<a href="#[^"]*"\)\(><span style="font-size:small">&\#X1F517;</span></a>\)%\1 style="color:inherit; text-decoration:none"\2%g' manual.html
 
+../../checker/bin-devel/.git-scripts:
+	cd ../.. && ./gradlew --stacktrace getGitScripts
+
 ../../checker/bin-devel/.plume-scripts:
 	cd ../.. && ./gradlew --stacktrace getPlumeScripts
 
 .PHONY: contributors.tex
 contributors.tex:
-# Update plume-scripts even if it is already cloned
-	cd ../.. && (./gradlew --stacktrace getPlumeScripts || (sleep 60 && ./gradlew --stacktrace getPlumeScripts))
-	../../checker/bin-devel/.plume-scripts/git-authors --latex --punctuation > contributors.tex
+# Update git-scripts even if it is already cloned
+	cd ../.. && (./gradlew --stacktrace getGitScripts || (sleep 60 && ./gradlew --stacktrace getGitScripts))
+	../../checker/bin-devel/.git-scripts/git-authors --latex --punctuation > contributors.tex
 
 ../api:
 	cd ../.. && ./gradlew allJavadoc

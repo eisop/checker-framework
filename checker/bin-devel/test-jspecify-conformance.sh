@@ -11,7 +11,7 @@ SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 export ORG_GRADLE_PROJECT_useJdk17Compiler=true
 source "$SCRIPTDIR"/clone-related.sh
 
-PLUME_SCRIPTS="$SCRIPTDIR/.plume-scripts"
-"$PLUME_SCRIPTS/git-clone-related" eisop jspecify-conformance
+GIT_SCRIPTS="$SCRIPTDIR/.git-scripts"
+"$GIT_SCRIPTS/git-clone-related" eisop jspecify-conformance
 cd ../jspecify-conformance
 ./gradlew test --console=plain -PcfLocal

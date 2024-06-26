@@ -68,6 +68,7 @@ ext {
     // afu = "${annotationTools}/annotation-file-utilities"
 
     jtregHome = "${parentDir}/jtreg"
+    gitScriptsHome = "${project(':checker').projectDir}/bin-devel/.git-scripts"
     plumeScriptsHome = "${project(':checker').projectDir}/bin-devel/.plume-scripts"
     htmlToolsHome = "${project(':checker').projectDir}/bin-devel/.html-tools"
     doLikeJavacHome = "${project(':checker').projectDir}/bin/.do-like-javac"
@@ -248,6 +249,7 @@ allprojects {
             // If you add any formatters to this block that require dependencies, then you must also
             // add them to spotlessPredeclare block.
             def doNotFormat = [
+                'checker/bin-devel/.git-scripts/**',
                 'checker/bin-devel/.plume-scripts/**',
                 'checker/tests/ainfer-*/annotated/*',
                 'dataflow/manual/examples/',
@@ -806,6 +808,7 @@ def createCloneTask(taskName, url, directory, extraArgs = []) {
 }
 
 
+createCloneTask('getGitScripts', 'https://github.com/eisop-plume-lib/git-scripts.git', gitScriptsHome)
 createCloneTask('getPlumeScripts', 'https://github.com/eisop-plume-lib/plume-scripts.git', plumeScriptsHome)
 createCloneTask('getHtmlTools', 'https://github.com/plume-lib/html-tools.git', htmlToolsHome)
 createCloneTask('getDoLikeJavac', 'https://github.com/opprop/do-like-javac.git', doLikeJavacHome)
