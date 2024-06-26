@@ -249,6 +249,7 @@ allprojects {
             // If you add any formatters to this block that require dependencies, then you must also
             // add them to spotlessPredeclare block.
             def doNotFormat = [
+                'checker/bin-devel/.git-scripts/**',
                 'checker/bin-devel/.plume-scripts/**',
                 'checker/tests/ainfer-*/annotated/*',
                 'dataflow/manual/examples/',
