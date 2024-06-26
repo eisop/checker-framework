@@ -425,6 +425,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     @Override
     protected void checkThrownExpression(ThrowTree tree) {
         checkForNullability(tree.getExpression(), THROWING_NULLABLE);
+        super.checkThrownExpression(tree);
     }
 
     /** Case 5: Check for synchronizing locks. */
