@@ -59,7 +59,6 @@ public class ElementAnnotationUtil {
             List<? extends AnnotatedTypeMirror> types,
             List<? extends Element> elements,
             AnnotatedTypeFactory typeFactory) {
-
         if (types.size() != elements.size()) {
             throw new BugInCF(
                     "Number of types and elements don't match. "
@@ -92,13 +91,21 @@ public class ElementAnnotationUtil {
             AnnotatedTypeMirror type, List<? extends AnnotationMirror> annotations) {
         // The code here should be similar to
         // org.checkerframework.framework.type.TypeFromMemberVisitor.visitVariable
+        // However, in this version, note that there is no check whether the annotation is a type
+        // use annotation, using `AnnotationUtils.isTypeUseAnnotation`.
+        // The declaration annotation could also be a type use annotation, but it appears as a
+        // declaration annotation on the element, so treat it as a declaration annotation, unless it
+        // is a Checker Framework annotation.
         AnnotatedTypeMirror innerType = AnnotatedTypes.innerMostType(type);
         if (innerType != type) {
-            for (AnnotationMirror annotation : annotations) {
-                if (AnnotationUtils.annotationName(annotation).startsWith("org.checkerframework")) {
-                    innerType.addAnnotation(annotation);
+            for (AnnotationMirror anno : annotations) {
+                if (AnnotationUtils.annotationName(anno).startsWith("org.checkerframework")) {
+                    // Always treat Checker Framework annotations as type annotations, even if they
+                    // are declaration annotations.
+                    innerType.addAnnotation(anno);
                 } else {
-                    type.addAnnotation(annotation);
+                    // Declaration annotations apply to the outer type.
+                    type.addAnnotation(anno);
                 }
             }
         } else {
@@ -237,7 +244,6 @@ public class ElementAnnotationUtil {
                     anno.getPosition().location.last() != TypePathEntry.WILDCARD;
             if (isInFrontOfWildcard && isUnbounded) {
                 possiblyBoth.add(anno);
-
             } else {
                 // A TypePathEntry of WILDCARD indicates that it is placed on the bound
                 // use the type of the wildcard bound to determine which set to put it in
@@ -546,7 +552,6 @@ public class ElementAnnotationUtil {
             } else {
                 return getTypeAtLocation(type.getExtendsBound(), tail(location));
             }
-
         } else {
             throw new UnexpectedAnnotationLocationException(
                     "ElementAnnotationUtil.getLocationTypeAWT: "
@@ -624,22 +629,6 @@ public class ElementAnnotationUtil {
          */
         @FormatMethod
         private UnexpectedAnnotationLocationException(String format, Object... args) {
-            super(String.format(format, args));
-        }
-    }
-
-    /** An ERROR TypeKind was found. */
-    @SuppressWarnings("serial")
-    public static class ErrorTypeKindException extends Error {
-
-        /**
-         * Creates an ErrorTypeKindException.
-         *
-         * @param format format string
-         * @param args arguments to the format string
-         */
-        @FormatMethod
-        public ErrorTypeKindException(String format, Object... args) {
             super(String.format(format, args));
         }
     }

@@ -9,10 +9,12 @@ import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.StringsPlume;
 import org.plumelib.util.SystemPlume;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -143,7 +145,6 @@ public class TestUtilities {
                     "test parent directory is not a directory: %s %s",
                     parent, parent.getAbsoluteFile());
         }
-
         List<List<File>> filesPerDirectory = new ArrayList<>();
 
         for (String dirName : dirNames) {
@@ -151,8 +152,7 @@ public class TestUtilities {
             if (dir.isDirectory()) {
                 filesPerDirectory.addAll(findJavaTestFilesInDirectory(dir));
             } else {
-                // `dir` is not an existent directory.
-
+                // `dir` is not an existing directory.
                 // If delombok does not yet work on a given JDK, this directory does not exist.
                 if (dir.getName().contains("delomboked")) {
                     continue;
@@ -162,6 +162,29 @@ public class TestUtilities {
                 if (dir.getName().equals("annotated")
                         && dir.getParentFile() != null
                         && dir.getParentFile().getName().startsWith("ainfer-")) {
+                    continue;
+                }
+                // When this reaches a sym-linked dir like all-system, Windows needs to explicitly
+                // read the content recorded in this file, which is the path to the real dir.
+                // Without this check Windows will treat the file as a meaningless one and skip it.
+                if (dir.isFile()) {
+                    File p = dir;
+                    try (BufferedReader br = new BufferedReader(new FileReader(dir))) {
+                        String allSystemPath = br.readLine();
+                        if (allSystemPath == null) {
+                            throw new BugInCF("test directory does not exist: %s", dir);
+                        }
+                        p =
+                                new File(parent, allSystemPath.replace("/", File.separator))
+                                        .toPath()
+                                        .toAbsolutePath()
+                                        .normalize()
+                                        .toFile();
+
+                    } catch (IOException e) {
+                        throw new BugInCF("file is not readable: %s", dir);
+                    }
+                    filesPerDirectory.addAll(findJavaTestFilesInDirectory(p));
                     continue;
                 }
 
@@ -544,5 +567,16 @@ public class TestUtilities {
      */
     public static boolean getShouldEmitDebugInfo() {
         return SystemPlume.getBooleanSystemProperty("emit.test.debug");
+    }
+
+    /**
+     * Adapt a string that uses Unix file and path separators to use the correct operating system
+     * separator.
+     *
+     * @param input a path with Unix file and path separators
+     * @return a path with the correct operating system separator
+     */
+    public static String adapt(String input) {
+        return input.replace("/", File.separator).replace(":", File.pathSeparator);
     }
 }

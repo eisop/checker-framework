@@ -10,7 +10,6 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclared
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
 import org.checkerframework.framework.util.element.ClassTypeParamApplier;
-import org.checkerframework.framework.util.element.ElementAnnotationUtil.ErrorTypeKindException;
 import org.checkerframework.framework.util.element.ElementAnnotationUtil.UnexpectedAnnotationLocationException;
 import org.checkerframework.framework.util.element.MethodApplier;
 import org.checkerframework.framework.util.element.MethodTypeParamApplier;
@@ -82,17 +81,12 @@ public final class ElementAnnotationApplier {
     public static void apply(
             AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory typeFactory) {
         try {
-            try {
-                applyInternal(type, element, typeFactory);
-            } catch (UnexpectedAnnotationLocationException e) {
-                reportInvalidLocation(element, typeFactory);
-            }
-            // Also copy annotations from type parameters to their uses.
-            new TypeVarAnnotator().visit(type, typeFactory);
-        } catch (ErrorTypeKindException e) {
-            // Do nothing if an ERROR TypeKind was found.
-            // This is triggered by Issue #244.
+            applyInternal(type, element, typeFactory);
+        } catch (UnexpectedAnnotationLocationException e) {
+            reportInvalidLocation(element, typeFactory);
         }
+        // Also copy annotations from type parameters to their uses.
+        new TypeVarAnnotator().visit(type, typeFactory);
     }
 
     /** Issues an "invalid.annotation.location.bytecode warning. */
@@ -119,13 +113,10 @@ public final class ElementAnnotationApplier {
     private static void applyInternal(
             final AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory typeFactory)
             throws UnexpectedAnnotationLocationException {
-
         if (element == null) {
             throw new BugInCF("ElementAnnotationUtil.apply: element cannot be null");
-
         } else if (TypeVarUseApplier.accepts(type, element)) {
             TypeVarUseApplier.apply(type, element, typeFactory);
-
         } else if (VariableApplier.accepts(type, element)) {
             if (!ElementUtils.isLocalVariable(element)) {
                 // For local variables we have the source code,
@@ -134,28 +125,20 @@ public final class ElementAnnotationApplier {
                 // https://github.com/eisop/checker-framework/issues/14
                 VariableApplier.apply(type, element);
             }
-
         } else if (MethodApplier.accepts(type, element)) {
             MethodApplier.apply(type, element, typeFactory);
-
         } else if (TypeDeclarationApplier.accepts(type, element)) {
             TypeDeclarationApplier.apply(type, element, typeFactory);
-
         } else if (ClassTypeParamApplier.accepts(type, element)) {
             ClassTypeParamApplier.apply((AnnotatedTypeVariable) type, element, typeFactory);
-
         } else if (MethodTypeParamApplier.accepts(type, element)) {
             MethodTypeParamApplier.apply((AnnotatedTypeVariable) type, element, typeFactory);
-
         } else if (ParamApplier.accepts(type, element)) {
             ParamApplier.apply(type, (VariableElement) element, typeFactory);
-
         } else if (isCaptureConvertedTypeVar(element)) {
             // Types resulting from capture conversion cannot have explicit annotations
-
         } else if (ElementUtils.isBindingVariable(element)) {
             // TODO: verify that there are no type use annotations that would need decoding
-
         } else {
             throw new BugInCF(
                     "ElementAnnotationUtil.apply: illegal argument: "

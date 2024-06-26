@@ -40,6 +40,7 @@ docs/tmpapi/
 checker/build-temp
 checker/bin/.do-like-javac
 checker/bin/.scc/
+checker/bin-devel/.git-scripts
 checker/bin-devel/.html-tools
 checker/bin-devel/.plume-scripts
 checker/bin-devel/dockerdir

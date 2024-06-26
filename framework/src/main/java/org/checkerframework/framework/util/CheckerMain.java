@@ -536,7 +536,7 @@ public class CheckerMain {
             return jarFiles(".");
         } else if (pathElement.endsWith(FILESEP_STAR)) {
             return jarFiles(pathElement.substring(0, pathElement.length() - 1));
-        } else if (pathElement.equals("")) {
+        } else if (pathElement.isEmpty()) {
             return Collections.emptyList();
         } else {
             return Collections.singletonList(pathElement);

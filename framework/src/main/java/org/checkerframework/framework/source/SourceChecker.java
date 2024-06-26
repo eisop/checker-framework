@@ -57,7 +57,6 @@ import java.lang.management.MemoryPoolMXBean;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
-import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -91,7 +90,7 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 
-import io.github.classgraph.ClassGraph;
+// import io.github.classgraph.ClassGraph;
 
 /**
  * An abstract annotation processor designed for implementing a source-file checker as an annotation
@@ -132,6 +131,8 @@ import io.github.classgraph.ClassGraph;
     "assumeSideEffectFree",
     "assumeDeterministic",
     "assumePure",
+    // Unsoundly assume getter methods have no side effects and are deterministic.
+    "assumePureGetters",
 
     // Whether to assume that assertions are enabled or disabled
     // org.checkerframework.framework.flow.CFCFGBuilder.CFCFGBuilder
@@ -341,7 +342,7 @@ import io.github.classgraph.ClassGraph;
     // constraints.
     "noWarnMemoryConstraints",
 
-    // Only output error code, useful for testing framework
+    // Only output error code, useful for testing framework.
     // org.checkerframework.framework.source.SourceChecker.message(Kind, Object, String, Object...)
     "nomsgtext",
 
@@ -812,7 +813,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      */
     public AnnotationProvider getAnnotationProvider() {
         throw new UnsupportedOperationException(
-                "getAnnotationProvider is not implemented for this class.");
+                "getAnnotationProvider is not implemented for "
+                        + this.getClass().getSimpleName()
+                        + ".");
     }
 
     /**
@@ -893,10 +896,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         if (options.containsKey(patternName)) {
             pattern = options.get(patternName);
             if (pattern == null) {
-                message(
-                        Diagnostic.Kind.WARNING,
+                throw new UserError(
                         "The " + patternName + " property is empty; please fix your command line");
-                pattern = "";
             }
         } else {
             pattern = System.getProperty("checkers." + patternName);
@@ -909,19 +910,23 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         }
 
         if (pattern.indexOf("/") != -1) {
-            message(
-                    Diagnostic.Kind.WARNING,
+            throw new UserError(
                     "The "
                             + patternName
                             + " property contains \"/\", which will never match a class name: "
                             + pattern);
         }
 
-        if (pattern.equals("")) {
+        if (pattern.isEmpty()) {
             pattern = defaultPattern;
         }
 
-        return Pattern.compile(pattern);
+        try {
+            return Pattern.compile(pattern);
+        } catch (PatternSyntaxException e) {
+            throw new UserError(
+                    "The " + patternName + " property is not a regular expression: " + pattern);
+        }
     }
 
     private Pattern getSkipUsesPattern(Map<String, String> options) {
@@ -1786,9 +1791,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
         @Nullable String[] lintArray = slValue;
         Set<String> lintSet = new HashSet<>(lintArray.length);
-        for (String s : lintArray) {
-            lintSet.add(s);
-        }
+        lintSet.addAll(Arrays.asList(lintArray));
         return Collections.unmodifiableSet(lintSet);
     }
 
@@ -2837,10 +2840,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                     }
 
                     if (printClasspath) {
-                        msg.add("Classpath:");
-                        for (URI uri : new ClassGraph().getClasspathURIs()) {
-                            msg.add(uri.toString());
-                        }
+                        msg.add("Inspect your classpath, as there was a NoClassDefFoundError.");
+                        /*
+                          msg.add("Classpath:");
+                          for (URI uri : new ClassGraph().getClasspathURIs()) {
+                              msg.add(uri.toString());
+                          }
+                        */
                     }
                 }
             }
@@ -3000,7 +3006,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 }
             }
         } catch (Exception ex) {
-            // throws an exception when invoked during Junit tests.
+            // throws an exception when invoked during JUnit tests.
             version = null;
         }
         return version;

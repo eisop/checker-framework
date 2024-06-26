@@ -9,6 +9,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class Assertions {
@@ -53,10 +54,13 @@ public class Assertions {
 
 	public static void assertNull(@Nullable Object actual, Supplier<String> messageSupplier);
 
+	@EnsuresNonNull("#1")
 	public static void assertNotNull(Object actual);
 
+	@EnsuresNonNull("#1")
 	public static void assertNotNull(Object actual, String message);
 
+	@EnsuresNonNull("#1")
 	public static void assertNotNull(Object actual, Supplier<String> messageSupplier);
 
 	public static void assertEquals(short expected, short actual);

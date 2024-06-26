@@ -145,10 +145,8 @@ public class TypecheckResult {
             CompilationResult result,
             List<TestDiagnostic> expectedDiagnostics) {
 
-        boolean usingAnomsgtxt = configuration.getOptions().containsKey("-Anomsgtext");
         Set<TestDiagnostic> actualDiagnostics =
-                TestDiagnosticUtils.fromJavaxDiagnosticList(
-                        result.getDiagnostics(), usingAnomsgtxt);
+                TestDiagnosticUtils.fromJavaxToolsDiagnosticList(result.getDiagnostics());
 
         Set<TestDiagnostic> unexpectedDiagnostics = new LinkedHashSet<>();
         unexpectedDiagnostics.addAll(actualDiagnostics);

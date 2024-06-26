@@ -49,12 +49,12 @@ for PACKAGE in "${PACKAGES[@]}"; do
   echo "PACKAGE=${PACKAGE}"
   PACKAGEDIR="/tmp/${PACKAGE}"
   rm -rf "${PACKAGEDIR}"
-  "$SCRIPTDIR/.plume-scripts/git-clone-related" eisop-plume-lib "${PACKAGE}" "${PACKAGEDIR}"
+  "$SCRIPTDIR/.git-scripts/git-clone-related" eisop-plume-lib "${PACKAGE}" "${PACKAGEDIR}"
   # Uses "compileJava" target instead of "assemble" to avoid the javadoc error "Error fetching URL:
   # https://docs.oracle.com/en/java/javase/17/docs/api/" due to network problems.
   echo "About to call ./gradlew --console=plain -PcfLocal compileJava"
   # Try twice in case of network lossage.
-  (cd "${PACKAGEDIR}" && (./gradlew --console=plain -PcfLocal compileJava || (sleep 60 && ./gradlew --console=plain -PcfLocal compileJava))) || failing_packages="${failing_packages} ${PACKAGE}"
+  (cd "${PACKAGEDIR}" && (./gradlew --console=plain -PcfLocal compileJava compileTestJava || (sleep 60 && ./gradlew --console=plain -PcfLocal compileJava compileTestJava))) || failing_packages="${failing_packages} ${PACKAGE}"
 done
 
 if [ -n "${failing_packages}" ] ; then

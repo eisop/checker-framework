@@ -23,7 +23,7 @@ import java.lang.annotation.Target;
  * </code></pre>
  *
  * It can also be used for a method that fails if a given Optional value is empty, indicating that
- * the argument is null if the method returns normally:
+ * the argument is present if the method returns normally:
  *
  * <pre><code>
  *   /** Throws an exception if the argument is empty. *&#47;

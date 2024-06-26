@@ -8,6 +8,7 @@ import com.sun.tools.javac.code.Attribute.TypeCompound;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.TargetType;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.ElementAnnotationApplier;
@@ -31,28 +32,47 @@ public class ParamApplier extends IndexedElementAnnotationApplier {
      *
      * @param type the type whose annotations to change
      * @param element where to get annotations from
-     * @param typeFactory the type factory
+     * @param atypeFactory the type factory
      * @throws UnexpectedAnnotationLocationException if there is trouble
      */
     public static void apply(
-            AnnotatedTypeMirror type, VariableElement element, AnnotatedTypeFactory typeFactory)
+            AnnotatedTypeMirror type, VariableElement element, AnnotatedTypeFactory atypeFactory)
             throws UnexpectedAnnotationLocationException {
-        new ParamApplier(type, element, typeFactory).extractAndApply();
+        new ParamApplier(type, element, atypeFactory).extractAndApply();
     }
 
-    public static final int RECEIVER_PARAM_INDEX = Integer.MIN_VALUE;
-
+    /**
+     * Returns true if element represents a parameter.
+     *
+     * @param type ignored
+     * @param element the element to test
+     * @return if the element represents a parameter
+     */
     public static boolean accepts(AnnotatedTypeMirror type, Element element) {
         return element.getKind() == ElementKind.PARAMETER;
     }
 
+    /** The enclosing method. */
     private final Symbol.MethodSymbol enclosingMethod;
-    private final boolean isLambdaParam;
-    private final Integer lambdaParamIndex;
-    private final LambdaExpressionTree lambdaTree;
 
-    ParamApplier(
-            AnnotatedTypeMirror type, VariableElement element, AnnotatedTypeFactory typeFactory) {
+    /** Whether this is a parameter to a lambda expression. */
+    private final boolean isLambdaParam;
+
+    /** The index of the lambda parameter, or null if isLambdaParam is false. */
+    private final @Nullable Integer lambdaParamIndex;
+
+    /** The corresponding lambda expression tree, or null if isLambdaParam is false. */
+    private final @Nullable LambdaExpressionTree lambdaTree;
+
+    /**
+     * Constructor.
+     *
+     * @param type the type to annotate
+     * @param element the corresponding element
+     * @param atypeFactory the type factory
+     */
+    /*package-private*/ ParamApplier(
+            AnnotatedTypeMirror type, VariableElement element, AnnotatedTypeFactory atypeFactory) {
         super(type, element);
         enclosingMethod = getParentMethod(element);
 
@@ -62,17 +82,15 @@ public class ParamApplier extends IndexedElementAnnotationApplier {
             lambdaTree = null;
             isLambdaParam = false;
             lambdaParamIndex = null;
-
         } else {
             IPair<VariableTree, LambdaExpressionTree> paramToEnclosingLambda =
-                    ElementAnnotationApplier.getParamAndLambdaTree(element, typeFactory);
+                    ElementAnnotationApplier.getParamAndLambdaTree(element, atypeFactory);
 
             if (paramToEnclosingLambda != null) {
                 VariableTree paramDecl = paramToEnclosingLambda.first;
                 lambdaTree = paramToEnclosingLambda.second;
                 isLambdaParam = true;
                 lambdaParamIndex = lambdaTree.getParameters().indexOf(paramDecl);
-
             } else {
                 lambdaTree = null;
                 isLambdaParam = false;
@@ -95,7 +113,7 @@ public class ParamApplier extends IndexedElementAnnotationApplier {
         }
 
         if (isReceiver(element)) {
-            return RECEIVER_PARAM_INDEX;
+            return Integer.MIN_VALUE;
         }
 
         int paramIndex = enclosingMethod.getParameters().indexOf(element);
@@ -210,7 +228,6 @@ public class ParamApplier extends IndexedElementAnnotationApplier {
                 } else {
                     valid.add(targeted.remove(i));
                 }
-
             } else {
                 if (onLambda.equals(this.lambdaTree)) {
                     ++i;
@@ -230,7 +247,6 @@ public class ParamApplier extends IndexedElementAnnotationApplier {
     @Override
     protected void handleTargeted(List<TypeCompound> targeted)
             throws UnexpectedAnnotationLocationException {
-
         List<TypeCompound> formalParams = new ArrayList<>();
         Map<TargetType, List<TypeCompound>> targetToAnnos =
                 ElementAnnotationUtil.partitionByTargetType(
@@ -239,7 +255,6 @@ public class ParamApplier extends IndexedElementAnnotationApplier {
         if (isReceiver(element)) {
             ElementAnnotationUtil.annotateViaTypeAnnoPosition(
                     type, targetToAnnos.get(TargetType.METHOD_RECEIVER));
-
         } else {
             ElementAnnotationUtil.annotateViaTypeAnnoPosition(type, formalParams);
         }
