@@ -260,7 +260,10 @@ public class UpperBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
         // If dataflow shouldn't be used to compute this type, then do not use the result from
         // the Value Checker, because dataflow is used to compute that type.  (Without this,
         // "int i = 1; --i;" fails.)
-        if (useFlow && tree != null && !ajavaTypes.isParsing() && TreeUtils.isExpressionTree(tree)) {
+        if (useFlow
+                && tree != null
+                && !ajavaTypes.isParsing()
+                && TreeUtils.isExpressionTree(tree)) {
             AnnotatedTypeMirror valueType = getValueAnnotatedTypeFactory().getAnnotatedType(tree);
             addUpperBoundTypeFromValueType(valueType, type);
         }

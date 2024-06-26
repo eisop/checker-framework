@@ -138,31 +138,12 @@ public class SignednessAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         } else if (!isComputingAnnotatedTypeMirrorOfLhs()) {
             addSignedPositiveAnnotation(tree, type);
         }
+        super.addComputedTypeAnnotations(tree, type);
     }
 
     /**
      * Refines an integer expression to @SignedPositive if its value is within the signed positive
      * range (i.e. its MSB is zero). Does not refine the type of cast expressions. True when the
-     * AnnotatedTypeMirror currently being computed is the left hand side of an assignment or
-     * pseudo-assignment.
-     *
-     * @see #addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)
-     * @see #getAnnotatedTypeLhs(Tree)
-     */
-    private boolean computingAnnotatedTypeMirrorOfLHS = false;
-
-    @Override
-    public AnnotatedTypeMirror getAnnotatedTypeLhs(Tree lhsTree) {
-        boolean oldComputingAnnotatedTypeMirrorOfLHS = computingAnnotatedTypeMirrorOfLHS;
-        computingAnnotatedTypeMirrorOfLHS = true;
-        AnnotatedTypeMirror result = super.getAnnotatedTypeLhs(lhsTree);
-        computingAnnotatedTypeMirrorOfLHS = oldComputingAnnotatedTypeMirrorOfLHS;
-        return result;
-    }
-
-    /**
-     * Refines an integer expression to @SignednessGlb if its value is within the signed positive
-     * range (i.e. its MSB is zero).
      *
      * @param tree an AST node, whose type may be refined
      * @param type the type of the tree

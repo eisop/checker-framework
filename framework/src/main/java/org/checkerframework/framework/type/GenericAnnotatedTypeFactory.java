@@ -2733,11 +2733,13 @@ public abstract class GenericAnnotatedTypeFactory<
         TypeMirror defaultValueTM = TreeUtils.typeOf(defaultValueTree);
         AnnotatedTypeMirror defaultValueATM =
                 AnnotatedTypeMirror.createType(defaultValueTM, this, false);
-        boolean oldUseflow = useFlow;
-        useFlow = false;
-        addComputedTypeAnnotations(defaultValueTree, defaultValueATM);
-        useFlow = oldUseflow;
-
+        boolean previousUseFlow = this.useFlow;
+        try {
+            this.useFlow = false;
+            addComputedTypeAnnotations(defaultValueTree, defaultValueATM);
+        } finally {
+            this.useFlow = previousUseFlow;
+        }
         return defaultValueATM;
     }
 
