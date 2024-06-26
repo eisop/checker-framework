@@ -14,7 +14,7 @@ source "$SCRIPTDIR"/clone-related.sh
 PLUME_SCRIPTS="$SCRIPTDIR/.plume-scripts"
 
 ## Checker Framework demos
-"$PLUME_SCRIPTS/git-clone-related" eisop checker-framework.demos
+"$GIT_SCRIPTS/git-clone-related" eisop checker-framework.demos
 ./gradlew :checker:demosTests --console=plain --warning-mode=all
 
 status=0
