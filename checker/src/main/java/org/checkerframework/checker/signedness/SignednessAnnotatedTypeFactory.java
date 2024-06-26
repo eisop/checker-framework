@@ -143,7 +143,7 @@ public class SignednessAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     /**
      * Refines an integer expression to @SignedPositive if its value is within the signed positive
-     * range (i.e. its MSB is zero). Does not refine the type of cast expressions. True when the
+     * range (i.e. its MSB is zero). Does not refine the type of cast expressions.
      *
      * @param tree an AST node, whose type may be refined
      * @param type the type of the tree
