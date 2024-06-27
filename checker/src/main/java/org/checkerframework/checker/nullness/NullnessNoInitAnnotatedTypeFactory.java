@@ -673,6 +673,9 @@ public class NullnessNoInitAnnotatedTypeFactory
                 type.replaceAnnotation(NONNULL);
             }
 
+            if (elt.toString().equals("class")) {
+                type.replaceAnnotation(NONNULL);
+            }
             return null;
         }
 
