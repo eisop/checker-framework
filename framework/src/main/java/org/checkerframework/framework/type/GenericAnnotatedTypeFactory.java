@@ -207,7 +207,7 @@ public abstract class GenericAnnotatedTypeFactory<
      *
      * @see #getAnnotatedTypeLhs(Tree)
      */
-    public boolean useFlow;
+    protected boolean useFlow;
 
     /** Is this type factory configured to use flow-sensitive type refinement? */
     private final boolean everUseFlow;
