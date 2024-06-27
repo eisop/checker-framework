@@ -1356,9 +1356,6 @@ which is the Checker Framework's representation of an annotated type.
   Create a subclass of \refclass{framework/type}{AnnotatedTypeFactory} and
   override two \<addComputedTypeAnnotations> methods:
   \refmethodanchortext{framework/type}{AnnotatedTypeFactory}{addComputedTypeAnnotations}{(com.sun.source.tree.Tree,org.checkerframework.framework.type.AnnotatedTypeMirror)}{addComputedTypeAnnotations(Tree,AnnotatedTypeMirror)}
-  (or
-  \refmethodanchortext{framework/type}{GenericAnnotatedTypeFactory}{addComputedTypeAnnotations}{(com.sun.source.tree.Tree,org.checkerframework.framework.type.AnnotatedTypeMirror,boolean)}{addComputedTypeAnnotations(Tree,AnnotatedTypeMirror,boolean)}
-  if extending \code{GenericAnnotatedTypeFactory})
   and
   \refmethodanchortext{framework/type}{AnnotatedTypeFactory}{addComputedTypeAnnotations}{(javax.lang.model.element.Element,org.checkerframework.framework.type.AnnotatedTypeMirror)}{addComputedTypeAnnotations(Element,AnnotatedTypeMirror)}.
   The methods can make arbitrary changes to the annotations on a type.

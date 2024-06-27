@@ -5,6 +5,8 @@ Version 3.42.0-eisop4 (April ?, 2024)
 
 **Implementation details:**
 
+Removed iUseFlow parameter in `GenericAnnotatedTypeFactory#addComputedTypeAnnotations`.
+
 Improvements in `framework-test` to more consistently handle tests that do not use
 `-Anomsgtext`.
 
