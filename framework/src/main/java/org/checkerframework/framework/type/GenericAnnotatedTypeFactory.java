@@ -1459,7 +1459,6 @@ public abstract class GenericAnnotatedTypeFactory<
                             VariableTree vt = (VariableTree) m;
                             ExpressionTree initializer = vt.getInitializer();
                             AnnotatedTypeMirror declaredType = getAnnotatedTypeLhs(vt);
-                            Value declaredValue = analysis.createAbstractValue(declaredType);
                             FieldAccess fieldExpr =
                                     (FieldAccess) JavaExpression.fromVariableTree(vt);
                             // analyze initializer if present
@@ -1480,12 +1479,11 @@ public abstract class GenericAnnotatedTypeFactory<
                                 if (initializerValue != null) {
                                     fieldValues.add(
                                             new FieldInitialValue<>(
-                                                    fieldExpr, declaredValue, initializerValue));
+                                                    fieldExpr, declaredType, initializerValue));
                                     break;
                                 }
                             }
-                            fieldValues.add(
-                                    new FieldInitialValue<>(fieldExpr, declaredValue, null));
+                            fieldValues.add(new FieldInitialValue<>(fieldExpr, declaredType, null));
                             break;
                         case BLOCK:
                             BlockTree b = (BlockTree) m;
