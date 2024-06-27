@@ -1992,6 +1992,7 @@ public abstract class GenericAnnotatedTypeFactory<
     public AnnotatedTypeMirror getDefaultAnnotations(Tree tree, AnnotatedTypeMirror type) {
         AnnotatedTypeMirror copy = type.deepCopy();
         copy.removeAnnotations(type.getAnnotations());
+        this.useFlow = false;
         addComputedTypeAnnotations(tree, copy);
         return copy;
     }
@@ -2733,13 +2734,10 @@ public abstract class GenericAnnotatedTypeFactory<
         TypeMirror defaultValueTM = TreeUtils.typeOf(defaultValueTree);
         AnnotatedTypeMirror defaultValueATM =
                 AnnotatedTypeMirror.createType(defaultValueTM, this, false);
-        boolean previousUseFlow = this.useFlow;
-        try {
-            this.useFlow = false;
-            addComputedTypeAnnotations(defaultValueTree, defaultValueATM);
-        } finally {
-            this.useFlow = previousUseFlow;
-        }
+        boolean oldUseflow = useFlow;
+        useFlow = false;
+        addComputedTypeAnnotations(defaultValueTree, defaultValueATM);
+        useFlow = oldUseflow;
         return defaultValueATM;
     }
 
