@@ -359,7 +359,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
         // declaration.
         boolean errorAtField = staticFields || TreeUtils.isSynthetic((MethodTree) tree);
 
-        @CompilerMessageKey String errorMsg =
+        String errorMsg =
                 (staticFields
                         ? "initialization.static.field.uninitialized"
                         : errorAtField
