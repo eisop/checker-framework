@@ -2005,6 +2005,24 @@ public abstract class GenericAnnotatedTypeFactory<
      *
      * @param tree an AST node
      * @param type the type obtained from tree
+     * @param iUseFlow whether to use information from dataflow analysis
+     * @deprecated use {@link #addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)} instead
+     */
+    @Deprecated
+    protected void addComputedTypeAnnotations(
+            Tree tree, AnnotatedTypeMirror type, boolean iUseFlow) {
+        boolean oldUseflow = useFlow;
+        useFlow = iUseFlow;
+        addComputedTypeAnnotations(tree, type);
+        useFlow = oldUseflow;
+    }
+
+    /**
+     * Like {@link #addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)}. Overriding
+     * implementations typically simply pass the boolean to calls to super.
+     *
+     * @param tree an AST node
+     * @param type the type obtained from tree
      */
     @Override
     protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type) {
