@@ -207,7 +207,7 @@ public abstract class GenericAnnotatedTypeFactory<
      *
      * @see #getAnnotatedTypeLhs(Tree)
      */
-    private boolean useFlow;
+    protected boolean useFlow;
 
     /** Is this type factory configured to use flow-sensitive type refinement? */
     private final boolean everUseFlow;
@@ -1982,17 +1982,6 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * This method is final; override {@link #addComputedTypeAnnotations(Tree, AnnotatedTypeMirror,
-     * boolean)} instead.
-     *
-     * <p>{@inheritDoc}
-     */
-    @Override
-    protected final void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type) {
-        addComputedTypeAnnotations(tree, type, this.useFlow);
-    }
-
-    /**
      * Removes all primary annotations on a copy of the type and calculates the default annotations
      * that apply to the copied type, without type refinements.
      *
@@ -2003,7 +1992,10 @@ public abstract class GenericAnnotatedTypeFactory<
     public AnnotatedTypeMirror getDefaultAnnotations(Tree tree, AnnotatedTypeMirror type) {
         AnnotatedTypeMirror copy = type.deepCopy();
         copy.removeAnnotations(type.getAnnotations());
-        addComputedTypeAnnotations(tree, copy, false);
+        boolean oldUseflow = useFlow;
+        useFlow = false;
+        addComputedTypeAnnotations(tree, copy);
+        useFlow = oldUseflow;
         return copy;
     }
 
@@ -2014,9 +2006,26 @@ public abstract class GenericAnnotatedTypeFactory<
      * @param tree an AST node
      * @param type the type obtained from tree
      * @param iUseFlow whether to use information from dataflow analysis
+     * @deprecated use {@link #addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)} instead
      */
+    @Deprecated
     protected void addComputedTypeAnnotations(
             Tree tree, AnnotatedTypeMirror type, boolean iUseFlow) {
+        boolean oldUseflow = useFlow;
+        useFlow = iUseFlow;
+        addComputedTypeAnnotations(tree, type);
+        useFlow = oldUseflow;
+    }
+
+    /**
+     * Like {@link #addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)}. Overriding
+     * implementations typically simply pass the boolean to calls to super.
+     *
+     * @param tree an AST node
+     * @param type the type obtained from tree
+     */
+    @Override
+    protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type) {
         if (this.getRoot() == null && ajavaTypes.isParsing()) {
             return;
         }
@@ -2038,7 +2047,7 @@ public abstract class GenericAnnotatedTypeFactory<
         }
         log(
                 "%s GATF.addComputedTypeAnnotations#1(%s, %s, %s)%n",
-                thisClass, treeString, type, iUseFlow);
+                thisClass, treeString, type, this.useFlow);
         if (!TreeUtils.isExpressionTree(tree)) {
             // Don't apply defaults to expressions. Their types may be computed from subexpressions
             // in treeAnnotator.
@@ -2063,7 +2072,7 @@ public abstract class GenericAnnotatedTypeFactory<
         defaults.annotate(tree, type);
         log("%s GATF.addComputedTypeAnnotations#7(%s, %s)%n", thisClass, treeString, type);
 
-        if (iUseFlow) {
+        if (this.useFlow) {
             Value inferred = getInferredValueFor(tree);
             if (inferred != null) {
                 applyInferredAnnotations(type, inferred);
@@ -2074,7 +2083,7 @@ public abstract class GenericAnnotatedTypeFactory<
         }
         log(
                 "%s GATF.addComputedTypeAnnotations#9(%s, %s, %s) done%n",
-                thisClass, treeString, type, iUseFlow);
+                thisClass, treeString, type, this.useFlow);
     }
 
     /**
@@ -2745,7 +2754,10 @@ public abstract class GenericAnnotatedTypeFactory<
         TypeMirror defaultValueTM = TreeUtils.typeOf(defaultValueTree);
         AnnotatedTypeMirror defaultValueATM =
                 AnnotatedTypeMirror.createType(defaultValueTM, this, false);
-        addComputedTypeAnnotations(defaultValueTree, defaultValueATM, false);
+        boolean oldUseflow = useFlow;
+        useFlow = false;
+        addComputedTypeAnnotations(defaultValueTree, defaultValueATM);
+        useFlow = oldUseflow;
         return defaultValueATM;
     }
 

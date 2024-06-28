@@ -1901,10 +1901,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * <p>Subclasses that override this method should also override {@link
      * #addComputedTypeAnnotations(Element, AnnotatedTypeMirror)}.
      *
-     * <p>In classes that extend {@link GenericAnnotatedTypeFactory}, override {@link
-     * GenericAnnotatedTypeFactory#addComputedTypeAnnotations(Tree, AnnotatedTypeMirror, boolean)}
-     * instead of this method.
-     *
      * @param tree an AST node
      * @param type the type obtained from {@code tree}
      */

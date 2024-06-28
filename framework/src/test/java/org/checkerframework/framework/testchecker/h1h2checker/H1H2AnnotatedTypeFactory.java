@@ -58,9 +58,8 @@ public class H1H2AnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     @Override
-    protected void addComputedTypeAnnotations(
-            Tree tree, AnnotatedTypeMirror type, boolean iUseFlow) {
-        super.addComputedTypeAnnotations(tree, type, iUseFlow);
+    protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type) {
+        super.addComputedTypeAnnotations(tree, type);
         if (tree.getKind() == Tree.Kind.VARIABLE
                 && ((VariableTree) tree).getName().toString().contains("addH1S2")) {
             type.replaceAnnotation(H1S2);
