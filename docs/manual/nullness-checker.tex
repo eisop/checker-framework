@@ -12,7 +12,9 @@ The most important annotations supported by the Nullness Checker are
 \refqualclass{checker/nullness/qual}{Nullable}.
 \refqualclass{checker/nullness/qual}{NonNull} is rarely written, because it is
 the default.  All of the annotations are explained in
-Section~\ref{nullness-annotations}.
+Section~\ref{nullness-annotations}. Things are a bit more complicated
+(including the defaults) when one deals with a generic type, see
+Section~\ref{generics}.
 
 To run the Nullness Checker, supply the
 \code{-processor org.checkerframework.checker.nullness.NullnessChecker}
