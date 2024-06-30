@@ -3,6 +3,13 @@ Version 3.42.0-eisop4 (April ?, 2024)
 
 **User-visible changes:**
 
+Replace two error message keys(current still supported in @suppressionwarning):
+* `exception.parameter.invalid`
+* `throw.type.invalid`
+  by new message keys:
+* `exception.parameter.incompatible`
+* `throw.type.incompatible`
+
 **Implementation details:**
 
 Improvements in `framework-test` to more consistently handle tests that do not use
@@ -114,7 +121,6 @@ in a future release.)
 **Closed issues:**
 
 #1497, #3345, #6037, #6204, #6276, #6282, #6290, #6296, #6319, #6327.
-
 
 Version 3.40.0-eisop2 (November 24, 2023)
 -----------------------------------------

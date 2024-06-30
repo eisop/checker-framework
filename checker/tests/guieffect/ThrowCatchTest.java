@@ -17,15 +17,15 @@ public class ThrowCatchTest {
     // Type var test
     <E extends @UI PolyUIException> void throwTypeVarUI1(E ex1, @UI E ex2) throws PolyUIException {
         if (flag) {
-            // :: error: (throw.type.invalid)
+            // :: error: (throw.type.incompatible)
             throw ex1;
         }
-        // :: error: (throw.type.invalid)
+        // :: error: (throw.type.incompatible)
         throw ex2;
     }
 
     <@UI E extends @UI PolyUIException> void throwTypeVarUI2(E ex1) throws PolyUIException {
-        // :: error: (throw.type.invalid)
+        // :: error: (throw.type.incompatible)
         throw ex1;
     }
 
@@ -48,7 +48,7 @@ public class ThrowCatchTest {
     <@AlwaysSafe E extends @UI PolyUIException> void throwTypeVarMixed(E ex1, @AlwaysSafe E ex2)
             throws PolyUIException {
         if (flag) {
-            // :: error: (throw.type.invalid)
+            // :: error: (throw.type.incompatible)
             throw ex1;
         }
         throw ex2;
@@ -75,7 +75,7 @@ public class ThrowCatchTest {
 
     void throwDeclared() {
         try {
-            // :: error: (throw.type.invalid)
+            // :: error: (throw.type.incompatible)
             throw ui;
         } catch (@UI PolyUIException UIParam) {
 

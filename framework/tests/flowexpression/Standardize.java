@@ -32,7 +32,7 @@ public class Standardize {
             @FlowExp("field") Object o7 = in;
             @FlowExp("this.field") Object o8 = in;
         } catch (
-                @SuppressWarnings("exception.parameter.invalid")
+                @SuppressWarnings("exception.parameter.incompatible")
                 @FlowExp("field") Exception ex) {
             @FlowExp("field") Object o9 = ex;
             @FlowExp("this.field") Object o10 = ex;
