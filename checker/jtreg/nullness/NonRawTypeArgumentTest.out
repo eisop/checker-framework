@@ -1,4 +1,0 @@
-NonRawTypeArgumentTest.java:10:12: compiler.err.proc.messager: [method.invocation.invalid] call to foo() not allowed on the given receiver.
-found   : @UnderInitialization(NonRawTypeArgumentTest.class) NonRawTypeArgumentTest<T extends @Initialized Object>
-required: @Initialized NonRawTypeArgumentTest<T extends @Initialized Object>
-1 error
