@@ -2017,13 +2017,6 @@ public abstract class GenericAnnotatedTypeFactory<
         useFlow = oldUseflow;
     }
 
-    /**
-     * Like {@link #addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)}. Overriding
-     * implementations typically simply pass the boolean to calls to super.
-     *
-     * @param tree an AST node
-     * @param type the type obtained from tree
-     */
     @Override
     protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type) {
         if (this.getRoot() == null && ajavaTypes.isParsing()) {
