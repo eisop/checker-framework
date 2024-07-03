@@ -3,12 +3,21 @@ import viewpointtest.quals.*;
 @SuppressWarnings("cast.unsafe.constructor.invocation")
 class AnnoOnTypeVariableUse<E> {
     @ReceiverDependentQual E element;
+    @A E a;
+    @B E b;
 
-    static void test() {
-        AnnoOnTypeVariableUse<@B Element> d = new @A AnnoOnTypeVariableUse<@B Element>();
+    void test() {
+        AnnoOnTypeVariableUse<@B Element> d = new @A AnnoOnTypeVariableUse<>();
         // d.element = @A |> @RDQ = @A
-        // thus expects no error here
         d.element = new @A Element();
+        // d.a = @A |> @A = @A
+        d.a = new @A Element();
+        // :: error: (assignment.type.incompatible)
+        d.a = new @B Element();
+        // d.b = @B |> @B = @B
+        d.b = new @B Element();
+        // :: error: (assignment.type.incompatible)
+        d.b = new @A Element();
     }
 }
 
