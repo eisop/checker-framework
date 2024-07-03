@@ -11,15 +11,18 @@ The most important annotations supported by the Nullness Checker are
 \refqualclass{checker/nullness/qual}{NonNull} and
 \refqualclass{checker/nullness/qual}{Nullable}.
 \refqualclass{checker/nullness/qual}{NonNull} is rarely written, because it is
-the default.  All of the annotations are explained in
+the default in most locations.  All of the annotations are explained in
 Section~\ref{nullness-annotations}.
+See Section~\ref{writing-nullness-annotations} for details on how to
+use the annotations and Section~\ref{generics} for details on
+generics.
 
 To run the Nullness Checker, supply the
 \code{-processor org.checkerframework.checker.nullness.NullnessChecker}
 command-line option to javac.  For
 examples, see Section~\ref{nullness-example}.
 
-The NullnessChecker is actually an ensemble of three pluggable
+The Nullness Checker is actually an ensemble of three pluggable
 type-checkers that work together: the Nullness Checker proper (which is the
 main focus of this chapter), the Initialization Checker
 (Section~\ref{initialization-checker}), and the Map Key Checker
@@ -59,7 +62,7 @@ The checker issues a warning in these cases:
   is a misuse of the type:  the null value could flow to a dereference that
   the checker does not warn about.
 
-  As a special case of an of \refqualclass{checker/nullness/qual}{NonNull}
+  As a special case of an \refqualclass{checker/nullness/qual}{NonNull}
   type becoming null, the checker also warns whenever a field of
   \refqualclass{checker/nullness/qual}{NonNull} type is not initialized in a
   constructor.
@@ -177,7 +180,7 @@ command-line option.)
 \item
   If you supply the \code{-Alint=permitClearProperty} command-line option,
   then the checker permits calls to
-  \sunjavadoc{java.base/java/lang/System.html\#getProperties()}{System.setProperties()}
+  \sunjavadoc{java.base/java/lang/System.html\#setProperties(java.util.Properties)}{System.setProperties}
   and calls to
   \sunjavadoc{java.base/java/lang/System.html\#clearProperty(java.lang.String)}{System.clearProperty}
   that might clear one of the built-in properties.
@@ -186,7 +189,7 @@ command-line option.)
   special-cases type-checking of calls to
   \sunjavadoc{java.base/java/lang/System.html\#getProperty(java.lang.String,java.lang.String)}{System.getProperty()}
   and
-  \sunjavadoc{java.base/java/lang/System.html\#setProperties(java.util.Properties)}{System.setProperties()}.
+  \sunjavadoc{java.base/java/lang/System.html\#setProperties(java.util.Properties)}{System.setProperties}.
   A call to one of these methods
   can return null in general, but by default the Nullness Checker treats it
   as returning non-null if the argument is one of the literal strings
@@ -209,7 +212,7 @@ command-line option.)
 
 The Nullness Checker uses three separate type hierarchies:  one for nullness,
 one for initialization (Section~\ref{initialization-checker}),
-and one for map keys (\chapterpageref{map-key-checker})
+and one for map keys (\chapterpageref{map-key-checker}).
 The Nullness Checker has four varieties of annotations:  nullness
 type qualifiers, nullness method annotations, initialization type qualifiers, and
 map key type
@@ -1247,7 +1250,7 @@ If some other tool discovers a nullness error that the Checker
 Framework does not, please report it to us (see
 Section~\ref{reporting-bugs}) so that we can enhance the Checker Framework.
 For example, SpotBugs might detect an error that the Nullness Checker does
-not, if you are using an unnannotated library (including an unannotated
+not, if you are using an unannotated library (including an unannotated
 part of the JDK) and running the Checker Framework in an unsound mode (see
 Section~\ref{checker-options}).
 
