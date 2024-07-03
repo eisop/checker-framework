@@ -414,20 +414,18 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             // Base case where actual type argument is extracted
             if (lhs.getKind() == TypeKind.DECLARED) {
                 rhs = getTypeVariableSubstitution((AnnotatedDeclaredType) lhs, atv);
-                // When substituting an annotated type variable use (e.g., fields, return type), we
-                // don't want to replace the type qualifier of it with the qualifier on the
-                // type argument, as specified in
-                // https://checkerframework.org/manual/#type-variable-use. However, method
-                // getTypeVariableSubstitution will replace the annotated type qualifier as well.
-                // We fix up the substitution by checking if the types of the lower and upper bound
-                // are the same. If they are the same: (1) either the type variable use is
-                // annotated, and we need to fix up the
-                // primary annotation of the substituted result (rhs) by replacing it with the
-                // previous annotated type qualifier (from atv); (2) or the use is not annotated,
-                // but
-                // the type parameter is declared with the same upper and lower bounds, and it's no
-                // harm doing the same replacement as (1) because the qualifiers of the substituted
-                // result (rhs) and the old type variable use (atv) must be the same.
+                // A type annotation on a use of a generic type variable overrides/ignores any type
+                // qualifier (in the same type hierarchy) on the corresponding actual type argument.
+                // See https://eisop.github.io/cf/manual/manual.html#type-variable-use
+                // However, #getTypeVariableSubstitution will replace the type qualifier with the
+                // qualifier on type variable declaration.
+                // Here check if the types of the lower and upper bound are the same. If they are:
+                // (1) If the type variable use is annotated, replacing the primary annotation of
+                // the substituted result (rhs) with the previous annotated type qualifier.
+                // (2) If the type variable use is not annotated and the type parameter is declared
+                // with the same upper and lower bounds, and doing the same replace as (1) is safe
+                // because the qualifiers of the substituted result (rhs) and the old type variable
+                // use (atv) are the same.
                 if (AnnotationUtils.areSame(
                         atv.getLowerBound().getAnnotations(),
                         atv.getUpperBound().getAnnotations())) {
