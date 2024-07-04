@@ -207,7 +207,7 @@ public abstract class GenericAnnotatedTypeFactory<
      *
      * @see #getAnnotatedTypeLhs(Tree)
      */
-    protected boolean useFlow;
+    private boolean useFlow;
 
     /** Is this type factory configured to use flow-sensitive type refinement? */
     private final boolean everUseFlow;
@@ -397,6 +397,15 @@ public abstract class GenericAnnotatedTypeFactory<
 
         // Every subclass must call postInit, but it must be called after
         // all other initialization is finished.
+    }
+
+    /**
+     * Returns the boolean value whether the analysis should be flow-sensitive or not.
+     *
+     * @return useFlow field.
+     */
+    protected boolean getUseFlow() {
+        return useFlow;
     }
 
     @Override
@@ -1992,10 +2001,7 @@ public abstract class GenericAnnotatedTypeFactory<
     public AnnotatedTypeMirror getDefaultAnnotations(Tree tree, AnnotatedTypeMirror type) {
         AnnotatedTypeMirror copy = type.deepCopy();
         copy.removeAnnotations(type.getAnnotations());
-        boolean oldUseflow = useFlow;
-        useFlow = false;
-        addComputedTypeAnnotations(tree, copy);
-        useFlow = oldUseflow;
+        addComputedTypeAnnotationsWithoutFlow(tree, copy, false);
         return copy;
     }
 
@@ -2010,6 +2016,18 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     @Deprecated
     protected void addComputedTypeAnnotations(
+            Tree tree, AnnotatedTypeMirror type, boolean iUseFlow) {
+        addComputedTypeAnnotationsWithoutFlow(tree, type, iUseFlow);
+    }
+
+    /**
+     * A helper method to add computed type annotations to a type without using flow information.
+     *
+     * @param tree an AST node
+     * @param type the type obtained from tree
+     * @param iUseFlow whether to use information from dataflow analysis
+     */
+    private void addComputedTypeAnnotationsWithoutFlow(
             Tree tree, AnnotatedTypeMirror type, boolean iUseFlow) {
         boolean oldUseflow = useFlow;
         useFlow = iUseFlow;
@@ -2747,10 +2765,7 @@ public abstract class GenericAnnotatedTypeFactory<
         TypeMirror defaultValueTM = TreeUtils.typeOf(defaultValueTree);
         AnnotatedTypeMirror defaultValueATM =
                 AnnotatedTypeMirror.createType(defaultValueTM, this, false);
-        boolean oldUseflow = useFlow;
-        useFlow = false;
-        addComputedTypeAnnotations(defaultValueTree, defaultValueATM);
-        useFlow = oldUseflow;
+        addComputedTypeAnnotationsWithoutFlow(defaultValueTree, defaultValueATM, false);
         return defaultValueATM;
     }
 
