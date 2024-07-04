@@ -402,7 +402,7 @@ public abstract class GenericAnnotatedTypeFactory<
     /**
      * Returns the boolean value whether the analysis should be flow-sensitive or not.
      *
-     * @return useFlow field.
+     * @return boolean value of useFlow field.
      */
     protected boolean getUseFlow() {
         return useFlow;
