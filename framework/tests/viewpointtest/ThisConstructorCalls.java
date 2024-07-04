@@ -19,7 +19,9 @@ public class ThisConstructorCalls {
         this(obj);
     }
 
-    public ThisConstructorCalls(Boolean bool, @B Object obj) {
+    // :: warning: (inconsistent.constructor.type)
+    public @A ThisConstructorCalls(Boolean bool, @B Object obj) {
+        // :: error: (argument.type.incompatible)
         this(obj);
     }
 
