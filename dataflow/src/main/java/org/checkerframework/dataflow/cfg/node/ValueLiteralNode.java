@@ -73,7 +73,7 @@ public abstract class ValueLiteralNode extends Node {
 
     @Override
     @SideEffectFree
-    public Collection<Node> getOperands() {
+    public final Collection<Node> getOperands() {
         return Collections.emptyList();
     }
 }

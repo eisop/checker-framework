@@ -2209,7 +2209,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
             CFAbstractStore<?, ?> store = atypeFactory.getStoreBefore(tree);
 
-            Set<AnnotationMirror> annos =
+            AnnotationMirrorSet annos =
                     atypeFactory.getAnnotatedTypeBefore(exprJe, tree).getAnnotations();
 
             AnnotationMirror inferredAnno =
