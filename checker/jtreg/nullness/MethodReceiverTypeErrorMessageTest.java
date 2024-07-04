@@ -12,3 +12,9 @@ public class MethodReceiverTypeErrorMessageTest<T> {
 
     void foo() {}
 }
+
+class sub extends MethodReceiverTypeErrorMessageTest<String> {
+    sub() {
+        foo();
+    }
+}
