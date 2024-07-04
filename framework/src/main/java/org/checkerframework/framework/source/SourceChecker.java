@@ -2454,6 +2454,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
         for (String currentSuppressWarningsInEffect : suppressWarningsInEffect) {
             int colonPos = currentSuppressWarningsInEffect.indexOf(":");
+            if (currentSuppressWarningsInEffect.equals("throw.type.invalid"))
+                currentSuppressWarningsInEffect = "throw.type.incompatible";
+            if (currentSuppressWarningsInEffect.equals("exception.parameter.invalid"))
+                currentSuppressWarningsInEffect = "exception.parameter.incompatible";
             String messageKeyInSuppressWarningsString;
             if (colonPos == -1) {
                 // The SuppressWarnings string has no colon, so it is not of the form
@@ -2478,10 +2482,6 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 // The currentSuppressWarningsInEffect is not a prefix or a prefix:message-key, so
                 // it might be a message key.
                 messageKeyInSuppressWarningsString = currentSuppressWarningsInEffect;
-                if (messageKeyInSuppressWarningsString.equals("throw.type.invalid"))
-                    messageKeyInSuppressWarningsString = "throw.type.incompatible";
-                if (messageKeyInSuppressWarningsString.equals("exception.parameter.invalid"))
-                    messageKeyInSuppressWarningsString = "exception.parameter.incompatible";
             } else {
                 // The SuppressWarnings string has a colon; that is, it has a prefix.
                 String currentSuppressWarningsPrefix =
