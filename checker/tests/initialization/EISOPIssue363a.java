@@ -25,18 +25,18 @@ public class EISOPIssue363a {
     Object field;
 
     EISOPIssue363a() throws MyException {
-        // :: error: (throw.type.incompatible)
+        // :: error: (throw.type.invalid)
         // :: error: (argument.type.incompatible)
         throw new MyException(this);
     }
 
     EISOPIssue363a(boolean dummy1, boolean dummy2) throws MyException {
-        // :: error: (throw.type.incompatible)
+        // :: error: (throw.type.invalid)
         throw new MyException(this, 0);
     }
 
     EISOPIssue363a(boolean dummy1, boolean dummy2, boolean dummy3) throws MyException {
-        // :: error: (throw.type.incompatible)
+        // :: error: (throw.type.invalid)
         throw new MyException(this, "UnderInitialization");
     }
 

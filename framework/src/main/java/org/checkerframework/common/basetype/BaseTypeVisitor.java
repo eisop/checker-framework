@@ -3161,10 +3161,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 if (!typeHierarchy.isSubtypeShallowEffective(throwType, required)) {
                     AnnotationMirrorSet foundEffective = throwType.getEffectiveAnnotations();
                     checker.reportError(
-                            tree.getExpression(),
-                            "throw.type.incompatible",
-                            foundEffective,
-                            required);
+                            tree.getExpression(), "throw.type.invalid", foundEffective, required);
                 }
                 break;
 
@@ -3173,10 +3170,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 AnnotationMirrorSet foundPrimary = unionType.getAnnotations();
                 if (!qualHierarchy.isSubtypeShallow(foundPrimary, required, throwTM)) {
                     checker.reportError(
-                            tree.getExpression(),
-                            "throw.type.incompatible",
-                            foundPrimary,
-                            required);
+                            tree.getExpression(), "throw.type.invalid", foundPrimary, required);
                 }
                 for (AnnotatedTypeMirror altern : unionType.getAlternatives()) {
                     TypeMirror alternTM = altern.getUnderlyingType();
@@ -3184,7 +3178,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                             altern.getAnnotations(), required, alternTM)) {
                         checker.reportError(
                                 tree.getExpression(),
-                                "throw.type.incompatible",
+                                "throw.type.invalid",
                                 altern.getAnnotations(),
                                 required);
                     }

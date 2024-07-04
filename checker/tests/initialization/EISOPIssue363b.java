@@ -41,12 +41,12 @@ public class EISOPIssue363b {
     Object field;
 
     EISOPIssue363b(int dummy) throws MyException1, MyException2 {
-        // :: error: (throw.type.incompatible)
+        // :: error: (throw.type.invalid)
         throw new MyException1(this, 0);
     }
 
     EISOPIssue363b(int dummy1, int dummy2) throws MyException1, MyException2 {
-        // :: error: (throw.type.incompatible)
+        // :: error: (throw.type.invalid)
         throw new MyException2(this, 0);
     }
 
@@ -56,13 +56,13 @@ public class EISOPIssue363b {
 
     EISOPIssue363b(boolean dummy1, boolean dummy2)
             throws @UnknownInitialization MyException1, MyException2 {
-        // :: error: (throw.type.incompatible)
+        // :: error: (throw.type.invalid)
         throw new MyException2(this, 0);
     }
 
     EISOPIssue363b(boolean dummy1, boolean dummy2, boolean dummy3)
             throws MyException1, @UnknownInitialization MyException2 {
-        // :: error: (throw.type.incompatible)
+        // :: error: (throw.type.invalid)
         throw new MyException1(this, 0);
     }
 
@@ -77,13 +77,13 @@ public class EISOPIssue363b {
 
     EISOPIssue363b(String dummy1, String dummy2)
             throws @UnderInitialization MyException1, MyException2 {
-        // :: error: (throw.type.incompatible)
+        // :: error: (throw.type.invalid)
         throw new MyException2(this, "UnderInitialization");
     }
 
     EISOPIssue363b(String dummy1, String dummy2, String dummy3)
             throws MyException1, @UnderInitialization MyException2 {
-        // :: error: (throw.type.incompatible)
+        // :: error: (throw.type.invalid)
         throw new MyException1(this, "UnderInitialization");
     }
 
