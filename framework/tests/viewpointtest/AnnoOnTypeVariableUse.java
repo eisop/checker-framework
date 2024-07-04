@@ -10,6 +10,8 @@ class AnnoOnTypeVariableUse<E> {
         AnnoOnTypeVariableUse<@B Element> d = new @A AnnoOnTypeVariableUse<>();
         // d.element = @A |> @RDQ = @A
         d.element = new @A Element();
+        // :: error: (assignment.type.incompatible)
+        d.element = new @B Element();
         // d.a = @A |> @A = @A
         d.a = new @A Element();
         // :: error: (assignment.type.incompatible)
