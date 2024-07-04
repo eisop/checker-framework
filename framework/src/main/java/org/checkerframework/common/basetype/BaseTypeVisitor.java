@@ -3064,19 +3064,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 getExceptionParameterLowerBoundAnnotationsCached();
         VariableTree excParamTree = tree.getParameter();
         AnnotatedTypeMirror excParamType = atypeFactory.getAnnotatedType(excParamTree);
-        //        List<AnnotatedTypeMirror> exceptionList =
-        // atypeFactory.getAnnotatedType(methodTree).getThrownTypes();
-        //        if (methodTree != null && exceptionList != null) {
-        //            for (AnnotatedTypeMirror exception : exceptionList) {
-        //                Types typesUtil = atypeFactory.getProcessingEnv().getTypeUtils();
-        //                if (typesUtil.isSubtype(
-        //                        excParamType.getUnderlyingType(), exception.getUnderlyingType()))
-        // {
-        //                    requiredAnnotations = excParamType.getEffectiveAnnotations();
-        //                    break;
-        //                }
-        //            }
-        //        }
         for (AnnotationMirror required : requiredAnnotations) {
             AnnotationMirror found = excParamType.getAnnotationInHierarchy(required);
             assert found != null;
