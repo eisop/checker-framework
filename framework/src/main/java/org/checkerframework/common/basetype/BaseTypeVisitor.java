@@ -3068,7 +3068,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             AnnotationMirror found = excParamType.getAnnotationInHierarchy(required);
             assert found != null;
             if (!typeHierarchy.isSubtypeShallowEffective(required, excParamType)) {
-                checker.reportError(excParamTree, "exception.parameter.invalid", found, required);
+                checker.reportError(
+                        excParamTree, "exception.parameter.incompatible", found, required);
             }
 
             if (excParamType.getKind() == TypeKind.UNION) {
@@ -3079,7 +3080,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                                 alternativeType.getAnnotationInHierarchy(required);
                         checker.reportError(
                                 excParamTree,
-                                "exception.parameter.invalid",
+                                "exception.parameter.incompatible",
                                 alternativeAnno,
                                 required);
                     }
@@ -3131,7 +3132,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 if (!typeHierarchy.isSubtypeShallowEffective(throwType, required)) {
                     AnnotationMirrorSet found = throwType.getEffectiveAnnotations();
                     checker.reportError(
-                            tree.getExpression(), "throw.type.invalid", found, required);
+                            tree.getExpression(), "throw.type.incompatible", found, required);
                 }
                 break;
 
@@ -3140,7 +3141,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 AnnotationMirrorSet foundPrimary = unionType.getAnnotations();
                 if (!qualHierarchy.isSubtypeShallow(foundPrimary, required, throwTM)) {
                     checker.reportError(
-                            tree.getExpression(), "throw.type.invalid", foundPrimary, required);
+                            tree.getExpression(),
+                            "throw.type.incompatible",
+                            foundPrimary,
+                            required);
                 }
                 for (AnnotatedTypeMirror altern : unionType.getAlternatives()) {
                     TypeMirror alternTM = altern.getUnderlyingType();
@@ -3148,7 +3152,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                             altern.getAnnotations(), required, alternTM)) {
                         checker.reportError(
                                 tree.getExpression(),
-                                "throw.type.invalid",
+                                "throw.type.incompatible",
                                 altern.getAnnotations(),
                                 required);
                     }

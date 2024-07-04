@@ -2454,6 +2454,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
         for (String currentSuppressWarningsInEffect : suppressWarningsInEffect) {
             int colonPos = currentSuppressWarningsInEffect.indexOf(":");
+            if (currentSuppressWarningsInEffect.equals("throw.type.invalid"))
+                currentSuppressWarningsInEffect = "throw.type.incompatible";
+            if (currentSuppressWarningsInEffect.equals("exception.parameter.invalid"))
+                currentSuppressWarningsInEffect = "exception.parameter.incompatible";
             String messageKeyInSuppressWarningsString;
             if (colonPos == -1) {
                 // The SuppressWarnings string has no colon, so it is not of the form
