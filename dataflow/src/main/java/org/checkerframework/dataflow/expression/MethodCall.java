@@ -147,6 +147,7 @@ public class MethodCall extends JavaExpression {
             return false;
         }
         if (method.getKind() == ElementKind.CONSTRUCTOR) {
+            // No two constructor instances are equal.
             return false;
         }
         MethodCall other = (MethodCall) obj;
@@ -158,7 +159,8 @@ public class MethodCall extends JavaExpression {
     @Override
     public int hashCode() {
         if (method.getKind() == ElementKind.CONSTRUCTOR) {
-            return super.hashCode();
+            // No two constructor instances have the same hashcode.
+            return System.identityHashCode(this);
         }
         return Objects.hash(method, receiver, arguments);
     }

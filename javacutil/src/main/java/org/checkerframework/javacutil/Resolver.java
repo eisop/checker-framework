@@ -73,7 +73,10 @@ public class Resolver {
             } catch (IllegalArgumentException e) {
                 java13 = null;
             }
-            atLeastJava13 = java13 != null && latestSource.ordinal() >= java13.ordinal();
+            @SuppressWarnings("EnumOrdinal") // No better way to compare.
+            boolean localAtLeastJava13 =
+                    java13 != null && latestSource.ordinal() >= java13.ordinal();
+            atLeastJava13 = localAtLeastJava13;
 
             FIND_METHOD =
                     Resolve.class.getDeclaredMethod(

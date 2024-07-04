@@ -20,12 +20,19 @@ import javax.lang.model.type.TypeKind;
  */
 public class VariableApplier extends TargetedElementAnnotationApplier {
 
-    /** Apply annotations from {@code element} to {@code type}. */
+    /**
+     * Apply annotations from {@code element} to {@code type}.
+     *
+     * @param type the type to annotate
+     * @param element the corresponding element
+     * @throws UnexpectedAnnotationLocationException if there is trouble
+     */
     public static void apply(AnnotatedTypeMirror type, Element element)
             throws UnexpectedAnnotationLocationException {
         new VariableApplier(type, element).extractAndApply();
     }
 
+    /** The accepted element kinds. */
     private static final ElementKind[] acceptedKinds = {
         ElementKind.LOCAL_VARIABLE, ElementKind.RESOURCE_VARIABLE, ElementKind.EXCEPTION_PARAMETER
     };
@@ -41,9 +48,16 @@ public class VariableApplier extends TargetedElementAnnotationApplier {
                 || element.getKind().isField();
     }
 
+    /** The variable symbol. */
     private final Symbol.VarSymbol varSymbol;
 
-    VariableApplier(AnnotatedTypeMirror type, Element element) {
+    /**
+     * Constructor.
+     *
+     * @param type the type to annotate
+     * @param element the corresponding element
+     */
+    /*package-private*/ VariableApplier(AnnotatedTypeMirror type, Element element) {
         super(type, element);
         varSymbol = (Symbol.VarSymbol) element;
 

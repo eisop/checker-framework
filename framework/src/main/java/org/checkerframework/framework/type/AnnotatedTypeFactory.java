@@ -30,7 +30,6 @@ import com.sun.tools.javac.util.Options;
 
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.interning.qual.FindDistinct;
-import org.checkerframework.checker.interning.qual.InternedDistinct;
 import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -71,10 +70,11 @@ import org.checkerframework.framework.util.CheckerMain;
 import org.checkerframework.framework.util.DefaultAnnotationFormatter;
 import org.checkerframework.framework.util.FieldInvariants;
 import org.checkerframework.framework.util.TreePathCacher;
-import org.checkerframework.framework.util.TypeInformationPresenter;
 import org.checkerframework.framework.util.typeinference.DefaultTypeArgumentInference;
 import org.checkerframework.framework.util.typeinference.TypeArgInferenceUtil;
 import org.checkerframework.framework.util.typeinference.TypeArgumentInference;
+import org.checkerframework.framework.util.visualize.LspTypeInformationPresenter;
+import org.checkerframework.framework.util.visualize.TypeInformationPresenter;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationProvider;
@@ -181,7 +181,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     // TODO: when should root be null? What are the use cases?
     // None of the existing test checkers has a null root.
     // Should not be modified between calls to "visit".
-    protected @Nullable CompilationUnitTree root;
+    private @Nullable CompilationUnitTree root;
 
     /** The processing environment to use for accessing compiler internals. */
     protected final ProcessingEnvironment processingEnv;
@@ -557,7 +557,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * every type-checked class. This information can be visualized by an editor/IDE that supports
      * LSP.
      */
-    private final TypeInformationPresenter typeInformationPresenter;
+    protected final TypeInformationPresenter typeInformationPresenter;
 
     /**
      * Constructs a factory from the given checker.
@@ -614,12 +614,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         this.typeFormatter = createAnnotatedTypeFormatter();
         this.annotationFormatter = createAnnotationFormatter();
-
-        if (checker.hasOption("lspTypeInfo")) {
-            this.typeInformationPresenter = new TypeInformationPresenter(this);
-        } else {
-            this.typeInformationPresenter = null;
-        }
+        this.typeInformationPresenter = createTypeInformationPresenter();
 
         // Alias provided via -AaliasedTypeAnnos command-line option.
         // This can only be used for annotations whose attributes have the same names as in the
@@ -982,6 +977,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
+     * Get the current CompilationUnitTree.
+     *
+     * @return the current compilation unit being used, or null
+     */
+    protected @Nullable CompilationUnitTree getRoot() {
+        return root;
+    }
+
+    /**
      * Set the CompilationUnitTree that should be used.
      *
      * @param root the new compilation unit to use
@@ -1310,11 +1314,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Creates the AnnotatedTypeFormatter used by this type factory and all AnnotatedTypeMirrors it
-     * creates. The AnnotatedTypeFormatter is used in AnnotatedTypeMirror.toString and will affect
-     * the error messages printed for checkers that use this type factory.
+     * Creates the {@link AnnotatedTypeFormatter} used by this type factory and all {@link
+     * AnnotatedTypeMirror}s it creates. The {@link AnnotatedTypeFormatter} is used in {@link
+     * AnnotatedTypeMirror#toString()} and will affect the error messages printed for checkers that
+     * use this type factory.
      *
-     * @return the AnnotatedTypeFormatter to pass to all instantiated AnnotatedTypeMirrors
+     * @return the {@link AnnotatedTypeFormatter} to pass to all {@link AnnotatedTypeMirror}s
      */
     protected AnnotatedTypeFormatter createAnnotatedTypeFormatter() {
         boolean printVerboseGenerics = checker.hasOption("printVerboseGenerics");
@@ -1324,16 +1329,46 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 printVerboseGenerics || checker.hasOption("printAllQualifiers"));
     }
 
+    /**
+     * Return the current {@link AnnotatedTypeFormatter}.
+     *
+     * @return the current {@link AnnotatedTypeFormatter}
+     */
     public AnnotatedTypeFormatter getAnnotatedTypeFormatter() {
         return typeFormatter;
     }
 
+    /**
+     * Creates the {@link AnnotationFormatter} used by this type factory.
+     *
+     * @return the {@link AnnotationFormatter} used by this type factory
+     */
     protected AnnotationFormatter createAnnotationFormatter() {
         return new DefaultAnnotationFormatter();
     }
 
+    /**
+     * Return the current {@link AnnotationFormatter}.
+     *
+     * @return the current {@link AnnotationFormatter}
+     */
     public AnnotationFormatter getAnnotationFormatter() {
         return annotationFormatter;
+    }
+
+    /**
+     * Creates the {@link TypeInformationPresenter} used in {@link #postProcessClassTree(ClassTree)}
+     * to output type information about the current class.
+     *
+     * @return the {@link TypeInformationPresenter} used by this type factory, or null
+     */
+    protected @Nullable TypeInformationPresenter createTypeInformationPresenter() {
+        // TODO: look into a similar mechanism as for CFG visualization.
+        if (checker.hasOption("lspTypeInfo")) {
+            return new LspTypeInformationPresenter(this);
+        } else {
+            return null;
+        }
     }
 
     /**
@@ -1466,11 +1501,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         addComputedTypeAnnotations(tree, type);
 
-        if (TreeUtils.isClassTree(tree) || tree.getKind() == Tree.Kind.METHOD) {
+        if (shouldCache && (TreeUtils.isClassTree(tree) || tree.getKind() == Tree.Kind.METHOD)) {
             // Don't cache VARIABLE
-            if (shouldCache) {
-                classAndMethodTreeCache.put(tree, type.deepCopy());
-            }
+            classAndMethodTreeCache.put(tree, type.deepCopy());
         } else {
             // No caching otherwise
         }
@@ -1499,7 +1532,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         DeclarationsIntoElements.store(processingEnv, this, tree);
 
         if (typeInformationPresenter != null) {
-            typeInformationPresenter.process(tree);
+            typeInformationPresenter.process(tree, getPath(tree));
         }
 
         /* NO-AFU
@@ -2882,10 +2915,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotatedExecutableType con = getAnnotatedType(ctor); // get unsubstituted type
         constructorFromUsePreSubstitution(tree, con);
 
-        if (viewpointAdapter != null) {
-            viewpointAdapter.viewpointAdaptConstructor(type, ctor, con);
-        }
-
         if (tree.getClassBody() != null) {
             // Because the anonymous constructor can't have explicit annotations on its parameters,
             // they are copied from the super constructor invoked in the anonymous constructor. To
@@ -2934,6 +2963,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             con = AnnotatedTypes.asMemberOf(types, this, type, ctor, con);
         }
 
+        if (viewpointAdapter != null) {
+            viewpointAdapter.viewpointAdaptConstructor(type, ctor, con);
+        }
+
         Map<TypeVariable, AnnotatedTypeMirror> typeParamToTypeArg =
                 AnnotatedTypes.findTypeArguments(processingEnv, this, tree, ctor, con);
         List<AnnotatedTypeMirror> typeargs;
@@ -2965,7 +2998,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         if (ctor.getEnclosingElement().getKind() == ElementKind.ENUM) {
-            Set<AnnotationMirror> enumAnnos = getEnumConstructorQualifiers();
+            AnnotationMirrorSet enumAnnos = getEnumConstructorQualifiers();
             con.getReturnType().replaceAnnotations(enumAnnos);
         }
 
@@ -2985,8 +3018,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *
      * @return the annotations that should be applied to enum constructors
      */
-    protected Set<AnnotationMirror> getEnumConstructorQualifiers() {
-        return Collections.emptySet();
+    protected AnnotationMirrorSet getEnumConstructorQualifiers() {
+        return new AnnotationMirrorSet();
     }
 
     /**
@@ -3445,40 +3478,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Returns the types of the two arguments to a binary operation, accounting for widening and
-     * unboxing if applicable.
-     *
-     * @param left the type of the left argument of a binary operation
-     * @param right the type of the right argument of a binary operation
-     * @return the types of the two arguments
-     * @deprecated use {@link #binaryTreeArgTypes(BinaryTree)} or {@link
-     *     #compoundAssignmentTreeArgTypes(CompoundAssignmentTree)}
-     */
-    @Deprecated // 2022-06-03
-    public IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> binaryTreeArgTypes(
-            AnnotatedTypeMirror left, AnnotatedTypeMirror right) {
-        TypeKind resultTypeKind =
-                TypeKindUtils.widenedNumericType(
-                        left.getUnderlyingType(), right.getUnderlyingType());
-        if (TypeKindUtils.isNumeric(resultTypeKind)) {
-            TypeMirror resultTypeMirror = types.getPrimitiveType(resultTypeKind);
-            AnnotatedPrimitiveType leftUnboxed = applyUnboxing(left);
-            AnnotatedPrimitiveType rightUnboxed = applyUnboxing(right);
-            AnnotatedPrimitiveType leftWidened =
-                    (leftUnboxed.getKind() == resultTypeKind
-                            ? leftUnboxed
-                            : getWidenedPrimitive(leftUnboxed, resultTypeMirror));
-            AnnotatedPrimitiveType rightWidened =
-                    (rightUnboxed.getKind() == resultTypeKind
-                            ? rightUnboxed
-                            : getWidenedPrimitive(rightUnboxed, resultTypeMirror));
-            return IPair.of(leftWidened, rightWidened);
-        } else {
-            return IPair.of(left, right);
-        }
-    }
-
-    /**
      * Returns AnnotatedPrimitiveType with underlying type {@code narrowedTypeMirror} and with
      * annotations copied or adapted from {@code type}.
      *
@@ -3921,56 +3920,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Returns the class tree enclosing {@code tree}.
-     *
-     * @param tree the tree whose enclosing class is returned
-     * @return the class tree enclosing {@code tree}
-     * @deprecated Use {@code TreePathUtil.enclosingClass(getPath(tree))} instead.
-     */
-    @Deprecated // 2021-11-01
-    protected final ClassTree getCurrentClassTree(Tree tree) {
-        return TreePathUtil.enclosingClass(getPath(tree));
-    }
-
-    /**
-     * Returns the receiver type of the method enclosing {@code tree}.
-     *
-     * <p>The method uses the parameter only if the most enclosing method cannot be found directly.
-     *
-     * @param tree the tree used to find the enclosing method
-     * @return receiver type of the most enclosing method being visited
-     * @deprecated Use {@link #getSelfType(Tree)} instead
-     */
-    @Deprecated // 2021-11-01
-    protected final @Nullable AnnotatedDeclaredType getCurrentMethodReceiver(Tree tree) {
-        TreePath path = getPath(tree);
-        if (path == null) {
-            return null;
-        }
-        @SuppressWarnings("interning:assignment") // used for == test
-        @InternedDistinct MethodTree enclosingMethod = TreePathUtil.enclosingMethod(path);
-        ClassTree enclosingClass = TreePathUtil.enclosingClass(path);
-
-        boolean found = false;
-
-        for (Tree member : enclosingClass.getMembers()) {
-            if (member.getKind() == Tree.Kind.METHOD) {
-                if (member == enclosingMethod) {
-                    found = true;
-                }
-            }
-        }
-
-        if (found && enclosingMethod != null) {
-            AnnotatedExecutableType method = getAnnotatedType(enclosingMethod);
-            return method.getReceiverType();
-        } else {
-            // We are within an anonymous class or field initializer
-            return this.getAnnotatedType(enclosingClass);
-        }
-    }
-
-    /**
      * Returns true if {@code tree} is within a constructor.
      *
      * @param tree the tree that might be within a constructor
@@ -4014,6 +3963,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *
      * <p>Note that the given Tree has to be within the current compilation unit, otherwise null
      * will be returned.
+     *
+     * <p>Within a subclass of BaseTypeVisitor, use {@code getCurrentPath()} rather than this
+     * method.
      *
      * @param tree the {@link Tree} to get the path for
      * @return the path for {@code tree} under the current root. Returns null if {@code tree} is not
@@ -4139,14 +4091,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * Parses all annotation files in the following order:
      *
      * <ol>
-     *   <li>jdk.astub in the same directory as the checker, if it exists and ignorejdkastub option
-     *       is not supplied
-     *   <li>jdkN.astub (where N is the Java version or any higher value) in the same directory as
-     *       the checker, if it exists and ignorejdkastub option is not supplied
-     *   <li>Stub files listed in @StubFiles annotation on the checker; must be in same directory as
-     *       the checker
-     *   <li>Stub files provided via {@code -Astubs} compiler option
-     *   <li>Ajava files provided via {@code -Aajava} compiler option
+     *   <li>Stub files, see {@link AnnotationFileElementTypes#parseStubFiles()};
+     *   <li>Ajava files, see {@link AnnotationFileElementTypes#parseAjavaFiles()}.
      * </ol>
      *
      * <p>If a type is annotated with a qualifier from the same hierarchy in more than one stub

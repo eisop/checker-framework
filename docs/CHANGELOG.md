@@ -1,11 +1,81 @@
-Version 3.41.0-eisop2 (December ?, 2023)
-----------------------------------------
+Version 3.42.0-eisop4 (April ?, 2024)
+-------------------------------------
 
 **User-visible changes:**
 
 **Implementation details:**
 
+Improvements in `framework-test` to more consistently handle tests that do not use
+`-Anomsgtext`.
+
+Changed the return type of `AnnotatedTypeFactory#getEnumConstructorQualifiers` from `Set<AnnotationMirror>` to
+`AnnotationMirrorSet`.
+
 **Closed issues:**
+
+
+Version 3.42.0-eisop3 (March 1, 2024)
+-------------------------------------
+
+**User-visible changes:**
+
+Performance improvements in the Nullness Checker.
+
+**Implementation details:**
+
+Support separate defaults for wildcard and type variable upper bounds.
+Add support for defaults for type variable uses.
+See changes in `TypeUseLocation`, `QualiferDefaults`, and `QualifierHierarchy`,
+as well as the new `ParametricTypeVariableUseQualifier` meta-annotation.
+
+Refactored the `TypeInformationPresenter` into several classes in the new
+`org.checkerframework.framework.util.visualize` package.
+
+**Closed issues:**
+
+eisop#703, typetools#6433, typetools#6438.
+
+
+Version 3.42.0-eisop2 (January 9, 2024)
+---------------------------------------
+
+**Implementation details:**
+
+Moved `ErrorTypeKindException` from `org.checkerframework.framework.util.element.ElementAnnotationUtil` to
+`org.checkerframework.framework.type.AnnotatedTypeMirror`. Properly raise these errors in more cases.
+
+Deprecated `AnnotationUtils#isDeclarationAnnotation` and added the clearer `AnnotationUtils#isTypeUseAnnotation`.
+
+Removed the dependency on the classgraph library, which added over 500kB to `checker.jar`.
+It is easy to add the dependency for debugging.
+
+**Closed issues:**
+
+eisop#666, eisop#673.
+
+
+Version 3.42.0-eisop1 (January 2, 2024)
+---------------------------------------
+
+**Closed issues:**
+
+typetools#6373, typetools#6374.
+
+
+Version 3.42.0 (December 15, 2023)
+----------------------------------
+
+**User-visible changes:**
+
+Method annotation `@AssertMethod` indicates that a method checks a value and
+possibly throws an assertion.  Using it can make flow-sensitive type refinement
+more effective.
+
+In `org.checkerframework.common.util.debug`, renamed `EmptyProcessor` to `DoNothingProcessor`.
+Removed `org.checkerframework.common.util.report.DoNothingChecker`.
+Moved `ReportChecker` from `org.checkerframework.common.util.report` to `org.checkerframework.common.util.count.report`.
+(EISOP note: we did not follow this renaming - if anything, `counting` could be a special case of `reporting`, not
+the other way around.)
 
 
 Version 3.41.0-eisop1 (December 5, 2023)
