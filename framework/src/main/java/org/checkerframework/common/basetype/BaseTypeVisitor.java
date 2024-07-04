@@ -3060,7 +3060,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param tree a CatchTree to check
      */
     protected void checkExceptionParameter(CatchTree tree) {
-        Set<? extends AnnotationMirror> requiredAnnotations =
+        AnnotationMirrorSet requiredAnnotations =
                 getExceptionParameterLowerBoundAnnotationsCached();
         VariableTree excParamTree = tree.getParameter();
         AnnotatedTypeMirror excParamType = atypeFactory.getAnnotatedType(excParamTree);
@@ -3159,9 +3159,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             case TYPEVAR:
             case WILDCARD:
                 if (!typeHierarchy.isSubtypeShallowEffective(throwType, required)) {
-                    AnnotationMirrorSet foundEffective = throwType.getEffectiveAnnotations();
+                    AnnotationMirrorSet found = throwType.getEffectiveAnnotations();
                     checker.reportError(
-                            tree.getExpression(), "throw.type.invalid", foundEffective, required);
+                            tree.getExpression(), "throw.type.invalid", found, required);
                 }
                 break;
 
