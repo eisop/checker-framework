@@ -203,7 +203,7 @@ public class LowerBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
                 // checker's type factory is parsing.
                 && !ajavaTypes.isParsing()
                 && TreeUtils.isExpressionTree(tree)
-                && (super.getUseFlow() || tree instanceof LiteralTree)) {
+                && (getUseFlow() || tree instanceof LiteralTree)) {
             AnnotatedTypeMirror valueType = getValueAnnotatedTypeFactory().getAnnotatedType(tree);
             addLowerBoundTypeFromValueType(valueType, type);
         }

@@ -400,9 +400,9 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * Returns the boolean value whether the analysis should be flow-sensitive or not.
+     * Determines whether flow-sensitive type refinement should be used or not.
      *
-     * @return boolean value of useFlow field.
+     * @return whether flow-sensitive type refinement should be used or not
      */
     protected boolean getUseFlow() {
         return useFlow;
@@ -2025,12 +2025,11 @@ public abstract class GenericAnnotatedTypeFactory<
      *
      * @param tree an AST node
      * @param type the type obtained from tree
-     * @param iUseFlow whether to use information from dataflow analysis
      */
     private void addComputedTypeAnnotationsWithoutFlow(
-            Tree tree, AnnotatedTypeMirror type, boolean iUseFlow) {
+            Tree tree, AnnotatedTypeMirror type) {
         boolean oldUseflow = useFlow;
-        useFlow = iUseFlow;
+        useFlow = false;
         addComputedTypeAnnotations(tree, type);
         useFlow = oldUseflow;
     }
