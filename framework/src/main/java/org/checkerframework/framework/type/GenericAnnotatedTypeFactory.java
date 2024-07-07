@@ -403,6 +403,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * Determines whether flow-sensitive type refinement should be used or not.
      *
      * @return whether flow-sensitive type refinement should be used or not
+     * @see #useFlow
      */
     protected boolean getUseFlow() {
         return useFlow;
