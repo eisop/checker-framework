@@ -2001,7 +2001,7 @@ public abstract class GenericAnnotatedTypeFactory<
     public AnnotatedTypeMirror getDefaultAnnotations(Tree tree, AnnotatedTypeMirror type) {
         AnnotatedTypeMirror copy = type.deepCopy();
         copy.removeAnnotations(type.getAnnotations());
-        addComputedTypeAnnotationsWithoutFlow(tree, copy, false);
+        addComputedTypeAnnotationsWithoutFlow(tree, copy);
         return copy;
     }
 
@@ -2015,9 +2015,10 @@ public abstract class GenericAnnotatedTypeFactory<
      * @deprecated use {@link #addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)} instead
      */
     @Deprecated
+    @SuppressWarnings("unused")
     protected void addComputedTypeAnnotations(
             Tree tree, AnnotatedTypeMirror type, boolean iUseFlow) {
-        addComputedTypeAnnotationsWithoutFlow(tree, type, iUseFlow);
+        addComputedTypeAnnotationsWithoutFlow(tree, type);
     }
 
     /**
@@ -2026,7 +2027,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * @param tree an AST node
      * @param type the type obtained from tree
      */
-    private void addComputedTypeAnnotationsWithoutFlow(
+    protected final void addComputedTypeAnnotationsWithoutFlow(
             Tree tree, AnnotatedTypeMirror type) {
         boolean oldUseflow = useFlow;
         useFlow = false;
@@ -2764,7 +2765,7 @@ public abstract class GenericAnnotatedTypeFactory<
         TypeMirror defaultValueTM = TreeUtils.typeOf(defaultValueTree);
         AnnotatedTypeMirror defaultValueATM =
                 AnnotatedTypeMirror.createType(defaultValueTM, this, false);
-        addComputedTypeAnnotationsWithoutFlow(defaultValueTree, defaultValueATM, false);
+        addComputedTypeAnnotationsWithoutFlow(defaultValueTree, defaultValueATM);
         return defaultValueATM;
     }
 

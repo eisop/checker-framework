@@ -8,6 +8,8 @@ Version 3.42.0-eisop4 (April ?, 2024)
 Deprecated the `GenericAnnotatedTypeFactory#addComputedTypeAnnotations(Tree, AnnotatedTypeMirror, boolean)` overload.
 Instead, set `GenericAnnotatedTypeFactory#useFlow` appropriately and
 call `GenericAnnotatedTypeFactory#addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)`.
+Add `GenericAnnotatedTypeFactory#addComputedTypeAnnotationsWithoutFlow(Tree, AnnotatedTypeMirror)` for the old behavior,
+subclasses can only call this method but not override it.
 
 Improvements in `framework-test` to more consistently handle tests that do not use
 `-Anomsgtext`.
