@@ -20,8 +20,16 @@ task copySources(type: Copy) {
   into file(layout.buildDirectory.dir("generated/sources/main/java"))
 
   filePermissions {
-    user.read = true
-    group.read = true
+    user {
+      read = true
+      write = true
+      execute = true
+    }
+    group {
+      read = true
+      write = true
+      execute = true
+    }
     other.read = true
   }
 }
