@@ -2025,8 +2025,8 @@ public abstract class GenericAnnotatedTypeFactory<
     /**
      * A helper method to add computed type annotations to a type without using flow information.
      *
-     * This method is final; override {@link #addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)}
-     * instead.
+     * <p>This method is final; override {@link #addComputedTypeAnnotations(Tree,
+     * AnnotatedTypeMirror)} instead.
      *
      * @param tree an AST node
      * @param type the type obtained from tree
