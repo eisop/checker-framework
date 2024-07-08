@@ -699,7 +699,7 @@ public class LockAnnotatedTypeFactory
     }
 
     @Override
-    public void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type) {
+    protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type) {
         if (tree.getKind() == Tree.Kind.VARIABLE) {
             translateJcipAndJavaxAnnotations(
                     TreeUtils.elementFromDeclaration((VariableTree) tree), type);

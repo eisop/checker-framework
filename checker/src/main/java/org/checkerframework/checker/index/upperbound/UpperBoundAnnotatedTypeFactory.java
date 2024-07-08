@@ -255,7 +255,7 @@ public class UpperBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
     }
 
     @Override
-    public void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type) {
+    protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type) {
         super.addComputedTypeAnnotations(tree, type);
         // If dataflow shouldn't be used to compute this type, then do not use the result from
         // the Value Checker, because dataflow is used to compute that type.  (Without this,
