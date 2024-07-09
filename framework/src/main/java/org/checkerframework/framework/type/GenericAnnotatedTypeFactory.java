@@ -2013,7 +2013,9 @@ public abstract class GenericAnnotatedTypeFactory<
      * @param tree an AST node
      * @param type the type obtained from tree
      * @param iUseFlow whether to use information from dataflow analysis
-     * @deprecated use {@link #addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)} instead
+     * @deprecated use {@link #addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)} or {@link
+     *     #addComputedTypeAnnotationsWithoutFlow(Tree, AnnotatedTypeMirror)} if you want to add
+     *     computed type annotations without using flow information
      */
     @Deprecated // 2024-07-07
     @SuppressWarnings("unused")
@@ -2040,6 +2042,13 @@ public abstract class GenericAnnotatedTypeFactory<
         useFlow = oldUseflow;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This method implement defaulting and inference with flow-sensitive type refinement.
+     *
+     * @see #addComputedTypeAnnotationsWithoutFlow(Tree, AnnotatedTypeMirror)
+     */
     @Override
     protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type) {
         if (this.getRoot() == null && ajavaTypes.isParsing()) {
