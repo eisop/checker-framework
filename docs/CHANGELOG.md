@@ -9,8 +9,6 @@ New method `GenericAnnotatedTypeFactory#addComputedTypeAnnotationsWithoutFlow(Tr
 `useFlow` to `false` before calling `addComputedTypeAnnotations`. Subclasses should override method
 `GenericAnnotatedTypeFactory#addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)` instead.
 Deprecated the `GenericAnnotatedTypeFactory#addComputedTypeAnnotations(Tree, AnnotatedTypeMirror, boolean)` overload.
-Instead, set `GenericAnnotatedTypeFactory#useFlow` appropriately and call
-`GenericAnnotatedTypeFactory#addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)`.
 
 Improvements in `framework-test` to more consistently handle tests that do not use
 `-Anomsgtext`.
