@@ -2045,7 +2045,7 @@ public abstract class GenericAnnotatedTypeFactory<
     /**
      * {@inheritDoc}
      *
-     * <p>This method implement defaulting and inference with flow-sensitive type refinement.
+     * <p>This method adds defaults and flow-sensitive type refinements.
      *
      * @see #addComputedTypeAnnotationsWithoutFlow(Tree, AnnotatedTypeMirror)
      */
