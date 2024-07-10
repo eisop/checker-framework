@@ -17,7 +17,7 @@ echo "running \"./gradlew assembleForJavac\" for checker-framework"
 
 
 # daikon-typecheck: 15 minutes
-"$SCRIPTDIR/.plume-scripts/git-clone-related" eisop-codespecs daikon
+"$SCRIPTDIR/.git-scripts/git-clone-related" eisop-codespecs daikon
 cd ../daikon
 git log | head -n 5
 make compile
