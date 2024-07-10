@@ -50,6 +50,7 @@ public class TestDiagnostic {
      * @param file the path to the test file
      * @param lineNumber the line number of the diagnostic output
      * @param kind the diagnostic kind of the output
+     * @param messageKey the message key
      * @param message the full diagnostic message
      * @param isFixable whether WPI can fix the test
      */
