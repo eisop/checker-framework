@@ -16,6 +16,9 @@ Improvements in `framework-test` to more consistently handle tests that do not u
 Changed the return type of `AnnotatedTypeFactory#getEnumConstructorQualifiers` from `Set<AnnotationMirror>` to
 `AnnotationMirrorSet`.
 
+framework-test: Added new class `DetailedTestDiagnostic` to directly represent test diagnostics when
+`-Adetailedmsgtext` is used.
+
 **Closed issues:**
 
 
