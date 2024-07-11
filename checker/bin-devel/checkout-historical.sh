@@ -89,7 +89,7 @@ git checkout -B __merge_eval__
 echo "plume-scripts"
 PLUME_SCRIPTS="checker/bin-devel/.plume-scripts"
 if [ ! -d "$PLUME_SCRIPTS" ] ; then
-  git clone -q https://github.com/plume-lib/plume-scripts.git "${PLUME_SCRIPTS}"
+  git clone -q https://github.com/eisop-plume-lib/plume-scripts.git "${PLUME_SCRIPTS}"
 fi
 COMMIT="$(cd "${PLUME_SCRIPTS}" && git rev-list -n 1 --first-parent --before="${commit_date}" master)"
 if [ -n "${COMMIT}" ] ; then
@@ -102,7 +102,7 @@ echo "html-tools"
 HTML_TOOLS="checker/bin-devel/.plume-scripts"
 COMMIT="$(cd "${HTML_TOOLS}" && git rev-list -n 1 --first-parent --before="${commit_date}" master)"
 if [ ! -d "$HTML_TOOLS" ] ; then
-  git clone -q https://github.com/plume-lib/html-tools.git "${HTML_TOOLS}"
+  git clone -q https://github.com/eisop-plume-lib/html-tools.git "${HTML_TOOLS}"
 fi
 if [ -n "${COMMIT}" ] ; then
   # COMMIT is non-empty

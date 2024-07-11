@@ -31,25 +31,25 @@ else
 fi
 echo "JAVA_HOME=${JAVA_HOME}"
 
-# Using `(cd "$CHECKERFRAMEWORK" && ./gradlew getPlumeScripts -q)` leads to infinite regress.
-PLUME_SCRIPTS="$CHECKERFRAMEWORK/checker/bin-devel/.plume-scripts"
-if [ -d "$PLUME_SCRIPTS" ] ; then
-  (cd "$PLUME_SCRIPTS" && (git pull -q || true))
+# Using `(cd "$CHECKERFRAMEWORK" && ./gradlew getGitScripts -q)` leads to infinite regress.
+GIT_SCRIPTS="$CHECKERFRAMEWORK/checker/bin-devel/.git-scripts"
+if [ -d "$GIT_SCRIPTS" ] ; then
+  (cd "$GIT_SCRIPTS" && (git pull -q || true))
 else
   (cd "$CHECKERFRAMEWORK/checker/bin-devel" && \
-      (git clone --filter=blob:none -q https://github.com/eisop-plume-lib/plume-scripts.git .plume-scripts || \
-       (sleep 1m && git clone --filter=blob:none -q https://github.com/eisop-plume-lib/plume-scripts.git .plume-scripts)))
+      (git clone --filter=blob:none -q https://github.com/eisop-plume-lib/git-scripts.git .git-scripts || \
+       (sleep 60 && git clone --filter=blob:none -q https://github.com/eisop-plume-lib/git-scripts.git .git-scripts)))
 fi
 
 # Clone the annotated JDK into ../jdk .
-"$PLUME_SCRIPTS/git-clone-related" ${DEBUG_FLAG} eisop jdk
+"$GIT_SCRIPTS/git-clone-related" ${DEBUG_FLAG} eisop jdk
 
 # AFU="${AFU:-../annotation-tools/annotation-file-utilities}"
 # # Don't use `AT=${AFU}/..` which causes a git failure.
 # AT=$(dirname "${AFU}")
 
 # ## Build annotation-tools (Annotation File Utilities)
-# "$PLUME_SCRIPTS/git-clone-related" ${DEBUG_FLAG} eisop annotation-tools "${AT}"
+# "$GIT_SCRIPTS/git-clone-related" ${DEBUG_FLAG} eisop annotation-tools "${AT}"
 # if [ ! -d ../annotation-tools ] ; then
 #   ln -s "${AT}" ../annotation-tools
 # fi
