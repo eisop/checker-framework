@@ -106,8 +106,7 @@ public class TestDiagnostic {
         } else {
             String firstline;
             // There might be a mismatch between the System.lineSeparator() and the diagnostic
-            // message,
-            // so manually check both options.
+            // message, so manually check both options.
             int lineSepPos = this.message.indexOf("\r\n");
             if (lineSepPos == -1) {
                 lineSepPos = this.message.indexOf("\n");
