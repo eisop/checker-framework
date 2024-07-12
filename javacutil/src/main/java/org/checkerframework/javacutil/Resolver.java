@@ -64,19 +64,33 @@ public class Resolver {
     /** Whether we are running on at least Java 13. */
     private static final boolean atLeastJava13;
 
+    /** Whether we are running on at least Java 24. */
+    private static final boolean atLeastJava24;
+
+    /**
+     * Determines whether the given {@link SourceVersion} release version string is supported.
+     *
+     * @param release the {@link SourceVersion} release version
+     * @return whether the given version is supported
+     */
+    private static boolean atLeastJava(String release) {
+        final SourceVersion latestSource = SourceVersion.latest();
+        SourceVersion javaVersion;
+        try {
+            javaVersion = SourceVersion.valueOf(release);
+        } catch (IllegalArgumentException e) {
+            javaVersion = null;
+        }
+        @SuppressWarnings("EnumOrdinal") // No better way to compare.
+        boolean atLeastJava =
+                javaVersion != null && latestSource.ordinal() >= javaVersion.ordinal();
+        return atLeastJava;
+    }
+
     static {
         try {
-            final SourceVersion latestSource = SourceVersion.latest();
-            SourceVersion java13;
-            try {
-                java13 = SourceVersion.valueOf("RELEASE_13");
-            } catch (IllegalArgumentException e) {
-                java13 = null;
-            }
-            @SuppressWarnings("EnumOrdinal") // No better way to compare.
-            boolean localAtLeastJava13 =
-                    java13 != null && latestSource.ordinal() >= java13.ordinal();
-            atLeastJava13 = localAtLeastJava13;
+            atLeastJava13 = atLeastJava("RELEASE_13");
+            atLeastJava24 = atLeastJava("RELEASE_24");
 
             FIND_METHOD =
                     Resolve.class.getDeclaredMethod(
@@ -90,7 +104,15 @@ public class Resolver {
                             boolean.class);
             FIND_METHOD.setAccessible(true);
 
-            FIND_VAR = Resolve.class.getDeclaredMethod("findVar", Env.class, Name.class);
+            if (atLeastJava24) {
+                // Changed in
+                // https://github.com/openjdk/jdk/commit/e227c7e37d4de0656f013f3a936b1acfa56cc2e0
+                FIND_VAR =
+                        Resolve.class.getDeclaredMethod(
+                                "findVar", DiagnosticPosition.class, Env.class, Name.class);
+            } else {
+                FIND_VAR = Resolve.class.getDeclaredMethod("findVar", Env.class, Name.class);
+            }
             FIND_VAR.setAccessible(true);
 
             if (atLeastJava13) {

@@ -21,6 +21,8 @@ framework-test: Added new class `DetailedTestDiagnostic` to directly represent t
 
 **Closed issues:**
 
+typetools#6704.
+
 
 Version 3.42.0-eisop3 (March 1, 2024)
 -------------------------------------
