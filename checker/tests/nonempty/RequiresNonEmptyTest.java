@@ -26,14 +26,14 @@ class MyClass {
     MyClass testClass = new MyClass();
 
     // At this point, we should have an error since m1 requires that list1 is @NonEmpty, which
-    // is not the case here
+    // is not the case here.
     // :: error: (contracts.precondition.not.satisfied)
     testClass.m1();
 
     testClass.list1 = l1;
     testClass.m1(); // OK
 
-    // A call to m2 is stil illegal here, since list2 is still @UnknownNonEmpty
+    // A call to m2 is still illegal here, since list2 is still @UnknownNonEmpty.
     // :: error: (contracts.precondition.not.satisfied)
     testClass.m2();
 
@@ -42,7 +42,7 @@ class MyClass {
 
     testClass.m4();
 
-    // No longer OK to call m2, no guarantee that m4() was pure
+    // No longer OK to call m2, no guarantee that m4() was pure.
     // :: error: (contracts.precondition.not.satisfied)
     testClass.m2();
   }

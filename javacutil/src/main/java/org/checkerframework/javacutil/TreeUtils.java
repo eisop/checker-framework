@@ -2679,7 +2679,7 @@ public final class TreeUtils {
     }
     int numParams = elementFromUse(invok).getParameters().size();
     // The comparison of the number of arguments to the number of formals (minus one) checks
-    // whether there are no varargs actuals
+    // whether there are no varargs actuals.
     return invok.getArguments().size() == numParams - 1;
   }
 
