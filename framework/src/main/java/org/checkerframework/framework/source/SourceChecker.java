@@ -365,7 +365,6 @@ import javax.tools.Diagnostic;
     // Whether to check that the annotated JDK is correctly provided
     // org.checkerframework.common.basetype.BaseTypeVisitor.checkForAnnotatedJdk()
     "permitMissingJdk",
-    "nocheckjdk", // temporary, for backward compatibility
 
     // Parse all JDK files at startup rather than as needed.
     // org.checkerframework.framework.stub.AnnotationFileElementTypes.AnnotationFileElementTypes
