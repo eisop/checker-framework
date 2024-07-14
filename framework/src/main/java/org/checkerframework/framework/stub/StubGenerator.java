@@ -121,7 +121,7 @@ public class StubGenerator {
         }
 
         String newPackage = ElementUtils.getQualifiedName(ElementUtils.enclosingPackage(elt));
-        if (!newPackage.equals("")) {
+        if (!newPackage.isEmpty()) {
             currentPackage = newPackage;
             currentIndention = "    ";
             indent();

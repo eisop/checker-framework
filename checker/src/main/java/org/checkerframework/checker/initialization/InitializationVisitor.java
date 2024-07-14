@@ -34,7 +34,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import java.util.StringJoiner;
 
 import javax.lang.model.element.AnnotationMirror;
@@ -123,17 +122,16 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
     @Override
     protected boolean commonAssignmentCheck(
             Tree varTree,
-            ExpressionTree valueExp,
+            ExpressionTree valueExpTree,
             @CompilerMessageKey String errorKey,
             Object... extraArgs) {
         // field write of the form x.f = y
         if (TreeUtils.isFieldAccess(varTree)) {
             // cast is safe: a field access can only be an IdentifierTree or MemberSelectTree
             ExpressionTree lhs = (ExpressionTree) varTree;
-            ExpressionTree y = valueExp;
             VariableElement el = TreeUtils.variableElementFromUse(lhs);
-            AnnotatedTypeMirror xType = atypeFactory.getReceiverType(lhs);
-            AnnotatedTypeMirror yType = atypeFactory.getAnnotatedType(y);
+            AnnotatedTypeMirror lhsReceiverType = atypeFactory.getReceiverType(lhs);
+            AnnotatedTypeMirror valueExpType = atypeFactory.getAnnotatedType(valueExpTree);
             // the special FBC rules do not apply if there is an explicit
             // UnknownInitialization annotation
             AnnotationMirrorSet fieldAnnotations =
@@ -141,11 +139,11 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
             if (!AnnotationUtils.containsSameByName(
                     fieldAnnotations, atypeFactory.UNKNOWN_INITIALIZATION)) {
                 if (!ElementUtils.isStatic(el)
-                        && !(atypeFactory.isInitialized(yType)
-                                || atypeFactory.isUnderInitialization(xType)
-                                || atypeFactory.isFbcBottom(yType))) {
+                        && !(atypeFactory.isInitialized(valueExpType)
+                                || atypeFactory.isUnderInitialization(lhsReceiverType)
+                                || atypeFactory.isFbcBottom(valueExpType))) {
                     @CompilerMessageKey String err;
-                    if (atypeFactory.isInitialized(xType)) {
+                    if (atypeFactory.isInitialized(lhsReceiverType)) {
                         err = COMMITMENT_INVALID_FIELD_WRITE_INITIALIZED;
                     } else {
                         err = COMMITMENT_INVALID_FIELD_WRITE_UNKNOWN_INITIALIZATION;
@@ -155,7 +153,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
                 }
             }
         }
-        return super.commonAssignmentCheck(varTree, valueExp, errorKey, extraArgs);
+        return super.commonAssignmentCheck(varTree, valueExpTree, errorKey, extraArgs);
     }
 
     @Override
@@ -254,7 +252,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
         commonAssignmentTree = tree;
         // is this a field (and not a local variable)?
         if (TreeUtils.elementFromDeclaration(tree).getKind().isField()) {
-            Set<AnnotationMirror> annotationMirrors =
+            AnnotationMirrorSet annotationMirrors =
                     atypeFactory.getAnnotatedType(tree).getExplicitAnnotations();
             // Fields cannot have commitment annotations.
             for (Class<? extends Annotation> c : atypeFactory.getSupportedTypeQualifiers()) {

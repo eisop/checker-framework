@@ -22,5 +22,5 @@ source "$SCRIPTDIR"/clone-related.sh
 
 ## This is moved to misc, because otherwise it would be the only work done by this script.
 # # Checker Framework demos
-# "$SCRIPTDIR/.plume-scripts/git-clone-related" eisop checker-framework.demos
+# "$SCRIPTDIR/.git-scripts/git-clone-related" eisop checker-framework.demos
 # ./gradlew :checker:demosTests --console=plain --warning-mode=all

@@ -49,7 +49,7 @@ dependencies {
     api project(':javacutil')
     api project(':dataflow')
     // At the moement, there are no differences between eisop and typetools stubparsers.
-    api 'org.checkerframework:stubparser:3.25.6'
+    api 'org.checkerframework:stubparser:3.25.10'
 
     // NO-AFU
     /*
@@ -68,7 +68,8 @@ dependencies {
     implementation "org.plumelib:hashmap-util:${versions.hashmapUtil}"
     implementation "org.plumelib:plume-util:${versions.plumeUtil}"
     implementation "org.plumelib:reflection-util:${versions.reflectionUtil}"
-    implementation 'io.github.classgraph:classgraph:4.8.165'
+    // Add this dependency if needed to debug classpath issues.
+    // implementation 'io.github.classgraph:classgraph:4.8.165'
 
     testImplementation "junit:junit:${versions.junit}"
     testImplementation project(':framework-test')
@@ -127,7 +128,7 @@ task copyAndMinimizeAnnotatedJdkFiles(dependsOn: cloneAnnotatedJdk, group: 'Buil
             if (!fvd.file.isDirectory() && fvd.file.name.matches('.*\\.java')
                     && !fvd.file.path.contains('org/checkerframework')) {
                 fvd.getFile().readLines().any { line ->
-                    if (line.contains('@AnnotatedFor') || line.contains('org.checkerframework')) {
+                    if (line.contains('@AnnotatedFor') || line.contains('org.checkerframework') || line.contains('org.jspecify')) {
                         annotatedForFiles.add(fvd.file.absolutePath)
                         return true;
                     }

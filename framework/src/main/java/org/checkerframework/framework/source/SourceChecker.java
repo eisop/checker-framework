@@ -57,7 +57,6 @@ import java.lang.management.MemoryPoolMXBean;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
-import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -91,7 +90,7 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 
-import io.github.classgraph.ClassGraph;
+// import io.github.classgraph.ClassGraph;
 
 /**
  * An abstract annotation processor designed for implementing a source-file checker as an annotation
@@ -343,7 +342,7 @@ import io.github.classgraph.ClassGraph;
     // constraints.
     "noWarnMemoryConstraints",
 
-    // Only output error code, useful for testing framework
+    // Only output error code, useful for testing framework.
     // org.checkerframework.framework.source.SourceChecker.message(Kind, Object, String, Object...)
     "nomsgtext",
 
@@ -918,7 +917,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                             + pattern);
         }
 
-        if (pattern.equals("")) {
+        if (pattern.isEmpty()) {
             pattern = defaultPattern;
         }
 
@@ -1792,9 +1791,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
         @Nullable String[] lintArray = slValue;
         Set<String> lintSet = new HashSet<>(lintArray.length);
-        for (String s : lintArray) {
-            lintSet.add(s);
-        }
+        lintSet.addAll(Arrays.asList(lintArray));
         return Collections.unmodifiableSet(lintSet);
     }
 
@@ -2843,10 +2840,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                     }
 
                     if (printClasspath) {
-                        msg.add("Classpath:");
-                        for (URI uri : new ClassGraph().getClasspathURIs()) {
-                            msg.add(uri.toString());
-                        }
+                        msg.add("Inspect your classpath, as there was a NoClassDefFoundError.");
+                        /*
+                          msg.add("Classpath:");
+                          for (URI uri : new ClassGraph().getClasspathURIs()) {
+                              msg.add(uri.toString());
+                          }
+                        */
                     }
                 }
             }

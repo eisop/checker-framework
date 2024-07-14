@@ -13,40 +13,49 @@ class NullRedundant {
         }
 
         switch (o) {
-            case Number n: System.out.println("Number: " + n); break;
-            // :: warning: (nulltest.redundant)
-            case null: System.out.println("null"); break;
-            default: System.out.println("anything else");
+            case Number n:
+                System.out.println("Number: " + n);
+                break;
+                // :: warning: (nulltest.redundant)
+            case null:
+                System.out.println("null");
+                break;
+            default:
+                System.out.println("anything else");
         }
 
         switch (o) {
-            // :: warning: (nulltest.redundant)
-            case null, default: System.out.println("null"); break;
+                // :: warning: (nulltest.redundant)
+            case null, default:
+                System.out.println("null");
+                break;
         }
     }
 
     Object test2(Object o) {
         switch (o) {
             case Number n -> System.out.println("Number: " + n);
-            // :: warning: (nulltest.redundant)
+                // :: warning: (nulltest.redundant)
             case null -> System.out.println("null");
             default -> System.out.println("anything else");
-        };
+        }
+        ;
 
         switch (o) {
-            // :: warning: (nulltest.redundant)
+                // :: warning: (nulltest.redundant)
             case null, default -> System.out.println("null");
         }
 
-        var output = switch (o) {
-            case Number n -> "Number: " + n;
-            // :: warning: (nulltest.redundant)
-            case null -> "null";
-            default -> "anything else";
-        };
+        var output =
+                switch (o) {
+                    case Number n -> "Number: " + n;
+                        // :: warning: (nulltest.redundant)
+                    case null -> "null";
+                    default -> "anything else";
+                };
 
         return switch (o) {
-            // :: warning: (nulltest.redundant)
+                // :: warning: (nulltest.redundant)
             case null -> "null";
             default -> "anything else";
         };
@@ -59,13 +68,20 @@ class NullRedundant {
         }
 
         switch (o) {
-            case Number n: System.out.println("Number: " + n); break;
-            case null: System.out.println("null"); break;
-            default: System.out.println("anything else");
+            case Number n:
+                System.out.println("Number: " + n);
+                break;
+            case null:
+                System.out.println("null");
+                break;
+            default:
+                System.out.println("anything else");
         }
 
         switch (o) {
-            case null, default: System.out.println("null"); break;
+            case null, default:
+                System.out.println("null");
+                break;
         }
     }
 
@@ -74,17 +90,19 @@ class NullRedundant {
             case Number n -> System.out.println("Number: " + n);
             case null -> System.out.println("null");
             default -> System.out.println("anything else");
-        };
+        }
+        ;
 
         switch (o) {
             case null, default -> System.out.println("null");
         }
 
-        var output = switch (o) {
-            case Number n -> "Number: " + n;
-            case null -> "null";
-            default -> "anything else";
-        };
+        var output =
+                switch (o) {
+                    case Number n -> "Number: " + n;
+                    case null -> "null";
+                    default -> "anything else";
+                };
 
         return switch (o) {
             case null -> "null";

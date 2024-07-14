@@ -2,6 +2,7 @@ package org.checkerframework.framework.type;
 
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
 
+import org.checkerframework.checker.formatter.qual.FormatMethod;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -9,7 +10,6 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeVisitor;
 import org.checkerframework.framework.util.AnnotatedTypes;
-import org.checkerframework.framework.util.element.ElementAnnotationUtil.ErrorTypeKindException;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
@@ -146,7 +146,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                         new AnnotatedDeclaredType((DeclaredType) type, atypeFactory, isDeclaration);
                 break;
             case ERROR:
-                throw new BugInCF(
+                throw new ErrorTypeKindException(
                         "AnnotatedTypeMirror.createType: input is not compilable. Found error type:"
                                 + " "
                                 + type);
@@ -1120,34 +1120,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         /**
-         * Returns true if the underlying type is raw. The receiver of this method is not raw,
-         * however; its annotated type arguments have been inferred.
-         *
-         * @return true iff the type was raw
-         * @deprecated Use {@link #isUnderlyingTypeRaw()} instead
-         */
-        @Deprecated // 2021-06-16
-        public boolean wasRaw() {
-            return isUnderlyingTypeRaw();
-        }
-
-        /**
          * Set the isUnderlyingTypeRaw flag to true. This should only be necessary when determining
          * the supertypes of a raw type.
          */
         protected void setIsUnderlyingTypeRaw() {
             this.isUnderlyingTypeRaw = true;
-        }
-
-        /**
-         * Set the isUnderlyingTypeRaw flag to true. This should only be necessary when determining
-         * the supertypes of a raw type.
-         *
-         * @deprecated Use {@link #setIsUnderlyingTypeRaw()} instead
-         */
-        @Deprecated // 2021-06-16
-        protected void setWasRaw() {
-            setIsUnderlyingTypeRaw();
         }
 
         @Override
@@ -1337,6 +1314,17 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                     List<AnnotatedTypeMirror> newParamTypes =
                             new ArrayList<>(underlyingParameterTypes.size());
                     for (TypeMirror t : underlyingParameterTypes) {
+                        if (t.getKind() == TypeKind.ERROR) {
+                            // Maybe the input is uncompilable, or maybe the type is not completed
+                            // yet (see Issue #244).
+                            throw new ErrorTypeKindException(
+                                    "Problem with parameter type of %s.%s: %s [%s %s]",
+                                    element,
+                                    element.getEnclosingElement(),
+                                    t,
+                                    t.getKind(),
+                                    t.getClass());
+                        }
                         newParamTypes.add(createType(t, atypeFactory, false));
                     }
                     setParameterTypes(Collections.unmodifiableList(newParamTypes));
@@ -1482,7 +1470,19 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                         // Can only reach this branch if we're the constructor of a nested class
                         encl = ElementUtils.enclosingTypeElement(encl.getEnclosingElement());
                     }
-                    AnnotatedTypeMirror type = createType(encl.asType(), atypeFactory, false);
+                    TypeMirror enclType = encl.asType();
+                    if (enclType.getKind() == TypeKind.ERROR) {
+                        // Maybe the input is uncompilable, or maybe the type is not completed yet
+                        // (see Issue #244).
+                        throw new ErrorTypeKindException(
+                                "Problem with receiver type of %s.%s: %s [%s %s]",
+                                element,
+                                element.getEnclosingElement(),
+                                enclType,
+                                enclType.getKind(),
+                                enclType.getClass());
+                    }
+                    AnnotatedTypeMirror type = createType(enclType, atypeFactory, false);
                     assert type instanceof AnnotatedDeclaredType;
                     receiverType = (AnnotatedDeclaredType) type;
                 }
@@ -1517,6 +1517,17 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                     List<AnnotatedTypeMirror> newThrownTypes =
                             new ArrayList<>(underlyingThrownTypes.size());
                     for (TypeMirror t : underlyingThrownTypes) {
+                        if (t.getKind() == TypeKind.ERROR) {
+                            // Maybe the input is uncompilable, or maybe the type is not completed
+                            // yet (see Issue #244).
+                            throw new ErrorTypeKindException(
+                                    "Problem with thrown type of %s.%s: %s [%s %s]",
+                                    element,
+                                    element.getEnclosingElement(),
+                                    t,
+                                    t.getKind(),
+                                    t.getClass());
+                        }
                         newThrownTypes.add(createType(t, atypeFactory, false));
                     }
                     setThrownTypes(Collections.unmodifiableList(newThrownTypes));
@@ -1553,6 +1564,17 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                     List<AnnotatedTypeVariable> newTypeVarTypes =
                             new ArrayList<>(underlyingTypeVariables.size());
                     for (TypeMirror t : underlyingTypeVariables) {
+                        if (t.getKind() == TypeKind.ERROR) {
+                            // Maybe the input is uncompilable, or maybe the type is not completed
+                            // yet (see Issue #244).
+                            throw new ErrorTypeKindException(
+                                    "Problem with type variables of %s.%s: %s [%s %s]",
+                                    element,
+                                    element.getEnclosingElement(),
+                                    t,
+                                    t.getKind(),
+                                    t.getClass());
+                        }
                         newTypeVarTypes.add(
                                 (AnnotatedTypeVariable) createType(t, atypeFactory, true));
                     }
@@ -2661,5 +2683,21 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     @Deprecated // 2023-06-15
     public boolean isAnnotatedInHierarchy(AnnotationMirror annotation) {
         return hasAnnotationInHierarchy(annotation);
+    }
+
+    /** An ERROR TypeKind was found. */
+    @SuppressWarnings("serial")
+    public static class ErrorTypeKindException extends Error {
+
+        /**
+         * Creates an ErrorTypeKindException.
+         *
+         * @param format format string
+         * @param args arguments to the format string
+         */
+        @FormatMethod
+        public ErrorTypeKindException(String format, Object... args) {
+            super(String.format(format, args));
+        }
     }
 }
