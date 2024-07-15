@@ -25,8 +25,6 @@ plugins {
   id 'com.dorongold.task-tree' version '4.0.0'
 }
 
-apply plugin: 'de.undercouch.download'
-
 // There is another `repositories { ... }` block below; if you change this one, change that one as well.
 repositories {
   maven { url = 'https://oss.sonatype.org/content/repositories/snapshots/'}
