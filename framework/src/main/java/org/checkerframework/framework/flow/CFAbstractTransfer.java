@@ -499,9 +499,9 @@ public abstract class CFAbstractTransfer<
       if (isStaticMethod && !isStaticField) {
         continue;
       }
-      // Insert the value from the initializer of private final fields.
+      // TODO: should field visibility matter? An access from outside the class might observe
+      // the declared type instead of a refined type. Issue a warning to alert users?
       if (fieldInitialValue.initializer != null
-          // && varEle.getModifiers().contains(Modifier.PRIVATE)
           && ElementUtils.isFinal(varEle)
           && analysis.atypeFactory.isImmutable(ElementUtils.getType(varEle))) {
         store.insertValue(fieldInitialValue.fieldDecl, fieldInitialValue.initializer);
