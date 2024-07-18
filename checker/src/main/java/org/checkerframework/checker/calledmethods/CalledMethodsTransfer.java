@@ -225,13 +225,6 @@ public class CalledMethodsTransfer extends AccumulationTransfer {
       ExecutableElement elt,
       TransferResult<AccumulationValue, AccumulationStore> result) {
     AnnotationMirror annot = atypeFactory.getDeclAnnotation(elt, EnsuresCalledMethodsVarargs.class);
-    // Temporary, for backward compatibility.
-    if (annot == null) {
-      annot =
-          atypeFactory.getDeclAnnotation(
-              elt,
-              org.checkerframework.checker.calledmethods.qual.EnsuresCalledMethodsVarArgs.class);
-    }
     if (annot == null) {
       return;
     }
@@ -241,15 +234,6 @@ public class CalledMethodsTransfer extends AccumulationTransfer {
             ((CalledMethodsAnnotatedTypeFactory) atypeFactory)
                 .ensuresCalledMethodsVarargsValueElement,
             String.class);
-    // Temporary, for backward compatibility.
-    if (ensuredMethodNames.isEmpty()) {
-      ensuredMethodNames =
-          AnnotationUtils.getElementValueArray(
-              annot,
-              ((CalledMethodsAnnotatedTypeFactory) atypeFactory)
-                  .ensuresCalledMethodsVarArgsValueElement,
-              String.class);
-    }
     List<? extends VariableElement> parameters = elt.getParameters();
     int varArgsPos = parameters.size() - 1;
     Node varArgActual = node.getArguments().get(varArgsPos);
