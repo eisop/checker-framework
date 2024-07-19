@@ -8,6 +8,8 @@ Use `-ApermitMissingJdk` instead.
 
 **Implementation details:**
 
+Make `SourceChecker#suppressWarningsString` protected to allow adaptation in subclasses.
+
 **Closed issues:**
 
 
