@@ -331,7 +331,13 @@ public class Resolver {
         try {
             Env<AttrContext> env = getEnvForPath(path);
             // Either a VariableElement or a SymbolNotFoundError.
-            Element res = wrapInvocationOnResolveInstance(FIND_VAR, env, names.fromString(name));
+            Element res;
+            if (atLeastJava24) {
+                DiagnosticPosition pos = (DiagnosticPosition) path.getLeaf();
+                res = wrapInvocationOnResolveInstance(FIND_VAR, pos, env, names.fromString(name));
+            } else {
+                res = wrapInvocationOnResolveInstance(FIND_VAR, env, names.fromString(name));
+            }
             // Every kind in the documentation of Element.getKind() is explicitly tested, possibly
             // in the "default:" case.
             switch (res.getKind()) {
