@@ -15,4 +15,4 @@ source "$SCRIPTDIR"/clone-related.sh
 GIT_SCRIPTS="$SCRIPTDIR/.git-scripts"
 "$GIT_SCRIPTS/git-clone-related" jspecify jspecify-reference-checker -b main-eisop
 cd ../jspecify-reference-checker
-./gradlew build --console=plain --include-build ../checker-framework
+./gradlew build --console=plain --include-build "$CHECKERFRAMEWORK"
