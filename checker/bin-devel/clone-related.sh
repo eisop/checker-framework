@@ -60,7 +60,7 @@ fi
 
 
 # Download dependencies, trying a second time if there is a failure.
-(TERM=dumb timeout 300 ./gradlew --write-verification-metadata sha256 help --dry-run || \
-     (sleep 1m && ./gradlew --write-verification-metadata sha256 help --dry-run))
+(TERM=dumb timeout 300 ./gradlew resolveDependencies || \
+     (sleep 1m && ./gradlew resolveDependencies))
 
 echo Exiting checker/bin-devel/clone-related.sh in "$(pwd)"

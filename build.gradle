@@ -123,6 +123,26 @@ task installGitHooks(type: Copy, dependsOn: 'setLocalRepo') {
   into localRepo + '/hooks'
 }
 
+tasks.register('resolveDependencies') {
+  // Copied from here:
+  // http://www.jonathanpearlin.com/2014/10/28/gradle_resolve_all_dependencies.html
+  description 'Resolves all dependencies.'
+  doLast {
+    project.rootProject.allprojects.each { subProject ->
+      subProject.buildscript.configurations.each { configuration ->
+        if (configuration.canBeResolved) {
+          configuration.resolve()
+        }
+      }
+      subProject.configurations.each { configuration ->
+        if (configuration.canBeResolved) {
+          configuration.resolve()
+        }
+      }
+    }
+  }
+}
+
 if (currentRuntimeJavaVersion >= 11) {
   apply plugin: 'com.diffplug.spotless'
   spotless {
