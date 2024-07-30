@@ -47,8 +47,18 @@ ext {
     isJava19 = JavaVersion.current() == JavaVersion.VERSION_19
     isJava20 = JavaVersion.current() == JavaVersion.VERSION_20
     isJava21 = JavaVersion.current() == JavaVersion.VERSION_21
+    isJava22 = JavaVersion.current() == JavaVersion.VERSION_22
+    isJava23 = JavaVersion.current() == JavaVersion.VERSION_23
+    isJava24 = JavaVersion.current() == JavaVersion.VERSION_24
+    isJava25 = JavaVersion.current() == JavaVersion.VERSION_25
+    isJava26 = JavaVersion.current() == JavaVersion.VERSION_26
 
-    isJava21plus = isJava21
+    isJava26plus = isJava26
+    isJava25plus = isJava25 || isJava26plus
+    isJava24plus = isJava24 || isJava25plus
+    isJava23plus = isJava23 || isJava24plus
+    isJava22plus = isJava22 || isJava23plus
+    isJava21plus = isJava21 || isJava22plus
     isJava20plus = isJava20 || isJava21plus
     isJava19plus = isJava19 || isJava20plus
     isJava18plus = isJava18 || isJava19plus
@@ -460,6 +470,10 @@ allprojects {
             if (isJava21plus && !jdk17Compiler) {
                 // TODO: Ignore this-escape for now, we may want to review and suppress each one later.
                 lint +=',-this-escape'
+            }
+            if (isJava23plus && !jdk17Compiler) {
+                // TODO: Ignore dangling-doc-comments for now, we may want to fix them later.
+                lint +=',-dangling-doc-comments'
             }
             options.compilerArgs += [
                 '-g',
