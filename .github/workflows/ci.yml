@@ -34,7 +34,7 @@ jobs:
       uses: gradle/actions/setup-gradle@dbbdc275be76ac10734476cc723d82dfe7ec6eda # v3.4.2
 
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
-      run: ./checker/bin-devel/test-${ matrix.script }}.sh
+      run: ./checker/bin-devel/test-${{ matrix.script }}.sh
 
   all:
     name: Test ${{ matrix.script }} on JDK ${{ matrix.java_version }}
@@ -68,7 +68,7 @@ jobs:
       uses: gradle/actions/setup-gradle@dbbdc275be76ac10734476cc723d82dfe7ec6eda # v3.4.2
 
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
-      run: ./checker/bin-devel/test-${ matrix.script }}.sh
+      run: ./checker/bin-devel/test-${{ matrix.script }}.sh
 
   dependency-submission:
     runs-on: ubuntu-latest
