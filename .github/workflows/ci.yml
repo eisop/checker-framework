@@ -14,12 +14,10 @@ jobs:
       contents: read
     strategy:
       matrix:
-        script: ['cftests-junit', 'cftests-nonjunit', 'typecheck', 'jspecify-conformance']
+        script: ['cftests-junit', 'cftests-nonjunit', 'typecheck-part1', 'typecheck-part2', 'jspecify-conformance']
         java_version: [21]
-        experimental: [false]
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
-    continue-on-error: ${{ matrix.experimental }}
     steps:
     - uses: actions/checkout@v4
     - name: Set up JDK ${{ matrix.java_version }}
@@ -44,23 +42,23 @@ jobs:
       contents: read
     strategy:
       matrix:
-        script: ['cftests-junit', 'cftests-nonjunit', 'typecheck']
+        script: ['cftests-junit', 'cftests-nonjunit', 'typecheck-part1', 'typecheck-part2']
         # JDK 21 used by sanity before
-        java_version: [8, 11, 17, 22]
-        experimental: [false]
-        include:
-          - script: ['cftests-junit', 'cftests-nonjunit', 'typecheck']
-            java_version: ['23-ea', '24-ea']
-            experimental: true
+        java: [{version: '8', experimental: false},
+          {version: '11', experimental: false},
+          {version: '17', experimental: false},
+          {version: '22', experimental: true},
+          {version: '23-ea', experimental: true},
+          {version: '24-ea', experimental: true}]
     env:
-      JAVA_VERSION: ${{ matrix.java_version }}
-    continue-on-error: ${{ matrix.experimental }}
+      JAVA_VERSION: ${{ matrix.java.version }}
+    continue-on-error: ${{ matrix.java.experimental }}
     steps:
     - uses: actions/checkout@v4
-    - name: Set up JDK ${{ matrix.java_version }}
+    - name: Set up JDK ${{ matrix.java.version }}
       uses: actions/setup-java@v4
       with:
-        java-version: ${{ matrix.java_version }}
+        java-version: ${{ matrix.java.version }}
         distribution: 'temurin'
 
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
