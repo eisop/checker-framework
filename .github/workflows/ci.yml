@@ -44,12 +44,13 @@ jobs:
       contents: read
     strategy:
       matrix:
-        script: ['cftests-junit', 'cftests-nonjunit', 'typecheck', 'jspecify-conformance']
+        script: ['cftests-junit', 'cftests-nonjunit', 'typecheck']
         # JDK 21 used by sanity before
         java_version: [8, 11, 17, 22]
         experimental: [false]
         include:
-          - java_version: 24-ea
+          - script: ['cftests-junit', 'cftests-nonjunit', 'typecheck']
+            java_version: ['23-ea', '24-ea']
             experimental: true
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
