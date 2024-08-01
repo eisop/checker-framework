@@ -31,8 +31,8 @@ jobs:
    - nonjunit_jdk21
    # - inference_part1_jdk21
    # - inference_part2_jdk21
-   - typecheck_part1_jdk21
-   - typecheck_part2_jdk21
+   # - typecheck_part1_jdk21
+   # - typecheck_part2_jdk21
    - misc_jdk21
    # - misc_jdk_latest
   pool:
@@ -43,14 +43,14 @@ jobs:
 - job: framework_jobs
   dependsOn:
    - canary_jobs
-   - junit_jdk8
-   - junit_jdk11
-   - junit_jdk17
+   # - junit_jdk8
+   # - junit_jdk11
+   # - junit_jdk17
    # - junit_jdk_latest
    # - junit_jdk_next
-   - nonjunit_jdk8
-   - nonjunit_jdk11
-   - nonjunit_jdk17
+   # - nonjunit_jdk8
+   # - nonjunit_jdk11
+   # - nonjunit_jdk17
    # - nonjunit_jdk_latest
    # - nonjunit_jdk_next
    # - inference_jdk8
@@ -58,9 +58,9 @@ jobs:
    # - inference_jdk17
    # - inference_jdk_latest
    # - inference_jdk_next
-   - typecheck_jdk8
-   - typecheck_jdk11
-   - typecheck_jdk17
+   # - typecheck_jdk8
+   # - typecheck_jdk11
+   # - typecheck_jdk17
    # - typecheck_jdk_latest
    # - typecheck_jdk_next
   pool:
