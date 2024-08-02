@@ -1,17 +1,42 @@
-Version 3.42.0-eisop4 (April ?, 2024)
--------------------------------------
+Version 3.42.0-eisop5 (July ?, 2024)
+------------------------------------
 
 **User-visible changes:**
 
+Removed support for the `-Anocheckjdk` option, which was deprecated in version 3.1.1.
+Use `-ApermitMissingJdk` instead.
+
 **Implementation details:**
 
-Improvements in `framework-test` to more consistently handle tests that do not use
-`-Anomsgtext`.
-
-Changed the return type of `AnnotatedTypeFactory#getEnumConstructorQualifiers` from `Set<AnnotationMirror>` to
-`AnnotationMirrorSet`.
+Make `SourceChecker#suppressWarningsString` protected to allow adaptation in subclasses.
 
 **Closed issues:**
+
+
+Version 3.42.0-eisop4 (July 12, 2024)
+-------------------------------------
+
+**Implementation details:**
+
+New method `GenericAnnotatedTypeFactory#addComputedTypeAnnotationsWithoutFlow(Tree, AnnotatedTypeMirror)`
+that sets `useFlow` to `false` before calling `addComputedTypeAnnotations`. Subclasses should override
+method `GenericAnnotatedTypeFactory#addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)` instead.
+Deprecated the `GenericAnnotatedTypeFactory#addComputedTypeAnnotations(Tree, AnnotatedTypeMirror, boolean)`
+overload.
+
+Changed the return type of `AnnotatedTypeFactory#getEnumConstructorQualifiers` from `Set<AnnotationMirror>`
+to `AnnotationMirrorSet`.
+
+Field `AnnotatedTypeFactory#root` is now private and can only be accessed through `getRoot`/`setRoot`.
+
+framework-test:
+- Improvements to more consistently handle tests that do not use `-Anomsgtext`.
+- Added new class `DetailedTestDiagnostic` to directly represent test diagnostics when
+  `-Adetailedmsgtext` is used.
+
+**Closed issues:**
+
+eisop#742, eisop#777, eisop#795, typetools#6704.
 
 
 Version 3.42.0-eisop3 (March 1, 2024)
