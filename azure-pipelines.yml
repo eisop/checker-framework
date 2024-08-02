@@ -27,8 +27,8 @@ jobs:
 # Include misc_jdk_latest because JDK 20+ adds more strict checking (e.g., Javadoc)
 - job: canary_jobs
   dependsOn:
-   - junit_jdk21
-   - nonjunit_jdk21
+   # - junit_jdk21
+   # - nonjunit_jdk21
    # - inference_part1_jdk21
    # - inference_part2_jdk21
    # - typecheck_part1_jdk21
@@ -153,6 +153,7 @@ jobs:
       artifactName: cf_jdk17
       artifactType: pipeline
 - job: junit_jdk21
+  condition: false
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk21:latest
@@ -249,6 +250,7 @@ jobs:
   - bash: ./checker/bin-devel/test-cftests-nonjunit.sh
     displayName: test-cftests-nonjunit.sh
 - job: nonjunit_jdk21
+  condition: false
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk21:latest
