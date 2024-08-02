@@ -153,6 +153,7 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Types;
 
 /* NO-AFU
    import org.checkerframework.common.wholeprograminference.WholeProgramInference;
@@ -3063,7 +3064,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 getExceptionParameterLowerBoundAnnotationsCached();
         VariableTree excParamTree = tree.getParameter();
         AnnotatedTypeMirror excParamType = atypeFactory.getAnnotatedType(excParamTree);
-
         for (AnnotationMirror required : requiredAnnotations) {
             AnnotationMirror found = excParamType.getAnnotationInHierarchy(required);
             assert found != null;
@@ -3123,6 +3123,23 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotatedTypeMirror throwType = atypeFactory.getAnnotatedType(tree.getExpression());
         TypeMirror throwTM = throwType.getUnderlyingType();
         Set<? extends AnnotationMirror> required = getThrowUpperBoundAnnotations();
+        if (methodTree != null) {
+            List<AnnotatedTypeMirror> exceptionList =
+                    atypeFactory.getAnnotatedType(methodTree).getThrownTypes();
+            if (exceptionList != null) {
+                for (AnnotatedTypeMirror exception : exceptionList) {
+                    Types typesUtil = atypeFactory.getProcessingEnv().getTypeUtils();
+                    if (typesUtil.isSubtype(
+                            exception.getUnderlyingType(), throwType.getUnderlyingType())) {
+                        // use the type of the exception in the method signature if this exception
+                        // is a subtype of it, otherwise use top to permit runtime exceptions not
+                        // declared.
+                        required = exception.getEffectiveAnnotations();
+                        break;
+                    }
+                }
+            }
+        }
         switch (throwType.getKind()) {
             case NULL:
             case DECLARED:
