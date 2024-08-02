@@ -15,7 +15,7 @@ jobs:
       contents: read
     strategy:
       matrix:
-        script: ['cftests-junit', 'cftests-nonjunit']
+        script: ['cftests-junit', 'cftests-nonjunit', 'misc']
         java_version: [21]
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
