@@ -8,6 +8,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedNullType
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiveType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
+import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.plumelib.util.IPair;
@@ -285,7 +286,12 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
                 AnnotatedTypeMirror resLower =
                         combineAnnotationWithType(receiverAnnotation, atv.getLowerBound());
                 mappings.put(atv.getLowerBound(), resLower);
-
+                // The values of the mappings are the viewpoint adapted lower and upper bounds,
+                // and we wish to replace the old bounds of atv with the new mappings.
+                // However, we need to first remove the primary annotations of atv, otherwise
+                // in later replacement, the primary annotations would override our computed
+                // new mappings (see method fixupBoundAnnotations).
+                atv.clearAnnotations();
                 AnnotatedTypeMirror result =
                         AnnotatedTypeCopierWithReplacement.replace(atv, mappings);
 
@@ -408,6 +414,23 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             // Base case where actual type argument is extracted
             if (lhs.getKind() == TypeKind.DECLARED) {
                 rhs = getTypeVariableSubstitution((AnnotatedDeclaredType) lhs, atv);
+                // A type annotation on a use of a generic type variable overrides/ignores any type
+                // qualifier (in the same type hierarchy) on the corresponding actual type argument.
+                // See https://eisop.github.io/cf/manual/manual.html#type-variable-use
+                // However, #getTypeVariableSubstitution will replace the type qualifier with the
+                // qualifier on type variable declaration.
+                // Here check if the types of the lower and upper bound are the same. If they are:
+                // (1) If the type variable use is annotated, replacing the primary annotation of
+                // the substituted result (rhs) with the previous annotated type qualifier.
+                // (2) If the type variable use is not annotated and the type parameter is declared
+                // with the same upper and lower bounds, and doing the same replace as (1) is safe
+                // because the qualifiers of the substituted result (rhs) and the old type variable
+                // use (atv) are the same.
+                if (AnnotationUtils.areSame(
+                        atv.getLowerBound().getAnnotations(),
+                        atv.getUpperBound().getAnnotations())) {
+                    rhs.replaceAnnotations(atv.getLowerBound().getAnnotations());
+                }
             }
         } else if (rhs.getKind() == TypeKind.DECLARED) {
             AnnotatedDeclaredType adt = (AnnotatedDeclaredType) rhs.shallowCopy();
