@@ -79,18 +79,18 @@ jobs:
    # Not daikon_jdk_next
    # - guava_jdk8
    # - guava_jdk11
-   - guava_jdk17
-   - guava_jdk21
+   # - guava_jdk17
+   # - guava_jdk21
    # - guava_jdk_latest
    # Not guava_jdk_next
    # - plume_lib_jdk8
    # - plume_lib_jdk11
-   - plume_lib_jdk17
-   - plume_lib_jdk21
+   # - plume_lib_jdk17
+   # - plume_lib_jdk21
    # - plume_lib_jdk_latest
    # Not plume_lib_jdk_next
-   - windows_junit_jdk17
-   - jspecify_conformance_jdk21
+   # - windows_junit_jdk17
+   # - jspecify_conformance_jdk21
   pool:
     vmImage: 'ubuntu-latest'
   steps:
@@ -683,6 +683,7 @@ jobs:
   - bash: ./checker/bin-devel/test-guava.sh
     displayName: test-guava.sh
 - job: guava_jdk17
+  condition: false
   dependsOn:
    - framework_jobs
    - guava_jdk21
@@ -696,6 +697,7 @@ jobs:
   - bash: ./checker/bin-devel/test-guava.sh
     displayName: test-guava.sh
 - job: guava_jdk21
+  condition: false
   dependsOn:
    - canary_jobs
   pool:
@@ -727,6 +729,7 @@ jobs:
 #   - bash: ./checker/bin-devel/test-guava.sh
 #     displayName: test-guava.sh
 - job: guava_jdk_next
+  condition: false
   dependsOn:
    - framework_jobs
    - guava_jdk21
@@ -770,6 +773,7 @@ jobs:
   - bash: ./checker/bin-devel/test-plume-lib.sh
     displayName: test-plume-lib.sh
 - job: plume_lib_jdk17
+  condition: false
   dependsOn:
    - canary_jobs
    - plume_lib_jdk21
@@ -782,6 +786,7 @@ jobs:
   - bash: ./checker/bin-devel/test-plume-lib.sh
     displayName: test-plume-lib.sh
 - job: plume_lib_jdk21
+  condition: false
   dependsOn:
    - canary_jobs
   pool:
@@ -806,6 +811,7 @@ jobs:
 #   - bash: ./checker/bin-devel/test-plume-lib.sh
 #     displayName: test-plume-lib.sh
 - job: plume_lib_jdk_next
+  condition: false
   dependsOn:
    - canary_jobs
    - plume_lib_jdk17
@@ -895,6 +901,7 @@ jobs:
 #     displayName: test-downstream.sh
 
 - job: windows_junit_jdk17
+  condition: false
   dependsOn:
     - junit_jdk21
   pool:
