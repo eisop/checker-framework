@@ -39,7 +39,6 @@ jobs:
   remainder:
     name: Test ${{ matrix.script }} on JDK ${{ matrix.java_version }}
     runs-on: ubuntu-latest
-    needs: sanity
     permissions:
       contents: read
     strategy:
