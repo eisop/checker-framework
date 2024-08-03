@@ -17,6 +17,7 @@ public class VarargsConstructor {
     void invokeConstructor(@A Object aObj, @B Object bObj, @Top Object topObj) {
         @A Object a = new @A VarargsConstructor(aObj);
         @B Object b = new @B VarargsConstructor(bObj);
+        // :: error: (argument.type.incompatible)
         @Top Object top = new @Top VarargsConstructor(topObj);
         // :: error: (argument.type.incompatible)
         new @A VarargsConstructor(bObj);
@@ -31,14 +32,17 @@ public class VarargsConstructor {
 
         void foo() {
             Inner a = new Inner();
+            // :: error: (argument.type.incompatible)
             Inner b = new Inner(new Object());
             Inner c = VarargsConstructor.this.new Inner();
+            // :: error: (argument.type.incompatible)
             Inner d = VarargsConstructor.this.new Inner(new Object());
         }
 
         void invokeConstructor(@A Object aObj, @B Object bObj, @Top Object topObj) {
             @A Object a = new @A Inner(aObj);
             @B Object b = new @B Inner(bObj);
+            // :: error: (argument.type.incompatible)
             @Top Object top = new @Top Inner(topObj);
             // :: error: (argument.type.incompatible)
             new @A Inner(bObj);
@@ -56,6 +60,7 @@ public class VarargsConstructor {
                 };
         @A Object a = new @A VarargsConstructor(aObj) {};
         @B Object b = new @B VarargsConstructor(bObj) {};
+        // :: error: (argument.type.incompatible)
         @Top Object top = new @Top VarargsConstructor(topObj) {};
         // :: error: (argument.type.incompatible)
         new @A VarargsConstructor(bObj) {};
