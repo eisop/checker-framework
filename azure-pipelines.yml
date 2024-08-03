@@ -91,6 +91,7 @@ jobs:
    # Not plume_lib_jdk_next
    - windows_junit_jdk17
    - jspecify_conformance_jdk21
+   - jspecify_reference_checker_jdk21
   pool:
     vmImage: 'ubuntu-latest'
   steps:
@@ -816,6 +817,18 @@ jobs:
     fetchDepth: 25
   - bash: ./checker/bin-devel/test-jspecify-conformance.sh
     displayName: test-jspecify-conformance.sh
+
+- job: jspecify_reference_checker_jdk21
+  dependsOn:
+   - junit_jdk21
+  pool:
+    vmImage: 'ubuntu-latest'
+  container: wmdietl/cf-ubuntu-jdk21:latest
+  steps:
+  - checkout: self
+    fetchDepth: 25
+  - bash: ./checker/bin-devel/test-jspecify-reference-checker.sh
+    displayName: test-jspecify-reference-checker.sh
 
 ## The downstream jobs are not currently needed because test-downstream.sh is empty.
 # - job: downstream_jdk8
