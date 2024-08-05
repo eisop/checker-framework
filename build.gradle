@@ -387,13 +387,15 @@ allprojects {
         // Add standard javac options
         tasks.withType(JavaCompile) { compilationTask ->
             dependsOn(':installGitHooks')
-            boolean jdk17Compiler = project.getProperties().getOrDefault('useJdk17Compiler', false)
-            if (!isJava8 && jdk17Compiler) {
-                // This uses the Java 17 compiler to compile all code.
-                //  https://docs.gradle.org/current/userguide/toolchains.html
+            boolean jdk21Compiler = project.getProperties().getOrDefault('useJdk21Compiler', false)
+            if (!isJava8 && jdk21Compiler) {
+                // This uses the Java 21 compiler to compile all code, like we do for a release.
+                // CI test test-cftests-junit-jdk21 then runs the JUnit tests on the different JDK versions,
+                // to ensure there is no version mismatch between compiled-against javac API and runtime API.
+                //   https://docs.gradle.org/current/userguide/toolchains.html
                 // This property is final on Java 8, so don't set it then.
                 javaCompiler = javaToolchains.compilerFor {
-                    languageVersion = JavaLanguageVersion.of(17)
+                    languageVersion = JavaLanguageVersion.of(21)
                 }
             }
 

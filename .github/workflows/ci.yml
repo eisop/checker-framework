@@ -43,6 +43,7 @@ jobs:
       contents: read
     strategy:
       matrix:
+        # No need to run 'cftests-junit-jdk21' on JDK 21.
         script: ['typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib', 'jspecify-conformance']
         java_version: [21]
     env:
@@ -71,8 +72,8 @@ jobs:
       contents: read
     strategy:
       matrix:
-        # jspecify-conformance only tested on JDK 21
-        script: ['cftests-junit', 'cftests-nonjunit', 'typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib']
+        # jspecify-conformance only tested on JDK 21.
+        script: ['cftests-junit', 'cftests-nonjunit', 'cftests-junit-jdk21', 'typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib']
         # JDK 21 used by sanity before
         java: [{version: '8', experimental: false},
           {version: '11', experimental: false},
