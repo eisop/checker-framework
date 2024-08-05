@@ -92,6 +92,14 @@ jobs:
       with:
         java-version: ${{ matrix.java.version }}
         distribution: 'temurin'
+    - name: Set up JDK 21 on an experimental platform
+      if: matrix.java.experimental
+      uses: actions/setup-java@v4
+      with:
+        # Install JDK 21 second, to make it the default on which gradle runs.
+        # This unfortunately also means that all tests run on JDK 21 instead of the newer version.
+        java-version: 21
+        distribution: 'temurin'
 
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
@@ -100,6 +108,9 @@ jobs:
 
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
       run: ./checker/bin-devel/test-${{ matrix.script }}.sh
+      # Set the compiler version to use, allowing us to e.g. run Java 23 while gradle does not work
+      # on Java 23 yet. This only tests the compiler, it does not use that version to run the tests.
+      env: ORG_GRADLE_PROJECT_useJdkCompiler=${{ matrix.java.version }}
 
   # Sanity tests on Windows and MacOS.
   otheros:
