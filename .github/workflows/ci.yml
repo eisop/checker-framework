@@ -71,6 +71,7 @@ jobs:
     permissions:
       contents: read
     strategy:
+      fail-fast: false
       matrix:
         # jspecify-conformance only tested on JDK 21.
         script: ['cftests-junit', 'cftests-nonjunit', 'cftests-junit-jdk21', 'typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib']
