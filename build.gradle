@@ -459,7 +459,7 @@ allprojects {
             //   warnings are suppressible with a "// fall through" comment.
             // -classfile: classgraph jar file and https://bugs.openjdk.org/browse/JDK-8190452
             String lint = '-Xlint:-options,-fallthrough,-classfile'
-            if (isJava21plus && !jdk17Compiler) {
+            if (isJava21plus) {
                 // TODO: Ignore this-escape for now, we may want to review and suppress each one later.
                 lint +=',-this-escape'
             }
