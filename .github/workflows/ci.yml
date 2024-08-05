@@ -126,7 +126,17 @@ jobs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3.5.0
 
-    - name: Run test script checker/bin-devel/test-${{ matrix.script }}
+    - name: Install coreutils on MacOS
+      if: matrix.os == 'macos-latest'
+      run: brew install coreutils
+
+    - name: Run test script checker/bin-devel/test-${{ matrix.script }} on MaxOS
+      if: matrix.os == 'macos-latest'
+      run: ./checker/bin-devel/test-${{ matrix.script }}.sh
+
+    - name: Run test script checker/bin-devel/test-${{ matrix.script }} on Windows
+      if: matrix.os == 'windows-latest'
+      shell: bash
       run: ./checker/bin-devel/test-${{ matrix.script }}.sh
 
   dependency-submission:
