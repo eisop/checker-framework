@@ -39,34 +39,6 @@ ext {
     // On a Java 8 JVM, use error-prone javac and source/target 8.
     // On a Java 9+ JVM, use the host javac, default source/target, and required module flags.
     isJava8 = JavaVersion.current() == JavaVersion.VERSION_1_8
-    isJava14 = JavaVersion.current() == JavaVersion.VERSION_14
-    isJava15 = JavaVersion.current() == JavaVersion.VERSION_15
-    isJava16 = JavaVersion.current() == JavaVersion.VERSION_16
-    isJava17 = JavaVersion.current() == JavaVersion.VERSION_17
-    isJava18 = JavaVersion.current() == JavaVersion.VERSION_18
-    isJava19 = JavaVersion.current() == JavaVersion.VERSION_19
-    isJava20 = JavaVersion.current() == JavaVersion.VERSION_20
-    isJava21 = JavaVersion.current() == JavaVersion.VERSION_21
-    isJava22 = JavaVersion.current() == JavaVersion.VERSION_22
-    isJava23 = JavaVersion.current() == JavaVersion.VERSION_23
-    isJava24 = JavaVersion.current() == JavaVersion.VERSION_24
-    isJava25 = JavaVersion.current() == JavaVersion.VERSION_25
-    isJava26 = JavaVersion.current() == JavaVersion.VERSION_26
-
-    isJava26plus = isJava26
-    isJava25plus = isJava25 || isJava26plus
-    isJava24plus = isJava24 || isJava25plus
-    isJava23plus = isJava23 || isJava24plus
-    isJava22plus = isJava22 || isJava23plus
-    isJava21plus = isJava21 || isJava22plus
-    isJava20plus = isJava20 || isJava21plus
-    isJava19plus = isJava19 || isJava20plus
-    isJava18plus = isJava18 || isJava19plus
-    isJava17plus = isJava17 || isJava18plus
-    isJava16plus = isJava16 || isJava17plus
-    isJava15plus = isJava15 || isJava16plus
-    isJava14plus = isJava14 || isJava15plus
-    isJava11plus = JavaVersion.current() >= JavaVersion.VERSION_11
 
     // As of 2023-09-23, delombok doesn't yet support JDK 22; see https://projectlombok.org/changelog .
     skipDelombok = JavaVersion.current() > JavaVersion.VERSION_21
@@ -471,7 +443,7 @@ allprojects {
                 // TODO: Ignore this-escape for now, we may want to review and suppress each one later.
                 lint +=',-this-escape'
             }
-            if (isJava23plus && !jdk17Compiler) {
+            if (useJdkCompiler >= 23) {
                 // TODO: Ignore dangling-doc-comments for now, we may want to fix them later.
                 lint +=',-dangling-doc-comments'
             }
