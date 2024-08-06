@@ -153,6 +153,13 @@ if (isJava11plus) {
     }
 }
 
+def majorVersionToInt(majorVersionString) {
+    if (majorVersionString.endsWith("-ea")) {
+        majorVersionString = majorVersionString.subString(0, majorVersionString.length() - 3)
+    }
+    return Integer.valueOf(majorVersionString)
+}
+
 allprojects {
     // Increment the minor version (second number) rather than just the patch
     // level (third number) if:
@@ -388,13 +395,13 @@ allprojects {
         tasks.withType(JavaCompile) { compilationTask ->
             dependsOn(':installGitHooks')
             String useJdkCompilerProp = project.getProperties().get('useJdkCompiler')
-            int runtimeCompiler = Integer.valueOf(JavaVersion.current().getMajorVersion())
+            int runtimeCompiler = majorVersionToInt(JavaVersion.current().getMajorVersion())
             int useJdkCompiler
             if (useJdkCompilerProp == null) {
                 // If the property is not given, use the same version as the runtime.
                 useJdkCompiler = runtimeCompiler
             } else {
-                useJdkCompiler = Integer.valueOf(useJdkCompilerProp)
+                useJdkCompiler = majorVersionToInt(useJdkCompilerProp)
                 boolean useToolchains = (runtimeCompiler != useJdkCompiler)
                 if (!isJava8 && useToolchains) {
                     // This uses the requested Java compiler to compile all code.
