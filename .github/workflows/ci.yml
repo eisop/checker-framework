@@ -110,7 +110,8 @@ jobs:
       run: ./checker/bin-devel/test-${{ matrix.script }}.sh
       # Set the compiler version to use, allowing us to e.g. run Java 23 while gradle does not work
       # on Java 23 yet. This only tests the compiler, it does not use that version to run the tests.
-      env: ORG_GRADLE_PROJECT_useJdkCompiler=${{ matrix.java.version }}
+      env:
+        ORG_GRADLE_PROJECT_useJdkCompiler: ${{ matrix.java.version }}
 
   # Sanity tests on Windows and MacOS.
   otheros:
