@@ -155,7 +155,7 @@ if (isJava11plus) {
 
 def majorVersionToInt(majorVersionString) {
     if (majorVersionString.endsWith("-ea")) {
-        majorVersionString = majorVersionString.subString(0, majorVersionString.length() - 3)
+        majorVersionString = majorVersionString.substring(0, majorVersionString.length() - 3)
     }
     return Integer.valueOf(majorVersionString)
 }
