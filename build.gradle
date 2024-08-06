@@ -388,18 +388,18 @@ allprojects {
         tasks.withType(JavaCompile) { compilationTask ->
             dependsOn(':installGitHooks')
             String useJdkCompilerProp = project.getProperties().get('useJdkCompiler')
+            int runtimeCompiler = Integer.valueOf(JavaVersion.current().getMajorVersion())
             int useJdkCompiler
             if (useJdkCompilerProp == null) {
                 // If the property is not given, use the same version as the runtime.
-                useJdkCompiler = Integer.valueOf(JavaVersion.current().getMajorVersion())
+                useJdkCompiler = runtimeCompiler
             } else {
                 useJdkCompiler = Integer.valueOf(useJdkCompilerProp)
-                boolean useToolchains = (JavaVersion.current() != useJdkCompiler)
+                boolean useToolchains = (runtimeCompiler != useJdkCompiler)
                 if (!isJava8 && useToolchains) {
                     // This uses the requested Java compiler to compile all code.
-                    // If no version is requested, we use Java 21, like we do for a release.
-                    // CI test test-cftests-junit-jdk21 then runs the JUnit tests on the different JDK versions,
-                    // to ensure there is no version mismatch between compiled-against javac API and runtime API.
+                    // CI test test-cftests-junit-jdk21 runs the JUnit tests on the different JDK versions,
+                    // to ensure there is no version mismatch between compiled-against javac APIs and runtime APIs.
                     //   https://docs.gradle.org/current/userguide/toolchains.html
                     // This property is final on Java 8, so don't set it then.
                     javaCompiler = javaToolchains.compilerFor {
