@@ -68,6 +68,8 @@ jobs:
     name: ${{ matrix.script }} on JDK ${{ matrix.java.version }}
     runs-on: ubuntu-latest
     needs: remainder
+    # At least one plume-lib project no longer works on Java 8.
+    if: matrix.java.version != 8 || matrix.script != 'plume-lib'
     permissions:
       contents: read
     strategy:
@@ -108,8 +110,6 @@ jobs:
 
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
       run: ./checker/bin-devel/test-${{ matrix.script }}.sh
-      # At least one plume-lib project no longer works on Java 8.
-      if: matrix.java.version != 8 || matrix.script != 'plume-lib'
       # Set the compiler version to use, allowing us to e.g. run Java 23 while gradle does not work
       # on Java 23 yet. This only tests the compiler, it does not use that version to run the tests.
       env:
