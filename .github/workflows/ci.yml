@@ -68,9 +68,6 @@ jobs:
     name: ${{ matrix.script }} on JDK ${{ matrix.java.version }}
     runs-on: ubuntu-latest
     needs: remainder
-    # At least one plume-lib project no longer works on Java 8.
-    # Java 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
-    if: "${{ matrix.java.version }} != 8 || (${{ matrix.script }} != 'plume-lib' && ${{ matrix.script }} != 'cftests-junit-jdk21')"
     permissions:
       contents: read
     strategy:
@@ -111,6 +108,13 @@ jobs:
 
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
       run: ./checker/bin-devel/test-${{ matrix.script }}.sh
+      # TODO: it would be nicer to not run the job at all, but GH Actions does
+      # not allow accessing the matrix on the job-if clause. There is also no way
+      # for an earlier step to stop execution successfully.
+      #
+      # At least one plume-lib project no longer works on Java 8.
+      # Java 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
+      if: matrix.java.version != 8 || (matrix.script != 'plume-lib' && matrix.script != 'cftests-junit-jdk21')"
       # Set the compiler version to use, allowing us to e.g. run Java 23 while gradle does not work
       # on Java 23 yet. This only tests the compiler, it does not use that version to run the tests.
       env:
