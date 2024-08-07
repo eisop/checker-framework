@@ -268,6 +268,7 @@ public final class CFGVisualizeLauncher {
             printError(
                     "internal error in type processor! method typeProcessOver() doesn't get"
                             + " called.");
+            Thread.dumpStack();
             System.exit(1);
         }
 
