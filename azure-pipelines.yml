@@ -581,9 +581,9 @@ jobs:
   - bash: ./checker/bin-devel/test-daikon.sh
     displayName: test-daikon.sh
 - job: daikon_jdk17
-  dependsOn:
-   - canary_jobs
-   - daikon_jdk21
+  # dependsOn:
+  #  - canary_jobs
+  #  - daikon_jdk21
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk17:latest
@@ -594,8 +594,8 @@ jobs:
   - bash: ./checker/bin-devel/test-daikon.sh
     displayName: test-daikon.sh
 - job: daikon_part1_jdk21
-  dependsOn:
-   - canary_jobs
+  # dependsOn:
+  #  - canary_jobs
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk21:latest
@@ -606,8 +606,8 @@ jobs:
   - bash: ./checker/bin-devel/test-daikon-part1.sh
     displayName: test-daikon.sh
 - job: daikon_part2_jdk21
-  dependsOn:
-   - canary_jobs
+  # dependsOn:
+  #  - canary_jobs
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk21:latest
@@ -640,9 +640,9 @@ jobs:
 #   - bash: ./checker/bin-devel/test-daikon.sh
 #     displayName: test-daikon.sh
 - job: daikon_jdk_next
-  dependsOn:
-   - framework_jobs
-   - daikon_jdk21
+  # dependsOn:
+  # - framework_jobs
+  # - daikon_jdk21
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk-next:latest
