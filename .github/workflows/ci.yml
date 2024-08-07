@@ -44,7 +44,7 @@ jobs:
     strategy:
       matrix:
         # No need to run 'cftests-junit-jdk21' on JDK 21.
-        script: ['typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib', 'jspecify-conformance']
+        script: ['typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib', 'jspecify-conformance', 'daikon-part1', 'daikon-part2']
         java_version: [21]
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
