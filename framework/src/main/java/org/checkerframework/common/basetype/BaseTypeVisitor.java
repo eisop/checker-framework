@@ -4602,6 +4602,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             for (int i = 0; i < overriderParams.size(); ++i) {
                 boolean success =
                         typeHierarchy.isSubtype(overriddenParams.get(i), overriderParams.get(i));
+                if (!success) {
+                    success =
+                            testTypevarContainment(overriddenParams.get(i), overriderParams.get(i));
+                }
+
                 checkParametersMsg(success, i, overriderParams, overriddenParams);
                 result &= success;
             }
