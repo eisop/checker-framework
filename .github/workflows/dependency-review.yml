@@ -1,4 +1,5 @@
-name: dependency-review
+# See: https://github.com/gradle/actions/blob/main/docs/dependency-submission.md#usage-with-pull-requests-from-public-forked-repositories
+name: Dependency review
 
 on:
   pull_request:
@@ -10,7 +11,7 @@ jobs:
   dependency-review:
     runs-on: ubuntu-latest
     steps:
-      - name: 'Dependency Review'
+      - name: 'Dependency review'
         uses: actions/dependency-review-action@v4
         with:
           retry-on-snapshot-warnings: true
