@@ -4600,12 +4600,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
             boolean result = true;
             for (int i = 0; i < overriderParams.size(); ++i) {
-                boolean success =
-                        typeHierarchy.isSubtype(overriddenParams.get(i), overriderParams.get(i));
-                if (!success) {
-                    success =
-                            testTypevarContainment(overriddenParams.get(i), overriderParams.get(i));
-                }
+                AnnotatedTypeMirror capturedParam =
+                        atypeFactory.applyCaptureConversion(overriddenParams.get(i));
+                boolean success = typeHierarchy.isSubtype(capturedParam, overriderParams.get(i));
 
                 checkParametersMsg(success, i, overriderParams, overriddenParams);
                 result &= success;
