@@ -39,6 +39,9 @@ jobs:
   remainder:
     name: ${{ matrix.script }} on JDK ${{ matrix.java_version }}
     runs-on: ubuntu-latest
+    # Don't depend on sanity jobs, to have more parallelism.
+    # TODO: cancel these jobs if sanity fails.
+    # needs: sanity
     permissions:
       contents: read
     strategy:
