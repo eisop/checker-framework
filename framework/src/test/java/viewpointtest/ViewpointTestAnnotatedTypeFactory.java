@@ -10,6 +10,7 @@ import java.util.Set;
 import viewpointtest.quals.A;
 import viewpointtest.quals.B;
 import viewpointtest.quals.Bottom;
+import viewpointtest.quals.Lost;
 import viewpointtest.quals.PolyVP;
 import viewpointtest.quals.ReceiverDependentQual;
 import viewpointtest.quals.Top;
@@ -29,6 +30,7 @@ public class ViewpointTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory 
                 Bottom.class,
                 PolyVP.class,
                 ReceiverDependentQual.class,
+                Lost.class,
                 Top.class);
     }
 

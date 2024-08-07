@@ -8,12 +8,13 @@ import org.checkerframework.javacutil.AnnotationUtils;
 
 import javax.lang.model.element.AnnotationMirror;
 
+import viewpointtest.quals.Lost;
 import viewpointtest.quals.ReceiverDependentQual;
 import viewpointtest.quals.Top;
 
 public class ViewpointTestViewpointAdapter extends AbstractViewpointAdapter {
 
-    private final AnnotationMirror TOP, RECEIVERDEPENDENTQUAL;
+    private final AnnotationMirror TOP, RECEIVERDEPENDENTQUAL, LOST;
 
     /**
      * The class constructor.
@@ -26,6 +27,7 @@ public class ViewpointTestViewpointAdapter extends AbstractViewpointAdapter {
         RECEIVERDEPENDENTQUAL =
                 AnnotationBuilder.fromClass(
                         atypeFactory.getElementUtils(), ReceiverDependentQual.class);
+        LOST = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), Lost.class);
     }
 
     @Override
@@ -38,7 +40,11 @@ public class ViewpointTestViewpointAdapter extends AbstractViewpointAdapter {
             AnnotationMirror receiverAnnotation, AnnotationMirror declaredAnnotation) {
 
         if (AnnotationUtils.areSame(declaredAnnotation, RECEIVERDEPENDENTQUAL)) {
-            return receiverAnnotation;
+            if (AnnotationUtils.areSame(receiverAnnotation, TOP)) {
+                return LOST;
+            } else {
+                return receiverAnnotation;
+            }
         }
         return declaredAnnotation;
     }
