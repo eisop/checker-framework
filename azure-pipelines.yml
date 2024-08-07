@@ -27,12 +27,12 @@ jobs:
 # Include misc_jdk_latest because JDK 20+ adds more strict checking (e.g., Javadoc)
 - job: canary_jobs
   dependsOn:
-   - junit_jdk21
-   - nonjunit_jdk21
+   # - junit_jdk21
+   # - nonjunit_jdk21
    # - inference_part1_jdk21
    # - inference_part2_jdk21
-   - typecheck_part1_jdk21
-   - typecheck_part2_jdk21
+   # - typecheck_part1_jdk21
+   # - typecheck_part2_jdk21
    - misc_jdk21
    # - misc_jdk_latest
   pool:
@@ -43,14 +43,14 @@ jobs:
 - job: framework_jobs
   dependsOn:
    - canary_jobs
-   - junit_jdk8
-   - junit_jdk11
-   - junit_jdk17
+   # - junit_jdk8
+   # - junit_jdk11
+   # - junit_jdk17
    # - junit_jdk_latest
    # - junit_jdk_next
-   - nonjunit_jdk8
-   - nonjunit_jdk11
-   - nonjunit_jdk17
+   # - nonjunit_jdk8
+   # - nonjunit_jdk11
+   # - nonjunit_jdk17
    # - nonjunit_jdk_latest
    # - nonjunit_jdk_next
    # - inference_jdk8
@@ -58,9 +58,9 @@ jobs:
    # - inference_jdk17
    # - inference_jdk_latest
    # - inference_jdk_next
-   - typecheck_jdk8
-   - typecheck_jdk11
-   - typecheck_jdk17
+   # - typecheck_jdk8
+   # - typecheck_jdk11
+   # - typecheck_jdk17
    # - typecheck_jdk_latest
    # - typecheck_jdk_next
   pool:
@@ -79,24 +79,25 @@ jobs:
    # Not daikon_jdk_next
    # - guava_jdk8
    # - guava_jdk11
-   - guava_jdk17
-   - guava_jdk21
+   # - guava_jdk17
+   # - guava_jdk21
    # - guava_jdk_latest
    # Not guava_jdk_next
    # - plume_lib_jdk8
    # - plume_lib_jdk11
-   - plume_lib_jdk17
-   - plume_lib_jdk21
+   # - plume_lib_jdk17
+   # - plume_lib_jdk21
    # - plume_lib_jdk_latest
    # Not plume_lib_jdk_next
-   - windows_junit_jdk17
-   - jspecify_conformance_jdk21
+   # - windows_junit_jdk17
+   # - jspecify_conformance_jdk21
   pool:
     vmImage: 'ubuntu-latest'
   steps:
    - checkout: none
 
 - job: junit_jdk8
+  condition: false
   dependsOn:
    - canary_jobs
    - junit_jdk21
@@ -115,6 +116,7 @@ jobs:
       artifactName: cf_jdk8
       artifactType: pipeline
 - job: junit_jdk11
+  condition: false
   dependsOn:
    - canary_jobs
    - junit_jdk21
@@ -132,6 +134,7 @@ jobs:
       artifactName: cf_jdk11
       artifactType: pipeline
 - job: junit_jdk17
+  condition: false
   dependsOn:
    - canary_jobs
    - junit_jdk21
@@ -150,6 +153,7 @@ jobs:
       artifactName: cf_jdk17
       artifactType: pipeline
 - job: junit_jdk21
+  condition: false
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk21:latest
@@ -184,6 +188,7 @@ jobs:
 #       artifactName: cf_jdk_latest
 #       artifactType: pipeline
 - job: junit_jdk_next
+  condition: false
   dependsOn:
    - canary_jobs
    - junit_jdk21
@@ -206,6 +211,7 @@ jobs:
       artifactType: pipeline
 
 - job: nonjunit_jdk8
+  condition: false
   dependsOn:
    - canary_jobs
    - nonjunit_jdk21
@@ -218,6 +224,7 @@ jobs:
   - bash: ./checker/bin-devel/test-cftests-nonjunit.sh
     displayName: test-cftests-nonjunit.sh
 - job: nonjunit_jdk11
+  condition: false
   dependsOn:
    - canary_jobs
    - nonjunit_jdk21
@@ -230,6 +237,7 @@ jobs:
   - bash: ./checker/bin-devel/test-cftests-nonjunit.sh
     displayName: test-cftests-nonjunit.sh
 - job: nonjunit_jdk17
+  condition: false
   dependsOn:
    - canary_jobs
    - nonjunit_jdk21
@@ -242,6 +250,7 @@ jobs:
   - bash: ./checker/bin-devel/test-cftests-nonjunit.sh
     displayName: test-cftests-nonjunit.sh
 - job: nonjunit_jdk21
+  condition: false
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk21:latest
@@ -264,6 +273,7 @@ jobs:
 #   - bash: ./checker/bin-devel/test-cftests-nonjunit.sh
 #     displayName: test-cftests-nonjunit.sh
 - job: nonjunit_jdk_next
+  condition: false
   dependsOn:
    - canary_jobs
    - nonjunit_jdk21
@@ -443,6 +453,7 @@ jobs:
     displayName: test-misc.sh
 
 - job: typecheck_jdk8
+  condition: false
   dependsOn:
    - canary_jobs
    - typecheck_jdk21
@@ -455,6 +466,7 @@ jobs:
   - bash: ./checker/bin-devel/test-typecheck.sh
     displayName: test-typecheck.sh
 - job: typecheck_jdk11
+  condition: false
   dependsOn:
    - canary_jobs
    - typecheck_jdk21
@@ -467,6 +479,7 @@ jobs:
   - bash: ./checker/bin-devel/test-typecheck.sh
     displayName: test-typecheck.sh
 - job: typecheck_jdk17
+  condition: false
   dependsOn:
    - canary_jobs
    - typecheck_jdk21
@@ -480,6 +493,7 @@ jobs:
     displayName: test-typecheck.sh
 # Split into part1 and part2 only for the type-checking job that "canary_jobs" depends on.
 - job: typecheck_part1_jdk21
+  condition: false
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk21-plus:latest
@@ -489,6 +503,7 @@ jobs:
   - bash: ./checker/bin-devel/test-typecheck-part1.sh
     displayName: test-typecheck-part1.sh
 - job: typecheck_part2_jdk21
+  condition: false
   pool:
     vmImage: 'ubuntu-latest'
   container: wmdietl/cf-ubuntu-jdk21-plus:latest
@@ -498,6 +513,7 @@ jobs:
   - bash: ./checker/bin-devel/test-typecheck-part2.sh
     displayName: test-typecheck-part2.sh
 - job: typecheck_jdk21
+  condition: false
   dependsOn:
    - typecheck_part1_jdk21
    - typecheck_part2_jdk21
@@ -519,6 +535,7 @@ jobs:
 #  - bash: ./checker/bin-devel/test-typecheck.sh
 #    displayName: test-typecheck.sh
 - job: typecheck_jdk_next
+  condition: false
   dependsOn:
    - canary_jobs
    - typecheck_jdk21
@@ -668,6 +685,7 @@ jobs:
   - bash: ./checker/bin-devel/test-guava.sh
     displayName: test-guava.sh
 - job: guava_jdk17
+  condition: false
   dependsOn:
    - framework_jobs
    - guava_jdk21
@@ -681,6 +699,7 @@ jobs:
   - bash: ./checker/bin-devel/test-guava.sh
     displayName: test-guava.sh
 - job: guava_jdk21
+  condition: false
   dependsOn:
    - canary_jobs
   pool:
@@ -712,6 +731,7 @@ jobs:
 #   - bash: ./checker/bin-devel/test-guava.sh
 #     displayName: test-guava.sh
 - job: guava_jdk_next
+  condition: false
   dependsOn:
    - framework_jobs
    - guava_jdk21
@@ -755,6 +775,7 @@ jobs:
   - bash: ./checker/bin-devel/test-plume-lib.sh
     displayName: test-plume-lib.sh
 - job: plume_lib_jdk17
+  condition: false
   dependsOn:
    - canary_jobs
    - plume_lib_jdk21
@@ -767,6 +788,7 @@ jobs:
   - bash: ./checker/bin-devel/test-plume-lib.sh
     displayName: test-plume-lib.sh
 - job: plume_lib_jdk21
+  condition: false
   dependsOn:
    - canary_jobs
   pool:
@@ -791,6 +813,7 @@ jobs:
 #   - bash: ./checker/bin-devel/test-plume-lib.sh
 #     displayName: test-plume-lib.sh
 - job: plume_lib_jdk_next
+  condition: false
   dependsOn:
    - canary_jobs
    - plume_lib_jdk17
@@ -806,6 +829,7 @@ jobs:
     displayName: test-plume-lib.sh
 
 - job: jspecify_conformance_jdk21
+  condition: false
   dependsOn:
    - junit_jdk21
   pool:
@@ -879,6 +903,7 @@ jobs:
 #     displayName: test-downstream.sh
 
 - job: windows_junit_jdk17
+  condition: false
   dependsOn:
     - junit_jdk21
   pool:

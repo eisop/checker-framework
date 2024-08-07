@@ -64,8 +64,8 @@ public class Resolver {
     /** Whether we are running on at least Java 13. */
     private static final boolean atLeastJava13;
 
-    /** Whether we are running on at least Java 24. */
-    private static final boolean atLeastJava24;
+    /** Whether we are running on at least Java 23. */
+    private static final boolean atLeastJava23;
 
     /**
      * Determines whether the given {@link SourceVersion} release version string is supported.
@@ -90,7 +90,7 @@ public class Resolver {
     static {
         try {
             atLeastJava13 = atLeastJava("RELEASE_13");
-            atLeastJava24 = atLeastJava("RELEASE_24");
+            atLeastJava23 = atLeastJava("RELEASE_23");
 
             FIND_METHOD =
                     Resolve.class.getDeclaredMethod(
@@ -104,7 +104,7 @@ public class Resolver {
                             boolean.class);
             FIND_METHOD.setAccessible(true);
 
-            if (atLeastJava24) {
+            if (atLeastJava23) {
                 // Changed in
                 // https://github.com/openjdk/jdk/commit/e227c7e37d4de0656f013f3a936b1acfa56cc2e0
                 FIND_VAR =
@@ -332,7 +332,7 @@ public class Resolver {
             Env<AttrContext> env = getEnvForPath(path);
             // Either a VariableElement or a SymbolNotFoundError.
             Element res;
-            if (atLeastJava24) {
+            if (atLeastJava23) {
                 DiagnosticPosition pos = (DiagnosticPosition) path.getLeaf();
                 res = wrapInvocationOnResolveInstance(FIND_VAR, pos, env, names.fromString(name));
             } else {
