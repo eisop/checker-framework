@@ -259,7 +259,7 @@ public final class CFGVisualizeLauncher {
             System.setErr(new PrintStream(nullOS));
             javac.compile(List.of(l), List.of(clas), List.of(cfgProcessor), List.nil());
         } catch (Throwable e) {
-            System.err.println("generateMethodCFG caught " + e);
+            // System.err.println("generateMethodCFG caught " + e);
             // ok
         } finally {
             System.setErr(err);
@@ -271,7 +271,7 @@ public final class CFGVisualizeLauncher {
             printError(
                     "internal error in type processor! method typeProcessOver() doesn't get"
                             + " called.");
-            Thread.dumpStack();
+            // Thread.dumpStack();
             System.exit(1);
         }
 
