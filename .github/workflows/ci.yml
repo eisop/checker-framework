@@ -86,7 +86,7 @@ jobs:
         java: [{version: '8', experimental: false},
           {version: '11', experimental: false},
           {version: '17', experimental: false},
-          {version: '22', experimental: false},
+          {version: '22', experimental: true},
           {version: '23-ea', experimental: true},
           {version: '24-ea', experimental: true}]
     env:
