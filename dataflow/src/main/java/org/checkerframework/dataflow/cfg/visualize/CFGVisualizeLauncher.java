@@ -223,6 +223,7 @@ public final class CFGVisualizeLauncher {
      * @return control flow graph of the specified method
      */
     public static ControlFlowGraph generateMethodCFG(String file, String clas, String method) {
+        System.err.println("generateMethodCFG: " + file + " clas: " + clas + " method: " + method);
         CFGProcessor cfgProcessor = new CFGProcessor(clas, method);
 
         Context context = new Context();
@@ -254,9 +255,10 @@ public final class CFGVisualizeLauncher {
                         @Override
                         public void write(int b) throws IOException {}
                     };
-            System.setErr(new PrintStream(nullOS));
+            // System.setErr(new PrintStream(nullOS));
             javac.compile(List.of(l), List.of(clas), List.of(cfgProcessor), List.nil());
         } catch (Throwable e) {
+            System.err.println("generateMethodCFG caught " + e);
             // ok
         } finally {
             System.setErr(err);
