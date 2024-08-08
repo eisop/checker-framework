@@ -71,8 +71,8 @@ public class CFGProcessor extends BasicTypeProcessor {
 
     @Override
     public void typeProcessingOver() {
-        System.err.println("Calling typeProcessingOver()!!");
-        Thread.dumpStack();
+        // System.err.println("Calling typeProcessingOver()!!");
+        // Thread.dumpStack();
         if (rootTree == null) {
             result = new CFGProcessResult("Root tree is null.");
         } else if (classTree == null) {
