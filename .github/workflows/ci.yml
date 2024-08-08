@@ -118,7 +118,8 @@ jobs:
       #
       # At least one plume-lib project no longer works on Java 8.
       # Java 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
-      if: matrix.java.version != 8 || (matrix.script != 'plume-lib' && matrix.script != 'cftests-junit-jdk21')
+      if: (matrix.java.version != 8 || (matrix.script != 'plume-lib' && matrix.script != 'cftests-junit-jdk21')) &&
+        (matrix.java.version <= 22 || (matrix.script != 'daikon-part1' && matrix.script != 'daikon-part2'))
       # Set the compiler version to use, allowing us to e.g. run Java 23 while gradle does not work
       # on Java 23 yet. This only tests the compiler, it does not use that version to run the tests.
       env:
