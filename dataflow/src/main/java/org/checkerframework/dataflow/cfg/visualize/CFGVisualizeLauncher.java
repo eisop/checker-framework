@@ -221,7 +221,8 @@ public final class CFGVisualizeLauncher {
      * @return control flow graph of the specified method
      */
     public static ControlFlowGraph generateMethodCFG(String file, String clas, String method) {
-        System.err.println("generateMethodCFG: " + file + " clas: " + clas + " method: " + method);
+        // System.err.println("generateMethodCFG: " + file + " clas: " + clas + " method: " +
+        // method);
         CFGProcessor cfgProcessor = new CFGProcessor(clas, method);
 
         Context context = new Context();
