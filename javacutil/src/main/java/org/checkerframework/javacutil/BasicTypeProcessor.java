@@ -37,10 +37,11 @@ public abstract class BasicTypeProcessor extends AbstractTypeProcessor {
             System.err.println(
                     "BasicTypeProcessor.typeProcess: unexpected Throwable ("
                             + t.getClass().getSimpleName()
-                            + ") when processing "
+                            + ")  when processing "
                             + currentRoot.getSourceFile().getName()
                             + (t.getMessage() != null ? "; message: " + t.getMessage() : ""));
         }
+        // TODO Spacing before `when` above.
         // System.err.println("BasicTypeProcessor done with element: " + e);
     }
 }

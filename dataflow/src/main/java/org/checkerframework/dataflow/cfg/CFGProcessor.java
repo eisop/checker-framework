@@ -113,7 +113,8 @@ public class CFGProcessor extends BasicTypeProcessor {
                     // Stop execution by throwing an exception. This makes sure that compilation
                     // does not proceed, and thus the AST is not modified by further phases of the
                     // compilation (and we save the work to do the compilation).
-                    throw new RuntimeException("CFGProcessor found suitable method");
+                    // TODO throw new RuntimeException("CFGProcessor found suitable method");
+                    throw new RuntimeException();
                 }
                 return null;
             }
