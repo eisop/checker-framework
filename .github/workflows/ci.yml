@@ -30,7 +30,7 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3.5.0
+      uses: gradle/actions/setup-gradle@v4.0.0
 
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
       run: ./checker/bin-devel/test-${{ matrix.script }}.sh
@@ -62,7 +62,7 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3.5.0
+      uses: gradle/actions/setup-gradle@v4.0.0
 
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
       run: ./checker/bin-devel/test-${{ matrix.script }}.sh
@@ -107,7 +107,7 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3.5.0
+      uses: gradle/actions/setup-gradle@v4.0.0
 
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
       run: ./checker/bin-devel/test-${{ matrix.script }}.sh
@@ -150,7 +150,7 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3.5.0
+      uses: gradle/actions/setup-gradle@v4.0.0
 
     - name: Install coreutils on MacOS
       if: matrix.os == 'macos-latest'
@@ -175,5 +175,5 @@ jobs:
     # Generates and submits a dependency graph, enabling Dependabot Alerts for all project dependencies.
     # See: https://github.com/gradle/actions/blob/main/dependency-submission/README.md
     - name: Generate and submit dependency graph
-      uses: gradle/actions/dependency-submission@v3.5.0
+      uses: gradle/actions/dependency-submission@v4.0.0
 
