@@ -39,12 +39,15 @@ jobs:
   remainder:
     name: ${{ matrix.script }} on JDK ${{ matrix.java_version }}
     runs-on: ubuntu-latest
+    # Don't depend on sanity jobs, to have more parallelism.
+    # TODO: cancel these jobs if sanity fails.
+    # needs: sanity
     permissions:
       contents: read
     strategy:
       matrix:
         # No need to run 'cftests-junit-jdk21' on JDK 21.
-        script: ['typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib', 'jspecify-conformance']
+        script: ['typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib', 'daikon-part1', 'daikon-part2', 'jspecify-conformance']
         java_version: [21]
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
@@ -67,14 +70,14 @@ jobs:
   otherjdks:
     name: ${{ matrix.script }} on JDK ${{ matrix.java.version }}
     runs-on: ubuntu-latest
-    needs: remainder
+    needs: sanity
     permissions:
       contents: read
     strategy:
       fail-fast: false
       matrix:
         # jspecify-conformance only tested on JDK 21.
-        script: ['cftests-junit', 'cftests-nonjunit', 'cftests-junit-jdk21', 'typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib']
+        script: ['cftests-junit', 'cftests-nonjunit', 'cftests-junit-jdk21', 'typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib', 'daikon-part1', 'daikon-part2']
         # JDK 21 used by sanity before
         java: [{version: '8', experimental: false},
           {version: '11', experimental: false},
@@ -114,7 +117,9 @@ jobs:
       #
       # At least one plume-lib project no longer works on Java 8.
       # Java 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
-      if: matrix.java.version != 8 || (matrix.script != 'plume-lib' && matrix.script != 'cftests-junit-jdk21')
+      # Daikon produces 'this-escape' compiler warnings in JDK 22+.
+      if: (matrix.java.version != 8 || (matrix.script != 'plume-lib' && matrix.script != 'cftests-junit-jdk21')) &&
+        (matrix.java.version <= 21 || (matrix.script != 'daikon-part1' && matrix.script != 'daikon-part2'))
       # Set the compiler version to use, allowing us to e.g. run Java 23 while gradle does not work
       # on Java 23 yet. This only tests the compiler, it does not use that version to run the tests.
       env:

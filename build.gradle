@@ -460,14 +460,18 @@ allprojects {
             // -classfile: classgraph jar file and https://bugs.openjdk.org/browse/JDK-8190452
             String lint = '-Xlint:-options,-fallthrough,-classfile'
             // Java 8 uses the Error Prone javac, not what is requested with useJdkCompiler.
-            if (!isJava8 && useJdkCompiler >= 21) {
-                // TODO: Ignore this-escape for now, we may want to review and suppress each one later.
-                lint +=',-this-escape'
+            // So there is no need to set additional lint options.
+            if (!isJava8) {
+                if (useJdkCompiler >= 21) {
+                    // TODO: Ignore this-escape for now, we may want to review and suppress each one later.
+                    lint +=',-this-escape'
+                }
+                if (useJdkCompiler >= 23) {
+                    // TODO: Ignore dangling-doc-comments for now, we may want to fix them later.
+                    lint +=',-dangling-doc-comments'
+                }
             }
-            if (!isJava8 && useJdkCompiler >= 23) {
-                // TODO: Ignore dangling-doc-comments for now, we may want to fix them later.
-                lint +=',-dangling-doc-comments'
-            }
+
             options.compilerArgs += [
                 '-g',
                 '-Werror',
