@@ -13,7 +13,8 @@ source "$SCRIPTDIR"/clone-related.sh
 ./gradlew assembleForJavac --console=plain -Dorg.gradle.internal.http.socketTimeout=60000 -Dorg.gradle.internal.http.connectionTimeout=60000
 
 GIT_SCRIPTS="$SCRIPTDIR/.git-scripts"
-"$GIT_SCRIPTS/git-clone-related" jspecify jspecify-reference-checker
+# TODO: remove uses of `main-eisop` once that becomes `main`.
+"$GIT_SCRIPTS/git-clone-related" jspecify jspecify-reference-checker -b main-eisop
 
 # Delete the eisop/jdk that was already cloned...
 rm -r ../jdk
