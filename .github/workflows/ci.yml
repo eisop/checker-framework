@@ -47,7 +47,7 @@ jobs:
     strategy:
       matrix:
         # No need to run 'cftests-junit-jdk21' on JDK 21.
-        script: ['typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib', 'daikon-part1', 'daikon-part2', 'jspecify-conformance']
+        script: ['typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib', 'daikon-part1', 'daikon-part2', 'jspecify-conformance', 'jspecify-reference-checker']
         java_version: [21]
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
@@ -76,7 +76,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # jspecify-conformance only tested on JDK 21.
+        # jspecify-conformance and jspecify-reference-checker only tested on JDK 21.
         script: ['cftests-junit', 'cftests-nonjunit', 'cftests-junit-jdk21', 'typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib', 'daikon-part1', 'daikon-part2']
         # JDK 21 used by sanity before
         java: [{version: '8', experimental: false},
