@@ -41,7 +41,5 @@ public abstract class BasicTypeProcessor extends AbstractTypeProcessor {
                             + currentRoot.getSourceFile().getName()
                             + (t.getMessage() != null ? "; message: " + t.getMessage() : ""));
         }
-        // TODO Spacing before `when` above.
-        // System.err.println("BasicTypeProcessor done with element: " + e);
     }
 }
