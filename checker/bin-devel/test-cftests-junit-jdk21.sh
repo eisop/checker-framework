@@ -12,4 +12,4 @@ export ORG_GRADLE_PROJECT_useJdkCompiler=21
 source "$SCRIPTDIR"/clone-related.sh
 
 
-./gradlew test -x javadoc -x allJavadoc --console=plain --warning-mode=all
+./gradlew test -x javadoc -x allJavadoc --console=plain --warning-mode=all --info --stacktrace --scan
