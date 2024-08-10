@@ -107,9 +107,9 @@ def testDataflowAnalysis(taskName, dirName, className, diff) {
         outputs.file("tests/${dirName}/Out.txt")
         outputs.file("tests/${dirName}/Test.class")
 
-        delete("tests/${dirName}/Out.txt")
-        delete("tests/${dirName}/Test.class")
         doLast {
+            delete("tests/${dirName}/Out.txt")
+            delete("tests/${dirName}/Test.class")
             javaexec {
                 workingDir = "tests/${dirName}"
                 if (!JavaVersion.current().java9Compatible) {
