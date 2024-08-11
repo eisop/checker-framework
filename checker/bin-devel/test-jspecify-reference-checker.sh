@@ -23,4 +23,4 @@ rm -r ../jdk
 
 cd ../jspecify-reference-checker
 git switch main-eisop
-./gradlew build --console=plain --include-build "$CHECKERFRAMEWORK"
+./gradlew build conformanceTests demoTest --console=plain --include-build "$CHECKERFRAMEWORK"
