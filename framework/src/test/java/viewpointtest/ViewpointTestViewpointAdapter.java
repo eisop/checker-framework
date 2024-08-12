@@ -19,7 +19,7 @@ public class ViewpointTestViewpointAdapter extends AbstractViewpointAdapter {
     /**
      * The class constructor.
      *
-     * @param atypeFactory
+     * @param atypeFactory the type factory to use
      */
     public ViewpointTestViewpointAdapter(AnnotatedTypeFactory atypeFactory) {
         super(atypeFactory);
