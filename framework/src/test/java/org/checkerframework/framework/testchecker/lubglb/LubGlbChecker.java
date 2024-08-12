@@ -43,9 +43,6 @@ public class LubGlbChecker extends BaseTypeChecker {
         F = AnnotationBuilder.fromClass(elements, LubglbF.class);
         POLY = AnnotationBuilder.fromClass(elements, PolyLubglb.class);
 
-        QualifierHierarchy qh =
-                ((BaseTypeVisitor<?>) visitor).getTypeFactory().getQualifierHierarchy();
-
         lubAssert(D, E, C);
         lubAssert(E, D, C);
 
