@@ -11,4 +11,4 @@ SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 source "$SCRIPTDIR"/clone-related.sh
 
 
-./gradlew test -x javadoc -x allJavadoc --console=plain --warning-mode=all --debug
+./gradlew test -x javadoc -x allJavadoc --console=plain --warning-mode=all --max-workers=1 --stacktrace
