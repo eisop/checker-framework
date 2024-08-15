@@ -107,6 +107,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcard
 import org.checkerframework.framework.type.visitor.AnnotatedTypeCombiner;
 import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
 import org.checkerframework.framework.util.AnnotatedTypes;
+import org.checkerframework.framework.util.AnnotatedTypes.TypeArguments;
 import org.checkerframework.framework.util.AnnotationFormatter;
 import org.checkerframework.framework.util.CheckerMain;
 import org.checkerframework.framework.util.DefaultAnnotationFormatter;
@@ -2602,30 +2603,27 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotatedTypes.asMemberOf(types, this, receiverType, methodElt, memberTypeWithOverrides);
     List<AnnotatedTypeMirror> typeargs = new ArrayList<>(methodElt.getTypeParameters().size());
 
-    IPair<Map<TypeVariable, AnnotatedTypeMirror>, Boolean> pair =
+    TypeArguments typeArguments =
         AnnotatedTypes.findTypeArguments(this, tree, methodElt, methodType, inferTypeArgs);
-    Map<TypeVariable, AnnotatedTypeMirror> typeParamToTypeArg = pair.first;
+    Map<TypeVariable, AnnotatedTypeMirror> typeParamToTypeArg = typeArguments.typeArguments;
     if (!typeParamToTypeArg.isEmpty()) {
       for (AnnotatedTypeVariable tv : methodType.getTypeVariables()) {
-        /* TODO: property is violated.
-                      if (typeParamToTypeArg.get(tv.getUnderlyingType()) == null) {
-                          throw new BugInCF(
-                                  "AnnotatedTypeFactory.methodFromUse:mismatch between"
-                                          + " declared method type variables and the inferred method type arguments."
-                                          + " Method type variables: "
-                                          + methodType.getTypeVariables()
-                                          + "; "
-                                          + "Inferred method type arguments: "
-                                          + typeParamToTypeArg);
-                      }
-        */
         typeargs.add(typeParamToTypeArg.get(tv.getUnderlyingType()));
       }
       methodType =
           (AnnotatedExecutableType) typeVarSubstitutor.substitute(typeParamToTypeArg, methodType);
     }
 
-    if (pair.second) {
+    if (typeArguments.inferenceCrash && tree instanceof MethodInvocationTree) {
+      // If inference crashed, then the return type will not be the correct Java type.  This can
+      // cause crashes elsewhere in the framework.  To avoid those crashes, create an ATM with the
+      // correct Java type and default annotations.  (If inference crashes an error will be issued
+      // in the BaseTypeVisitor.)
+      TypeMirror type = TreeUtils.typeOf(tree);
+      AnnotatedTypeMirror returnType = AnnotatedTypeMirror.createType(type, this, false);
+      addDefaultAnnotations(returnType);
+      methodType.setReturnType(returnType);
+    } else if (typeArguments.uncheckedConversion) {
       methodType.setReturnType(methodType.getReturnType().getErased());
     }
 
@@ -2987,9 +2985,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
       viewpointAdapter.viewpointAdaptConstructor(type, ctor, con);
     }
 
-    IPair<Map<TypeVariable, AnnotatedTypeMirror>, Boolean> pair =
+    TypeArguments typeArguments =
         AnnotatedTypes.findTypeArguments(this, tree, ctor, con, inferTypeArgs);
-    Map<TypeVariable, AnnotatedTypeMirror> typeParamToTypeArg = new HashMap<>(pair.first);
+    Map<TypeVariable, AnnotatedTypeMirror> typeParamToTypeArg =
+        new HashMap<>(typeArguments.typeArguments);
     List<AnnotatedTypeMirror> typeargs;
     if (typeParamToTypeArg.isEmpty()) {
       typeargs = Collections.emptyList();
@@ -3003,6 +3002,17 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     con = (AnnotatedExecutableType) typeVarSubstitutor.substitute(typeParamToTypeArg, con);
 
     stubTypes.injectRecordComponentType(types, ctor, con);
+
+    if (typeArguments.inferenceCrash) {
+      // If inference crashed, then the return type will not be the correct Java type.  This can
+      // cause crashes elsewhere in the framework.  To avoid those crashes, create an ATM with the
+      // correct Java type and default annotations.  (If inference crashes an error will be issued
+      // in the BaseTypeVisitor.)
+      TypeMirror typeTM = TreeUtils.typeOf(tree);
+      AnnotatedTypeMirror returnType = AnnotatedTypeMirror.createType(typeTM, this, false);
+      addDefaultAnnotations(returnType);
+      con.setReturnType(returnType);
+    }
     if (enclosingType != null) {
       // Reset the enclosing type because it can be substituted incorrectly.
       ((AnnotatedDeclaredType) con.getReturnType()).setEnclosingType(enclosingType);

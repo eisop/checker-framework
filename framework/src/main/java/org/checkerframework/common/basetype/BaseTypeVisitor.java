@@ -2053,6 +2053,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     if (args != null && !args.inferenceFailed()) {
       return true;
     }
+    if (args.inferenceCrashed()) {
+      checker.reportError(
+          tree,
+          "type.argument.inference.crashed",
+          ElementUtils.getSimpleDescription(methodType.getElement()),
+          args == null ? "" : args.getErrorMsg());
+      return false;
+    }
     checker.reportError(
         tree,
         "type.arguments.not.inferred",
