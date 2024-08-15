@@ -3,6 +3,8 @@ Version 3.42.0-eisop5 (July ?, 2024)
 
 **User-visible changes:**
 
+The new command-line argument '-AnoBytecodeStorage' allows the option to not store defaulted annotations in bytecode.
+
 Removed support for the `-Anocheckjdk` option, which was deprecated in version 3.1.1.
 Use `-ApermitMissingJdk` instead.
 

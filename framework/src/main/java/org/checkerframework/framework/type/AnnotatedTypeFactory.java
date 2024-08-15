@@ -1528,6 +1528,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * to override this method if storing defaulted types is not desirable.
      */
     public void postProcessClassTree(ClassTree tree) {
+        if (!checker.hasOption("noBytecodeStorage")) {
+            TypesIntoElements.store(processingEnv, this, tree);
+            DeclarationsIntoElements.store(processingEnv, this, tree);
+        }
         TypesIntoElements.store(processingEnv, this, tree);
         DeclarationsIntoElements.store(processingEnv, this, tree);
 
