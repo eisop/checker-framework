@@ -711,19 +711,25 @@ public class QualifierDefaults {
 
         if (UnannotatedFor != null) {
             elementUnannotatedForThisChecker =
-                    atypeFactory.doesAnnotatedForApplyToThisChecker(UnannotatedFor);
+                    atypeFactory.doesUnannotatedForApplyToThisChecker(UnannotatedFor);
         }
 
-        // If the element is not Unannotatedfor this checker, check if the parent is. Only get the
-        // parent for enclosing elements, not for packages.
         if (!elementUnannotatedForThisChecker) {
-            Element parent = elt.getEnclosingElement();
+            Element parent;
+            if (elt.getKind() == ElementKind.PACKAGE) {
+                // elt.getEnclosingElement() on a package is null if module does not exist;
+                // therefore, use the dedicated method.
+                parent = ElementUtils.parentPackage((PackageElement) elt, elements);
+            } else {
+                parent = elt.getEnclosingElement();
+            }
+
             if (parent != null && isElementUnannotatedForThisChecker(parent)) {
                 elementUnannotatedForThisChecker = true;
             }
         }
 
-        elementAnnotatedFors.put(elt, elementUnannotatedForThisChecker);
+        elementUnannotatedFors.put(elt, elementUnannotatedForThisChecker);
 
         return elementUnannotatedForThisChecker;
     }

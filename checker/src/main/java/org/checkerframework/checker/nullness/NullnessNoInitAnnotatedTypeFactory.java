@@ -397,11 +397,11 @@ public class NullnessNoInitAnnotatedTypeFactory
                             .build();
             AnnotationMirror annotatedForNullness =
                     new AnnotationBuilder(processingEnv, AnnotatedFor.class)
-                            .setValue("value", "nullness")
+                            .setValue("value", new String[] {"nullness"})
                             .build();
             AnnotationMirror unannotatedForNullness =
                     new AnnotationBuilder(processingEnv, UnannotatedFor.class)
-                            .setValue("value", "nullness")
+                            .setValue("value", new String[] {"nullness"})
                             .build();
             addAliasedDeclAnnotation(
                     "org.jspecify.annotations.NullMarked",
