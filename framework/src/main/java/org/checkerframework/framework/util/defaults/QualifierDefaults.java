@@ -16,6 +16,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.TypeUseLocation;
+import org.checkerframework.framework.qual.UnannotatedFor;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
@@ -122,6 +123,12 @@ public class QualifierDefaults {
 
     /** A mapping of Element &rarr; Whether or not that element is AnnotatedFor this type system. */
     private final IdentityHashMap<Element, Boolean> elementAnnotatedFors = new IdentityHashMap<>();
+
+    /**
+     * A mapping of Element &rarr; Whether or not that element is UnannotatedFor this type system.
+     */
+    private final IdentityHashMap<Element, Boolean> elementUnannotatedFors =
+            new IdentityHashMap<>();
 
     /** CLIMB locations whose standard default is top for a given type system. */
     public static final List<TypeUseLocation> STANDARD_CLIMB_DEFAULTS_TOP =
@@ -660,12 +667,13 @@ public class QualifierDefaults {
                     atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor);
         }
 
+        // If the element is not Annotatedfor this checker, check if the parent is.
         if (!elementAnnotatedForThisChecker) {
             Element parent;
             if (elt.getKind() == ElementKind.PACKAGE) {
                 // TODO: should AnnotatedFor apply to subpackages??
-                // elt.getEnclosingElement() on a package is null; therefore,
-                // use the dedicated method.
+                // elt.getEnclosingElement() on a package is null if module does not exist;
+                // therefore, use the dedicated method.
                 parent = ElementUtils.parentPackage((PackageElement) elt, elements);
             } else {
                 parent = elt.getEnclosingElement();
@@ -679,6 +687,45 @@ public class QualifierDefaults {
         elementAnnotatedFors.put(elt, elementAnnotatedForThisChecker);
 
         return elementAnnotatedForThisChecker;
+    }
+
+    /**
+     * Returns whether the element is UnannotatedFor this checker.
+     *
+     * @param elt the element
+     * @return whether the element is UnannotatedFor this checker
+     */
+    private boolean isElementUnannotatedForThisChecker(Element elt) {
+        boolean elementUnannotatedForThisChecker = false;
+
+        if (elt == null) {
+            throw new BugInCF(
+                    "Call of QualifierDefaults.isElementUnannotatedForThisChecker with null");
+        }
+
+        if (elementUnannotatedFors.containsKey(elt)) {
+            return elementUnannotatedFors.get(elt);
+        }
+
+        AnnotationMirror UnannotatedFor = atypeFactory.getDeclAnnotation(elt, UnannotatedFor.class);
+
+        if (UnannotatedFor != null) {
+            elementUnannotatedForThisChecker =
+                    atypeFactory.doesAnnotatedForApplyToThisChecker(UnannotatedFor);
+        }
+
+        // If the element is not Unannotatedfor this checker, check if the parent is. Only get the
+        // parent for enclosing elements, not for packages.
+        if (!elementUnannotatedForThisChecker) {
+            Element parent = elt.getEnclosingElement();
+            if (parent != null && isElementUnannotatedForThisChecker(parent)) {
+                elementUnannotatedForThisChecker = true;
+            }
+        }
+
+        elementAnnotatedFors.put(elt, elementUnannotatedForThisChecker);
+
+        return elementUnannotatedForThisChecker;
     }
 
     /**
@@ -809,7 +856,8 @@ public class QualifierDefaults {
                         && !isFromStubFile;
         if (isBytecode) {
             return useConservativeDefaultsBytecode
-                    && !isElementAnnotatedForThisChecker(annotationScope);
+                    && (!isElementAnnotatedForThisChecker(annotationScope)
+                            || isElementUnannotatedForThisChecker(annotationScope));
         } else if (isFromStubFile) {
             // TODO: Types in stub files not annotated for a particular checker should be
             // treated as unchecked bytecode.  For now, all types in stub files are treated as
@@ -818,7 +866,8 @@ public class QualifierDefaults {
             // be treated like unchecked code except for methods in the scope of an @AnnotatedFor.
             return false;
         } else if (useConservativeDefaultsSource) {
-            return !isElementAnnotatedForThisChecker(annotationScope);
+            return !isElementAnnotatedForThisChecker(annotationScope)
+                    || isElementUnannotatedForThisChecker(annotationScope);
         }
         return false;
     }
