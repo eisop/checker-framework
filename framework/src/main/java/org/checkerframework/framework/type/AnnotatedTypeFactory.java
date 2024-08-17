@@ -6032,13 +6032,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * Does {@code anno}, which is an {@link org.checkerframework.framework.qual.UnannotatedFor}
      * annotation, apply to this checker?
      *
-     * @param annotatedForAnno an {@link UnannotatedFor} annotation
+     * @param unannotatedForAnno an {@link UnannotatedFor} annotation
      * @return whether {@code anno} applies to this checker
      */
-    public boolean doesUnannotatedForApplyToThisChecker(AnnotationMirror unannotatedFor) {
+    public boolean doesUnannotatedForApplyToThisChecker(AnnotationMirror unannotatedForAnno) {
         List<String> unannotatedForCheckers =
                 AnnotationUtils.getElementValueArray(
-                        unannotatedFor, unannotatedForValueElement, String.class);
+                        unannotatedForAnno, unannotatedForValueElement, String.class);
         for (String unannoForChecker : unannotatedForCheckers) {
             if (checker.getUpstreamCheckerNames().contains(unannoForChecker)
                     || CheckerMain.matchesFullyQualifiedProcessor(
