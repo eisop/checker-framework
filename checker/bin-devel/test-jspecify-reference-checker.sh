@@ -14,13 +14,13 @@ source "$SCRIPTDIR"/clone-related.sh
 
 GIT_SCRIPTS="$SCRIPTDIR/.git-scripts"
 # TODO: remove uses of `main-eisop` once that becomes `main`.
-"$GIT_SCRIPTS/git-clone-related" jspecify jspecify-reference-checker -b main-eisop
+"$GIT_SCRIPTS/git-clone-related" jspecify jspecify-reference-checker --upstream-branch main-eisop
+
+cd ../jspecify-reference-checker
 
 # Delete the eisop/jdk that was already cloned...
 rm -r ../jdk
 # instead clone the jspecify/jdk.
 "$GIT_SCRIPTS/git-clone-related" jspecify jdk
 
-cd ../jspecify-reference-checker
-git switch main-eisop
 JSPECIFY_CONFORMANCE_TEST_MODE=details ./gradlew build conformanceTests demoTest --console=plain --include-build "$CHECKERFRAMEWORK"
