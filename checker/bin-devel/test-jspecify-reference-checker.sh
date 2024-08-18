@@ -14,7 +14,7 @@ source "$SCRIPTDIR"/clone-related.sh
 
 GIT_SCRIPTS="$SCRIPTDIR/.git-scripts"
 # TODO: remove uses of `main-eisop` once that becomes `main`.
-"$GIT_SCRIPTS/git-clone-related" jspecify jspecify-reference-checker --upstream-branch main-eisop
+"$GIT_SCRIPTS/git-clone-related" --upstream-branch main-eisop jspecify jspecify-reference-checker
 
 cd ../jspecify-reference-checker
 
