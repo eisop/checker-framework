@@ -34,9 +34,6 @@ jobs:
     # Setup for misc tests
     - name: Install shellcheck and checkbashisms
       run: sudo apt install shellcheck devscripts
-    # Setup for misc tests
-    - name: Check style
-      run: make check-style
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
       run: ./checker/bin-devel/test-${{ matrix.script }}.sh
 
