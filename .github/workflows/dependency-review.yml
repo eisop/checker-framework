@@ -4,6 +4,12 @@ name: Dependency review
 on:
   pull_request:
 
+# Configure GitHub Actions cancel in progress workflow to avoid redundant runs in same branch.
+# See: https://docs.github.com/en/enterprise-cloud@latest/actions/writing-workflows/choosing-what-your-workflow-does/control-the-concurrency-of-workflows-and-jobs
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
