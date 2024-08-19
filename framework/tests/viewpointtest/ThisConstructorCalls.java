@@ -24,7 +24,7 @@ public class ThisConstructorCalls {
 
     @SuppressWarnings("inconsistent.constructor.type")
     public @A ThisConstructorCalls(@A Object objA, @B Object objB) {
-        // :: error: (this.invocation.invalid])
+        // :: error: (this.invocation.invalid)
         this(objA);
     }
 }
