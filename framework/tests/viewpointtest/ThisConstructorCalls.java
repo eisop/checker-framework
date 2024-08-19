@@ -5,36 +5,26 @@ import viewpointtest.quals.*;
 public class ThisConstructorCalls {
     public ThisConstructorCalls() {}
 
-    @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
-    public @ReceiverDependentQual ThisConstructorCalls(@ReceiverDependentQual Object str) {}
+    public ThisConstructorCalls(@ReceiverDependentQual Object obj) {}
 
     @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
-    public @A ThisConstructorCalls(@A float number) {}
+    public @ReceiverDependentQual ThisConstructorCalls(
+            @ReceiverDependentQual Object obj, int dummy) {}
 
-    public ThisConstructorCalls(String str) {
-        this();
+    @SuppressWarnings("inconsistent.constructor.type")
+    public @A ThisConstructorCalls(@A Object objA, int dummy1, int dummy2) {
+        this(objA, 0);
     }
 
-    public ThisConstructorCalls(String str, @A Object obj) {
-        this(obj);
-    }
-
-    // :: warning: (inconsistent.constructor.type)
-    public @A ThisConstructorCalls(Boolean bool, @B Object obj) {
+    @SuppressWarnings("inconsistent.constructor.type")
+    public @A ThisConstructorCalls(@B Object objB, int dummy, int dummy2, int dummy3) {
         // :: error: (argument.type.incompatible)
-        this(obj);
+        this(objB, 0);
     }
 
-    public ThisConstructorCalls(int integer, @Top Object obj) {
-        this(obj);
-    }
-
-    public ThisConstructorCalls(@A float number, Object obj) {
-        this(number);
-    }
-
-    public ThisConstructorCalls(@B float number, Object obj1, Object obj2) {
-        // :: error: (argument.type.incompatible)
-        this(number);
+    @SuppressWarnings("inconsistent.constructor.type")
+    public @A ThisConstructorCalls(@A Object objA, @B Object objB) {
+        // :: error: (this.invocation.invalid])
+        this(objA);
     }
 }
