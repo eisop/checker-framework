@@ -4,7 +4,7 @@ name: Generate and save dependency graph
 on:
   pull_request:
 
-# Configure GitHub Actions cancel in progress workflow to avoid redundant runs in same branch.
+# Configure GitHub Actions cancel in progress workflow to avoid redundant runs in pull requests.
 # See: https://docs.github.com/en/enterprise-cloud@latest/actions/writing-workflows/choosing-what-your-workflow-does/control-the-concurrency-of-workflows-and-jobs
 concurrency:
   group: ${{ github.event_name == 'pull_request' && github.head_ref || 'master-group' }}
