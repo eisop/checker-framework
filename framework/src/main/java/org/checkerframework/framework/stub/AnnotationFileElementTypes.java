@@ -129,10 +129,10 @@ public class AnnotationFileElementTypes {
                 release != null ? release : String.valueOf(SystemUtil.jreVersion);
 
         SourceChecker checker = atypeFactory.getChecker();
-        this.shouldParseJdk = !checker.hasOption("ignorejdkastub");
+        this.ignorejdkastub = checker.hasOption("ignorejdkastub");
+        this.shouldParseJdk = !ignorejdkastub;
         this.parseAllJdkFiles = checker.hasOption("parseAllJdk");
         this.permitMissingJdk = checker.hasOption("permitMissingJdk");
-        this.ignorejdkastub = checker.hasOption("ignorejdkastub");
         this.stubDebug = checker.hasOption("stubDebug");
     }
 
@@ -886,24 +886,30 @@ public class AnnotationFileElementTypes {
             return;
         }
         URL resourceURL = atypeFactory.getClass().getResource("/annotated-jdk");
+        if (stubDebug) {
+            System.out.printf(
+                    "Loading JDK from class %s and url: %s%n",
+                    atypeFactory.getClass(), resourceURL);
+        }
         if (resourceURL == null) {
-            if (permitMissingJdk
-                    // temporary, for backward compatibility
-                    || atypeFactory.getChecker().hasOption("nocheckjdk")) {
+            if (permitMissingJdk) {
                 return;
             }
-            throw new BugInCF("JDK not found");
+            throw new BugInCF(
+                    "JDK not found for type factory " + atypeFactory.getClass().getSimpleName());
         } else if (resourceURL.getProtocol().contentEquals("jar")) {
             prepJdkFromJar(resourceURL);
         } else if (resourceURL.getProtocol().contentEquals("file")) {
             prepJdkFromFile(resourceURL);
         } else {
-            if (permitMissingJdk
-                    // temporary, for backward compatibility
-                    || atypeFactory.getChecker().hasOption("nocheckjdk")) {
+            if (permitMissingJdk) {
                 return;
             }
-            throw new BugInCF("JDK not found");
+            throw new BugInCF(
+                    "JDK not found in "
+                            + resourceURL
+                            + ". Unsupported protocol: "
+                            + resourceURL.getProtocol());
         }
     }
 
