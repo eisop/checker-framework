@@ -173,7 +173,7 @@ public class FactoryTestChecker extends BaseTypeChecker {
             }
             reader.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new BugInCF("Unexpected IOException!", e);
         }
         return expected;
     }

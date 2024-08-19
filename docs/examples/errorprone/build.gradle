@@ -4,14 +4,14 @@
 
 plugins {
     id 'java'
-    id 'net.ltgt.errorprone' version '3.1.0'
+    id 'net.ltgt.errorprone' version '4.0.1'
     // Checker Framework pluggable type-checking
-    id 'org.checkerframework' version '0.6.40'
+    id 'org.checkerframework' version '0.6.43'
 }
 
 ext {
     versions = [
-        eisopVersion: '3.42.0-eisop1',
+        eisopVersion: '3.42.0-eisop4',
     ]
 }
 
@@ -27,7 +27,7 @@ dependencies {
     if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
         errorprone 'com.google.errorprone:error_prone_core:2.10.0'
     } else {
-        errorprone 'com.google.errorprone:error_prone_core:2.23.0'
+        errorprone 'com.google.errorprone:error_prone_core:2.30.0'
     }
 }
 
