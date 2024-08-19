@@ -7,8 +7,8 @@ on:
 # Configure GitHub Actions cancel in progress workflow to avoid redundant runs in same branch.
 # See: https://docs.github.com/en/enterprise-cloud@latest/actions/writing-workflows/choosing-what-your-workflow-does/control-the-concurrency-of-workflows-and-jobs
 concurrency:
-  group: ${{ github.head_ref || github.run_id }}
-  cancel-in-progress: true
+  group: ${{ github.event_name == 'pull_request' && github.head_ref || 'master-group' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
