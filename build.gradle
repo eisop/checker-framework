@@ -33,33 +33,26 @@ repositories {
     mavenCentral()
 }
 
+
+def majorVersionToInt(majorVersionString) {
+    if (majorVersionString.endsWith("-ea")) {
+        majorVersionString = majorVersionString.substring(0, majorVersionString.length() - 3)
+    }
+    return Integer.valueOf(majorVersionString)
+}
+
 ext {
     release = false
 
     // On a Java 8 JVM, use error-prone javac and source/target 8.
     // On a Java 9+ JVM, use the host javac, default source/target, and required module flags.
     isJava8 = JavaVersion.current() == JavaVersion.VERSION_1_8
-    isJava14 = JavaVersion.current() == JavaVersion.VERSION_14
-    isJava15 = JavaVersion.current() == JavaVersion.VERSION_15
-    isJava16 = JavaVersion.current() == JavaVersion.VERSION_16
-    isJava17 = JavaVersion.current() == JavaVersion.VERSION_17
-    isJava18 = JavaVersion.current() == JavaVersion.VERSION_18
-    isJava19 = JavaVersion.current() == JavaVersion.VERSION_19
-    isJava20 = JavaVersion.current() == JavaVersion.VERSION_20
-    isJava21 = JavaVersion.current() == JavaVersion.VERSION_21
 
-    isJava21plus = isJava21
-    isJava20plus = isJava20 || isJava21plus
-    isJava19plus = isJava19 || isJava20plus
-    isJava18plus = isJava18 || isJava19plus
-    isJava17plus = isJava17 || isJava18plus
-    isJava16plus = isJava16 || isJava17plus
-    isJava15plus = isJava15 || isJava16plus
-    isJava14plus = isJava14 || isJava15plus
-    isJava11plus = JavaVersion.current() >= JavaVersion.VERSION_11
+    // The int corresponding to the major version of the current JVM.
+    currentRuntimeJavaVersion = majorVersionToInt(JavaVersion.current().getMajorVersion())
 
-    // As of 2023-09-23, delombok doesn't yet support JDK 22; see https://projectlombok.org/changelog .
-    skipDelombok = JavaVersion.current() > JavaVersion.VERSION_21
+    // As of 2024-08-06, delombok doesn't yet support JDK 23; see https://projectlombok.org/changelog .
+    skipDelombok = currentRuntimeJavaVersion >= 23
 
     parentDir = file("${rootDir}/../").absolutePath
 
@@ -81,7 +74,7 @@ ext {
 
     versions = [
         autoValue       : '1.11.0',
-        errorprone      : '2.28.0',
+        errorprone      : '2.30.0',
         hashmapUtil     : '0.0.1',
         junit           : '4.13.2',
         lombok          : '1.18.34',
@@ -122,7 +115,7 @@ task installGitHooks(type: Copy, dependsOn: 'setLocalRepo') {
     into localRepo + '/hooks'
 }
 
-if (isJava11plus) {
+if (currentRuntimeJavaVersion >= 11) {
     apply plugin: 'com.diffplug.spotless'
     spotless {
         // Resolve the Spotless plugin dependencies from the buildscript repositories rather than the
@@ -159,7 +152,7 @@ allprojects {
     //   * any new checkers have been added, or
     //   * backward-incompatible changes have been made to APIs or elsewhere.
     // To make a snapshot release: ./gradlew publish
-    version '3.42.0-eisop4-SNAPSHOT'
+    version '3.42.0-eisop5-SNAPSHOT'
 
     tasks.withType(JavaCompile).configureEach {
         options.fork = true
@@ -243,7 +236,7 @@ allprojects {
         ]
     }
 
-    if (isJava11plus) {
+    if (currentRuntimeJavaVersion >= 11) {
         apply plugin: 'com.diffplug.spotless'
         spotless {
             // If you add any formatters to this block that require dependencies, then you must also
@@ -259,19 +252,18 @@ allprojects {
                 '**/build/**',
                 '*/dist/**',
             ]
-            if (!isJava14plus) {
+            if (currentRuntimeJavaVersion < 14) {
                 doNotFormat += ['**/*record*/']
             }
-            if (!isJava16plus) {
+            if (currentRuntimeJavaVersion < 16) {
                 // TODO: directories should be renamed `-switchexpr` or some such,
                 // as they  only contain examples for switch expressions, which were
                 // added in Java 14, not Java 17.
                 doNotFormat += ['**/java17/']
             }
-            if (!isJava21plus) {
+            if (currentRuntimeJavaVersion < 21) {
                 doNotFormat += ['**/java21/']
             }
-
 
             format 'misc', {
                 // define the files to apply `misc` to
@@ -387,13 +379,23 @@ allprojects {
         // Add standard javac options
         tasks.withType(JavaCompile) { compilationTask ->
             dependsOn(':installGitHooks')
-            boolean jdk17Compiler = project.getProperties().getOrDefault('useJdk17Compiler', false)
-            if (!isJava8 && jdk17Compiler) {
-                // This uses the Java 17 compiler to compile all code.
-                //  https://docs.gradle.org/current/userguide/toolchains.html
-                // This property is final on Java 8, so don't set it then.
-                javaCompiler = javaToolchains.compilerFor {
-                    languageVersion = JavaLanguageVersion.of(17)
+            String useJdkCompilerProp = project.getProperties().get('useJdkCompiler')
+            int useJdkCompiler
+            if (useJdkCompilerProp == null) {
+                // If the property is not given, use the same version as the runtime.
+                useJdkCompiler = currentRuntimeJavaVersion
+            } else {
+                useJdkCompiler = majorVersionToInt(useJdkCompilerProp)
+                boolean useToolchains = (currentRuntimeJavaVersion != useJdkCompiler)
+                if (!isJava8 && useToolchains) {
+                    // This uses the requested Java compiler to compile all code.
+                    // CI test test-cftests-junit-jdk21 runs the JUnit tests on the different JDK versions,
+                    // to ensure there is no version mismatch between compiled-against javac APIs and runtime APIs.
+                    //   https://docs.gradle.org/current/userguide/toolchains.html
+                    // This property is final on Java 8, so don't set it then.
+                    javaCompiler = javaToolchains.compilerFor {
+                        languageVersion = JavaLanguageVersion.of(useJdkCompiler)
+                    }
                 }
             }
 
@@ -457,10 +459,19 @@ allprojects {
             //   warnings are suppressible with a "// fall through" comment.
             // -classfile: classgraph jar file and https://bugs.openjdk.org/browse/JDK-8190452
             String lint = '-Xlint:-options,-fallthrough,-classfile'
-            if (isJava21plus && !jdk17Compiler) {
-                // TODO: Ignore this-escape for now, we may want to review and suppress each one later.
-                lint +=',-this-escape'
+            // Java 8 uses the Error Prone javac, not what is requested with useJdkCompiler.
+            // So there is no need to set additional lint options.
+            if (!isJava8) {
+                if (useJdkCompiler >= 21) {
+                    // TODO: Ignore this-escape for now, we may want to review and suppress each one later.
+                    lint +=',-this-escape'
+                }
+                if (useJdkCompiler >= 23) {
+                    // TODO: Ignore dangling-doc-comments for now, we may want to fix them later.
+                    lint +=',-dangling-doc-comments'
+                }
             }
+
             options.compilerArgs += [
                 '-g',
                 '-Werror',
@@ -477,8 +488,7 @@ allprojects {
             }
 
             // Error Prone depends on checker-qual.jar, so don't run it on that project to avoid a circular dependency.
-            // TODO: enable Error Prone on test classes.
-            if (compilationTask.name.equals('compileJava') && !project.name.startsWith('checker-qual')) {
+            if ((compilationTask.name.equals('compileJava') || compilationTask.name.equals('compileTestJava')) && !project.name.startsWith('checker-qual')) {
                 // Error Prone must be available in the annotation processor path
                 options.annotationProcessorPath = configurations.errorprone
                 // Enable Error Prone

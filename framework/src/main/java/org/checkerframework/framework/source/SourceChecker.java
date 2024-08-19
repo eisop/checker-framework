@@ -365,7 +365,6 @@ import javax.tools.Diagnostic;
     // Whether to check that the annotated JDK is correctly provided
     // org.checkerframework.common.basetype.BaseTypeVisitor.checkForAnnotatedJdk()
     "permitMissingJdk",
-    "nocheckjdk", // temporary, for backward compatibility
 
     // Parse all JDK files at startup rather than as needed.
     // org.checkerframework.framework.stub.AnnotationFileElementTypes.AnnotationFileElementTypes
@@ -1520,7 +1519,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @param messageKey the simple, checker-specific error message key
      * @return the most specific SuppressWarnings string for the warning/error being printed
      */
-    private String suppressWarningsString(String messageKey) {
+    protected String suppressWarningsString(String messageKey) {
         Collection<String> prefixes = this.getSuppressWarningsPrefixes();
         prefixes.remove(SUPPRESS_ALL_PREFIX);
         if (showSuppressWarningsStrings) {

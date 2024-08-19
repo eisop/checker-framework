@@ -209,7 +209,7 @@ Framework:
 
 You can place your checker's source files wherever you like.
 One choice is to write your checker in a fork of the Checker Framework
-repository \url{https://github.com/typetools/checker-framework}.
+repository \url{https://github.com/eisop/checker-framework}.
 Another choice is to write it in a stand-alone repository.  Here is a
 template for a stand-alone repository:
 \url{https://github.com/typetools/templatefora-checker}; at that URL,
@@ -1860,10 +1860,10 @@ uses the JDK\@.  You have two options:
 \begin{itemize}
 \item
   Write JDK annotations in a fork of
-  \url{https://github.com/typetools/jdk}.
+  \url{https://github.com/eisop/jdk}.
 
   If your checker is written in a fork of
-  \url{https://github.com/typetools/jdk},
+  \url{https://github.com/eisop/jdk},
   then use the same fork name (GitHub organization) and branch name;
   this is necessary so that the CI jobs use the right annotated JDK.
 
@@ -1935,7 +1935,8 @@ exactly one error, whose message key is \<dereference.of.nullable>, on
 the line following the ``// ::'' comment.
 
 % Don't repeat the information here, to prevent them from getting out of sync.
-The testing infrastructure is extensively documented in file \href{https://github.com/typetools/checker-framework/blob/master/checker/tests/README}{\<checker-framework/checker/tests/README>}.
+The testing infrastructure is extensively documented in file
+\href{https://github.com/eisop/checker-framework/blob/master/checker/tests/README}{\<checker-framework/checker/tests/README>}.
 
 If your checker's source code is within a fork of the Checker Framework
 repository, then you can copy the testing infrastructure used by some
