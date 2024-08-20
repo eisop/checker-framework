@@ -8,7 +8,7 @@ on:
 # See: https://docs.github.com/en/enterprise-cloud@latest/actions/writing-workflows/choosing-what-your-workflow-does/control-the-concurrency-of-workflows-and-jobs
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ !contains(github.ref, 'master/')}}
+  cancel-in-progress: ${{ !contains(github.ref, 'master')}}
 
 permissions:
   contents: read
