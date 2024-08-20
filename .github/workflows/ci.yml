@@ -8,7 +8,7 @@ on:
 
 # Configure GitHub Actions cancel in progress workflow to avoid redundant runs in pull requests.
 # See: https://docs.github.com/en/enterprise-cloud@latest/actions/writing-workflows/choosing-what-your-workflow-does/control-the-concurrency-of-workflows-and-jobs
-  concurrency:
+concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ !contains(github.ref, 'heads/master')}}
 
