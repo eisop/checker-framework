@@ -12,7 +12,7 @@ import javax.lang.model.util.Elements;
 import viewpointtest.quals.Bottom;
 import viewpointtest.quals.Lost;
 
-/** A qualifier hierarchy for the Viewpoint Test Checker. */
+/** The {@link QualifierHierarchy} for the Viewpoint Test Checker. */
 public class ViewpointTestQualifierHierarchy extends NoElementQualifierHierarchy {
     /**
      * Creates a ViewpointTestQualifierHierarchy from the given classes.
