@@ -633,6 +633,7 @@ task allJavadoc(type: Javadoc, group: 'Documentation') {
             project(':checker-qual').sourceSets.main.allJava,
             project(':checker').sourceSets.main.allJava,
             project(':framework').sourceSets.main.allJava,
+            project(':framework').sourceSets.test.allJava,
             project(':dataflow').sourceSets.main.allJava,
             project(':javacutil').sourceSets.main.allJava,
             project(':framework-test').sourceSets.main.allJava,
