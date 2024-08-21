@@ -71,7 +71,9 @@ jobs:
       # Setup for misc tests
     - name: Install shellcheck and checkbashisms
       if: matrix.script == 'misc'
-      run: sudo apt install shellcheck devscripts
+      run: |
+        sudo apt install shellcheck devscripts python3-pip
+        pip install black
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
       run: ./checker/bin-devel/test-${{ matrix.script }}.sh
 
@@ -119,7 +121,9 @@ jobs:
       # Setup for misc tests
     - name: Install shellcheck and checkbashisms
       if: matrix.script == 'misc'
-      run: sudo apt install shellcheck devscripts
+      run: |
+        sudo apt install shellcheck devscripts python3-pip
+        pip install black
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
       run: ./checker/bin-devel/test-${{ matrix.script }}.sh
       # TODO: it would be nicer to not run the job at all, but GH Actions does
