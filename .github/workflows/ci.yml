@@ -40,6 +40,7 @@ jobs:
     # Setup for misc tests
     - name: Install shellcheck and checkbashisms
       run: sudo apt install shellcheck devscripts
+      if: matrix.script == 'misc'
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
       run: ./checker/bin-devel/test-${{ matrix.script }}.sh
 
