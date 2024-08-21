@@ -39,8 +39,8 @@ jobs:
       uses: gradle/actions/setup-gradle@v4.0.0
     # Setup for misc tests
     - name: Install shellcheck and checkbashisms
-      run: sudo apt install shellcheck devscripts
       if: matrix.script == 'misc'
+      run: apt install shellcheck devscripts
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
       run: ./checker/bin-devel/test-${{ matrix.script }}.sh
 
