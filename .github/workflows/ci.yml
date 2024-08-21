@@ -58,6 +58,12 @@ jobs:
       JAVA_VERSION: ${{ matrix.java_version }}
     steps:
     - uses: actions/checkout@v4
+      if: matrix.script != 'misc'
+      fetch-depth: 1
+    - uses: actions/checkout@v4
+      if: matrix.script == 'misc'
+      # CI diff needs more history - 0 fetches all history.
+      fetch-depth: 0
     - name: Set up JDK ${{ matrix.java_version }}
       uses: actions/setup-java@v4
       with:
@@ -100,6 +106,12 @@ jobs:
     continue-on-error: ${{ matrix.java.experimental }}
     steps:
     - uses: actions/checkout@v4
+      if: matrix.script != 'misc'
+      fetch-depth: 1
+    - uses: actions/checkout@v4
+      if: matrix.script == 'misc'
+      # CI diff needs more history - 0 fetches all history.
+      fetch-depth: 0
     - name: Set up JDK ${{ matrix.java.version }}
       uses: actions/setup-java@v4
       with:
