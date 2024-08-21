@@ -18,7 +18,7 @@ import java.lang.annotation.Target;
  * An example is the declaration
  *
  * <pre><code>
- * {@literal @}DefaultFor(classes=String.class)
+ * {@literal @}UpperBoundFor(classes=String.class)
  * {@literal @}interface MyAnno {}
  * </code></pre>
  *
