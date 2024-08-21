@@ -1,6 +1,7 @@
 package org.checkerframework.framework.test.junit;
 
 import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
+import org.checkerframework.framework.testchecker.util.Encrypted;
 import org.junit.runners.Parameterized.Parameters;
 
 import java.io.File;
