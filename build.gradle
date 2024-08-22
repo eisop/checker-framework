@@ -630,12 +630,17 @@ task allJavadoc(type: Javadoc, group: 'Documentation') {
     destinationDir = file("${rootDir}/docs/api")
     source(
             project(':checker-util').sourceSets.main.allJava,
+            project(':checker-util').sourceSets.test.allJava,
             project(':checker-qual').sourceSets.main.allJava,
             project(':checker').sourceSets.main.allJava,
+            project(':checker').sourceSets.test.allJava,
             project(':framework').sourceSets.main.allJava,
+            project(':framework').sourceSets.test.allJava,
             project(':dataflow').sourceSets.main.allJava,
+            project(':dataflow').sourceSets.test.allJava,
             project(':javacutil').sourceSets.main.allJava,
             project(':framework-test').sourceSets.main.allJava,
+            project(':framework-test').sourceSets.test.allJava
             )
 
     doFirst {
