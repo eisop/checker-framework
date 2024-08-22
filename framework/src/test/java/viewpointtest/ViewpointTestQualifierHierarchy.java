@@ -2,6 +2,7 @@ package viewpointtest;
 
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.NoElementQualifierHierarchy;
+import org.checkerframework.framework.type.QualifierHierarchy;
 
 import java.lang.annotation.Annotation;
 import java.util.Collection;
