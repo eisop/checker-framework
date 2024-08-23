@@ -8,6 +8,10 @@ Use `-ApermitMissingJdk` instead.
 
 **Implementation details:**
 
+Changed `org.checkerframework.framework.util.ContractsFromMethod` to an interface.
+Use `DefaultContractsFromMethod` to get the default behavior or use the new
+`NoContractsFromMethod` if you want no support for contracts.
+
 Make `SourceChecker#suppressWarningsString` protected to allow adaptation in subclasses.
 
 **Closed issues:**
