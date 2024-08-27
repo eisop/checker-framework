@@ -617,6 +617,20 @@ task htmlValidate(type: Exec, group: 'Format') {
     ]
 }
 
+def javadocDirs = fileTree(dir: 'checker/src/main/java', include: '**/*.java').files +
+fileTree(dir: 'checker/src/test/java', include: '**/*.java').files +
+fileTree(dir: 'checker/src/testannotations/java', include: '**/*.java').files +
+fileTree(dir: 'checker-qual/src/main/java', include: '**/*.java').files +
+fileTree(dir: 'checker-util/src/main/java', include: '**/*.java').files +
+fileTree(dir: 'checker-util/src/test/java', include: '**/*.java').files +
+fileTree(dir: 'dataflow/src/main/java', include: '**/*.java').files +
+fileTree(dir: 'dataflow/src/test/java', include: '**/*.java').files +
+fileTree(dir: 'framework/src/main/java', include: '**/*.java').files +
+fileTree(dir: 'framework/src/test/java', include: '**/*.java').files +
+fileTree(dir: 'framework/src/testannotations/java', include: '**/*.java').files +
+fileTree(dir: 'framework-test/src/main/java', include: '**/*.java').files +
+fileTree(dir: 'javacutil/src/main/java', include: '**/*.java').files
+
 
 // `gradle allJavadoc` builds the Javadoc for all modules in `docs/api`.
 //   This is what is published to checkerframework.org.
@@ -628,21 +642,7 @@ task allJavadoc(type: Javadoc, group: 'Documentation') {
     description = 'Generates API documentation that includes all the modules.'
     dependsOn(':checker:shadowJar', 'getPlumeScripts', 'getHtmlTools')
     destinationDir = file("${rootDir}/docs/api")
-    source(
-            project(':checker-util').sourceSets.main.allJava,
-            project(':checker-util').sourceSets.test.allJava,
-            project(':checker-qual').sourceSets.main.allJava,
-            project(':checker').sourceSets.main.allJava,
-            project(':checker').sourceSets.test.allJava,
-            file('checker/src/testannotations'),  // Include the testannotations folder
-            project(':framework').sourceSets.main.allJava,
-            project(':framework').sourceSets.test.allJava,
-            project(':dataflow').sourceSets.main.allJava,
-            project(':dataflow').sourceSets.test.allJava,
-            project(':javacutil').sourceSets.main.allJava,
-            project(':framework-test').sourceSets.main.allJava,
-            project(':framework-test').sourceSets.test.allJava
-            )
+    source javadocDirs
 
     doFirst {
         source(
@@ -686,7 +686,7 @@ task requireJavadoc(type: JavaExec, group: 'Documentation') {
     description = 'Ensures that Javadoc documentation exists in source code.'
     mainClass = 'org.plumelib.javadoc.RequireJavadoc'
     classpath = configurations.requireJavadoc
-    args 'checker/src/main/java', 'checker-qual/src/main/java', 'checker-util/src/main/java', 'dataflow/src/main/java', 'framework/src/main/java', 'framework-test/src/main/java', 'javacutil/src/main/java'
+    args javadocDirs.collect { it.absolutePath }
 }
 
 
