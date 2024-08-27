@@ -66,7 +66,6 @@ public class TestConfigurationBuilder {
                         .addOption("-Xlint:deprecation")
                         .addOption("-XDrawDiagnostics") // use short javac diagnostics
                         .addOption("-ApermitMissingJdk")
-                        .addOption("-Anocheckjdk") // temporary, for backward compatibility
                         .addOption("-AnoJreVersionCheck");
 
         // -Anomsgtext is needed to ensure expected errors can be matched, which is the
