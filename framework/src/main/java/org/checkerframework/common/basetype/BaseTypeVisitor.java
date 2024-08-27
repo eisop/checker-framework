@@ -3122,16 +3122,17 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     protected void checkThrownExpression(ThrowTree tree) {
         AnnotatedTypeMirror throwType = atypeFactory.getAnnotatedType(tree.getExpression());
         TypeMirror throwTM = throwType.getUnderlyingType();
+        // Initialize required with the default upper bound annotations
         Set<? extends AnnotationMirror> required = getThrowUpperBoundAnnotations();
         if (methodTree != null) {
-            List<AnnotatedTypeMirror> exceptionList =
+            List<AnnotatedTypeMirror> allowedExceptions =
                     atypeFactory.getAnnotatedType(methodTree).getThrownTypes();
-            if (exceptionList != null) {
-                for (AnnotatedTypeMirror exception : exceptionList) {
+            if (allowedExceptions != null) {
+                for (AnnotatedTypeMirror exception : allowedExceptions) {
                     Types typesUtil = atypeFactory.getProcessingEnv().getTypeUtils();
                     if (typesUtil.isSubtype(
                             exception.getUnderlyingType(), throwType.getUnderlyingType())) {
-                        // use the type of the exception in the method signature if this exception
+                        // Use the type of the exception in the method signature if this exception
                         // is a subtype of it, otherwise use top to permit runtime exceptions not
                         // declared.
                         required = exception.getEffectiveAnnotations();

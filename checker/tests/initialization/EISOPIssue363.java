@@ -5,7 +5,7 @@ import org.checkerframework.checker.initialization.qual.NotOnlyInitialized;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 
-public class EISOPIssue363 {
+public final class EISOPIssue363 {
     class MyException extends Exception {
         @NotOnlyInitialized EISOPIssue363 cause;
 
@@ -24,36 +24,40 @@ public class EISOPIssue363 {
 
     Object field;
 
-    EISOPIssue363() throws MyException {
-        // :: error: (throw.type.invalid)
-        // :: error: (argument.type.incompatible)
-        throw new MyException(this);
+    // Test constructor for throwing single exception
+    EISOPIssue363() {
+        field = new Object();
     }
 
-    EISOPIssue363(boolean dummy1, boolean dummy2) throws MyException {
+    EISOPIssue363(int dummy1) throws MyException {
+        EISOPIssue363 obj = new EISOPIssue363();
+        throw new MyException(obj);
+    }
+
+    EISOPIssue363(int dummy1, int dummy2) throws MyException {
         // :: error: (throw.type.invalid)
         throw new MyException(this, 0);
     }
 
-    EISOPIssue363(boolean dummy1, boolean dummy2, boolean dummy3) throws MyException {
+    EISOPIssue363(int dummy1, int dummy2, int dummy3) throws MyException {
         // :: error: (throw.type.invalid)
         throw new MyException(this, "UnderInitialization");
     }
 
-    EISOPIssue363(int dummy) throws @UnknownInitialization MyException {
+    EISOPIssue363(char dummy1) throws @UnknownInitialization MyException {
         throw new MyException(this, 0);
     }
 
-    EISOPIssue363(int dummy1, int dummy2) throws @UnknownInitialization MyException {
+    EISOPIssue363(char dummy1, char dummy2) throws @UnknownInitialization MyException {
         throw new MyException(this, "UnderInitialization");
     }
 
-    EISOPIssue363(int dummy1, int dummy2, int dummy3) throws @UnknownInitialization MyException {
+    EISOPIssue363(char dummy1, char dummy2, char dummy3) throws @UnknownInitialization MyException {
         // :: error: (argument.type.incompatible)
         throw new MyException(this);
     }
 
-    EISOPIssue363(String dummy) throws @UnderInitialization MyException {
+    EISOPIssue363(String dummy1) throws @UnderInitialization MyException {
         throw new MyException(this, "UnderInitialization");
     }
 
@@ -67,59 +71,50 @@ public class EISOPIssue363 {
         throw new MyException(this);
     }
 
-    void test1() {
+    void canBeCatched() {
         try {
-            EISOPIssue363 obj = new EISOPIssue363(1);
+            EISOPIssue363 obj = new EISOPIssue363(0);
         } catch (MyException ex) {
             ex.cause.field.toString();
         }
-    }
 
-    void test2() {
         try {
-            EISOPIssue363 obj = new EISOPIssue363();
+            EISOPIssue363 obj = new EISOPIssue363(0);
+        } catch (@UnknownInitialization MyException ex) {
+            // :: error: (dereference.of.nullable)
+            ex.cause.field.toString();
+        }
+
+        try {
+            EISOPIssue363 obj = new EISOPIssue363("UnderInitialization");
+        } catch (@UnderInitialization MyException ex) {
+            // :: error: (dereference.of.nullable)
+            ex.cause.field.toString();
+        }
+
+        try {
+            EISOPIssue363 obj = new EISOPIssue363("UnderInitialization");
+        } catch (@UnknownInitialization MyException ex) {
+            // :: error: (dereference.of.nullable)
+            ex.cause.field.toString();
+        }
+
+        try {
+            EISOPIssue363 obj = new EISOPIssue363('a');
         } catch (@UnknownInitialization MyException ex) {
             // :: error: (dereference.of.nullable)
             ex.cause.field.toString();
         }
     }
 
-    void test3() {
+    void canNotBeCatched() {
         try {
-            EISOPIssue363 obj = new EISOPIssue363();
+            EISOPIssue363 obj = new EISOPIssue363(0);
         } catch (@UnderInitialization MyException ex) {
             // :: error: (dereference.of.nullable)
             ex.cause.field.toString();
         }
-    }
 
-    void test4() {
-        try {
-            EISOPIssue363 obj = new EISOPIssue363(1);
-        } catch (MyException ex) {
-            ex.cause.field.toString();
-        }
-    }
-
-    void test5() {
-        try {
-            EISOPIssue363 obj = new EISOPIssue363(1);
-        } catch (@UnknownInitialization MyException ex) {
-            // :: error: (dereference.of.nullable)
-            ex.cause.field.toString();
-        }
-    }
-
-    void test6() {
-        try {
-            EISOPIssue363 obj = new EISOPIssue363(1);
-        } catch (@UnderInitialization MyException ex) {
-            // :: error: (dereference.of.nullable)
-            ex.cause.field.toString();
-        }
-    }
-
-    void test7() {
         try {
             EISOPIssue363 obj = new EISOPIssue363("UnderInitialization");
         } catch (MyException ex) {
@@ -127,24 +122,7 @@ public class EISOPIssue363 {
         }
     }
 
-    void test8() {
-        try {
-            EISOPIssue363 obj = new EISOPIssue363("UnderInitialization");
-        } catch (@UnknownInitialization MyException ex) {
-            // :: error: (dereference.of.nullable)
-            ex.cause.field.toString();
-        }
-    }
-
-    void test9() {
-        try {
-            EISOPIssue363 obj = new EISOPIssue363("UnderInitialization");
-        } catch (@UnderInitialization MyException ex) {
-            // :: error: (dereference.of.nullable)
-            ex.cause.field.toString();
-        }
-    }
-
+    // Test case from Guava
     <X extends Throwable> void throwIfInstanceOf(Throwable throwable, Class<X> declaredType)
             throws X {
         if (declaredType.isInstance(throwable)) {
@@ -184,7 +162,8 @@ public class EISOPIssue363 {
         }
     }
 
-    EISOPIssue363(int dummy, Object obj) throws MyException1, MyException2 {
+    // Test constructor for throwing multiple exceptions
+    EISOPIssue363(int dummy1, Object obj) throws MyException1, MyException2 {
         // :: error: (throw.type.invalid)
         throw new MyException1(this, 0);
     }
@@ -194,7 +173,7 @@ public class EISOPIssue363 {
         throw new MyException2(this, 0);
     }
 
-    EISOPIssue363(boolean dummy, Object obj)
+    EISOPIssue363(boolean dummy1, Object obj)
             throws @UnknownInitialization MyException1, MyException2 {
         throw new MyException1(this, 0);
     }
@@ -216,7 +195,8 @@ public class EISOPIssue363 {
         throw new MyException2(this, 0);
     }
 
-    EISOPIssue363(String dummy, Object obj) throws @UnderInitialization MyException1, MyException2 {
+    EISOPIssue363(String dummy1, Object obj)
+            throws @UnderInitialization MyException1, MyException2 {
         throw new MyException1(this, "UnderInitialization");
     }
 
