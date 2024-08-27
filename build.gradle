@@ -634,6 +634,7 @@ task allJavadoc(type: Javadoc, group: 'Documentation') {
             project(':checker-qual').sourceSets.main.allJava,
             project(':checker').sourceSets.main.allJava,
             project(':checker').sourceSets.test.allJava,
+            file('checker/src/testannotations'),  // Include the testannotations folder
             project(':framework').sourceSets.main.allJava,
             project(':framework').sourceSets.test.allJava,
             project(':dataflow').sourceSets.main.allJava,
