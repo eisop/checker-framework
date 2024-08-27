@@ -8,7 +8,6 @@ echo "SHELLOPTS=${SHELLOPTS}"
 
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 # shellcheck disable=SC1090# In newer shellcheck than 0.6.0, pass: "-P SCRIPTDIR" (literally)
-export ORG_GRADLE_PROJECT_useJdk17Compiler=true
 source "$SCRIPTDIR"/clone-related.sh
 
 # Run assembleForJavac because it does not build the javadoc, so it is faster than assemble.
@@ -17,7 +16,7 @@ echo "running \"./gradlew assembleForJavac\" for checker-framework"
 
 
 # daikon-typecheck: 15 minutes
-"$SCRIPTDIR/.plume-scripts/git-clone-related" eisop-codespecs daikon
+"$SCRIPTDIR/.git-scripts/git-clone-related" eisop-codespecs daikon
 cd ../daikon
 git log | head -n 5
 make compile

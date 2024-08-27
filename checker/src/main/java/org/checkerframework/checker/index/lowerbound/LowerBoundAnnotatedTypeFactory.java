@@ -190,8 +190,8 @@ public class LowerBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
 
     /** Handles cases 1, 2, and 3. */
     @Override
-    public void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type, boolean iUseFlow) {
-        super.addComputedTypeAnnotations(tree, type, iUseFlow);
+    protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type) {
+        super.addComputedTypeAnnotations(tree, type);
         // If dataflow shouldn't be used to compute this type, then do not use the result from
         // the Value Checker, because dataflow is used to compute that type.  (Without this,
         // "int i = 1; --i;" fails.)
@@ -203,7 +203,7 @@ public class LowerBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
                 // checker's type factory is parsing.
                 && !ajavaTypes.isParsing()
                 && TreeUtils.isExpressionTree(tree)
-                && (iUseFlow || tree instanceof LiteralTree)) {
+                && (getUseFlow() || tree instanceof LiteralTree)) {
             AnnotatedTypeMirror valueType = getValueAnnotatedTypeFactory().getAnnotatedType(tree);
             addLowerBoundTypeFromValueType(valueType, type);
         }

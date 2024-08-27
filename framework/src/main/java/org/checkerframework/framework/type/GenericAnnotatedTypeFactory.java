@@ -79,7 +79,9 @@ import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.Contract;
 import org.checkerframework.framework.util.ContractsFromMethod;
+import org.checkerframework.framework.util.DefaultContractsFromMethod;
 import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
+import org.checkerframework.framework.util.NoContractsFromMethod;
 import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.framework.util.defaults.QualifierDefaults;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
@@ -397,6 +399,16 @@ public abstract class GenericAnnotatedTypeFactory<
 
         // Every subclass must call postInit, but it must be called after
         // all other initialization is finished.
+    }
+
+    /**
+     * Determines whether flow-sensitive type refinement should be used or not.
+     *
+     * @return whether flow-sensitive type refinement should be used or not
+     * @see #useFlow
+     */
+    protected boolean getUseFlow() {
+        return useFlow;
     }
 
     @Override
@@ -719,12 +731,13 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * Creates an {@link ContractsFromMethod} and returns it.
+     * Creates an {@link DefaultContractsFromMethod} and returns it. If contract annotations are not
+     * used for a type system, override this method and return a {@link NoContractsFromMethod}.
      *
      * @return a new {@link ContractsFromMethod}
      */
     protected ContractsFromMethod createContractsFromMethod() {
-        return new ContractsFromMethod(this);
+        return new DefaultContractsFromMethod(this);
     }
 
     /**
@@ -1982,17 +1995,6 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * This method is final; override {@link #addComputedTypeAnnotations(Tree, AnnotatedTypeMirror,
-     * boolean)} instead.
-     *
-     * <p>{@inheritDoc}
-     */
-    @Override
-    protected final void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type) {
-        addComputedTypeAnnotations(tree, type, this.useFlow);
-    }
-
-    /**
      * Removes all primary annotations on a copy of the type and calculates the default annotations
      * that apply to the copied type, without type refinements.
      *
@@ -2003,7 +2005,7 @@ public abstract class GenericAnnotatedTypeFactory<
     public AnnotatedTypeMirror getDefaultAnnotations(Tree tree, AnnotatedTypeMirror type) {
         AnnotatedTypeMirror copy = type.deepCopy();
         copy.removeAnnotations(type.getAnnotations());
-        addComputedTypeAnnotations(tree, copy, false);
+        addComputedTypeAnnotationsWithoutFlow(tree, copy);
         return copy;
     }
 
@@ -2014,9 +2016,44 @@ public abstract class GenericAnnotatedTypeFactory<
      * @param tree an AST node
      * @param type the type obtained from tree
      * @param iUseFlow whether to use information from dataflow analysis
+     * @deprecated use {@link #addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)} or {@link
+     *     #addComputedTypeAnnotationsWithoutFlow(Tree, AnnotatedTypeMirror)} if you want to add
+     *     computed type annotations without using flow information
      */
+    @Deprecated // 2024-07-07
+    @SuppressWarnings("unused")
     protected void addComputedTypeAnnotations(
             Tree tree, AnnotatedTypeMirror type, boolean iUseFlow) {
+        addComputedTypeAnnotationsWithoutFlow(tree, type);
+    }
+
+    /**
+     * A helper method to add computed type annotations to a type without using flow information.
+     *
+     * <p>This method is final; override {@link #addComputedTypeAnnotations(Tree,
+     * AnnotatedTypeMirror)} instead.
+     *
+     * @param tree an AST node
+     * @param type the type obtained from tree
+     * @see #addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)
+     */
+    protected final void addComputedTypeAnnotationsWithoutFlow(
+            Tree tree, AnnotatedTypeMirror type) {
+        boolean oldUseflow = useFlow;
+        useFlow = false;
+        addComputedTypeAnnotations(tree, type);
+        useFlow = oldUseflow;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This method adds defaults and flow-sensitive type refinements.
+     *
+     * @see #addComputedTypeAnnotationsWithoutFlow(Tree, AnnotatedTypeMirror)
+     */
+    @Override
+    protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type) {
         if (this.getRoot() == null && ajavaTypes.isParsing()) {
             return;
         }
@@ -2038,7 +2075,7 @@ public abstract class GenericAnnotatedTypeFactory<
         }
         log(
                 "%s GATF.addComputedTypeAnnotations#1(%s, %s, %s)%n",
-                thisClass, treeString, type, iUseFlow);
+                thisClass, treeString, type, this.useFlow);
         if (!TreeUtils.isExpressionTree(tree)) {
             // Don't apply defaults to expressions. Their types may be computed from subexpressions
             // in treeAnnotator.
@@ -2063,7 +2100,7 @@ public abstract class GenericAnnotatedTypeFactory<
         defaults.annotate(tree, type);
         log("%s GATF.addComputedTypeAnnotations#7(%s, %s)%n", thisClass, treeString, type);
 
-        if (iUseFlow) {
+        if (this.useFlow) {
             Value inferred = getInferredValueFor(tree);
             if (inferred != null) {
                 applyInferredAnnotations(type, inferred);
@@ -2074,7 +2111,7 @@ public abstract class GenericAnnotatedTypeFactory<
         }
         log(
                 "%s GATF.addComputedTypeAnnotations#9(%s, %s, %s) done%n",
-                thisClass, treeString, type, iUseFlow);
+                thisClass, treeString, type, this.useFlow);
     }
 
     /**
@@ -2745,7 +2782,7 @@ public abstract class GenericAnnotatedTypeFactory<
         TypeMirror defaultValueTM = TreeUtils.typeOf(defaultValueTree);
         AnnotatedTypeMirror defaultValueATM =
                 AnnotatedTypeMirror.createType(defaultValueTM, this, false);
-        addComputedTypeAnnotations(defaultValueTree, defaultValueATM, false);
+        addComputedTypeAnnotationsWithoutFlow(defaultValueTree, defaultValueATM);
         return defaultValueATM;
     }
 
