@@ -9,6 +9,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TreeUtils;
 
 import javax.lang.model.element.Element;
@@ -25,6 +26,9 @@ import javax.lang.model.type.TypeMirror;
  */
 public class InitializationFieldAccessTreeAnnotator extends TreeAnnotator {
 
+    /** The value of the assumeInitialized option. */
+    protected final boolean assumeInitialized;
+
     /**
      * Creates a new CommitmentFieldAccessTreeAnnotator.
      *
@@ -33,6 +37,7 @@ public class InitializationFieldAccessTreeAnnotator extends TreeAnnotator {
     public InitializationFieldAccessTreeAnnotator(
             GenericAnnotatedTypeFactory<?, ?, ?, ?> atypeFactory) {
         super(atypeFactory);
+        assumeInitialized = atypeFactory.getChecker().hasOption("assumeInitialized");
     }
 
     @Override
@@ -61,7 +66,7 @@ public class InitializationFieldAccessTreeAnnotator extends TreeAnnotator {
                 (GenericAnnotatedTypeFactory<?, ?, ?, ?>) atypeFactory;
 
         // Don't adapt anything if initialization checking is turned off.
-        if (factory.getChecker().hasOption("assumeInitialized")) {
+        if (assumeInitialized) {
             return;
         }
 
@@ -87,7 +92,11 @@ public class InitializationFieldAccessTreeAnnotator extends TreeAnnotator {
         InitializationFieldAccessAnnotatedTypeFactory initFactory =
                 atypeFactory
                         .getChecker()
-                        .getTypeFactoryOfSubchecker(InitializationFieldAccessSubchecker.class);
+                        .getTypeFactoryOfSubcheckerOrNull(
+                                InitializationFieldAccessSubchecker.class);
+        if (initFactory == null) {
+            throw new BugInCF("Did not find InitializationFieldAccessSubchecker!");
+        }
         AnnotatedTypeMirror receiver = initFactory.getReceiverType(tree);
         if (receiver == null) {
             return;

@@ -8,12 +8,13 @@ echo "SHELLOPTS=${SHELLOPTS}"
 
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 # shellcheck disable=SC1090 # In newer shellcheck than 0.6.0, pass: "-P SCRIPTDIR" (literally)
-source "$SCRIPTDIR"/build.sh
+source "$SCRIPTDIR"/clone-related.sh
+./gradlew assembleForJavac --console=plain -Dorg.gradle.internal.http.socketTimeout=60000 -Dorg.gradle.internal.http.connectionTimeout=60000
 
 # TODO: Maybe I should move this into the CI job, and do it for all CI jobs.
 cp "$SCRIPTDIR"/mvn-settings.xml ~/settings.xml
 
-"$SCRIPTDIR/.plume-scripts/git-clone-related" eisop guava
+"$SCRIPTDIR/.git-scripts/git-clone-related" eisop guava
 cd ../guava
 
 if [ "$TRAVIS" = "true" ] ; then

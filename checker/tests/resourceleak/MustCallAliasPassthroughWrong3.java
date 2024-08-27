@@ -6,9 +6,9 @@ import org.checkerframework.checker.mustcall.qual.*;
 import java.io.*;
 
 class MustCallAliasPassthroughWrong3 {
-    // Both of these verify - it's okay to leave off the MCA param, because the return type is
-    // owning - but the first one leads to imprecision at call sites.
+
     static InputStream missingMCA(@MustCallAlias InputStream is) {
+        // :: error: (return.type.incompatible)
         return is;
     }
 
@@ -16,7 +16,7 @@ class MustCallAliasPassthroughWrong3 {
         return is;
     }
 
-    // :: error: required.method.not.called
+    // :: error: (required.method.not.called)
     void use_bad(@Owning InputStream is) throws Exception {
         InputStream is2 = missingMCA(is);
         is2.close();

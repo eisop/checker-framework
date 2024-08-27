@@ -222,9 +222,7 @@ public final class CFGVisualizeLauncher {
      * @param method name of the method to generate the CFG for
      * @return control flow graph of the specified method
      */
-    private static ControlFlowGraph generateMethodCFG(
-            String file, String clas, final String method) {
-
+    public static ControlFlowGraph generateMethodCFG(String file, String clas, String method) {
         CFGProcessor cfgProcessor = new CFGProcessor(clas, method);
 
         Context context = new Context();
@@ -232,7 +230,11 @@ public final class CFGVisualizeLauncher {
         JavaCompiler javac = new JavaCompiler(context);
 
         JavaFileObject l;
-        try (JavacFileManager fileManager = (JavacFileManager) context.get(JavaFileManager.class)) {
+        try (@SuppressWarnings(
+                        "mustcall:type.argument") // Context isn't annotated for the Must Call
+                // Checker.
+                JavacFileManager fileManager =
+                        (JavacFileManager) context.get(JavaFileManager.class)) {
             l = fileManager.getJavaFileObjectsFromStrings(List.of(file)).iterator().next();
         } catch (IOException e) {
             throw new Error(e);
@@ -298,7 +300,7 @@ public final class CFGVisualizeLauncher {
             if (res != null && res.get("stringGraph") != null) {
                 out.write(res.get("stringGraph").toString());
             }
-            out.write("\n");
+            out.write(System.lineSeparator());
         } catch (IOException e) {
             e.printStackTrace();
         }

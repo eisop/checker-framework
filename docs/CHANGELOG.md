@@ -1,5 +1,191 @@
-Version 3.34.0-eisop2 (May ?, 2023)
------------------------------------
+Version 3.42.0-eisop5 (July ?, 2024)
+------------------------------------
+
+**User-visible changes:**
+
+Removed support for the `-Anocheckjdk` option, which was deprecated in version 3.1.1.
+Use `-ApermitMissingJdk` instead.
+
+**Implementation details:**
+
+Changed `org.checkerframework.framework.util.ContractsFromMethod` to an interface.
+Use `DefaultContractsFromMethod` to get the default behavior or use the new
+`NoContractsFromMethod` if you want no support for contracts.
+
+Make `SourceChecker#suppressWarningsString` protected to allow adaptation in subclasses.
+
+**Closed issues:**
+
+
+Version 3.42.0-eisop4 (July 12, 2024)
+-------------------------------------
+
+**Implementation details:**
+
+New method `GenericAnnotatedTypeFactory#addComputedTypeAnnotationsWithoutFlow(Tree, AnnotatedTypeMirror)`
+that sets `useFlow` to `false` before calling `addComputedTypeAnnotations`. Subclasses should override
+method `GenericAnnotatedTypeFactory#addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)` instead.
+Deprecated the `GenericAnnotatedTypeFactory#addComputedTypeAnnotations(Tree, AnnotatedTypeMirror, boolean)`
+overload.
+
+Changed the return type of `AnnotatedTypeFactory#getEnumConstructorQualifiers` from `Set<AnnotationMirror>`
+to `AnnotationMirrorSet`.
+
+Field `AnnotatedTypeFactory#root` is now private and can only be accessed through `getRoot`/`setRoot`.
+
+framework-test:
+- Improvements to more consistently handle tests that do not use `-Anomsgtext`.
+- Added new class `DetailedTestDiagnostic` to directly represent test diagnostics when
+  `-Adetailedmsgtext` is used.
+
+**Closed issues:**
+
+eisop#742, eisop#777, eisop#795, typetools#6704.
+
+
+Version 3.42.0-eisop3 (March 1, 2024)
+-------------------------------------
+
+**User-visible changes:**
+
+Performance improvements in the Nullness Checker.
+
+**Implementation details:**
+
+Support separate defaults for wildcard and type variable upper bounds.
+Add support for defaults for type variable uses.
+See changes in `TypeUseLocation`, `QualiferDefaults`, and `QualifierHierarchy`,
+as well as the new `ParametricTypeVariableUseQualifier` meta-annotation.
+
+Refactored the `TypeInformationPresenter` into several classes in the new
+`org.checkerframework.framework.util.visualize` package.
+
+**Closed issues:**
+
+eisop#703, typetools#6433, typetools#6438.
+
+
+Version 3.42.0-eisop2 (January 9, 2024)
+---------------------------------------
+
+**Implementation details:**
+
+Moved `ErrorTypeKindException` from `org.checkerframework.framework.util.element.ElementAnnotationUtil` to
+`org.checkerframework.framework.type.AnnotatedTypeMirror`. Properly raise these errors in more cases.
+
+Deprecated `AnnotationUtils#isDeclarationAnnotation` and added the clearer `AnnotationUtils#isTypeUseAnnotation`.
+
+Removed the dependency on the classgraph library, which added over 500kB to `checker.jar`.
+It is easy to add the dependency for debugging.
+
+**Closed issues:**
+
+eisop#666, eisop#673.
+
+
+Version 3.42.0-eisop1 (January 2, 2024)
+---------------------------------------
+
+**Closed issues:**
+
+typetools#6373, typetools#6374.
+
+
+Version 3.42.0 (December 15, 2023)
+----------------------------------
+
+**User-visible changes:**
+
+Method annotation `@AssertMethod` indicates that a method checks a value and
+possibly throws an assertion.  Using it can make flow-sensitive type refinement
+more effective.
+
+In `org.checkerframework.common.util.debug`, renamed `EmptyProcessor` to `DoNothingProcessor`.
+Removed `org.checkerframework.common.util.report.DoNothingChecker`.
+Moved `ReportChecker` from `org.checkerframework.common.util.report` to `org.checkerframework.common.util.count.report`.
+(EISOP note: we did not follow this renaming - if anything, `counting` could be a special case of `reporting`, not
+the other way around.)
+
+
+Version 3.41.0-eisop1 (December 5, 2023)
+----------------------------------------
+
+**User-visible changes:**
+
+The Nullness Checker now warns about redundant null cases in switch statements and expressions when
+using the `-Alint=redundantNullComparison` command-line argument.
+
+**Closed issues:**
+
+eisop#628, eisop#635, eisop#640, eisop#641.
+
+
+Version 3.41.0 (December 4, 2023)
+---------------------------------
+
+**User-visible changes:**
+
+New command-line options:
+* `-AassumePureGetters`: Unsoundly assume that every getter method is pure.
+
+**Implementation details:**
+
+Added method `isDeterministic()` to the `AnnotationProvider` interface.
+
+`CFAbstractValue#leastUpperBound` and `CFAbstractValue#widenUpperBound` are now
+final.  Subclasses should override method `CFAbstractValue#upperBound(V,
+TypeMirror, boolean)` instead.
+
+(EISOP note: typetools added the new method annotation `org.checkerframework.dataflow.qual.AssertMethod`
+to treat such methods like assert statements. EISOP might change the implementation of this feature
+in a future release.)
+
+**Closed issues:**
+
+#1497, #3345, #6037, #6204, #6276, #6282, #6290, #6296, #6319, #6327.
+
+
+Version 3.40.0-eisop2 (November 24, 2023)
+-----------------------------------------
+
+**Implementation details:**
+
+Always use reflective access for `TreeMaker#Select`, to allow artifacts built with
+Java 21+ to be executed on Java <21.
+
+
+Version 3.40.0-eisop1 (November 24, 2023)
+-----------------------------------------
+
+**User-visible changes:**
+
+Improvements to initialization type frames in the Initialization Checker.
+
+**Implementation details:**
+
+New method `TreeUtils#isEnhancedSwitchStatement` to determine if a switch statement tree
+is an enhanced switch statement.
+
+**Closed issues:**
+
+eisop#609, eisop#610, eisop#612.
+
+
+Version 3.40.0 (November 1, 2023)
+---------------------------------
+
+**User-visible changes:**
+
+Optional Checker:  `checker-util.jar` defines `OptionalUtil.castPresent()` for
+suppressing false positive warnings from the Optional Checker.
+
+**Closed issues:**
+
+#4947, #6179, #6215, #6218, #6222, #6247, #6259, #6260.
+
+
+Version 3.39.0-eisop1 (October 22, 2023)
+----------------------------------------
 
 **User-visible changes:**
 
@@ -18,6 +204,13 @@ The Initialization Checker supports the new qualifier `@PolyInitialized` to expr
 Fixed a bug in the Nullness Checker where an instance receiver is incorrectly marked non-null after
 a static method or field access. This could lead to new nullness errors. The static access should be
 changed to be through a class name.
+
+Checkers now enforce `@TargetLocations` meta-annotations: if a qualifier is declared with the
+meta-annotation `@TargetLocations({TypeUseLocation...})`, the qualifier should only be applied to
+these type use locations.
+The new command-line argument `-AignoreTargetLocations` disables validating the target locations
+of qualifiers. This option is not enabled by default. With this flag, the checker ignores all
+`@TargetLocations` meta-annotations and allows all qualifiers to be applied to every type use.
 
 **Implementation details:**
 
@@ -38,7 +231,179 @@ Changed the return types of
 
 **Closed issues:**
 
-eisop#297, eisop#376, eisop#400, eisop#519, eisop#532, eisop#533, typetools#1590.
+eisop#297, eisop#376, eisop#400, eisop#519, eisop#532, eisop#533, typetools#1590, typetools#1919.
+
+
+Version 3.39.0 (October 2, 2023)
+--------------------------------
+
+**User-visible changes:**
+
+The Checker Framework runs on a version 21 JVM.
+It does not yet soundly check all new Java 21 language features, but it does not
+crash when compiling them.
+
+**Implementation details:**
+
+Dataflow supports all the new Java 21 language features.
+ * A new node, `DeconstructorPatternNode`, was added, so any implementation of
+   `NodeVisitor` must be updated.
+ * Method `InstanceOfNode.getBindingVariable()` is deprecated; use
+   `getPatternNode()` or `getBindingVariables()` instead.
+
+WPI uses 1-based indexing for formal parameters and arguments.
+
+**Closed issues:**
+
+#5911, #5967, #6155, #6173, #6201.
+
+
+Version 3.38.0 (September 1, 2023)
+----------------------------------
+
+**User-visible changes:**
+
+Eliminated the `@SignedPositiveFromUnsigned` annotation, which users were
+advised against using.
+
+**Implementation details:**
+
+Renamed `SourceChecker.processArg()` to `processErrorMessageArg()`.
+
+**Closed issues:**
+
+#2156, #5672, #6110, #6111, #6116, #6125, #6129, #6136.
+
+
+Version 3.37.0 (August 1, 2023)
+-------------------------------
+
+**User-visible changes:**
+
+Removed support for deprecated option `-AuseDefaultsForUncheckedCode`.
+
+The Signedness Checker no longer allows (nor needs) `@UnknownSignedness`
+to be written on a non-integral type.
+
+**Implementation details:**
+
+`QualifierHierarchy`:
+ * The constructor takes an `AnnotatedTypeFactory`.
+ * Changes to `isSubtype()`:
+    * `isSubtype()` has been renamed to `isSubypeQualifiers()` and made protected.
+      Clients that are not in a qualifier hierarchy should call `isSubtypeShallow()`
+      or, rarely, new method `isSubtypeQualifiersOnly()`.
+    * New public method `isSubtypeShallow()` that takes two more arguments than
+      `isSubypeQualifiers()`.
+ * Similar changes to `greatestLowerBound()` and `leastUpperBound()`.
+
+**Closed issues:**
+
+#6076, #6077, #6078, #6098, #6100, #6104, #6113.
+
+
+Version 3.36.0 (July 3, 2023)
+-----------------------------
+
+**User-visible changes:**
+
+The Initialization Checker issues a `cast.unsafe` warning instead of an
+`initialization.cast` error.
+
+The Resource Leak Checker now issues a `required.method.not.known` error
+when an expression with type `@MustCallUnknown` has a must-call obligation
+(e.g., because it is a parameter annotated as `@Owning`).
+
+The Resource Leak Checker's default MustCall type for type variables has been
+changed from `@MustCallUnknown` to `@MustCall({})`.  This change reduces the
+number of false positive warnings in code that uses type variables but not
+resources.  However, it makes some code that uses type variables and resources
+unverifiable with any annotation.
+
+**Implementation details:**
+
+Deprecated `ElementUtils.getSimpleNameOrDescription()` in favor of `getSimpleDescription()`.
+
+Renamed methods in `AnnotatedTypeMirror`.
+The old versions are deprecated.  Because the `*PrimaryAnnotation*` methods
+might not return an annotation of a type variable or wildcard, it is better to
+call `getEffectiveAnnotation*` or `hasEffectiveAnnotation*` instead.
+ * `clearAnnotations*()` => `clearPrimaryAnnotations()`
+ * `getAnnotation*()` => `getPrimaryAnnotation*()`.
+ * `hasAnnotation*()` => `hasPrimaryAnnotation()`.
+ * `removeAnnotation*()` => `removePrimaryAnnotation*()`.
+ * `isAnnotatedInHierarchy()` => `hasPrimaryAnnotationInHierarchy()`
+ * `removeNonTopAnnotationInHierarchy()` should not be used.
+(EISOP note: these renamings break javac convention and are inconsistently applied.
+Only the last two changes are retained.)
+
+Dataflow Framework:
+ * New `ExpressionStatementNode` marks an expression that is used as a statement.
+ * Removed class `StringConcatenateAssignmentNode`, which is now desugared.
+(EISOP note: these were performed in 3.21.2-eisop1 and 3.21.3-eisop1, respectively.)
+
+`GenericAnnotatedTypeFactory`:
+ * Renamed `getTypeFactoryOfSubchecker()` to `getTypeFactoryOfSubcheckerOrNull`.
+ * Added new `getTypeFactoryOfSubchecker()` that never returns null.
+
+Return types changed:
+ * `GenericAnnotatedTypeFactory.getFinalLocalValues()` return type changed to
+   `Map`, though the returned value is still a `HashMap`.
+ * `BaseTypeChecker.getImmediateSubcheckerClasses()` return type changed to
+   `Set`, though the returned value is still a `LinkedHashSet`.
+
+Renamed methods in `CFAbstractValue`:
+ * `combineOneAnnotation()` => `combineAnnotationWithTypeVar()`
+ * `combineNoAnnotations()` => `combineTwoTypeVars()`
+
+**Closed issues:**
+#5908, #5936, #5971, #6019, #6025, #6028, #6030, #6039, #6053, #6060, #6069.
+
+
+Version 3.35.0 (June 1, 2023)
+-----------------------------
+
+**User-visible changes:**
+
+The Checker Framework no longer issues `type.checking.not.run` errors.
+This reduces clutter in the output.
+
+Signedness Checker:
+ * The receiver type of `Object.hashCode()` is now `@UnknownSignedness`.
+
+**Implementation details:**
+
+Instead of overriding `isRelevant()`, a type factory implementation should
+override `isRelevantImpl()`.  Clients should continue to call `isRelevant()`;
+never call `isRelevantImpl()` except as `super.isRelevantImpl()`.
+
+Methods that now return a `boolean` rather than `void`:
+ * `commonAssignmentCheck()`
+ * `checkArrayInitialization()`
+ * `checkLock()`
+ * `checkLockOfThisOrTree()`
+ * `ensureExpressionIsEffectivelyFinal()`
+
+Methods that now return `AnnotationMirrorSet` instead of `Set<? extends AnnotationMirror>`:
+ * `getTopAnnotations()`
+ * `getBottomAnnotations()`
+ * `getDefaultTypeDeclarationBounds()`
+ * `getExceptionParameterLowerBoundAnnotations()`
+
+Renamed `BaseTypeVisitor.checkExtendsImplements()` to `checkExtendsAndImplements()`.
+
+Class `FieldInvariants`:
+ * constructor now takes an `AnnotatedTypeFactory`
+ * `isSuperInvariant()` has been renamed to `isStrongerThan()` and
+   no longer takes an `AnnotatedTypeFactory`
+
+`CFAbstractValue.validateSet()` takes a type factory rather than a `QualifierHierarchy`.
+
+Removed methods that have been deprecated for over two years.
+
+**Closed issues:**
+
+#4170, #5722, #5777, #5807, #5821, #5826, #5829, #5837, #5930.
 
 
 Version 3.34.0-eisop1 (May 9, 2023)
@@ -152,7 +517,7 @@ Version 3.32.0 (March 2, 2023)
 Fixed a bug in the Nullness Checker where a call to a side-effecting method did
 not make some formal parameters possibly-null.  The Nullness Checker is likely
 to issue more warnings for your code.  For ways to eliminate the new warnings,
-see https://eisop.github.io/cf/manual/#type-refinement-side-effects .
+see <https://eisop.github.io/cf/manual/#type-refinement-side-effects>.
 
 If you supply the `-AinvocationPreservesArgumentNullness` command-line
 option, the Nullness Checker unsoundly assumes that arguments passed to
@@ -990,7 +1355,7 @@ Version 3.13.0 (May 3, 2021)
 If you use the Checker Framework, please answer a 3-question survey about what
 version of Java you use.  It will take less than 1 minute to complete.  Please
 answer it at
-https://docs.google.com/forms/d/1Bbt34c_3nDItHsBnmEfumoyrR-Zxhvo3VTHucXwfMcQ .
+<https://docs.google.com/forms/d/1Bbt34c_3nDItHsBnmEfumoyrR-Zxhvo3VTHucXwfMcQ>.
 Thanks!
 
 **User-visible changes:**
@@ -1461,7 +1826,7 @@ All CFGVisualizeLauncher command-line arguments now start with `--` instead of `
 
 **Implementation details:**
 
-commonAssignmentCheck() now takes an additional argument.  Type system
+`commonAssignmentCheck()` now takes an additional argument.  Type system
 authors must update their overriding implementations.
 
 Renamed methods:
@@ -1585,11 +1950,11 @@ Version 3.3.0 (April 1, 2020)
 **User-visible changes:**
 
 New command-line options:
-  -Alint=trustArrayLenZero trust @ArrayLen(0) annotations when determining
+  `-Alint=trustArrayLenZero` trust `@ArrayLen(0)` annotations when determining
   the type of Collections.toArray.
 
 Renamings:
-  -AuseDefaultsForUncheckedCode to -AuseConservativeDefaultsForUncheckedCode
+  `-AuseDefaultsForUncheckedCode` to `-AuseConservativeDefaultsForUncheckedCode`
     The old name works temporarily but will be removed in a future release.
 
 For collection methods with `Object` formal parameter type, such as
@@ -2049,7 +2414,7 @@ Added a @QualifierArgument annotation to be used on pre- and postcondition
 Added new type @InternalFormForNonArray to the Signature Checker
 
 Moved annotated libraries from checker/lib/*.jar to the Maven Central Repository:
-https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.checkerframework.annotatedlib%22
+<https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.checkerframework.annotatedlib%22>
 
 Moved the Javadoc stub file from checker/lib/javadoc.astub to
 checker/resources/javadoc.astub.
@@ -2232,7 +2597,7 @@ get the conservative behavior.
 Version 2.1.8 (20 January 2017)
 -------------------------------
 
-The Checker Framework webpage has moved to https://checkerframework.org/.
+The Checker Framework webpage has moved to <https://checkerframework.org/>.
 Old URLs should redirect to the new one, but please update your links
 and let us know if any old links are broken rather than redirecting.
 
@@ -2396,7 +2761,7 @@ Documentation improvements:
 Tool changes:
 
  * The Checker Framework Live Demo webpage lets you try the Checker
-   Framework without installing it:  http://eisop.uwaterloo.ca/live/
+   Framework without installing it:  <http://eisop.uwaterloo.ca/live/>
 
  * New command-line arguments -Acfgviz and -Averbosecfg enable better
    debugging of the control-flow-graph generation step of type-checking.
@@ -2481,17 +2846,17 @@ Documentation:
  * Documented how to initialize circular data structures in the
    Initialization type system.
  * Linked to David Bürgin's Nullness Checker tutorial at
-   https://github.com/glts/safer-spring-petclinic/wiki
+   <https://github.com/glts/safer-spring-petclinic/wiki>
  * Acknowledged more contributors in the manual.
 
 For type-system developers:
  * The org.checkerframework.framework.qual.TypeQualifier{s} annotations are
    now deprecated.  To indicate which annotations a checker supports, see
-   https://eisop.github.io/cf/manual/#creating-indicating-supported-annotations .
+   <https://eisop.github.io/cf/manual/#creating-indicating-supported-annotations>.
    Support for TypeQualifier{s} will be removed in the next release.
  * Renamed
-   org.checkerframework.framework.qual.Default{,Qualifier}ForUnannotatedCode to
-   DefaultInUncheckedCodeFor and DefaultQualifierInHierarchyInUncheckedCode.
+   `org.checkerframework.framework.qual.Default{,Qualifier}ForUnannotatedCode` to
+   `DefaultInUncheckedCodeFor and DefaultQualifierInHierarchyInUncheckedCode`.
 
 **Closed issues:**
 #169, #363, #448, #478, #496, #516, #529.
@@ -2560,7 +2925,9 @@ Moved the Checker Framework version control repository from Google Code to
 GitHub, and from the Mercurial version control system to Git.  If you have
 cloned the old repository, then discard your old clone and create a new one
 using this command:
+```
   git clone https://github.com/typetools/checker-framework.git
+```
 
 Fixed issues:  #427, #429, #434, #442, #450.
 
@@ -3085,7 +3452,7 @@ Adapt to underlying jsr308-langtools changes.
   JDK 7 is now required.  The Checker Framework does not build or run on JDK 6.
 
 Documentation:
-  A new tutorial is available at https://eisop.github.io/cf/tutorial/
+  A new tutorial is available at <https://eisop.github.io/cf/tutorial/>.
 
 
 Version 1.5.0 (14 Jan 2013)
@@ -3568,7 +3935,7 @@ Manual:
   of the method and the inferred or explicit method type arguments.
   If you override this method, you will need to update your version.
   See this change set for a simple example:
-  https://github.com/typetools/checker-framework/source/detail?r=8381a213a4
+  <https://github.com/typetools/checker-framework/source/detail?r=8381a213a4>
 
 - Testing framework:
   Support for multiple expected errors using the "// :: A :: B :: C" syntax.
@@ -3592,7 +3959,7 @@ Property File Checker (new):
 
 Signature Checker (new):
   Ensures that different string representations of a Java type (e.g.,
-  "pakkage.Outer.Inner" vs. "pakkage.Outer$Inner" vs. "Lpakkage/Outer$Inner;")
+  `"pakkage.Outer.Inner"` vs. `"pakkage.Outer$Inner"` vs. `"Lpakkage/Outer$Inner;"`)
   are not misused.
 
 Interning Checker enhancements:
@@ -4403,7 +4770,7 @@ Manual
     8  Annotating libraries
     9  How to create a new checker plugin
   Javadoc for the Checker Framework is included in its distribution and is
-    available online at https://eisop.github.io/cf/api/ .
+    available online at <https://eisop.github.io/cf/api/>.
 
 
 Version 0.6.4 (9 June 2008)

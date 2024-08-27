@@ -21,8 +21,10 @@ import org.checkerframework.checker.initialization.qual.NotOnlyInitialized;
 import org.checkerframework.checker.initialization.qual.PolyInitialized;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.initialization.qual.UnknownInitialization;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
+import org.checkerframework.framework.flow.CFAbstractStore;
 import org.checkerframework.framework.flow.CFValue;
 import org.checkerframework.framework.qual.Unused;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
@@ -105,6 +107,9 @@ public abstract class InitializationParentAnnotatedTypeFactory
     /** The UnknownInitialization.value field/element. */
     protected final ExecutableElement unknownInitializationValueElement;
 
+    /** The value of the assumeInitialized option. */
+    protected final boolean assumeInitialized;
+
     /**
      * Create a new InitializationParentAnnotatedTypeFactory.
      *
@@ -129,6 +134,8 @@ public abstract class InitializationParentAnnotatedTypeFactory
                 TreeUtils.getMethod(UnderInitialization.class, "value", 0, processingEnv);
         unknownInitializationValueElement =
                 TreeUtils.getMethod(UnknownInitialization.class, "value", 0, processingEnv);
+
+        assumeInitialized = checker.hasOption("assumeInitialized");
     }
 
     @Override
@@ -228,10 +235,10 @@ public abstract class InitializationParentAnnotatedTypeFactory
     }
 
     @Override
-    public AnnotatedDeclaredType getSelfType(Tree tree) {
+    public @Nullable AnnotatedDeclaredType getSelfType(Tree tree) {
         AnnotatedDeclaredType selfType = super.getSelfType(tree);
 
-        if (checker.hasOption("assumeInitialized")) {
+        if (assumeInitialized) {
             return selfType;
         }
 
@@ -263,7 +270,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
      * @return path to a top-level member containing the leaf of {@code path}
      */
     @SuppressWarnings("interning:not.interned") // AST node comparison
-    private TreePath findTopLevelClassMemberForTree(TreePath path) {
+    private @Nullable TreePath findTopLevelClassMemberForTree(TreePath path) {
         if (TreeUtils.isClassTree(path.getLeaf())) {
             path = path.getParentPath();
             if (path == null) {
@@ -422,7 +429,15 @@ public abstract class InitializationParentAnnotatedTypeFactory
     }
 
     /**
-     * Returns the fields that are not yet initialized in a given store.
+     * Returns the fields that are possibly uninitialized in a given store, without taking into
+     * account the target checker.
+     *
+     * <p>I.e., this method returns all fields that have not been assigned, without considering
+     * fields that may be considered initialized by the target checker even though they have not
+     * been explicitly assigned. See {@link
+     * InitializationAnnotatedTypeFactory#getUninitializedFields( InitializationStore,
+     * CFAbstractStore, TreePath, boolean, Collection)} for a method that does take the target
+     * checker into account.
      *
      * @param store a store
      * @param path the current path, used to determine the current class
@@ -481,8 +496,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
         if (super.isNotFullyInitializedReceiver(methodTree)) {
             return true;
         }
-        final AnnotatedDeclaredType receiverType =
-                analysis.getTypeFactory().getAnnotatedType(methodTree).getReceiverType();
+        AnnotatedDeclaredType receiverType = getAnnotatedType(methodTree).getReceiverType();
         if (receiverType != null) {
             return isUnknownInitialization(receiverType) || isUnderInitialization(receiverType);
         } else {
@@ -745,7 +759,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
             boolean allInitialized = true;
             Type type = ((JCTree) tree).type;
             for (ExpressionTree a : tree.getArguments()) {
-                final AnnotatedTypeMirror t = getAnnotatedType(a);
+                AnnotatedTypeMirror t = getAnnotatedType(a);
                 allInitialized &= (isInitialized(t) || isFbcBottom(t));
             }
             if (!allInitialized) {
@@ -814,7 +828,8 @@ public abstract class InitializationParentAnnotatedTypeFactory
         protected InitializationQualifierHierarchy() {
             super(
                     InitializationParentAnnotatedTypeFactory.this.getSupportedTypeQualifiers(),
-                    elements);
+                    elements,
+                    InitializationParentAnnotatedTypeFactory.this);
             UNKNOWN_INIT = getQualifierKind(UNKNOWN_INITIALIZATION);
             UNDER_INIT = getQualifierKind(UNDER_INITALIZATION);
         }

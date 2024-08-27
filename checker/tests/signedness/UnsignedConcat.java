@@ -30,18 +30,28 @@ public class UnsignedConcat {
 
     void test2(String s, char c, Character charObj) {
         // :: error: (unsigned.concat)
-        // :: error: (compound.assignment.type.incompatible)
         s += unsignedShort;
         // :: error: (unsigned.concat)
-        // :: error: (compound.assignment.type.incompatible)
         s += +unsignedInt;
         s += "" + signedShort;
         s += signedInt;
         // :: error: (unsigned.concat)
-        // :: error: (compound.assignment.type.incompatible)
         s += unknownInt;
         s += 9;
         s += c;
         s += charObj;
+    }
+
+    void test3() {
+        String a = "World";
+        String s = "Hi " + (int) a.charAt(0);
+    }
+
+    void test4(String s) {
+        Class<? extends String> sc = null;
+        if (s != null) {
+            sc = s.getClass();
+        }
+        System.out.println("In: " + sc);
     }
 }

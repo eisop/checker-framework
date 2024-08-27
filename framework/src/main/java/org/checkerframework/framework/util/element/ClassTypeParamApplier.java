@@ -19,11 +19,18 @@ import javax.lang.model.element.ElementKind;
  */
 public class ClassTypeParamApplier extends TypeParamElementAnnotationApplier {
 
-    /** Apply annotations from {@code element} to {@code type}. */
+    /**
+     * Apply annotations from {@code element} to {@code type}.
+     *
+     * @param type the type to annotate
+     * @param element the corresponding element
+     * @param atypeFactory the type factory
+     * @throws UnexpectedAnnotationLocationException if there is trouble
+     */
     public static void apply(
-            AnnotatedTypeVariable type, Element element, AnnotatedTypeFactory typeFactory)
+            AnnotatedTypeVariable type, Element element, AnnotatedTypeFactory atypeFactory)
             throws UnexpectedAnnotationLocationException {
-        new ClassTypeParamApplier(type, element, typeFactory).extractAndApply();
+        new ClassTypeParamApplier(type, element, atypeFactory).extractAndApply();
     }
 
     /**
@@ -33,7 +40,7 @@ public class ClassTypeParamApplier extends TypeParamElementAnnotationApplier {
      * @param element the element that might be a type parameter
      * @return true if element represents a type parameter for a class
      */
-    public static boolean accepts(final AnnotatedTypeMirror type, final Element element) {
+    public static boolean accepts(AnnotatedTypeMirror type, Element element) {
         return element.getKind() == ElementKind.TYPE_PARAMETER
                 && element.getEnclosingElement() instanceof Symbol.ClassSymbol;
     }
@@ -41,9 +48,16 @@ public class ClassTypeParamApplier extends TypeParamElementAnnotationApplier {
     /** The class that holds the type parameter element. */
     private final Symbol.ClassSymbol enclosingClass;
 
-    ClassTypeParamApplier(
-            AnnotatedTypeVariable type, Element element, AnnotatedTypeFactory typeFactory) {
-        super(type, element, typeFactory);
+    /**
+     * Constructor.
+     *
+     * @param type the type to annotate
+     * @param element the corresponding element
+     * @param atypeFactory the type factory
+     */
+    /*package-private*/ ClassTypeParamApplier(
+            AnnotatedTypeVariable type, Element element, AnnotatedTypeFactory atypeFactory) {
+        super(type, element, atypeFactory);
 
         if (!(element.getEnclosingElement() instanceof Symbol.ClassSymbol)) {
             throw new BugInCF(

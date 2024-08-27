@@ -5,11 +5,11 @@ import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 import com.sun.tools.javac.code.Symbol;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
 import org.checkerframework.framework.util.element.ClassTypeParamApplier;
-import org.checkerframework.framework.util.element.ElementAnnotationUtil.ErrorTypeKindException;
 import org.checkerframework.framework.util.element.ElementAnnotationUtil.UnexpectedAnnotationLocationException;
 import org.checkerframework.framework.util.element.MethodApplier;
 import org.checkerframework.framework.util.element.MethodTypeParamApplier;
@@ -20,7 +20,7 @@ import org.checkerframework.framework.util.element.TypeVarUseApplier;
 import org.checkerframework.framework.util.element.VariableApplier;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
-import org.checkerframework.javacutil.Pair;
+import org.plumelib.util.IPair;
 
 import java.util.List;
 
@@ -79,21 +79,14 @@ public final class ElementAnnotationApplier {
      * @param typeFactory the typeFactory used to create the given type
      */
     public static void apply(
-            final AnnotatedTypeMirror type,
-            final Element element,
-            final AnnotatedTypeFactory typeFactory) {
+            AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory typeFactory) {
         try {
-            try {
-                applyInternal(type, element, typeFactory);
-            } catch (UnexpectedAnnotationLocationException e) {
-                reportInvalidLocation(element, typeFactory);
-            }
-            // Also copy annotations from type parameters to their uses.
-            new TypeVarAnnotator().visit(type, typeFactory);
-        } catch (ErrorTypeKindException e) {
-            // Do nothing if an ERROR TypeKind was found.
-            // This is triggered by Issue #244.
+            applyInternal(type, element, typeFactory);
+        } catch (UnexpectedAnnotationLocationException e) {
+            reportInvalidLocation(element, typeFactory);
         }
+        // Also copy annotations from type parameters to their uses.
+        new TypeVarAnnotator().visit(type, typeFactory);
     }
 
     /** Issues an "invalid.annotation.location.bytecode warning. */
@@ -118,17 +111,12 @@ public final class ElementAnnotationApplier {
 
     /** Same as apply except that annotations aren't copied from type parameter declarations. */
     private static void applyInternal(
-            final AnnotatedTypeMirror type,
-            final Element element,
-            final AnnotatedTypeFactory typeFactory)
+            final AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory typeFactory)
             throws UnexpectedAnnotationLocationException {
-
         if (element == null) {
             throw new BugInCF("ElementAnnotationUtil.apply: element cannot be null");
-
         } else if (TypeVarUseApplier.accepts(type, element)) {
             TypeVarUseApplier.apply(type, element, typeFactory);
-
         } else if (VariableApplier.accepts(type, element)) {
             if (!ElementUtils.isLocalVariable(element)) {
                 // For local variables we have the source code,
@@ -137,28 +125,20 @@ public final class ElementAnnotationApplier {
                 // https://github.com/eisop/checker-framework/issues/14
                 VariableApplier.apply(type, element);
             }
-
         } else if (MethodApplier.accepts(type, element)) {
             MethodApplier.apply(type, element, typeFactory);
-
         } else if (TypeDeclarationApplier.accepts(type, element)) {
             TypeDeclarationApplier.apply(type, element, typeFactory);
-
         } else if (ClassTypeParamApplier.accepts(type, element)) {
             ClassTypeParamApplier.apply((AnnotatedTypeVariable) type, element, typeFactory);
-
         } else if (MethodTypeParamApplier.accepts(type, element)) {
             MethodTypeParamApplier.apply((AnnotatedTypeVariable) type, element, typeFactory);
-
         } else if (ParamApplier.accepts(type, element)) {
             ParamApplier.apply(type, (VariableElement) element, typeFactory);
-
         } else if (isCaptureConvertedTypeVar(element)) {
             // Types resulting from capture conversion cannot have explicit annotations
-
         } else if (ElementUtils.isBindingVariable(element)) {
             // TODO: verify that there are no type use annotations that would need decoding
-
         } else {
             throw new BugInCF(
                     "ElementAnnotationUtil.apply: illegal argument: "
@@ -197,14 +177,14 @@ public final class ElementAnnotationApplier {
      * @return a LambdaExpressionTree if the varEle represents a parameter in a lambda expression,
      *     otherwise null
      */
-    public static Pair<VariableTree, LambdaExpressionTree> getParamAndLambdaTree(
+    public static @Nullable IPair<VariableTree, LambdaExpressionTree> getParamAndLambdaTree(
             VariableElement varEle, AnnotatedTypeFactory typeFactory) {
         VariableTree paramDecl = (VariableTree) typeFactory.declarationFromElement(varEle);
 
         if (paramDecl != null) {
-            final Tree parentTree = typeFactory.getPath(paramDecl).getParentPath().getLeaf();
+            Tree parentTree = typeFactory.getPath(paramDecl).getParentPath().getLeaf();
             if (parentTree != null && parentTree.getKind() == Tree.Kind.LAMBDA_EXPRESSION) {
-                return Pair.of(paramDecl, (LambdaExpressionTree) parentTree);
+                return IPair.of(paramDecl, (LambdaExpressionTree) parentTree);
             }
         }
 
@@ -217,8 +197,8 @@ public final class ElementAnnotationApplier {
      * @param element the element which type represents
      * @return true if type was generated via capture conversion false otherwise
      */
-    private static boolean isCaptureConvertedTypeVar(final Element element) {
-        final Element enclosure = element.getEnclosingElement();
+    private static boolean isCaptureConvertedTypeVar(Element element) {
+        Element enclosure = element.getEnclosingElement();
         return (((Symbol) enclosure).kind == com.sun.tools.javac.code.Kinds.Kind.NIL);
     }
 

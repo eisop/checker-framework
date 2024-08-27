@@ -14,6 +14,7 @@ import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeCastTree;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeValidator;
@@ -42,38 +43,30 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
 
+/** The visitor for the Report Checker. */
 public class ReportVisitor extends BaseTypeVisitor<BaseAnnotatedTypeFactory> {
 
     /** The tree kinds that should be reported; may be null. */
-    private final EnumSet<Tree.Kind> treeKinds;
+    private final @Nullable EnumSet<Tree.Kind> treeKinds;
 
     /** The modifiers that should be reported; may be null. */
-    private final EnumSet<Modifier> modifiers;
+    private final @Nullable EnumSet<Modifier> modifiers;
 
     public ReportVisitor(BaseTypeChecker checker) {
         super(checker);
 
-        if (checker.hasOption("reportTreeKinds")) {
-            String trees = checker.getOption("reportTreeKinds");
-            treeKinds = EnumSet.noneOf(Tree.Kind.class);
-            for (String treeKind : trees.split(",")) {
-                treeKinds.add(Tree.Kind.valueOf(treeKind.toUpperCase(Locale.ROOT)));
-            }
-        } else {
-            treeKinds = null;
+        EnumSet<Tree.Kind> treeKindsTmp = EnumSet.noneOf(Tree.Kind.class);
+        for (String treeKind : checker.getStringsOption("reportTreeKinds", ',')) {
+            treeKindsTmp.add(Tree.Kind.valueOf(treeKind.toUpperCase(Locale.ROOT)));
         }
+        treeKinds = treeKindsTmp.isEmpty() ? null : treeKindsTmp;
 
-        if (checker.hasOption("reportModifiers")) {
-            String mods = checker.getOption("reportModifiers");
-            modifiers = EnumSet.noneOf(Modifier.class);
-            for (String modifier : mods.split(",")) {
-                modifiers.add(Modifier.valueOf(modifier.toUpperCase(Locale.ROOT)));
-            }
-        } else {
-            modifiers = null;
+        EnumSet<Modifier> modifiersTmp = EnumSet.noneOf(Modifier.class);
+        for (String modifier : checker.getStringsOption("reportModifiers", ',')) {
+            modifiersTmp.add(Modifier.valueOf(modifier.toUpperCase(Locale.ROOT)));
         }
+        modifiers = modifiersTmp.isEmpty() ? null : modifiersTmp;
     }
 
     @SuppressWarnings("compilermessages") // These warnings are not translated.
@@ -226,7 +219,7 @@ public class ReportVisitor extends BaseTypeVisitor<BaseAnnotatedTypeFactory> {
 
     @Override
     public Void visitAssignment(AssignmentTree tree, Void p) {
-        VariableElement member = (VariableElement) TreeUtils.elementFromUse(tree.getVariable());
+        Element member = TreeUtils.elementFromUse(tree.getVariable());
         boolean report = this.atypeFactory.getDeclAnnotation(member, ReportWrite.class) != null;
 
         if (report) {

@@ -415,7 +415,7 @@ public class RequireJavadoc {
          * method.
          *
          * @param md the method to check
-         * @return the PropertyKind for the given method, or null
+         * @return the PropertyKind for the given method
          */
         static PropertyKind fromMethodDeclaration(MethodDeclaration md) {
             String methodName = md.getNameAsString();

@@ -5,7 +5,6 @@ import org.checkerframework.checker.units.qual.N;
 import org.checkerframework.checker.units.qual.Prefix;
 import org.checkerframework.checker.units.qual.g;
 import org.checkerframework.checker.units.qual.h;
-import org.checkerframework.checker.units.qual.kg;
 import org.checkerframework.checker.units.qual.km2;
 import org.checkerframework.checker.units.qual.km3;
 import org.checkerframework.checker.units.qual.kmPERh;
@@ -27,18 +26,23 @@ import javax.lang.model.util.Elements;
 /** Default relations between SI units. */
 public class UnitsRelationsDefault implements UnitsRelations {
     /** SI base units. */
+    @SuppressWarnings("nullness:initialization.field.uninitialized") // init() method
     protected AnnotationMirror m, km, mm, s, g, kg;
 
     /** Derived SI units without special names */
+    @SuppressWarnings("nullness:initialization.field.uninitialized") // init() method
     protected AnnotationMirror m2, km2, mm2, m3, km3, mm3, mPERs, mPERs2;
 
     /** Derived SI units with special names */
+    @SuppressWarnings("nullness:initialization.field.uninitialized") // init() method
     protected AnnotationMirror N, kN;
 
     /** Non-SI units */
+    @SuppressWarnings("nullness:initialization.field.uninitialized") // init() method
     protected AnnotationMirror h, kmPERh, t;
 
     /** The Element Utilities from the Units Checker's processing environment. */
+    @SuppressWarnings("nullness:initialization.field.uninitialized") // init() method
     protected Elements elements;
 
     /**

@@ -1,15 +1,24 @@
 plugins {
     id 'java-library'
     id 'base'
-    // https://github.com/n0mer/gradle-git-properties ; target is: generateGitProperties
-    id 'com.gorylenko.gradle-git-properties' version '2.4.1'
+
+    // https://github.com/n0mer/gradle-git-properties
+    // Generates file build/resources/main/git.properties when the `classes` task runs.
+    id 'com.gorylenko.gradle-git-properties' version '2.4.2'
 }
 
 sourceSets {
     main {
+        java {
+            // NO-AFU
+            exclude '**/org/checkerframework/checker/resourceleak/MustCallInference.java'
+        }
         resources {
             // Stub files, message.properties, etc.
             srcDirs += ['src/main/java']
+
+            // NO-AFU
+            exclude '**/org/checkerframework/checker/resourceleak/MustCallInference.java'
         }
     }
     testannotations
@@ -51,27 +60,32 @@ dependencies {
     // As of 2019-12-16, the version of reflection-util in the Annotation
     // File Utilities takes priority over this version, in the fat jar
     // file. :-( So update it and re-build it locally when updating this.
-    implementation "org.plumelib:reflection-util:${reflectionUtilVersion}"
-    implementation "org.plumelib:plume-util:${plumeUtilVersion}"
+    implementation "org.plumelib:reflection-util:${versions.reflectionUtil}"
+    implementation "org.plumelib:plume-util:${versions.plumeUtil}"
 
     // Dependencies added to "shadow" appear as dependencies in Maven Central.
     shadow project(':checker-qual')
     shadow project(':checker-util')
 
     // Called Methods Checker AutoValue + Lombok support
-    testImplementation "com.google.auto.value:auto-value-annotations:${autoValueVersion}"
-    testImplementation "com.google.auto.value:auto-value:${autoValueVersion}"
+    testImplementation "com.google.auto.value:auto-value-annotations:${versions.autoValue}"
+    testImplementation "com.google.auto.value:auto-value:${versions.autoValue}"
     testImplementation 'com.ryanharter.auto.value:auto-value-parcel:0.2.9'
-    testImplementation "org.projectlombok:lombok:${lombokVersion}"
+    testImplementation "org.projectlombok:lombok:${versions.lombok}"
     // Called Methods Checker support for detecting misuses of AWS APIs
     testImplementation 'com.amazonaws:aws-java-sdk-ec2'
     testImplementation 'com.amazonaws:aws-java-sdk-kms'
     // The AWS SDK is used for testing the Called Methods Checker.
-    testImplementation platform('com.amazonaws:aws-java-sdk-bom:1.12.542')
+    testImplementation platform('com.amazonaws:aws-java-sdk-bom:1.12.770')
     // For the Resource Leak Checker's support for JavaEE.
     testImplementation 'javax.servlet:javax.servlet-api:4.0.1'
     // For the Resource Leak Checker's support for IOUtils.
-    testImplementation 'commons-io:commons-io:2.14.0'
+    testImplementation 'commons-io:commons-io:2.16.1'
+    // For the Nullness Checker test of junit-assertions.astub in JUnitNull.java
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.11.0'
+    testImplementation 'org.apiguardian:apiguardian-api:1.1.2'
+    // For tests that use JSpecify annotations
+    testImplementation 'org.jspecify:jspecify:1.0.0'
 
     // Required for checker/tests/index-initializedfields/RequireJavadoc.java
     if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
@@ -80,7 +94,7 @@ dependencies {
         testImplementation 'org.plumelib:options:2.0.3'
     }
 
-    testImplementation "junit:junit:${junitVersion}"
+    testImplementation "junit:junit:${versions.junit}"
     testImplementation project(':framework-test')
     testImplementation sourceSets.testannotations.output
 
@@ -103,6 +117,8 @@ jar {
     }
 }
 
+// This task differs from the `assemble` task in that it does not build Javadoc.
+// It is useful for those who only want to run `javac`.
 // checker.jar is copied to checker/dist/ when it is built by the shadowJar task.
 task assembleForJavac(dependsOn: shadowJar, group: 'Build') {
     description 'Builds or downloads jars required by CheckerMain and puts them in checker/dist/.'
@@ -146,6 +162,7 @@ task assembleForJavac(dependsOn: shadowJar, group: 'Build') {
 }
 
 assemble.dependsOn assembleForJavac
+assemble.dependsOn(':getDoLikeJavac')
 
 task allSourcesJar(type: Jar, group: 'Build') {
     description 'Creates a sources jar that includes sources for all Checker Framework classes in checker.jar'
@@ -172,10 +189,6 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 task checkerJar(type: ShadowJar, dependsOn: compileJava, group: 'Build') {
     description "Builds checker-${project.version}.jar with all dependencies except checker-qual and checker-util."
     includeEmptyDirs = false
-    base {
-        archivesName = 'checker'
-    }
-    archiveClassifier = ''
 
     from shadowJar.source
     configurations = shadowJar.configurations
@@ -200,7 +213,7 @@ shadowJar {
     description 'Creates checker-VERSION-all.jar and copies it to dist/checker.jar.'
     // To see what files are incorporated into the shadow jar file:
     // doFirst { println sourceSets.main.runtimeClasspath.asPath }
-
+    archiveClassifier = 'all'
     doLast{
         copy {
             from archiveFile.get()
@@ -318,16 +331,22 @@ task demosTests(dependsOn: assembleForJavac, group: 'Verification') {
 }
 
 task allNullnessTests(type: Test, group: 'Verification') {
-    description 'Run all Junit tests for the Nullness Checker.'
+    description 'Run all JUnit tests for the Nullness Checker.'
     include '**/Nullness*.class'
 }
 
 task allCalledMethodsTests(type: Test, group: 'Verification') {
-    description 'Run all Junit tests for the Called Methods Checker.'
+    description 'Run all JUnit tests for the Called Methods Checker.'
     include '**/CalledMethods*.class'
     if (!skipDelombok) {
         dependsOn 'delombok'
     }
+}
+
+task allResourceLeakTests(type: Test, group: 'Verification') {
+    description 'Run all JUnit tests for the Resource Leak Checker.'
+    include '**/ResourceLeak*.class'
+    include '**/MustCall*.class'
 }
 
 // These are tests that should only be run with JDK 11+.
@@ -373,12 +392,6 @@ task jtregJdk11Tests(dependsOn: ':downloadJtreg', group: 'Verification') {
     }
 }
 
-// JSpecify tests are excluded by default.  To run them:
-// ./gradlew NullnessJSpecifySamplesTest
-test {
-    exclude '**/org/checkerframework/checker/test/junit/NullnessJSpecifySamplesTest.class'
-}
-
 task delombok {
     description 'Delomboks the source code tree in tests/calledmethods-lombok'
 
@@ -408,7 +421,7 @@ if (skipDelombok) {
 }
 
 ///
-/// Whole-program inference tests
+/// Tests of the -Ainfer command-line argument.  These are not whole-program inference tests.
 ///
 
 test {
@@ -450,6 +463,9 @@ task ainferTestCheckerGenerateStubs(type: Test) {
         // inside anonymous classes.
         delete('tests/ainfer-testchecker/annotated/UsesAnonymous.java')
         delete('tests/ainfer-testchecker/annotated/AnonymousClassWithField.java')
+
+        // This test outputs a warning about records.
+        delete('tests/ainfer-testchecker/annotated/all-systems/java17/Issue6069.java')
 
         // This test causes an error when its corresponding stub file is read, because the test
         // contains an annotation definition. The stub file parser does not support reading
@@ -918,10 +934,15 @@ task ainferTest(group: 'Verification') {
     dependsOn('ainferResourceLeakAjavaTest')
 }
 
+///
+/// Whole-program inference tests
+///
+
 // This is run as part of the inferenceTests task.
 task wpiManyTest(group: 'Verification') {
     description 'Tests the wpi-many.sh script (and indirectly the wpi.sh script). Requires an Internet connection.'
     dependsOn(assembleForJavac)
+    dependsOn(':getDoLikeJavac')
     // This test must always be re-run when requested.
     outputs.upToDateWhen { false }
 
@@ -945,7 +966,9 @@ task wpiManyTest(group: 'Verification') {
                         '-i', "${project.projectDir}/tests/wpi-many/testin.txt",
                         '-o', "${project.projectDir}/build/wpi-many-tests",
                         '-s',
-                        '--', '--checker', 'nullness,interning,lock,regex,signature,calledmethods,resourceleak'
+                        '--',
+                        '--checker', 'nullness,interning,lock,regex,signature,calledmethods,resourceleak',
+                        '--extraJavacArgs=-AenableWpiForRlc'
             }
         } catch (Exception e) {
             println('Failure: Running wpi-many.sh failed with a non-zero exit code.')
@@ -1050,6 +1073,7 @@ task wpiManyTest(group: 'Verification') {
 task wpiPlumeLibTest(group: 'Verification') {
     description 'Tests whole-program inference on the plume-lib projects. Requires an Internet connection.'
     dependsOn(assembleForJavac)
+    dependsOn(':getDoLikeJavac')
 
     // This test must always be re-run when requested.
     outputs.upToDateWhen { false }
@@ -1090,6 +1114,10 @@ publishing {
     publications {
         checker(MavenPublication) {
             project.shadow.component it
+            // reset the artifacts because of project.shadow.component changes
+            // the classifier from 'all' to '' because of
+            // https://github.com/johnrengelman/shadow/issues/860
+            artifacts = [shadowJar]
             checkerPom it
             artifact checkerJar
             artifact allSourcesJar

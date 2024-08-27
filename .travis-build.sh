@@ -37,10 +37,10 @@ SCRIPTDIR=$ROOTDIR/checker/bin-devel/
 
 # For debugging
 (cd "$CHECKERFRAMEWORK" && ./gradlew getPlumeScripts)
-"${SCRIPTDIR}/plume-scripts/ci-info" typetools
-eval $("${SCRIPTDIR}/plume-scripts/ci-info" typetools)
+"${SCRIPTDIR}/plume-scripts/ci-info" eisop
+eval $("${SCRIPTDIR}/plume-scripts/ci-info" eisop)
 
-source "$SCRIPTDIR/build.sh"
+source "$SCRIPTDIR/clone-related.sh"
 
 ###
 ### Run the test
@@ -58,6 +58,7 @@ case  $GROUP  in
         "$SCRIPTDIR/test-cftests-nonjunit.sh"
         "$SCRIPTDIR/test-cftests-inference.sh"
         "$SCRIPTDIR/test-misc.sh"
+        "$SCRIPTDIR/test-typecheck.sh"
         "$SCRIPTDIR/test-plume-lib.sh"
         "$SCRIPTDIR/test-daikon.sh"
         "$SCRIPTDIR/test-guava.sh"

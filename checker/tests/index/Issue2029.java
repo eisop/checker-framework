@@ -23,6 +23,8 @@ public class Issue2029 {
             @NonNegative @LessThan("#3 + 1") int index) {
         @NonNegative int m = n - k;
         int[] arr = new int[size];
+        // TODO: understand whether this is a false positive
+        // :: error: (unary.increment.type.incompatible)
         for (; index < arr.length - 1; index++) {
             arr[index] = 10;
         }

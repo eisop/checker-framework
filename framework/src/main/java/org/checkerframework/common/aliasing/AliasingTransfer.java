@@ -48,7 +48,7 @@ import javax.lang.model.element.VariableElement;
 public class AliasingTransfer extends CFTransfer {
 
     /** The annotated type factory. */
-    private final AnnotatedTypeFactory factory;
+    private final AnnotatedTypeFactory atypeFactory;
 
     /**
      * Create a new AliasingTransfer.
@@ -57,7 +57,7 @@ public class AliasingTransfer extends CFTransfer {
      */
     public AliasingTransfer(CFAbstractAnalysis<CFValue, CFStore, CFTransfer> analysis) {
         super(analysis);
-        factory = analysis.getTypeFactory();
+        atypeFactory = analysis.getTypeFactory();
     }
 
     /**
@@ -69,7 +69,7 @@ public class AliasingTransfer extends CFTransfer {
             AssignmentNode n, TransferInput<CFValue, CFStore> in) {
         Node rhs = n.getExpression();
         Tree treeRhs = rhs.getTree();
-        AnnotatedTypeMirror rhsType = factory.getAnnotatedType(treeRhs);
+        AnnotatedTypeMirror rhsType = atypeFactory.getAnnotatedType(treeRhs);
 
         if (rhsType.hasAnnotation(Unique.class)
                 && (rhs instanceof MethodInvocationNode || rhs instanceof ObjectCreationNode)) {
@@ -112,7 +112,7 @@ public class AliasingTransfer extends CFTransfer {
                         + " number of parameters for the method declaration: "
                         + executableElement.getSimpleName();
 
-        AnnotatedExecutableType annotatedType = factory.getAnnotatedType(executableElement);
+        AnnotatedExecutableType annotatedType = atypeFactory.getAnnotatedType(executableElement);
         List<AnnotatedTypeMirror> paramTypes = annotatedType.getParameterTypes();
         for (int i = 0; i < args.size(); i++) {
             Node arg = args.get(i);
@@ -161,7 +161,7 @@ public class AliasingTransfer extends CFTransfer {
             for (int i = 0; i < args.size(); i++) {
                 Node arg = args.get(i);
                 VariableElement param = params.get(i);
-                if (factory.getAnnotatedType(param).hasAnnotation(LeakedToResult.class)) {
+                if (atypeFactory.getAnnotatedType(param).hasAnnotation(LeakedToResult.class)) {
                     // If argument can leak to result, and parent is not a
                     // single statement, remove that node from store.
                     store.clearValue(JavaExpression.fromNode(arg));
@@ -170,7 +170,7 @@ public class AliasingTransfer extends CFTransfer {
 
             // Now, doing the same as above for the receiver parameter
             Node receiver = n.getTarget().getReceiver();
-            AnnotatedExecutableType annotatedType = factory.getAnnotatedType(methodElement);
+            AnnotatedExecutableType annotatedType = atypeFactory.getAnnotatedType(methodElement);
             AnnotatedDeclaredType receiverType = annotatedType.getReceiverType();
             if (receiverType != null && receiverType.hasAnnotation(LeakedToResult.class)) {
                 store.clearValue(JavaExpression.fromNode(receiver));

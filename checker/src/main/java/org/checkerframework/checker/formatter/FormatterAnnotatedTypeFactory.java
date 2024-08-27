@@ -201,12 +201,10 @@ public class FormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
         @Override
         public Void visitLiteral(LiteralTree tree, AnnotatedTypeMirror type) {
-            if (!type.isAnnotatedInHierarchy(UNKNOWNFORMAT)) {
+            if (!type.hasAnnotationInHierarchy(UNKNOWNFORMAT)) {
                 String format = null;
                 if (tree.getKind() == Tree.Kind.STRING_LITERAL) {
                     format = (String) tree.getValue();
-                } else if (tree.getKind() == Tree.Kind.CHAR_LITERAL) {
-                    format = Character.toString((Character) tree.getValue());
                 }
                 if (format != null) {
                     AnnotationMirror anno;
@@ -238,7 +236,10 @@ public class FormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
         /** Creates a {@link FormatterQualifierHierarchy}. */
         public FormatterQualifierHierarchy() {
-            super(FormatterAnnotatedTypeFactory.this.getSupportedTypeQualifiers(), elements);
+            super(
+                    FormatterAnnotatedTypeFactory.this.getSupportedTypeQualifiers(),
+                    elements,
+                    FormatterAnnotatedTypeFactory.this);
             FORMAT_KIND = getQualifierKind(FORMAT_NAME);
             INVALIDFORMAT_KIND = getQualifierKind(INVALIDFORMAT_NAME);
         }
@@ -303,9 +304,12 @@ public class FormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                             ConversionCategory.intersect(
                                     shorterArgTypesList[i], longerArgTypesList[i]);
                 }
-                for (int i = shorterArgTypesList.length; i < longerArgTypesList.length; ++i) {
-                    resultArgTypes[i] = longerArgTypesList[i];
-                }
+                System.arraycopy(
+                        longerArgTypesList,
+                        shorterArgTypesList.length,
+                        resultArgTypes,
+                        shorterArgTypesList.length,
+                        longerArgTypesList.length - shorterArgTypesList.length);
                 return treeUtil.categoriesToFormatAnnotation(resultArgTypes);
             } else if (qualifierKind1 == INVALIDFORMAT_KIND
                     && qualifierKind2 == INVALIDFORMAT_KIND) {

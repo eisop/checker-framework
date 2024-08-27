@@ -27,6 +27,11 @@ public class FlowExpressionAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
     ExecutableElement flowExpValueElement =
             TreeUtils.getMethod(FlowExp.class, "value", 0, processingEnv);
 
+    /**
+     * Creates a new FlowExpressionAnnotatedTypeFactory.
+     *
+     * @param checker the checker
+     */
     public FlowExpressionAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         TOP = AnnotationBuilder.fromClass(elements, FETop.class);
@@ -54,7 +59,7 @@ public class FlowExpressionAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
          */
         public FlowExpressionQualifierHierarchy(
                 Set<Class<? extends Annotation>> qualifierClasses, Elements elements) {
-            super(qualifierClasses, elements);
+            super(qualifierClasses, elements, FlowExpressionAnnotatedTypeFactory.this);
         }
 
         @Override

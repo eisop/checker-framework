@@ -4,10 +4,6 @@ import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.Tree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.SideEffectFree;
-
-import java.util.Collection;
-import java.util.Collections;
 
 /**
  * A node for an string literal. For example:
@@ -46,12 +42,6 @@ public class StringLiteralNode extends ValueLiteralNode {
         }
         // super method compares values
         return super.equals(obj);
-    }
-
-    @Override
-    @SideEffectFree
-    public Collection<Node> getOperands() {
-        return Collections.emptyList();
     }
 
     @Override

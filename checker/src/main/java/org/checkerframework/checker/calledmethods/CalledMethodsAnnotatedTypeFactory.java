@@ -12,6 +12,7 @@ import org.checkerframework.checker.calledmethods.qual.CalledMethods;
 import org.checkerframework.checker.calledmethods.qual.CalledMethodsBottom;
 import org.checkerframework.checker.calledmethods.qual.CalledMethodsPredicate;
 import org.checkerframework.checker.calledmethods.qual.EnsuresCalledMethods;
+import org.checkerframework.checker.calledmethods.qual.EnsuresCalledMethodsOnException;
 import org.checkerframework.checker.calledmethods.qual.EnsuresCalledMethodsVarArgs;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.accumulation.AccumulationAnnotatedTypeFactory;
@@ -31,16 +32,21 @@ import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 
@@ -75,6 +81,19 @@ public class CalledMethodsAnnotatedTypeFactory extends AccumulationAnnotatedType
     /*package-private*/ final ExecutableElement ensuresCalledMethodsVarArgsValueElement =
             TreeUtils.getMethod(EnsuresCalledMethodsVarArgs.class, "value", 0, processingEnv);
 
+    /** The {@link EnsuresCalledMethodsOnException#value} element/argument. */
+    /*package-private*/ final ExecutableElement ensuresCalledMethodsOnExceptionValueElement =
+            TreeUtils.getMethod(EnsuresCalledMethodsOnException.class, "value", 0, processingEnv);
+
+    /** The {@link EnsuresCalledMethodsOnException#methods} element/argument. */
+    /*package-private*/ final ExecutableElement ensuresCalledMethodsOnExceptionMethodsElement =
+            TreeUtils.getMethod(EnsuresCalledMethodsOnException.class, "methods", 0, processingEnv);
+
+    /** The {@link EnsuresCalledMethodsOnException.List#value} element/argument. */
+    /*package-private*/ final ExecutableElement ensuresCalledMethodsOnExceptionListValueElement =
+            TreeUtils.getMethod(
+                    EnsuresCalledMethodsOnException.List.class, "value", 0, processingEnv);
+
     /**
      * Create a new CalledMethodsAnnotatedTypeFactory.
      *
@@ -88,16 +107,13 @@ public class CalledMethodsAnnotatedTypeFactory extends AccumulationAnnotatedType
                 CalledMethodsPredicate.class);
 
         this.builderFrameworkSupports = new ArrayList<>(2);
-        String[] disabledFrameworks;
-        if (checker.hasOption(CalledMethodsChecker.DISABLE_BUILDER_FRAMEWORK_SUPPORTS)) {
-            disabledFrameworks =
-                    checker.getOption(CalledMethodsChecker.DISABLE_BUILDER_FRAMEWORK_SUPPORTS)
-                            .split(",");
-        } else {
-            disabledFrameworks = new String[0];
-        }
+        List<String> disabledFrameworks =
+                checker.getStringsOption(
+                        CalledMethodsChecker.DISABLE_BUILDER_FRAMEWORK_SUPPORTS, ',');
         enableFrameworks(disabledFrameworks);
+
         this.useValueChecker = checker.hasOption(CalledMethodsChecker.USE_VALUE_CHECKER);
+
         // Lombok generates @CalledMethods annotations using an old package name,
         // so we maintain it as an alias.
         addAliasedTypeAnnotation(
@@ -123,7 +139,7 @@ public class CalledMethodsAnnotatedTypeFactory extends AccumulationAnnotatedType
      *
      * @param disabledFrameworks the disabled builder frameworks
      */
-    private void enableFrameworks(String[] disabledFrameworks) {
+    private void enableFrameworks(List<String> disabledFrameworks) {
         boolean enableAutoValueSupport = true;
         boolean enableLombokSupport = true;
         for (String framework : disabledFrameworks) {
@@ -185,8 +201,7 @@ public class CalledMethodsAnnotatedTypeFactory extends AccumulationAnnotatedType
      *     Otherwise, return the first argument.
      */
     // This cannot return a Name because filterTreeToMethodName cannot.
-    public String adjustMethodNameUsingValueChecker(
-            final String methodName, final MethodInvocationTree tree) {
+    public String adjustMethodNameUsingValueChecker(String methodName, MethodInvocationTree tree) {
         if (!useValueChecker) {
             return methodName;
         }
@@ -307,12 +322,16 @@ public class CalledMethodsAnnotatedTypeFactory extends AccumulationAnnotatedType
         public Void visitMethodInvocation(MethodInvocationTree tree, AnnotatedTypeMirror type) {
             // Accumulate a method call, by adding the method being invoked to the return type.
             if (returnsThis(tree)) {
+                TypeMirror typeMirror = type.getUnderlyingType();
                 String methodName = TreeUtils.getMethodName(tree.getMethodSelect());
                 methodName = adjustMethodNameUsingValueChecker(methodName, tree);
                 AnnotationMirror oldAnno = type.getAnnotationInHierarchy(top);
                 AnnotationMirror newAnno =
-                        qualHierarchy.greatestLowerBound(
-                                oldAnno, createAccumulatorAnnotation(methodName));
+                        qualHierarchy.greatestLowerBoundShallow(
+                                oldAnno,
+                                typeMirror,
+                                createAccumulatorAnnotation(methodName),
+                                typeMirror);
                 type.replaceAnnotation(newAnno);
             }
 
@@ -400,6 +419,20 @@ public class CalledMethodsAnnotatedTypeFactory extends AccumulationAnnotatedType
         return builderFrameworkSupports;
     }
 
+    /**
+     * Get the called methods specified by the given {@link CalledMethods} annotation.
+     *
+     * @param calledMethodsAnnotation the annotation
+     * @return the called methods
+     */
+    protected List<String> getCalledMethods(AnnotationMirror calledMethodsAnnotation) {
+        return AnnotationUtils.getElementValueArray(
+                calledMethodsAnnotation,
+                calledMethodsValueElement,
+                String.class,
+                Collections.emptyList());
+    }
+
     @Override
     protected @Nullable AnnotationMirror createRequiresOrEnsuresQualifier(
             String expression,
@@ -408,9 +441,7 @@ public class CalledMethodsAnnotatedTypeFactory extends AccumulationAnnotatedType
             Analysis.BeforeOrAfter preOrPost,
             @Nullable List<AnnotationMirror> preconds) {
         if (preOrPost == BeforeOrAfter.AFTER && isAccumulatorAnnotation(qualifier)) {
-            List<String> calledMethods =
-                    AnnotationUtils.getElementValueArray(
-                            qualifier, calledMethodsValueElement, String.class);
+            List<String> calledMethods = getCalledMethods(qualifier);
             if (!calledMethods.isEmpty()) {
                 return ensuresCMAnno(expression, calledMethods);
             }
@@ -446,5 +477,105 @@ public class CalledMethodsAnnotatedTypeFactory extends AccumulationAnnotatedType
         builder.setValue("methods", calledMethods.toArray(new String[calledMethods.size()]));
         AnnotationMirror am = builder.build();
         return am;
+    }
+
+    /**
+     * Returns true if the checker should ignore exceptional control flow due to the given exception
+     * type.
+     *
+     * @param exceptionType exception type
+     * @return {@code true} if {@code exceptionType} is a member of {@link
+     *     CalledMethodsAnalysis#ignoredExceptionTypes}, {@code false} otherwise
+     */
+    @Override
+    public boolean isIgnoredExceptionType(TypeMirror exceptionType) {
+        if (exceptionType.getKind() == TypeKind.DECLARED) {
+            return CalledMethodsAnalysis.ignoredExceptionTypes.contains(
+                    TypesUtils.getQualifiedName((DeclaredType) exceptionType));
+        }
+        return false;
+    }
+
+    /**
+     * Get the exceptional postconditions for the given method from the {@link
+     * EnsuresCalledMethodsOnException} annotations on it.
+     *
+     * @param methodOrConstructor the method to examine
+     * @return the exceptional postconditions on the given method; the return value is
+     *     newly-allocated and can be freely modified by callers
+     */
+    public Set<EnsuresCalledMethodOnExceptionContract> getExceptionalPostconditions(
+            ExecutableElement methodOrConstructor) {
+        Set<EnsuresCalledMethodOnExceptionContract> result = new LinkedHashSet<>();
+
+        parseEnsuresCalledMethodOnExceptionListAnnotation(
+                getDeclAnnotation(methodOrConstructor, EnsuresCalledMethodsOnException.List.class),
+                result);
+
+        parseEnsuresCalledMethodOnExceptionAnnotation(
+                getDeclAnnotation(methodOrConstructor, EnsuresCalledMethodsOnException.class),
+                result);
+
+        return result;
+    }
+
+    /**
+     * Helper for {@link #getExceptionalPostconditions(ExecutableElement)} that parses a {@link
+     * EnsuresCalledMethodsOnException.List} annotation and stores the results in <code>out</code>.
+     *
+     * @param annotation the annotation
+     * @param out the output collection
+     */
+    private void parseEnsuresCalledMethodOnExceptionListAnnotation(
+            @Nullable AnnotationMirror annotation,
+            Set<EnsuresCalledMethodOnExceptionContract> out) {
+        if (annotation == null) {
+            return;
+        }
+
+        List<AnnotationMirror> annotations =
+                AnnotationUtils.getElementValueArray(
+                        annotation,
+                        ensuresCalledMethodsOnExceptionListValueElement,
+                        AnnotationMirror.class,
+                        Collections.emptyList());
+
+        for (AnnotationMirror a : annotations) {
+            parseEnsuresCalledMethodOnExceptionAnnotation(a, out);
+        }
+    }
+
+    /**
+     * Helper for {@link #getExceptionalPostconditions(ExecutableElement)} that parses a {@link
+     * EnsuresCalledMethodsOnException} annotation and stores the results in <code>out</code>.
+     *
+     * @param annotation the annotation
+     * @param out the output collection
+     */
+    private void parseEnsuresCalledMethodOnExceptionAnnotation(
+            @Nullable AnnotationMirror annotation,
+            Set<EnsuresCalledMethodOnExceptionContract> out) {
+        if (annotation == null) {
+            return;
+        }
+
+        List<String> expressions =
+                AnnotationUtils.getElementValueArray(
+                        annotation,
+                        ensuresCalledMethodsOnExceptionValueElement,
+                        String.class,
+                        Collections.emptyList());
+        List<String> methods =
+                AnnotationUtils.getElementValueArray(
+                        annotation,
+                        ensuresCalledMethodsOnExceptionMethodsElement,
+                        String.class,
+                        Collections.emptyList());
+
+        for (String expr : expressions) {
+            for (String method : methods) {
+                out.add(new EnsuresCalledMethodOnExceptionContract(expr, method));
+            }
+        }
     }
 }

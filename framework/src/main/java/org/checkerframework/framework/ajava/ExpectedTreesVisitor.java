@@ -23,10 +23,10 @@ import com.sun.source.tree.SynchronizedTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.tree.WhileLoopTree;
-import com.sun.tools.javac.tree.JCTree.JCExpression;
-import com.sun.tools.javac.util.Position;
 
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11.BindingPatternUtils;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11.SwitchExpressionUtils;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -74,7 +74,7 @@ public class ExpectedTreesVisitor extends TreeScannerWithDefaults {
     public Void visitBindingPattern17(Tree tree, Void p) {
         super.visitBindingPattern17(tree, p);
         // JavaParser doesn't have a node for the VariableTree.
-        trees.remove(TreeUtils.bindingPatternTreeGetVariable(tree));
+        trees.remove(BindingPatternUtils.getVariable(tree));
         return null;
     }
 
@@ -116,8 +116,7 @@ public class ExpectedTreesVisitor extends TreeScannerWithDefaults {
                     trees.remove(constructor.getIdentifier());
                 }
             }
-            // RECORD was added in Java 14, so use string comparison to be JDK 8,11 compatible:
-        } else if (tree.getKind().name().equals("RECORD")) {
+        } else if (TreeUtils.isRecordTree(tree)) {
             // A record like:
             //   record MyRec(String myField) {}
             // will be expanded by javac to:
@@ -217,7 +216,7 @@ public class ExpectedTreesVisitor extends TreeScannerWithDefaults {
     public Void visitSwitchExpression17(Tree tree, Void p) {
         super.visitSwitchExpression17(tree, p);
         // javac surrounds switch expression in a ParenthesizedTree but JavaParser does not.
-        trees.remove(TreeUtils.switchExpressionTreeGetExpression(tree));
+        trees.remove(SwitchExpressionUtils.getExpression(tree));
         return null;
     }
 
@@ -387,8 +386,7 @@ public class ExpectedTreesVisitor extends TreeScannerWithDefaults {
         // JavaParser has a special "var" construct, so they won't match. If a javac type was
         // generated this way, then it won't have a position in source code so in that case we don't
         // add it.
-        JCExpression type = (JCExpression) tree.getType();
-        if (type != null && type.pos == Position.NOPOS) {
+        if (TreeUtils.isVariableTreeDeclaredUsingVar(tree)) {
             return null;
         }
 

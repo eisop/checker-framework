@@ -8,12 +8,12 @@ echo "SHELLOPTS=${SHELLOPTS}"
 
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 # shellcheck disable=SC1090 # In newer shellcheck than 0.6.0, pass: "-P SCRIPTDIR" (literally)
-source "$SCRIPTDIR"/build.sh
+source "$SCRIPTDIR"/clone-related.sh
 
 PLUME_SCRIPTS="$SCRIPTDIR/.plume-scripts"
 
 ## Checker Framework demos
-"$PLUME_SCRIPTS/git-clone-related" eisop checker-framework.demos
+"$GIT_SCRIPTS/git-clone-related" eisop checker-framework.demos
 ./gradlew :checker:demosTests --console=plain --warning-mode=all
 
 status=0
@@ -61,6 +61,6 @@ git diff  --exit-code docs/manual/contributors.tex || \
      echo "  * Update your git configuration by running:  git config --global user.name \"YOURFULLNAME\"" &&
      echo "  * Add your name to your GitHub account profile at https://github.com/settings/profile" &&
      echo "  * Make a pull request to add your GitHub ID to" &&
-     echo "    https://github.com/eisop-plume-lib/plume-scripts/blob/master/git-authors.sed" &&
+     echo "    https://github.com/eisop-plume-lib/git-scripts/blob/master/git-authors.sed" &&
      echo "    and remake contributors.tex after that pull request is merged." &&
      false)

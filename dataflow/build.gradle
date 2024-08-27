@@ -8,12 +8,17 @@ dependencies {
     api project(':checker-qual')
 
     // Node implements org.plumelib.util.UniqueId, so this dependency must be "api".
-    api "org.plumelib:plume-util:${plumeUtilVersion}"
+    api "org.plumelib:plume-util:${versions.plumeUtil}"
+    // plume-util has an `implementation` dependency on hashmap-util.
+    // That follows Gradle's rules, but Gradle's rules are not entirely correct:
+    // https://github.com/gradle/gradle/issues/30054
+    // To build with JDK 22+, we need to redeclare that dependency here.
+    implementation "org.plumelib:hashmap-util:${versions.hashmapUtil}"
 
     // External dependencies:
     // If you add an external dependency, you must shadow its packages both in the dataflow-shaded
     // artifact (see shadowJar block below) and also in checker.jar (see the comment in
-    // ../build.gradle in the shadowJar block).
+    // ../build.gradle in the createDataflowShaded task).
 }
 
 // Shadowing Test Sources and Dependencies
@@ -29,9 +34,7 @@ def createDataflowShaded(shadedPkgName) {
     tasks.create(name: "dataflow${shadedPkgName}Jar", type: ShadowJar, dependsOn: compileJava, group: 'Build') {
         description "Builds dataflow-${shadedPkgName}.jar."
         includeEmptyDirs = false
-        base {
-            archivesName = "dataflow-${shadedPkgName}"
-        }
+        archiveBaseName.set("dataflow-${shadedPkgName}")
         // Without this line, the Maven artifact will have the classifier "all".
         archiveClassifier.set('')
 
@@ -48,6 +51,7 @@ def createDataflowShaded(shadedPkgName) {
 
         // Relocate external dependencies
         relocate 'org.plumelib', "org.checkerframework.${shadedPkgName}.org.plumelib"
+        relocate 'com.google', "org.checkerframework.${shadedPkgName}.com.google"
     }
 }
 
@@ -57,12 +61,25 @@ createDataflowShaded('shaded')
 createDataflowShaded('nullaway')
 createDataflowShaded('errorprone')
 
+task manual(group: 'Documentation') {
+    description 'Build the manual'
+    doLast {
+        exec {
+            commandLine 'make', '-C', 'manual'
+        }
+    }
+}
+
 tasks.withType(Test) {
+    // Disable the gradle generated test task as the dataflow framework does not use JUnit for testing. If it were kept enabled (which is the default), gradlew would produce a deprecation warning.
+    // The `allDataflowTests` task dependency is still enabled.
+    enabled = false
     dependsOn('allDataflowTests')
 }
 
 tasks.create(name: 'allDataflowTests', group: 'Verification') {
     description 'Run all dataflow analysis tests'
+    // 'allDataflowTests' is automatically populated by testDataflowAnalysis().
 }
 
 /**
@@ -140,9 +157,10 @@ def testDataflowAnalysis(taskName, dirName, className, diff) {
 
 // When adding a new test case, don't forget to add the temporary files to `../.gitignore`.
 testDataflowAnalysis("busyExpressionTest", "busyexpr", "busyexpr.BusyExpression", true)
+testDataflowAnalysis("cfgConstructionTest", "cfgconstruction", "cfgconstruction.CFGConstruction", false)
 testDataflowAnalysis("constantPropagationTest", "constant-propagation", "constantpropagation.ConstantPropagation", true)
-testDataflowAnalysis("liveVariableTest", "live-variable", "livevar.LiveVariable", true)
 testDataflowAnalysis("issue3447Test", "issue3447", "livevar.LiveVariable", false)
+testDataflowAnalysis("liveVariableTest", "live-variable", "livevar.LiveVariable", true)
 testDataflowAnalysis("reachingDefinitionTest", "reachingdef", "reachingdef.ReachingDefinition", true)
 
 apply from: rootProject.file('gradle-mvn-push.gradle')

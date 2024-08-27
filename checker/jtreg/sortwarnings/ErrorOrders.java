@@ -13,6 +13,8 @@ public class ErrorOrders {
         a[i] = 2;
     }
 
+    // Ignore the test suite's usage of qualifiers in illegal locations.
+    @SuppressWarnings("type.invalid.annotations.on.location")
     int test4(
             @GTENegativeOne @UpperBoundBottom int p1,
             @UpperBoundBottom @GTENegativeOne int p2,
@@ -45,6 +47,8 @@ class InSameCompilationUnit {
         a[i] = 2;
     }
 
+    // Ignore the test suite's usage of qualifiers in illegal locations.
+    @SuppressWarnings("type.invalid.annotations.on.location")
     int test4(
             @GTENegativeOne @UpperBoundBottom int p1,
             @UpperBoundBottom @GTENegativeOne int p2,

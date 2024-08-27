@@ -1,11 +1,10 @@
 buildscript {
-    repositories {
-        mavenCentral()
-    }
     dependencies {
-        // Create OSGI bundles
-        classpath 'biz.aQute.bnd:biz.aQute.bnd.gradle:6.4.0'
-        // Don't add implementation dependencies; checker-qual.jar should have no dependencies.
+        if (JavaVersion.current() >= JavaVersion.VERSION_17) {
+            // bnd builder depends on Java 17.
+            // As EISOP releases are made on Java 21, this shouldn't impact releases.
+            classpath('biz.aQute.bnd:biz.aQute.bnd.gradle:7.0.0')
+        }
     }
 }
 
@@ -13,7 +12,9 @@ plugins {
     id 'java-library'
 }
 
-apply plugin: 'biz.aQute.bnd.builder'
+if (JavaVersion.current() >= JavaVersion.VERSION_17) {
+    apply plugin: 'biz.aQute.bnd.builder'
+}
 
 jar {
     manifest {

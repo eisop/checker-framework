@@ -30,11 +30,7 @@ import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.CollectionsPlume;
 
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Objects;
-import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -68,21 +64,22 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
      * @param valueExp the AST node for the rvalue (the new value)
      * @param errorKey the error message key to use if the check fails
      * @param extraArgs arguments to the error message key, before "found" and "expected" types
+     * @return true if the check succeeds, false if an error message was issued
      */
     @Override
-    protected void commonAssignmentCheck(
+    protected boolean commonAssignmentCheck(
             AnnotatedTypeMirror varType,
             ExpressionTree valueExp,
             @CompilerMessageKey String errorKey,
             Object... extraArgs) {
 
         replaceSpecialIntRangeAnnotations(varType);
-        super.commonAssignmentCheck(varType, valueExp, errorKey, extraArgs);
+        return super.commonAssignmentCheck(varType, valueExp, errorKey, extraArgs);
     }
 
     @Override
     @FormatMethod
-    protected void commonAssignmentCheck(
+    protected boolean commonAssignmentCheck(
             AnnotatedTypeMirror varType,
             AnnotatedTypeMirror valueType,
             Tree valueTree,
@@ -97,7 +94,7 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
                     getTypeFactory().createIntRangeAnnotation(Range.CHAR_EVERYTHING));
         }
 
-        super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);
+        return super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);
     }
 
     /**
@@ -304,8 +301,8 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
                 && exprAnno != null
                 && atypeFactory.isIntRange(castAnno)
                 && atypeFactory.isIntRange(exprAnno)) {
-            final Range castRange = atypeFactory.getRange(castAnno);
-            final TypeKind castTypeKind = castType.getKind();
+            Range castRange = atypeFactory.getRange(castAnno);
+            TypeKind castTypeKind = castType.getKind();
             if (castTypeKind == TypeKind.BYTE && castRange.isByteEverything()) {
                 return p;
             }
@@ -392,7 +389,8 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
                                         new TreeSet<Byte>(
                                                 CollectionsPlume.mapList(
                                                         Number::byteValue, exprValues));
-                                return sortedSetContainsAll(castValuesTree, exprValuesTree);
+                                return CollectionsPlume.sortedSetContainsAll(
+                                        castValuesTree, exprValuesTree);
                             }
                         case INT:
                             {
@@ -404,7 +402,8 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
                                         new TreeSet<Integer>(
                                                 CollectionsPlume.mapList(
                                                         Number::intValue, exprValues));
-                                return sortedSetContainsAll(castValuesTree, exprValuesTree);
+                                return CollectionsPlume.sortedSetContainsAll(
+                                        castValuesTree, exprValuesTree);
                             }
                         case SHORT:
                             {
@@ -416,13 +415,15 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
                                         new TreeSet<Short>(
                                                 CollectionsPlume.mapList(
                                                         Number::shortValue, exprValues));
-                                return sortedSetContainsAll(castValuesTree, exprValuesTree);
+                                return CollectionsPlume.sortedSetContainsAll(
+                                        castValuesTree, exprValuesTree);
                             }
                         default:
                             {
                                 TreeSet<Long> castValuesTree = new TreeSet<>(castValues);
                                 TreeSet<Long> exprValuesTree = new TreeSet<>(exprValues);
-                                return sortedSetContainsAll(castValuesTree, exprValuesTree);
+                                return CollectionsPlume.sortedSetContainsAll(
+                                        castValuesTree, exprValuesTree);
                             }
                     }
                 }
@@ -430,77 +431,6 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
         }
 
         return super.isTypeCastSafe(castType, exprType);
-    }
-
-    // TODO: After plume-util 1.6.6 is released, use this method from CollectionsPlume instead.
-    /**
-     * Returns true if the two sets contain the same elements in the same order. This is faster than
-     * regular {@code containsAll()}, for sets with the same ordering operator, especially for sets
-     * that are not extremely small.
-     *
-     * @param <T> the type of elements in the sets
-     * @param set1 the first set to compare
-     * @param set2 the first set to compare
-     * @return true if the first set contains all the elements of the second set
-     */
-    public static <T> boolean sortedSetContainsAll(SortedSet<T> set1, SortedSet<T> set2) {
-        @SuppressWarnings("interning:not.interned")
-        boolean sameObject = set1 == set2;
-        if (sameObject) {
-            return true;
-        }
-        if (set1.size() < set2.size()) {
-            return false;
-        }
-        Comparator<? super T> comparator1 = set1.comparator();
-        Comparator<? super T> comparator2 = set2.comparator();
-        if (!Objects.equals(comparator1, comparator2)) {
-            return set1.containsAll(set2);
-        }
-        if (comparator1 == null) {
-            outerloopNaturalOrder:
-            for (Iterator<T> itor1 = set1.iterator(), itor2 = set2.iterator(); itor2.hasNext(); ) {
-                T elt2 = itor2.next();
-                if (elt2 == null) {
-                    throw new IllegalArgumentException("null element in set 2: " + set2);
-                }
-                while (itor1.hasNext()) {
-                    T elt1 = itor1.next();
-                    if (elt2 == null) {
-                        throw new IllegalArgumentException("null element in set 2: " + set2);
-                    }
-                    @SuppressWarnings({
-                        "unchecked", // Java warning about generic cast
-                        "nullness:dereference", // next() has side effects, so elt1 isn't know to be
-                        // non-null
-                        "signedness:method.invocation" // generics problem; #979?
-                    })
-                    int comparison = ((Comparable<T>) elt1).compareTo(elt2);
-                    if (comparison == 0) {
-                        continue outerloopNaturalOrder;
-                    } else if (comparison < 0) {
-                        return false;
-                    }
-                }
-                return false;
-            }
-        } else {
-            outerloopComparator:
-            for (Iterator<T> itor1 = set1.iterator(), itor2 = set2.iterator(); itor2.hasNext(); ) {
-                T elt2 = itor2.next();
-                while (itor1.hasNext()) {
-                    T elt1 = itor1.next();
-                    int comparison = comparator1.compare(elt1, elt2);
-                    if (comparison == 0) {
-                        continue outerloopComparator;
-                    } else if (comparison < 0) {
-                        return false;
-                    }
-                }
-                return false;
-            }
-        }
-        return true;
     }
 
     /**

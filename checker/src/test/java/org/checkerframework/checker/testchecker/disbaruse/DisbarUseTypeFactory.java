@@ -10,7 +10,13 @@ import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+/** The type factory for forbidding use of the DisbarUse type. */
 public class DisbarUseTypeFactory extends BaseAnnotatedTypeFactory {
+    /**
+     * Creates a new DisbarUseTypeFactory.
+     *
+     * @param checker the checker
+     */
     public DisbarUseTypeFactory(BaseTypeChecker checker) {
         super(checker);
         postInit();

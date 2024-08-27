@@ -1,6 +1,6 @@
 package org.checkerframework.dataflow.cfg.builder;
 
-import org.checkerframework.javacutil.Pair;
+import org.plumelib.util.IPair;
 
 import java.util.List;
 import java.util.Set;
@@ -22,7 +22,7 @@ import javax.lang.model.util.Types;
     protected final Types types;
 
     /** An ordered list of pairs because catch blocks are ordered. */
-    protected final List<Pair<TypeMirror, Label>> catchLabels;
+    protected final List<IPair<TypeMirror, Label>> catchLabels;
 
     /**
      * Construct a TryCatchFrame.
@@ -30,7 +30,7 @@ import javax.lang.model.util.Types;
      * @param types the Types utilities
      * @param catchLabels the catch labels
      */
-    public TryCatchFrame(Types types, List<Pair<TypeMirror, Label>> catchLabels) {
+    public TryCatchFrame(Types types, List<IPair<TypeMirror, Label>> catchLabels) {
         this.types = types;
         this.catchLabels = catchLabels;
     }
@@ -41,7 +41,7 @@ import javax.lang.model.util.Types;
             return "TryCatchFrame: no catch labels.";
         } else {
             StringJoiner sb = new StringJoiner(System.lineSeparator(), "TryCatchFrame: ", "");
-            for (Pair<TypeMirror, Label> ptml : this.catchLabels) {
+            for (IPair<TypeMirror, Label> ptml : this.catchLabels) {
                 sb.add(ptml.first.toString() + " -> " + ptml.second.toString());
             }
             return sb.toString();
@@ -80,7 +80,7 @@ import javax.lang.model.util.Types;
         DeclaredType declaredThrown = (DeclaredType) thrown;
         assert thrown != null : "thrown type must be bounded by a declared type";
 
-        for (Pair<TypeMirror, Label> pair : catchLabels) {
+        for (IPair<TypeMirror, Label> pair : catchLabels) {
             TypeMirror caught = pair.first;
             boolean canApply = false;
 

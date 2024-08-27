@@ -6,6 +6,7 @@ import com.sun.source.tree.ArrayAccessTree;
 import com.sun.source.tree.ArrayTypeTree;
 import com.sun.source.tree.AssertTree;
 import com.sun.source.tree.BinaryTree;
+import com.sun.source.tree.CaseTree;
 import com.sun.source.tree.CatchTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompoundAssignmentTree;
@@ -54,6 +55,8 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11.SwitchExpressionUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
 import java.lang.annotation.Annotation;
@@ -124,6 +127,9 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     /** True if -AassumeAssertionsAreDisabled was passed on the command line. */
     private final boolean assumeAssertionsAreDisabled;
 
+    /** True if -Alint=redundantNullComparison was passed on the command line. */
+    private final boolean redundantNullComparison;
+
     /**
      * Create a new NullnessVisitor.
      *
@@ -150,6 +156,10 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                         NullnessChecker.LINT_DEFAULT_PERMITCLEARPROPERTY);
         assumeAssertionsAreEnabled = checker.hasOption("assumeAssertionsAreEnabled");
         assumeAssertionsAreDisabled = checker.hasOption("assumeAssertionsAreDisabled");
+        redundantNullComparison =
+                checker.getLintOption(
+                        NullnessChecker.LINT_REDUNDANTNULLCOMPARISON,
+                        NullnessChecker.LINT_DEFAULT_REDUNDANTNULLCOMPARISON);
     }
 
     @Override
@@ -191,7 +201,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     }
 
     @Override
-    protected void commonAssignmentCheck(
+    protected boolean commonAssignmentCheck(
             Tree varTree,
             ExpressionTree valueExp,
             @CompilerMessageKey String errorKey,
@@ -206,9 +216,9 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 && !checker.getLintOption(
                         NullnessChecker.LINT_NOINITFORMONOTONICNONNULL,
                         NullnessChecker.LINT_DEFAULT_NOINITFORMONOTONICNONNULL)) {
-            return;
+            return true;
         }
-        super.commonAssignmentCheck(varTree, valueExp, errorKey, extraArgs);
+        return super.commonAssignmentCheck(varTree, valueExp, errorKey, extraArgs);
     }
 
     /**
@@ -218,7 +228,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
      * @return the initialized element, or null
      */
     @SuppressWarnings("UnusedMethod")
-    private Element initializedElement(Tree varTree) {
+    private @Nullable Element initializedElement(Tree varTree) {
         switch (varTree.getKind()) {
             case VARIABLE:
                 // It's a variable declaration.
@@ -251,7 +261,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     }
 
     @Override
-    protected void commonAssignmentCheck(
+    protected boolean commonAssignmentCheck(
             AnnotatedTypeMirror varType,
             ExpressionTree valueExp,
             @CompilerMessageKey String errorKey,
@@ -264,12 +274,12 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         // hack. Both should be undone, by properly resolving polymorphic qualifiers in the
         // ATF/transfer.
         atypeFactory.replacePolyQualifier(varType, valueExp);
-        super.commonAssignmentCheck(varType, valueExp, errorKey, extraArgs);
+        return super.commonAssignmentCheck(varType, valueExp, errorKey, extraArgs);
     }
 
     @Override
     @FormatMethod
-    protected void commonAssignmentCheck(
+    protected boolean commonAssignmentCheck(
             AnnotatedTypeMirror varType,
             AnnotatedTypeMirror valueType,
             Tree valueTree,
@@ -280,15 +290,18 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             boolean succeed = checkForNullability(valueType, valueTree, UNBOXING_OF_NULLABLE);
             if (!succeed) {
                 // Only issue the unboxing of nullable error.
-                return;
+                return false;
             }
         }
-        super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);
+        return super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);
     }
 
     /** Case 1: Check for null dereferencing. */
     @Override
     public Void visitMemberSelect(MemberSelectTree tree, Void p) {
+        // if (atypeFactory.isUnreachable(tree)) {
+        //     return super.visitMemberSelect(tree, p);
+        // }
         Element e = TreeUtils.elementFromUse(tree);
         if (e.getKind() == ElementKind.CLASS) {
             if (atypeFactory.containsNullnessAnnotation(null, tree.getExpression())) {
@@ -460,6 +473,11 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     public Void visitInstanceOf(InstanceOfTree tree, Void p) {
         // The "reference type" is the type after "instanceof".
         Tree refTypeTree = tree.getType();
+        if (refTypeTree == null) {
+            // TODO: the type is null for deconstructor patterns.
+            // Handle them properly.
+            return null;
+        }
         if (refTypeTree.getKind() == Tree.Kind.ANNOTATED_TYPE) {
             List<? extends AnnotationMirror> annotations =
                     TreeUtils.annotationsFromTree((AnnotatedTypeTree) refTypeTree);
@@ -476,18 +494,16 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
 
     /**
      * Reports an error if a comparison of a @NonNull expression with the null literal is performed.
+     * Does nothing unless {@code -Alint=redundantNullComparison} is passed on the command line.
      *
      * @param tree a tree that might be a comparison of a @NonNull expression with the null literal
      */
     protected void checkForRedundantTests(BinaryTree tree) {
-
-        final ExpressionTree leftOp = tree.getLeftOperand();
-        final ExpressionTree rightOp = tree.getRightOperand();
+        ExpressionTree leftOp = tree.getLeftOperand();
+        ExpressionTree rightOp = tree.getRightOperand();
 
         // respect command-line option
-        if (!checker.getLintOption(
-                NullnessChecker.LINT_REDUNDANTNULLCOMPARISON,
-                NullnessChecker.LINT_DEFAULT_REDUNDANTNULLCOMPARISON)) {
+        if (!redundantNullComparison) {
             return;
         }
 
@@ -508,8 +524,8 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     /** Case 6: Check for redundant nullness tests Case 7: unboxing case: primitive operations. */
     @Override
     public Void visitBinary(BinaryTree tree, Void p) {
-        final ExpressionTree leftOp = tree.getLeftOperand();
-        final ExpressionTree rightOp = tree.getRightOperand();
+        ExpressionTree leftOp = tree.getLeftOperand();
+        ExpressionTree rightOp = tree.getRightOperand();
 
         if (isUnboxingOperation(tree)) {
             checkForNullability(leftOp, UNBOXING_OF_NULLABLE);
@@ -720,7 +736,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
      * @param tree a binary operation
      * @return true if the binary operation could cause an unboxing operation
      */
-    private final boolean isUnboxingOperation(BinaryTree tree) {
+    private boolean isUnboxingOperation(BinaryTree tree) {
         if (tree.getKind() == Tree.Kind.EQUAL_TO || tree.getKind() == Tree.Kind.NOT_EQUAL_TO) {
             // it is valid to check equality between two reference types, even
             // if one (or both) of them is null
@@ -739,7 +755,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
      * @param tree a tree
      * @return true if the type of the tree is a super of String
      */
-    private final boolean isString(ExpressionTree tree) {
+    private boolean isString(ExpressionTree tree) {
         TypeMirror type = TreeUtils.typeOf(tree);
         return types.isAssignable(stringType, type);
     }
@@ -750,14 +766,60 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
      * @param tree a tree
      * @return true if the type of the tree is a primitive
      */
-    private static final boolean isPrimitive(ExpressionTree tree) {
+    private static boolean isPrimitive(ExpressionTree tree) {
         return TreeUtils.typeOf(tree).getKind().isPrimitive();
     }
 
     @Override
     public Void visitSwitch(SwitchTree tree, Void p) {
-        checkForNullability(tree.getExpression(), SWITCHING_NULLABLE);
+        if (!TreeUtils.hasNullCaseLabel(tree)) {
+            checkForNullability(tree.getExpression(), SWITCHING_NULLABLE);
+        }
+        if (redundantNullComparison && TreeUtils.isEnhancedSwitchStatement(tree)) {
+            ExpressionTree expression = tree.getExpression();
+            List<? extends CaseTree> cases = tree.getCases();
+            checkSwitchNullRedundant(expression, cases);
+        }
         return super.visitSwitch(tree, p);
+    }
+
+    @Override
+    public void visitSwitchExpression17(Tree switchExprTree) {
+        if (!TreeUtils.hasNullCaseLabel(switchExprTree)) {
+            checkForNullability(
+                    SwitchExpressionUtils.getExpression(switchExprTree), SWITCHING_NULLABLE);
+        }
+        if (redundantNullComparison) {
+            ExpressionTree expression = SwitchExpressionUtils.getExpression(switchExprTree);
+            List<? extends CaseTree> cases = SwitchExpressionUtils.getCases(switchExprTree);
+            checkSwitchNullRedundant(expression, cases);
+        }
+        super.visitSwitchExpression17(switchExprTree);
+    }
+
+    /**
+     * Reports a warning if the expression of the switch statement or expression is {@code @NonNull}
+     * and one of the case labels in the case trees is the null literal.
+     *
+     * @param expression the expression of the switch statement or expression
+     * @param cases the cases of the switch statement or expression
+     */
+    private void checkSwitchNullRedundant(
+            ExpressionTree expression, List<? extends CaseTree> cases) {
+        AnnotatedTypeMirror switchType = atypeFactory.getAnnotatedType(expression);
+        if (!switchType.hasEffectiveAnnotation(NONNULL)) {
+            return;
+        }
+        outer:
+        for (CaseTree caseTree : cases) {
+            List<? extends Tree> caseLabels = TreeUtilsAfterJava11.CaseUtils.getLabels(caseTree);
+            for (Tree caseLabel : caseLabels) {
+                if (caseLabel.getKind() == Tree.Kind.NULL_LITERAL) {
+                    checker.reportWarning(caseLabel, "nulltest.redundant", expression.toString());
+                    break outer;
+                }
+            }
+        }
     }
 
     @Override
