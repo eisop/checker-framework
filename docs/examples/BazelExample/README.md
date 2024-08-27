@@ -1,13 +1,13 @@
-This directory contains an example Bazil project that downloads the latest
+This directory contains an example Bazel project that downloads the latest
 EISOP Checker Framework Maven artifacts and runs the Nullness Checker.
 
 To run the example, simply execute:
-`bazil run example`
+`bazel run example`
 
 You should see output that includes:
 
 ````
-ERROR: /home/wdietl/workspaces-server/eisop-cf/checker-framework/docs/examples/BazelExample/BUILD:1:12: Building example.jar (1 source file) and running annotation processors (NullnessChecker) failed: (Exit 1): java failed: error executing Javac command (from target //:example) external/rules_java~~toolchains~remotejdk21_linux/bin/java '--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED' '--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED' ... (remaining 19 arguments skipped)
+ERROR: docs/examples/BazelExample/BUILD:1:12: Building example.jar (1 source file) and running annotation processors (NullnessChecker) failed: (Exit 1): java failed: error executing Javac command (from target //:example) external/rules_java~~toolchains~remotejdk21_linux/bin/java '--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED' '--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED' ... (remaining 19 arguments skipped)
 BazelExample.java:25: error: [assignment.type.incompatible] incompatible types in assignment.
         @NonNull Object nn = null; // error on this line
                              ^
