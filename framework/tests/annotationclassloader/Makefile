@@ -53,7 +53,7 @@ demo2:
 # ======================================================
 # gradle test usage:
 # loads from build directories
-load-from-dir-test:
+load-from-dir-test: clean
 	-$(JAVAC) \
 	  -processorpath $(DATAFLOWBUILD):$(JAVACUTILBUILD):$(FRAMEWORKBUILD) \
 	  -classpath $(PROJECTDIR):${CHECKERQUALBUILD} \
@@ -63,10 +63,9 @@ load-from-dir-test:
 	  -AnoJreVersionCheck \
 	  LoaderTest.java > Out.txt 2>&1
 	diff -u Expected.txt Out.txt
-	rm -f Out.txt
 
 # loads from framework.jar
-load-from-jar-test:
+load-from-jar-test: clean
 	-$(JAVAC) \
 	  -processorpath $(FRAMEWORKJAR) \
 	  -classpath $(PROJECTDIR):${CHECKERQUALJAR} \
@@ -76,4 +75,7 @@ load-from-jar-test:
 	  -AnoJreVersionCheck \
 	  LoaderTest.java > Out.txt 2>&1
 	diff -u Expected.txt Out.txt
+
+clean:
 	rm -f Out.txt
+
