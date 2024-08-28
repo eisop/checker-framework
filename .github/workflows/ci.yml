@@ -38,6 +38,17 @@ jobs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4.0.1
 
+    - name: Setup Bazel
+      uses: bazel-contrib/setup-bazel@0.8.5
+      if: matrix.script == 'cftests-nonjunit'
+      with:
+        # Avoid downloading Bazel every time.
+        bazelisk-cache: true
+        # Store build cache per workflow.
+        disk-cache: ${{ github.workflow }}
+        # Share repository cache between workflows.
+        repository-cache: true
+
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
       run: ./checker/bin-devel/test-${{ matrix.script }}.sh
 
@@ -114,6 +125,17 @@ jobs:
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4.0.1
+
+    - name: Setup Bazel
+      uses: bazel-contrib/setup-bazel@0.8.5
+      if: matrix.script == 'cftests-nonjunit'
+      with:
+        # Avoid downloading Bazel every time.
+        bazelisk-cache: true
+        # Store build cache per workflow.
+        disk-cache: ${{ github.workflow }}
+        # Share repository cache between workflows.
+        repository-cache: true
 
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
       run: ./checker/bin-devel/test-${{ matrix.script }}.sh
