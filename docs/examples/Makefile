@@ -6,24 +6,24 @@ all: compile
 
 compile:
 	$(JAVAC) *.java
-	cd fenum-extension && $(MAKE)
-	cd subtyping-extension && $(MAKE)
-	cd units-extension && $(MAKE)
-# The Maven example downloads a lot.  Try twice in case of network lossage.
-	cd MavenExample && ($(MAKE) || (sleep 60 && echo "Trying again:" && $(MAKE)))
-	cd lombok && $(MAKE)
-	cd errorprone && $(MAKE)
-	cd BazelExample && $(MAKE)
+	$(MAKE) -C fenum-extension
+	$(MAKE) -C subtyping-extension
+	$(MAKE) -C units-extension
+	# The Maven example downloads a lot.  Try twice in case of network lossage.
+	$(MAKE) -C MavenExample || (sleep 60 && echo "Trying again:" && $(MAKE) -c MavenExample)
+	$(MAKE) -C lombok
+	$(MAKE) -C errorprone
+	$(MAKE) -C BazelExample
 
 # TODO: type check the different files with the right checker;
 #   some tests expect errors, compare against expected errors.
 
 clean:
 	rm -f *.class
-	cd fenum-extension && $(MAKE) clean
-	cd subtyping-extension && $(MAKE) clean
-	cd units-extension && $(MAKE) clean
-	cd MavenExample && $(MAKE) clean
-	cd lombok && $(MAKE) clean
-	cd errorprone && $(MAKE) clean
-	cd BazelExample && $(MAKE) clean
+	$(MAKE) -C fenum-extension clean
+	$(MAKE) -C subtyping-extension clean
+	$(MAKE) -C units-extension clean
+	$(MAKE) -C MavenExample clean
+	$(MAKE) -C lombok clean
+	$(MAKE) -C errorprone clean
+	$(MAKE) -C BazelExample clean

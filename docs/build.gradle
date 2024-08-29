@@ -2,7 +2,7 @@ clean {
     delete('api/')
     doLast {
         exec {
-            workingDir = file('exmaples')
+            workingDir = file('examples')
             commandLine 'make', 'clean'
         }
     }

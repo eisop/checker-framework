@@ -8,6 +8,5 @@ all:
 	diff -u Expected.txt Out.txt
 
 clean:
-	rm -f bin/lib/Anno.class
-	rm -f Out.txt lib.jar bin/*.class bin/lib/*.class
-	rmdir bin/lib bin/
+	rm -f Out.txt lib.jar
+	rmdir bin/
