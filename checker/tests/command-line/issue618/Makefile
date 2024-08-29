@@ -6,3 +6,4 @@ all:
 
 clean:
 	rm -f out.txt
+	rm -f *.class

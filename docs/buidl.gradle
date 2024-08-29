@@ -1,0 +1,9 @@
+clean {
+    delete('api/')
+    doLast {
+        exec {
+            workingDir = file('exmaples')
+            commandLine 'make', 'clean'
+        }
+    }
+}

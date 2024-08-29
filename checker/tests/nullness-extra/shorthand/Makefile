@@ -20,3 +20,4 @@ nonsense:
 
 clean:
 	rm -f Out.txt
+	rm -f *.class
