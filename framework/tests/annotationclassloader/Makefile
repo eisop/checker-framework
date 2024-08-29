@@ -21,6 +21,7 @@ JAVACUTILBUILD := $(PROJECTDIR)/../../../javacutil/build/classes/java/main
 FRAMEWORKBUILD := $(PROJECTDIR)/../../build/classes/java/main:$(PROJECTDIR)/../../build/resources/main/
 CHECKERQUALBUILD := $(PROJECTDIR)/../../../checker-qual/build/classes/java/main
 
+.PHONY: all clean demo1 demo2
 
 all: load-from-dir-test load-from-jar-test
 
@@ -53,7 +54,7 @@ demo2:
 # ======================================================
 # gradle test usage:
 # loads from build directories
-load-from-dir-test: clean
+load-from-dir-test:
 	-$(JAVAC) \
 	  -processorpath $(DATAFLOWBUILD):$(JAVACUTILBUILD):$(FRAMEWORKBUILD) \
 	  -classpath $(PROJECTDIR):${CHECKERQUALBUILD} \
@@ -65,7 +66,7 @@ load-from-dir-test: clean
 	diff -u Expected.txt Out.txt
 
 # loads from framework.jar
-load-from-jar-test: clean
+load-from-jar-test:
 	-$(JAVAC) \
 	  -processorpath $(FRAMEWORKJAR) \
 	  -classpath $(PROJECTDIR):${CHECKERQUALJAR} \

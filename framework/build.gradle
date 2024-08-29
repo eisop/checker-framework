@@ -223,6 +223,12 @@ clean {
     delete('tests/returnsreceiverdelomboked')
     delete('dist')
     delete('tests/build')
+    doLast {
+        exec {
+            workingDir = file('tests/annotationclassloader')
+            commandLine 'make', 'clean'
+        }
+    }
 }
 
 

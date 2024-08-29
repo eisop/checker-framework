@@ -247,6 +247,16 @@ clean {
     delete('tests/ainfer-resourceleak/annotated')
     delete('tests/ainfer-resourceleak/inference-output')
     delete('tests/build')
+    doLast {
+        exec {
+            workingDir = file('tests/command-line')
+            commandLine 'make', 'clean'
+        }
+        exec {
+            workingDir = file('tests/nullness-extra')
+            commandLine 'make', 'clean'
+        }
+    }
 }
 
 clean.doLast {
