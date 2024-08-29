@@ -76,16 +76,16 @@ dependencies {
     testImplementation 'com.amazonaws:aws-java-sdk-ec2'
     testImplementation 'com.amazonaws:aws-java-sdk-kms'
     // The AWS SDK is used for testing the Called Methods Checker.
-    testImplementation platform('com.amazonaws:aws-java-sdk-bom:1.12.670')
+    testImplementation platform('com.amazonaws:aws-java-sdk-bom:1.12.770')
     // For the Resource Leak Checker's support for JavaEE.
     testImplementation 'javax.servlet:javax.servlet-api:4.0.1'
     // For the Resource Leak Checker's support for IOUtils.
     testImplementation 'commons-io:commons-io:2.16.1'
     // For the Nullness Checker test of junit-assertions.astub in JUnitNull.java
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.3'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.11.0'
     testImplementation 'org.apiguardian:apiguardian-api:1.1.2'
     // For tests that use JSpecify annotations
-    testImplementation 'org.jspecify:jspecify:0.3.0'
+    testImplementation 'org.jspecify:jspecify:1.0.0'
 
     // Required for checker/tests/index-initializedfields/RequireJavadoc.java
     if (JavaVersion.current() == JavaVersion.VERSION_1_8) {

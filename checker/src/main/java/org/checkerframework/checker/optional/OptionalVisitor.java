@@ -510,7 +510,7 @@ public class OptionalVisitor
      * {@code x = Optional.of(Optional.of("baz"));}. However, the type of the right-hand side is
      * {@code Optional<? extends Object>}, not {@code Optional<Optional<String>>}. Therefore, to
      * fully check for improper types, it is necessary to examine, in the type checker, the argument
-     * to construction of an Optional. Method {@link handleNestedOptionalCreation} does so.
+     * to construction of an Optional. Method {@link #handleNestedOptionalCreation} does so.
      */
     private final class OptionalTypeValidator extends BaseTypeValidator {
 
