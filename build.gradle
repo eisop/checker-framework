@@ -617,6 +617,7 @@ task htmlValidate(type: Exec, group: 'Format') {
     ]
 }
 
+// Define testannotations as source set otherwise the root project will not be able to find the testannotations
 subprojects {
     sourceSets {
         testannotations {
@@ -698,6 +699,7 @@ task requireJavadoc(type: JavaExec, group: 'Documentation') {
     description = 'Ensures that Javadoc documentation exists in source code.'
     mainClass = 'org.plumelib.javadoc.RequireJavadoc'
     classpath = configurations.requireJavadoc
+    // Convert each srcDir to its absolute path and flatten the list
     args javadocDirs.collect { it.srcDirs*.absolutePath }.flatten()
 }
 
