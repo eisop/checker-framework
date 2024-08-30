@@ -16,4 +16,4 @@ source "$SCRIPTDIR"/clone-related.sh
 ./gradlew test -x javadoc -x allJavadoc --console=plain --warning-mode=all --max-workers=1
 
 # Test clean task
-./gradlew clean
+./gradlew clean --stacktrace --info
