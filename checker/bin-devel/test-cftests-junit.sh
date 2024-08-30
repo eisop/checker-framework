@@ -17,3 +17,4 @@ source "$SCRIPTDIR"/clone-related.sh
 # Test clean task
 ./gradlew clean
 ./gradlew clean
+./gradlew clean
