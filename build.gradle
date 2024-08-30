@@ -637,6 +637,7 @@ def javadocDirs = [
     project(':checker').sourceSets.testannotations.allJava,
     project(':framework').sourceSets.main.allJava,
     project(':framework').sourceSets.test.allJava,
+    project(':framework').sourceSets.testannotations.allJava,
     project(':dataflow').sourceSets.main.allJava,
     project(':dataflow').sourceSets.test.allJava,
     project(':javacutil').sourceSets.main.allJava,
