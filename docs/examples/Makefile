@@ -10,7 +10,7 @@ compile:
 	$(MAKE) -C subtyping-extension
 	$(MAKE) -C units-extension
 	# The Maven example downloads a lot.  Try twice in case of network lossage.
-	$(MAKE) -C MavenExample || (sleep 60 && echo "Trying again:" && $(MAKE) -c MavenExample)
+	$(MAKE) -C MavenExample || (sleep 60 && echo "Trying again:" && $(MAKE) -C MavenExample)
 	$(MAKE) -C lombok
 	$(MAKE) -C errorprone
 	$(MAKE) -C BazelExample
