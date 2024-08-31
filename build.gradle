@@ -617,27 +617,14 @@ task htmlValidate(type: Exec, group: 'Format') {
     ]
 }
 
-// Define testannotations as source set otherwise the root project will not be able to find the testannotations
-subprojects {
-    sourceSets {
-        testannotations {
-            java {
-                srcDirs = ['src/testannotations/java']
-            }
-        }
-    }
-}
-
 def javadocDirs = [
     project(':checker-util').sourceSets.main.allJava,
     project(':checker-util').sourceSets.test.allJava,
     project(':checker-qual').sourceSets.main.allJava,
     project(':checker').sourceSets.main.allJava,
     project(':checker').sourceSets.test.allJava,
-    project(':checker').sourceSets.testannotations.allJava,
     project(':framework').sourceSets.main.allJava,
     project(':framework').sourceSets.test.allJava,
-    project(':framework').sourceSets.testannotations.allJava,
     project(':dataflow').sourceSets.main.allJava,
     project(':dataflow').sourceSets.test.allJava,
     project(':javacutil').sourceSets.main.allJava,
@@ -645,6 +632,13 @@ def javadocDirs = [
     project(':framework-test').sourceSets.test.allJava
 ]
 
+project(':checker').afterEvaluate {
+    javadocDirs += project(':checker').sourceSets.testannotations.allJava
+}
+
+project(':framework').afterEvaluate {
+    javadocDirs += project(':framework').sourceSets.testannotations.allJava
+}
 
 // `gradle allJavadoc` builds the Javadoc for all modules in `docs/api`.
 //   This is what is published to checkerframework.org.
