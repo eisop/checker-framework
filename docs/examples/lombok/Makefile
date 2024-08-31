@@ -16,6 +16,6 @@ all:
 	  && grep -qF "y = null; // error" Out.txt) \
 	 || (echo "===== start of Out.txt =====" && cat Out.txt && echo "===== end of Out.txt =====" && false)
 clean:
-	 ../../../gradlew clean
+	../../../gradlew clean
 	rm -f Out.txt
 endif
