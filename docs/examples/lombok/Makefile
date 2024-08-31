@@ -15,7 +15,8 @@ all:
 	  && grep -qF "Foo.java:12: error: [assignment.type.incompatible] incompatible types in assignment." Out.txt \
 	  && grep -qF "y = null; // error" Out.txt) \
 	 || (echo "===== start of Out.txt =====" && cat Out.txt && echo "===== end of Out.txt =====" && false)
+endif
+
 clean:
 	../../../gradlew clean
 	rm -f Out.txt
-endif
