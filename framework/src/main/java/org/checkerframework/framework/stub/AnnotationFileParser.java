@@ -2947,9 +2947,9 @@ public class AnnotationFileParser {
     return res;
   }
 
-  ///////////////////////////////////////////////////////////////////////////
-  /// Map utilities
-  ///
+  // ///////////////////////////////////////////////////////////////////////////
+  // Map utilities
+  //
 
   /**
    * Just like Map.put, but does not override any existing value in the map.
@@ -3046,9 +3046,9 @@ public class AnnotationFileParser {
     }
   }
 
-  ///////////////////////////////////////////////////////////////////////////
-  /// Issue warnings
-  ///
+  // ///////////////////////////////////////////////////////////////////////////
+  // Issue warnings
+  //
 
   /** The warnings that have been issued so far. */
   private static final Set<String> warnings = new HashSet<>();
@@ -3301,9 +3301,9 @@ public class AnnotationFileParser {
     }
   }
 
-  ///////////////////////////////////////////////////////////////////////////
-  /// Parse state
-  ///
+  // ///////////////////////////////////////////////////////////////////////////
+  // Parse state
+  //
 
   /** Represents a class: its package name and name (including outer class names if any). */
   private static class FqName {
