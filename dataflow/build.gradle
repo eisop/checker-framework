@@ -15,6 +15,8 @@ dependencies {
   // To build with JDK 22+, we need to redeclare that dependency here.
   implementation "org.plumelib:hashmap-util:${versions.hashmapUtil}"
 
+  implementation "org.plumelib:hashmap-util:${versions.hashmapUtil}"
+
   // External dependencies:
   // If you add an external dependency, you must shadow its packages both in the dataflow-shaded
   // artifact (see shadowJar block below) and also in checker.jar (see the comment in

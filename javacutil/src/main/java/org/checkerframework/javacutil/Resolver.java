@@ -139,7 +139,7 @@ public class Resolver {
       FIND_TYPE.setAccessible(true);
     } catch (Exception e) {
       Error err =
-          new AssertionError("Compiler 'Resolve' class doesn't contain required 'find' method");
+          new AssertionError("Compiler 'Resolve' class doesn't contain required 'find*' method");
       err.initCause(e);
       throw err;
     }

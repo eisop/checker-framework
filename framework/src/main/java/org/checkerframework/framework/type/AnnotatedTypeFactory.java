@@ -270,6 +270,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
   protected QualifierHierarchy qualHierarchy;
 
   /** Represent the type relations. */
+  // This field cannot be final because it is set in `postInit()`.
   protected TypeHierarchy typeHierarchy;
 
   /* NO-AFU Performs whole-program inference. If null, whole-program inference is disabled. */
