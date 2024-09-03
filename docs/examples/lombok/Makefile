@@ -17,12 +17,6 @@ all:
 	 || (echo "===== start of Out.txt =====" && cat Out.txt && echo "===== end of Out.txt =====" && false)
 endif
 
-ifeq ($(OS),Windows_NT)
-    GRADLEW_CMD := ..\..\..\gradlew.bat
-else
-    GRADLEW_CMD := ../../../gradlew
-endif
-
 clean:
-	$(GRADLEW_CMD) clean
+	- ../../../gradlew clean
 	rm -f Out.txt
