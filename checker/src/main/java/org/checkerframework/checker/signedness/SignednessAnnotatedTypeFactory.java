@@ -119,8 +119,7 @@ public class SignednessAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     @Override
-    protected void addComputedTypeAnnotations(
-            Tree tree, AnnotatedTypeMirror type, boolean iUseFlow) {
+    protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type) {
         Tree.Kind treeKind = tree.getKind();
         if (treeKind == Tree.Kind.INT_LITERAL) {
             int literalValue = (int) ((LiteralTree) tree).getValue();
@@ -139,8 +138,7 @@ public class SignednessAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         } else if (!isComputingAnnotatedTypeMirrorOfLhs()) {
             addSignedPositiveAnnotation(tree, type);
         }
-
-        super.addComputedTypeAnnotations(tree, type, iUseFlow);
+        super.addComputedTypeAnnotations(tree, type);
     }
 
     /**
