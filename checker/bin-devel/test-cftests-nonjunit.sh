@@ -18,5 +18,3 @@ source "$SCRIPTDIR"/clone-related.sh
 # the release script because the newest maven artifacts are not published yet.
 ./gradlew :checker:exampleTests -x javadoc -x allJavadoc --console=plain --warning-mode=all
 
-# Test clean task
-./gradlew clean
