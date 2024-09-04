@@ -114,7 +114,7 @@ task cloneAnnotatedJdk() {
 task copyAndMinimizeAnnotatedJdkFiles(dependsOn: cloneAnnotatedJdk, group: 'Build') {
     dependsOn ':framework:compileJava', project(':javacutil').tasks.jar
     def inputDir = "${annotatedJdkHome}/src"
-    def outputDir = "${buildDir}/generated/resources/annotated-jdk/"
+    def outputDir = "${layout.buildDirectory}/generated/resources/annotated-jdk/"
 
     description "Copy annotated JDK files to ${outputDir}. Removes private and package-private methods, method bodies, comments, etc. from the annotated JDK"
 

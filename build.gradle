@@ -570,7 +570,7 @@ def createCheckTypeTask(projectName, taskName, checker, args = []) {
         outputs.upToDateWhen { false }
         source = project("${projectName}").sourceSets.main.java
         classpath = files(project("${projectName}").compileJava.classpath,project(':checker-qual').sourceSets.main.output)
-        destinationDirectory = file("${buildDir}")
+        destinationDirectory = file("${layout.buildDirectory}")
 
         options.annotationProcessorPath = files(project(':checker').tasks.shadowJar.archiveFile)
         options.compilerArgs += [
@@ -740,7 +740,7 @@ task downloadJtreg(type: Download) {
     // dest new File(buildDir, 'jtreg-4.2.0-tip.tar.gz')
     // src 'https://builds.shipilev.net/jtreg/jtreg4.2-b16.zip'
     src 'https://builds.shipilev.net/jtreg/jtreg-6.2%2B1.zip'
-    dest new File(buildDir, 'jtreg.zip')
+    dest new File(layout.buildDirectory.get().asFile, 'jtreg.zip')
     overwrite true
     retries 3
     doLast {
@@ -1003,7 +1003,7 @@ subprojects {
                 dependsOn('compileTestJava')
                 dependsOn('shadowJar')
 
-                String jtregOutput = "${buildDir}/jtreg"
+                String jtregOutput = "${layout.buildDirectory}/jtreg"
                 String name = 'all'
                 String tests = '.'
                 doLast {
