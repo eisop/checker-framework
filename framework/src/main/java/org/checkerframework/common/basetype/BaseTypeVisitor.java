@@ -3127,7 +3127,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         if (methodTree != null) {
             List<AnnotatedTypeMirror> allowedExceptions =
                     atypeFactory.getAnnotatedType(methodTree).getThrownTypes();
-            if (allowedExceptions != null) {
+            if (!allowedExceptions.isEmpty()) {
                 for (AnnotatedTypeMirror exception : allowedExceptions) {
                     Types typesUtil = atypeFactory.getProcessingEnv().getTypeUtils();
                     if (typesUtil.isSubtype(
