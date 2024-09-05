@@ -6,5 +6,4 @@ all:
 	$(JAVAC) -processor org.checkerframework.checker.nullness.NullnessChecker Delta.java -cp bin/ -d bin/
 
 clean:
-	rm bin/*.class
-	rmdir bin
+	rm -rf bin

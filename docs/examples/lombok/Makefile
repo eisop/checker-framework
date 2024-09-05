@@ -18,5 +18,5 @@ all:
 endif
 
 clean:
-	../../../gradlew clean
+	- ../../../gradlew clean
 	rm -f Out.txt
