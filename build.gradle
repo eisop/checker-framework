@@ -618,26 +618,28 @@ task htmlValidate(type: Exec, group: 'Format') {
 }
 
 def javadocDirs = [
-    project(':checker-util').sourceSets.main.allJava,
-    project(':checker-util').sourceSets.test.allJava,
-    project(':checker-qual').sourceSets.main.allJava,
     project(':checker').sourceSets.main.allJava,
     project(':checker').sourceSets.test.allJava,
-    project(':framework').sourceSets.main.allJava,
-    project(':framework').sourceSets.test.allJava,
+    project(':checker-qual').sourceSets.main.allJava,
+    project(':checker-util').sourceSets.main.allJava,
+    project(':checker-util').sourceSets.test.allJava,
     project(':dataflow').sourceSets.main.allJava,
     project(':dataflow').sourceSets.test.allJava,
-    project(':javacutil').sourceSets.main.allJava,
+    project(':framework').sourceSets.main.allJava,
+    project(':framework').sourceSets.test.allJava,
     project(':framework-test').sourceSets.main.allJava,
-    project(':framework-test').sourceSets.test.allJava
+    project(':framework-test').sourceSets.test.allJava,
+    project(':javacutil').sourceSets.main.allJava
 ]
 
+def requireJavadocDirs = javadocDirs
+
 project(':checker').afterEvaluate {
-    javadocDirs += project(':checker').sourceSets.testannotations.allJava
+    requireJavadocDirs += project(':checker').sourceSets.testannotations.allJava
 }
 
 project(':framework').afterEvaluate {
-    javadocDirs += project(':framework').sourceSets.testannotations.allJava
+    requireJavadocDirs += project(':framework').sourceSets.testannotations.allJava
 }
 
 // `gradle allJavadoc` builds the Javadoc for all modules in `docs/api`.
@@ -695,7 +697,7 @@ task requireJavadoc(type: JavaExec, group: 'Documentation') {
     mainClass = 'org.plumelib.javadoc.RequireJavadoc'
     classpath = configurations.requireJavadoc
     // Convert each srcDir to its absolute path and flatten the list
-    args javadocDirs.collect { it.srcDirs*.absolutePath }.flatten()
+    args requireJavadocDirs.collect { it.srcDirs*.absolutePath }.flatten()
 }
 
 
