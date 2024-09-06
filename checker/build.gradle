@@ -236,8 +236,8 @@ artifacts {
 }
 
 clean {
-    delete "${projectDir}/dist"
-    delete 'tests/calledmethods-delomboked'
+    delete("${projectDir}/dist")
+    delete('tests/calledmethods-delomboked')
     delete('tests/ainfer-testchecker/annotated')
     delete('tests/ainfer-testchecker/inference-output')
     delete('tests/ainfer-nullness/annotated')
@@ -246,6 +246,17 @@ clean {
     delete('tests/ainfer-index/inference-output')
     delete('tests/ainfer-resourceleak/annotated')
     delete('tests/ainfer-resourceleak/inference-output')
+    delete('tests/build')
+    doLast {
+        exec {
+            workingDir = file('tests/command-line')
+            commandLine 'make', 'clean'
+        }
+        exec {
+            workingDir = file('tests/nullness-extra')
+            commandLine 'make', 'clean'
+        }
+    }
 }
 
 clean.doLast {
