@@ -413,19 +413,11 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
 
             // Base case where actual type argument is extracted
             if (lhs.getKind() == TypeKind.DECLARED) {
+                // Replace type variable with its actual type argument
                 rhs = getTypeVariableSubstitution((AnnotatedDeclaredType) lhs, atv);
-                // A type annotation on a use of a generic type variable overrides/ignores any type
-                // qualifier (in the same type hierarchy) on the corresponding actual type argument.
-                // See https://eisop.github.io/cf/manual/manual.html#type-variable-use
-                // However, #getTypeVariableSubstitution will replace the type qualifier with the
-                // qualifier on type variable declaration.
-                // Here check if the types of the lower and upper bound are the same. If they are:
-                // (1) If the type variable use is annotated, replacing the primary annotation of
-                // the substituted result (rhs) with the previous annotated type qualifier.
-                // (2) If the type variable use is not annotated and the type parameter is declared
-                // with the same upper and lower bounds, and doing the same replace as (1) is safe
-                // because the qualifiers of the substituted result (rhs) and the old type variable
-                // use (atv) are the same.
+                // If the type variable use is annotated, the upperbound and lowerbound annotation
+                // on the type variable are the same. Replace the primary annotation of the
+                // substituted result (rhs) with annotation on type variable use.
                 if (AnnotationUtils.areSame(
                         atv.getLowerBound().getAnnotations(),
                         atv.getUpperBound().getAnnotations())) {
