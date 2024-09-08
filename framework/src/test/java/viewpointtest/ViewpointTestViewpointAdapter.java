@@ -12,8 +12,10 @@ import viewpointtest.quals.Lost;
 import viewpointtest.quals.ReceiverDependentQual;
 import viewpointtest.quals.Top;
 
+/** The viewpoint adapter for the ViewpointTest checker. */
 public class ViewpointTestViewpointAdapter extends AbstractViewpointAdapter {
 
+    /** The {@link Top}, {@link ReceiverDependentQual} and {@Lost} annotation. */
     private final AnnotationMirror TOP, RECEIVERDEPENDENTQUAL, LOST;
 
     /**
