@@ -18,6 +18,7 @@ public class SuperConstructorCalls {
         }
 
         public Inner(@Top Object objTop) {
+            // :: error: (argument.type.incompatible)
             super(objTop);
         }
 
