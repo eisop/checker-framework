@@ -8,5 +8,5 @@ all:
 	grep -qF "Demo.java:8: error: [argument.type.incompatible] incompatible argument for parameter arg0 of Set.add." Out.txt
 
 clean:
-	../../../gradlew clean
+	- ../../../gradlew clean
 	rm -f Out.txt
