@@ -21,7 +21,11 @@ sourceSets {
             exclude '**/org/checkerframework/checker/resourceleak/MustCallInference.java'
         }
     }
-    testannotations
+    testannotations {
+        java {
+            srcDirs = ['src/testannotations/java']
+        }
+    }
 }
 
 sourcesJar {
