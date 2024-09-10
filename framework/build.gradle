@@ -28,7 +28,11 @@ sourceSets {
             exclude '**/org/checkerframework/framework/stub/ToIndexFileConverter.java'
         }
     }
-    testannotations
+    testannotations {
+        java {
+            srcDirs = ['src/testannotations/java']
+        }
+    }
 }
 
 sourcesJar {
