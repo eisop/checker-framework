@@ -72,8 +72,8 @@ public abstract class CFAbstractAnalysis<
         /** A field access that corresponds to the declaration of a field. */
         public final FieldAccess fieldDecl;
 
-        /** The value corresponding to the annotations on the declared type of the field. */
-        public final V declared;
+        /** The declared type of the field. */
+        public final AnnotatedTypeMirror declared;
 
         /** The value of the initializer of the field, or null if no initializer exists. */
         public final @Nullable V initializer;
@@ -82,12 +82,12 @@ public abstract class CFAbstractAnalysis<
          * Creates a new FieldInitialValue.
          *
          * @param fieldDecl a field access that corresponds to the declaration of a field
-         * @param declared value corresponding to the annotations on the declared type of {@code
-         *     field}
+         * @param declared declared type of {@code field}
          * @param initializer value of the initializer of {@code field}, or null if no initializer
          *     exists
          */
-        public FieldInitialValue(FieldAccess fieldDecl, V declared, @Nullable V initializer) {
+        public FieldInitialValue(
+                FieldAccess fieldDecl, AnnotatedTypeMirror declared, @Nullable V initializer) {
             this.fieldDecl = fieldDecl;
             this.declared = declared;
             this.initializer = initializer;
