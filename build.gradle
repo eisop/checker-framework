@@ -538,8 +538,10 @@ allprojects { currentProj ->
         ]
       }
 
-      // Error Prone depends on checker-qual.jar, so don't run it on that project to avoid a circular dependency.
-      if ((compilationTask.name.equals('compileJava') || compilationTask.name.equals('compileTestJava')) && !project.name.startsWith('checker-qual')) {
+      // TODO: enable Error Prone on test classes.
+      if (compilationTask.name.equals('compileJava')
+          // Error Prone depends on checker-qual.jar, so don't run it on that project to avoid a circular dependency.
+          && !project.name.startsWith('checker-qual')) {
         // Error Prone must be available in the annotation processor path
         options.annotationProcessorPath = errorproneProcessorCustom.get()
         // Enable Error Prone
