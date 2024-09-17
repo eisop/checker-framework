@@ -30,9 +30,9 @@ public class NullnessNoInitSubchecker extends BaseTypeChecker {
   }
 
   @Override
-  protected Set<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
-    Set<Class<? extends BaseTypeChecker>> checkers = super.getImmediateSubcheckerClasses();
-    if (!hasOption("assumeKeyFor")) {
+  protected Set<Class<? extends SourceChecker>> getImmediateSubcheckerClasses() {
+    Set<Class<? extends SourceChecker>> checkers = super.getImmediateSubcheckerClasses();
+    if (!hasOptionNoSubcheckers("assumeKeyFor")) {
       checkers.add(KeyForSubchecker.class);
     }
     checkers.add(InitializationFieldAccessSubchecker.class);

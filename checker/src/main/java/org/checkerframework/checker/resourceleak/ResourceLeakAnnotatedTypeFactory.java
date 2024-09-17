@@ -34,6 +34,7 @@ import org.checkerframework.dataflow.cfg.node.LocalVariableNode;
 import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.framework.flow.CFStore;
+import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.util.Contract;
@@ -379,8 +380,7 @@ public class ResourceLeakAnnotatedTypeFactory extends CalledMethodsAnnotatedType
   @Override
   @SuppressWarnings("TypeParameterUnusedInFormals") // Intentional abuse
   public <T extends GenericAnnotatedTypeFactory<?, ?, ?, ?>>
-      @Nullable T getTypeFactoryOfSubcheckerOrNull(
-          Class<? extends BaseTypeChecker> subCheckerClass) {
+      @Nullable T getTypeFactoryOfSubcheckerOrNull(Class<? extends SourceChecker> subCheckerClass) {
     if (subCheckerClass == MustCallChecker.class) {
       if (!canCreateObligations()) {
         return super.getTypeFactoryOfSubcheckerOrNull(MustCallNoCreatesMustCallForChecker.class);

@@ -86,6 +86,7 @@ import org.checkerframework.framework.qual.QualifierForLiterals;
 import org.checkerframework.framework.qual.RelevantJavaTypes;
 import org.checkerframework.framework.qual.RequiresQualifier;
 import org.checkerframework.framework.qual.TypeUseLocation;
+import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.poly.DefaultQualifierPolymorphism;
@@ -2346,7 +2347,7 @@ public abstract class GenericAnnotatedTypeFactory<
    */
   @SuppressWarnings("TypeParameterUnusedInFormals") // Intentional abuse
   public final <T extends GenericAnnotatedTypeFactory<?, ?, ?, ?>> T getTypeFactoryOfSubchecker(
-      Class<? extends BaseTypeChecker> subCheckerClass) {
+      Class<? extends SourceChecker> subCheckerClass) {
     T result = getTypeFactoryOfSubcheckerOrNull(subCheckerClass);
     if (result == null) {
       throw new TypeSystemError(
@@ -2373,12 +2374,13 @@ public abstract class GenericAnnotatedTypeFactory<
    */
   @SuppressWarnings("TypeParameterUnusedInFormals") // Intentional abuse
   public <T extends GenericAnnotatedTypeFactory<?, ?, ?, ?>>
-      @Nullable T getTypeFactoryOfSubcheckerOrNull(
-          Class<? extends BaseTypeChecker> subCheckerClass) {
-    BaseTypeChecker subchecker = checker.getSubchecker(subCheckerClass);
-    if (subchecker == null) {
+      @Nullable T getTypeFactoryOfSubcheckerOrNull(Class<? extends SourceChecker> subCheckerClass) {
+    SourceChecker subSouceChecker = checker.getSubchecker(subCheckerClass);
+    if (subSouceChecker == null || !(subSouceChecker instanceof BaseTypeChecker)) {
       return null;
     }
+
+    BaseTypeChecker subchecker = (BaseTypeChecker) subSouceChecker;
 
     @SuppressWarnings(
         "unchecked" // This might not be safe, but the caller of the method should use the
