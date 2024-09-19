@@ -84,7 +84,7 @@ dependencies {
     // For the Resource Leak Checker's support for JavaEE.
     testImplementation 'javax.servlet:javax.servlet-api:4.0.1'
     // For the Resource Leak Checker's support for IOUtils.
-    testImplementation 'commons-io:commons-io:2.16.1'
+    testImplementation 'commons-io:commons-io:2.17.0'
     // For the Nullness Checker test of junit-assertions.astub in JUnitNull.java
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.11.0'
     testImplementation 'org.apiguardian:apiguardian-api:1.1.2'
