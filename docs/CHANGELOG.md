@@ -1,3 +1,13 @@
+Version 3.48.1 (November 1, 2024)
+--------------------------------
+
+**User-visible changes:**
+
+**Implementation details:**
+
+**Closed issues:**
+
+
 Version 3.48.0 (October 2, 2024)
 --------------------------------
 
@@ -6,8 +16,8 @@ Version 3.48.0 (October 2, 2024)
 The new SqlQuotesChecker prevents errors in quoting in SQL queries.  It prevents
 injection attacks that exploit quoting errors.
 
-Aggregate Checkers now interleave error messages so that all errors about a line of code
-appear together.
+Aggregate Checkers now interleave error messages so that all errors about a line of code appear
+together.
 (EISOP note: some signatures changed from `BaseTypeChecker` to `SourceChecker`,
 which might require adaptation in checkers.)
 
