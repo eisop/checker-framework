@@ -18,8 +18,8 @@ public class SuperConstructorCalls {
         }
 
         // The constructor's return type is implicitly @Top by default.
-        // When calling the super constructor, @Top becomes @Lost in the super constructor's signature,
-        // causing a type mismatch with the expected @ReceiverDependentQual parameter.
+        // When calling the super constructor, @Top becomes @Lost in the super constructor's
+        // signature, causing a type mismatch with the expected @ReceiverDependentQual parameter.
         public Inner(@Top Object objTop) {
             // :: error: (argument.type.incompatible)
             super(objTop);
