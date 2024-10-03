@@ -4,9 +4,12 @@ import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.type.AbstractViewpointAdapter;
 import org.checkerframework.framework.type.QualifierHierarchy;
+import org.checkerframework.javacutil.AnnotationBuilder;
 
 import java.lang.annotation.Annotation;
 import java.util.Set;
+
+import javax.lang.model.element.AnnotationMirror;
 
 import viewpointtest.quals.A;
 import viewpointtest.quals.B;
@@ -17,6 +20,9 @@ import viewpointtest.quals.ReceiverDependentQual;
 import viewpointtest.quals.Top;
 
 public class ViewpointTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
+
+    /** The {@link Top} annotation. */
+    public final AnnotationMirror TOP = AnnotationBuilder.fromClass(elements, Top.class);
 
     public ViewpointTestAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);

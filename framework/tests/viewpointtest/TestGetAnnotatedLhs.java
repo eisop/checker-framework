@@ -20,6 +20,7 @@ class TestGetAnnotatedLhs {
     @SuppressWarnings({"cast.unsafe.constructor.invocation"})
     void topWithRefinement() {
         TestGetAnnotatedLhs a = new @A TestGetAnnotatedLhs();
+        // :: error: (new.class.type.invalid)
         TestGetAnnotatedLhs top = new @Top TestGetAnnotatedLhs();
         top = a;
         // When checking the below assignment, GenericAnnotatedTypeFactory#getAnnotatedTypeLhs()
@@ -35,6 +36,7 @@ class TestGetAnnotatedLhs {
 
     @SuppressWarnings({"cast.unsafe.constructor.invocation"})
     void topWithoutRefinement() {
+        // :: error: (new.class.type.invalid)
         TestGetAnnotatedLhs top = new @Top TestGetAnnotatedLhs();
         // :: error: (assignment.type.incompatible)
         top.f = new @B Object();

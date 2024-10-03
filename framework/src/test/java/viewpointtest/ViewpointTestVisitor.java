@@ -1,0 +1,23 @@
+package viewpointtest;
+
+import com.sun.source.tree.NewClassTree;
+
+import org.checkerframework.common.basetype.BaseTypeChecker;
+import org.checkerframework.common.basetype.BaseTypeVisitor;
+import org.checkerframework.framework.type.AnnotatedTypeMirror;
+
+public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotatedTypeFactory> {
+
+    public ViewpointTestVisitor(BaseTypeChecker checker) {
+        super(checker);
+    }
+
+    @Override
+    public Void visitNewClass(NewClassTree tree, Void p) {
+        AnnotatedTypeMirror Type = atypeFactory.getAnnotatedType(tree);
+        if (Type.hasAnnotation(atypeFactory.TOP)) {
+            checker.reportError(tree, "new.class.type.invalid", Type.getAnnotations());
+        }
+        return super.visitNewClass(tree, p);
+    }
+}
