@@ -73,7 +73,7 @@ dependencies {
   implementation "org.plumelib:plume-util:${versions.plumeUtil}"
   implementation "org.plumelib:reflection-util:${versions.reflectionUtil}"
   // Add this dependency if needed to debug classpath issues.
-  // implementation 'io.github.classgraph:classgraph:4.8.176'
+  // implementation 'io.github.classgraph:classgraph:4.8.177'
 
   testImplementation "junit:junit:${versions.junit}"
   testImplementation project(':framework-test')
