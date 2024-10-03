@@ -6,8 +6,13 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 
+/** The visitor for the viewpointtest type-system. */
 public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotatedTypeFactory> {
-
+    /**
+     * Create a new ViewpointTestVisitor.
+     *
+     * @param checker the checker to which this visitor belongs
+     */
     public ViewpointTestVisitor(BaseTypeChecker checker) {
         super(checker);
     }

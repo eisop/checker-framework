@@ -19,11 +19,17 @@ import viewpointtest.quals.PolyVP;
 import viewpointtest.quals.ReceiverDependentQual;
 import viewpointtest.quals.Top;
 
+/** The annotated type factory for the viewpointtest type-system. */
 public class ViewpointTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     /** The {@link Top} annotation. */
     public final AnnotationMirror TOP = AnnotationBuilder.fromClass(elements, Top.class);
 
+    /**
+     * Create a new ViewpointTestAnnotatedTypeFactory.
+     *
+     * @param checker the checker to which this annotated type factory belongs
+     */
     public ViewpointTestAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         this.postInit();
