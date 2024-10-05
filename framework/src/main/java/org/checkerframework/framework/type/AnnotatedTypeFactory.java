@@ -2969,7 +2969,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         p.addAll(superCon.getParameterTypes());
         con.setParameterTypes(Collections.unmodifiableList(p));
       }
-      con.getReturnType().replaceAnnotations(superCon.getReturnType().getAnnotations());
+      Set<? extends AnnotationMirror> lub =
+          qualHierarchy.leastUpperBoundsShallow(
+              type.getPrimaryAnnotations(),
+              type.getUnderlyingType(),
+              superCon.getReturnType().getPrimaryAnnotations(),
+              superCon.getReturnType().getUnderlyingType());
+      con.getReturnType().replaceAnnotations(lub);
     } else {
       // Store varargType before calling setParameterTypes, otherwise we may lose the
       // varargType as it is the last element of the original parameterTypes.
