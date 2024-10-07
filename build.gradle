@@ -300,7 +300,7 @@ allprojects {
 
                 googleJavaFormat().aosp()
                 importOrder('com', 'jdk', 'lib', 'lombok', 'org', 'java', 'javax')
-                formatAnnotations().addTypeAnnotation("PolyInitialized")
+                formatAnnotations().addTypeAnnotation("PolyInitialized").addTypeAnnotation("A").addTypeAnnotation("B").addTypeAnnotation("Bottom").addTypeAnnotation("PolyVP").addTypeAnnotation("ReceiverDependentQual").addTypeAnnotation("Top")
             }
 
             groovyGradle {
