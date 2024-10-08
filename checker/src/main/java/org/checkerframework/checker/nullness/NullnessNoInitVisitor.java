@@ -170,22 +170,6 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
   }
 
   @Override
-  protected void checkConstructorResult(
-      AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {
-    // Constructor results are always @NonNull. Other annotations are forbidden by
-    // #visitMethod.
-    // Nothing to check.
-  }
-
-  @Override
-  protected void checkThisOrSuperConstructorCall(
-      MethodInvocationTree superCall, @CompilerMessageKey String errorKey) {
-    // Constructor results are always @NonNull, so the result type of a this/super call is
-    // always equal to the result type of the current constructor.
-    // Nothing to check.
-  }
-
-  @Override
   protected boolean commonAssignmentCheck(
       Tree varTree,
       ExpressionTree valueExp,
@@ -840,11 +824,17 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
       checkForNullability(enclosingExpr, DEREFERENCE_OF_NULLABLE);
     }
 
-    AnnotatedTypeMirror.AnnotatedDeclaredType type = atypeFactory.getAnnotatedType(tree);
-    if (type.hasEffectiveAnnotation(NULLABLE)
-        || type.hasEffectiveAnnotation(MONOTONIC_NONNULL)
-        || type.hasEffectiveAnnotation(POLYNULL)) {
-      checker.reportError(tree, "nullness.on.new.object");
+    AnnotationMirrorSet explicitAnnos = atypeFactory.getExplicitNewClassAnnos(tree);
+    AnnotationMirror nullnessAnno =
+        qualHierarchy.findAnnotationInSameHierarchy(explicitAnnos, NONNULL);
+    if (nullnessAnno != null) {
+      if (atypeFactory.areSameByClass(nullnessAnno, NonNull.class)) {
+        if (warnRedundantAnnotations) {
+          checker.reportWarning(tree, "redundant.anno", NONNULL);
+        }
+      } else {
+        checker.reportWarning(tree, "new.class");
+      }
     }
     return super.visitNewClass(tree, p);
   }
