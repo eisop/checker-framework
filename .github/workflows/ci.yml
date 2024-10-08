@@ -65,12 +65,20 @@ jobs:
       fail-fast: true
       matrix:
         # No need to run 'cftests-junit-jdk21' on JDK 21.
-        script: ['typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib', 'daikon-part1', 'daikon-part2', 'jspecify-conformance', 'jspecify-reference-checker']
+        script: ['typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib', 'daikon-part1', 'daikon-part2', 'jspecify-conformance', 'jspecify-reference-checker', 'misc']
         java_version: [21]
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
     steps:
     - uses: actions/checkout@v4
+      if: matrix.script != 'misc'
+      with:
+        fetch-depth: 1
+    - uses: actions/checkout@v4
+      if: matrix.script == 'misc'
+      with:
+        # CI diff needs more history - 0 fetches all history.
+        fetch-depth: 0
     - name: Set up JDK ${{ matrix.java_version }}
       uses: actions/setup-java@v4
       with:
@@ -81,7 +89,12 @@ jobs:
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4.1.0
-
+      # Setup for misc tests
+    - name: Install shellcheck and checkbashisms
+      if: matrix.script == 'misc'
+      run: |
+        sudo apt install shellcheck devscripts python3-pip
+        pip install black flake8 html5validator
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
       run: ./checker/bin-devel/test-${{ matrix.script }}.sh
 
@@ -95,7 +108,7 @@ jobs:
       fail-fast: true
       matrix:
         # jspecify-conformance and jspecify-reference-checker only tested on JDK 21.
-        script: ['cftests-junit', 'cftests-nonjunit', 'cftests-junit-jdk21', 'typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib', 'daikon-part1', 'daikon-part2']
+        script: ['cftests-junit', 'cftests-nonjunit', 'cftests-junit-jdk21', 'typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib', 'daikon-part1', 'daikon-part2', 'misc']
         # JDK 21 used by sanity before
         java: [{version: '8', experimental: false},
           {version: '11', experimental: false},
@@ -108,6 +121,14 @@ jobs:
     continue-on-error: ${{ matrix.java.experimental }}
     steps:
     - uses: actions/checkout@v4
+      if: matrix.script != 'misc'
+      with:
+        fetch-depth: 1
+    - uses: actions/checkout@v4
+      if: matrix.script == 'misc'
+      with:
+        # CI diff needs more history - 0 fetches all history.
+        fetch-depth: 0
     - name: Set up JDK ${{ matrix.java.version }}
       uses: actions/setup-java@v4
       with:
@@ -126,7 +147,12 @@ jobs:
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4.1.0
-
+      # Setup for misc tests
+    - name: Install shellcheck and checkbashisms
+      if: matrix.script == 'misc'
+      run: |
+        sudo apt install shellcheck devscripts python3-pip
+        pip install black flake8 html5validator
     - name: Setup Bazel
       uses: bazel-contrib/setup-bazel@0.9.0
       if: matrix.script == 'cftests-nonjunit'
@@ -137,7 +163,6 @@ jobs:
         disk-cache: ${{ github.workflow }}
         # Share repository cache between workflows.
         repository-cache: true
-
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
       run: ./checker/bin-devel/test-${{ matrix.script }}.sh
       # TODO: it would be nicer to not run the job at all, but GH Actions does
