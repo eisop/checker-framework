@@ -4,7 +4,6 @@ public class PolyConstructor {
 
     static class MyClass {
         @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
-
         @PolyVP MyClass(@PolyVP Object o) {
             throw new RuntimeException(" * You are filled with DETERMINATION."); // stub
         }
