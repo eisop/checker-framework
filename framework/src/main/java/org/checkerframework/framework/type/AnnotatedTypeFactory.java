@@ -3692,12 +3692,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
    * <p>The point of {@code annotationToUse} is that it may include elements/fields.
    *
    * @param alias the class of the alias annotation
-   * @param annotation the class of the canonical annotation
+   * @param annotationClass the class of the canonical annotation
    * @param annotationToUse the annotation mirror to use
    */
   protected void addAliasedDeclAnnotation(
       Class<? extends Annotation> alias,
-      Class<? extends Annotation> annotation,
+      Class<? extends Annotation> annotationClass,
       AnnotationMirror annotationToUse) {
     addAliasedDeclAnnotation(
         alias.getCanonicalName(), annotation.getCanonicalName(), annotationToUse);
@@ -3718,17 +3718,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
       @FullyQualifiedName String alias,
       @FullyQualifiedName String annotation,
       AnnotationMirror annotationToUse) {
-    Map<@FullyQualifiedName String, AnnotationMirror> mapping = declAliases.get(annotation);
-    if (mapping == null) {
-      mapping = new HashMap<>(1);
-      declAliases.put(annotation, mapping);
-    }
-    AnnotationMirror prev = mapping.put(alias, annotationToUse);
-    // There already was a mapping. Raise an error.
-    if (prev != null && !AnnotationUtils.areSame(prev, annotationToUse)) {
-      throw new TypeSystemError(
-          "Multiple aliases for %s: %s cannot map to %s and %s.",
-          annotation, alias, prev, annotationToUse);
+    IPair<AnnotationMirror, Set<Class<? extends Annotation>>> pair =
+        declAliases.get(annotationClass);
+    if (pair != null) {
+      if (!AnnotationUtils.areSame(annotationToUse, pair.first)) {
+        throw new BugInCF("annotationToUse should be the same: %s %s", pair.first, annotationToUse);
+      }
+    } else {
+      pair = IPair.of(annotationToUse, new HashSet<>());
+      declAliases.put(annotationClass, pair);
     }
   }
 
@@ -4033,12 +4031,21 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
    *
    * @see #getDeclAnnotationNoAliases
    * @param elt the element to retrieve the declaration annotation from
-   * @param anno annotation class
-   * @return the annotation mirror for anno
+   * @param annoClass annotation class
+   * @return the annotation mirror for annoClass
    */
   @Override
-  public final AnnotationMirror getDeclAnnotation(Element elt, Class<? extends Annotation> anno) {
-    AnnotationMirror result = getDeclAnnotation(elt, anno, true);
+  public final AnnotationMirror getDeclAnnotation(
+      Element elt, Class<? extends Annotation> annoClass) {
+    logGat("entering getDeclAnnotation(%s [%s], %s)%n", elt, elt.getKind(), annoClass);
+    if (debugGat) {
+      if (elt.toString().equals("java.lang.CharSequence")) {
+        new Error("stack trace").printStackTrace();
+      }
+    }
+    AnnotationMirror result = getDeclAnnotation(elt, annoClass, true);
+    logGat(
+        "  exiting getDeclAnnotation(%s [%s], %s) => %s%n", elt, elt.getKind(), annoClass, result);
     return result;
   }
 
@@ -4056,12 +4063,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
    *
    * @see #getDeclAnnotation
    * @param elt the element to retrieve the declaration annotation from
-   * @param anno annotation class
-   * @return the annotation mirror for anno
+   * @param annoClass annotation class
+   * @return the annotation mirror for annoClass
    */
   public final @Nullable AnnotationMirror getDeclAnnotationNoAliases(
-      Element elt, Class<? extends Annotation> anno) {
-    return getDeclAnnotation(elt, anno, false);
+      Element elt, Class<? extends Annotation> annoClass) {
+    return getDeclAnnotation(elt, annoClass, false);
   }
 
   /**
@@ -5642,8 +5649,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
   /**
    * Checks that the annotation {@code am} has the name of {@code annoClass}. Values are ignored.
    *
-   * <p>This method is faster than {@link AnnotationUtils#areSameByClass(AnnotationMirror, Class)}
-   * because it caches the name of the class rather than computing it each time.
+   * <p>In the end, all annotation comparisons are by name. This method is faster than {@link
+   * AnnotationUtils#areSameByClass(AnnotationMirror, Class)} because it caches the name of {@code
+   * annoClass} rather than computing it on each invocation of this method.
    *
    * @param am the AnnotationMirror whose class to compare
    * @param annoClass the class to compare
@@ -5660,35 +5668,38 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
   /**
    * Checks that the collection contains the annotation. Using {@code Collection.contains} does not
-   * always work, because it does not use {@code areSame()} for comparison.
+   * always work, because it does not use {@link AnnotationUtils#areSame} for comparison.
    *
-   * <p>This method is faster than {@link AnnotationUtils#containsSameByClass(Collection, Class)}
-   * because is caches the name of the class rather than computing it each time.
+   * <p>In the end, all annotation comparisons are by name. This method is faster than {@link
+   * AnnotationUtils#containsSameByClass(Collection, Class)} because it (actually, its callee)
+   * caches the name of {@code annoClass} rather than computing it each time.
    *
    * @param c a collection of AnnotationMirrors
-   * @param anno the annotation class to search for in c
-   * @return true iff c contains anno, according to areSameByClass
+   * @param annoClass the annotation class to search for in c
+   * @return true iff c contains an annotation of class annoClass, according to {@link
+   *     #areSameByClass}
    */
   public boolean containsSameByClass(
-      Collection<? extends AnnotationMirror> c, Class<? extends Annotation> anno) {
-    return getAnnotationByClass(c, anno) != null;
+      Collection<? extends AnnotationMirror> c, Class<? extends Annotation> annoClass) {
+    return getAnnotationByClass(c, annoClass) != null;
   }
 
   /**
-   * Returns the AnnotationMirror in {@code c} that has the same class as {@code anno}.
+   * Returns the AnnotationMirror in {@code c} that has class {@code annoClass}.
    *
    * <p>This method is faster than {@link AnnotationUtils#getAnnotationByClass(Collection, Class)}
-   * because is caches the name of the class rather than computing it each time.
+   * because it (actually, its callee) caches the name of the class rather than computing it each
+   * time.
    *
    * @param c a collection of AnnotationMirrors
-   * @param anno the class to search for in c
-   * @return AnnotationMirror with the same class as {@code anno} iff c contains anno, according to
+   * @param annoClass the class to search for in c
+   * @return an AnnotationMirror with class {@code annoClass} iff c contains one, according to
    *     areSameByClass; otherwise, {@code null}
    */
   public @Nullable AnnotationMirror getAnnotationByClass(
-      Collection<? extends AnnotationMirror> c, Class<? extends Annotation> anno) {
+      Collection<? extends AnnotationMirror> c, Class<? extends Annotation> annoClass) {
     for (AnnotationMirror an : c) {
-      if (areSameByClass(an, anno)) {
+      if (areSameByClass(an, annoClass)) {
         return an;
       }
     }
