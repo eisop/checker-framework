@@ -4,10 +4,9 @@ public class PolyConstructor {
 
     static class MyClass {
         @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
-        @PolyVP
-        MyClass(@PolyVP Object o) {
-            // :: warning: (cast.unsafe.constructor.invocation)
-            throw new @A RuntimeException(" * You are filled with DETERMINATION."); // stub
+
+        @PolyVP MyClass(@PolyVP Object o) {
+            throw new RuntimeException(" * You are filled with DETERMINATION."); // stub
         }
     }
 
