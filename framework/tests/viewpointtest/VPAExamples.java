@@ -3,8 +3,7 @@ import viewpointtest.quals.*;
 public class VPAExamples {
 
     static class RDContainer {
-        @ReceiverDependentQual
-        Object get() {
+        @ReceiverDependentQual Object get() {
             return null;
         }
 
