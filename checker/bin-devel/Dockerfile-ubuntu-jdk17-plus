@@ -76,7 +76,11 @@ RUN export DEBIAN_FRONTEND=noninteractive \
   texlive-fonts-recommended \
   texlive-latex-base \
   texlive-latex-extra \
-  texlive-latex-recommended
+  texlive-latex-recommended \
+
+RUN curl -LO https://github.com/bazelbuild/bazelisk/releases/download/v1.10.1/bazelisk-linux-amd64 \
+    && chmod +x bazelisk-linux-amd64 \
+    && mv bazelisk-linux-amd64 /usr/local/bin/bazelisk
 
 RUN pip3 install --no-cache-dir black flake8 html5validator lithium-reducer PyGithub pyyaml
 
