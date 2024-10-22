@@ -349,6 +349,13 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                     type.toString());
         }
 
+        List<? extends AnnotationMirror> annotations =
+                TreeUtils.annotationsFromArrayCreation(tree, 0);
+        if (AnnotationUtils.containsSame(annotations, NULLABLE)
+                || AnnotationUtils.containsSame(annotations, MONOTONIC_NONNULL)
+                || AnnotationUtils.containsSame(annotations, POLYNULL)) {
+            checker.reportWarning(tree, "new.array.nullable.ignored");
+        }
         return super.visitNewArray(tree, p);
     }
 
