@@ -2414,9 +2414,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     AnnotatedTypeMirror ret = null;
     if (enclosing.getKind() == Tree.Kind.METHOD) {
-
-      MethodTree enclosingMethod = TreePathUtil.enclosingMethod(getCurrentPath());
-      boolean valid = validateTypeOf(enclosing);
+      MethodTree enclosingMethod = (MethodTree) enclosing;
+      boolean valid = validateTypeOf(enclosingMethod);
       if (valid) {
         ret = atypeFactory.getMethodReturnType(enclosingMethod, tree);
       }
