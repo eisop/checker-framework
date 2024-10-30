@@ -79,7 +79,9 @@ import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.Contract;
 import org.checkerframework.framework.util.ContractsFromMethod;
+import org.checkerframework.framework.util.DefaultContractsFromMethod;
 import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
+import org.checkerframework.framework.util.NoContractsFromMethod;
 import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.framework.util.defaults.QualifierDefaults;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
@@ -729,12 +731,13 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * Creates an {@link ContractsFromMethod} and returns it.
+     * Creates an {@link DefaultContractsFromMethod} and returns it. If contract annotations are not
+     * used for a type system, override this method and return a {@link NoContractsFromMethod}.
      *
      * @return a new {@link ContractsFromMethod}
      */
     protected ContractsFromMethod createContractsFromMethod() {
-        return new ContractsFromMethod(this);
+        return new DefaultContractsFromMethod(this);
     }
 
     /**
