@@ -163,7 +163,7 @@ jobs:
       contents: read
     strategy:
       matrix:
-        os: ['windows-latest', 'macos-13']
+        os: ['windows-latest', 'macos-14']
         script: ['cftests-junit']
         java_version: [21]
     env:
