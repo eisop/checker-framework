@@ -163,7 +163,7 @@ jobs:
       contents: read
     strategy:
       matrix:
-        os: ['windows-latest', 'macos-14']
+        os: ['windows-latest', 'macos-13']
         script: ['cftests-junit']
         java_version: [21]
     env:
@@ -182,7 +182,7 @@ jobs:
       uses: gradle/actions/setup-gradle@v4.1.0
 
     - name: Install coreutils on MacOS
-      if: matrix.os == 'macos-14'
+      if: matrix.os == 'macos-13'
       run: brew install coreutils
 
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
