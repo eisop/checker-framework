@@ -182,7 +182,7 @@ jobs:
       uses: gradle/actions/setup-gradle@v4.1.0
 
     - name: Install coreutils on MacOS
-      if: matrix.os == 'macos-latest'
+      if: matrix.os == 'macos-14'
       run: brew install coreutils
 
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
