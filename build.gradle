@@ -74,7 +74,7 @@ ext {
 
     versions = [
         autoValue       : '1.11.0',
-        errorprone      : '2.34.0',
+        errorprone      : '2.35.1',
         hashmapUtil     : '0.0.1',
         junit           : '4.13.2',
         lombok          : '1.18.34',
@@ -492,7 +492,7 @@ allprojects {
                 // Error Prone must be available in the annotation processor path
                 options.annotationProcessorPath = configurations.errorprone
                 // Enable Error Prone
-                options.errorprone.enabled = !isJava8
+                options.errorprone.enabled = (currentRuntimeJavaVersion >= 17) && (currentRuntimeJavaVersion <= 23)
                 options.errorprone.disableWarningsInGeneratedCode = true
                 options.errorprone.errorproneArgs = [
                     // Many compiler classes are interned.
