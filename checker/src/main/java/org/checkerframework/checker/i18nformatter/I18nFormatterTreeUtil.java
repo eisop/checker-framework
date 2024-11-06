@@ -406,11 +406,13 @@ public class I18nFormatterTreeUtil {
                     type = FormatType.I18NFORMATFOR;
                 } else {
                     type = FormatType.I18NINVALID;
-                    invalidMessage = "(is a @I18nFormat annotation missing?)";
                     AnnotationMirror inv = formatAnno.getAnnotation(I18nInvalidFormat.class);
                     if (inv != null) {
                         invalidMessage = getI18nInvalidFormatValue(inv);
+                    } else {
+                        invalidMessage = "(is a @I18nFormat annotation missing?)";
                     }
+                    System.err.println("XXX invalidMessage: " + invalidMessage);
                 }
             } else {
                 // If the FormatFor is invalid, it's still I18nFormatFor type but invalid,
