@@ -412,7 +412,6 @@ public class I18nFormatterTreeUtil {
                     } else {
                         invalidMessage = "(is a @I18nFormat annotation missing?)";
                     }
-                    System.err.println("XXX invalidMessage: " + invalidMessage);
                 }
             } else {
                 // If the FormatFor is invalid, it's still I18nFormatFor type but invalid,
