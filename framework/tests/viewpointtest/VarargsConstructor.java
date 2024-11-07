@@ -7,8 +7,7 @@ public class VarargsConstructor {
     VarargsConstructor(String str, Object... args) {}
 
     @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
-    @ReceiverDependentQual
-    VarargsConstructor(@ReceiverDependentQual Object... args) {}
+    @ReceiverDependentQual VarargsConstructor(@ReceiverDependentQual Object... args) {}
 
     void foo() {
         VarargsConstructor a = new VarargsConstructor("testStr", new Object());
@@ -26,8 +25,7 @@ public class VarargsConstructor {
 
     class Inner {
         @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
-        @ReceiverDependentQual
-        Inner(@ReceiverDependentQual Object... args) {}
+        @ReceiverDependentQual Inner(@ReceiverDependentQual Object... args) {}
 
         void foo() {
             Inner a = new Inner();
