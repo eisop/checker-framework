@@ -1010,6 +1010,11 @@ public class QualifierDefaults {
             // Some defaults only apply to the top level type.
             boolean isTopLevelType = t == outer.type;
             switch (outer.location) {
+                case TYPE:
+                    if (outer.scope != null && outer.scope.getKind().isClass()) {
+                        outer.addAnnotation(t, qual);
+                    }
+                    break;
                 case FIELD:
                     if (outer.scope != null
                             && outer.scope.getKind() == ElementKind.FIELD
