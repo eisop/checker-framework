@@ -3,8 +3,7 @@ import viewpointtest.quals.B;
 import viewpointtest.quals.ReceiverDependentQual;
 import viewpointtest.quals.Top;
 
-@ReceiverDependentQual
-class TestGetAnnotatedLhs {
+@ReceiverDependentQual class TestGetAnnotatedLhs {
     @ReceiverDependentQual Object f;
 
     @SuppressWarnings({
@@ -12,8 +11,7 @@ class TestGetAnnotatedLhs {
         "super.invocation.invalid",
         "cast.unsafe.constructor.invocation"
     })
-    @ReceiverDependentQual
-    TestGetAnnotatedLhs() {
+    @ReceiverDependentQual TestGetAnnotatedLhs() {
         this.f = new @ReceiverDependentQual Object();
     }
 

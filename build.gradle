@@ -18,7 +18,7 @@ plugins {
     id 'de.undercouch.download' version '5.6.0'
     id 'java'
     // https://github.com/tbroyer/gradle-errorprone-plugin
-    id 'net.ltgt.errorprone' version '3.1.0'
+    id 'net.ltgt.errorprone' version '4.1.0'
     // https://docs.gradle.org/current/userguide/eclipse_plugin.html
     id 'eclipse'
     // To show task list as a tree, run: ./gradlew <taskname> taskTree
@@ -74,7 +74,7 @@ ext {
 
     versions = [
         autoValue       : '1.11.0',
-        errorprone      : '2.31.0',
+        errorprone      : '2.35.1',
         hashmapUtil     : '0.0.1',
         junit           : '4.13.2',
         lombok          : '1.18.34',
@@ -300,7 +300,7 @@ allprojects {
 
                 googleJavaFormat().aosp()
                 importOrder('com', 'jdk', 'lib', 'lombok', 'org', 'java', 'javax')
-                formatAnnotations().addTypeAnnotation("PolyInitialized")
+                formatAnnotations().addTypeAnnotation("PolyInitialized").addTypeAnnotation("PolyVP").addTypeAnnotation("ReceiverDependentQual")
             }
 
             groovyGradle {
@@ -317,6 +317,11 @@ allprojects {
     test {
         minHeapSize = "256m" // initial heap size
         maxHeapSize = "4g" // maximum heap size
+    }
+
+    // configurations.errorprone is no longer resolvable, work around this.
+    def errorproneProcessorCustom = configurations.resolvable("errorproneProcessorCustom") {
+        extendsFrom(configurations.errorprone)
     }
 
     // After all the tasks have been created, modify some of them.
@@ -490,9 +495,9 @@ allprojects {
             // Error Prone depends on checker-qual.jar, so don't run it on that project to avoid a circular dependency.
             if ((compilationTask.name.equals('compileJava') || compilationTask.name.equals('compileTestJava')) && !project.name.startsWith('checker-qual')) {
                 // Error Prone must be available in the annotation processor path
-                options.annotationProcessorPath = configurations.errorprone
+                options.annotationProcessorPath = errorproneProcessorCustom.get()
                 // Enable Error Prone
-                options.errorprone.enabled = !isJava8
+                options.errorprone.enabled = (useJdkCompiler >= 17) && (useJdkCompiler <= 23)
                 options.errorprone.disableWarningsInGeneratedCode = true
                 options.errorprone.errorproneArgs = [
                     // Many compiler classes are interned.
@@ -873,7 +878,12 @@ subprojects {
         //  * Temporarily comment out "-Werror" elsewhere in this file
         //  * Repeatedly run `./gradlew clean compileJava` and fix all errors
         //  * Uncomment "-Werror"
-        errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: versions.errorprone
+        if (currentRuntimeJavaVersion >= 17) {
+            errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: versions.errorprone
+        } else {
+            // EP 2.31.0 is the last release that works on Java < 17.
+            errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: '2.31.0'
+        }
 
         // TODO: it's a bug that annotatedlib:guava requires the error_prone_annotations dependency.
         annotatedGuava "com.google.errorprone:error_prone_annotations:${versions.errorprone}"
