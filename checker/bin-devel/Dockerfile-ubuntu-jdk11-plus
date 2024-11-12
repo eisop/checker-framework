@@ -77,7 +77,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
   texlive-latex-extra \
   texlive-latex-recommended
 
-RUN curl -LO https://github.com/bazelbuild/bazelisk/releases/download/v1.23.0/bazelisk-linux-amd64 \
+RUN wget https://github.com/bazelbuild/bazelisk/releases/download/v1.23.0/bazelisk-linux-amd64 \
     && chmod +x bazelisk-linux-amd64 \
     && mv bazelisk-linux-amd64 /usr/local/bin/bazelisk
 
