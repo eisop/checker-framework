@@ -26,6 +26,8 @@ RUN export DEBIAN_FRONTEND=noninteractive \
   openjdk-17-jdk \
   openjdk-22-jdk
 
+# Known good combinations of JTReg and the JDK appear at https://builds.shipilev.net/jtreg/ .
+
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get -qqy update \
 && aptitude -y install \
@@ -42,7 +44,9 @@ RUN export DEBIAN_FRONTEND=noninteractive \
   python3-distutils \
   python3-requests \
   unzip \
-  wget
+  wget \
+&& aptitude -y install \
+  jtreg7
 
 # Maven 3.8.7 is the default on Ubuntu 23.04, so the below is not needed.
 # (Don't try to use a variable here for the Maven version.)
@@ -92,6 +96,10 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 && PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install flake8 \
 && PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install html5validator \
 && PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install lithium-reducer
+
+RUN curl -LO https://github.com/bazelbuild/bazelisk/releases/download/v1.23.0/bazelisk-linux-amd64 \
+    && chmod +x bazelisk-linux-amd64 \
+    && mv bazelisk-linux-amd64 /usr/local/bin/bazelisk
 
 RUN mkdir /python-env \
 && python3 -m venv /python-env \
