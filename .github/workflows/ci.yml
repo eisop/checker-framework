@@ -26,8 +26,6 @@ jobs:
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
     steps:
-    - name: Install jtreg7
-      run: sudo apt-get install -y jtreg7
     - uses: actions/checkout@v4
     - name: Set up JDK ${{ matrix.java_version }}
       uses: actions/setup-java@v4
@@ -72,8 +70,6 @@ jobs:
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
     steps:
-    - name: Install jtreg7
-      run: sudo apt-get install -y jtreg7
     - uses: actions/checkout@v4
     - name: Set up JDK ${{ matrix.java_version }}
       uses: actions/setup-java@v4
@@ -111,8 +107,6 @@ jobs:
       JAVA_VERSION: ${{ matrix.java.version }}
     continue-on-error: ${{ matrix.java.experimental }}
     steps:
-    - name: Install jtreg7
-      run: sudo apt-get install -y jtreg7
     - uses: actions/checkout@v4
     - name: Set up JDK ${{ matrix.java.version }}
       uses: actions/setup-java@v4
