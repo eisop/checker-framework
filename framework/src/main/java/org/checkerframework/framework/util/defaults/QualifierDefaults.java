@@ -1011,8 +1011,18 @@ public class QualifierDefaults {
             boolean isTopLevelType = t == outer.type;
             switch (outer.location) {
                 case TYPE:
-                    if (outer.scope != null && outer.scope.getKind().isClass()) {
-                        outer.addAnnotation(t, qual);
+                    if (outer.scope != null && outer.scope.getKind().isClass() && isTopLevelType) {
+                        AnnotationMirror annotation =
+                                outer.qualHierarchy.findAnnotationInHierarchy(
+                                        atypeFactory.elementCache.get(outer.scope).getAnnotations(),
+                                        qual);
+                        if (annotation == null
+                                || outer.qualHierarchy.isSubtypeQualifiersOnly(qual, annotation)) {
+                            outer.addAnnotation(t, qual);
+                            atypeFactory.elementCache.put(outer.scope, t);
+                        } else {
+                            // should report error;
+                        }
                     }
                     break;
                 case FIELD:
