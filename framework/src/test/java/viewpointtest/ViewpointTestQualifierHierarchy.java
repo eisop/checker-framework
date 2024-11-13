@@ -31,7 +31,7 @@ public class ViewpointTestQualifierHierarchy extends NoElementQualifierHierarchy
 
     @Override
     public boolean isSubtypeQualifiers(AnnotationMirror subAnno, AnnotationMirror superAnno) {
-        // Lost is not reflexive and the only subtype is Bottom
+        // Lost is not reflexive and the only subtype is Bottom.
         if (atypeFactory.areSameByClass(superAnno, Lost.class)
                 && !atypeFactory.areSameByClass(subAnno, Bottom.class)) {
             return false;

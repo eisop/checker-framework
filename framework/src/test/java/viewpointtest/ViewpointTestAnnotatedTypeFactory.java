@@ -19,7 +19,7 @@ import viewpointtest.quals.PolyVP;
 import viewpointtest.quals.ReceiverDependentQual;
 import viewpointtest.quals.Top;
 
-/** The annotated type factory for the viewpointtest type-system. */
+/** The annotated type factory for the Viewpoint Test Checker. */
 public class ViewpointTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     /** The {@link Top} annotation. */
