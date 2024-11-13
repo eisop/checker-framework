@@ -526,7 +526,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * Mapping from an Element to its annotated type; before defaults are applied, just what the
      * programmer wrote.
      */
-    public final Map<Element, AnnotatedTypeMirror> elementCache;
+    private final Map<Element, AnnotatedTypeMirror> elementCache;
 
     /** Mapping from an Element to the source Tree of the declaration. */
     private final Map<Element, Tree> elementToTreeCache;
@@ -750,6 +750,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 ElementUtils.getTypeElement(processingEnv, EnsuresQualifierIf.List.class).asType();
 
         mergeStubsWithSource = checker.hasOption("mergeStubsWithSource");
+    }
+
+    /** Get the element cache. */
+    public Map<Element, AnnotatedTypeMirror> getElementCache() {
+        return elementCache;
     }
 
     /**

@@ -1014,12 +1014,15 @@ public class QualifierDefaults {
                     if (outer.scope != null && outer.scope.getKind().isClass() && isTopLevelType) {
                         AnnotationMirror annotation =
                                 outer.qualHierarchy.findAnnotationInHierarchy(
-                                        atypeFactory.elementCache.get(outer.scope).getAnnotations(),
+                                        atypeFactory
+                                                .getElementCache()
+                                                .get(outer.scope)
+                                                .getAnnotations(),
                                         qual);
                         if (annotation == null
                                 || outer.qualHierarchy.isSubtypeQualifiersOnly(qual, annotation)) {
                             outer.addAnnotation(t, qual);
-                            atypeFactory.elementCache.put(outer.scope, t);
+                            atypeFactory.getElementCache().put(outer.scope, t);
                         } else {
                             // should report error;
                         }
