@@ -84,6 +84,12 @@ ext {
     ]
 }
 
+// Enable exec/javaexec
+interface InjectedExecOps {
+    @Inject
+    ExecOperations getExecOps()
+}
+
 // Keep in sync with check in
 // framework/src/main/java/org/checkerframework/framework/source/SourceChecker.java .
 switch (JavaVersion.current()) {
@@ -659,6 +665,8 @@ task allJavadoc(type: Javadoc, group: 'Documentation') {
     destinationDir = file("${rootDir}/docs/api")
     source javadocDirs
 
+    def injected = project.objects.newInstance(InjectedExecOps)
+
     doFirst {
         source(
                 project(':framework-test').sourceSets."${isJava8 ? 'tagletJdk8' : 'taglet'}".allJava
@@ -675,7 +683,7 @@ task allJavadoc(type: Javadoc, group: 'Documentation') {
             rename('CFCheckmark_favicon.png', 'favicon-checkerframework.png')
             into "${rootDir}/docs/api"
         }
-        exec {
+        injected.execOps.exec {
             workingDir "${rootDir}/docs/api"
             executable "${htmlToolsHome}/html-add-favicon"
             args += [
@@ -740,8 +748,9 @@ createJavadocTask('javadocDoclintAll', 'Runs javadoc with -Xdoclint:all option.'
 
 task manual(group: 'Documentation') {
     description 'Build the manual'
+    def injected = project.objects.newInstance(InjectedExecOps)
     doLast {
-        exec {
+        injected.execOps.exec {
             commandLine 'make', '-C', 'docs/manual', 'all'
         }
     }
@@ -760,13 +769,16 @@ task downloadJtreg(type: Download) {
     dest new File(buildDir, 'jtreg.zip')
     overwrite true
     retries 3
+
+    def injected = project.objects.newInstance(InjectedExecOps)
+
     doLast {
         copy {
             // Use 'tarTree' when downloading a .tar.gz file
             from zipTree(dest)
             into "${jtregHome}/.."
         }
-        exec {
+        injected.execOps.exec {
             commandLine('chmod',  '+x', "${jtregHome}/bin/jtdiff", "${jtregHome}/bin/jtreg")
         }
     }
@@ -781,7 +793,8 @@ task downloadJtreg(type: Download) {
  * @param extraArgs any extra arguments to pass to git
  */
 void clone(url, directory, ignoreError, extraArgs = []){
-    exec {
+    def injected = project.objects.newInstance(InjectedExecOps)
+    injected.execOps.exec {
         workingDir "${directory}/../"
         executable 'git'
         args = [
@@ -813,9 +826,12 @@ def createCloneTask(taskName, url, directory, extraArgs = []) {
 
         // Always run.
         outputs.upToDateWhen { false }
+
+        def injected = project.objects.newInstance(InjectedExecOps)
+
         doLast {
             if (file(directory).exists()) {
-                exec {
+                injected.execOps.exec {
                     workingDir directory
                     executable 'git'
                     args = ['pull', '-q']
@@ -856,11 +872,14 @@ task pythonIsInstalled(type: Exec) {
 task tags {
     group 'Emacs'
     description 'Create Emacs TAGS table'
+
+    def injected = project.objects.newInstance(InjectedExecOps)
+
     doLast {
-        exec {
+        injected.execOps.exec {
             commandLine 'etags', '-i', 'checker/TAGS', '-i', 'checker-qual/TAGS', '-i', 'checker-util/TAGS', '-i', 'dataflow/TAGS', '-i', 'framework/TAGS', '-i', 'framework-test/TAGS', '-i', 'javacutil/TAGS', '-i', 'docs/manual/TAGS'
         }
-        exec {
+        injected.execOps.exec {
             commandLine 'make', '-C', 'docs/manual', 'tags'
         }
     }
@@ -1032,12 +1051,14 @@ subprojects {
                 dependsOn('compileTestJava')
                 dependsOn('shadowJar')
 
+                def injected = project.objects.newInstance(InjectedExecOps)
+
                 String jtregOutput = "${buildDir}/jtreg"
                 String name = 'all'
                 String tests = '.'
                 doLast {
                     try {
-                        exec {
+                        injected.execOps.exec {
                             executable "${jtregHome}/bin/jtreg"
                             args = [
                                 "-dir:${projectDir}/jtreg",
