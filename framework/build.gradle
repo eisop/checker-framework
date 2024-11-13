@@ -87,11 +87,20 @@ dependencies {
     testImplementation "org.projectlombok:lombok:${versions.lombok}"
 }
 
+// Enable exec/javaexec
+interface InjectedExecOps {
+    @Inject
+    ExecOperations getExecOps()
+}
+
 task cloneAnnotatedJdk() {
     description 'Obtain or update the annotated JDK.'
+
+    def injected = project.objects.newInstance(InjectedExecOps)
+
     doLast {
         if (file(annotatedJdkHome).exists()) {
-            exec {
+            injected.execOps.exec {
                 workingDir annotatedJdkHome
                 executable 'git'
                 args = ['pull', '-q']
@@ -99,7 +108,7 @@ task cloneAnnotatedJdk() {
             }
         } else {
             println 'Cloning annotated JDK repository.'
-            exec {
+            injected.execOps.exec {
                 workingDir "${annotatedJdkHome}/../"
                 executable 'git'
                 args = [
@@ -125,6 +134,8 @@ task copyAndMinimizeAnnotatedJdkFiles(dependsOn: cloneAnnotatedJdk, group: 'Buil
     inputs.dir file(inputDir)
     outputs.dir file(outputDir)
 
+    def injected = project.objects.newInstance(InjectedExecOps)
+
     doLast {
         FileTree tree = fileTree(dir: inputDir)
         NavigableSet<String> annotatedForFiles = new TreeSet<>();
@@ -148,7 +159,7 @@ task copyAndMinimizeAnnotatedJdkFiles(dependsOn: cloneAnnotatedJdk, group: 'Buil
                 include filename.substring(jdkDirStringSize)
             }
         }
-        javaexec {
+        injected.execOps.javaexec {
             classpath = sourceSets.main.runtimeClasspath
             standardOutput = System.out
             errorOutput = System.err
@@ -208,11 +219,14 @@ checkCompilerMessages {
 task loaderTests(dependsOn: 'shadowJar', group: 'Verification') {
     description 'Run tests for the annotation class loader'
     dependsOn(compileTestJava)
+
+    def injected = project.objects.newInstance(InjectedExecOps)
+
     // TODO: this dependency on checker is a bit ugly.
     dependsOn project(':checker-qual').tasks.jar
     dependsOn project(':checker').tasks.assemble
     doLast {
-        exec {
+        injected.execOps.exec {
             executable 'make'
             args = [
                 '-C',
@@ -224,11 +238,13 @@ task loaderTests(dependsOn: 'shadowJar', group: 'Verification') {
 }
 
 clean {
+    def injected = project.objects.newInstance(InjectedExecOps)
+
     delete('tests/returnsreceiverdelomboked')
     delete('dist')
     delete('tests/build')
     doLast {
-        exec {
+        injected.execOps.exec {
             workingDir = file('tests/annotationclassloader')
             commandLine 'make', 'clean'
         }
