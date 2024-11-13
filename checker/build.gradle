@@ -283,26 +283,18 @@ checkCompilerMessages {
     }
 }
 
-task nullnessExtraTests(dependsOn: assembleForJavac, group: 'Verification') {
+task nullnessExtraTests(type: Exec, dependsOn: assembleForJavac, group: 'Verification') {
     description 'Run extra tests for the Nullness Checker.'
-    doLast{
-        exec{
-            executable 'make'
-            environment JAVAC: "${projectDir}/bin/javac -AnoJreVersionCheck", JAVAP: 'javap'
-            args = ['-C', 'tests/nullness-extra/']
-        }
-    }
+    executable 'make'
+    environment JAVAC: "${projectDir}/bin/javac -AnoJreVersionCheck", JAVAP: 'javap'
+    args = ['-C', 'tests/nullness-extra/']
 }
 
-task commandLineTests(dependsOn: assembleForJavac, group: 'Verification') {
+task commandLineTests(type: Exec, dependsOn: assembleForJavac, group: 'Verification') {
     description 'Run tests that need a special command line.'
-    doLast {
-        exec {
-            executable 'make'
-            environment JAVAC: "${projectDir}/bin/javac -AnoJreVersionCheck"
-            args = ['-C', 'tests/command-line/']
-        }
-    }
+    executable 'make'
+    environment JAVAC: "${projectDir}/bin/javac -AnoJreVersionCheck"
+    args = ['-C', 'tests/command-line/']
 }
 
 task tutorialTests(dependsOn: assembleForJavac, group: 'Verification') {
@@ -314,15 +306,11 @@ task tutorialTests(dependsOn: assembleForJavac, group: 'Verification') {
     }
 }
 
-task exampleTests(dependsOn: assembleForJavac, group: 'Verification') {
+task exampleTests(type: Exec, dependsOn: assembleForJavac, group: 'Verification') {
     description 'Run tests for the example programs.'
-    doLast{
-        exec{
-            executable 'make'
-            environment JAVAC: "${projectDir}/bin/javac -AnoJreVersionCheck"
-            args = ['-C', '../docs/examples']
-        }
-    }
+    executable 'make'
+    environment JAVAC: "${projectDir}/bin/javac -AnoJreVersionCheck"
+    args = ['-C', '../docs/examples']
 }
 
 task demosTests(dependsOn: assembleForJavac, group: 'Verification') {
