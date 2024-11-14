@@ -20,7 +20,7 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
     @Override
     public Void visitNewClass(NewClassTree tree, Void p) {
         AnnotatedTypeMirror Type = atypeFactory.getAnnotatedType(tree);
-        if (Type.hasAnnotation(atypeFactory.TOP)) {
+        if (Type.hasAnnotation(atypeFactory.TOP) || Type.hasAnnotation(atypeFactory.LOST)) {
             checker.reportError(tree, "new.class.type.invalid", Type.getAnnotations());
         }
         return super.visitNewClass(tree, p);

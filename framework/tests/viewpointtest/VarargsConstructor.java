@@ -26,18 +26,17 @@ public class VarargsConstructor {
     }
 
     class Inner {
-        @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
+        // :: warning: (inconsistent.constructor.type) :: error:(super.invocation.invalid)
         @ReceiverDependentQual Inner(@ReceiverDependentQual Object... args) {}
 
         void foo() {
+            // :: error: (new.class.type.invalid)
             Inner a = new Inner();
-            // :: error: (argument.type.incompatible) :: warning:
-            // (cast.unsafe.constructor.invocation)
-            Inner b = new Inner(new @A Object());
-            Inner c = VarargsConstructor.this.new Inner();
-            // :: error: (argument.type.incompatible) :: warning:
-            // (cast.unsafe.constructor.invocation)
-            Inner d = VarargsConstructor.this.new Inner(new @A Object());
+            // :: warning: (cast.unsafe.constructor.invocation)
+            Inner b = new @A Inner(new @A Object());
+            Inner c = VarargsConstructor.this.new @A Inner();
+            // :: warning: (cast.unsafe.constructor.invocation)
+            Inner d = VarargsConstructor.this.new @A Inner(new @A Object());
         }
 
         void invokeConstructor(@A Object aObj, @B Object bObj, @Top Object topObj) {

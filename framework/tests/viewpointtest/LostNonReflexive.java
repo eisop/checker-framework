@@ -24,8 +24,9 @@ public class LostNonReflexive {
         // :: error: (assignment.type.incompatible)
         @Bottom Object botObj = obj.get();
 
-        // :: error: (argument.type.incompatible)
+        // :: error: (argument.type.incompatible) :: error: (new.class.type.invalid)
         new LostNonReflexive(obj.f);
+        // :: error: (new.class.type.invalid)
         new LostNonReflexive(bottomObj);
 
         // :: error: (argument.type.incompatible)

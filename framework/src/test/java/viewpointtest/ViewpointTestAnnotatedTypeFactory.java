@@ -25,6 +25,9 @@ public class ViewpointTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory 
     /** The {@link Top} annotation. */
     public final AnnotationMirror TOP = AnnotationBuilder.fromClass(elements, Top.class);
 
+    /** The {@link Lost} annotation. */
+    public final AnnotationMirror LOST = AnnotationBuilder.fromClass(elements, Lost.class);
+
     /**
      * Create a new ViewpointTestAnnotatedTypeFactory.
      *
