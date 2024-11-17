@@ -28,9 +28,10 @@ public class InitializationFieldAccessSubchecker extends BaseTypeChecker {
     /** Also handle {@code AnnotatedFor} annotations for the {@link InitializationChecker}. */
     @Override
     public List<@FullyQualifiedName String> getUpstreamCheckerNames() {
-        // Ensure field is initialized.
-        super.getUpstreamCheckerNames();
-        upstreamCheckerNames.add(InitializationChecker.class.getName());
+        if (upstreamCheckerNames == null) {
+            super.getUpstreamCheckerNames();
+            upstreamCheckerNames.add(InitializationChecker.class.getName());
+        }
         return upstreamCheckerNames;
     }
 
