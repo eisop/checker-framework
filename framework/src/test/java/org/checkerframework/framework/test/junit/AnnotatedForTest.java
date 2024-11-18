@@ -6,7 +6,7 @@ import org.junit.runners.Parameterized.Parameters;
 import java.io.File;
 import java.util.List;
 
-/** Perform tests for @AnnotatedFor annotation with subtyping checker. */
+/** Perform tests of the {@code @AnnotatedFor} annotation with the Subtyping Checker. */
 public class AnnotatedForTest extends CheckerFrameworkPerDirectoryTest {
 
     /**
