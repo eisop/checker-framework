@@ -6000,11 +6000,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     */
 
     /**
-     * Does {@code anno}, which is an {@link org.checkerframework.framework.qual.AnnotatedFor}
-     * annotation, apply to this checker?
+     * Does {@code annotatedForAnno}, which is an {@link
+     * org.checkerframework.framework.qual.AnnotatedFor} annotation, apply to this checker?
      *
      * @param annotatedForAnno an {@link AnnotatedFor} annotation
-     * @return whether {@code anno} applies to this checker
+     * @return whether {@code annotatedForAnno} applies to this checker
      */
     public boolean doesAnnotatedForApplyToThisChecker(AnnotationMirror annotatedForAnno) {
         List<String> annotatedForCheckers =
