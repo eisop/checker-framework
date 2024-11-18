@@ -6,7 +6,7 @@ import org.junit.runners.Parameterized.Parameters;
 import java.io.File;
 import java.util.List;
 
-/** Created by jthaine on 6/25/15. */
+/** Perform tests for @AnnotatedFor annotation with subtyping checker. */
 public class AnnotatedForTest extends CheckerFrameworkPerDirectoryTest {
 
     /**
@@ -21,6 +21,11 @@ public class AnnotatedForTest extends CheckerFrameworkPerDirectoryTest {
                 "-AuseConservativeDefaultsForUncheckedCode=source,bytecode");
     }
 
+    /**
+     * Define the test directories for this test.
+     *
+     * @return the test directories
+     */
     @Parameters
     public static String[] getTestDirs() {
         return new String[] {"conservative-defaults/annotatedfor"};
