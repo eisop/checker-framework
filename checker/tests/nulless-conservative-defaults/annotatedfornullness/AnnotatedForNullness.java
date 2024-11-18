@@ -6,7 +6,7 @@ import org.checkerframework.framework.qual.AnnotatedFor;
 public class AnnotatedForNullness {
 
     @Initialized @NonNull Object initializedField = new Object();
-    @Initialized @KeyForBottom Object initializedKeyForBottomField = new Object();
+    @Initialized @KeyForBottom @NonNull Object initializedKeyForBottomField = new Object();
 
     @AnnotatedFor("initialization")
     // The method does not report error because AnnotatedFor("initialization") should not change the
