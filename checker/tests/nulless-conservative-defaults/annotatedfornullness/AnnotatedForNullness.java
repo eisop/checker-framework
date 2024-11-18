@@ -6,10 +6,10 @@ import org.checkerframework.framework.qual.AnnotatedFor;
 public class AnnotatedForNullness {
 
     @Initialized @NonNull Object initializedField = new Object();
-    @Initialized @NonNull @KeyForBottom Object initializedKeyForBottomField = new Object();
+    @Initialized @KeyForBottom Object initializedKeyForBottomField = new Object();
 
     @AnnotatedFor("initialization")
-    // The method does not report error because AnnotatedFor("initialization") does not change the
+    // The method does not report error because AnnotatedFor("initialization") should not change the
     // default for nullness
     Object annotatedForInitialization(Object test) {
         return null;
@@ -35,12 +35,19 @@ public class AnnotatedForNullness {
 
     @AnnotatedFor("nullness")
     void foo(@Initialized AnnotatedForNullness this) {
+        // Issue error because conservative default is applied for unannotatedFor and expects a
+        // @FBCBottom @KeyForBottom @Nonull Object
         // ::error: (argument.type.incompatible)
         unannotatedFor(initializedField);
-        // Error because keyFor checker requires @KeyForBottom type
+        // Issue error because conservative default is applied other than Initialization checker and
+        // expects an @Initialized @KeyForBottom @Nonull Object
         // ::error: (argument.type.incompatible)
         annotatedForInitialization(initializedField);
+        // Do not issue error conservative default is applied other than Initialization checker and
+        // expects an @Initialized @KeyForBottom @Nonull Object
         annotatedForInitialization(initializedKeyForBottomField);
+        // Do not issue error because AnnotatedFor("nullness") and expects an @Initialized
+        // @UnknownKeyFor @Nonnull Object
         annotatedForNullness(initializedField);
         annotatedForNullnessAndInitialization(initializedField);
     }
