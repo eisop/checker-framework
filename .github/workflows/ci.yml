@@ -1,9 +1,8 @@
 name: CI tests
 
 on:
-  push:
-    branches: [ "master" ]
   pull_request:
+  push:
     branches: [ "master" ]
 
 # Configure GitHub Actions cancel in progress workflow to avoid redundant runs in pull requests.
