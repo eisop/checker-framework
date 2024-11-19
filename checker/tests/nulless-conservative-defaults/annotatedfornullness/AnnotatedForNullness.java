@@ -34,18 +34,22 @@ public class AnnotatedForNullness {
 
     @AnnotatedFor("nullness")
     void foo(@Initialized AnnotatedForNullness this) {
-        // Expect an error because conservative defaults are applied to unannotatedFor and it expects a
+        // Expect an error because conservative defaults are applied to unannotatedFor and it
+        // expects a
         // @FBCBottom @KeyForBottom @Nonull Object.
         // ::error: (argument.type.incompatible)
         unannotatedFor(initializedField);
-        // Expect an error because conservative defaults are applied to `annotatedForInitialization` for hierarchies other than the Initialization Checker and
+        // Expect an error because conservative defaults are applied to `annotatedForInitialization`
+        // for hierarchies other than the Initialization Checker and
         // it expects an @Initialized @KeyForBottom @Nonull Object.
         // ::error: (argument.type.incompatible)
         annotatedForInitialization(initializedField);
-        // Do not expect an error when conservative defaults are applied to `annotatedForInitialization` for hierarchies other than the Initialization Checker and
+        // Do not expect an error when conservative defaults are applied to
+        // `annotatedForInitialization` for hierarchies other than the Initialization Checker and
         // it expects an @Initialized @KeyForBottom @Nonull Object.
         annotatedForInitialization(initializedKeyForBottomField);
-        // Do not expect an error because these are AnnotatedFor("nullness") and these expect @Initialized
+        // Do not expect an error because these are AnnotatedFor("nullness") and these expect
+        // @Initialized
         // @UnknownKeyFor @Nonnull Object.
         annotatedForNullness(initializedField);
         annotatedForNullnessAndInitialization(initializedField);
