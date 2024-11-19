@@ -9,8 +9,7 @@ public class AnnotatedForNullness {
     @Initialized @KeyForBottom @NonNull Object initializedKeyForBottomField = new Object();
 
     @AnnotatedFor("initialization")
-    // The method does not report error because AnnotatedFor("initialization") should not change the
-    // default for nullness
+    // No errors because AnnotatedFor("initialization") does not change the default for nullness.
     Object annotatedForInitialization(Object test) {
         return null;
     }
@@ -22,7 +21,7 @@ public class AnnotatedForNullness {
     }
 
     // Method annotatedFor with both `nullness` and `initialization` should behave the same as
-    // annotatedForNullness
+    // annotatedForNullness.
     @AnnotatedFor({"nullness", "initialization"})
     Object annotatedForNullnessAndInitialization(Object test) {
         // ::error: (return.type.incompatible)
@@ -35,19 +34,19 @@ public class AnnotatedForNullness {
 
     @AnnotatedFor("nullness")
     void foo(@Initialized AnnotatedForNullness this) {
-        // Issue error because conservative default is applied for unannotatedFor and expects a
-        // @FBCBottom @KeyForBottom @Nonull Object
+        // Expect an error because conservative defaults are applied to unannotatedFor and it expects a
+        // @FBCBottom @KeyForBottom @Nonull Object.
         // ::error: (argument.type.incompatible)
         unannotatedFor(initializedField);
-        // Issue error because conservative default is applied other than Initialization checker and
-        // expects an @Initialized @KeyForBottom @Nonull Object
+        // Expect an error because conservative defaults are applied to `annotatedForInitialization` for hierarchies other than the Initialization Checker and
+        // it expects an @Initialized @KeyForBottom @Nonull Object.
         // ::error: (argument.type.incompatible)
         annotatedForInitialization(initializedField);
-        // Do not issue error conservative default is applied other than Initialization checker and
-        // expects an @Initialized @KeyForBottom @Nonull Object
+        // Do not expect an error when conservative defaults are applied to `annotatedForInitialization` for hierarchies other than the Initialization Checker and
+        // it expects an @Initialized @KeyForBottom @Nonull Object.
         annotatedForInitialization(initializedKeyForBottomField);
-        // Do not issue error because AnnotatedFor("nullness") and expects an @Initialized
-        // @UnknownKeyFor @Nonnull Object
+        // Do not expect an error because these are AnnotatedFor("nullness") and these expect @Initialized
+        // @UnknownKeyFor @Nonnull Object.
         annotatedForNullness(initializedField);
         annotatedForNullnessAndInitialization(initializedField);
     }

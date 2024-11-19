@@ -6,7 +6,7 @@ import org.junit.runners.Parameterized.Parameters;
 import java.io.File;
 import java.util.List;
 
-/** Tests the conservative defaults for initialization checker and nullness checker. */
+/** Tests the conservative defaults for Initialization Checker and Nullness Checker. */
 public class AnnotatedForNullnessTest extends CheckerFrameworkPerDirectoryTest {
 
     /**
@@ -22,7 +22,7 @@ public class AnnotatedForNullnessTest extends CheckerFrameworkPerDirectoryTest {
 
     /**
      * This method returns the directories containing test code. Each directory will be type-checked
-     * with -AuseConservativeDefaultsForUncheckedCode=source,bytecode
+     * with {@code -AuseConservativeDefaultsForUncheckedCode=source,bytecode}.
      *
      * @return the directories containing test code
      */
