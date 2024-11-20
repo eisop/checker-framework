@@ -901,7 +901,7 @@ subprojects {
             errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: versions.errorprone
         } else {
             // EP 2.31.0 is the last release that works on Java < 17.
-            errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: '2.31.0'
+            errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: '2.36.0'
         }
 
         // TODO: it's a bug that annotatedlib:guava requires the error_prone_annotations dependency.
