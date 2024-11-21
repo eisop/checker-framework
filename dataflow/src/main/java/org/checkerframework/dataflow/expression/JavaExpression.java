@@ -166,7 +166,7 @@ public abstract class JavaExpression {
             JavaExpression dim1 = lst1.get(i);
             JavaExpression dim2 = lst2.get(i);
             if (dim1 == null && dim2 == null) {
-                continue;
+                // Continue to next index.
             } else if (dim1 == null || dim2 == null) {
                 return false;
             } else {
