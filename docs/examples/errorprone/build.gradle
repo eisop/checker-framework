@@ -6,7 +6,7 @@ plugins {
     id 'java'
     id 'net.ltgt.errorprone' version '4.1.0'
     // Checker Framework pluggable type-checking
-    id 'org.checkerframework' version '0.6.45'
+    id 'org.checkerframework' version '0.6.46'
 }
 
 ext {
@@ -16,10 +16,19 @@ ext {
 }
 
 apply plugin: 'org.checkerframework'
-dependencies {
-    compileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
-    testCompileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
-    checkerFramework "io.github.eisop:checker:${versions.eisopVersion}"
+if (true) {
+    def cfHome = "${projectDir}/../../.."
+    dependencies {
+        compileOnly files(cfHome + '/checker/dist/checker-qual.jar')
+        testCompileOnly files(cfHome + '/checker/dist/checker-qual.jar')
+        checkerFramework files(cfHome + '/checker/dist/checker.jar')
+    }
+} else {
+    dependencies {
+        compileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
+        testCompileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
+        checkerFramework "io.github.eisop:checker:${versions.eisopVersion}"
+    }
 }
 
 dependencies {
@@ -41,6 +50,7 @@ checkerFramework {
     checkers = [
         'org.checkerframework.checker.nullness.NullnessChecker',
     ]
+    extraJavacArgs = ['-Aversion']
 }
 
 compileJava {

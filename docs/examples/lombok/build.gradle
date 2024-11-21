@@ -30,4 +30,5 @@ checkerFramework {
     checkers = [
         'org.checkerframework.checker.nullness.NullnessChecker',
     ]
+    extraJavacArgs = ['-Aversion']
 }
