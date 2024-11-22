@@ -316,6 +316,13 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
    * @param initExitStore the initialization exit store for the constructor or static initializer
    * @param receiverAnnotations the annotations on the receiver
    */
+  // TODO: the code for checking if fields are initialized should be re-written,
+  // as the current version contains quite a few ugly parts, is hard to understand,
+  // and it is likely that it does not take full advantage of the information
+  // about initialization we compute in
+  // GenericAnnotatedTypeFactory.initializationStaticStore and
+  // GenericAnnotatedTypeFactory.initializationStore.
+  @SuppressWarnings("DuplicateBranches") // TODO: remove after looking at "if (staticFields)".
   protected void checkFieldsInitialized(
       Tree tree,
       boolean staticFields,
