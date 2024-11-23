@@ -503,13 +503,11 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                         } else if (UnitsRelationsTools.hasNoUnits(rht)) {
                             // any unit divided by a scalar keeps that unit
                             type.replaceAnnotations(lht.getAnnotations());
-                        } else if (UnitsRelationsTools.hasNoUnits(lht)) {
-                            // scalar divided by any unit returns mixed
-                            type.replaceAnnotation(mixedUnits);
                         } else {
-                            // else it is a division of two units that have no defined relations
-                            // from a relations class
-                            // return mixed
+                            // Either UnitsRelationsTools.hasNoUnits(lht), which is a scalar divided
+                            // by any unit returns mixed.
+                            // Or else it is a division of two units that have no defined relations
+                            // from a relations class return mixed.
                             type.replaceAnnotation(mixedUnits);
                         }
                         break;
@@ -522,8 +520,7 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                             type.replaceAnnotations(lht.getAnnotations());
                         } else {
                             // else it is a multiplication of two units that have no defined
-                            // relations from a relations class
-                            // return mixed
+                            // relations from a relations class return mixed.
                             type.replaceAnnotation(mixedUnits);
                         }
                         break;
