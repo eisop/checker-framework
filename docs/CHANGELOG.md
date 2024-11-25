@@ -1,5 +1,5 @@
-Version 3.42.0-eisop5 (July ?, 2024)
-------------------------------------
+Version 3.42.0-eisop5 (November ??, 2024)
+-----------------------------------------
 
 **User-visible changes:**
 
@@ -15,6 +15,8 @@ Use `DefaultContractsFromMethod` to get the default behavior or use the new
 Make `SourceChecker#suppressWarningsString` protected to allow adaptation in subclasses.
 
 **Closed issues:**
+
+eisop#413, eisop#777, eisop#782, eisop#982.
 
 
 Version 3.42.0-eisop4 (July 12, 2024)

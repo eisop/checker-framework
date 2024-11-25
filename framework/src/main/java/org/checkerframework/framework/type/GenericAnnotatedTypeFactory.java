@@ -149,7 +149,7 @@ public abstract class GenericAnnotatedTypeFactory<
 
     /**
      * Whether to output verbose, low-level debugging messages. Also see {@code TreeAnnotator.debug}
-     * and {@link AnnotatedTypeFactory#debugGat}.
+     * and {@link AnnotatedTypeFactory#debugStubParser}.
      */
     private static final boolean debug = false;
 
