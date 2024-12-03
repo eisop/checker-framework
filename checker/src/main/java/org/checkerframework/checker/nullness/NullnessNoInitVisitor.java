@@ -348,7 +348,14 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                     componentType.getAnnotations(),
                     type.toString());
         }
-
+        // type already contains substituted annotations so must look at original tree annotations
+        List<? extends AnnotationMirror> annotations =
+                TreeUtils.annotationsFromArrayCreation(tree, 0);
+        if (AnnotationUtils.containsSame(annotations, NULLABLE)
+                || AnnotationUtils.containsSame(annotations, MONOTONIC_NONNULL)
+                || AnnotationUtils.containsSame(annotations, POLYNULL)) {
+            checker.reportError(tree, "nullness.on.new.array");
+        }
         return super.visitNewArray(tree, p);
     }
 

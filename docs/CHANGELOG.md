@@ -6,6 +6,8 @@ Version 3.42.0-eisop5 (November ??, 2024)
 Removed support for the `-Anocheckjdk` option, which was deprecated in version 3.1.1.
 Use `-ApermitMissingJdk` instead.
 
+The Nullness Checker now throws an error if a new array creation is marked with @Nullable, which is inherently NonNull.
+
 **Implementation details:**
 
 Changed `org.checkerframework.framework.util.ContractsFromMethod` to an interface.
