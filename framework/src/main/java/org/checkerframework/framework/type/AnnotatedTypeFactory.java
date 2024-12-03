@@ -752,6 +752,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         mergeStubsWithSource = checker.hasOption("mergeStubsWithSource");
     }
 
+    /** Get the element cache. */
+    public Map<Element, AnnotatedTypeMirror> getElementCache() {
+        return elementCache;
+    }
+
     /**
      * Parse a string in the format {@code
      * FQN.canonical.Qualifier:FQN.alias1.Qual1,FQN.alias2.Qual2} to a pair of {@code
