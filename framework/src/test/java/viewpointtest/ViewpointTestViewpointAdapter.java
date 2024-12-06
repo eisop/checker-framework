@@ -25,11 +25,11 @@ public class ViewpointTestViewpointAdapter extends AbstractViewpointAdapter {
      */
     public ViewpointTestViewpointAdapter(AnnotatedTypeFactory atypeFactory) {
         super(atypeFactory);
-        TOP = atypeFactory.TOP;
+        TOP = ((ViewpointTestAnnotatedTypeFactory) atypeFactory).TOP;
         RECEIVERDEPENDENTQUAL =
                 AnnotationBuilder.fromClass(
                         atypeFactory.getElementUtils(), ReceiverDependentQual.class);
-        LOST = atypeFactory.LOST;
+        LOST = ((ViewpointTestAnnotatedTypeFactory) atypeFactory).LOST;
     }
 
     @Override
