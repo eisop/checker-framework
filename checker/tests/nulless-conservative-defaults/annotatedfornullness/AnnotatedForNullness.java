@@ -52,4 +52,12 @@ public class AnnotatedForNullness {
         annotatedForNullness(initializedField);
         annotatedForNullnessAndInitialization(initializedField);
     }
+
+    @AnnotatedFor("initialization")
+    void bar() {
+        // Expect an error because conservative defaults are applied to `unannotatedFor` and it
+        // expects a @FBCBottom @UnknownKeyFor @Nonull Object.
+        // ::error: (argument.type.incompatible)
+        unannotatedFor(initializedField);
+    }
 }
