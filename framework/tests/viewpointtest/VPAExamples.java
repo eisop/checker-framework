@@ -29,7 +29,9 @@ public class VPAExamples {
         // :: error: (argument.type.incompatible)
         b.set(aObj);
         b.set(bObj);
+        // :: error: (argument.type.incompatible)
         top.set(aObj);
+        // :: error: (argument.type.incompatible)
         top.set(bObj);
     }
 }
