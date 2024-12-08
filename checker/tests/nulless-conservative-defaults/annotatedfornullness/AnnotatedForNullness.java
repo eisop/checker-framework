@@ -59,8 +59,8 @@ public class AnnotatedForNullness {
         // expects a @FBCBottom @UnknownKeyFor @Nonull Object.
         // ::error: (argument.type.incompatible)
         unannotatedFor(initializedField);
-        // Do not expect an error because the warning is suppressed  other than initialzation
-        // hierarchy when conservative defaults are applied to source code.
+        // Do not expect an error because the warning is suppressed other than initialzation
+        // hierarchy when conservative defaults are applied to source code and
         // it expects an @Initialized @KeyForBottom @Nonull Object.
         annotatedForInitialization(initializedField);
         // Do not expect an error when conservative defaults are applied to
