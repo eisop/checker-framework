@@ -34,12 +34,13 @@ public class AnnotatedForNullness {
 
     @AnnotatedFor("nullness")
     void foo(@Initialized AnnotatedForNullness this) {
-        // Expect two errors because conservative defaults are applied to `unannotatedFor` and it
-        // expects a @FBCBottom @KeyForBottom @Nonull Object.
+        // Expect two [argument.type.incompatible] errors in KeyForChecker and InitilizationChecker
+        // because conservative defaults are applied to `unannotatedFor` and it expects a @FBCBottom
+        // @KeyForBottom @Nonull Object.
         // ::error: (argument.type.incompatible)
         unannotatedFor(initializedField);
-        // Expect an error because conservative defaults are applied to `annotatedForInitialization`
-        // for hierarchies other than the Initialization Checker and
+        // Expect an error in KeyForChecker because conservative defaults are applied to
+        // `annotatedForInitialization` for hierarchies other than the Initialization Checker and
         // it expects an @Initialized @KeyForBottom @Nonull Object.
         // ::error: (argument.type.incompatible)
         annotatedForInitialization(initializedField);
@@ -55,13 +56,13 @@ public class AnnotatedForNullness {
 
     @AnnotatedFor("initialization")
     void bar() {
-        // Expect an error because conservative defaults are applied to `unannotatedFor` and it
-        // expects a @FBCBottom @UnknownKeyFor @Nonull Object.
+        // Expect an error in InitilizationChecker because conservative defaults are applied to
+        // `unannotatedFor` and it expects a @FBCBottom @UnknownKeyFor @Nonull Object.
         // ::error: (argument.type.incompatible)
         unannotatedFor(initializedField);
         // Do not expect an error because the warning is suppressed other than initialzation
-        // hierarchy when conservative defaults are applied to source code and
-        // it expects an @Initialized @KeyForBottom @Nonull Object.
+        // hierarchy when conservative defaults are applied to source code and it expects an
+        // @Initialized @KeyForBottom @Nonull Object.
         annotatedForInitialization(initializedField);
         // Do not expect an error when conservative defaults are applied to
         // `annotatedForInitialization` for hierarchies other than the Initialization Checker and
