@@ -90,7 +90,7 @@ public abstract class InitializationChecker extends BaseTypeChecker {
 
     /**
      * Also handle {@code AnnotatedFor} annotations for this checker. See {@link
-     * InitializationFieldAccessSubchecker#getUpstreamCheckerNames()} and the two implementation
+     * InitializationFieldAccessSubchecker#getUpstreamCheckerNames()} and the two implementations
      * should be kept in sync.
      */
     @Override
