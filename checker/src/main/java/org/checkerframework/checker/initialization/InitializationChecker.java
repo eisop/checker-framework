@@ -12,6 +12,7 @@ import org.checkerframework.checker.nullness.NullnessNoInitSubchecker;
 import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 
 import java.util.ArrayList;
@@ -86,6 +87,20 @@ public abstract class InitializationChecker extends BaseTypeChecker {
      * @return the checker for the target type system.
      */
     public abstract Class<? extends BaseTypeChecker> getTargetCheckerClass();
+
+    /**
+     * Also handle {@code AnnotatedFor} annotations for this checker. See {@link
+     * InitializationFieldAccessSubchecker#getUpstreamCheckerNames()} and the two implementations
+     * should be kept in sync.
+     */
+    @Override
+    public List<@FullyQualifiedName String> getUpstreamCheckerNames() {
+        if (upstreamCheckerNames == null) {
+            super.getUpstreamCheckerNames();
+            upstreamCheckerNames.add(InitializationChecker.class.getName());
+        }
+        return upstreamCheckerNames;
+    }
 
     @Override
     public NavigableSet<String> getSuppressWarningsPrefixes() {
