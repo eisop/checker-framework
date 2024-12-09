@@ -25,7 +25,11 @@ public class InitializationFieldAccessSubchecker extends BaseTypeChecker {
     /** Default constructor for InitializationFieldAccessSubchecker. */
     public InitializationFieldAccessSubchecker() {}
 
-    /** Also handle {@code AnnotatedFor} annotations for the {@link InitializationChecker}. */
+    /**
+     * Also handle {@code AnnotatedFor} annotations for the {@link InitializationChecker}. See
+     * {@link InitializationChecker#getUpstreamCheckerNames()} and the two implementations should be
+     * kept in sync.
+     */
     @Override
     public List<@FullyQualifiedName String> getUpstreamCheckerNames() {
         if (upstreamCheckerNames == null) {
