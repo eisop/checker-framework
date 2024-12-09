@@ -53,6 +53,7 @@ public class JavaCopExplosion {
     private static int f() {
         while (true) {
             try {
+                // :: error: (throwing.nullable)
                 throw new ExplosiveException();
             } finally {
                 // break;

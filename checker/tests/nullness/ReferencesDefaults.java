@@ -9,6 +9,7 @@ public class ReferencesDefaults {
     }
 
     class Use {
+        // :: error: (assignment.type.incompatible)
         Decl d = new Decl();
         // here the default for f is NonNull -> error
         // :: error: (assignment.type.incompatible)

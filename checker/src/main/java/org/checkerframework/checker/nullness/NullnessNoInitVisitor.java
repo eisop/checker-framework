@@ -47,7 +47,6 @@ import org.checkerframework.framework.flow.CFCFGBuilder;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
-import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiveType;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
@@ -348,14 +347,13 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                     componentType.getAnnotations(),
                     type.toString());
         }
-        // type already contains substituted annotations so must look at original tree annotations
-        List<? extends AnnotationMirror> annotations =
-                TreeUtils.annotationsFromArrayCreation(tree, 0);
-        if (AnnotationUtils.containsSame(annotations, NULLABLE)
-                || AnnotationUtils.containsSame(annotations, MONOTONIC_NONNULL)
-                || AnnotationUtils.containsSame(annotations, POLYNULL)) {
+
+        if (type.hasEffectiveAnnotation(NULLABLE)
+                || type.hasEffectiveAnnotation(MONOTONIC_NONNULL)
+                || type.hasEffectiveAnnotation(POLYNULL)) {
             checker.reportError(tree, "nullness.on.new.array");
         }
+
         return super.visitNewArray(tree, p);
     }
 
@@ -844,7 +842,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         if (enclosingExpr != null) {
             checkForNullability(enclosingExpr, DEREFERENCE_OF_NULLABLE);
         }
-        AnnotatedDeclaredType type = atypeFactory.getAnnotatedType(tree);
+        //        AnnotatedDeclaredType type = atypeFactory.getAnnotatedType(tree);
         ExpressionTree identifier = tree.getIdentifier();
         if (identifier instanceof AnnotatedTypeTree) {
             AnnotatedTypeTree t = (AnnotatedTypeTree) identifier;
@@ -854,14 +852,18 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                         containsSameByName(atypeFactory.getNullnessAnnotations(), a);
                 if (nullnessCheckerAnno && !AnnotationUtils.areSame(NONNULL, a)) {
                     // The type is not non-null => warning
-                    checker.reportWarning(tree, "new.class.type.invalid", type.getAnnotations());
+                    checker.reportError(tree, "nullness.on.new.object");
+                    //                    checker.reportWarning(tree, "new.class.type.invalid",
+                    // type.getAnnotations());
                     // Note that other consistency checks are made by isValid.
                 }
             }
             if (t.toString().contains("@PolyNull")) {
                 // TODO: this is a hack, but PolyNull gets substituted
                 // afterwards
-                checker.reportWarning(tree, "new.class.type.invalid", type.getAnnotations());
+                checker.reportError(tree, "nullness.on.new.object");
+                //                checker.reportWarning(tree, "new.class.type.invalid",
+                // type.getAnnotations());
             }
         }
         // TODO: It might be nicer to introduce a framework-level

@@ -8,6 +8,7 @@ public class NewObjectNonNull {
     }
 
     void m() {
+        // :: error: (dereference.of.nullable)
         new A().toString();
     }
 }

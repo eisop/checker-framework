@@ -9,6 +9,8 @@ import java.util.List;
 class DefaultForEach {
     @DefaultQualifier(Nullable.class)
     Object @NonNull [] foo() {
+        // :: error: (nullness.on.new.array)
+        // :: error: (return.type.incompatible)
         return new Object[] {null};
     }
 
