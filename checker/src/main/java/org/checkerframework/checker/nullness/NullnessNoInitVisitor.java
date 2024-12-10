@@ -851,10 +851,9 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 boolean nullnessCheckerAnno =
                         containsSameByName(atypeFactory.getNullnessAnnotations(), a);
                 if (nullnessCheckerAnno && !AnnotationUtils.areSame(NONNULL, a)) {
-                    // The type is not non-null => warning
+                    // The type is not non-null => error
                     checker.reportError(tree, "nullness.on.new.object");
-                    //                    checker.reportWarning(tree, "new.class.type.invalid",
-                    // type.getAnnotations());
+
                     // Note that other consistency checks are made by isValid.
                 }
             }
