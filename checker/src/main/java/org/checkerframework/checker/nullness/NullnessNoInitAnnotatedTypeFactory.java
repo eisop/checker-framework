@@ -8,6 +8,8 @@ import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.NewArrayTree;
+import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeCastTree;
@@ -725,6 +727,20 @@ public class NullnessNoInitAnnotatedTypeFactory
         @Override
         public Void visitUnary(UnaryTree tree, AnnotatedTypeMirror type) {
             type.replaceAnnotation(NONNULL);
+            return null;
+        }
+
+        // The result of newly allocated structures is always non-null.
+        @Override
+        public Void visitNewClass(NewClassTree tree, AnnotatedTypeMirror type) {
+            type.addMissingAnnotations(Collections.singleton(NONNULL));
+            return null;
+        }
+
+        @Override
+        public Void visitNewArray(NewArrayTree tree, AnnotatedTypeMirror type) {
+            super.visitNewArray(tree, type);
+            type.addMissingAnnotations(Collections.singleton(NONNULL));
             return null;
         }
 

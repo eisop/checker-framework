@@ -842,7 +842,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         if (enclosingExpr != null) {
             checkForNullability(enclosingExpr, DEREFERENCE_OF_NULLABLE);
         }
-        //        AnnotatedDeclaredType type = atypeFactory.getAnnotatedType(tree);
+
         ExpressionTree identifier = tree.getIdentifier();
         if (identifier instanceof AnnotatedTypeTree) {
             AnnotatedTypeTree t = (AnnotatedTypeTree) identifier;
@@ -861,7 +861,8 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 // TODO: this is a hack, but PolyNull gets substituted
                 // afterwards
                 checker.reportError(tree, "nullness.on.new.object");
-                //                checker.reportWarning(tree, "new.class.type.invalid",
+                //                checker.reportWarning(tree,
+                //         "new.class.type.invalid",
                 // type.getAnnotations());
             }
         }
