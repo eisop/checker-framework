@@ -853,20 +853,7 @@ public class QualifierDefaults {
         // iteration through the defaults should be necessary.
         boolean typeVarUseDef = false;
 
-        // bring nullable annotation into local scope
-        AnnotationMirror nullableAnno =
-                AnnotationBuilder.fromClass(
-                        atypeFactory.getProcessingEnv().getElementUtils(),
-                        org.checkerframework.checker.nullness.qual.Nullable.class);
-
         for (Default def : defaults) {
-
-            // if nullable annotation was set as default it should not be applied to
-            // a construct element to be appropriately handled in nullness ATF
-            if (AnnotationUtils.areSame(def.anno, nullableAnno)
-                    && annotationScope.getKind() == ElementKind.CONSTRUCTOR) {
-                continue;
-            }
             applier.applyDefault(def);
             typeVarUseDef |= (def.location == TypeUseLocation.TYPE_VARIABLE_USE);
         }
