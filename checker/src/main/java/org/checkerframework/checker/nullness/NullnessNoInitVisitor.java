@@ -58,9 +58,7 @@ import org.checkerframework.javacutil.TreeUtilsAfterJava11;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.SwitchExpressionUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
-import java.lang.annotation.Annotation;
 import java.util.List;
-import java.util.Set;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
@@ -171,16 +169,6 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         // The Nullness Checker issues a more comprehensible "nullness.on.primitive" error rather
         // than the "type.invalid.annotations.on.use" error this method would issue.
         return true;
-    }
-
-    private boolean containsSameByName(
-            Set<Class<? extends Annotation>> quals, AnnotationMirror anno) {
-        for (Class<? extends Annotation> q : quals) {
-            if (atypeFactory.areSameByClass(anno, q)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     @Override
@@ -843,31 +831,12 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             checkForNullability(enclosingExpr, DEREFERENCE_OF_NULLABLE);
         }
 
-        ExpressionTree identifier = tree.getIdentifier();
-        if (identifier instanceof AnnotatedTypeTree) {
-            AnnotatedTypeTree t = (AnnotatedTypeTree) identifier;
-            for (AnnotationMirror a : atypeFactory.getAnnotatedType(t).getAnnotations()) {
-                // is this an annotation of the nullness checker?
-                boolean nullnessCheckerAnno =
-                        containsSameByName(atypeFactory.getNullnessAnnotations(), a);
-                if (nullnessCheckerAnno && !AnnotationUtils.areSame(NONNULL, a)) {
-                    // The type is not non-null => error
-                    checker.reportError(tree, "nullness.on.new.object");
-
-                    // Note that other consistency checks are made by isValid.
-                }
-            }
-            if (t.toString().contains("@PolyNull")) {
-                // TODO: this is a hack, but PolyNull gets substituted
-                // afterwards
-                checker.reportError(tree, "nullness.on.new.object");
-                //                checker.reportWarning(tree,
-                //         "new.class.type.invalid",
-                // type.getAnnotations());
-            }
+        AnnotatedTypeMirror.AnnotatedDeclaredType type = atypeFactory.getAnnotatedType(tree);
+        if (type.hasEffectiveAnnotation(NULLABLE)
+                || type.hasEffectiveAnnotation(MONOTONIC_NONNULL)
+                || type.hasEffectiveAnnotation(POLYNULL)) {
+            checker.reportError(tree, "nullness.on.new.object");
         }
-        // TODO: It might be nicer to introduce a framework-level
-        // isValidNewClassType or some such.
         return super.visitNewClass(tree, p);
     }
 

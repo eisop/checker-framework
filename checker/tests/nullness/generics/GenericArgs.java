@@ -27,7 +27,6 @@ public class GenericArgs {
 
     public static void test2() {
         // :: error: (type.argument.type.incompatible)
-        // :: error: (dereference.of.nullable)
         Object o = new X<Object>().value();
     }
 

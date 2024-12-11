@@ -730,7 +730,8 @@ public class NullnessNoInitAnnotatedTypeFactory
             return null;
         }
 
-        // The result of newly allocated structures is always non-null.
+        // The result of newly allocated structures is always non-null,
+        // explicit nullable annotations are left intact to throw error
         @Override
         public Void visitNewClass(NewClassTree tree, AnnotatedTypeMirror type) {
             type.addMissingAnnotations(Collections.singleton(NONNULL));
