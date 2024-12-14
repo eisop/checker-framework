@@ -272,7 +272,7 @@ clean {
 }
 
 clean.doLast {
-    while (layout.buildDirectory.exists()) {
+    while (layout.buildDirectory.asFile.get().exists()) {
         sleep(10000)                // wait 10 seconds
         layout.buildDirectory.deleteDir()
     }
@@ -383,7 +383,7 @@ task jtregJdk11Tests(dependsOn: ':downloadJtreg', group: 'Verification') {
 
     def injected = project.objects.newInstance(InjectedExecOps)
 
-    String jtregOutput = "${layout.buildDirectory.get()}/jtregJdk11"
+    String jtregOutput = "${projectDir}/build/jtregJdk11"
 
     String name = 'all'
     doLast {
@@ -471,7 +471,7 @@ task ainferTestCheckerGenerateStubs(type: Test) {
     dependsOn(compileTestJava)
     doFirst {
         delete('tests/ainfer-testchecker/annotated')
-        delete("${layout.buildDirectory}/ainfer-testchecker/")
+        delete("${projectDir}/build/ainfer-testchecker/")
     }
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerStubsGenerationTest.class'
@@ -530,7 +530,7 @@ task ainferTestCheckerGenerateAjava(type: Test) {
     dependsOn(compileTestJava)
     doFirst {
         delete('tests/ainfer-testchecker/annotated')
-        delete("${layout.buildDirectory}/ainfer-testchecker/")
+        delete("${projectDir}/build/ainfer-testchecker/")
     }
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerAjavaGenerationTest.class'
@@ -736,7 +736,7 @@ task ainferIndexGenerateAjava(type: Test) {
     dependsOn(compileTestJava)
     doFirst {
         delete('tests/ainfer-index/annotated')
-        delete("${layout.buildDirectory}/ainfer-index/")
+        delete("${projectDir}/build/ainfer-index/")
     }
     outputs.upToDateWhen { false }
     include '**/AinferIndexAjavaGenerationTest.class'
@@ -782,7 +782,7 @@ task ainferNullnessGenerateAjava(type: Test) {
     dependsOn(compileTestJava)
     doFirst {
         delete('tests/ainfer-nullness/annotated')
-        delete("${layout.buildDirectory}/ainfer-nullness/")
+        delete("${projectDir}/build/ainfer-nullness/")
     }
     outputs.upToDateWhen { false }
     include '**/AinferNullnessAjavaGenerationTest.class'
@@ -828,7 +828,7 @@ task ainferResourceLeakGenerateAjava(type: Test) {
     dependsOn(compileTestJava)
     doFirst {
         delete('tests/ainfer-resourceleak/annotated')
-        delete("${layout.buildDirectory}/ainfer-resourceleak/")
+        delete("${projectDir}/build/ainfer-resourceleak/")
     }
     outputs.upToDateWhen { false }
     include '**/AinferResourceLeakAjavaGenerationTest.class'

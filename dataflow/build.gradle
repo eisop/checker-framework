@@ -47,7 +47,7 @@ def createDataflowShaded(shadedPkgName) {
         from shadowJar.source
         configurations = shadowJar.configurations
 
-        destinationDirectory = file("${layout.buildDirectory}/shadow/dataflow${shadedPkgName}")
+        destinationDirectory = file("${projectDir}/build/shadow/dataflow${shadedPkgName}")
 
 
         relocate('org.checkerframework', "org.checkerframework.${shadedPkgName}") {

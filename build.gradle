@@ -581,7 +581,7 @@ def createCheckTypeTask(projectName, taskName, checker, args = []) {
         outputs.upToDateWhen { false }
         source = project("${projectName}").sourceSets.main.java
         classpath = files(project("${projectName}").compileJava.classpath,project(':checker-qual').sourceSets.main.output)
-        destinationDirectory = file("${layout.buildDirectory}")
+        destinationDirectory = file("${projectDir}/build")
 
         options.annotationProcessorPath = files(project(':checker').tasks.shadowJar.archiveFile)
         options.compilerArgs += [
@@ -1053,7 +1053,7 @@ subprojects {
 
                 def injected = project.objects.newInstance(InjectedExecOps)
 
-                String jtregOutput = "${layout.buildDirectory.get()}/jtreg"
+                String jtregOutput = "${projectDir}/build/jtreg"
                 String name = 'all'
                 String tests = '.'
                 doLast {
