@@ -795,6 +795,34 @@ use the
 \ahreforurl{https://github.com/kelloggm/checkerframework-gradle-plugin}{Checker
   Framework Gradle plugin}.  Its documentation explains how to use it.
 
+For example, to use Gradle with the EISOP Checker Framework Nullness Checker,
+add the following configuration to your \<build.gradle> file.
+\begin{Verbatim}
+plugins {
+    // Checker Framework pluggable type-checking
+    id 'org.checkerframework' version '0.6.44'
+}
+
+apply plugin: 'org.checkerframework'
+
+checkerFramework {
+  checkers = [
+    'org.checkerframework.checker.nullness.NullnessChecker',
+  ]
+}
+
+ext {
+    versions = [
+        eisopVersion: '3.42.0-eisop1',
+    ]
+}
+
+dependencies {
+    compileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
+    testCompileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
+    checkerFramework "io.github.eisop:checker:${versions.eisopVersion}"
+}
+\end{Verbatim}
 
 \sectionAndLabel{IntelliJ IDEA}{intellij}
 

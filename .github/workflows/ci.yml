@@ -1,9 +1,8 @@
 name: CI tests
 
 on:
-  push:
-    branches: [ "master" ]
   pull_request:
+  push:
     branches: [ "master" ]
 
 # Configure GitHub Actions cancel in progress workflow to avoid redundant runs in pull requests.
@@ -36,10 +35,10 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4.0.1
+      uses: gradle/actions/setup-gradle@v4.2.1
 
     - name: Setup Bazel
-      uses: bazel-contrib/setup-bazel@0.8.5
+      uses: bazel-contrib/setup-bazel@0.9.1
       if: matrix.script == 'cftests-nonjunit'
       with:
         # Avoid downloading Bazel every time.
@@ -62,6 +61,7 @@ jobs:
     permissions:
       contents: read
     strategy:
+      fail-fast: true
       matrix:
         # No need to run 'cftests-junit-jdk21' on JDK 21.
         script: ['typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib', 'daikon-part1', 'daikon-part2', 'jspecify-conformance', 'jspecify-reference-checker']
@@ -79,7 +79,7 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4.0.1
+      uses: gradle/actions/setup-gradle@v4.2.1
 
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
       run: ./checker/bin-devel/test-${{ matrix.script }}.sh
@@ -91,7 +91,7 @@ jobs:
     permissions:
       contents: read
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         # jspecify-conformance and jspecify-reference-checker only tested on JDK 21.
         script: ['cftests-junit', 'cftests-nonjunit', 'cftests-junit-jdk21', 'typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib', 'daikon-part1', 'daikon-part2']
@@ -124,10 +124,10 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4.0.1
+      uses: gradle/actions/setup-gradle@v4.2.1
 
     - name: Setup Bazel
-      uses: bazel-contrib/setup-bazel@0.8.5
+      uses: bazel-contrib/setup-bazel@0.9.1
       if: matrix.script == 'cftests-nonjunit'
       with:
         # Avoid downloading Bazel every time.
@@ -178,7 +178,7 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4.0.1
+      uses: gradle/actions/setup-gradle@v4.2.1
 
     - name: Install coreutils on MacOS
       if: matrix.os == 'macos-latest'

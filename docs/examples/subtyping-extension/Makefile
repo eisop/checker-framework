@@ -8,8 +8,9 @@ JAVAC?=../../../checker/bin/javac
 # gets the full path to the directory of the make file, which is also the root dir of the qual folder
 # for custom projects, it is best to encode the full root path as a variable
 PROJECTDIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+.PHONY: all clean compile-for-test named-quals-test qual-folder-test
 
-all: compile-for-test named-quals-test qual-folder-test clean
+all: compile-for-test named-quals-test qual-folder-test
 
 demo:
 	$(JAVAC) $(JAVAOPTS) $(FILES)
