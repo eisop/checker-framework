@@ -766,7 +766,7 @@ task downloadJtreg(type: Download) {
     // dest new File(buildDir, 'jtreg-4.2.0-tip.tar.gz')
     // src 'https://builds.shipilev.net/jtreg/jtreg4.2-b16.zip'
     src 'https://builds.shipilev.net/jtreg/jtreg-7.5+1.zip'
-    dest new File(buildDir, 'jtreg.zip')
+    dest new File(layout.buildDirectory.asFile.get(), 'jtreg.zip')
     overwrite true
     retries 3
 
@@ -1053,7 +1053,7 @@ subprojects {
 
                 def injected = project.objects.newInstance(InjectedExecOps)
 
-                String jtregOutput = "${buildDir}/jtreg"
+                String jtregOutput = "${layout.buildDirectory.get()}/jtreg"
                 String name = 'all'
                 String tests = '.'
                 doLast {

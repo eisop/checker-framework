@@ -383,7 +383,7 @@ task jtregJdk11Tests(dependsOn: ':downloadJtreg', group: 'Verification') {
 
     def injected = project.objects.newInstance(InjectedExecOps)
 
-    String jtregOutput = "${buildDir}/jtregJdk11"
+    String jtregOutput = "${layout.buildDirectory.get()}/jtregJdk11"
 
     String name = 'all'
     doLast {
