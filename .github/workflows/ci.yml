@@ -1,9 +1,8 @@
 name: CI tests
 
 on:
-  push:
-    branches: [ "master" ]
   pull_request:
+  push:
     branches: [ "master" ]
 
 # Configure GitHub Actions cancel in progress workflow to avoid redundant runs in pull requests.
@@ -36,10 +35,10 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4.0.1
+      uses: gradle/actions/setup-gradle@v4.2.1
 
     - name: Setup Bazel
-      uses: bazel-contrib/setup-bazel@0.8.5
+      uses: bazel-contrib/setup-bazel@0.9.1
       if: matrix.script == 'cftests-nonjunit'
       with:
         # Avoid downloading Bazel every time.
@@ -80,7 +79,7 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4.0.1
+      uses: gradle/actions/setup-gradle@v4.2.1
 
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
       run: ./checker/bin-devel/test-${{ matrix.script }}.sh
@@ -125,10 +124,10 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4.0.1
+      uses: gradle/actions/setup-gradle@v4.2.1
 
     - name: Setup Bazel
-      uses: bazel-contrib/setup-bazel@0.8.5
+      uses: bazel-contrib/setup-bazel@0.9.1
       if: matrix.script == 'cftests-nonjunit'
       with:
         # Avoid downloading Bazel every time.
@@ -179,7 +178,7 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4.0.1
+      uses: gradle/actions/setup-gradle@v4.2.1
 
     - name: Install coreutils on MacOS
       if: matrix.os == 'macos-latest'

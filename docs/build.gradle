@@ -1,7 +1,15 @@
+// Enable execOperations.javaexec
+interface InjectedExecOps {
+    @Inject //@javax.inject.Inject
+    ExecOperations getExecOps()
+}
+
 clean {
+    def injected = project.objects.newInstance(InjectedExecOps)
+
     delete('api/')
     doLast {
-        exec {
+        injected.execOps.exec {
             workingDir = file('examples')
             commandLine 'make', 'clean'
         }
