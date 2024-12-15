@@ -31,7 +31,7 @@ public class PrimitiveTypeNode extends Node {
         this.types = types;
     }
 
-    public PrimitiveTypeNode(MemberSelectTree tree, Types types) {
+    public PrimitiveTypeNode(MemberSelectTree tree, Types types, boolean dummy) {
         super(TreeUtils.typeOf(tree));
         this.tree = (PrimitiveTypeTree) tree;
         this.types = types;
