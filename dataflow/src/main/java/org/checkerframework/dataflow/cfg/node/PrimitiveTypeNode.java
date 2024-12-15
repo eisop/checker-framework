@@ -20,18 +20,30 @@ import javax.lang.model.util.Types;
  * <p><em>type</em> .class
  */
 public class PrimitiveTypeNode extends Node {
-
+    /** The tree that represents the type. */
     protected final Tree tree;
 
     /** For Types.isSameType. */
     protected final Types types;
 
+    /**
+     * Create a new PrimitiveTypeNode.
+     *
+     * @param tree the tree that represents the type
+     * @param types the types utility
+     */
     public PrimitiveTypeNode(PrimitiveTypeTree tree, Types types) {
         super(TreeUtils.typeOf(tree));
         this.tree = tree;
         this.types = types;
     }
 
+    /**
+     * Create a new PrimitiveTypeNode.
+     *
+     * @param tree the tree that represents the type
+     * @param types the types utility
+     */
     public PrimitiveTypeNode(MemberSelectTree tree, Types types) {
         super(TreeUtils.typeOf(tree));
         this.tree = tree;
