@@ -1,5 +1,6 @@
 package org.checkerframework.dataflow.cfg.node;
 
+import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.PrimitiveTypeTree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -27,6 +28,12 @@ public class PrimitiveTypeNode extends Node {
     public PrimitiveTypeNode(PrimitiveTypeTree tree, Types types) {
         super(TreeUtils.typeOf(tree));
         this.tree = tree;
+        this.types = types;
+    }
+
+    public PrimitiveTypeNode(MemberSelectTree tree, Types types) {
+        super(TreeUtils.typeOf(tree));
+        this.tree = (PrimitiveTypeTree) tree;
         this.types = types;
     }
 
