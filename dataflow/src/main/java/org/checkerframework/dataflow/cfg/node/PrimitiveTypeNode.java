@@ -2,6 +2,7 @@ package org.checkerframework.dataflow.cfg.node;
 
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.PrimitiveTypeTree;
+import com.sun.source.tree.Tree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.SideEffectFree;
@@ -20,7 +21,7 @@ import javax.lang.model.util.Types;
  */
 public class PrimitiveTypeNode extends Node {
 
-    protected final PrimitiveTypeTree tree;
+    protected final Tree tree;
 
     /** For Types.isSameType. */
     protected final Types types;
@@ -31,14 +32,14 @@ public class PrimitiveTypeNode extends Node {
         this.types = types;
     }
 
-    public PrimitiveTypeNode(MemberSelectTree tree, Types types, boolean dummy) {
+    public PrimitiveTypeNode(MemberSelectTree tree, Types types) {
         super(TreeUtils.typeOf(tree));
-        this.tree = (PrimitiveTypeTree) tree;
+        this.tree = tree;
         this.types = types;
     }
 
     @Override
-    public PrimitiveTypeTree getTree() {
+    public Tree getTree() {
         return tree;
     }
 
