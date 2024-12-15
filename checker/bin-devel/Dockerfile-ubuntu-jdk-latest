@@ -5,7 +5,7 @@
 # See releases at https://hub.docker.com/_/ubuntu for available images.
 # See https://packages.ubuntu.com/search?suite=default&section=all&arch=any&keywords=openjdk-21-jdk&searchon=names
 # to see what Ubuntu versions support a particular OpenJDK version.
-FROM ubuntu:23.10
+FROM ubuntu:rolling
 MAINTAINER Werner Dietl <wdietl@gmail.com>
 
 # According to
@@ -25,6 +25,8 @@ RUN export DEBIAN_FRONTEND=noninteractive \
   openjdk-17-jdk \
   openjdk-21-jdk
 
+# Known good combinations of JTReg and the JDK appear at https://builds.shipilev.net/jtreg/ .
+
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get -qqy update \
 && aptitude -y install \
@@ -37,21 +39,33 @@ RUN export DEBIAN_FRONTEND=noninteractive \
   libcurl3-gnutls \
   make \
   maven \
-  pipx \
-  python3-distutils \
   python3-requests \
+  python3-setuptools \
   unzip \
-  wget
+  wget \
+&& aptitude -y install \
+  jtreg7
 
-# Maven 3.8.7 is the default on Ubuntu 23.04, so the below is not needed.
+RUN wget https://github.com/bazelbuild/bazelisk/releases/download/v1.23.0/bazelisk-linux-amd64 \
+    && chmod +x bazelisk-linux-amd64 \
+    && mv bazelisk-linux-amd64 /usr/local/bin/bazelisk
+
+# Use the same Maven version in all images.
 # (Don't try to use a variable here for the Maven version.)
-# RUN export DEBIAN_FRONTEND=noninteractive \
-# && wget https://mirrors.sonic.net/apache/maven/maven-3/3.9.2/binaries/apache-maven-3.9.2-bin.tar.gz \
-# && tar xzvf apache-maven-3.9.2-bin.tar.gz
-# ENV PATH="/apache-maven-3.9.2/bin:$PATH"
+RUN export DEBIAN_FRONTEND=noninteractive \
+&& wget https://mirrors.sonic.net/apache/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.tar.gz \
+&& tar xzvf apache-maven-3.9.9-bin.tar.gz
+ENV PATH="/apache-maven-3.9.9/bin:$PATH"
 
-ENV PATH="/root/.local/bin:$PATH"
-RUN pipx install --pip-args="--no-cache-dir" lithium-reducer
+# `pipx ensurepath` only adds to the path in newly-started shells.
+# BUT, setting the path for the current user is not enough.
+# Azure creates a new user and runs jobs as it.
+# So, install into /usr/local/bin which is already on every user's path.
+RUN export DEBIAN_FRONTEND=noninteractive \
+&& apt-get -qqy update \
+&& aptitude -y install \
+  pipx \
+&& PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install lithium-reducer
 
 RUN mkdir /python-env \
 && python3 -m venv /python-env \
