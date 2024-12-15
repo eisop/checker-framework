@@ -63,9 +63,7 @@ public class ClassNameNode extends Node {
         this.tree = tree;
         assert TreeUtils.isUseOfElement(tree) : "@AssumeAssertion(nullness): tree kind";
         Element element = TreeUtils.elementFromUse(tree);
-        assert element instanceof TypeElement
-                        || element instanceof TypeParameterElement
-                        || element.toString().equals("class")
+        assert element instanceof TypeElement || element instanceof TypeParameterElement
                 : "@AssumeAssertion(nullness)";
         this.element = element;
         this.parent = parent;
