@@ -35,6 +35,11 @@ public class ClassLiteralNode extends Node {
     }
 
     @Override
+    public String toString() {
+        return tree.toString();
+    }
+
+    @Override
     public Collection<Node> getOperands() {
         return Collections.emptyList();
     }
