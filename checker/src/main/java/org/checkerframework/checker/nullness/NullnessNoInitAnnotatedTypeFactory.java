@@ -667,9 +667,10 @@ public class NullnessNoInitAnnotatedTypeFactory
             Element elt = TreeUtils.elementFromUse(tree);
             assert elt != null;
 
-            // Make primitive variable @NonNull in case the Initialization Checker
+            // Make primitive variable and class literal @NonNull in case the Initialization Checker
             // considers it uninitialized.
-            if (TypesUtils.isPrimitive(type.getUnderlyingType())) {
+            if (TypesUtils.isPrimitive(type.getUnderlyingType())
+                    || TreeUtils.isClassLiteral(tree)) {
                 type.replaceAnnotation(NONNULL);
             }
 

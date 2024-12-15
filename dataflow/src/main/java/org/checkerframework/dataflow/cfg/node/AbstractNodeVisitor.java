@@ -66,6 +66,11 @@ public abstract class AbstractNodeVisitor<R, P> implements NodeVisitor<R, P> {
         return visitValueLiteral(n, p);
     }
 
+    @Override
+    public R visitClassLiteral(ClassLiteralNode n, P p) {
+        return visitNode(n, p);
+    }
+
     // Unary operations
     @Override
     public R visitNumericalMinus(NumericalMinusNode n, P p) {

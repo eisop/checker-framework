@@ -28,6 +28,8 @@ public interface NodeVisitor<R, P> {
 
     R visitNullLiteral(NullLiteralNode n, P p);
 
+    R visitClassLiteral(ClassLiteralNode n, P p);
+
     // Unary operations
     R visitNumericalMinus(NumericalMinusNode n, P p);
 

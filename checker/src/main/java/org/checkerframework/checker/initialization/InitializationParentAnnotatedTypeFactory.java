@@ -793,11 +793,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
         @Override
         public Void visitMemberSelect(
                 MemberSelectTree tree, AnnotatedTypeMirror annotatedTypeMirror) {
-            Element elt = TreeUtils.elementFromUse(tree);
-            if (elt.toString().equals("class")) {
-                annotatedTypeMirror.replaceAnnotation(INITIALIZED);
-            }
-            if (TreeUtils.isArrayLengthAccess(tree)) {
+            if (TreeUtils.isArrayLengthAccess(tree) || TreeUtils.isClassLiteral(tree)) {
                 annotatedTypeMirror.replaceAnnotation(INITIALIZED);
             }
             return super.visitMemberSelect(tree, annotatedTypeMirror);
