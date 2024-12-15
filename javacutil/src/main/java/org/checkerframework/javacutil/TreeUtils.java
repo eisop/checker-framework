@@ -1437,6 +1437,8 @@ public final class TreeUtils {
      *   <em>obj</em> . <em>f</em>
      * </pre>
      *
+     * This method currently also returns true for qualified this.
+     *
      * @param tree a tree that might be a field access
      * @return true iff if tree is a field access expression (implicit or explicit)
      */
@@ -1452,15 +1454,18 @@ public final class TreeUtils {
      *   <em>obj</em> . <em>f</em>
      * </pre>
      *
+     * This method currently also returns a non-null value for qualified this.
+     *
      * @param tree a tree that might be a field access
      * @return the element if tree is a field access expression (implicit or explicit); null
      *     otherwise
      */
+    // TODO: fix value for qualified this, which is not field accesses.
     public static @Nullable VariableElement asFieldAccess(Tree tree) {
         if (tree.getKind() == Tree.Kind.MEMBER_SELECT) {
             // explicit member access (or a class literal or a qualified this)
             MemberSelectTree memberSelect = (MemberSelectTree) tree;
-            if (isClassLiteral(memberSelect) || isExplicitThisDereference(memberSelect)) {
+            if (isClassLiteral(memberSelect)) {
                 return null;
             }
             assert isUseOfElement(memberSelect) : "@AssumeAssertion(nullness): tree kind";
