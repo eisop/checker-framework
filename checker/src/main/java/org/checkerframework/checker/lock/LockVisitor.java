@@ -424,7 +424,7 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
 
     @Override
     public Void visitMemberSelect(MemberSelectTree tree, Void p) {
-        if (!TreeUtils.isFieldAccess(tree)) {
+        if (TreeUtils.isFieldAccess(tree)) {
             AnnotatedTypeMirror atmOfReceiver = atypeFactory.getAnnotatedType(tree.getExpression());
             // The atmOfReceiver for "void.class" is TypeKind.VOID, which isn't annotated so avoid
             // it.
