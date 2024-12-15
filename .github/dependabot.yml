@@ -1,0 +1,26 @@
+version: 2
+updates:
+- package-ecosystem: "gradle"
+  directory: "/"
+  schedule:
+    interval: "daily"
+
+- package-ecosystem: "gradle"
+  directory: "/docs/examples/errorprone/"
+  schedule:
+    interval: "daily"
+
+- package-ecosystem: "gradle"
+  directory: "/docs/examples/lombok/"
+  schedule:
+    interval: "daily"
+
+- package-ecosystem: "maven"
+  directory: "/docs/examples/MavenExample/"
+  schedule:
+    interval: "daily"
+
+- package-ecosystem: "github-actions"
+  directory: "/"
+  schedule:
+    interval: "daily"

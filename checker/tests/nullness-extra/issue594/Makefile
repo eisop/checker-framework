@@ -1,6 +1,6 @@
-.PHONY: all
+.PHONY: all clean
 
-all: clean
+all:
 	-$(JAVAC) -processor org.checkerframework.checker.nullness.NullnessChecker Issue594.java > Out.txt 2>&1
 	diff -u Expected.txt Out.txt
 

@@ -1,3 +1,164 @@
+Version 3.42.0-eisop5 (November ??, 2024)
+-----------------------------------------
+
+**User-visible changes:**
+
+Removed support for the `-Anocheckjdk` option, which was deprecated in version 3.1.1.
+Use `-ApermitMissingJdk` instead.
+
+The Nullness Checker now reports an error if an array creation is annotated with `@Nullable`,
+as array creations are intrinsically non-null.
+
+**Implementation details:**
+
+Changed `org.checkerframework.framework.util.ContractsFromMethod` to an interface.
+Use `DefaultContractsFromMethod` to get the default behavior or use the new
+`NoContractsFromMethod` if you want no support for contracts.
+
+Make `SourceChecker#suppressWarningsString` protected to allow adaptation in subclasses.
+
+**Closed issues:**
+
+eisop#413, eisop#777, eisop#782, eisop#927, eisop#982.
+
+
+Version 3.42.0-eisop4 (July 12, 2024)
+-------------------------------------
+
+**Implementation details:**
+
+New method `GenericAnnotatedTypeFactory#addComputedTypeAnnotationsWithoutFlow(Tree, AnnotatedTypeMirror)`
+that sets `useFlow` to `false` before calling `addComputedTypeAnnotations`. Subclasses should override
+method `GenericAnnotatedTypeFactory#addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)` instead.
+Deprecated the `GenericAnnotatedTypeFactory#addComputedTypeAnnotations(Tree, AnnotatedTypeMirror, boolean)`
+overload.
+
+Changed the return type of `AnnotatedTypeFactory#getEnumConstructorQualifiers` from `Set<AnnotationMirror>`
+to `AnnotationMirrorSet`.
+
+Field `AnnotatedTypeFactory#root` is now private and can only be accessed through `getRoot`/`setRoot`.
+
+framework-test:
+- Improvements to more consistently handle tests that do not use `-Anomsgtext`.
+- Added new class `DetailedTestDiagnostic` to directly represent test diagnostics when
+  `-Adetailedmsgtext` is used.
+
+**Closed issues:**
+
+eisop#742, eisop#777, eisop#795, typetools#6704.
+
+
+Version 3.42.0-eisop3 (March 1, 2024)
+-------------------------------------
+
+**User-visible changes:**
+
+Performance improvements in the Nullness Checker.
+
+**Implementation details:**
+
+Support separate defaults for wildcard and type variable upper bounds.
+Add support for defaults for type variable uses.
+See changes in `TypeUseLocation`, `QualiferDefaults`, and `QualifierHierarchy`,
+as well as the new `ParametricTypeVariableUseQualifier` meta-annotation.
+
+Refactored the `TypeInformationPresenter` into several classes in the new
+`org.checkerframework.framework.util.visualize` package.
+
+**Closed issues:**
+
+eisop#703, typetools#6433, typetools#6438.
+
+
+Version 3.42.0-eisop2 (January 9, 2024)
+---------------------------------------
+
+**Implementation details:**
+
+Moved `ErrorTypeKindException` from `org.checkerframework.framework.util.element.ElementAnnotationUtil` to
+`org.checkerframework.framework.type.AnnotatedTypeMirror`. Properly raise these errors in more cases.
+
+Deprecated `AnnotationUtils#isDeclarationAnnotation` and added the clearer `AnnotationUtils#isTypeUseAnnotation`.
+
+Removed the dependency on the classgraph library, which added over 500kB to `checker.jar`.
+It is easy to add the dependency for debugging.
+
+**Closed issues:**
+
+eisop#666, eisop#673.
+
+
+Version 3.42.0-eisop1 (January 2, 2024)
+---------------------------------------
+
+**Closed issues:**
+
+typetools#6373, typetools#6374.
+
+
+Version 3.42.0 (December 15, 2023)
+----------------------------------
+
+**User-visible changes:**
+
+Method annotation `@AssertMethod` indicates that a method checks a value and
+possibly throws an assertion.  Using it can make flow-sensitive type refinement
+more effective.
+
+In `org.checkerframework.common.util.debug`, renamed `EmptyProcessor` to `DoNothingProcessor`.
+Removed `org.checkerframework.common.util.report.DoNothingChecker`.
+Moved `ReportChecker` from `org.checkerframework.common.util.report` to `org.checkerframework.common.util.count.report`.
+(EISOP note: we did not follow this renaming - if anything, `counting` could be a special case of `reporting`, not
+the other way around.)
+
+
+Version 3.41.0-eisop1 (December 5, 2023)
+----------------------------------------
+
+**User-visible changes:**
+
+The Nullness Checker now warns about redundant null cases in switch statements and expressions when
+using the `-Alint=redundantNullComparison` command-line argument.
+
+**Closed issues:**
+
+eisop#628, eisop#635, eisop#640, eisop#641.
+
+
+Version 3.41.0 (December 4, 2023)
+---------------------------------
+
+**User-visible changes:**
+
+New command-line options:
+* `-AassumePureGetters`: Unsoundly assume that every getter method is pure.
+
+**Implementation details:**
+
+Added method `isDeterministic()` to the `AnnotationProvider` interface.
+
+`CFAbstractValue#leastUpperBound` and `CFAbstractValue#widenUpperBound` are now
+final.  Subclasses should override method `CFAbstractValue#upperBound(V,
+TypeMirror, boolean)` instead.
+
+(EISOP note: typetools added the new method annotation `org.checkerframework.dataflow.qual.AssertMethod`
+to treat such methods like assert statements. EISOP might change the implementation of this feature
+in a future release.)
+
+**Closed issues:**
+
+#1497, #3345, #6037, #6204, #6276, #6282, #6290, #6296, #6319, #6327.
+
+
+Version 3.40.0-eisop2 (November 24, 2023)
+-----------------------------------------
+
+**Implementation details:**
+
+Always use reflective access for `TreeMaker#Select`, to allow artifacts built with
+Java 21+ to be executed on Java <21.
+
+
 Version 3.40.0-eisop1 (November 24, 2023)
 -----------------------------------------
 

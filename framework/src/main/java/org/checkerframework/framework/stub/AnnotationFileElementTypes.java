@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ProcessBuilder.Redirect;
 import java.net.JarURLConnection;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
@@ -59,7 +58,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 
-import io.github.classgraph.ClassGraph;
+// import io.github.classgraph.ClassGraph;
 
 /**
  * Holds information about types parsed from annotation files (stub files or ajava files). When
@@ -130,10 +129,10 @@ public class AnnotationFileElementTypes {
                 release != null ? release : String.valueOf(SystemUtil.jreVersion);
 
         SourceChecker checker = atypeFactory.getChecker();
-        this.shouldParseJdk = !checker.hasOption("ignorejdkastub");
+        this.ignorejdkastub = checker.hasOption("ignorejdkastub");
+        this.shouldParseJdk = !ignorejdkastub;
         this.parseAllJdkFiles = checker.hasOption("parseAllJdk");
         this.permitMissingJdk = checker.hasOption("permitMissingJdk");
-        this.ignorejdkastub = checker.hasOption("ignorejdkastub");
         this.stubDebug = checker.hasOption("stubDebug");
     }
 
@@ -150,16 +149,18 @@ public class AnnotationFileElementTypes {
      * Parses the stub files in the following order:
      *
      * <ol>
-     *   <li>jdk.astub in this directory, if it exists and ignorejdkastub option is not supplied
-     *   <li>jdk.astub in the same directory as the checker, if it exists and ignorejdkastub option
-     *       is not supplied
-     *   <li>If parsing annotated JDK as stub files, all package-info.java files under the jdk/
-     *       directory
-     *   <li>Stub files listed in @StubFiles annotation on the checker; must be in same directory as
-     *       the checker
+     *   <li>{@code jdk.astub} in the same directory as the checker, if it exists and the {@code
+     *       ignorejdkastub} option is not supplied;
+     *   <li>{@code jdkN.astub} (where N is the current Java version or any higher value) in the
+     *       same directory as the checker, if it exists and the {@code ignorejdkastub} option is
+     *       not supplied;
+     *   <li>If parsing the annotated JDK as stub files, all {@code package-info.java} files under
+     *       the {@code jdk/} directory;
+     *   <li>Stub files listed in a {@code @StubFiles} annotation on the checker; these files must
+     *       be in same directory as the checker;
      *   <li>Stub files returned by {@link BaseTypeChecker#getExtraStubFiles} (treated like those
-     *       listed in @StubFiles annotation)
-     *   <li>Stub files provided via {@code -Astubs} compiler option
+     *       listed in a {@code @StubFiles} annotation on the checker);
+     *   <li>Stub files provided via the {@code -Astubs} compiler option.
      * </ol>
      *
      * <p>If a type is annotated with a qualifier from the same hierarchy in more than one stub
@@ -168,6 +169,7 @@ public class AnnotationFileElementTypes {
      * <p>If using JDK 11, then the JDK stub files are only parsed if a type or declaration
      * annotation is requested from a class in that file.
      */
+    // TODO: it's unclear for what Java versions a jdkN.astub is parsed.
     public void parseStubFiles() {
         assert parsingCount == 0;
         ++parsingCount;
@@ -185,12 +187,16 @@ public class AnnotationFileElementTypes {
 
             // 2. jdk.astub
             // Only look in .jar files, and parse it right away.
-            String jdkVersionStub = "jdk" + annotatedJdkVersion + ".astub";
-            parseOneStubFile(this.getClass(), "jdk.astub");
-            parseOneStubFile(this.getClass(), jdkVersionStub);
-            parseOneStubFile(checker.getClass(), "jdk.astub");
-            parseOneStubFile(checker.getClass(), jdkVersionStub);
+            String[] jdkVersions = {"", annotatedJdkVersion};
+            for (String jdkVersion : jdkVersions) {
+                String jdkVersionStub = "jdk" + jdkVersion + ".astub";
+                parseOneStubFile(this.getClass(), jdkVersionStub);
+                parseOneStubFile(checker.getClass(), jdkVersionStub);
+            }
             // This needs to be special-cased for every jdkX.astub for which files exist. :-(
+            // TODO: not clear what this is supposed to mean - if we are on Java 8, why parse Java
+            // 11 stub files?
+            // It would make more sense to parse this if we're e.g. on Java 12.
             if (annotatedJdkVersion.equals("8")) {
                 String jdk11Stub = "jdk11.astub";
                 parseOneStubFile(this.getClass(), jdk11Stub);
@@ -341,6 +347,8 @@ public class AnnotationFileElementTypes {
                     AnnotationFileUtil.allAnnotationFiles(fullPath, fileType);
             if (allFiles != null) {
                 for (AnnotationFileResource resource : allFiles) {
+                    // See note with the SuppressWarnings on this method for why this is not a
+                    // try-with-resources.
                     BufferedInputStream annotationFileStream;
                     try {
                         annotationFileStream = new BufferedInputStream(resource.getInputStream());
@@ -348,12 +356,6 @@ public class AnnotationFileElementTypes {
                         checker.message(
                                 Diagnostic.Kind.NOTE,
                                 "Could not read annotation resource: " + resource.getDescription());
-                        continue;
-                    }
-                    // Is it necessary to also skip files that consist only of Java comments?
-                    Boolean isWhitespaceOnly =
-                            SystemUtil.isWhitespaceOnly(annotationFileStream, 100);
-                    if (isWhitespaceOnly != null && (boolean) isWhitespaceOnly) {
                         continue;
                     }
                     // We use parseStubFile here even for ajava files because at this stage
@@ -376,8 +378,10 @@ public class AnnotationFileElementTypes {
                 // If the file has a prefix of "checker.jar/" then look for the file in the top
                 // level directory of the jar that contains the checker.
                 if (path.startsWith("checker.jar/")) {
-                    path = path.substring("checker.jar/".length());
+                    // Note the missing `/` here - this makes sure that `path` starts with `/`.
+                    path = path.substring("checker.jar".length());
                 }
+                boolean issueWarning;
                 try (InputStream in = checker.getClass().getResourceAsStream(path)) {
                     if (in != null) {
                         AnnotationFileParser.parseStubFile(
@@ -388,68 +392,75 @@ public class AnnotationFileElementTypes {
                                 annotationFileAnnos,
                                 fileType,
                                 this);
+                        issueWarning = false;
                     } else {
-                        // Didn't find the file.  Issue a warning.
-
-                        // When using a compound checker, the target file may be found by the
-                        // current checker's parent checkers. Also check this to avoid a false
-                        // warning. Currently, only the original checker will try to parse the
-                        // target file, the parent checkers are only used to reduce false
-                        // warnings.
-                        SourceChecker currentChecker = checker;
-                        boolean findByParentCheckers = false;
-                        while (currentChecker != null) {
-                            URL normalResource = currentChecker.getClass().getResource(path);
-                            if (normalResource != null) {
-                                // If the parent checker supports the stub file, there is no need
-                                // for a warning.
-                                findByParentCheckers = true;
-                                break;
-                            }
-                            // See whether the stub file is mis-placed and issue a helpful warning.
-                            URL topLevelResource =
-                                    currentChecker.getClass().getResource("/" + path);
-                            if (topLevelResource != null) {
-                                currentChecker.message(
-                                        Diagnostic.Kind.WARNING,
-                                        path
-                                                + " should be in the same directory as "
-                                                + currentChecker.getClass().getSimpleName()
-                                                + ".class, but is at the top level of a jar file: "
-                                                + topLevelResource);
-                                findByParentCheckers = true;
-                                break;
-                            } else {
-                                currentChecker = currentChecker.getParentChecker();
-                            }
-                        }
-                        // If there exists one parent checker that can find this file, don't report
-                        // a warning.
-                        if (!findByParentCheckers) {
-                            File parentPath = new File(path).getParentFile();
-                            String parentPathDescription =
-                                    (parentPath == null
-                                            ? "current directory"
-                                            : "directory " + parentPath.getAbsolutePath());
-                            String msg =
-                                    checker.getClass().getSimpleName()
-                                            + " did not find annotation file or directory "
-                                            + path
-                                            + " on classpath or within "
-                                            + parentPathDescription
-                                            + (fullPath.equals(path) ? "" : (" or at " + fullPath));
-                            StringJoiner sj = new StringJoiner(System.lineSeparator() + "  ");
-                            sj.add(msg);
-                            sj.add("Classpath:");
-                            for (URI uri : new ClassGraph().getClasspathURIs()) {
-                                sj.add(uri.toString());
-                            }
-                            checker.message(Diagnostic.Kind.WARNING, sj.toString());
-                        }
+                        issueWarning = true;
                     }
                 } catch (IOException e) {
+                    issueWarning = true;
                     checker.message(
                             Diagnostic.Kind.NOTE, "Could not read annotation resource: " + path);
+                }
+
+                if (issueWarning) {
+                    // Didn't find the file.  Possibly issue a warning.
+
+                    // When using a compound checker, the target file may be found by the
+                    // current checker's parent checkers. Also check this to avoid a false
+                    // warning. Currently, only the original checker will try to parse the
+                    // target file, the parent checkers are only used to reduce false
+                    // warnings.
+                    SourceChecker currentChecker = checker;
+                    boolean findByParentCheckers = false;
+                    while (currentChecker != null) {
+                        URL normalResource = currentChecker.getClass().getResource(path);
+                        if (normalResource != null) {
+                            // If the parent checker supports the stub file, there is no need
+                            // for a warning.
+                            findByParentCheckers = true;
+                            break;
+                        }
+                        // See whether the stub file is mis-placed and issue a helpful warning.
+                        URL topLevelResource = currentChecker.getClass().getResource("/" + path);
+                        if (topLevelResource != null) {
+                            currentChecker.message(
+                                    Diagnostic.Kind.WARNING,
+                                    path
+                                            + " should be in the same directory as "
+                                            + currentChecker.getClass().getSimpleName()
+                                            + ".class, but is at the top level of a jar file: "
+                                            + topLevelResource);
+                            findByParentCheckers = true;
+                            break;
+                        } else {
+                            currentChecker = currentChecker.getParentChecker();
+                        }
+                    }
+                    // If there exists one parent checker that can find this file, don't report
+                    // a warning.
+                    if (!findByParentCheckers) {
+                        File parentPath = new File(path).getParentFile();
+                        String parentPathDescription =
+                                (parentPath == null
+                                        ? "current directory"
+                                        : "directory " + parentPath.getAbsolutePath());
+                        String msg =
+                                checker.getClass().getSimpleName()
+                                        + " did not find annotation file or directory "
+                                        + path
+                                        + " on classpath or within "
+                                        + parentPathDescription
+                                        + (fullPath.equals(path) ? "" : (" or at " + fullPath));
+                        StringJoiner sj = new StringJoiner(System.lineSeparator() + "  ");
+                        sj.add(msg);
+                        /*
+                          sj.add("Classpath:");
+                          for (URI uri : new ClassGraph().getClasspathURIs()) {
+                              sj.add(uri.toString());
+                          }
+                        */
+                        checker.message(Diagnostic.Kind.WARNING, sj.toString());
+                    }
                 }
             }
         }
@@ -814,9 +825,6 @@ public class AnnotationFileElementTypes {
     private void parseJdkJarEntry(String jarEntryName) {
         if (stubDebug) {
             System.out.printf("entered parseJdkJarEntry(%s)%n", jarEntryName);
-            if (jarEntryName.contains("String")) {
-                new Error("stack trace").printStackTrace();
-            }
         }
 
         JarURLConnection connection = getJarURLConnectionToJdk();
@@ -878,24 +886,30 @@ public class AnnotationFileElementTypes {
             return;
         }
         URL resourceURL = atypeFactory.getClass().getResource("/annotated-jdk");
+        if (stubDebug) {
+            System.out.printf(
+                    "Loading JDK from class %s and url: %s%n",
+                    atypeFactory.getClass(), resourceURL);
+        }
         if (resourceURL == null) {
-            if (permitMissingJdk
-                    // temporary, for backward compatibility
-                    || atypeFactory.getChecker().hasOption("nocheckjdk")) {
+            if (permitMissingJdk) {
                 return;
             }
-            throw new BugInCF("JDK not found");
+            throw new BugInCF(
+                    "JDK not found for type factory " + atypeFactory.getClass().getSimpleName());
         } else if (resourceURL.getProtocol().contentEquals("jar")) {
             prepJdkFromJar(resourceURL);
         } else if (resourceURL.getProtocol().contentEquals("file")) {
             prepJdkFromFile(resourceURL);
         } else {
-            if (permitMissingJdk
-                    // temporary, for backward compatibility
-                    || atypeFactory.getChecker().hasOption("nocheckjdk")) {
+            if (permitMissingJdk) {
                 return;
             }
-            throw new BugInCF("JDK not found");
+            throw new BugInCF(
+                    "JDK not found in "
+                            + resourceURL
+                            + ". Unsupported protocol: "
+                            + resourceURL.getProtocol());
         }
     }
 

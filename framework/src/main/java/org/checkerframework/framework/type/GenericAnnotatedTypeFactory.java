@@ -79,7 +79,9 @@ import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.Contract;
 import org.checkerframework.framework.util.ContractsFromMethod;
+import org.checkerframework.framework.util.DefaultContractsFromMethod;
 import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
+import org.checkerframework.framework.util.NoContractsFromMethod;
 import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.framework.util.defaults.QualifierDefaults;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
@@ -147,7 +149,7 @@ public abstract class GenericAnnotatedTypeFactory<
 
     /**
      * Whether to output verbose, low-level debugging messages. Also see {@code TreeAnnotator.debug}
-     * and {@link AnnotatedTypeFactory#debugGat}.
+     * and {@link AnnotatedTypeFactory#debugStubParser}.
      */
     private static final boolean debug = false;
 
@@ -397,6 +399,16 @@ public abstract class GenericAnnotatedTypeFactory<
 
         // Every subclass must call postInit, but it must be called after
         // all other initialization is finished.
+    }
+
+    /**
+     * Determines whether flow-sensitive type refinement should be used or not.
+     *
+     * @return whether flow-sensitive type refinement should be used or not
+     * @see #useFlow
+     */
+    protected boolean getUseFlow() {
+        return useFlow;
     }
 
     @Override
@@ -719,12 +731,13 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * Creates an {@link ContractsFromMethod} and returns it.
+     * Creates an {@link DefaultContractsFromMethod} and returns it. If contract annotations are not
+     * used for a type system, override this method and return a {@link NoContractsFromMethod}.
      *
      * @return a new {@link ContractsFromMethod}
      */
     protected ContractsFromMethod createContractsFromMethod() {
-        return new ContractsFromMethod(this);
+        return new DefaultContractsFromMethod(this);
     }
 
     /**
@@ -1404,7 +1417,7 @@ public abstract class GenericAnnotatedTypeFactory<
             TreePath preTreePath = getVisitorTreePath();
 
             // Don't call AnnotatedTypeFactory#getPath, because it uses visitorTreePath.
-            setVisitorTreePath(TreePath.getPath(this.root, ct));
+            setVisitorTreePath(TreePath.getPath(this.getRoot(), ct));
 
             // start with the captured store as initialization store
             initializationStaticStore = capturedStore;
@@ -1597,7 +1610,8 @@ public abstract class GenericAnnotatedTypeFactory<
             boolean updateInitializationStore,
             boolean isStatic,
             @Nullable Store capturedStore) {
-        ControlFlowGraph cfg = CFCFGBuilder.build(root, ast, checker, this, processingEnv);
+        ControlFlowGraph cfg =
+                CFCFGBuilder.build(this.getRoot(), ast, checker, this, processingEnv);
         /*
              cfg.getAllNodes(this::isIgnoredExceptionType)
                      .forEach(
@@ -1832,7 +1846,32 @@ public abstract class GenericAnnotatedTypeFactory<
         AnnotatedTypeMirror res;
         switch (lhsTree.getKind()) {
             case VARIABLE:
+                boolean isVarTree =
+                        TreeUtils.isVariableTreeDeclaredUsingVar((VariableTree) lhsTree);
+                if (isVarTree) {
+                    // If this variable is declared using `var`, re-enable caching to avoid
+                    // re-computing the initializer expression type.
+                    shouldCache = oldShouldCache;
+                }
+                res = getAnnotatedType(lhsTree);
+                // Value of shouldCache no longer used below, so no need to reset.
+                break;
             case IDENTIFIER:
+                Element elt = TreeUtils.elementFromTree(lhsTree);
+                if (elt != null) {
+                    Tree decl = declarationFromElement(elt);
+                    if (decl != null
+                            && decl.getKind() == Tree.Kind.VARIABLE
+                            && TreeUtils.isVariableTreeDeclaredUsingVar((VariableTree) decl)) {
+                        // If this identifier accesses a variable that was declared using `var`,
+                        // re-enable caching to avoid re-computing the initializer expression type.
+                        shouldCache = oldShouldCache;
+                    }
+                }
+                res = getAnnotatedType(lhsTree);
+                // Value of shouldCache no longer used below, so no need to reset.
+                break;
+
             case MEMBER_SELECT:
             case ARRAY_ACCESS:
                 res = getAnnotatedType(lhsTree);
@@ -1956,17 +1995,6 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * This method is final; override {@link #addComputedTypeAnnotations(Tree, AnnotatedTypeMirror,
-     * boolean)} instead.
-     *
-     * <p>{@inheritDoc}
-     */
-    @Override
-    protected final void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type) {
-        addComputedTypeAnnotations(tree, type, this.useFlow);
-    }
-
-    /**
      * Removes all primary annotations on a copy of the type and calculates the default annotations
      * that apply to the copied type, without type refinements.
      *
@@ -1977,7 +2005,7 @@ public abstract class GenericAnnotatedTypeFactory<
     public AnnotatedTypeMirror getDefaultAnnotations(Tree tree, AnnotatedTypeMirror type) {
         AnnotatedTypeMirror copy = type.deepCopy();
         copy.removeAnnotations(type.getAnnotations());
-        addComputedTypeAnnotations(tree, copy, false);
+        addComputedTypeAnnotationsWithoutFlow(tree, copy);
         return copy;
     }
 
@@ -1988,13 +2016,48 @@ public abstract class GenericAnnotatedTypeFactory<
      * @param tree an AST node
      * @param type the type obtained from tree
      * @param iUseFlow whether to use information from dataflow analysis
+     * @deprecated use {@link #addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)} or {@link
+     *     #addComputedTypeAnnotationsWithoutFlow(Tree, AnnotatedTypeMirror)} if you want to add
+     *     computed type annotations without using flow information
      */
+    @Deprecated // 2024-07-07
+    @SuppressWarnings("unused")
     protected void addComputedTypeAnnotations(
             Tree tree, AnnotatedTypeMirror type, boolean iUseFlow) {
-        if (root == null && ajavaTypes.isParsing()) {
+        addComputedTypeAnnotationsWithoutFlow(tree, type);
+    }
+
+    /**
+     * A helper method to add computed type annotations to a type without using flow information.
+     *
+     * <p>This method is final; override {@link #addComputedTypeAnnotations(Tree,
+     * AnnotatedTypeMirror)} instead.
+     *
+     * @param tree an AST node
+     * @param type the type obtained from tree
+     * @see #addComputedTypeAnnotations(Tree, AnnotatedTypeMirror)
+     */
+    protected final void addComputedTypeAnnotationsWithoutFlow(
+            Tree tree, AnnotatedTypeMirror type) {
+        boolean oldUseflow = useFlow;
+        useFlow = false;
+        addComputedTypeAnnotations(tree, type);
+        useFlow = oldUseflow;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This method adds defaults and flow-sensitive type refinements.
+     *
+     * @see #addComputedTypeAnnotationsWithoutFlow(Tree, AnnotatedTypeMirror)
+     */
+    @Override
+    protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type) {
+        if (this.getRoot() == null && ajavaTypes.isParsing()) {
             return;
         }
-        assert root != null
+        assert this.getRoot() != null
                 : "GenericAnnotatedTypeFactory.addComputedTypeAnnotations: "
                         + " root needs to be set when used on trees; factory: "
                         + this.getClass();
@@ -2012,7 +2075,7 @@ public abstract class GenericAnnotatedTypeFactory<
         }
         log(
                 "%s GATF.addComputedTypeAnnotations#1(%s, %s, %s)%n",
-                thisClass, treeString, type, iUseFlow);
+                thisClass, treeString, type, this.useFlow);
         if (!TreeUtils.isExpressionTree(tree)) {
             // Don't apply defaults to expressions. Their types may be computed from subexpressions
             // in treeAnnotator.
@@ -2037,7 +2100,7 @@ public abstract class GenericAnnotatedTypeFactory<
         defaults.annotate(tree, type);
         log("%s GATF.addComputedTypeAnnotations#7(%s, %s)%n", thisClass, treeString, type);
 
-        if (iUseFlow) {
+        if (this.useFlow) {
             Value inferred = getInferredValueFor(tree);
             if (inferred != null) {
                 applyInferredAnnotations(type, inferred);
@@ -2048,7 +2111,7 @@ public abstract class GenericAnnotatedTypeFactory<
         }
         log(
                 "%s GATF.addComputedTypeAnnotations#9(%s, %s, %s) done%n",
-                thisClass, treeString, type, iUseFlow);
+                thisClass, treeString, type, this.useFlow);
     }
 
     /**
@@ -2384,7 +2447,7 @@ public abstract class GenericAnnotatedTypeFactory<
     protected @Nullable CFGVisualizer<Value, Store, TransferFunction> createCFGVisualizer() {
         if (checker.hasOption("flowdotdir")) {
             String flowdotdir = checker.getOption("flowdotdir");
-            if (flowdotdir.equals("")) {
+            if (flowdotdir.isEmpty()) {
                 throw new UserError("Empty string provided for -Aflowdotdir command-line argument");
             }
             boolean verbose = checker.hasOption("verbosecfg");
@@ -2719,7 +2782,7 @@ public abstract class GenericAnnotatedTypeFactory<
         TypeMirror defaultValueTM = TreeUtils.typeOf(defaultValueTree);
         AnnotatedTypeMirror defaultValueATM =
                 AnnotatedTypeMirror.createType(defaultValueTM, this, false);
-        addComputedTypeAnnotations(defaultValueTree, defaultValueATM, false);
+        addComputedTypeAnnotationsWithoutFlow(defaultValueTree, defaultValueATM);
         return defaultValueATM;
     }
 

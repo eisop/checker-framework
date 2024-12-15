@@ -16,11 +16,18 @@ import javax.lang.model.element.ElementKind;
 /** Applies the annotations present for a method type parameter onto an AnnotatedTypeVariable. */
 public class MethodTypeParamApplier extends TypeParamElementAnnotationApplier {
 
-    /** Apply annotations from {@code element} to {@code type}. */
+    /**
+     * Apply annotations from {@code element} to {@code type}.
+     *
+     * @param type the type to annotate
+     * @param element the corresponding element
+     * @param atypeFactory the type factory
+     * @throws UnexpectedAnnotationLocationException if there is trouble
+     */
     public static void apply(
-            AnnotatedTypeVariable type, Element element, AnnotatedTypeFactory typeFactory)
+            AnnotatedTypeVariable type, Element element, AnnotatedTypeFactory atypeFactory)
             throws UnexpectedAnnotationLocationException {
-        new MethodTypeParamApplier(type, element, typeFactory).extractAndApply();
+        new MethodTypeParamApplier(type, element, atypeFactory).extractAndApply();
     }
 
     /**
@@ -35,11 +42,19 @@ public class MethodTypeParamApplier extends TypeParamElementAnnotationApplier {
                 && element.getEnclosingElement() instanceof Symbol.MethodSymbol;
     }
 
+    /** The enclosing method. */
     private final Symbol.MethodSymbol enclosingMethod;
 
-    MethodTypeParamApplier(
-            AnnotatedTypeVariable type, Element element, AnnotatedTypeFactory typeFactory) {
-        super(type, element, typeFactory);
+    /**
+     * Constructor.
+     *
+     * @param type the type to annotate
+     * @param element the corresponding element
+     * @param atypeFactory the type factory /*package-private
+     */
+    /*package-private*/ MethodTypeParamApplier(
+            AnnotatedTypeVariable type, Element element, AnnotatedTypeFactory atypeFactory) {
+        super(type, element, atypeFactory);
 
         if (!(element.getEnclosingElement() instanceof Symbol.MethodSymbol)) {
             throw new BugInCF(

@@ -27,7 +27,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
 
 /**
- * An annotation processor for counting the size of Java code:
+ * An annotation processor for counting a few specific aspects about the size of Java code:
  *
  * <ul>
  *   <li>The number of type parameter declarations and uses.
@@ -42,6 +42,7 @@ import javax.lang.model.element.ExecutableElement;
  * </pre>
  *
  * @see AnnotationStatistics
+ * @see org.checkerframework.common.util.report.ReportChecker
  */
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 public class JavaCodeStatistics extends SourceChecker {

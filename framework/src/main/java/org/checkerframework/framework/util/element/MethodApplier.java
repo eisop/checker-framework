@@ -28,26 +28,51 @@ import javax.lang.model.element.Element;
  */
 public class MethodApplier extends TargetedElementAnnotationApplier {
 
-    /** Apply annotations from {@code element} to {@code type}. */
+    /**
+     * Apply annotations from {@code element} to {@code type}.
+     *
+     * @param type the type to annotate
+     * @param element the corresponding element
+     * @param atypeFactory the type factory
+     * @throws UnexpectedAnnotationLocationException if there is trouble
+     */
     public static void apply(
             AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory atypeFactory)
             throws UnexpectedAnnotationLocationException {
         new MethodApplier(type, element, atypeFactory).extractAndApply();
     }
 
+    /**
+     * Returns true if typeMirror represents an {@link AnnotatedExecutableType} and element
+     * represents a {@link Symbol.MethodSymbol}.
+     *
+     * @param typeMirror the type to test
+     * @param element the corresponding element
+     * @return true if the MethodApplier accepts the type and element
+     */
     public static boolean accepts(AnnotatedTypeMirror typeMirror, Element element) {
         return element instanceof Symbol.MethodSymbol
                 && typeMirror instanceof AnnotatedExecutableType;
     }
 
+    /** The type factory. */
     private final AnnotatedTypeFactory atypeFactory;
 
     /** Method being annotated, this symbol contains all relevant annotations. */
     private final Symbol.MethodSymbol methodSymbol;
 
+    /** Method being annotated. */
     private final AnnotatedExecutableType methodType;
 
-    MethodApplier(AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory atypeFactory) {
+    /**
+     * Constructor.
+     *
+     * @param type the type to annotate
+     * @param element the corresponding element
+     * @param atypeFactory the type factory
+     */
+    /*package-private*/ MethodApplier(
+            AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory atypeFactory) {
         super(type, element);
         this.atypeFactory = atypeFactory;
         this.methodSymbol = (Symbol.MethodSymbol) element;
@@ -208,7 +233,6 @@ public class MethodApplier extends TargetedElementAnnotationApplier {
             if (annoPos.type_index >= 0 && annoPos.type_index < thrown.size()) {
                 AnnotatedTypeMirror thrownType = thrown.get(annoPos.type_index);
                 typeToAnnos.get(thrownType).add(anno);
-
             } else {
                 throw new BugInCF(
                         "MethodApplier.applyThrowsAnnotation: "

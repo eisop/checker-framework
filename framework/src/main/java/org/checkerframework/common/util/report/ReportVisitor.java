@@ -43,8 +43,8 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
 
+/** The visitor for the Report Checker. */
 public class ReportVisitor extends BaseTypeVisitor<BaseAnnotatedTypeFactory> {
 
     /** The tree kinds that should be reported; may be null. */
@@ -219,7 +219,7 @@ public class ReportVisitor extends BaseTypeVisitor<BaseAnnotatedTypeFactory> {
 
     @Override
     public Void visitAssignment(AssignmentTree tree, Void p) {
-        VariableElement member = (VariableElement) TreeUtils.elementFromUse(tree.getVariable());
+        Element member = TreeUtils.elementFromUse(tree.getVariable());
         boolean report = this.atypeFactory.getDeclAnnotation(member, ReportWrite.class) != null;
 
         if (report) {
