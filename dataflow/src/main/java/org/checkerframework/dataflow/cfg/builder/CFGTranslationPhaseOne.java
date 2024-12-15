@@ -3671,7 +3671,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 Node result = new PackageNameNode(tree, (PackageNameNode) expr);
                 extendWithNode(result);
                 return result;
-            } else if (element.getKind() == ElementKind.FIELD) {
+            } else if (element.getKind() == ElementKind.FIELD
+                    && element.toString().equals("class")) {
                 Node result = new PrimitiveTypeNode(tree, types);
                 extendWithNode((PrimitiveTypeNode) result);
                 return result;
