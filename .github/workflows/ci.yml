@@ -94,7 +94,7 @@ jobs:
       fail-fast: true
       matrix:
         # jspecify-conformance and jspecify-reference-checker only tested on JDK 21.
-        script: ['cftests-junit', 'cftests-nonjunit', 'cftests-junit-jdk21', 'typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib', 'daikon-part1', 'daikon-part2',]
+        script: ['cftests-junit', 'cftests-nonjunit', 'cftests-junit-jdk21', 'typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib', 'daikon-part1', 'daikon-part2']
         # JDK 21 used by sanity before
         java: [{version: '8', experimental: false},
           {version: '11', experimental: false},
