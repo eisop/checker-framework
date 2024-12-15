@@ -26,11 +26,32 @@ public interface NodeVisitor<R, P> {
 
     R visitStringLiteral(StringLiteralNode n, P p);
 
+    /**
+     * Visits a null literal node.
+     *
+     * @param n the {@link NullLiteralNode} to be visited
+     * @param p the argument for the operation implemented by this visitor
+     * @return the return value of the operation implemented by this visitor
+     */
     R visitNullLiteral(NullLiteralNode n, P p);
 
+    /**
+     * Visits a class literal node.
+     *
+     * @param n the {@link ClassLiteralNode} to be visited
+     * @param p the argument for the operation implemented by this visitor
+     * @return the return value of the operation implemented by this visitor
+     */
     R visitClassLiteral(ClassLiteralNode n, P p);
 
     // Unary operations
+    /**
+     * Visits a unary minus node.
+     *
+     * @param n the {@link NumericalMinusNode} to be visited
+     * @param p the argument for the operation implemented by this visitor
+     * @return the return value of the operation implemented by this visitor
+     */
     R visitNumericalMinus(NumericalMinusNode n, P p);
 
     R visitNumericalPlus(NumericalPlusNode n, P p);
