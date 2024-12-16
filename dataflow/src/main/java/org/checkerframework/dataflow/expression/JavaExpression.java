@@ -28,6 +28,7 @@ import org.checkerframework.dataflow.cfg.node.LocalVariableNode;
 import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.NarrowingConversionNode;
 import org.checkerframework.dataflow.cfg.node.Node;
+import org.checkerframework.dataflow.cfg.node.PrimitiveTypeNode;
 import org.checkerframework.dataflow.cfg.node.StringConversionNode;
 import org.checkerframework.dataflow.cfg.node.SuperNode;
 import org.checkerframework.dataflow.cfg.node.ThisNode;
@@ -280,6 +281,9 @@ public abstract class JavaExpression {
         JavaExpression result = null;
         if (receiverNode instanceof FieldAccessNode) {
             result = fromNodeFieldAccess((FieldAccessNode) receiverNode);
+        } else if (receiverNode instanceof PrimitiveTypeNode) {
+            PrimitiveTypeNode pn = (PrimitiveTypeNode) receiverNode;
+            result = new ClassName(pn.getType());
         } else if (receiverNode instanceof ThisNode) {
             result = new ThisReference(receiverNode.getType());
         } else if (receiverNode instanceof SuperNode) {
