@@ -21,6 +21,7 @@ public class ClassLiteralNode extends Node {
      * Create a new ClassLiteralNode.
      *
      * @param tree the class literal
+     * @param className the class name for the class literal
      */
     public ClassLiteralNode(MemberSelectTree tree, Node className) {
         super(TreeUtils.typeOf(tree));
