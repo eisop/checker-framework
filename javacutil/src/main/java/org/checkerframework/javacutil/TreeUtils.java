@@ -1490,7 +1490,7 @@ public final class TreeUtils {
     /**
      * Compute the name of the field that the field access {@code tree} accesses. Requires {@code
      * tree} to be a field access, as determined by {@code isFieldAccess} (which currently also
-     * returns true for class literals and qualified this).
+     * returns true for qualified this).
      *
      * @param tree a field access tree
      * @return the name of the field accessed by {@code tree}
