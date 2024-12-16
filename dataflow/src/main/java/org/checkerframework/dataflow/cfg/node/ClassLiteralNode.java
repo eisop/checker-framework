@@ -34,7 +34,11 @@ public class ClassLiteralNode extends Node {
         return tree;
     }
 
-    /** Returns the class name of the class literal. */
+    /**
+     * Get the class name of the class literal.
+     *
+     * @return the class name of the class literal
+     */
     public Node getClassName() {
         return className;
     }
