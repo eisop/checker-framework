@@ -596,6 +596,15 @@ public interface NodeVisitor<R, P> {
     R visitPrimitiveType(PrimitiveTypeNode n, P p);
 
     /**
+     * Visits a class literal node.
+     *
+     * @param n the {@link ClassLiteralNode} to be visited
+     * @param p the argument for the operation implemented by this visitor
+     * @return the return value of the operation implemented by this visitor
+     */
+    R visitClassLiteral(ClassLiteralNode n, P p);
+
+    /**
      * Visits a class name node.
      *
      * @param n the {@link ClassNameNode} to be visited

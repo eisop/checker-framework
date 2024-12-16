@@ -77,6 +77,7 @@ import org.checkerframework.dataflow.cfg.node.CaseNode;
 import org.checkerframework.dataflow.cfg.node.CatchMarkerNode;
 import org.checkerframework.dataflow.cfg.node.CharacterLiteralNode;
 import org.checkerframework.dataflow.cfg.node.ClassDeclarationNode;
+import org.checkerframework.dataflow.cfg.node.ClassLiteralNode;
 import org.checkerframework.dataflow.cfg.node.ClassNameNode;
 import org.checkerframework.dataflow.cfg.node.ConditionalAndNode;
 import org.checkerframework.dataflow.cfg.node.ConditionalNotNode;
@@ -3673,8 +3674,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 return result;
             } else if (element.getKind() == ElementKind.FIELD
                     && element.toString().equals("class")) {
-                Node result = new PrimitiveTypeNode(tree, types);
-                extendWithNode((PrimitiveTypeNode) result);
+                Node result = new ClassLiteralNode(tree, expr);
+                extendWithNode((ClassLiteralNode) result);
                 return result;
             } else {
                 throw new BugInCF("Unexpected element kind: " + element.getKind());

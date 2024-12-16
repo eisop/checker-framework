@@ -77,10 +77,10 @@ public class LockStore extends CFAbstractStore<CFValue, LockStore> {
      * This is only done for @LockPossiblyHeld. This is not sound for other type qualifiers.
      */
     public void insertLockPossiblyHeld(JavaExpression je) {
-        //        if (je.containsUnknown()) {
-        //            // Expressions containing unknown expressions are not stored.
-        //            return;
-        //        }
+        if (je.containsUnknown()) {
+            // Expressions containing unknown expressions are not stored.
+            return;
+        }
         if (je instanceof LocalVariable) {
             LocalVariable localVar = (LocalVariable) je;
             CFValue current = localVariableValues.get(localVar);
