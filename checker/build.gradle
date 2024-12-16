@@ -21,7 +21,11 @@ sourceSets {
             exclude '**/org/checkerframework/checker/resourceleak/MustCallInference.java'
         }
     }
-    testannotations
+    testannotations {
+        java {
+            srcDirs = ['src/testannotations/java']
+        }
+    }
 }
 
 sourcesJar {
@@ -80,9 +84,9 @@ dependencies {
     // For the Resource Leak Checker's support for JavaEE.
     testImplementation 'javax.servlet:javax.servlet-api:4.0.1'
     // For the Resource Leak Checker's support for IOUtils.
-    testImplementation 'commons-io:commons-io:2.16.1'
+    testImplementation 'commons-io:commons-io:2.18.0'
     // For the Nullness Checker test of junit-assertions.astub in JUnitNull.java
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.11.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.11.3'
     testImplementation 'org.apiguardian:apiguardian-api:1.1.2'
     // For tests that use JSpecify annotations
     testImplementation 'org.jspecify:jspecify:1.0.0'
@@ -99,6 +103,12 @@ dependencies {
     testImplementation sourceSets.testannotations.output
 
     testannotationsImplementation project(':checker-qual')
+}
+
+// Enable exec/javaexec
+interface InjectedExecOps {
+    @Inject
+    ExecOperations getExecOps()
 }
 
 // It's not clear why this dependencies exists, but Gradle issues the following warning:
@@ -236,8 +246,10 @@ artifacts {
 }
 
 clean {
-    delete "${projectDir}/dist"
-    delete 'tests/calledmethods-delomboked'
+    def injected = project.objects.newInstance(InjectedExecOps)
+
+    delete("${projectDir}/dist")
+    delete('tests/calledmethods-delomboked')
     delete('tests/ainfer-testchecker/annotated')
     delete('tests/ainfer-testchecker/inference-output')
     delete('tests/ainfer-nullness/annotated')
@@ -246,6 +258,17 @@ clean {
     delete('tests/ainfer-index/inference-output')
     delete('tests/ainfer-resourceleak/annotated')
     delete('tests/ainfer-resourceleak/inference-output')
+    delete('tests/build')
+    doLast {
+        injected.execOps.exec {
+            workingDir = file('tests/command-line')
+            commandLine 'make', 'clean'
+        }
+        injected.execOps.exec {
+            workingDir = file('tests/nullness-extra')
+            commandLine 'make', 'clean'
+        }
+    }
 }
 
 clean.doLast {
@@ -300,10 +323,13 @@ task exampleTests(type: Exec, dependsOn: assembleForJavac, group: 'Verification'
 
 task demosTests(dependsOn: assembleForJavac, group: 'Verification') {
     description 'Test that the demos are working as expected.'
+
+    def injected = project.objects.newInstance(InjectedExecOps)
+
     doLast {
         File demosDir = new File(projectDir, '../../checker-framework.demos');
         if (!demosDir.exists()) {
-            exec {
+            injected.execOps.exec {
                 workingDir file(demosDir.toString() + '/../')
                 executable 'git'
                 args = [
@@ -314,7 +340,7 @@ task demosTests(dependsOn: assembleForJavac, group: 'Verification') {
                 ]
             }
         } else {
-            exec {
+            injected.execOps.exec {
                 workingDir demosDir
                 executable 'git'
                 args = [
@@ -355,6 +381,8 @@ task jtregJdk11Tests(dependsOn: ':downloadJtreg', group: 'Verification') {
     dependsOn('compileTestJava')
     dependsOn('shadowJar')
 
+    def injected = project.objects.newInstance(InjectedExecOps)
+
     String jtregOutput = "${buildDir}/jtregJdk11"
     String name = 'all'
     doLast {
@@ -362,7 +390,7 @@ task jtregJdk11Tests(dependsOn: ':downloadJtreg', group: 'Verification') {
             println 'This test is only run with JDK 11+.'
             return;
         }
-        exec {
+        injected.execOps.exec {
             executable "${jtregHome}/bin/jtreg"
             args = [
                 "-dir:${projectDir}/jtregJdk11",
@@ -619,6 +647,8 @@ task ainferTestCheckerGenerateJaifs(type: Test) {
         events 'passed', 'skipped', 'failed'
     }
 
+    def injected = project.objects.newInstance(InjectedExecOps)
+
     doLast {
         copyNonannotatedToAnnotatedDirectory('ainfer-testchecker')
 
@@ -657,7 +687,7 @@ task ainferTestCheckerGenerateJaifs(type: Test) {
         }
 
         def checkerQualJarFile = file(project(':checker-qual').tasks.getByName('jar').archiveFile)
-        exec {
+        injected.execOps.exec {
             executable "${afu}/scripts/insert-annotations-to-source"
             // Script argument -cp must precede Java program argument -i.
             // checker-qual is needed for Constant Value Checker annotations.
@@ -855,6 +885,8 @@ task ainferNullnessGenerateJaifs(type: Test) {
         events 'passed', 'skipped', 'failed'
     }
 
+    def injected = project.objects.newInstance(InjectedExecOps)
+
     doLast {
         copyNonannotatedToAnnotatedDirectory('ainfer-nullness')
 
@@ -878,7 +910,7 @@ task ainferNullnessGenerateJaifs(type: Test) {
             throw new GradleException("no .java files found in ${javasDir}")
         }
         def checkerQualJarFile = file(project(':checker-qual').tasks.getByName('jar').archiveFile)
-        exec {
+        injected.execOps.exec {
             executable "${afu}/scripts/insert-annotations-to-source"
             // Script argument -cp must precede Java program argument -i.
             // Note that "/" works on Windows as well as on Linux.
@@ -955,11 +987,13 @@ task wpiManyTest(group: 'Verification') {
         }
     }
 
+    def injected = project.objects.newInstance(InjectedExecOps)
+
     doLast {
         // Run wpi-many.sh
         def typecheckFilesDir = "${project.projectDir}/build/wpi-many-tests-results/"
         try {
-            exec {
+            injected.execOps.exec {
                 environment CHECKERFRAMEWORK: "${projectDir}/.."
                 commandLine 'bin/wpi-many.sh',
                         '-i', "${project.projectDir}/tests/wpi-many/testin.txt",
@@ -974,7 +1008,7 @@ task wpiManyTest(group: 'Verification') {
             File wpiOut = new File("${typecheckFilesDir}/wpi-out")
             if (wpiOut.exists()) {
                 println("========= Start of output from last run of wpi.sh (${typecheckFilesDir}/wpi-out): ========")
-                exec {
+                injected.execOps.exec {
                     commandLine 'cat', "${typecheckFilesDir}/wpi-out"
                 }
                 println("========= End of output from last run of wpi.sh (${typecheckFilesDir}/wpi-out): ========")
@@ -996,15 +1030,15 @@ task wpiManyTest(group: 'Verification') {
             println("Failure: Too few *-typecheck.out files in ${typecheckFilesDir}: " +
                     "found ${actualTypecheckFileCount} but expected ${expectedTypecheckFileCount}.")
             println("========= Found in ${typecheckFilesDir} ========")
-            exec {
+            injected.execOps.exec {
                 commandLine 'ls', '-al', "${typecheckFilesDir}"
             }
             println("========= Expected in ${typecheckFilesDir} ========")
-            exec {
+            injected.execOps.exec {
                 commandLine 'cat', "${project.projectDir}/tests/wpi-many/testin.txt"
             }
             println("========= Start of output from last run of wpi.sh (${typecheckFilesDir}/wpi-out): ========")
-            exec {
+            injected.execOps.exec {
                 commandLine 'cat', "${typecheckFilesDir}/wpi-out"
             }
             println("========= End of output from last run of wpi.sh (${typecheckFilesDir}/wpi-out): ========")
@@ -1077,8 +1111,10 @@ task wpiPlumeLibTest(group: 'Verification') {
     // This test must always be re-run when requested.
     outputs.upToDateWhen { false }
 
+    def injected = project.objects.newInstance(InjectedExecOps)
+
     doLast {
-        exec {
+        injected.execOps.exec {
             commandLine 'bin-devel/wpi-plumelib/test-wpi-plumelib.sh'
             ignoreExitValue = false
         }

@@ -1660,7 +1660,6 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @see SourceChecker#getOption(String)
      */
     public final boolean getLintOption(String name, boolean def) {
-
         if (!this.getSupportedLintOptions().contains(name)) {
             throw new UserError("Illegal lint option: " + name);
         }
@@ -1905,7 +1904,6 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      */
     @Override
     public final String getOption(String name, String defaultValue) {
-
         // TODO: Should supportedOptions be cached?
         Set<String> supportedOptions = this.getSupportedOptions();
         if (!supportedOptions.contains(name)) {
@@ -2065,7 +2063,6 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      */
     @Override
     public final Set<String> getSupportedAnnotationTypes() {
-
         SupportedAnnotationTypes supported =
                 this.getClass().getAnnotation(SupportedAnnotationTypes.class);
         if (supported != null) {
@@ -2373,7 +2370,6 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *     otherwise
      */
     public boolean shouldSuppressWarnings(@Nullable Element elt, String errKey) {
-
         if (shouldSuppress(getSuppressWarningsStringsFromOption(), errKey)) {
             return true;
         }
@@ -2524,7 +2520,6 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return true if the element is annotated for this checker or an upstream checker
      */
     private boolean isAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
-
         if (elt == null || !useConservativeDefault("source")) {
             return false;
         }
@@ -2932,7 +2927,6 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     protected Properties getProperties(Class<?> cls, String filePath, boolean permitNonExisting) {
         Properties prop = new Properties();
         try (InputStream base = cls.getResourceAsStream(filePath)) {
-
             if (base == null) {
                 // The property file was not found.
                 if (permitNonExisting) {
