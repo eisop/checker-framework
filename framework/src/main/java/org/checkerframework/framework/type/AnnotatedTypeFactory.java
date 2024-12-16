@@ -2925,9 +2925,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             AnnotatedExecutableType superCon =
                     getAnnotatedType(TreeUtils.getSuperConstructor(tree));
             constructorFromUsePreSubstitution(tree, superCon);
-            // no viewpoint adaptation needed for super invocation
             superCon =
                     AnnotatedTypes.asMemberOf(types, this, type, superCon.getElement(), superCon);
+            // Adapt the result from super constructor as it will be used in anonymous constructor.
+            if (viewpointAdapter != null) {
+                viewpointAdapter.viewpointAdaptConstructor(type, ctor, superCon);
+            }
             con.computeVarargType(superCon);
             if (superCon.getParameterTypes().size() == con.getParameterTypes().size()) {
                 con.setParameterTypes(superCon.getParameterTypes());
@@ -2958,11 +2961,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // AnnotatedTypes.asMemberOf handles vararg type properly, so we do not need to compute
             // vararg type again.
             con.computeVarargType();
+            if (viewpointAdapter != null) {
+                viewpointAdapter.viewpointAdaptConstructor(type, ctor, con);
+            }
             con = AnnotatedTypes.asMemberOf(types, this, type, ctor, con);
-        }
-
-        if (viewpointAdapter != null) {
-            viewpointAdapter.viewpointAdaptConstructor(type, ctor, con);
         }
 
         Map<TypeVariable, AnnotatedTypeMirror> typeParamToTypeArg =
