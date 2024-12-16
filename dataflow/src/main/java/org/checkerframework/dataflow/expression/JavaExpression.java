@@ -282,8 +282,7 @@ public abstract class JavaExpression {
         if (receiverNode instanceof FieldAccessNode) {
             result = fromNodeFieldAccess((FieldAccessNode) receiverNode);
         } else if (receiverNode instanceof PrimitiveTypeNode) {
-            PrimitiveTypeNode pn = (PrimitiveTypeNode) receiverNode;
-            result = new ClassName(pn.getType());
+            result = new ClassName(receiverNode.getType());
         } else if (receiverNode instanceof ThisNode) {
             result = new ThisReference(receiverNode.getType());
         } else if (receiverNode instanceof SuperNode) {
@@ -563,7 +562,7 @@ public abstract class JavaExpression {
             return new ClassName(expressionType);
         }
         if (TreeUtils.isExplicitThisDereference(memberSelectTree)) {
-            // the identifier is "class"
+            // the identifier is "this"
             return new ThisReference(expressionType);
         }
 
