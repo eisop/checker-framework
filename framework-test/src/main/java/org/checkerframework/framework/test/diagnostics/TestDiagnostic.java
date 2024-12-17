@@ -7,11 +7,13 @@ import java.util.Objects;
 
 /**
  * Represents an expected error/warning message in a Java test file or an error/warning reported by
- * the Javac compiler. By contrast, {@link TestDiagnosticLine} represents a set of TestDiagnostics,
- * all of which were read from the same line of a file.
+ * the Java compiler. By contrast, {@link TestDiagnosticLine} represents a set of TestDiagnostics,
+ * all of which were read from the same line of a file. Subclass {@link DetailedTestDiagnostic} is
+ * used when the Checker Framework is invoked with the {@code -Adetailedmsgtext} flag.
  *
  * @see JavaDiagnosticReader
  * @see TestDiagnosticLine
+ * @see DetailedTestDiagnostic
  */
 public class TestDiagnostic {
 
@@ -27,17 +29,17 @@ public class TestDiagnostic {
     /** The diagnostic kind of the output. */
     protected final DiagnosticKind kind;
 
-    /** The full error message. */
+    /** The full diagnostic message. */
     protected final String message;
 
     /**
-     * The error key that usually appears between parentheses in diagnostic messages. Parentheses
-     * are removed and field errorkeyparens indicates whether they were present.
+     * The message key that usually appears between parentheses in diagnostic messages. Parentheses
+     * are removed and field messageKeyParens indicates whether they were present.
      */
-    protected final String errorkey;
+    protected final String messageKey;
 
-    /** Whether the error key had parentheses around it. */
-    protected final boolean errorkeyparens;
+    /** Whether the message key had parentheses around it. */
+    protected final boolean messageKeyParens;
 
     /** Whether this diagnostic should no longer be reported after whole program inference. */
     protected final boolean isFixable;
@@ -48,7 +50,44 @@ public class TestDiagnostic {
      * @param file the path to the test file
      * @param lineNumber the line number of the diagnostic output
      * @param kind the diagnostic kind of the output
-     * @param message the full error message
+     * @param messageKey the message key
+     * @param message the full diagnostic message
+     * @param isFixable whether WPI can fix the test
+     */
+    public TestDiagnostic(
+            Path file,
+            long lineNumber,
+            DiagnosticKind kind,
+            String messageKey,
+            String message,
+            boolean isFixable) {
+        this.file = file;
+        this.filename =
+                file.getFileName() != null ? file.getFileName().toString() : file.toString();
+        this.lineNumber = lineNumber;
+        this.kind = kind;
+        this.message = message;
+        this.isFixable = isFixable;
+
+        // Keep in sync with code below.
+        int open = messageKey.indexOf("(");
+        int close = messageKey.indexOf(")");
+        if (open == 0 && close > open) {
+            this.messageKey = messageKey.substring(open + 1, close).trim();
+            this.messageKeyParens = true;
+        } else {
+            this.messageKey = messageKey;
+            this.messageKeyParens = false;
+        }
+    }
+
+    /**
+     * Basic constructor that sets the immutable fields of this diagnostic.
+     *
+     * @param file the path to the test file
+     * @param lineNumber the line number of the diagnostic output
+     * @param kind the diagnostic kind of the output
+     * @param message the full diagnostic message
      * @param isFixable whether WPI can fix the test
      */
     public TestDiagnostic(
@@ -62,12 +101,12 @@ public class TestDiagnostic {
         this.isFixable = isFixable;
 
         if (keepFullMessage(message)) {
-            this.errorkey = message;
-            this.errorkeyparens = false;
+            this.messageKey = message;
+            this.messageKeyParens = false;
         } else {
             String firstline;
-            // There might be a mismatch between the System.lineSeparator() and the error message,
-            // so manually check both options.
+            // There might be a mismatch between the System.lineSeparator() and the diagnostic
+            // message, so manually check both options.
             int lineSepPos = this.message.indexOf("\r\n");
             if (lineSepPos == -1) {
                 lineSepPos = this.message.indexOf("\n");
@@ -77,24 +116,26 @@ public class TestDiagnostic {
             } else {
                 firstline = this.message;
             }
+
+            // Keep in sync with code above.
             int open = firstline.indexOf("(");
             int close = firstline.indexOf(")");
             if (open == 0 && close > open) {
-                this.errorkey = firstline.substring(open + 1, close).trim();
-                this.errorkeyparens = true;
+                this.messageKey = firstline.substring(open + 1, close).trim();
+                this.messageKeyParens = true;
             } else {
-                this.errorkey = firstline;
-                this.errorkeyparens = false;
+                this.messageKey = firstline;
+                this.messageKeyParens = false;
             }
         }
     }
 
     /**
-     * Determine whether the full error message should be used as error key. This is useful to
-     * ensure e.g. stack traces are fully shown.
+     * Determine whether the full diagnostic message should be used as message key. This is useful
+     * to ensure e.g. stack traces are fully shown.
      *
      * @param message the full message
-     * @return whether the full error message should be used
+     * @return whether the full diagnostic message should be used
      */
     public static boolean keepFullMessage(String message) {
         return message.contains("unexpected Throwable")
@@ -139,9 +180,18 @@ public class TestDiagnostic {
     }
 
     /**
-     * The full error message.
+     * The message key, without surrounding parentheses.
      *
-     * @return the full error message
+     * @return the message key
+     */
+    public String getMessageKey() {
+        return messageKey;
+    }
+
+    /**
+     * The full diagnostic message.
+     *
+     * @return the full diagnostic message
      */
     public String getMessage() {
         return message;
@@ -157,10 +207,11 @@ public class TestDiagnostic {
     }
 
     /**
-     * Equality is compared based the file name, not the full path, on the errorkey, not the full
-     * error message, and without considering isFixable and errorkeyparens.
+     * Equality is compared based the file name, not the full path, on the messageKey, not the full
+     * message, and without considering isFixable and messageKeyParens.
      *
-     * @return true if this and otherObj are equal according to file, lineNumber, kind, and errorkey
+     * @return true if this and otherObj are equal according to file, lineNumber, kind, and
+     *     messageKey
      */
     @Override
     public boolean equals(@Nullable Object otherObj) {
@@ -172,30 +223,30 @@ public class TestDiagnostic {
         return other.filename.equals(this.filename)
                 && other.lineNumber == lineNumber
                 && other.kind == this.kind
-                && other.errorkey.equals(this.errorkey);
+                && other.messageKey.equals(this.messageKey);
     }
 
     @Override
     public int hashCode() {
-        // Only filename, not file, and only errorkey, not message, not isFixable, not
-        // errorkeyparens.
-        return Objects.hash(filename, lineNumber, kind, errorkey);
+        // Only filename, not file, and only messageKey, not message, not isFixable, not
+        // messageKeyParens.
+        return Objects.hash(filename, lineNumber, kind, messageKey);
     }
 
     /**
      * Returns a representation of this diagnostic as if it appeared in a diagnostics file. This
-     * uses only the base file name, not the full path, and only the error key, not the full
-     * message. Field {@link errorkeyparens} influences whether the error key is output in
+     * uses only the base file name, not the full path, and only the message key, not the full
+     * message. Field {@link messageKeyParens} influences whether the message key is output in
      * parentheses.
      *
      * @return a representation of this diagnostic as if it appeared in a diagnostics file
      */
     @Override
     public String toString() {
-        if (errorkeyparens) {
-            return filename + ":" + lineNumber + ": " + kind.parseString + ": (" + errorkey + ")";
+        if (messageKeyParens) {
+            return filename + ":" + lineNumber + ": " + kind.parseString + ": (" + messageKey + ")";
         } else {
-            return filename + ":" + lineNumber + ": " + kind.parseString + ": " + errorkey;
+            return filename + ":" + lineNumber + ": " + kind.parseString + ": " + messageKey;
         }
     }
 

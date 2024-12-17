@@ -16,6 +16,13 @@ import java.lang.annotation.Target;
  *   <li>all uses of a particular kind of type.
  * </ul>
  *
+ * An example is the declaration
+ *
+ * <pre><code>
+ * {@literal @}DefaultFor(TypeUseLocation.LOWER_BOUND)
+ * {@literal @}interface MyAnno {}
+ * </code></pre>
+ *
  * <p>The default applies to every match for any of this annotation's conditions.
  *
  * @see TypeUseLocation

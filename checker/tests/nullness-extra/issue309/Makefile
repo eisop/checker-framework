@@ -1,7 +1,6 @@
-.PHONY: all
+.PHONY: all clean
 
 all:
-	rm -f Out.txt
 	mkdir -p bin
 	$(JAVAC) lib/*.java -d bin/
 	jar cvf lib.jar -C bin/ lib/Lib.class
@@ -10,5 +9,7 @@ all:
 # Run again with stub file. (This used to cause a crash.)
 	$(JAVAC) -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext Issue309.java -d bin/ -cp lib.jar -Astubs=Lib.astub > Out.txt 2>&1
 	diff -u Expected.txt Out.txt
-	rm Out.txt lib.jar bin/*.class bin/lib/*.class
-	rmdir bin/lib bin/
+
+clean:
+	rm -f Out.txt lib.jar
+	rm -rf bin/

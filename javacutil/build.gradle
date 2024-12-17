@@ -17,6 +17,11 @@ dependencies {
     // https://mvnrepository.com/artifact/org.plumelib/plume-util
     implementation "org.plumelib:plume-util:${versions.plumeUtil}"
     implementation "org.plumelib:reflection-util:${versions.reflectionUtil}"
+    // plume-util has an `implementation` dependency on hashmap-util.
+    // That follows Gradle's rules, but Gradle's rules are not entirely correct:
+    // https://github.com/gradle/gradle/issues/30054
+    // To build with JDK 22+, we need to redeclare that dependency here.
+    implementation "org.plumelib:hashmap-util:${versions.hashmapUtil}"
 
     // External dependencies:
     // If you add an external dependency, you must shadow its packages both in checker.jar and

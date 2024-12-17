@@ -1901,10 +1901,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * <p>Subclasses that override this method should also override {@link
      * #addComputedTypeAnnotations(Element, AnnotatedTypeMirror)}.
      *
-     * <p>In classes that extend {@link GenericAnnotatedTypeFactory}, override {@link
-     * GenericAnnotatedTypeFactory#addComputedTypeAnnotations(Tree, AnnotatedTypeMirror, boolean)}
-     * instead of this method.
-     *
      * @param tree an AST node
      * @param type the type obtained from {@code tree}
      */
@@ -2500,9 +2496,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     public ParameterizedExecutableType methodFromUse(MethodInvocationTree tree) {
         ExecutableElement methodElt = TreeUtils.elementFromUse(tree);
         AnnotatedTypeMirror receiverType = getReceiverType(tree);
-        if (receiverType == null && TreeUtils.isSuperConstructorCall(tree)) {
-            // super() calls don't have a receiver, but they should be view-point adapted as if
-            // "this" is the receiver.
+        if (receiverType == null
+                && (TreeUtils.isSuperConstructorCall(tree)
+                        || TreeUtils.isThisConstructorCall(tree))) {
+            // super() and this() calls don't have a receiver, but they should be view-point adapted
+            // as if "this" is the receiver.
             receiverType = getSelfType(tree);
         }
         if (receiverType != null && receiverType.getKind() == TypeKind.DECLARED) {
@@ -2915,10 +2913,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotatedExecutableType con = getAnnotatedType(ctor); // get unsubstituted type
         constructorFromUsePreSubstitution(tree, con);
 
-        if (viewpointAdapter != null) {
-            viewpointAdapter.viewpointAdaptConstructor(type, ctor, con);
-        }
-
         if (tree.getClassBody() != null) {
             // Because the anonymous constructor can't have explicit annotations on its parameters,
             // they are copied from the super constructor invoked in the anonymous constructor. To
@@ -2967,6 +2961,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             con = AnnotatedTypes.asMemberOf(types, this, type, ctor, con);
         }
 
+        if (viewpointAdapter != null) {
+            viewpointAdapter.viewpointAdaptConstructor(type, ctor, con);
+        }
+
         Map<TypeVariable, AnnotatedTypeMirror> typeParamToTypeArg =
                 AnnotatedTypes.findTypeArguments(processingEnv, this, tree, ctor, con);
         List<AnnotatedTypeMirror> typeargs;
@@ -2998,7 +2996,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         if (ctor.getEnclosingElement().getKind() == ElementKind.ENUM) {
-            Set<AnnotationMirror> enumAnnos = getEnumConstructorQualifiers();
+            AnnotationMirrorSet enumAnnos = getEnumConstructorQualifiers();
             con.getReturnType().replaceAnnotations(enumAnnos);
         }
 
@@ -3018,8 +3016,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *
      * @return the annotations that should be applied to enum constructors
      */
-    protected Set<AnnotationMirror> getEnumConstructorQualifiers() {
-        return Collections.emptySet();
+    protected AnnotationMirrorSet getEnumConstructorQualifiers() {
+        return new AnnotationMirrorSet();
     }
 
     /**
@@ -6002,20 +6000,21 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     */
 
     /**
-     * Does {@code anno}, which is an {@link org.checkerframework.framework.qual.AnnotatedFor}
-     * annotation, apply to this checker?
+     * Does {@code annotatedForAnno}, which is an {@link
+     * org.checkerframework.framework.qual.AnnotatedFor} annotation, apply to this checker?
      *
      * @param annotatedForAnno an {@link AnnotatedFor} annotation
-     * @return whether {@code anno} applies to this checker
+     * @return whether {@code annotatedForAnno} applies to this checker
      */
     public boolean doesAnnotatedForApplyToThisChecker(AnnotationMirror annotatedForAnno) {
         List<String> annotatedForCheckers =
                 AnnotationUtils.getElementValueArray(
                         annotatedForAnno, annotatedForValueElement, String.class);
+        List<@FullyQualifiedName String> upstreamCheckerNames = checker.getUpstreamCheckerNames();
         for (String annoForChecker : annotatedForCheckers) {
-            if (checker.getUpstreamCheckerNames().contains(annoForChecker)
+            if (upstreamCheckerNames.contains(annoForChecker)
                     || CheckerMain.matchesFullyQualifiedProcessor(
-                            annoForChecker, checker.getUpstreamCheckerNames(), true)) {
+                            annoForChecker, upstreamCheckerNames, true)) {
                 return true;
             }
         }

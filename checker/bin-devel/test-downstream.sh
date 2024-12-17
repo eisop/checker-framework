@@ -8,7 +8,6 @@ echo "SHELLOPTS=${SHELLOPTS}"
 
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 # shellcheck disable=SC1090 # In newer shellcheck than 0.6.0, pass: "-P SCRIPTDIR" (literally)
-export ORG_GRADLE_PROJECT_useJdk17Compiler=true
 source "$SCRIPTDIR"/clone-related.sh
 
 
@@ -22,5 +21,5 @@ source "$SCRIPTDIR"/clone-related.sh
 
 ## This is moved to misc, because otherwise it would be the only work done by this script.
 # # Checker Framework demos
-# "$SCRIPTDIR/.plume-scripts/git-clone-related" eisop checker-framework.demos
+# "$SCRIPTDIR/.git-scripts/git-clone-related" eisop checker-framework.demos
 # ./gradlew :checker:demosTests --console=plain --warning-mode=all

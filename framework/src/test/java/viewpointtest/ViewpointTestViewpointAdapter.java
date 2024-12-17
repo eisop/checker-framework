@@ -8,24 +8,28 @@ import org.checkerframework.javacutil.AnnotationUtils;
 
 import javax.lang.model.element.AnnotationMirror;
 
+import viewpointtest.quals.Lost;
 import viewpointtest.quals.ReceiverDependentQual;
 import viewpointtest.quals.Top;
 
+/** The viewpoint adapter for the Viewpoint Test Checker. */
 public class ViewpointTestViewpointAdapter extends AbstractViewpointAdapter {
 
-    private final AnnotationMirror TOP, RECEIVERDEPENDENTQUAL;
+    /** The {@link Top}, {@link ReceiverDependentQual} and {@link Lost} annotation. */
+    private final AnnotationMirror TOP, RECEIVERDEPENDENTQUAL, LOST;
 
     /**
      * The class constructor.
      *
-     * @param atypeFactory
+     * @param atypeFactory the type factory to use
      */
     public ViewpointTestViewpointAdapter(AnnotatedTypeFactory atypeFactory) {
         super(atypeFactory);
-        TOP = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), Top.class);
+        TOP = ((ViewpointTestAnnotatedTypeFactory) atypeFactory).TOP;
         RECEIVERDEPENDENTQUAL =
                 AnnotationBuilder.fromClass(
                         atypeFactory.getElementUtils(), ReceiverDependentQual.class);
+        LOST = ((ViewpointTestAnnotatedTypeFactory) atypeFactory).LOST;
     }
 
     @Override
@@ -38,7 +42,11 @@ public class ViewpointTestViewpointAdapter extends AbstractViewpointAdapter {
             AnnotationMirror receiverAnnotation, AnnotationMirror declaredAnnotation) {
 
         if (AnnotationUtils.areSame(declaredAnnotation, RECEIVERDEPENDENTQUAL)) {
-            return receiverAnnotation;
+            if (AnnotationUtils.areSame(receiverAnnotation, TOP)) {
+                return LOST;
+            } else {
+                return receiverAnnotation;
+            }
         }
         return declaredAnnotation;
     }

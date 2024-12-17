@@ -6,8 +6,6 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 
-import java.util.Set;
-
 import javax.lang.model.element.AnnotationMirror;
 
 /** Annotated type factory for the Tainting Checker. */
@@ -32,7 +30,7 @@ public class TaintingAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     @Override
-    protected Set<AnnotationMirror> getEnumConstructorQualifiers() {
+    protected AnnotationMirrorSet getEnumConstructorQualifiers() {
         return setOfUntainted;
     }
 }
