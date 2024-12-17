@@ -1088,7 +1088,8 @@ public abstract class CFAbstractTransfer<
         analysis
             .atypeFactory
             .getWholeProgramInference()
-            .updateFromObjectCreation(n, constructorElt, p.getRegularStore());
+            .updateFromObjectCreation(
+                "<unknown from visitObjectCreation>", n, constructorElt, p.getRegularStore());
       }
     }
     */

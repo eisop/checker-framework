@@ -103,8 +103,8 @@ public class FormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
    */
   /* NO-AFU
   @Override
-  public void wpiPrepareMethodForWriting(AMethod method) {
-    super.wpiPrepareMethodForWriting(method);
+  public void wpiPrepareMethodForWriting(String className, AMethod method) {
+    super.wpiPrepareMethodForWriting(className, method);
     if (hasFormatMethodAnno(method)) {
       AField param = method.parameters.get(0);
       if (param != null) {
