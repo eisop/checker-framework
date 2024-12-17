@@ -21,6 +21,11 @@ public class NullnessIgnoreDeadCodeTest extends CheckerFrameworkPerDirectoryTest
                 "-AignoreDeadCode");
     }
 
+    /**
+     * Returns an array of test directory paths for parameterized testing.
+     *
+     * @return an array containing the test directory names
+     */
     @Parameterized.Parameters
     public static String[] getTestDirs() {
         return new String[] {"nullness-ignoredeadcode"};
