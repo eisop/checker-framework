@@ -1,5 +1,3 @@
-// @skip-test until the bug is fixed
-
 class DeadBranchNPE {
     void test1() {
         Object obj = null;
@@ -15,6 +13,7 @@ class DeadBranchNPE {
         Object obj = null;
         // :: error: (dereference.of.nullable)
         obj.toString();
+        // The following loop is dead code because the loop condition is false.
         for (int i = 0; i < 0; i++) {
             obj.toString();
         }

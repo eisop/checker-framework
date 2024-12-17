@@ -290,8 +290,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /** True if "-AcheckEnclosingExpr" was passed on the command line. */
     private final boolean checkEnclosingExpr;
 
-    /** True if "-AigoreCheckDeadCode" was passed on the command line. */
-    protected final boolean ignoreCheckDeadCode;
+    /** True if "-AignoreDeadCode" was passed on the command line. */
+    protected final boolean ignoreDeadCode;
 
     /** The tree of the enclosing method that is currently being visited. */
     protected @Nullable MethodTree methodTree = null;
@@ -354,7 +354,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         checkCastElementType = checker.hasOption("checkCastElementType");
         conservativeUninferredTypeArguments =
                 checker.hasOption("conservativeUninferredTypeArguments");
-        ignoreCheckDeadCode = checker.hasOption("ignoreCheckDeadCode");
+        ignoreDeadCode = checker.hasOption("ignoreDeadCode");
     }
 
     /** An array containing just {@code BaseTypeChecker.class}. */
@@ -5201,11 +5201,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @return true if checker should not test exprTree
      */
     protected final boolean shouldSkipUses(ExpressionTree exprTree) {
-        if (ignoreCheckDeadCode) {
-            System.out.printf("shouldSkipUses: %s: %s%n", exprTree.getClass(), exprTree);
-            if (atypeFactory.isUnreachable(exprTree)) {
-                return true;
-            }
+        System.out.printf("shouldSkipUses: %s: %s%n", exprTree.getClass(), exprTree);
+        if (ignoreDeadCode && atypeFactory.isUnreachable(exprTree)) {
+            return true;
         }
         Element elm = TreeUtils.elementFromTree(exprTree);
         return checker.shouldSkipUses(elm);

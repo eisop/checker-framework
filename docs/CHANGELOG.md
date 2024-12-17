@@ -2,9 +2,8 @@ Version 3.42.0-eisop5 (November ??, 2024)
 -----------------------------------------
 
 **User-visible changes:**
-
-Add a new command-line argument `-AignoreCheckDeadCode` disables the checker for code in dead expression.
-This option is not enabled by default.
+New command-line options:
+* `-AignoreDeadCode`: Ignore unreachable code when running Checkers.
 
 Removed support for the `-Anocheckjdk` option, which was deprecated in version 3.1.1.
 Use `-ApermitMissingJdk` instead.

@@ -181,7 +181,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     // TODO: when should root be null? What are the use cases?
     // None of the existing test checkers has a null root.
     // Should not be modified between calls to "visit".
-    private @Nullable CompilationUnitTree root;
+    protected @Nullable CompilationUnitTree root;
 
     /** The processing environment to use for accessing compiler internals. */
     protected final ProcessingEnvironment processingEnv;

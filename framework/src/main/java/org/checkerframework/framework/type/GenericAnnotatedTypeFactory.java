@@ -276,7 +276,7 @@ public abstract class GenericAnnotatedTypeFactory<
     public final boolean hasOrIsSubchecker;
 
     /** True if "-AigoreCheckDeadCode" was passed on the command line. */
-    protected final boolean ignoreCheckDeadCode;
+    protected final boolean ignoreDeadCode;
 
     /** An empty store. */
     // Set in postInit only
@@ -399,7 +399,7 @@ public abstract class GenericAnnotatedTypeFactory<
         hasOrIsSubchecker =
                 !this.getChecker().getSubcheckers().isEmpty()
                         || this.getChecker().getParentChecker() != null;
-        ignoreCheckDeadCode = checker.hasOption("ignoreCheckDeadCode");
+        ignoreDeadCode = checker.hasOption("ignoreDeadCode");
 
         // Every subclass must call postInit, but it must be called after
         // all other initialization is finished.
@@ -474,7 +474,7 @@ public abstract class GenericAnnotatedTypeFactory<
 
         super.setRoot(root);
         this.scannedClasses.clear();
-        if (ignoreCheckDeadCode) {
+        if (ignoreDeadCode) {
             this.reachableNodes.clear();
         }
         this.flowResult = null;
@@ -1616,7 +1616,7 @@ public abstract class GenericAnnotatedTypeFactory<
             boolean isStatic,
             @Nullable Store capturedStore) {
         ControlFlowGraph cfg = CFCFGBuilder.build(root, ast, checker, this, processingEnv);
-        if (ignoreCheckDeadCode) {
+        if (ignoreDeadCode) {
             cfg.getAllNodes(this::isIgnoredExceptionType)
                     .forEach(
                             node -> {

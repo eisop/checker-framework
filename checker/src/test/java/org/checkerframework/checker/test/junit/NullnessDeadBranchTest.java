@@ -6,9 +6,7 @@ import org.junit.runners.Parameterized;
 import java.io.File;
 import java.util.List;
 
-/**
- * JUnit tests for the Nullness checker when -AignoreCheckDeadCode command-line argument is used.
- */
+/** JUnit tests for the Nullness checker when -AignoreDeadCode command-line argument is used. */
 public class NullnessDeadBranchTest extends CheckerFrameworkPerDirectoryTest {
     /**
      * Create a NullnessNullMarkedTest.
@@ -19,12 +17,12 @@ public class NullnessDeadBranchTest extends CheckerFrameworkPerDirectoryTest {
         super(
                 testFiles,
                 org.checkerframework.checker.nullness.NullnessChecker.class,
-                "nullness-deadbranch",
-                "-AignoreCheckDeadCode");
+                "nullness-ignoredeadcode",
+                "-AignoreDeadCode");
     }
 
     @Parameterized.Parameters
     public static String[] getTestDirs() {
-        return new String[] {"nullness-deadbranch"};
+        return new String[] {"nullness-ignoredeadcode"};
     }
 }
