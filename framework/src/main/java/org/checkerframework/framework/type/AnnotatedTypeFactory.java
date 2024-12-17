@@ -5774,10 +5774,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
       WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos methodAnnos,
       Collection<WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos> inSupertypes,
       Collection<WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos> inSubtypes) {
-    Map<String, IPair<AnnotatedTypeMirror, AnnotatedTypeMirror>> precondMap =
-        methodAnnos.getPreconditions();
-    Map<String, IPair<AnnotatedTypeMirror, AnnotatedTypeMirror>> postcondMap =
-        methodAnnos.getPostconditions();
+    Map<String, InferredDeclared> precondMap = methodAnnos.getPreconditions();
+    Map<String, InferredDeclared> postcondMap = methodAnnos.getPostconditions();
     String className = methodAnnos.className;
     String methodName = methodAnnos.declaration.getName().toString();
     for (WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos inSupertype :
@@ -5855,20 +5853,19 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
       String otherMethodName,
       String className,
       String otherClassName,
-      Map<String, IPair<AnnotatedTypeMirror, AnnotatedTypeMirror>> conditionMap,
+      Map<String, InferredDeclared> conditionMap,
       WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos otherDeclAnnos,
       boolean isPrecondition,
       boolean otherIsSupertype) {
-    for (Map.Entry<String, IPair<AnnotatedTypeMirror, AnnotatedTypeMirror>> entry :
-        conditionMap.entrySet()) {
+    for (Map.Entry<String, InferredDeclared> entry : conditionMap.entrySet()) {
       String expr = entry.getKey();
-      IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> pair = entry.getValue();
-      AnnotatedTypeMirror inferredType = pair.first;
-      AnnotatedTypeMirror declaredType = pair.second;
+      InferredDeclared pair = entry.getValue();
+      AnnotatedTypeMirror inferredType = pair.inferred;
+      AnnotatedTypeMirror declaredType = pair.declared;
       if (otherIsSupertype ? isPrecondition : !isPrecondition) {
         // other is a supertype & compare preconditions, or
         // other is a subtype & compare postconditions.
-        Map<String, IPair<AnnotatedTypeMirror, AnnotatedTypeMirror>> otherConditionMap =
+        Map<String, InferredDeclared> otherConditionMap =
             isPrecondition ? otherDeclAnnos.getPreconditions() : otherDeclAnnos.getPostconditions();
         // TODO: Complete support for "every expression" conditions, then remove the
         // `!otherConditionMap.containsKey(expr)` test.
