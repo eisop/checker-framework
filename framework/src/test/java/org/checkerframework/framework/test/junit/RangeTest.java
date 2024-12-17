@@ -111,7 +111,7 @@ public class RangeTest {
     }
 
     /** The element is a member of the range. */
-    class RangeAndElement {
+    static class RangeAndElement {
         Range range;
         long element;
 
@@ -124,7 +124,7 @@ public class RangeTest {
         }
     }
 
-    class RangeAndTwoElements {
+    static class RangeAndTwoElements {
         Range range;
         long a;
         long b;
@@ -138,6 +138,7 @@ public class RangeTest {
         return new RangeAndElementIterator();
     }
 
+    @SuppressWarnings("IterableAndIterator") // TODO
     class RangeAndElementIterator implements Iterator<RangeAndElement>, Iterable<RangeAndElement> {
         // This is the index of the range that is currently being examined.
         // It is in [0..ranges.length].
@@ -191,6 +192,7 @@ public class RangeTest {
         }
     }
 
+    @SuppressWarnings("IterableAndIterator") // TODO
     class ValuesInRangeIterator implements Iterator<Long>, Iterable<Long> {
 
         Range range;
@@ -199,6 +201,7 @@ public class RangeTest {
         long nextValue;
         boolean nextValueValid = false;
 
+        @SuppressWarnings("StaticAssignmentInConstructor")
         public ValuesInRangeIterator(Range range) {
             this.range = range;
             Range.ignoreOverflow = false;
@@ -251,8 +254,8 @@ public class RangeTest {
                                 == (Math.abs(range.to) - 1) / Integer.MIN_VALUE) {
                     // filter out test data that would cause Range.intRange to return INT_EVERYTHING
                     int intValue = (int) value;
-                    assert range.contains(value) && result.contains(intValue)
-                                    || !range.contains(value) && !result.contains(intValue)
+                    assert (range.contains(value) && result.contains(intValue))
+                                    || (!range.contains(value) && !result.contains(intValue))
                             : String.format(
                                     "Range.intRange failure: %s => %s; witness = %s",
                                     range, result, intValue);
@@ -273,8 +276,8 @@ public class RangeTest {
                     // filter out test data that would cause Range.shortRange to return
                     // SHORT_EVERYTHING
                     short shortValue = (short) value;
-                    assert range.contains(value) && result.contains(shortValue)
-                                    || !range.contains(value) && !result.contains(shortValue)
+                    assert (range.contains(value) && result.contains(shortValue))
+                                    || (!range.contains(value) && !result.contains(shortValue))
                             : String.format(
                                     "Range.shortRange failure: %s => %s; witness = %s",
                                     range, result, shortValue);
@@ -297,8 +300,8 @@ public class RangeTest {
                     // CHAR_EVERYTHING
                     // char range interval is a right shift of the short range interval
                     char charValue = (char) value;
-                    assert range.contains(value) && result.contains(charValue)
-                                    || !range.contains(value) && !result.contains(charValue)
+                    assert (range.contains(value) && result.contains(charValue))
+                                    || (!range.contains(value) && !result.contains(charValue))
                             : String.format(
                                     "Range.byteRange failure: %s => %s; witness = %s",
                                     range, result, charValue);
@@ -319,8 +322,8 @@ public class RangeTest {
                     // filter out test data that would cause Range.ByteRange to return
                     // BYTE_EVERYTHING
                     byte byteValue = (byte) value;
-                    assert range.contains(value) && result.contains(byteValue)
-                                    || !range.contains(value) && !result.contains(byteValue)
+                    assert (range.contains(value) && result.contains(byteValue))
+                                    || (!range.contains(value) && !result.contains(byteValue))
                             : String.format(
                                     "Range.byteRange failure: %s => %s; witness = %s",
                                     range, result, byteValue);
@@ -369,7 +372,7 @@ public class RangeTest {
                 Range result = range1.intersect(range2);
                 for (long value : values) {
                     assert ((range1.contains(value) && range2.contains(value))
-                                    == (result.contains(value)))
+                                    == result.contains(value))
                             : String.format(
                                     "Range.intersect failure: %s %s => %s; witness = %s",
                                     range1, range2, result, value);
@@ -663,9 +666,9 @@ public class RangeTest {
             for (Range range2 : ranges) {
                 for (long value : values) {
                     Range result = range1.refineEqualTo(range2);
-                    assert (value < range2.from || value > range2.to
+                    assert (value < range2.from || value > range2.to)
                                     ? !result.contains(value)
-                                    : range1.contains(value) == result.contains(value))
+                                    : (range1.contains(value) == result.contains(value))
                             : String.format(
                                     "Range.refineEqualTo failure: %s %s %s; witness = %s",
                                     range1, range2, result, value);

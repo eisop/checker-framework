@@ -25,21 +25,22 @@ import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.ElementUtils;
 import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.IPair;
 import org.plumelib.util.ToStringComparator;
 import org.plumelib.util.UniqueId;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.StringJoiner;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BinaryOperator;
-import java.util.stream.Collectors;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
@@ -117,6 +118,9 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
     /** True if -AassumeSideEffectFree or -AassumePure was passed on the command line. */
     private final boolean assumeSideEffectFree;
 
+    /** True if -AassumePureGetters was passed on the command line. */
+    private final boolean assumePureGetters;
+
     /** The unique ID for the next-created object. */
     private static final AtomicLong nextUid = new AtomicLong(0);
 
@@ -150,6 +154,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         assumeSideEffectFree =
                 analysis.checker.hasOption("assumeSideEffectFree")
                         || analysis.checker.hasOption("assumePure");
+        assumePureGetters = analysis.checker.hasOption("assumePureGetters");
     }
 
     /**
@@ -167,6 +172,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         classValues = new HashMap<>(other.classValues);
         sequentialSemantics = other.sequentialSemantics;
         assumeSideEffectFree = other.assumeSideEffectFree;
+        assumePureGetters = other.assumePureGetters;
     }
 
     /**
@@ -190,23 +196,6 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         }
     }
 
-    /**
-     * Indicates whether the given method is side-effect-free as far as the current store is
-     * concerned. In some cases, a store for a checker allows for other mechanisms to specify
-     * whether a method is side-effect-free. For example, unannotated methods may be considered
-     * side-effect-free by default.
-     *
-     * @param atypeFactory the type factory used to retrieve annotations on the method element
-     * @param method the method element
-     * @return whether the method is side-effect-free
-     * @deprecated use {@link org.checkerframework.javacutil.AnnotationProvider#isSideEffectFree}
-     */
-    @Deprecated // 2022-09-27
-    protected boolean isSideEffectFree(
-            AnnotatedTypeFactory atypeFactory, ExecutableElement method) {
-        return atypeFactory.isSideEffectFree(method);
-    }
-
     /* --------------------------------------------------------- */
     /* Handling of fields */
     /* --------------------------------------------------------- */
@@ -220,10 +209,10 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *       org.checkerframework.dataflow.qual.SideEffectFree} or {@link
      *       org.checkerframework.dataflow.qual.Pure}), then no information needs to be removed.
      *   <li>Otherwise, all information about field accesses {@code a.f} needs to be removed, except
-     *       if the method {@code n} cannot modify {@code a.f}. This holds if {@code a} is a local
-     *       variable or {@code this}, and {@code f} is final, or if {@code a.f} has a {@link
-     *       MonotonicQualifier} in the current store. Subclasses can change this behavior by
-     *       overriding {@link #newFieldValueAfterMethodCall(FieldAccess,
+     *       if the method {@code n} cannot modify {@code a.f}. This unmodifiability property holds
+     *       if {@code a} is a local variable or {@code this}, and {@code f} is final, or if {@code
+     *       a.f} has a {@link MonotonicQualifier} in the current store. Subclasses can change this
+     *       behavior by overriding {@link #newFieldValueAfterMethodCall(FieldAccess,
      *       GenericAnnotatedTypeFactory, CFAbstractValue)}.
      *   <li>Furthermore, if the field has a monotonic annotation, then its information can also be
      *       kept.
@@ -242,7 +231,11 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         ExecutableElement method = methodInvocationNode.getTarget().getMethod();
 
         // Case 1: The method is side-effect-free.
-        if (!(assumeSideEffectFree || atypeFactory.isSideEffectFree(method))) {
+        boolean hasSideEffect =
+                !(assumeSideEffectFree
+                        || (assumePureGetters && ElementUtils.isGetter(method))
+                        || atypeFactory.isSideEffectFree(method));
+        if (hasSideEffect) {
             boolean sideEffectsUnrefineAliases = atypeFactory.sideEffectsUnrefineAliases;
 
             // update local variables
@@ -324,38 +317,30 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
             FieldAccess fieldAccess,
             GenericAnnotatedTypeFactory<V, S, ?, ?> atypeFactory,
             V value) {
+        // case 3: the field has a monotonic annotation
         if (atypeFactory.getSupportedMonotonicTypeQualifiers().isEmpty()) {
             return null;
         }
 
-        Set<AnnotationMirror> fieldAnnotations =
-                atypeFactory
-                        .getAnnotationWithMetaAnnotation(
-                                fieldAccess.getField(), MonotonicQualifier.class)
-                        .stream()
-                        .map(p -> p.second)
-                        .map(
-                                anno -> {
-                                    @SuppressWarnings("deprecation") // permitted for use in
-                                    // the framework
-                                    Name name =
-                                            AnnotationUtils.getElementValueClassName(
-                                                    anno, "value", false);
-                                    return AnnotationBuilder.fromName(
-                                            atypeFactory.getElementUtils(), name);
-                                })
-                        .collect(Collectors.toSet());
+        List<IPair<AnnotationMirror, AnnotationMirror>> fieldAnnotationPairs =
+                atypeFactory.getAnnotationWithMetaAnnotation(
+                        fieldAccess.getField(), MonotonicQualifier.class);
+        List<AnnotationMirror> metaAnnotations =
+                CollectionsPlume.withoutDuplicates(
+                        CollectionsPlume.mapList(pair -> pair.second, fieldAnnotationPairs));
+        List<AnnotationMirror> monotonicAnnotations = new ArrayList<>(metaAnnotations.size());
+        for (AnnotationMirror metaAnnotation : metaAnnotations) {
+            @SuppressWarnings("deprecation") // permitted for use in the framework
+            Name annoName =
+                    AnnotationUtils.getElementValueClassName(metaAnnotation, "value", false);
+            monotonicAnnotations.add(
+                    AnnotationBuilder.fromName(atypeFactory.getElementUtils(), annoName));
+        }
+        Collection<AnnotationMirror> valueAnnos = value.getAnnotations();
         V newValue = null;
-        for (AnnotationMirror monotonicAnnotation : fieldAnnotations) {
+        for (AnnotationMirror monotonicAnnotation : monotonicAnnotations) {
             // Make sure the target annotation is present.
-            AnnotationMirror actual =
-                    atypeFactory
-                            .getQualifierHierarchy()
-                            .findAnnotationInHierarchy(value.getAnnotations(), monotonicAnnotation);
-            if (actual != null
-                    && atypeFactory
-                            .getQualifierHierarchy()
-                            .isSubtypeQualifiersOnly(actual, monotonicAnnotation)) {
+            if (AnnotationUtils.containsSame(valueAnnos, monotonicAnnotation)) {
                 newValue =
                         analysis.createSingleAnnotationValue(
                                         monotonicAnnotation, value.getUnderlyingType())
@@ -385,6 +370,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
 
             V newValue = newFieldValueAfterMethodCall(fieldAccess, atypeFactory, value);
             if (newValue != null) {
+                // Keep information for all hierarchies where we had a monotonic annotation.
                 newFieldValues.put(fieldAccess, newValue);
             }
         }
@@ -541,8 +527,8 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      * {@code nondet()} is 3, because it might not be 3 the next time {@code nondet()} is executed.
      *
      * <p>However, contracts can mention a nondeterministic JavaExpression. For example, a contract
-     * might have a postcondition that{@code nondet()} is odd. This means that the next call
-     * to{@code nondet()} will return odd. Such a postcondition may be evicted from the store by
+     * might have a postcondition that {@code nondet()} is odd. This means that the next call to
+     * {@code nondet()} will return odd. Such a postcondition may be evicted from the store by
      * calling a side-effecting method.
      *
      * @param expr the expression to insert in the store
@@ -717,15 +703,14 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
                     atypeFactory.getAnnotationWithMetaAnnotation(
                             fieldAcc.getField(), MonotonicQualifier.class);
             for (IPair<AnnotationMirror, AnnotationMirror> fieldAnnotation : fieldAnnotations) {
-                AnnotationMirror monotonicAnnotation = fieldAnnotation.second;
+                AnnotationMirror metaAnnotation = fieldAnnotation.second;
                 @SuppressWarnings("deprecation") // permitted for use in the framework
-                Name annotation =
-                        AnnotationUtils.getElementValueClassName(
-                                monotonicAnnotation, "value", false);
-                AnnotationMirror target =
-                        AnnotationBuilder.fromName(atypeFactory.getElementUtils(), annotation);
+                Name annoName =
+                        AnnotationUtils.getElementValueClassName(metaAnnotation, "value", false);
+                AnnotationMirror monotonicAnnotation =
+                        AnnotationBuilder.fromName(atypeFactory.getElementUtils(), annoName);
                 // Make sure the 'target' annotation is present.
-                if (AnnotationUtils.containsSame(value.getAnnotations(), target)) {
+                if (AnnotationUtils.containsSame(value.getAnnotations(), monotonicAnnotation)) {
                     isMonotonic = true;
                     break;
                 }

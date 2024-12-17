@@ -40,6 +40,7 @@ import java.lang.annotation.Target;
  * </pre>
  *
  * @see EnsuresCalledMethodsIf
+ * @see EnsuresCalledMethodsOnException
  * @checker_framework.manual #called-methods-checker Called Methods Checker
  */
 @PostconditionAnnotation(qualifier = CalledMethods.class)

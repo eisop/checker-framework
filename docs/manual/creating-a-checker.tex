@@ -209,7 +209,7 @@ Framework:
 
 You can place your checker's source files wherever you like.
 One choice is to write your checker in a fork of the Checker Framework
-repository \url{https://github.com/typetools/checker-framework}.
+repository \url{https://github.com/eisop/checker-framework}.
 Another choice is to write it in a stand-alone repository.  Here is a
 template for a stand-alone repository:
 \url{https://github.com/typetools/templatefora-checker}; at that URL,
@@ -1356,9 +1356,8 @@ which is the Checker Framework's representation of an annotated type.
   Create a subclass of \refclass{framework/type}{AnnotatedTypeFactory} and
   override two \<addComputedTypeAnnotations> methods:
   \refmethodanchortext{framework/type}{AnnotatedTypeFactory}{addComputedTypeAnnotations}{(com.sun.source.tree.Tree,org.checkerframework.framework.type.AnnotatedTypeMirror)}{addComputedTypeAnnotations(Tree,AnnotatedTypeMirror)}
-  (or
-  \refmethodanchortext{framework/type}{GenericAnnotatedTypeFactory}{addComputedTypeAnnotations}{(com.sun.source.tree.Tree,org.checkerframework.framework.type.AnnotatedTypeMirror,boolean)}{addComputedTypeAnnotations(Tree,AnnotatedTypeMirror,boolean)}
-  if extending \code{GenericAnnotatedTypeFactory})
+  (use \refmethodanchortext{framework/type}{GenericAnnotatedTypeFactory}{addComputedTypeAnnotationsWithoutFlow}{(com.sun.source.tree.Tree,org.checkerframework.framework.type.AnnotatedTypeMirror)}{addComputedTypeAnnotationsWithoutFlow(Tree,AnnotatedTypeMirror)}
+  in subclasses of \code{GenericAnnotatedTypeFactory} if you want to add computed type annotations to a type without using flow information.)
   and
   \refmethodanchortext{framework/type}{AnnotatedTypeFactory}{addComputedTypeAnnotations}{(javax.lang.model.element.Element,org.checkerframework.framework.type.AnnotatedTypeMirror)}{addComputedTypeAnnotations(Element,AnnotatedTypeMirror)}.
   The methods can make arbitrary changes to the annotations on a type.
@@ -1486,7 +1485,16 @@ In the same directory as \<\emph{MyChecker}Checker.java>, create a class
 named \<\emph{MyChecker}Transfer> that extends
 \refclass{framework/flow}{CFTransfer}.
 
-Leave the class body empty for now.  Your class will add functionality by
+Leave the class body empty for now, except for a constructor:
+
+\begin{Verbatim}
+  public MyCheckerTransfer(CFAnalysis analysis) {
+    super(analysis);
+  }
+\end{Verbatim}
+
+\noindent
+Your class will add functionality by
 overriding methods of \<CFTransfer>, which performs the default Checker
 Framework type refinement.
 
@@ -1852,10 +1860,10 @@ uses the JDK\@.  You have two options:
 \begin{itemize}
 \item
   Write JDK annotations in a fork of
-  \url{https://github.com/typetools/jdk}.
+  \url{https://github.com/eisop/jdk}.
 
   If your checker is written in a fork of
-  \url{https://github.com/typetools/jdk},
+  \url{https://github.com/eisop/jdk},
   then use the same fork name (GitHub organization) and branch name;
   this is necessary so that the CI jobs use the right annotated JDK.
 
@@ -1927,7 +1935,8 @@ exactly one error, whose message key is \<dereference.of.nullable>, on
 the line following the ``// ::'' comment.
 
 % Don't repeat the information here, to prevent them from getting out of sync.
-The testing infrastructure is extensively documented in file \href{https://github.com/typetools/checker-framework/blob/master/checker/tests/README}{\<checker-framework/checker/tests/README>}.
+The testing infrastructure is extensively documented in file
+\href{https://github.com/eisop/checker-framework/blob/master/checker/tests/README}{\<checker-framework/checker/tests/README>}.
 
 If your checker's source code is within a fork of the Checker Framework
 repository, then you can copy the testing infrastructure used by some

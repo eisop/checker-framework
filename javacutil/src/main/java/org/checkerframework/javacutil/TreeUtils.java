@@ -148,9 +148,7 @@ public final class TreeUtils {
             TREEMAKER_SELECT =
                     TreeMaker.class.getMethod("Select", JCExpression.class, Symbol.class);
         } catch (NoSuchMethodException e) {
-            Error err = new AssertionError("Unexpected error in TreeUtils static initializer");
-            err.initCause(e);
-            throw err;
+            throw new AssertionError("Unexpected error in TreeUtils static initializer", e);
         }
     }
 
@@ -480,6 +478,23 @@ public final class TreeUtils {
     }
 
     /**
+     * Returns the ExecutableElement for the method reference.
+     *
+     * @param tree a method reference
+     * @return the ExecutableElement for the method reference
+     */
+    @Pure
+    public static ExecutableElement elementFromUse(MemberReferenceTree tree) {
+        Element result = elementFromUse((ExpressionTree) tree);
+        if (!(result instanceof ExecutableElement)) {
+            throw new BugInCF(
+                    "Method reference elements should be ExecutableElement. Found: %s [%s]",
+                    result, result.getClass());
+        }
+        return (ExecutableElement) result;
+    }
+
+    /**
      * Returns the ExecutableElement for the given method declaration.
      *
      * <p>The result can be null, when {@code tree} is a method in an anonymous class and that class
@@ -557,7 +572,7 @@ public final class TreeUtils {
      *
      * @param tree a constructor invocation
      * @return the ExecutableElement for the called constructor
-     * @see #constructor(NewClassTree)
+     * @see #elementFromUse(NewClassTree)
      */
     @Pure
     public static ExecutableElement elementFromUse(NewClassTree tree) {
@@ -700,7 +715,7 @@ public final class TreeUtils {
      *
      * @param newClassTree the constructor invocation
      * @return the super constructor invoked in the body of the anonymous constructor; or {@link
-     *     #constructor(NewClassTree)} if {@code newClassTree} is not creating an anonymous class
+     *     #elementFromUse(NewClassTree)} if {@code newClassTree} is not creating an anonymous class
      */
     public static ExecutableElement getSuperConstructor(NewClassTree newClassTree) {
         if (newClassTree.getClassBody() == null) {
@@ -723,19 +738,6 @@ public final class TreeUtils {
         JCExpressionStatement stmt = (JCExpressionStatement) anonConstructor.body.stats.head;
         JCMethodInvocation superInvok = (JCMethodInvocation) stmt.expr;
         return (ExecutableElement) TreeInfo.symbol(superInvok.meth);
-    }
-
-    /**
-     * Determines the element for a constructor given an invocation via {@code new}.
-     *
-     * @see #elementFromUse(NewClassTree)
-     * @param tree the constructor invocation
-     * @return the {@link ExecutableElement} corresponding to the constructor call in {@code tree}
-     * @deprecated use elementFromUse instead
-     */
-    @Deprecated // 2022-09-12
-    public static ExecutableElement constructor(NewClassTree tree) {
-        return (ExecutableElement) ((JCNewClass) tree).constructor;
     }
 
     /**
@@ -1176,14 +1178,25 @@ public final class TreeUtils {
     /**
      * Returns true if the argument is an invocation of one of the given methods, or of any method
      * that overrides them.
+     *
+     * @param tree a tree that might be a method invocation
+     * @param methods the methods to check for
+     * @param processingEnv the processing environment
+     * @return true if the argument is an invocation of one of the given methods, or of any method
+     *     that overrides them
      */
     public static boolean isMethodInvocation(
-            Tree methodTree, List<ExecutableElement> methods, ProcessingEnvironment processingEnv) {
-        if (!(methodTree instanceof MethodInvocationTree)) {
+            Tree tree, List<ExecutableElement> methods, ProcessingEnvironment processingEnv) {
+        if (!(tree instanceof MethodInvocationTree)) {
             return false;
         }
-        for (ExecutableElement Method : methods) {
-            if (isMethodInvocation(methodTree, Method, processingEnv)) {
+        MethodInvocationTree methInvok = (MethodInvocationTree) tree;
+        ExecutableElement invoked = TreeUtils.elementFromUse(methInvok);
+        if (invoked == null) {
+            return false;
+        }
+        for (ExecutableElement method : methods) {
+            if (ElementUtils.isMethod(invoked, method, processingEnv)) {
                 return true;
             }
         }
@@ -1824,16 +1837,15 @@ public final class TreeUtils {
                     type);
         }
         ExecutableType executableType = (ExecutableType) type;
-        if (((ExecutableType) type).getParameterTypes().isEmpty()
-                && elementFromUse(tree).isVarArgs()) {
+        ExecutableElement element = elementFromUse(tree);
+        if (executableType.getParameterTypes().size() != element.getParameters().size()) {
             // Sometimes when the method type is viewpoint-adapted, the vararg parameter disappears,
             // just return the declared type.
             // For example,
             // static void call(MethodHandle methodHandle) throws Throwable {
             //   methodHandle.invoke();
             // }
-            ExecutableElement ele = elementFromUse(tree);
-            return (ExecutableType) ele.asType();
+            return (ExecutableType) element.asType();
         }
         return executableType;
     }
@@ -1939,6 +1951,15 @@ public final class TreeUtils {
          */
         public boolean isUnbound() {
             return unbound;
+        }
+
+        /**
+         * Returns whether this kind is a constructor reference.
+         *
+         * @return whether this kind is a constructor reference
+         */
+        public boolean isConstructorReference() {
+            return mode == ReferenceMode.NEW;
         }
 
         /**

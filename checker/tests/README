@@ -179,8 +179,8 @@ Different test cases may need to pass different command-line arguments
 argument that should not be enabled for every test.  Follow the same
 instructions as for writing tests for a new checker.
 
-A Gradle task is created for each Junit test class.  The task is named the same
-as the Junit test classname, for example, ./gradlew RegexTest runs the Regex
+A Gradle task is created for each JUnit test class.  The task is named the same
+as the JUnit test classname, for example, ./gradlew RegexTest runs the Regex
 Checker tests.
 
 

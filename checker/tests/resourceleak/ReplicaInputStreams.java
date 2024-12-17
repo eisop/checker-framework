@@ -21,7 +21,7 @@ class ReplicaInputStreams implements Closeable {
     @EnsuresCalledMethods(
             value = {"this.in1", "this.in2"},
             methods = {"close"})
-    // :: error: destructor.exceptional.postcondition
+    // :: error: (contracts.exceptional.postcondition.not.satisfied)
     public void close() throws IOException {
         in1.close();
         in2.close();

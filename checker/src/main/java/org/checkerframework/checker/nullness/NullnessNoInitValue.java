@@ -42,8 +42,11 @@ public class NullnessNoInitValue extends CFAbstractValue<NullnessNoInitValue> {
     }
 
     @Override
-    public NullnessNoInitValue leastUpperBound(@Nullable NullnessNoInitValue other) {
-        NullnessNoInitValue result = super.leastUpperBound(other);
+    protected NullnessNoInitValue upperBound(
+            @Nullable NullnessNoInitValue other,
+            TypeMirror upperBoundTypeMirror,
+            boolean shouldWiden) {
+        NullnessNoInitValue result = super.upperBound(other, upperBoundTypeMirror, shouldWiden);
 
         AnnotationMirror resultNullableAnno =
                 analysis.getTypeFactory().getAnnotationByClass(result.annotations, Nullable.class);

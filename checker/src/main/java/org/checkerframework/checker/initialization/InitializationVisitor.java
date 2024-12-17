@@ -14,9 +14,6 @@ import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
-import org.checkerframework.checker.initialization.qual.Initialized;
-import org.checkerframework.checker.initialization.qual.UnderInitialization;
-import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 import org.checkerframework.checker.nullness.NullnessChecker;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
@@ -31,21 +28,17 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
-import org.checkerframework.javacutil.TypesUtils;
-import org.plumelib.util.ArraysPlume;
 
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import java.util.StringJoiner;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.TypeMirror;
 
 /* NO-AFU
    import org.checkerframework.common.wholeprograminference.WholeProgramInference;
@@ -129,17 +122,16 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
     @Override
     protected boolean commonAssignmentCheck(
             Tree varTree,
-            ExpressionTree valueExp,
+            ExpressionTree valueExpTree,
             @CompilerMessageKey String errorKey,
             Object... extraArgs) {
         // field write of the form x.f = y
         if (TreeUtils.isFieldAccess(varTree)) {
             // cast is safe: a field access can only be an IdentifierTree or MemberSelectTree
             ExpressionTree lhs = (ExpressionTree) varTree;
-            ExpressionTree y = valueExp;
             VariableElement el = TreeUtils.variableElementFromUse(lhs);
-            AnnotatedTypeMirror xType = atypeFactory.getReceiverType(lhs);
-            AnnotatedTypeMirror yType = atypeFactory.getAnnotatedType(y);
+            AnnotatedTypeMirror lhsReceiverType = atypeFactory.getReceiverType(lhs);
+            AnnotatedTypeMirror valueExpType = atypeFactory.getAnnotatedType(valueExpTree);
             // the special FBC rules do not apply if there is an explicit
             // UnknownInitialization annotation
             AnnotationMirrorSet fieldAnnotations =
@@ -147,11 +139,11 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
             if (!AnnotationUtils.containsSameByName(
                     fieldAnnotations, atypeFactory.UNKNOWN_INITIALIZATION)) {
                 if (!ElementUtils.isStatic(el)
-                        && !(atypeFactory.isInitialized(yType)
-                                || atypeFactory.isUnderInitialization(xType)
-                                || atypeFactory.isFbcBottom(yType))) {
+                        && !(atypeFactory.isInitialized(valueExpType)
+                                || atypeFactory.isUnderInitialization(lhsReceiverType)
+                                || atypeFactory.isFbcBottom(valueExpType))) {
                     @CompilerMessageKey String err;
-                    if (atypeFactory.isInitialized(xType)) {
+                    if (atypeFactory.isInitialized(lhsReceiverType)) {
                         err = COMMITMENT_INVALID_FIELD_WRITE_INITIALIZED;
                     } else {
                         err = COMMITMENT_INVALID_FIELD_WRITE_UNKNOWN_INITIALIZATION;
@@ -161,7 +153,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
                 }
             }
         }
-        return super.commonAssignmentCheck(varTree, valueExp, errorKey, extraArgs);
+        return super.commonAssignmentCheck(varTree, valueExpTree, errorKey, extraArgs);
     }
 
     @Override
@@ -249,8 +241,8 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
      *
      * <p>In the case that the right-hand side is an object, this is used by {@link
      * #reportCommonAssignmentError(AnnotatedTypeMirror, AnnotatedTypeMirror, Tree, String,
-     * Object...)} to get the correct store value for the right-hand side's fields and checker
-     * whether they are initialized according to the target checker.
+     * Object...)} to get the correct store value for the right-hand side's fields and check whether
+     * they are initialized according to the target checker.
      */
     protected Tree commonAssignmentTree;
 
@@ -260,7 +252,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
         commonAssignmentTree = tree;
         // is this a field (and not a local variable)?
         if (TreeUtils.elementFromDeclaration(tree).getKind().isField()) {
-            Set<AnnotationMirror> annotationMirrors =
+            AnnotationMirrorSet annotationMirrors =
                     atypeFactory.getAnnotatedType(tree).getExplicitAnnotations();
             // Fields cannot have commitment annotations.
             for (Class<? extends Annotation> c : atypeFactory.getSupportedTypeQualifiers()) {
@@ -296,141 +288,6 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
         super.visitMethodInvocation(node, p);
         commonAssignmentTree = oldCommonAssignmentTree;
         return null;
-    }
-
-    @Override
-    protected void reportCommonAssignmentError(
-            AnnotatedTypeMirror varType,
-            AnnotatedTypeMirror valueType,
-            Tree valueTree,
-            @CompilerMessageKey String errorKey,
-            Object... extraArgs) {
-        FoundRequired pair = FoundRequired.of(valueType, varType);
-        String valueTypeString = pair.found;
-        String varTypeString = pair.required;
-
-        // If the stored value of valueTree is wrong, we still do not report an error
-        // if all necessary fields of valueTree are initialized in the store before the assignment.
-
-        InitializationStore initStoreBefore = atypeFactory.getStoreBefore(commonAssignmentTree);
-
-        // We can't check if all necessary fields are initialized without a store.
-        if (initStoreBefore == null) {
-            super.reportCommonAssignmentError(varType, valueType, valueTree, errorKey, extraArgs);
-            return;
-        }
-
-        // We only track field initialization for the current receiver.
-        if (!valueTree.toString().equals("this")) {
-            super.reportCommonAssignmentError(varType, valueType, valueTree, errorKey, extraArgs);
-            return;
-        }
-
-        // If the required type is @Initialized and the value type is not final,
-        // we always need to report an error.
-        if (varType.getAnnotation(Initialized.class) != null
-                && !ElementUtils.isFinal(
-                        TypesUtils.getTypeElement(valueType.getUnderlyingType()))) {
-            super.reportCommonAssignmentError(varType, valueType, valueTree, errorKey, extraArgs);
-            return;
-        }
-
-        // Otherwise, we check if there are any uninitialized fields and only report the error
-        // if this is the case.
-        GenericAnnotatedTypeFactory<?, ?, ?, ?> targetFactory =
-                checker.getTypeFactoryOfSubcheckerOrNull(
-                        ((InitializationChecker) checker).getTargetCheckerClass());
-        List<VariableTree> uninitializedFields =
-                atypeFactory.getUninitializedFields(
-                        initStoreBefore,
-                        targetFactory.getStoreBefore(commonAssignmentTree),
-                        getCurrentPath(),
-                        false,
-                        Collections.emptyList());
-        uninitializedFields.removeAll(initializedFields);
-
-        if (!uninitializedFields.isEmpty()) {
-            StringJoiner fieldsString = new StringJoiner(", ");
-            for (VariableTree f : uninitializedFields) {
-                fieldsString.add(f.getName());
-            }
-            checker.reportError(
-                    commonAssignmentTree,
-                    errorKey,
-                    ArraysPlume.concatenate(extraArgs, valueTypeString, varTypeString));
-        }
-    }
-
-    @Override
-    protected void reportMethodInvocabilityError(
-            MethodInvocationTree node, AnnotatedTypeMirror found, AnnotatedTypeMirror expected) {
-        // We only track field initialization for the current receiver.
-        if (!TreeUtils.isSelfAccess(node)) {
-            super.reportMethodInvocabilityError(node, found, expected);
-            return;
-        }
-
-        AnnotationMirror init = expected.getAnnotation(Initialized.class);
-        AnnotationMirror unknownInit = expected.getAnnotation(UnknownInitialization.class);
-        AnnotationMirror underInit = expected.getAnnotation(UnderInitialization.class);
-
-        // If the actual receiver type (found) is not a subtype of expected,
-        // we still do not report an error if all necessary fields are initialized in the store
-        // before the method call.
-
-        // Find the frame for which the receiver must be initialized to discharge this error:
-        // * If the expected type is @UnknownInitialization(A) or @UnderInitialization(A), the frame
-        // is A.
-        // * If the expected type is @Initialized and the receiver type is final, the frame
-        // is the receiver type.
-        // * Otherwise, this error cannot be discharged and is reported by the super method.
-        TypeMirror frame;
-        if (unknownInit != null) {
-            frame = atypeFactory.getTypeFrameFromAnnotation(unknownInit);
-        } else if (underInit != null) {
-            frame = atypeFactory.getTypeFrameFromAnnotation(underInit);
-        } else if (init != null
-                && ElementUtils.isFinal(TypesUtils.getTypeElement(expected.getUnderlyingType()))) {
-            frame = expected.getUnderlyingType();
-        } else {
-            super.reportMethodInvocabilityError(node, found, expected);
-            return;
-        }
-
-        TypeMirror underlyingReceiverType = atypeFactory.getReceiverType(node).getUnderlyingType();
-        if (!atypeFactory
-                .getProcessingEnv()
-                .getTypeUtils()
-                .isSubtype(frame, underlyingReceiverType)) {
-            super.reportMethodInvocabilityError(node, found, expected);
-            return;
-        }
-
-        GenericAnnotatedTypeFactory<?, ?, ?, ?> targetFactory =
-                checker.getTypeFactoryOfSubcheckerOrNull(
-                        ((InitializationChecker) checker).getTargetCheckerClass());
-        List<VariableTree> uninitializedFields =
-                atypeFactory.getUninitializedFields(
-                        atypeFactory.getStoreBefore(node),
-                        targetFactory.getStoreBefore(node),
-                        getCurrentPath(),
-                        false,
-                        Collections.emptyList());
-        uninitializedFields.removeAll(initializedFields);
-
-        if (!uninitializedFields.isEmpty()) {
-            // TODO: improve the error message by showing the uninitialized fields
-            // StringJoiner fieldsString = new StringJoiner(", ");
-            // for (VariableTree f : uninitializedFields) {
-            //     fieldsString.add(f.getName());
-            // }
-            checker.reportError(
-                    node,
-                    "method.invocation.invalid",
-                    TreeUtils.elementFromUse(node),
-                    found.toString(),
-                    expected.toString());
-        }
     }
 
     /**

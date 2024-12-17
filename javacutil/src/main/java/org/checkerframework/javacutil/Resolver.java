@@ -64,16 +64,33 @@ public class Resolver {
     /** Whether we are running on at least Java 13. */
     private static final boolean atLeastJava13;
 
+    /** Whether we are running on at least Java 23. */
+    private static final boolean atLeastJava23;
+
+    /**
+     * Determines whether the given {@link SourceVersion} release version string is supported.
+     *
+     * @param release the {@link SourceVersion} release version
+     * @return whether the given version is supported
+     */
+    private static boolean atLeastJava(String release) {
+        final SourceVersion latestSource = SourceVersion.latest();
+        SourceVersion javaVersion;
+        try {
+            javaVersion = SourceVersion.valueOf(release);
+        } catch (IllegalArgumentException e) {
+            javaVersion = null;
+        }
+        @SuppressWarnings("EnumOrdinal") // No better way to compare.
+        boolean atLeastJava =
+                javaVersion != null && latestSource.ordinal() >= javaVersion.ordinal();
+        return atLeastJava;
+    }
+
     static {
         try {
-            final SourceVersion latestSource = SourceVersion.latest();
-            SourceVersion java13;
-            try {
-                java13 = SourceVersion.valueOf("RELEASE_13");
-            } catch (IllegalArgumentException e) {
-                java13 = null;
-            }
-            atLeastJava13 = java13 != null && latestSource.ordinal() >= java13.ordinal();
+            atLeastJava13 = atLeastJava("RELEASE_13");
+            atLeastJava23 = atLeastJava("RELEASE_23");
 
             FIND_METHOD =
                     Resolve.class.getDeclaredMethod(
@@ -87,7 +104,15 @@ public class Resolver {
                             boolean.class);
             FIND_METHOD.setAccessible(true);
 
-            FIND_VAR = Resolve.class.getDeclaredMethod("findVar", Env.class, Name.class);
+            if (atLeastJava23) {
+                // Changed in
+                // https://github.com/openjdk/jdk/commit/e227c7e37d4de0656f013f3a936b1acfa56cc2e0
+                FIND_VAR =
+                        Resolve.class.getDeclaredMethod(
+                                "findVar", DiagnosticPosition.class, Env.class, Name.class);
+            } else {
+                FIND_VAR = Resolve.class.getDeclaredMethod("findVar", Env.class, Name.class);
+            }
             FIND_VAR.setAccessible(true);
 
             if (atLeastJava13) {
@@ -306,7 +331,13 @@ public class Resolver {
         try {
             Env<AttrContext> env = getEnvForPath(path);
             // Either a VariableElement or a SymbolNotFoundError.
-            Element res = wrapInvocationOnResolveInstance(FIND_VAR, env, names.fromString(name));
+            Element res;
+            if (atLeastJava23) {
+                DiagnosticPosition pos = (DiagnosticPosition) path.getLeaf();
+                res = wrapInvocationOnResolveInstance(FIND_VAR, pos, env, names.fromString(name));
+            } else {
+                res = wrapInvocationOnResolveInstance(FIND_VAR, env, names.fromString(name));
+            }
             // Every kind in the documentation of Element.getKind() is explicitly tested, possibly
             // in the "default:" case.
             switch (res.getKind()) {

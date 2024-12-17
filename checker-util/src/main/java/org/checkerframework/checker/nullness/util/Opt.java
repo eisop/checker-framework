@@ -29,6 +29,7 @@ import java.util.function.Supplier;
  * @see java.util.Optional
  */
 @AnnotatedFor("nullness")
+@SuppressWarnings("NullableWildcard") // Set upper and lower bound of wildcards
 public final class Opt {
 
     /** The Opt class cannot be instantiated. */
@@ -73,6 +74,8 @@ public final class Opt {
             consumer.accept(primary);
         }
     }
+
+    // TODO: Add ifPresentOrElse.
 
     /**
      * If primary is non-null, and its value matches the given predicate, return the value. If

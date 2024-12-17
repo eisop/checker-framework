@@ -74,8 +74,8 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclared
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.ErrorTypeKindException;
 import org.checkerframework.framework.util.JavaParserUtil;
-import org.checkerframework.framework.util.element.ElementAnnotationUtil.ErrorTypeKindException;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
@@ -697,6 +697,8 @@ public class AnnotationFileParser {
             for (Problem p : e.getProblems()) {
                 afp.warn(null, p.getVerboseMessage());
             }
+        } catch (Throwable t) {
+            afp.warn(null, "Parse problem: " + t);
         }
     }
 
@@ -736,6 +738,8 @@ public class AnnotationFileParser {
             for (Problem p : e.getProblems()) {
                 afp.warn(null, filename + ": " + p.getVerboseMessage());
             }
+        } catch (Throwable t) {
+            afp.warn(null, "Parse problem: " + t);
         }
     }
 
@@ -849,6 +853,14 @@ public class AnnotationFileParser {
         if (cu.getPackageDeclaration().isPresent()) {
             PackageDeclaration pDecl = cu.getPackageDeclaration().get();
             packageAnnos = pDecl.getAnnotations();
+            if (debugAnnotationFileParser
+                    || (!warnIfNotFoundIgnoresClasses
+                            && !hasNoAnnotationFileParserWarning(packageAnnos))) {
+                String packageName = pDecl.getName().toString();
+                if (elements.getPackageElement(packageName) == null) {
+                    stubWarnNotFound(pDecl, "package not found: " + packageName);
+                }
+            }
             processPackage(pDecl);
         } else {
             packageAnnos = null;
@@ -1062,7 +1074,8 @@ public class AnnotationFileParser {
         }
 
         if (typeDecl instanceof RecordDeclaration) {
-            NodeList<Parameter> recordMembers = ((RecordDeclaration) typeDecl).getParameters();
+            RecordDeclaration recordDecl = (RecordDeclaration) typeDecl;
+            NodeList<Parameter> recordMembers = recordDecl.getParameters();
             Map<String, RecordComponentStub> byName =
                     ArrayMap.newArrayMapOrLinkedHashMap(recordMembers.size());
             for (Parameter recordMember : recordMembers) {
@@ -1074,7 +1087,7 @@ public class AnnotationFileParser {
                 byName.put(recordMember.getNameAsString(), stub);
             }
             annotationFileAnnos.records.put(
-                    typeDecl.getFullyQualifiedName().get(), new RecordStub(byName));
+                    recordDecl.getFullyQualifiedName().get(), new RecordStub(byName));
         }
 
         IPair<Map<Element, BodyDeclaration<?>>, Map<Element, List<BodyDeclaration<?>>>> members =
@@ -1317,7 +1330,14 @@ public class AnnotationFileParser {
         }
         markAsFromStubFile(elt);
 
-        AnnotatedExecutableType methodType = atypeFactory.fromElement(elt);
+        AnnotatedExecutableType methodType;
+        try {
+            methodType = atypeFactory.fromElement(elt);
+        } catch (ErrorTypeKindException e) {
+            stubWarnNotFound(decl, "Error type kind occurred: " + e.getLocalizedMessage());
+            return Collections.emptyList();
+        }
+
         AnnotatedExecutableType origMethodType =
                 warnIfStubRedundantWithBytecode ? methodType.deepCopy() : null;
 
@@ -1347,7 +1367,9 @@ public class AnnotationFileParser {
                         decl.getAnnotations(),
                         decl);
             } catch (ErrorTypeKindException e) {
-                // Do nothing, per https://github.com/typetools/checker-framework/issues/244 .
+                // See https://github.com/typetools/checker-framework/issues/244 .
+                // Issue a warning, to enable fixes to the classpath.
+                stubWarnNotFound(decl, "Error type kind occurred: " + e);
             }
         } else {
             assert decl.isConstructorDeclaration();
@@ -1388,25 +1410,25 @@ public class AnnotationFileParser {
                             "parseParameter: constructor %s of a top-level class"
                                     + " cannot have receiver annotations %s",
                             methodType,
-                            decl.getReceiverParameter().get().getAnnotations());
+                            receiverParameter.getAnnotations());
                 } else {
                     warn(
                             receiverParameter,
                             "parseParameter: static method %s cannot have receiver annotations %s",
                             methodType,
-                            decl.getReceiverParameter().get().getAnnotations());
+                            receiverParameter.getAnnotations());
                 }
             } else {
                 // Add declaration annotations.
                 annotate(
                         methodType.getReceiverType(),
-                        decl.getReceiverParameter().get().getAnnotations(),
+                        receiverParameter.getAnnotations(),
                         receiverParameter);
                 // Add type annotations.
                 annotate(
                         methodType.getReceiverType(),
-                        decl.getReceiverParameter().get().getType(),
-                        decl.getReceiverParameter().get().getAnnotations(),
+                        receiverParameter.getType(),
+                        receiverParameter.getAnnotations(),
                         receiverParameter);
             }
         }
@@ -1606,28 +1628,27 @@ public class AnnotationFileParser {
                 }
                 AnnotatedDeclaredType adeclType = (AnnotatedDeclaredType) atype;
                 // Process type arguments.
-                if (declType.getTypeArguments().isPresent()
-                        && !declType.getTypeArguments().get().isEmpty()
-                        && !adeclType.getTypeArguments().isEmpty()) {
-                    if (declType.getTypeArguments().get().size()
-                            != adeclType.getTypeArguments().size()) {
+                @SuppressWarnings(
+                        "optional:optional.collection") // JavaParser uses Optional<NodeList>
+                Optional<NodeList<Type>> oDeclTypeArgs = declType.getTypeArguments();
+                List<? extends AnnotatedTypeMirror> adeclTypeArgs = adeclType.getTypeArguments();
+                if (oDeclTypeArgs.isPresent()
+                        && !oDeclTypeArgs.get().isEmpty()
+                        && !adeclTypeArgs.isEmpty()) {
+                    NodeList<Type> declTypeArgs = oDeclTypeArgs.get();
+                    if (declTypeArgs.size() != adeclTypeArgs.size()) {
                         warn(
                                 astNode,
                                 String.format(
-                                        "mismatch in type argument size between %s (%d) and %s"
-                                                + " (%d)",
+                                        "Mismatch in type argument size between %s (%d) and %s (%d)",
                                         declType,
-                                        declType.getTypeArguments().get().size(),
+                                        declTypeArgs.size(),
                                         adeclType,
-                                        adeclType.getTypeArguments().size()));
+                                        adeclTypeArgs.size()));
                         break;
                     }
-                    for (int i = 0; i < declType.getTypeArguments().get().size(); ++i) {
-                        annotate(
-                                adeclType.getTypeArguments().get(i),
-                                declType.getTypeArguments().get().get(i),
-                                null,
-                                astNode);
+                    for (int i = 0; i < declTypeArgs.size(); ++i) {
+                        annotate(adeclTypeArgs.get(i), declTypeArgs.get(i), null, astNode);
                     }
                 }
                 break;
@@ -3308,7 +3329,9 @@ public class AnnotationFileParser {
             }
 
             if (callListener) {
-                fileElementTypes.preProcessTopLevelType(typeDeclName.get());
+                @SuppressWarnings("optional:method.invocation.invalid") // from callListener
+                String typeDeclNameString = typeDeclName.get();
+                fileElementTypes.preProcessTopLevelType(typeDeclNameString);
             }
             try {
                 if (shouldProcessTypeDecl) {
@@ -3321,7 +3344,9 @@ public class AnnotationFileParser {
                     typeParameters.removeAll(typeDeclTypeParameters);
                 }
                 if (callListener) {
-                    fileElementTypes.postProcessTopLevelType(typeDeclName.get());
+                    @SuppressWarnings("optional:method.invocation.invalid") // from callListener
+                    String typeDeclNameString = typeDeclName.get();
+                    fileElementTypes.postProcessTopLevelType(typeDeclNameString);
                 }
             }
 
@@ -3330,14 +3355,16 @@ public class AnnotationFileParser {
 
         @Override
         public Void visitVariable(VariableTree javacTree, Node javaParserNode) {
-            TreeUtils.elementFromDeclaration(javacTree);
             VariableElement elt = TreeUtils.elementFromDeclaration(javacTree);
-            if (elt.getKind() == ElementKind.FIELD) {
-                processField((FieldDeclaration) javaParserNode.getParentNode().get(), elt);
-            }
+            if (elt != null) {
+                if (elt.getKind() == ElementKind.FIELD) {
+                    VariableDeclarator varDecl = (VariableDeclarator) javaParserNode;
+                    processField((FieldDeclaration) varDecl.getParentNode().get(), elt);
+                }
 
-            if (elt.getKind() == ElementKind.ENUM_CONSTANT) {
-                processEnumConstant((EnumConstantDeclaration) javaParserNode, elt);
+                if (elt.getKind() == ElementKind.ENUM_CONSTANT) {
+                    processEnumConstant((EnumConstantDeclaration) javaParserNode, elt);
+                }
             }
 
             super.visitVariable(javacTree, javaParserNode);
