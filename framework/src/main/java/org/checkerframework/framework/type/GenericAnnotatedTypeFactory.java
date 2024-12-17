@@ -1615,7 +1615,8 @@ public abstract class GenericAnnotatedTypeFactory<
             boolean updateInitializationStore,
             boolean isStatic,
             @Nullable Store capturedStore) {
-        ControlFlowGraph cfg = CFCFGBuilder.build(root, ast, checker, this, processingEnv);
+        ControlFlowGraph cfg =
+                CFCFGBuilder.build(this.getRoot(), ast, checker, this, processingEnv);
         if (ignoreDeadCode) {
             cfg.getAllNodes(this::isIgnoredExceptionType)
                     .forEach(
