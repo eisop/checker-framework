@@ -1679,8 +1679,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      *
      * <p>The other two validate methods achieve the same goal but perform checks on different trees
      * and different type-use locations. See {@link BaseTypeVisitor#validateTargetLocation(Tree,
-     * AnnotatedTypeMirror, TypeUseLocation)} and {@linkplain
-     * BaseTypeValidator#validateWildCardTargetLocation(AnnotatedWildcardType, Tree)}.
+     * AnnotatedTypeMirror, TypeUseLocation)} and
+     * BaseTypeValidator#validateWildCardTargetLocation(AnnotatedWildcardType, Tree).
      *
      * @param tree qualifiers on this VariableTree will be validated
      * @param type the type of the tree
@@ -1762,7 +1762,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * <p>The other two validate methods achieve the same goal but perform checks on different trees
      * and different type-use locations. See {@link
      * BaseTypeVisitor#validateVariablesTargetLocation(VariableTree, AnnotatedTypeMirror)} and
-     * {@linkplain BaseTypeValidator#validateWildCardTargetLocation(AnnotatedWildcardType, Tree)}.
+     * BaseTypeValidator#validateWildCardTargetLocation(AnnotatedWildcardType, Tree).
      *
      * @param tree qualifiers on the tree will be validated
      * @param type the type of the tree
