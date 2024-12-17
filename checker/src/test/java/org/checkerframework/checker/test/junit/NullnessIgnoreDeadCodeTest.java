@@ -7,13 +7,13 @@ import java.io.File;
 import java.util.List;
 
 /** JUnit tests for the Nullness checker when -AignoreDeadCode command-line argument is used. */
-public class NullnessDeadBranchTest extends CheckerFrameworkPerDirectoryTest {
+public class NullnessIgnoreDeadCodeTest extends CheckerFrameworkPerDirectoryTest {
     /**
      * Create a NullnessNullMarkedTest.
      *
      * @param testFiles the files containing test code, which will be type-checked
      */
-    public NullnessDeadBranchTest(List<File> testFiles) {
+    public NullnessIgnoreDeadCodeTest(List<File> testFiles) {
         super(
                 testFiles,
                 org.checkerframework.checker.nullness.NullnessChecker.class,
