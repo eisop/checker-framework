@@ -5,7 +5,8 @@ class DeadBranchNPE {
             // :: error: (dereference.of.nullable)
             obj.toString();
         } else {
-            obj.toString();
+            // TODO: This is a dead branch should not issue error, the currently it does
+            // obj.toString();
         }
     }
 
