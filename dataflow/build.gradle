@@ -21,6 +21,12 @@ dependencies {
     // ../build.gradle in the createDataflowShaded task).
 }
 
+// Enable exec/javaexec
+interface InjectedExecOps {
+    @Inject
+    ExecOperations getExecOps()
+}
+
 // Shadowing Test Sources and Dependencies
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
@@ -63,8 +69,11 @@ createDataflowShaded('errorprone')
 
 task manual(group: 'Documentation') {
     description 'Build the manual'
+
+    def injected = project.objects.newInstance(InjectedExecOps)
+
     doLast {
-        exec {
+        injected.execOps.exec {
             commandLine 'make', '-C', 'manual'
         }
     }
@@ -99,6 +108,9 @@ tasks.create(name: 'allDataflowTests', group: 'Verification') {
 def testDataflowAnalysis(taskName, dirName, className, diff) {
     tasks.create(name: taskName, dependsOn: [assemble, compileTestJava], group: 'Verification') {
         description "Run the ${dirName} dataflow framework test."
+
+        def injected = project.objects.newInstance(InjectedExecOps)
+
         if (diff) {
             inputs.file("tests/${dirName}/Expected.txt")
         }
@@ -110,7 +122,7 @@ def testDataflowAnalysis(taskName, dirName, className, diff) {
         delete("tests/${dirName}/Out.txt")
         delete("tests/${dirName}/Test.class")
         doLast {
-            javaexec {
+            injected.execOps.javaexec {
                 workingDir = "tests/${dirName}"
                 if (!JavaVersion.current().java9Compatible) {
                     jvmArgs += "-Xbootclasspath/p:${configurations.javacJar.asPath}".toString()
@@ -139,7 +151,7 @@ def testDataflowAnalysis(taskName, dirName, className, diff) {
                 mainClass = "${className}"
             }
             if (diff) {
-                exec {
+                injected.execOps.exec {
                     workingDir = "tests/${dirName}"
                     executable 'diff'
                     args = [

@@ -124,9 +124,7 @@ public class ConstantPropagationStore implements Store<ConstantPropagationStore>
             if (thisVal.isBottom()) {
                 continue; // no information
             }
-            if (other.contents.containsKey(n)) {
-                continue;
-            } else {
+            if (!other.contents.containsKey(n)) {
                 return false;
             }
         }
