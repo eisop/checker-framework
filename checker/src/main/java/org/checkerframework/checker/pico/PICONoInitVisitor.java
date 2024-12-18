@@ -1,7 +1,5 @@
 package org.checkerframework.checker.pico;
 
-import static org.checkerframework.javacutil.TreePathUtil.isTopLevelAssignmentInInitializerBlock;
-
 import com.sun.source.tree.ArrayAccessTree;
 import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.ClassTree;
@@ -323,7 +321,7 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
             // If the enclosing method is constructor, we don't need to check the receiver type
             return;
         }
-        if (isTopLevelAssignmentInInitializerBlock(getCurrentPath())) {
+        if (TreePathUtil.isTopLevelAssignmentInInitializerBlock(getCurrentPath())) {
             // If the assignment is in initializer block, we don't need to check the receiver type
             return;
         }

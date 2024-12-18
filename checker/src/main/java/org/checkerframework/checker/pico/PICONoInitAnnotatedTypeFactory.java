@@ -647,6 +647,7 @@ public class PICONoInitAnnotatedTypeFactory
 
         public PICOEnumDefaultAnnotator(AnnotatedTypeFactory typeFactory) {
             super(typeFactory);
+            picoTypeFactory = (PICONoInitAnnotatedTypeFactory) typeFactory;
         }
 
         @Override
