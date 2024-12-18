@@ -734,26 +734,24 @@ public class NullnessNoInitAnnotatedTypeFactory
         // explicit nullable annotations are left intact for the visitor to inspect.
         @Override
         public Void visitNewClass(NewClassTree tree, AnnotatedTypeMirror type) {
-            type.addMissingAnnotation(NONNULL);
-            return null;
-        }
 
-        @Override
-        public Void visitMethod(MethodTree tree, AnnotatedTypeMirror type) {
-
-            if (type instanceof AnnotatedExecutableType) {
-                AnnotatedExecutableType executableType = (AnnotatedExecutableType) type;
-
-                if (TreeUtils.isConstructor(tree)) {
-                    AnnotatedTypeMirror returnType = executableType.getReturnType();
-                    if (returnType != null) {
-                        returnType.addMissingAnnotation(NONNULL);
-                    }
+            Tree identifier = tree.getIdentifier();
+            if (identifier != null) {
+                String identifierString = identifier.toString();
+                // look at identifier as string to see what annotations programmer explicitly wrote
+                if (identifierString.contains("@Nullable")
+                        || identifierString.contains("@MonotonicNonNull")
+                        || identifierString.contains("@PolyNull")) {
+                    type.addMissingAnnotation(NONNULL);
+                } else {
+                    type.replaceAnnotation(NONNULL);
                 }
             }
             return null;
         }
 
+        // The result of newly allocated structures is always non-null,
+        // explicit nullable annotations are left intact for the visitor to inspect.
         @Override
         public Void visitNewArray(NewArrayTree tree, AnnotatedTypeMirror type) {
             super.visitNewArray(tree, type);
