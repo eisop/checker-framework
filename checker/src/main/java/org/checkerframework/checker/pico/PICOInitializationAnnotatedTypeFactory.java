@@ -1,7 +1,5 @@
 package org.checkerframework.checker.pico;
 
-import static org.checkerframework.checker.pico.PICOAnnotationMirrorHolder.MUTABLE;
-
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
@@ -9,10 +7,12 @@ import com.sun.source.util.TreePath;
 import org.checkerframework.checker.initialization.InitializationAnnotatedTypeFactory;
 import org.checkerframework.checker.initialization.InitializationChecker;
 import org.checkerframework.checker.initialization.InitializationStore;
+import org.checkerframework.checker.pico.qual.Mutable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.flow.CFAbstractStore;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
+import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
@@ -24,12 +24,15 @@ import java.util.List;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.util.Elements;
 
 /**
  * The InitializationAnnotatedTypeFactory for the PICO type system. This class is mainly created to
  * override getUninitializedFields() method for PICO specific definite assignment check.
  */
 public class PICOInitializationAnnotatedTypeFactory extends InitializationAnnotatedTypeFactory {
+    private final AnnotationMirror MUTABLE;
+
     /**
      * Constructor for PICOInitializationAnnotatedTypeFactory.
      *
@@ -37,6 +40,8 @@ public class PICOInitializationAnnotatedTypeFactory extends InitializationAnnota
      */
     public PICOInitializationAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
+        Elements elements = checker.getElementUtils();
+        MUTABLE = AnnotationBuilder.fromClass(elements, Mutable.class);
         postInit();
     }
 

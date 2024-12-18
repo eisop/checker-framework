@@ -1,8 +1,5 @@
 package org.checkerframework.checker.pico;
 
-import static org.checkerframework.checker.pico.PICOAnnotationMirrorHolder.MUTABLE;
-import static org.checkerframework.checker.pico.PICOAnnotationMirrorHolder.READONLY;
-
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
@@ -21,12 +18,12 @@ import javax.lang.model.element.ExecutableElement;
 
 public class ObjectIdentityMethodEnforcer extends TreePathScanner<Void, Void> {
 
-    private PICONoInitAnnotatedTypeFactory typeFactory;
+    private PICONoInitAnnotatedTypeFactory atypeFactory;
     private BaseTypeChecker checker;
 
     private ObjectIdentityMethodEnforcer(
             PICONoInitAnnotatedTypeFactory typeFactory, BaseTypeChecker checker) {
-        this.typeFactory = typeFactory;
+        this.atypeFactory = typeFactory;
         this.checker = checker;
     }
 
@@ -54,7 +51,7 @@ public class ObjectIdentityMethodEnforcer extends TreePathScanner<Void, Void> {
             return; // Doesn't check static method invocation because it doesn't access instance
             // field
         }
-        if (!PICOTypeUtil.isObjectIdentityMethod((ExecutableElement) elt, typeFactory)) {
+        if (!PICOTypeUtil.isObjectIdentityMethod((ExecutableElement) elt, atypeFactory)) {
             // Report warning since invoked method is not only dependent on abstract state fields,
             // but we
             // don't know whether this method invocation's result flows into the hashcode or not.
@@ -86,7 +83,7 @@ public class ObjectIdentityMethodEnforcer extends TreePathScanner<Void, Void> {
             if (ElementUtils.isStatic(elt)) {
                 checker.reportWarning(node, "object.identity.static.field.access.forbidden", elt);
             } else {
-                if (!isInAbstractState(elt, typeFactory)) {
+                if (!isInAbstractState(elt, atypeFactory)) {
                     // Report warning since accessed field is not within abstract state
                     checker.reportWarning(node, "object.identity.field.access.invalid", elt);
                 }
@@ -100,9 +97,11 @@ public class ObjectIdentityMethodEnforcer extends TreePathScanner<Void, Void> {
         boolean in = true;
         if (PICOTypeUtil.isAssignableField(elt, typeFactory)) {
             in = false;
-        } else if (AnnotatedTypes.containsModifier(typeFactory.getAnnotatedType(elt), MUTABLE)) {
+        } else if (AnnotatedTypes.containsModifier(
+                typeFactory.getAnnotatedType(elt), atypeFactory.MUTABLE)) {
             in = false;
-        } else if (AnnotatedTypes.containsModifier(typeFactory.getAnnotatedType(elt), READONLY)) {
+        } else if (AnnotatedTypes.containsModifier(
+                typeFactory.getAnnotatedType(elt), atypeFactory.READONLY)) {
             in = false;
         }
         return in;

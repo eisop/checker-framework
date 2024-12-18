@@ -1,10 +1,5 @@
 package org.checkerframework.checker.pico;
 
-import static org.checkerframework.checker.pico.PICOAnnotationMirrorHolder.IMMUTABLE;
-import static org.checkerframework.checker.pico.PICOAnnotationMirrorHolder.MUTABLE;
-import static org.checkerframework.checker.pico.PICOAnnotationMirrorHolder.READONLY;
-import static org.checkerframework.checker.pico.PICOAnnotationMirrorHolder.RECEIVER_DEPENDENT_MUTABLE;
-
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.MethodTree;
@@ -22,25 +17,20 @@ import org.checkerframework.framework.qual.DefaultFor;
 import org.checkerframework.framework.qual.TypeKind;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
-import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.util.AnnotatedTypes;
-import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationProvider;
-import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 import javax.lang.model.element.Element;
@@ -216,8 +206,7 @@ public class PICOTypeUtil {
         // All other elements that are: not implicitly immutable types specified in definition of
         // @Immutable qualifier;
         // Or has no bound annotation on its type element declaration either in source tree or stub
-        // file(jdk.astub) have
-        // @Mutable in its bound
+        // file(jdk.astub) have @Mutable in its bound
         return atypeFactory.getAnnotatedType(element);
 
         // It's a bit strange that bound annotations on implicilty immutable types
@@ -274,68 +263,6 @@ public class PICOTypeUtil {
         return false;
     }
 
-    public static void addDefaultForField(
-            AnnotatedTypeFactory annotatedTypeFactory,
-            AnnotatedTypeMirror annotatedTypeMirror,
-            Element element) {
-        if (element != null && element.getKind() == ElementKind.FIELD) {
-            // If the field is static, apply @Mutable if there is no explicit annotation and the
-            // field type is @RDM
-            if (ElementUtils.isStatic(element)) {
-                //               AnnotatedTypeMirror implicitATM =
-                // annotatedTypeFactory.getAnnotatedType(element);
-                AnnotatedTypeMirror explicitATM = annotatedTypeFactory.fromElement(element);
-                AnnotationMirrorSet declBound =
-                        annotatedTypeFactory.getTypeDeclarationBounds(element.asType());
-                if (!explicitATM.hasAnnotationInHierarchy(READONLY)
-                        && AnnotationUtils.containsSameByName(
-                                declBound, RECEIVER_DEPENDENT_MUTABLE)) {
-                    if (!PICOTypeUtil.isImplicitlyImmutableType(explicitATM)) {
-                        annotatedTypeMirror.replaceAnnotation(IMMUTABLE);
-                    } else {
-                        annotatedTypeMirror.replaceAnnotation(MUTABLE);
-                    }
-                }
-            } else {
-                // Apply default annotation to instance fields if there is no explicit annotation
-                AnnotatedTypeMirror explicitATM = annotatedTypeFactory.fromElement(element);
-                if (!explicitATM.hasAnnotationInHierarchy(READONLY)) {
-                    if (explicitATM instanceof AnnotatedDeclaredType) {
-                        AnnotatedDeclaredType adt = (AnnotatedDeclaredType) explicitATM;
-                        Element typeElement = adt.getUnderlyingType().asElement();
-
-                        AnnotationMirrorSet enclosingBound =
-                                annotatedTypeFactory.getTypeDeclarationBounds(
-                                        Objects.requireNonNull(
-                                                        ElementUtils.enclosingTypeElement(element))
-                                                .asType());
-                        AnnotationMirrorSet declBound =
-                                annotatedTypeFactory.getTypeDeclarationBounds(element.asType());
-                        // Add RDM if Type declaration bound=M and enclosing class Bound=M/RDM
-                        // If the declaration bound is mutable and the enclosing class is also
-                        // mutable, replace the annotation as RDM.
-                        if (AnnotationUtils.containsSameByName(declBound, MUTABLE)
-                                && AnnotationUtils.containsSameByName(enclosingBound, MUTABLE)) {
-                            annotatedTypeMirror.replaceAnnotation(RECEIVER_DEPENDENT_MUTABLE);
-                        }
-                        // If the declaration bound is RDM, replace the annotation as RDM
-                        if (typeElement instanceof TypeElement) {
-                            AnnotatedTypeMirror bound =
-                                    getBoundTypeOfTypeDeclaration(
-                                            typeElement, annotatedTypeFactory);
-                            if (bound.hasAnnotation(RECEIVER_DEPENDENT_MUTABLE)) {
-                                annotatedTypeMirror.replaceAnnotation(RECEIVER_DEPENDENT_MUTABLE);
-                            }
-                        }
-                    } else if (explicitATM instanceof AnnotatedArrayType) {
-                        // If the ATM is array type, apply RMD to array's component type.
-                        annotatedTypeMirror.replaceAnnotation(RECEIVER_DEPENDENT_MUTABLE);
-                    }
-                }
-            }
-        }
-    }
-
     /**
      * Determine if the type is enum or enum constant.
      *
@@ -358,22 +285,6 @@ public class PICOTypeUtil {
         return element != null
                 && (element.getKind() == ElementKind.ENUM_CONSTANT
                         || element.getKind() == ElementKind.ENUM);
-    }
-
-    /**
-     * Add default annotation from type declaration to constructor return type if elt is constructor
-     * and doesn't have explicit annotation(type is actually AnnotatedExecutableType of executable
-     * element - elt constructor)
-     */
-    public static void defaultConstructorReturnToClassBound(
-            AnnotatedTypeFactory annotatedTypeFactory, Element elt, AnnotatedTypeMirror type) {
-        if (elt.getKind() == ElementKind.CONSTRUCTOR && type instanceof AnnotatedExecutableType) {
-            AnnotatedTypeMirror bound =
-                    PICOTypeUtil.getBoundTypeOfEnclosingTypeDeclaration(elt, annotatedTypeFactory);
-            ((AnnotatedExecutableType) type)
-                    .getReturnType()
-                    .addMissingAnnotations(Arrays.asList(bound.getAnnotationInHierarchy(READONLY)));
-        }
     }
 
     /**

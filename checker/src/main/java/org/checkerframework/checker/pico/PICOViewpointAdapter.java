@@ -1,13 +1,8 @@
 package org.checkerframework.checker.pico;
 
-import static org.checkerframework.checker.pico.PICOAnnotationMirrorHolder.BOTTOM;
-import static org.checkerframework.checker.pico.PICOAnnotationMirrorHolder.IMMUTABLE;
-import static org.checkerframework.checker.pico.PICOAnnotationMirrorHolder.LOST;
-import static org.checkerframework.checker.pico.PICOAnnotationMirrorHolder.MUTABLE;
-import static org.checkerframework.checker.pico.PICOAnnotationMirrorHolder.POLY_MUTABLE;
-import static org.checkerframework.checker.pico.PICOAnnotationMirrorHolder.READONLY;
-import static org.checkerframework.checker.pico.PICOAnnotationMirrorHolder.RECEIVER_DEPENDENT_MUTABLE;
-
+import org.checkerframework.checker.pico.qual.Lost;
+import org.checkerframework.checker.pico.qual.Readonly;
+import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
 import org.checkerframework.framework.type.AbstractViewpointAdapter;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
@@ -19,9 +14,25 @@ import javax.lang.model.element.Element;
 import javax.lang.model.type.TypeKind;
 
 public class PICOViewpointAdapter extends AbstractViewpointAdapter {
+    /** The {@link Readonly}, {@link ReceiverDependentMutable} and {@link Lost} annotation. */
+    private final AnnotationMirror READONLY,
+            MUTABLE,
+            IMMUTABLE,
+            BOTTOM,
+            POLY_MUTABLE,
+            RECEIVER_DEPENDENT_MUTABLE,
+            LOST;
 
     public PICOViewpointAdapter(AnnotatedTypeFactory atypeFactory) {
         super(atypeFactory);
+        READONLY = ((PICONoInitAnnotatedTypeFactory) atypeFactory).READONLY;
+        MUTABLE = ((PICONoInitAnnotatedTypeFactory) atypeFactory).MUTABLE;
+        IMMUTABLE = ((PICONoInitAnnotatedTypeFactory) atypeFactory).IMMUTABLE;
+        BOTTOM = ((PICONoInitAnnotatedTypeFactory) atypeFactory).BOTTOM;
+        POLY_MUTABLE = ((PICONoInitAnnotatedTypeFactory) atypeFactory).POLY_MUTABLE;
+        RECEIVER_DEPENDENT_MUTABLE =
+                ((PICONoInitAnnotatedTypeFactory) atypeFactory).RECEIVER_DEPENDENT_MUTABLE;
+        LOST = ((PICONoInitAnnotatedTypeFactory) atypeFactory).LOST;
     }
 
     @Override

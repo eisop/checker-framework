@@ -1,10 +1,5 @@
 package org.checkerframework.checker.pico;
 
-import static org.checkerframework.checker.pico.PICOAnnotationMirrorHolder.BOTTOM;
-import static org.checkerframework.checker.pico.PICOAnnotationMirrorHolder.IMMUTABLE;
-import static org.checkerframework.checker.pico.PICOAnnotationMirrorHolder.MUTABLE;
-import static org.checkerframework.checker.pico.PICOAnnotationMirrorHolder.RECEIVER_DEPENDENT_MUTABLE;
-
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.VariableTree;
@@ -35,6 +30,9 @@ import javax.lang.model.type.TypeKind;
  * used on constructor/method parameters or method return
  */
 public class PICOValidator extends BaseTypeValidator {
+    protected final PICONoInitAnnotatedTypeFactory picoTypeFactory =
+            (PICONoInitAnnotatedTypeFactory) checker.getTypeFactory();
+
     public PICOValidator(
             BaseTypeChecker checker,
             BaseTypeVisitor<?> visitor,
@@ -75,9 +73,10 @@ public class PICOValidator extends BaseTypeValidator {
                 AnnotationMirrorSet declaredBound =
                         atypeFactory.getTypeDeclarationBounds(type.getUnderlyingType());
 
-                if (AnnotationUtils.containsSameByName(declaredBound, MUTABLE)
-                        && type.hasAnnotation(RECEIVER_DEPENDENT_MUTABLE)
-                        && AnnotationUtils.containsSameByName(enclosingBound, MUTABLE)) {
+                if (AnnotationUtils.containsSameByName(declaredBound, picoTypeFactory.MUTABLE)
+                        && type.hasAnnotation(picoTypeFactory.RECEIVER_DEPENDENT_MUTABLE)
+                        && AnnotationUtils.containsSameByName(
+                                enclosingBound, picoTypeFactory.MUTABLE)) {
                     return false;
                 }
             }
@@ -127,9 +126,9 @@ public class PICOValidator extends BaseTypeValidator {
                                 Objects.requireNonNull(
                                                 TreePathUtil.enclosingClass(
                                                         visitor.getCurrentPath()))
-                                        .getSimpleName()) // Exclude @RDM usages in anonymous
-                // classes
-                && type.hasAnnotation(RECEIVER_DEPENDENT_MUTABLE)) {
+                                        .getSimpleName())
+                // Exclude @RDM usages in anonymous classes
+                && type.hasAnnotation(picoTypeFactory.RECEIVER_DEPENDENT_MUTABLE)) {
             reportValidityResult("static.receiverdependentmutable.forbidden", type, tree);
         }
     }
@@ -144,8 +143,8 @@ public class PICOValidator extends BaseTypeValidator {
      */
     private void checkImplicitlyImmutableTypeError(AnnotatedTypeMirror type, Tree tree) {
         if (PICOTypeUtil.isImplicitlyImmutableType(type)
-                && !type.hasAnnotation(IMMUTABLE)
-                && !type.hasAnnotation(BOTTOM)) {
+                && !type.hasAnnotation(picoTypeFactory.IMMUTABLE)
+                && !type.hasAnnotation(picoTypeFactory.BOTTOM)) {
             reportInvalidAnnotationsOnUse(type, tree);
         }
     }
