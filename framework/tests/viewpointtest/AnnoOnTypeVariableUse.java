@@ -5,6 +5,7 @@ class AnnoOnTypeVariableUse<E> {
     @ReceiverDependentQual E rdq;
     @A E a;
     @B E b;
+    E c;
 
     void test() {
         AnnoOnTypeVariableUse<@B Element> d = new @A AnnoOnTypeVariableUse<>();
@@ -20,6 +21,10 @@ class AnnoOnTypeVariableUse<E> {
         d.b = new @B Element();
         // :: error: (assignment.type.incompatible)
         d.b = new @A Element();
+        // :: error: (assignment.type.incompatible)
+        d.c = new @A Element();
+        // d.c = @B type argument subsitution with unannotated field
+        d.c = new @B Element();
     }
 
     class Element {}
