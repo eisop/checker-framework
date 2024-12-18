@@ -3772,8 +3772,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return;
         }
 
-        AnnotatedTypeMirror methodReceiver = method.getReceiverType();
-        AnnotatedTypeMirror treeReceiver = methodReceiver.shallowCopy(false);
+        AnnotatedDeclaredType methodReceiver = method.getReceiverType();
+        AnnotatedDeclaredType treeReceiver = methodReceiver.shallowCopy(false);
         AnnotatedTypeMirror rcv = atypeFactory.getReceiverType(tree);
 
         treeReceiver.addAnnotations(rcv.getEffectiveAnnotations());
@@ -3782,10 +3782,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             // The diagnostic can be a bit misleading because the check is of the receiver but
             // `tree` is the entire method invocation (where the receiver might be implicit).
             commonAssignmentCheckStartDiagnostic(methodReceiver, treeReceiver, tree);
-            boolean success = typeHierarchy.isSubtype(treeReceiver, methodReceiver);
-            commonAssignmentCheckEndDiagnostic(success, null, methodReceiver, treeReceiver, tree);
+            boolean success = typeHierarchy.isSubtype(rcv, methodReceiver);
+            commonAssignmentCheckEndDiagnostic(success, null, methodReceiver, rcv, tree);
             if (!success) {
-                reportMethodInvocabilityError(tree, treeReceiver, methodReceiver);
+                reportMethodInvocabilityError(tree, rcv, methodReceiver);
             }
         }
     }
