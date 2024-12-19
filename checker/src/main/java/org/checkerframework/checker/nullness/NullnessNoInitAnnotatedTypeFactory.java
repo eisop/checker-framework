@@ -51,6 +51,8 @@ import org.checkerframework.framework.type.treeannotator.LiteralTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.PropagationTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.framework.type.typeannotator.DefaultForTypeAnnotator;
+import org.checkerframework.framework.type.typeannotator.ListTypeAnnotator;
+import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.TreeUtils;
@@ -734,19 +736,9 @@ public class NullnessNoInitAnnotatedTypeFactory
         // explicit nullable annotations are left intact for the visitor to inspect.
         @Override
         public Void visitNewClass(NewClassTree tree, AnnotatedTypeMirror type) {
-
-            Tree identifier = tree.getIdentifier();
-            if (identifier != null) {
-                String identifierString = identifier.toString();
-                // look at identifier as string to see what annotations programmer explicitly wrote
-                if (identifierString.contains("@Nullable")
-                        || identifierString.contains("@MonotonicNonNull")
-                        || identifierString.contains("@PolyNull")) {
-                    type.addMissingAnnotation(NONNULL);
-                } else {
-                    type.replaceAnnotation(NONNULL);
-                }
-            }
+            // The constructor return type should already be NONNULL, so in most cases this will do
+            // nothing.
+            type.addMissingAnnotation(NONNULL);
             return null;
         }
 
@@ -782,6 +774,38 @@ public class NullnessNoInitAnnotatedTypeFactory
                 }
             }
             return super.visitMethodInvocation(tree, type);
+        }
+    }
+
+    @Override
+    protected TypeAnnotator createTypeAnnotator() {
+        return new ListTypeAnnotator(super.createTypeAnnotator(), new NullnessTypeAnnotator(this));
+    }
+
+    /**
+     * This type annotator ensures that constructor return types are NONNULL, unless there is an
+     * explicit different annotation.
+     */
+    protected class NullnessTypeAnnotator extends TypeAnnotator {
+
+        /**
+         * Creates a new CommitmentTypeAnnotator.
+         *
+         * @param atypeFactory this factory
+         */
+        public NullnessTypeAnnotator(NullnessNoInitAnnotatedTypeFactory atypeFactory) {
+            super(atypeFactory);
+        }
+
+        @Override
+        public Void visitExecutable(AnnotatedExecutableType t, Void p) {
+            Void result = super.visitExecutable(t, p);
+            Element elem = t.getElement();
+            if (elem.getKind() == ElementKind.CONSTRUCTOR) {
+                AnnotatedDeclaredType returnType = (AnnotatedDeclaredType) t.getReturnType();
+                returnType.addMissingAnnotation(NONNULL);
+            }
+            return result;
         }
     }
 
