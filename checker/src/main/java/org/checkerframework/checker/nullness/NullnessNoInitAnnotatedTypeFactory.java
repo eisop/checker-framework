@@ -789,7 +789,7 @@ public class NullnessNoInitAnnotatedTypeFactory
     protected class NullnessTypeAnnotator extends TypeAnnotator {
 
         /**
-         * Creates a new CommitmentTypeAnnotator.
+         * Creates a new NullnessTypeAnnotator.
          *
          * @param atypeFactory this factory
          */
