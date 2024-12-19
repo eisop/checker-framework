@@ -148,7 +148,7 @@ class ArrayList<E> {
   @ReceiverDependentMutable ArrayList();
   @ReceiverDependentMutable ArrayList(@Readonly Collection<? extends E> var1);
   boolean add(@Mutable ArrayList this, E var1);
-  boolean addAll(@Mutable ArrayList this,, @Readonly Collection<? extends E> c);
+  boolean addAll(@Mutable ArrayList this, @Readonly Collection<? extends E> c);
   E get(@Readonly ArrayList<E> this, int index);
   int size(@Readonly ArrayList<E> this);
   boolean isEmpty(@Readonly ArrayList<E> this);

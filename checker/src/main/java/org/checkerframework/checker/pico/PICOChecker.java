@@ -10,29 +10,17 @@ import javax.annotation.processing.SupportedOptions;
 @SupportedOptions({"abstractStateOnly", "immutableDefault"})
 public class PICOChecker extends InitializationChecker {
 
+    /** Default constructor for PICOChecker. */
+    public PICOChecker() {}
+
     @Override
     public Class<? extends BaseTypeChecker> getTargetCheckerClass() {
         return PICONoInitSubchecker.class;
     }
 
     @Override
-    public void initChecker() {
-        super.initChecker();
-    }
-
-    @Override
     public boolean checkPrimitives() {
         return true;
-    }
-
-    @Override
-    protected boolean shouldAddShutdownHook() {
-        return super.shouldAddShutdownHook();
-    }
-
-    @Override
-    protected void shutdownHook() {
-        super.shutdownHook();
     }
 
     @Override

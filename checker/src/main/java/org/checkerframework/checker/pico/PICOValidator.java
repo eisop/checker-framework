@@ -32,7 +32,7 @@ import javax.lang.model.type.TypeKind;
 public class PICOValidator extends BaseTypeValidator {
     /** The type factory for the PICO checker */
     private final PICONoInitAnnotatedTypeFactory picoTypeFactory =
-            (PICONoInitAnnotatedTypeFactory) checker.getTypeFactory();
+            (PICONoInitAnnotatedTypeFactory) atypeFactory;
 
     /**
      * Create a new PICOValidator.
@@ -71,14 +71,12 @@ public class PICOValidator extends BaseTypeValidator {
             VariableElement element = TreeUtils.elementFromDeclaration((VariableTree) tree);
             if (element.getKind() == ElementKind.FIELD
                     && ElementUtils.enclosingTypeElement(element) != null) {
-                @Immutable
-                AnnotationMirrorSet enclosingBound =
+                @Immutable AnnotationMirrorSet enclosingBound =
                         atypeFactory.getTypeDeclarationBounds(
                                 Objects.requireNonNull(ElementUtils.enclosingTypeElement(element))
                                         .asType());
 
-                @Immutable
-                AnnotationMirrorSet declaredBound =
+                @Immutable AnnotationMirrorSet declaredBound =
                         atypeFactory.getTypeDeclarationBounds(type.getUnderlyingType());
 
                 if (AnnotationUtils.containsSameByName(declaredBound, picoTypeFactory.MUTABLE)
