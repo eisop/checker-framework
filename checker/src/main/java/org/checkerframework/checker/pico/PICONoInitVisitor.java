@@ -40,6 +40,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
@@ -460,22 +461,24 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
     }
 
     @Override
-    public void processClassTree(ClassTree node) {
-        TypeElement typeElement = TreeUtils.elementFromDeclaration(node);
+    public void processClassTree(ClassTree tree) {
+        TypeElement typeElement = TreeUtils.elementFromDeclaration(tree);
         // TODO Don't process anonymous class. I'm not even sure if whether
         // processClassTree(ClassTree) is called on anonymous class tree
         if (typeElement.toString().contains("anonymous")) {
-            super.processClassTree(node);
+            super.processClassTree(tree);
             return;
         }
 
         AnnotatedTypeMirror bound =
                 PICOTypeUtil.getBoundTypeOfTypeDeclaration(typeElement, atypeFactory);
         // Class annotation has to be either @Mutable, @ReceiverDependentMutable or @Immutable
-        if (!bound.hasAnnotation(atypeFactory.MUTABLE)
-                && !bound.hasAnnotation(atypeFactory.RECEIVER_DEPENDENT_MUTABLE)
-                && !bound.hasAnnotation(atypeFactory.IMMUTABLE)) {
-            checker.reportError(node, "class.bound.invalid", bound);
+        if ((!bound.hasAnnotation(atypeFactory.MUTABLE)
+                        && !bound.hasAnnotation(atypeFactory.RECEIVER_DEPENDENT_MUTABLE)
+                        && !bound.hasAnnotation(atypeFactory.IMMUTABLE))
+                || (tree.getModifiers().getFlags().contains(Modifier.STATIC)
+                        && bound.hasAnnotation(atypeFactory.RECEIVER_DEPENDENT_MUTABLE))) {
+            checker.reportError(tree, "class.bound.invalid", bound);
             return; // Doesn't process the class tree anymore
         }
 
@@ -488,7 +491,7 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
         // * Member's use anno == null
         if (bound.hasAnnotation(atypeFactory.IMMUTABLE)
                 || bound.hasAnnotation(atypeFactory.RECEIVER_DEPENDENT_MUTABLE)) {
-            for (Tree member : node.getMembers()) {
+            for (Tree member : tree.getMembers()) {
                 if (member.getKind() == Kind.VARIABLE) {
                     Element ele = TreeUtils.elementFromTree(member);
                     assert ele != null;
@@ -507,7 +510,7 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
                 }
             }
         }
-        super.processClassTree(node);
+        super.processClassTree(tree);
     }
 
     /**
