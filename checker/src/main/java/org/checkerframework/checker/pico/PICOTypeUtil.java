@@ -194,6 +194,7 @@ public class PICOTypeUtil {
      * @param methodType AnnotatedExecutableType of the method
      * @param methodName Name of the method
      * @param annotatedTypeFactory AnnotatedTypeFactory
+     * @return whether the method is the method or override a method
      */
     public static boolean isMethodOrOverridingMethod(
             AnnotatedExecutableType methodType,
@@ -209,6 +210,7 @@ public class PICOTypeUtil {
      * @param executableElement ExecutableElement of the method
      * @param methodName Name of the method
      * @param annotatedTypeFactory AnnotatedTypeFactory
+     * @return whether the method is the method or override a method
      */
     public static boolean isMethodOrOverridingMethod(
             ExecutableElement executableElement,
@@ -353,6 +355,7 @@ public class PICOTypeUtil {
      * check if a tree is in static scope.
      *
      * @param treePath TreePath
+     * @return true if the tree is in static scope, false otherwise
      */
     public static boolean inStaticScope(TreePath treePath) {
         boolean in = false;
@@ -372,6 +375,7 @@ public class PICOTypeUtil {
      * Check if a unary tree is side-effecting.
      *
      * @param tree UnaryTree
+     * @return true if the unary tree is side-effecting, false otherwise
      */
     public static boolean isSideEffectingUnaryTree(final UnaryTree tree) {
         return sideEffectingUnaryOperators.contains(tree.getKind());
@@ -435,6 +439,7 @@ public class PICOTypeUtil {
      *
      * @param executableElement ExecutableElement of the method
      * @param annotatedTypeFactory AnnotatedTypeFactory
+     * @return whether this method is an object identity method
      */
     public static boolean isObjectIdentityMethod(
             ExecutableElement executableElement, AnnotatedTypeFactory annotatedTypeFactory) {
