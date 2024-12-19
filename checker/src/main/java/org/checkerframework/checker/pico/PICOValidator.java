@@ -167,7 +167,8 @@ public class PICOValidator extends BaseTypeValidator {
             VariableElement variableElement = TreeUtils.elementFromDeclaration(variableTree);
             if (!PICOTypeUtil.hasOneAndOnlyOneAssignabilityQualifier(
                     variableElement, atypeFactory)) {
-                checker.reportError(variableElement, "one.assignability.invalid", variableElement);
+                checker.reportError(
+                        variableElement, "assignability.declaration.invalid", variableElement);
                 isValid = false;
             }
         }
