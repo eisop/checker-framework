@@ -43,7 +43,6 @@ public class PICOTypeUtil {
     /** Set of side-effecting unary operators. */
     private static final Set<Tree.Kind> sideEffectingUnaryOperators;
 
-    /** Initialize the set of side-effecting unary operators */
     static {
         sideEffectingUnaryOperators = new HashSet<>();
         sideEffectingUnaryOperators.add(Tree.Kind.POSTFIX_INCREMENT);
