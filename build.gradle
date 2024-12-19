@@ -306,7 +306,7 @@ allprojects {
 
                 googleJavaFormat().aosp()
                 importOrder('com', 'jdk', 'lib', 'lombok', 'org', 'java', 'javax')
-                formatAnnotations().addTypeAnnotation("PolyInitialized").addTypeAnnotation("PolyVP").addTypeAnnotation("ReceiverDependentQual")
+                formatAnnotations().addTypeAnnotation("PolyInitialized").addTypeAnnotation("PolyVP").addTypeAnnotation("ReceiverDependentQual").addTypeAnnotation("Immutable").addTypeAnnotation("Readonly").addTypeAnnotation("Mutable").addTypeAnnotation("ReceiverDependentMutable")
             }
 
             groovyGradle {
