@@ -31,6 +31,7 @@ import javax.lang.model.util.Elements;
  * override getUninitializedFields() method for PICO specific definite assignment check.
  */
 public class PICOInitializationAnnotatedTypeFactory extends InitializationAnnotatedTypeFactory {
+    /** The @Mutable annotation. */
     private final AnnotationMirror MUTABLE;
 
     /**
@@ -98,5 +99,6 @@ public class PICOInitializationAnnotatedTypeFactory extends InitializationAnnota
 
     // TODO this is a hack for calling static class method for lambda expression, consider remove
     // with refactor of PICOTypeUtil
+    /** Nested class for calling static method in PICOTypeUtil. */
     public static class PICOTypeUtilnested extends PICOTypeUtil {}
 }

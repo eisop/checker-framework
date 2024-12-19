@@ -12,9 +12,14 @@ import org.checkerframework.javacutil.TreeUtils;
 
 import javax.lang.model.element.VariableElement;
 
+/** The transfer function for the immutability type system. */
 public class PICONoInitTransfer
         extends CFAbstractTransfer<PICONoInitValue, PICONoInitStore, PICONoInitTransfer> {
-
+    /**
+     * Create a new PICONoInitTransfer.
+     *
+     * @param analysis the analysis
+     */
     public PICONoInitTransfer(PICONoInitAnalysis analysis) {
         super(analysis);
     }

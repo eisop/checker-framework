@@ -30,9 +30,17 @@ import javax.lang.model.type.TypeKind;
  * used on constructor/method parameters or method return
  */
 public class PICOValidator extends BaseTypeValidator {
-    protected final PICONoInitAnnotatedTypeFactory picoTypeFactory =
+    /** The type factory for the PICO checker */
+    private final PICONoInitAnnotatedTypeFactory picoTypeFactory =
             (PICONoInitAnnotatedTypeFactory) checker.getTypeFactory();
 
+    /**
+     * Create a new PICOValidator.
+     *
+     * @param checker the checker
+     * @param visitor the visitor
+     * @param atypeFactory the type factory
+     */
     public PICOValidator(
             BaseTypeChecker checker,
             BaseTypeVisitor<?> visitor,

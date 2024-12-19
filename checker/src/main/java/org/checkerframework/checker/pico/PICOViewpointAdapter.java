@@ -1,8 +1,5 @@
 package org.checkerframework.checker.pico;
 
-import org.checkerframework.checker.pico.qual.Lost;
-import org.checkerframework.checker.pico.qual.Readonly;
-import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
 import org.checkerframework.framework.type.AbstractViewpointAdapter;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
@@ -13,26 +10,19 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.type.TypeKind;
 
+/** A {@link AbstractViewpointAdapter} for the PICO checker. */
 public class PICOViewpointAdapter extends AbstractViewpointAdapter {
-    /** The {@link Readonly}, {@link ReceiverDependentMutable} and {@link Lost} annotation. */
-    private final AnnotationMirror READONLY,
-            MUTABLE,
-            IMMUTABLE,
-            BOTTOM,
-            POLY_MUTABLE,
-            RECEIVER_DEPENDENT_MUTABLE,
-            LOST;
+    /** The PICO type factory. */
+    private PICONoInitAnnotatedTypeFactory picoTypeFactory;
 
+    /**
+     * Create a new {@link PICOViewpointAdapter}.
+     *
+     * @param atypeFactory the type factory
+     */
     public PICOViewpointAdapter(AnnotatedTypeFactory atypeFactory) {
         super(atypeFactory);
-        READONLY = ((PICONoInitAnnotatedTypeFactory) atypeFactory).READONLY;
-        MUTABLE = ((PICONoInitAnnotatedTypeFactory) atypeFactory).MUTABLE;
-        IMMUTABLE = ((PICONoInitAnnotatedTypeFactory) atypeFactory).IMMUTABLE;
-        BOTTOM = ((PICONoInitAnnotatedTypeFactory) atypeFactory).BOTTOM;
-        POLY_MUTABLE = ((PICONoInitAnnotatedTypeFactory) atypeFactory).POLY_MUTABLE;
-        RECEIVER_DEPENDENT_MUTABLE =
-                ((PICONoInitAnnotatedTypeFactory) atypeFactory).RECEIVER_DEPENDENT_MUTABLE;
-        LOST = ((PICONoInitAnnotatedTypeFactory) atypeFactory).LOST;
+        picoTypeFactory = (PICONoInitAnnotatedTypeFactory) atypeFactory;
     }
 
     @Override
@@ -45,26 +35,27 @@ public class PICOViewpointAdapter extends AbstractViewpointAdapter {
 
     @Override
     protected AnnotationMirror extractAnnotationMirror(AnnotatedTypeMirror atm) {
-        return atm.getAnnotationInHierarchy(READONLY);
+        return atm.getAnnotationInHierarchy(picoTypeFactory.READONLY);
     }
 
     @Override
     protected AnnotationMirror combineAnnotationWithAnnotation(
             AnnotationMirror receiverAnnotation, AnnotationMirror declaredAnnotation) {
-        if (AnnotationUtils.areSame(declaredAnnotation, READONLY)) {
-            return READONLY;
-        } else if (AnnotationUtils.areSame(declaredAnnotation, MUTABLE)) {
-            return MUTABLE;
-        } else if (AnnotationUtils.areSame(declaredAnnotation, IMMUTABLE)) {
-            return IMMUTABLE;
-        } else if (AnnotationUtils.areSame(declaredAnnotation, BOTTOM)) {
-            return BOTTOM;
-        } else if (AnnotationUtils.areSame(declaredAnnotation, POLY_MUTABLE)) {
-            return POLY_MUTABLE;
-        } else if (AnnotationUtils.areSame(declaredAnnotation, RECEIVER_DEPENDENT_MUTABLE)) {
+        if (AnnotationUtils.areSame(declaredAnnotation, picoTypeFactory.READONLY)) {
+            return picoTypeFactory.READONLY;
+        } else if (AnnotationUtils.areSame(declaredAnnotation, picoTypeFactory.MUTABLE)) {
+            return picoTypeFactory.MUTABLE;
+        } else if (AnnotationUtils.areSame(declaredAnnotation, picoTypeFactory.IMMUTABLE)) {
+            return picoTypeFactory.IMMUTABLE;
+        } else if (AnnotationUtils.areSame(declaredAnnotation, picoTypeFactory.BOTTOM)) {
+            return picoTypeFactory.BOTTOM;
+        } else if (AnnotationUtils.areSame(declaredAnnotation, picoTypeFactory.POLY_MUTABLE)) {
+            return picoTypeFactory.POLY_MUTABLE;
+        } else if (AnnotationUtils.areSame(
+                declaredAnnotation, picoTypeFactory.RECEIVER_DEPENDENT_MUTABLE)) {
             // @Readonly |> @ReceiverDependentMutable = @Lost
-            if (AnnotationUtils.areSame(receiverAnnotation, READONLY)) {
-                return LOST;
+            if (AnnotationUtils.areSame(receiverAnnotation, picoTypeFactory.READONLY)) {
+                return picoTypeFactory.LOST;
             } else {
                 return receiverAnnotation;
             }

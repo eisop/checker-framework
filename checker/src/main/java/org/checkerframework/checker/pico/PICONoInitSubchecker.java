@@ -6,7 +6,9 @@ import org.checkerframework.common.basetype.BaseTypeVisitor;
 
 import java.util.Set;
 
+/** The PICO subchecker. */
 public class PICONoInitSubchecker extends BaseTypeChecker {
+    /** Create a new PICONoInitSubchecker. */
     public PICONoInitSubchecker() {}
 
     @Override

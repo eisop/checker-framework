@@ -45,10 +45,16 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 
+/** The visitor for the immutability type system. */
 public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFactory> {
     /** whether to only check observational purity */
     protected final boolean abstractStateOnly;
 
+    /**
+     * Create a new PICONoInitVisitor.
+     *
+     * @param checker the checker
+     */
     public PICONoInitVisitor(BaseTypeChecker checker) {
         super(checker);
         abstractStateOnly = checker.hasOption("abstractStateOnly");
@@ -98,6 +104,13 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
         return !AnnotationUtils.areSame(used, atypeFactory.BOTTOM);
     }
 
+    /**
+     * Check if the lhs is adapted subtype of rhs.
+     *
+     * @param lhs the lhs annotation
+     * @param rhs the rhs annotation
+     * @return true if lhs is adapted subtype of rhs, false otherwise
+     */
     private boolean isAdaptedSubtype(AnnotationMirror lhs, AnnotationMirror rhs) {
         PICOViewpointAdapter vpa = atypeFactory.getViewpointAdapter();
         AnnotationMirror adapted = vpa.combineAnnotationWithAnnotation(lhs, rhs);
@@ -234,6 +247,12 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
         return super.visitMethod(node, p);
     }
 
+    /**
+     * Check if the method is flexible overriding. Flexible overriding is allowed if the overriding
+     * method's return type is a subtype of the overridden method's return type.
+     *
+     * @param node the method node
+     */
     private void flexibleOverrideChecker(MethodTree node) {
         // Method overriding checks
         // TODO Copied from super, hence has lots of duplicate code with super. We need to

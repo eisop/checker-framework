@@ -26,10 +26,8 @@ import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -40,12 +38,12 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.TypeMirror;
 
 public class PICOTypeUtil {
-
+    /** Set of side-effecting unary operators. */
     private static final Set<Tree.Kind> sideEffectingUnaryOperators;
 
+    /** Initialize the set of side-effecting unary operators */
     static {
         sideEffectingUnaryOperators = new HashSet<>();
         sideEffectingUnaryOperators.add(Tree.Kind.POSTFIX_INCREMENT);
@@ -156,39 +154,6 @@ public class PICOTypeUtil {
         return null;
     }
 
-    public static List<AnnotatedTypeMirror> getBoundTypesOfDirectSuperTypes(
-            TypeElement current, AnnotatedTypeFactory atypeFactory) {
-        List<AnnotatedTypeMirror> boundsOfSupers = new ArrayList<>();
-        TypeMirror supertypecls;
-        try {
-            supertypecls = current.getSuperclass();
-        } catch (Symbol.CompletionFailure cf) {
-            // Copied from ElementUtils#getSuperTypes(Elements, TypeElement)
-            // Looking up a supertype failed. This sometimes happens
-            // when transitive dependencies are not on the classpath.
-            // As javac didn't complain, let's also not complain.
-            // TODO: Use an expanded ErrorReporter to output a message.
-            supertypecls = null;
-        }
-
-        if (supertypecls != null && !supertypecls.getKind().name().equals(TypeKind.NONE.name())) {
-            TypeElement supercls = (TypeElement) ((DeclaredType) supertypecls).asElement();
-            boundsOfSupers.add(getBoundTypeOfTypeDeclaration(supercls, atypeFactory));
-        }
-
-        for (TypeMirror supertypeitf : current.getInterfaces()) {
-            TypeElement superitf = (TypeElement) ((DeclaredType) supertypeitf).asElement();
-            boundsOfSupers.add(getBoundTypeOfTypeDeclaration(superitf, atypeFactory));
-        }
-        return boundsOfSupers;
-    }
-
-    public static AnnotatedTypeMirror getBoundTypeOfTypeDeclaration(
-            ClassTree classTree, AnnotatedTypeFactory atypeFactory) {
-        TypeElement typeElement = TreeUtils.elementFromDeclaration(classTree);
-        return getBoundTypeOfTypeDeclaration(typeElement, atypeFactory);
-    }
-
     /**
      * Returns the bound of type declaration. If no annotation exists on type declaration, bound is
      * defaulted to @Mutable instead of having empty annotations. This method simply gets/defaults
@@ -223,12 +188,13 @@ public class PICOTypeUtil {
         // places, at some time.
     }
 
-    public static AnnotatedTypeMirror getBoundTypeOfTypeDeclaration(
-            TypeMirror typeMirror, AnnotatedTypeFactory atypeFactory) {
-        return getBoundTypeOfTypeDeclaration(TypesUtils.getTypeElement(typeMirror), atypeFactory);
-    }
-
-    /** Helper method to determine a method using method name */
+    /**
+     * Helper method to determine a method using method name.
+     *
+     * @param methodType AnnotatedExecutableType of the method
+     * @param methodName Name of the method
+     * @param annotatedTypeFactory AnnotatedTypeFactory
+     */
     public static boolean isMethodOrOverridingMethod(
             AnnotatedExecutableType methodType,
             String methodName,
@@ -237,6 +203,13 @@ public class PICOTypeUtil {
                 methodType.getElement(), methodName, annotatedTypeFactory);
     }
 
+    /**
+     * Helper method to determine if a method is the target method or overriding the target method.
+     *
+     * @param executableElement ExecutableElement of the method
+     * @param methodName Name of the method
+     * @param annotatedTypeFactory AnnotatedTypeFactory
+     */
     public static boolean isMethodOrOverridingMethod(
             ExecutableElement executableElement,
             String methodName,
@@ -272,16 +245,6 @@ public class PICOTypeUtil {
     public static boolean isEnumOrEnumConstant(AnnotatedTypeMirror annotatedTypeMirror) {
         Element element =
                 ((AnnotatedDeclaredType) annotatedTypeMirror).getUnderlyingType().asElement();
-        return element != null
-                && (element.getKind() == ElementKind.ENUM_CONSTANT
-                        || element.getKind() == ElementKind.ENUM);
-    }
-
-    public static boolean isEnumOrEnumConstant(TypeMirror type) {
-        if (!(type instanceof DeclaredType)) {
-            return false;
-        }
-        Element element = ((DeclaredType) type).asElement();
         return element != null
                 && (element.getKind() == ElementKind.ENUM_CONSTANT
                         || element.getKind() == ElementKind.ENUM);
@@ -386,29 +349,11 @@ public class PICOTypeUtil {
         return isAssignableField(fieldElement, provider);
     }
 
-    public static boolean isEnclosedByAnonymousClass(Tree tree, AnnotatedTypeFactory atypeFactory) {
-        TreePath path = atypeFactory.getPath(tree);
-        if (path != null) {
-            ClassTree classTree = TreePathUtil.enclosingClass(path);
-            return classTree != null;
-        }
-        return false;
-    }
-
-    public static AnnotatedDeclaredType getBoundOfEnclosingAnonymousClass(
-            Tree tree, AnnotatedTypeFactory atypeFactory) {
-        TreePath path = atypeFactory.getPath(tree);
-        if (path == null) {
-            return null;
-        }
-        AnnotatedDeclaredType enclosingType = null;
-        Tree newclassTree = TreePathUtil.enclosingOfKind(path, Tree.Kind.NEW_CLASS);
-        if (newclassTree != null) {
-            enclosingType = (AnnotatedDeclaredType) atypeFactory.getAnnotatedType(newclassTree);
-        }
-        return enclosingType;
-    }
-
+    /**
+     * check if a tree is in static scope.
+     *
+     * @param treePath TreePath
+     */
     public static boolean inStaticScope(TreePath treePath) {
         boolean in = false;
         if (TreePathUtil.isTreeInStaticScope(treePath)) {
@@ -423,6 +368,11 @@ public class PICOTypeUtil {
         return in;
     }
 
+    /**
+     * Check if a unary tree is side-effecting.
+     *
+     * @param tree UnaryTree
+     */
     public static boolean isSideEffectingUnaryTree(final UnaryTree tree) {
         return sideEffectingUnaryOperators.contains(tree.getKind());
     }
@@ -467,22 +417,31 @@ public class PICOTypeUtil {
                 && ((Symbol.ClassSymbol) ele).sourcefile == null;
     }
 
+    /**
+     * Check if a method is an object identity method.
+     *
+     * @param node MethodTree of the method
+     * @param annotatedTypeFactory AnnotatedTypeFactory
+     * @return true if the method is an object identity method
+     */
     public static boolean isObjectIdentityMethod(
             MethodTree node, AnnotatedTypeFactory annotatedTypeFactory) {
         ExecutableElement element = TreeUtils.elementFromDeclaration(node);
         return isObjectIdentityMethod(element, annotatedTypeFactory);
     }
 
+    /**
+     * Check if a method is an object identity method.
+     *
+     * @param executableElement ExecutableElement of the method
+     * @param annotatedTypeFactory AnnotatedTypeFactory
+     */
     public static boolean isObjectIdentityMethod(
             ExecutableElement executableElement, AnnotatedTypeFactory annotatedTypeFactory) {
-        return hasObjectIdentityMethodDeclAnnotation(executableElement, annotatedTypeFactory)
+        return annotatedTypeFactory.getDeclAnnotation(executableElement, ObjectIdentityMethod.class)
+                        != null
                 || isMethodOrOverridingMethod(executableElement, "hashCode()", annotatedTypeFactory)
                 || isMethodOrOverridingMethod(
                         executableElement, "equals(java.lang.Object)", annotatedTypeFactory);
-    }
-
-    private static boolean hasObjectIdentityMethodDeclAnnotation(
-            ExecutableElement element, AnnotatedTypeFactory annotatedTypeFactory) {
-        return annotatedTypeFactory.getDeclAnnotation(element, ObjectIdentityMethod.class) != null;
     }
 }

@@ -16,18 +16,37 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 
+/**
+ * This class checks whether a method invocation or field access is valid for object identity
+ * method. A method invocation is valid if it only depends on abstract state fields. A field access
+ * is valid if the accessed field is within abstract state.
+ */
 public class ObjectIdentityMethodEnforcer extends TreePathScanner<Void, Void> {
-
+    /** The type factory */
     private PICONoInitAnnotatedTypeFactory atypeFactory;
+
+    /** The checker */
     private BaseTypeChecker checker;
 
+    /**
+     * Create a new ObjectIdentityMethodEnforcer.
+     *
+     * @param typeFactory the type factory
+     * @param checker the checker
+     */
     private ObjectIdentityMethodEnforcer(
             PICONoInitAnnotatedTypeFactory typeFactory, BaseTypeChecker checker) {
         this.atypeFactory = typeFactory;
         this.checker = checker;
     }
 
-    // Main entry
+    /**
+     * Check whether a method invocation or field access is valid for object identity method.
+     *
+     * @param statement the statement to check
+     * @param typeFactory the type factory
+     * @param checker the checker
+     */
     public static void check(
             TreePath statement,
             PICONoInitAnnotatedTypeFactory typeFactory,
@@ -45,16 +64,22 @@ public class ObjectIdentityMethodEnforcer extends TreePathScanner<Void, Void> {
         return super.visitMethodInvocation(node, aVoid);
     }
 
+    /**
+     * Check whether a method invocation is valid for object identity method.
+     *
+     * @param node the method invocation tree
+     * @param elt the element of the method invocation
+     */
     private void checkMethod(MethodInvocationTree node, Element elt) {
         assert elt instanceof ExecutableElement;
+        // Doesn't check static method invocation because it doesn't access instance field.
         if (ElementUtils.isStatic(elt)) {
-            return; // Doesn't check static method invocation because it doesn't access instance
-            // field
+            return;
         }
         if (!PICOTypeUtil.isObjectIdentityMethod((ExecutableElement) elt, atypeFactory)) {
             // Report warning since invoked method is not only dependent on abstract state fields,
-            // but we
-            // don't know whether this method invocation's result flows into the hashcode or not.
+            // but we don't know whether this method invocation's result flows into the hashcode or
+            // not.
             checker.reportWarning(node, "object.identity.method.invocation.invalid", elt);
         }
     }
@@ -73,6 +98,12 @@ public class ObjectIdentityMethodEnforcer extends TreePathScanner<Void, Void> {
         return super.visitMemberSelect(node, aVoid);
     }
 
+    /**
+     * Check whether a field access is valid for object identity method.
+     *
+     * @param node the field access tree
+     * @param elt the element of the field access
+     */
     private void checkField(Tree node, Element elt) {
         if (elt == null) return;
         if (elt.getSimpleName().contentEquals("this")
@@ -91,8 +122,14 @@ public class ObjectIdentityMethodEnforcer extends TreePathScanner<Void, Void> {
         }
     }
 
-    // Deeply test if a field is in abstract state or not. For composite types: array component,
-    // type arguments, upper bound of type parameter uses are also checked.
+    /**
+     * Deeply test if a field is in abstract state or not. For composite types: array component,
+     * type arguments, upper bound of type parameter uses are also checked.
+     *
+     * @param elt the element of the field
+     * @param typeFactory the type factory
+     * @return true if the field is in abstract state, false otherwise
+     */
     private boolean isInAbstractState(Element elt, PICONoInitAnnotatedTypeFactory typeFactory) {
         boolean in = true;
         if (PICOTypeUtil.isAssignableField(elt, typeFactory)) {

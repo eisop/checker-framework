@@ -13,7 +13,12 @@ import javax.lang.model.type.TypeMirror;
  */
 public class PICONoInitAnalysis
         extends CFAbstractAnalysis<PICONoInitValue, PICONoInitStore, PICONoInitTransfer> {
-
+    /**
+     * Create PICONoInitAnalysis.
+     *
+     * @param checker the BaseTypeChecker this analysis works with
+     * @param factory the PICONoInitAnnotatedTypeFactory this analysis works with
+     */
     public PICONoInitAnalysis(BaseTypeChecker checker, PICONoInitAnnotatedTypeFactory factory) {
         super(checker, factory, -1);
     }

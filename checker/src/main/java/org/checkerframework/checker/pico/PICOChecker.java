@@ -6,10 +6,9 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 
 import javax.annotation.processing.SupportedOptions;
 
+/** The PICO checker. */
 @SupportedOptions({"abstractStateOnly", "immutableDefault"})
 public class PICOChecker extends InitializationChecker {
-
-    public PICOChecker() {}
 
     @Override
     public Class<? extends BaseTypeChecker> getTargetCheckerClass() {

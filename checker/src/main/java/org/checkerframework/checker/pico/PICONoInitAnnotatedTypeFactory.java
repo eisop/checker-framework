@@ -72,19 +72,36 @@ import javax.lang.model.type.TypeMirror;
 public class PICONoInitAnnotatedTypeFactory
         extends GenericAnnotatedTypeFactory<
                 PICONoInitValue, PICONoInitStore, PICONoInitTransfer, PICONoInitAnalysis> {
-
+    /** The @{@link Mutable} annotation. */
     protected final AnnotationMirror MUTABLE = AnnotationBuilder.fromClass(elements, Mutable.class);
+
+    /** The @{@link Immutable} annotation. */
     protected final AnnotationMirror IMMUTABLE =
             AnnotationBuilder.fromClass(elements, Immutable.class);
+
+    /** The @{@link Readonly} annotation. */
     protected final AnnotationMirror READONLY =
             AnnotationBuilder.fromClass(elements, Readonly.class);
+
+    /** The @{@link ReceiverDependentMutable} annotation. */
     protected final AnnotationMirror RECEIVER_DEPENDENT_MUTABLE =
             AnnotationBuilder.fromClass(elements, ReceiverDependentMutable.class);
+
+    /** The @{@link PolyMutable} annotation. */
     protected final AnnotationMirror POLY_MUTABLE =
             AnnotationBuilder.fromClass(elements, PolyMutable.class);
+
+    /** The @{@link Lost} annotation. */
     protected final AnnotationMirror LOST = AnnotationBuilder.fromClass(elements, Lost.class);
+
+    /** The @{@link Bottom} annotation. */
     protected final AnnotationMirror BOTTOM = AnnotationBuilder.fromClass(elements, Bottom.class);
 
+    /**
+     * Create a new PICONoInitAnnotatedTypeFactory.
+     *
+     * @param checker the BaseTypeChecker
+     */
     public PICONoInitAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         postInit();
@@ -170,6 +187,11 @@ public class PICONoInitAnnotatedTypeFactory
         super.addComputedTypeAnnotations(elt, type);
     }
 
+    /**
+     * Get the PICO viewpoint adapter.
+     *
+     * @return PICOViewpointAdapter
+     */
     public PICOViewpointAdapter getViewpointAdapter() {
         return (PICOViewpointAdapter) viewpointAdapter;
     }
@@ -268,6 +290,13 @@ public class PICONoInitAnnotatedTypeFactory
         return fromTypeTree;
     }
 
+    /**
+     * Add default annotation to the given AnnotatedTypeMirror for the given Element.
+     *
+     * @param annotatedTypeFactory the annotated type factory
+     * @param annotatedTypeMirror the annotated type mirror to add default annotation
+     * @param element the element to add default annotation
+     */
     private void addDefaultForField(
             AnnotatedTypeFactory annotatedTypeFactory,
             AnnotatedTypeMirror annotatedTypeMirror,
@@ -334,7 +363,11 @@ public class PICONoInitAnnotatedTypeFactory
     /**
      * Add default annotation from type declaration to constructor return type if elt is constructor
      * and doesn't have explicit annotation(type is actually AnnotatedExecutableType of executable
-     * element - elt constructor)
+     * element - elt constructor).
+     *
+     * @param annotatedTypeFactory the annotated type factory
+     * @param elt the element to add default annotation
+     * @param type the type to add default annotation
      */
     private void defaultConstructorReturnToClassBound(
             AnnotatedTypeFactory annotatedTypeFactory, Element elt, AnnotatedTypeMirror type) {
@@ -349,8 +382,14 @@ public class PICONoInitAnnotatedTypeFactory
 
     /** Tree Annotators */
     public static class PICOPropagationTreeAnnotator extends PropagationTreeAnnotator {
+        /** The PICO type factory. */
         private PICONoInitAnnotatedTypeFactory picoTypeFactory;
 
+        /**
+         * Create a new PICOPropagationTreeAnnotator.
+         *
+         * @param atypeFactory the type factory
+         */
         public PICOPropagationTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
             picoTypeFactory = (PICONoInitAnnotatedTypeFactory) atypeFactory;
@@ -401,8 +440,14 @@ public class PICONoInitAnnotatedTypeFactory
 
     /** Apply defaults for static fields with non-implicitly immutable types. */
     public static class PICOTreeAnnotator extends TreeAnnotator {
+        /** The PICO type factory. */
         private PICONoInitAnnotatedTypeFactory picoTypeFactory;
 
+        /**
+         * Create a new PICOTreeAnnotator.
+         *
+         * @param atypeFactory the type factory
+         */
         public PICOTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
             picoTypeFactory = (PICONoInitAnnotatedTypeFactory) atypeFactory;
@@ -436,16 +481,22 @@ public class PICONoInitAnnotatedTypeFactory
 
     /** Type Annotators */
     public static class PICOTypeAnnotator extends TypeAnnotator {
+        /** The PICO type factory. */
         private PICONoInitAnnotatedTypeFactory picoTypeFactory;
 
+        /**
+         * Create a new PICOTypeAnnotator.
+         *
+         * @param typeFactory the type factory
+         */
         public PICOTypeAnnotator(AnnotatedTypeFactory typeFactory) {
             super(typeFactory);
             picoTypeFactory = (PICONoInitAnnotatedTypeFactory) typeFactory;
         }
 
         /**
-         * Applies pre-knowledged defaults that are same with jdk.astub to toString, hashCode,
-         * equals, clone Object methods
+         * {@inheritDoc} Applies pre-knowledged defaults that are same with jdk.astub to toString,
+         * hashCode, equals, clone Object methods.
          */
         @Override
         public Void visitExecutable(AnnotatedExecutableType t, Void p) {
@@ -501,10 +552,17 @@ public class PICONoInitAnnotatedTypeFactory
         return new PICOQualifierForUseTypeAnnotator(this);
     }
 
+    /** QualifierForUseTypeAnnotator */
     public static class PICOQualifierForUseTypeAnnotator
             extends DefaultQualifierForUseTypeAnnotator {
+        /** The PICO type factory. */
         private PICONoInitAnnotatedTypeFactory picoTypeFactory;
 
+        /**
+         * Create a new PICOQualifierForUseTypeAnnotator.
+         *
+         * @param typeFactory the type factory
+         */
         public PICOQualifierForUseTypeAnnotator(AnnotatedTypeFactory typeFactory) {
             super(typeFactory);
             picoTypeFactory = (PICONoInitAnnotatedTypeFactory) typeFactory;
@@ -539,8 +597,14 @@ public class PICONoInitAnnotatedTypeFactory
         }
     }
 
+    /** DefaultForTypeAnnotator */
     public static class PICODefaultForTypeAnnotator extends DefaultForTypeAnnotator {
 
+        /**
+         * Create a new PICODefaultForTypeAnnotator.
+         *
+         * @param typeFactory the type factory
+         */
         public PICODefaultForTypeAnnotator(AnnotatedTypeFactory typeFactory) {
             super(typeFactory);
         }
@@ -578,14 +642,27 @@ public class PICONoInitAnnotatedTypeFactory
     // element to the declared receiver type of instance methods. To view the details, look at
     // ImmutableClass1.java testcase.
     // class PICOInheritedFromClassAnnotator extends InheritedFromClassAnnotator {}
+    /** PICO SuperClause Annotator */
     public static class PICOSuperClauseAnnotator extends TreeAnnotator {
+        /** The PICO type factory. */
         private PICONoInitAnnotatedTypeFactory picoTypeFactory;
 
+        /**
+         * Create a new PICOSuperClauseAnnotator.
+         *
+         * @param atypeFactory the type factory
+         */
         public PICOSuperClauseAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
             picoTypeFactory = (PICONoInitAnnotatedTypeFactory) atypeFactory;
         }
 
+        /**
+         * Check if the given path is a super clause.
+         *
+         * @param path the path to check
+         * @return true if the given path is a super clause, false otherwise
+         */
         public static boolean isSuperClause(TreePath path) {
             if (path == null) {
                 return false;
@@ -593,6 +670,12 @@ public class PICONoInitAnnotatedTypeFactory
             return TreeUtils.isClassTree(path.getParentPath().getLeaf());
         }
 
+        /**
+         * Add default annotation from main class to super clause
+         *
+         * @param tree the tree to add default annotation
+         * @param mirror the annotated type mirror to add default annotation
+         */
         private void addDefaultFromMain(Tree tree, AnnotatedTypeMirror mirror) {
             TreePath path = atypeFactory.getPath(tree);
 
@@ -642,9 +725,14 @@ public class PICONoInitAnnotatedTypeFactory
      * "only default enums" to immutable
      */
     public static class PICOEnumDefaultAnnotator extends TypeAnnotator {
-
+        /** The PICO type factory. */
         private PICONoInitAnnotatedTypeFactory picoTypeFactory;
 
+        /**
+         * Create a new PICOEnumDefaultAnnotator.
+         *
+         * @param typeFactory the type factory
+         */
         public PICOEnumDefaultAnnotator(AnnotatedTypeFactory typeFactory) {
             super(typeFactory);
             picoTypeFactory = (PICONoInitAnnotatedTypeFactory) typeFactory;
