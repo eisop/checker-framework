@@ -39,6 +39,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 
+/** Utility methods for the PICO Checker. */
 public class PICOTypeUtil {
     /** Set of side-effecting unary operators. */
     private static final Set<Tree.Kind> sideEffectingUnaryOperators;
