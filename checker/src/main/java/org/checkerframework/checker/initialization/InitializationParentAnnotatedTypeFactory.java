@@ -716,7 +716,8 @@ public abstract class InitializationParentAnnotatedTypeFactory
             if (elem.getKind() == ElementKind.CONSTRUCTOR) {
                 AnnotatedDeclaredType returnType = (AnnotatedDeclaredType) t.getReturnType();
                 DeclaredType underlyingType = returnType.getUnderlyingType();
-                returnType.addMissingAnnotation(
+                // TODO: Make sure we check explicit annotations somewhere.
+                returnType.replaceAnnotation(
                         getUnderInitializationAnnotationOfSuperType(underlyingType));
             }
             return result;
