@@ -1,7 +1,7 @@
 package org.checkerframework.checker.pico;
 
-import org.checkerframework.checker.pico.qual.Bottom;
-import org.checkerframework.checker.pico.qual.Lost;
+import org.checkerframework.checker.pico.qual.PICOBottom;
+import org.checkerframework.checker.pico.qual.PICOLost;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.NoElementQualifierHierarchy;
 
@@ -31,8 +31,8 @@ public class PICOQualifierHierarchy extends NoElementQualifierHierarchy {
     @Override
     public boolean isSubtypeQualifiers(AnnotationMirror subAnno, AnnotationMirror superAnno) {
         // Lost is not reflexive and the only subtype is Bottom
-        if (atypeFactory.areSameByClass(superAnno, Lost.class)
-                && !atypeFactory.areSameByClass(subAnno, Bottom.class)) {
+        if (atypeFactory.areSameByClass(superAnno, PICOLost.class)
+                && !atypeFactory.areSameByClass(subAnno, PICOBottom.class)) {
             return false;
         }
         return super.isSubtypeQualifiers(subAnno, superAnno);

@@ -17,6 +17,10 @@ public class PICOImmutabilityTest extends CheckerFrameworkPerDirectoryTest {
         super(testFiles, org.checkerframework.checker.pico.PICOChecker.class, "pico-immutability");
     }
 
+    /**
+     * Returns the test files for the PICO Checker. The test files are in the
+     * "tests/pico-immutability" directory.
+     */
     @Parameterized.Parameters
     public static String[] getTestDirs() {
         return new String[] {"pico-immutability"};

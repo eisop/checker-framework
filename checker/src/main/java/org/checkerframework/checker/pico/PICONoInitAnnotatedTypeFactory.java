@@ -13,10 +13,10 @@ import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.initialization.InitializationFieldAccessTreeAnnotator;
-import org.checkerframework.checker.pico.qual.Bottom;
 import org.checkerframework.checker.pico.qual.Immutable;
-import org.checkerframework.checker.pico.qual.Lost;
 import org.checkerframework.checker.pico.qual.Mutable;
+import org.checkerframework.checker.pico.qual.PICOBottom;
+import org.checkerframework.checker.pico.qual.PICOLost;
 import org.checkerframework.checker.pico.qual.PolyMutable;
 import org.checkerframework.checker.pico.qual.Readonly;
 import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
@@ -91,11 +91,12 @@ public class PICONoInitAnnotatedTypeFactory
     protected final AnnotationMirror POLY_MUTABLE =
             AnnotationBuilder.fromClass(elements, PolyMutable.class);
 
-    /** The @{@link Lost} annotation. */
-    protected final AnnotationMirror LOST = AnnotationBuilder.fromClass(elements, Lost.class);
+    /** The @{@link PICOLost} annotation. */
+    protected final AnnotationMirror LOST = AnnotationBuilder.fromClass(elements, PICOLost.class);
 
-    /** The @{@link Bottom} annotation. */
-    protected final AnnotationMirror BOTTOM = AnnotationBuilder.fromClass(elements, Bottom.class);
+    /** The @{@link PICOBottom} annotation. */
+    protected final AnnotationMirror BOTTOM =
+            AnnotationBuilder.fromClass(elements, PICOBottom.class);
 
     /**
      * Create a new PICONoInitAnnotatedTypeFactory.
@@ -118,8 +119,8 @@ public class PICONoInitAnnotatedTypeFactory
                         PolyMutable.class,
                         ReceiverDependentMutable.class,
                         Immutable.class,
-                        Lost.class,
-                        Bottom.class));
+                        PICOLost.class,
+                        PICOBottom.class));
     }
 
     @Override
