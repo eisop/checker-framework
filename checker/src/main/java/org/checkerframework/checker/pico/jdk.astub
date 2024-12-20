@@ -9,7 +9,7 @@ package java.lang;
 
 @ReceiverDependentMutable
 class Iterable<E> {
-  Iterator<E> iterator(@Readonly Iterable this);
+  @PolyMutable Iterator<E> iterator(@PolyMutable Iterable this);
 }
 
 class AssertionError {
