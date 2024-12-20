@@ -86,7 +86,7 @@ public class PICOInitializationAnnotatedTypeFactory extends InitializationAnnota
                     } else {
                         Element varElement = TreeUtils.elementFromDeclaration(var);
                         // If the field is annotated with @Assignable, return false
-                        if (PICOTypeUtilnested.isAssignableField(varElement, this)
+                        if (PICOTypeUtil.isAssignableField(varElement, this)
                                 || ElementUtils.isStatic(varElement)) {
                             return true;
                         } else {
@@ -96,9 +96,4 @@ public class PICOInitializationAnnotatedTypeFactory extends InitializationAnnota
                 });
         return uninitializedFields;
     }
-
-    // TODO this is a hack for calling static class method for lambda expression, consider remove
-    // with refactor of PICOTypeUtil
-    /** Nested class for calling static method in PICOTypeUtil. */
-    public static class PICOTypeUtilnested extends PICOTypeUtil {}
 }
