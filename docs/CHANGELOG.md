@@ -12,6 +12,8 @@ Version 3.42.0-eisop5 (December 20, 2024)
 -----------------------------------------
 
 **User-visible changes:**
+New command-line options:
+* `-AignoreDeadCode`: Ignore unreachable code when running Checkers.
 
 Removed support for the `-Anocheckjdk` option, which was deprecated in version 3.1.1.
 Use `-ApermitMissingJdk` instead.

@@ -151,6 +151,10 @@ import javax.tools.Diagnostic;
     // org.checkerframework.framework.source.SourceChecker.report
     "warns",
 
+    // Make checker ignore the expression in dead branch
+    // org.checkerframework.framework.common.basetype.BaseTypeVisitor.shouldSkipUses
+    "ignoreDeadCode",
+
     ///
     /// More sound (strict checking): enable errors that are disabled by default
     ///
