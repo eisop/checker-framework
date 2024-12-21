@@ -38,7 +38,7 @@ jobs:
       uses: gradle/actions/setup-gradle@v4.2.2
 
     - name: Setup Bazel
-      uses: bazel-contrib/setup-bazel@0.9.1
+      uses: bazel-contrib/setup-bazel@0.10.0
       if: matrix.script == 'cftests-nonjunit'
       with:
         # Avoid downloading Bazel every time.
@@ -127,7 +127,7 @@ jobs:
       uses: gradle/actions/setup-gradle@v4.2.2
 
     - name: Setup Bazel
-      uses: bazel-contrib/setup-bazel@0.9.1
+      uses: bazel-contrib/setup-bazel@0.10.0
       if: matrix.script == 'cftests-nonjunit'
       with:
         # Avoid downloading Bazel every time.
