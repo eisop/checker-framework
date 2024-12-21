@@ -596,6 +596,9 @@ Unsound checking: ignore some errors
   which is a javac argument to halt compilation if a warning is issued.
 \item \<-AignoreInvalidAnnotationLocations>
   Ignore annotations in bytecode that have invalid annotation locations.
+\item \<-AignoreTargetLocations>
+  Disables validating the target locations of qualifiers based on
+  `@TargetLocations` meta-annotations. This option is not enabled by default.
 \end{itemize}
 
 \label{unsound-by-default}
