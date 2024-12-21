@@ -52,6 +52,9 @@ public class PICOTypeUtil {
         sideEffectingUnaryOperators.add(Tree.Kind.PREFIX_DECREMENT);
     }
 
+    /** Make constructor private for util class. */
+    private PICOTypeUtil() {}
+
     /**
      * Determine if Typekind is one of the @DefaultFor typeKinds in @Immutable annotation.
      *
