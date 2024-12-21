@@ -158,7 +158,7 @@ allprojects {
     //   * any new checkers have been added, or
     //   * backward-incompatible changes have been made to APIs or elsewhere.
     // To make a snapshot release: ./gradlew publish
-    version '3.42.0-eisop5-SNAPSHOT'
+    version '3.42.0-eisop6-SNAPSHOT'
 
     tasks.withType(JavaCompile).configureEach {
         options.fork = true
