@@ -374,7 +374,6 @@ public class BoundsInitializer {
 
         @Override
         public Void visitIntersection(AnnotatedIntersectionType type, Void aVoid) {
-
             if (intersections.containsKey(type.getUnderlyingType())) {
                 return null;
             }
@@ -393,7 +392,6 @@ public class BoundsInitializer {
 
         @Override
         public Void visitUnion(AnnotatedUnionType type, Void aVoid) {
-
             List<AnnotatedDeclaredType> alts = type.getAlternatives();
             for (int i = 0; i < alts.size(); i++) {
                 AnnotatedDeclaredType alt = alts.get(i);
@@ -458,7 +456,6 @@ public class BoundsInitializer {
         public Void visitWildcard(AnnotatedWildcardType wildcard, Void aVoid) {
             if (wildcard.getSuperBoundField() == null) {
                 initializeSuperBound(wildcard);
-
             } else {
                 throw new BugInCF(
                         "Wildcard super field should not be initialized:%n"
@@ -1195,7 +1192,6 @@ public class BoundsInitializer {
 
         @Override
         protected AnnotatedTypeMirror getTypeInternal(AnnotatedTypeMirror parent) {
-
             AnnotatedTypeVariable parentAtv = (AnnotatedTypeVariable) parent;
             if (parentAtv.getLowerBoundField() != null) {
                 return parentAtv.getLowerBoundField();
