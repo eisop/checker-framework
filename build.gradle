@@ -760,7 +760,7 @@ task manual(group: 'Documentation') {
 
 // No group so it does not show up in the output of `gradlew tasks`
 task downloadJtreg(type: Download) {
-    description = "Downloads and unpacks jtreg."
+    description = 'Downloads and unpacks jtreg.'
     onlyIf { !(new File("${jtregHome}/lib/jtreg.jar").exists()) }
     // src 'https://ci.adoptopenjdk.net/view/Dependencies/job/jtreg/lastSuccessfulBuild/artifact/jtreg-4.2.0-tip.tar.gz'
     // If ci.adoptopenjdk.net is down, use this copy.
