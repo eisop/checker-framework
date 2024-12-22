@@ -67,8 +67,6 @@ import javax.lang.model.type.TypeMirror;
  * TypeAnnotators. It also applies implicits to method receiver that is not so by default in super
  * implementation.
  */
-// TODO Use @Immutable for classes that extends those predefined immutable classess like String or
-// Number and explicitly annotated classes with @Immutable on its declaration
 public class PICONoInitAnnotatedTypeFactory
         extends GenericAnnotatedTypeFactory<
                 PICONoInitValue, PICONoInitStore, PICONoInitTransfer, PICONoInitAnalysis> {
@@ -105,9 +103,8 @@ public class PICONoInitAnnotatedTypeFactory
      */
     public PICONoInitAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
+        addAliasedTypeAnnotation(org.jmlspecs.annotation.Readonly.class, READONLY);
         postInit();
-        // PICO aliasing is not implemented correctly remove for now
-        // addAliasedAnnotation(org.jmlspecs.annotation.Readonly.class, READONLY);
     }
 
     @Override
