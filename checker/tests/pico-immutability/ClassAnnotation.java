@@ -4,8 +4,41 @@ import org.checkerframework.checker.pico.qual.PolyMutable;
 import org.checkerframework.checker.pico.qual.Readonly;
 import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
 
+/**
+ * This test case aims to showing the validity of annotation class and object creation.
+ * 
+ * Annotation @Immutable, @Mutable, @ReceiverDependentMutable are valid annotations for
+ * class/interface and object creation.
+ */
 /* @Immutable */
 public class ClassAnnotation {
+    /* @Immutable */ interface ImmutableInterfaceImplict {}
+
+    @Immutable interface ImmutableInterfaceExplict {}
+
+    @Mutable interface MutableInterface {}
+
+    @ReceiverDependentMutable interface RDMInterface {}
+
+    // :: error: class.bound.invalid
+    @Readonly interface ReadonlyInterface {}
+
+    // :: error: class.bound.invalid
+    @PolyMutable interface PolyMutableInterface {}
+
+    /* @Immutable */ abstract class ImmutableAbstractClassImplict {}
+
+    @Immutable abstract class ImmutableAbstractClassExplicit {}
+
+    @Mutable abstract class MutableAbstractClass {}
+
+    @ReceiverDependentMutable abstract class RDMAbstractClass {}
+
+    // :: error: class.bound.invalid
+    @Readonly abstract class ReadonlyAbstractClass {}
+
+    // :: error: class.bound.invalid
+    @PolyMutable abstract class PolyMutableAbstractClass {}
 
     /* @Immutable */ class ImmutableClassImplict {}
 
@@ -13,10 +46,10 @@ public class ClassAnnotation {
 
     @Mutable class MutableClass {}
 
-    @ReceiverDependentMutable class RecieverDependentMutableClass {}
+    @ReceiverDependentMutable class RMDClass {}
 
     // :: error: class.bound.invalid
-    @ReceiverDependentMutable static class RecieverDependentMutableStaticClass {}
+    @ReceiverDependentMutable static class RDMStaticClass {}
 
     // :: error: class.bound.invalid
     @Readonly class ReadonlyClass {}
@@ -37,10 +70,10 @@ public class ClassAnnotation {
         // :: error: constructor.invocation.invalid
         new @Immutable MutableClass();
         new @Mutable MutableClass();
-        @Immutable Object obj = new /* @Immutable */ RecieverDependentMutableClass();
-        new @Immutable RecieverDependentMutableClass();
-        new @Mutable RecieverDependentMutableClass();
-        new @ReceiverDependentMutable RecieverDependentMutableClass();
+        @Immutable Object obj = new /* @Immutable */ RMDClass();
+        new @Immutable RMDClass();
+        new @Mutable RMDClass();
+        new @ReceiverDependentMutable RMDClass();
         // :: error: constructor.invocation.invalid
         new @PolyMutable ImmutableClassImplict();
         // :: error: constructor.invocation.invalid
@@ -54,8 +87,8 @@ public class ClassAnnotation {
         // :: error: constructor.invocation.invalid
         new @Readonly MutableClass();
         // TODO :: error: constructor.invocation.invalid
-        new @PolyMutable RecieverDependentMutableClass();
+        new @PolyMutable RMDClass();
         // :: error: constructor.invocation.invalid
-        new @Readonly RecieverDependentMutableClass();
+        new @Readonly RMDClass();
     }
 }
