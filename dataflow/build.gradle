@@ -74,7 +74,8 @@ task manual(group: 'Documentation') {
 
     doLast {
         injected.execOps.exec {
-            commandLine 'make', '-C', 'manual'
+            workingDir = file('manual')
+            commandLine 'make'
         }
     }
 }

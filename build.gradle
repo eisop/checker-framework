@@ -752,7 +752,8 @@ task manual(group: 'Documentation') {
     def injected = project.objects.newInstance(InjectedExecOps)
     doLast {
         injected.execOps.exec {
-            commandLine 'make', '-C', 'docs/manual', 'all'
+            workingDir = file('docs/manual')
+            commandLine 'make', 'all'
         }
     }
 }
@@ -809,7 +810,7 @@ void clone(url, directory, ignoreError, extraArgs = []){
         ignoreExitValue = ignoreError
     }
     // TODO: not sure this does what it is supposed to.
-    timeout = Duration.ofSeconds(60)
+    // timeout = Duration.ofSeconds(60)
 }
 
 /**
@@ -840,7 +841,7 @@ def createCloneTask(taskName, url, directory, extraArgs = []) {
                     ignoreExitValue = true
                 }
                 // TODO: not sure this does what it is supposed to.
-                timeout = Duration.ofSeconds(60)
+                // timeout = Duration.ofSeconds(60)
             } else {
                 try {
                     clone(url, directory, true, extraArgs)
