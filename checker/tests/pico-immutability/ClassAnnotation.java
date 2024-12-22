@@ -6,8 +6,8 @@ import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
 
 /**
  * This test case aims to showing the validity of annotation class and object creation.
- * 
- * Annotation @Immutable, @Mutable, @ReceiverDependentMutable are valid annotations for
+ *
+ * <p>Annotation @Immutable, @Mutable, @ReceiverDependentMutable are valid annotations for
  * class/interface and object creation.
  */
 /* @Immutable */
