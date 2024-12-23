@@ -15,9 +15,29 @@ import viewpointtest.quals.Top;
         this.f = new @ReceiverDependentQual Object();
     }
 
+    // This method could be called by both @A and @B instances.
+    void recieverDependentMethod(@ReceiverDependentQual TestGetAnnotatedLhs this) {}
+
+    // This method could only be called by @A instances.
+    // :: error: (type.invalid.annotations.on.use)
+    void aMethod(@A TestGetAnnotatedLhs this) {}
+
+    // This method could only be called by @B instances.
+    // :: error: (type.invalid.annotations.on.use)
+    void bMethod(@B TestGetAnnotatedLhs this) {}
+
     @SuppressWarnings({"cast.unsafe.constructor.invocation"})
     void topWithRefinement() {
         TestGetAnnotatedLhs a = new @A TestGetAnnotatedLhs();
+        TestGetAnnotatedLhs b = new @B TestGetAnnotatedLhs();
+        a.recieverDependentMethod();
+        b.recieverDependentMethod();
+        a.aMethod();
+        // :: error: (method.invocation.invalid)
+        a.bMethod();
+        // :: error: (method.invocation.invalid)
+        b.aMethod();
+        b.bMethod();
         // :: error: (new.class.type.invalid)
         TestGetAnnotatedLhs top = new @Top TestGetAnnotatedLhs();
         top = a;
