@@ -51,8 +51,9 @@ ext {
     // The int corresponding to the major version of the current JVM.
     currentRuntimeJavaVersion = majorVersionToInt(JavaVersion.current().getMajorVersion())
 
-    // As of 2024-08-06, delombok doesn't yet support JDK 23; see https://projectlombok.org/changelog .
-    skipDelombok = currentRuntimeJavaVersion >= 23
+    // As of 2024-12-24, delombok doesn't yet support JDK 24; see https://projectlombok.org/changelog .
+    // Keep in sync with check in docs/examples/lombok/Makefile
+    skipDelombok = currentRuntimeJavaVersion >= 24
 
     parentDir = file("${rootDir}/../").absolutePath
 
