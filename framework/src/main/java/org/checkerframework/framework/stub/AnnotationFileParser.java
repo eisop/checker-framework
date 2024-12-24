@@ -82,6 +82,7 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.ArrayMap;
 import org.plumelib.util.CollectionsPlume;
@@ -1990,11 +1991,7 @@ public class AnnotationFileParser {
                 }
                 if (param.getTypeBound().size() == 1
                         && param.getTypeBound().get(0).getAnnotations().isEmpty()
-                        && paramType
-                                .getUpperBound()
-                                .getUnderlyingType()
-                                .toString()
-                                .contentEquals("java.lang.Object")) {
+                        && TypesUtils.isObject(paramType.getUpperBound().getUnderlyingType())) {
                     // If there is an explicit "T extends Object" type parameter bound,
                     // treat it like an explicit use of "Object" in code.
                     AnnotatedTypeMirror ub = atypeFactory.getAnnotatedType(Object.class);

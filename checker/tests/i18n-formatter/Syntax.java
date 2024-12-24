@@ -83,8 +83,11 @@ public class Syntax {
         MessageFormat.format("{0, number, #.#.#}", 1);
         // :: error: (i18nformat.string.invalid)
         MessageFormat.format("{0, date, y.m.d.x}", new Date());
-        // :: error: (i18nformat.string.invalid)
-        MessageFormat.format("{0, choice, 0##zero}", 0);
+
+        // TODO: This pattern is valid starting with JDK 23. Decide how to handle version-specific
+        // issues.
+        // TODO :: error: (i18nformat.string.invalid)
+        // MessageFormat.format("{0, choice, 0##zero}", 0);
 
         // good
         MessageFormat.format("{0, number, #.#}", 1);
