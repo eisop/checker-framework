@@ -19,11 +19,9 @@ import viewpointtest.quals.Top;
     void recieverDependentMethod(@ReceiverDependentQual TestGetAnnotatedLhs this) {}
 
     // This method could only be called by @A instances.
-    // :: error: (type.invalid.annotations.on.use)
     void aMethod(@A TestGetAnnotatedLhs this) {}
 
     // This method could only be called by @B instances.
-    // :: error: (type.invalid.annotations.on.use)
     void bMethod(@B TestGetAnnotatedLhs this) {}
 
     @SuppressWarnings({"cast.unsafe.constructor.invocation"})

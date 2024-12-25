@@ -75,6 +75,7 @@ import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.qual.Unused;
 import org.checkerframework.framework.source.DiagMessage;
 import org.checkerframework.framework.source.SourceVisitor;
+import org.checkerframework.framework.type.AbstractViewpointAdapter;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeFactory.ParameterizedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
@@ -5073,9 +5074,18 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotationMirrorSet tops = qualHierarchy.getTopAnnotations();
         TypeMirror declarationTM = declarationType.getUnderlyingType();
         AnnotationMirrorSet upperBounds = atypeFactory.getTypeDeclarationBounds(declarationTM);
+        AbstractViewpointAdapter vpa =
+                (AbstractViewpointAdapter) atypeFactory.getViewpointAdapter();
+
         for (AnnotationMirror top : tops) {
             AnnotationMirror upperBound = qualHierarchy.findAnnotationInHierarchy(upperBounds, top);
-            if (!typeHierarchy.isSubtypeShallowEffective(useType, upperBound)) {
+            if (vpa != null) {
+                AnnotatedDeclaredType adaptedBound =
+                        (AnnotatedDeclaredType) vpa.combineAnnotationWithType(upperBound, useType);
+                if (!typeHierarchy.isSubtypeShallowEffective(useType, adaptedBound)) {
+                    return false;
+                }
+            } else if (!typeHierarchy.isSubtypeShallowEffective(useType, upperBound)) {
                 return false;
             }
         }

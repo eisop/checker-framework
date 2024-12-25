@@ -5690,6 +5690,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
+     * Accessor for the viewpoint adapter.
+     *
+     * @return the viewpoint adapter
+     */
+    public ViewpointAdapter getViewpointAdapter() {
+        return this.viewpointAdapter;
+    }
+
+    /**
      * Accessor for the processing environment.
      *
      * @return the processing environment
