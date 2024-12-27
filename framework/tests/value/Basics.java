@@ -168,9 +168,9 @@ public class Basics {
         @IntVal({0, 1}) int c = (int) input;
         @IntVal({0, 1}) int ac = (@IntVal({0, 1}) int) input;
         @IntVal({0, 1, 2}) int sc = (@IntVal({0, 1, 2}) int) input;
-        // :: warning: (cast.unsafe)
+        // :: error: (cast.incomparable)
         @IntVal({1}) int uc = (@IntVal({1}) int) input;
-        // :: warning: (cast.unsafe)
+        // :: error: (cast.incomparable)
         @IntVal({2}) int bc = (@IntVal({2}) int) input;
     }
 

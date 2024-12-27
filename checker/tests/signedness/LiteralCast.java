@@ -24,7 +24,7 @@ public class LiteralCast {
         requireSigned((@Unsigned int) 2);
         requireSigned((int) 2);
         requireSigned((@m int) 2);
-        // :: warning: (cast.unsafe)
+        // :: error: (cast.incomparable)
         requireSigned((@Signed int) u);
         // :: error: (argument.type.incompatible)
         requireSigned((@Unsigned int) u);
@@ -33,7 +33,7 @@ public class LiteralCast {
         // :: error: (argument.type.incompatible)
         requireSigned((@m int) u);
         requireSigned((@Signed int) s);
-        // :: error: (argument.type.incompatible) :: warning: (cast.unsafe)
+        // :: error: (argument.type.incompatible) :: error: (cast.incomparable)
         requireSigned((@Unsigned int) s);
         requireSigned((int) s);
         requireSigned((@m int) s);
@@ -43,14 +43,14 @@ public class LiteralCast {
         requireUnsigned((@Unsigned int) 2);
         requireUnsigned((int) 2);
         requireUnsigned((@m int) 2);
-        // :: error: (argument.type.incompatible) :: warning: (cast.unsafe)
+        // :: error: (argument.type.incompatible) :: error: (cast.incomparable)
         requireUnsigned((@Signed int) u);
         requireUnsigned((@Unsigned int) u);
         requireUnsigned((int) u);
         requireUnsigned((@m int) u);
         // :: error: (argument.type.incompatible)
         requireUnsigned((@Signed int) s);
-        // :: warning: (cast.unsafe)
+        // :: error: (cast.incomparable)
         requireUnsigned((@Unsigned int) s);
         // :: error: (argument.type.incompatible)
         requireUnsigned((int) s);
