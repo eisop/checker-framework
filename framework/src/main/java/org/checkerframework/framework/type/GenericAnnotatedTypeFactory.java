@@ -648,7 +648,6 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     protected FlowAnalysis createFlowAnalysis() {
-
         // Try to reflectively load the visitor.
         Class<?> checkerClass = checker.getClass();
 
@@ -687,7 +686,6 @@ public abstract class GenericAnnotatedTypeFactory<
     // However, we ran into issues in callers of the method if we used that type.
     public TransferFunction createFlowTransferFunction(
             CFAbstractAnalysis<Value, Store, TransferFunction> analysis) {
-
         // Try to reflectively load the visitor.
         Class<?> checkerClass = checker.getClass();
 
@@ -996,7 +994,6 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     public @Nullable AnnotationMirrorSet getAnnotationsFromJavaExpression(
             JavaExpression expr, Tree tree) {
-
         // Look in the store
         if (CFAbstractStore.canInsertJavaExpression(expr)) {
             Store store = getStoreBefore(tree);
@@ -1871,7 +1868,6 @@ public abstract class GenericAnnotatedTypeFactory<
                 res = getAnnotatedType(lhsTree);
                 // Value of shouldCache no longer used below, so no need to reset.
                 break;
-
             case MEMBER_SELECT:
             case ARRAY_ACCESS:
                 res = getAnnotatedType(lhsTree);
@@ -2659,11 +2655,9 @@ public abstract class GenericAnnotatedTypeFactory<
      * @return true if users can write type annotations from this type system on the given Java type
      */
     protected boolean isRelevantImpl(TypeMirror tm) {
-
         if (relevantJavaTypes == null) {
             return true;
         }
-
         if (relevantJavaTypes.contains(tm)) {
             return true;
         }
@@ -3110,14 +3104,12 @@ public abstract class GenericAnnotatedTypeFactory<
             AnnotatedTypeMirror declaredType,
             Analysis.BeforeOrAfter preOrPost,
             @Nullable List<AnnotationMirror> preconds) {
-
         // Do not generate RequiresQualifier annotations for "this" or parameter expressions.
         if (preOrPost == BeforeOrAfter.BEFORE
                 && ("this".equals(expression)
                         || formalParameterPattern.matcher(expression).matches())) {
             return null;
         }
-
         if (!qualifier.getElementValues().isEmpty()) {
             // @RequiresQualifier and @EnsuresQualifier do not yet support annotations with
             // elements/arguments.

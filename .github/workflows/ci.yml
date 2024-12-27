@@ -35,10 +35,10 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4.2.1
+      uses: gradle/actions/setup-gradle@v4.2.2
 
     - name: Setup Bazel
-      uses: bazel-contrib/setup-bazel@0.9.1
+      uses: bazel-contrib/setup-bazel@0.10.0
       if: matrix.script == 'cftests-nonjunit'
       with:
         # Avoid downloading Bazel every time.
@@ -79,7 +79,7 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4.2.1
+      uses: gradle/actions/setup-gradle@v4.2.2
 
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
       run: ./checker/bin-devel/test-${{ matrix.script }}.sh
@@ -99,8 +99,8 @@ jobs:
         java: [{version: '8', experimental: false},
           {version: '11', experimental: false},
           {version: '17', experimental: false},
-          {version: '22', experimental: true},
-          {version: '23-ea', experimental: true},
+          {version: '22', experimental: false},
+          {version: '23', experimental: false},
           {version: '24-ea', experimental: true}]
     env:
       JAVA_VERSION: ${{ matrix.java.version }}
@@ -124,10 +124,10 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4.2.1
+      uses: gradle/actions/setup-gradle@v4.2.2
 
     - name: Setup Bazel
-      uses: bazel-contrib/setup-bazel@0.9.1
+      uses: bazel-contrib/setup-bazel@0.10.0
       if: matrix.script == 'cftests-nonjunit'
       with:
         # Avoid downloading Bazel every time.
@@ -178,7 +178,7 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4.2.1
+      uses: gradle/actions/setup-gradle@v4.2.2
 
     - name: Install coreutils on MacOS
       if: matrix.os == 'macos-latest'

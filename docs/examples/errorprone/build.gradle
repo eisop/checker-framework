@@ -11,7 +11,7 @@ plugins {
 
 ext {
     versions = [
-        eisopVersion: '3.42.0-eisop4',
+        eisopVersion: '3.42.0-eisop5',
     ]
 }
 
