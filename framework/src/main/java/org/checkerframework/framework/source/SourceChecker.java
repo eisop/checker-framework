@@ -85,8 +85,6 @@ import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
@@ -2313,6 +2311,17 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                     // elements, because they may not have an @AnnotatedFor.
                     return false;
                 }
+                Element packageElement = elt.getEnclosingElement();
+                if (packageElement != null) {
+                    if (shouldSuppressWarnings(packageElement, errKey)) {
+                        return true;
+                    }
+                    if (isAnnotatedForThisCheckerOrUpstreamChecker(packageElement)) {
+                        // Return false immediately. Do NOT check for AnnotatedFor in the enclosing
+                        // elements, because they may not have an @AnnotatedFor.
+                        return false;
+                    }
+                }
             } else {
                 throw new BugInCF("Unexpected declaration kind: " + decl.getKind() + " " + decl);
             }
@@ -2515,12 +2524,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Return true if the element has an {@code @AnnotatedFor} annotation or its parent element has
-     * an {@code @AnnotatedFor} annotation, for this checker or an upstream checker that called this
-     * one.
+     * Return true if the element has an {@code @AnnotatedFor} annotation, for this checker or an
+     * upstream checker that called this one.
      *
-     * @see #org.checkerframework.framework.util.defaults.isElementAnnotatedForThisChecker(Element
-     *     elt)
      * @param elt the source code element to check, or null
      * @return true if the element is annotated for this checker or an upstream checker
      */
@@ -2542,18 +2548,6 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                     return true;
                 }
             }
-        }
-
-        // Also check whether the parent package has AnnotatedFor annotation or not
-        Element parent;
-        if (elt.getKind() == ElementKind.PACKAGE) {
-            parent = ElementUtils.parentPackage((PackageElement) elt, elements);
-        } else {
-            parent = elt.getEnclosingElement();
-        }
-
-        if (parent != null) {
-            return isAnnotatedForThisCheckerOrUpstreamChecker(parent);
         }
 
         return false;
