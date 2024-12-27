@@ -31,7 +31,7 @@ import javax.lang.model.util.Elements;
  * override getUninitializedFields() method for PICO specific definite assignment check.
  */
 public class PICOInitializationAnnotatedTypeFactory extends InitializationAnnotatedTypeFactory {
-    /** The @Mutable annotation. */
+    /** The {@link Mutable} annotation. */
     private final AnnotationMirror MUTABLE;
 
     /**

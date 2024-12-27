@@ -362,10 +362,6 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
      * @return true if the receiver type allows writing, false otherwise
      */
     private boolean allowWrite(AnnotatedTypeMirror receiverType, ExpressionTree variable) {
-        // One pico side, if the receiver is mutable, we allow assigning/reassigning. Because if
-        // the field is declared as final, Java compiler will catch that, and we couldn't have
-        // reached this
-        // point
         if (receiverType.hasAnnotation(atypeFactory.MUTABLE)) {
             return true;
         } else return PICOTypeUtil.isAssigningAssignableField(variable, atypeFactory);
@@ -469,10 +465,12 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
             super.processClassTree(tree);
             return;
         }
-
+        // TODO(Aosen): since this is also checking validity, consider whether we can move this to
+        // PICOValidator
         AnnotatedTypeMirror bound =
                 PICOTypeUtil.getBoundTypeOfTypeDeclaration(typeElement, atypeFactory);
         // Class annotation has to be either @Mutable, @ReceiverDependentMutable or @Immutable
+        // Static class can not be @RDM
         if ((!bound.hasAnnotation(atypeFactory.MUTABLE)
                         && !bound.hasAnnotation(atypeFactory.RECEIVER_DEPENDENT_MUTABLE)
                         && !bound.hasAnnotation(atypeFactory.IMMUTABLE))
@@ -484,7 +482,8 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
 
         // Issue warnings on implicit shallow immutable:
         // Condition:
-        // * Class decl == Immutable or RDM     * move rdm default error here. see 3.6.3 last part.
+        // * Class decl == Immutable or RDM
+        // * move rdm default error here. see 3.6.3 last part.
         // liansun
         // * Member is field
         // * Member's declared bound == Mutable
@@ -547,13 +546,11 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
         final TypeKind castTypeKind = castType.getKind();
         if (castTypeKind == TypeKind.DECLARED) {
             // Don't issue an error if the mutability annotations are equivalent to the qualifier
-            // upper bound
-            // of the type.
+            // upper bound of the type.
             // BaseTypeVisitor#isTypeCastSafe is not used, to be consistent with inference which
-            // only have mutability qualifiers
-            // if inference is supporting FBC in the future, this overridden method can be removed.
+            // only have mutability qualifiers if inference is supporting FBC in the future, this
+            // overridden method can be removed.
             AnnotatedDeclaredType castDeclared = (AnnotatedDeclaredType) castType;
-
             AnnotationMirror bound =
                     qualifierHierarchy.findAnnotationInHierarchy(
                             atypeFactory.getTypeDeclarationBounds(castDeclared.getUnderlyingType()),

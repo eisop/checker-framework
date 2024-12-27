@@ -116,14 +116,6 @@ public class PICOValidator extends BaseTypeValidator {
      * @param tree the tree to check
      */
     private void checkStaticReceiverDependentMutableError(AnnotatedTypeMirror type, Tree tree) {
-        //        Element element;
-        //        if (type instanceof AnnotatedDeclaredType) element =
-        // ((AnnotatedDeclaredType)type).getUnderlyingType().asElement();
-        //        else if (type instanceof AnnotatedArrayType) element =
-        // ((AnnotatedArrayType)type).;
-        ////        AnnotatedTypeMirror explicitATM = atypeFactory.fromElement(element);
-        //        AnnotationMirrorSet declBound =
-        // atypeFactory.getTypeDeclarationBounds(element.asType());
         if (!type.isDeclaration() // variables in static contexts and static fields use class
                 // decl as enclosing type
                 && PICOTypeUtil.inStaticScope(visitor.getCurrentPath())
