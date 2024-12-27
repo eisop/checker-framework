@@ -2144,7 +2144,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     public List<AnnotatedTypeParameterBounds> typeVariablesFromUse(
             AnnotatedDeclaredType type, TypeElement element) {
-
         AnnotatedDeclaredType generic = getAnnotatedType(element);
         List<AnnotatedTypeMirror> targs = type.getTypeArguments();
         List<AnnotatedTypeMirror> tvars = generic.getTypeArguments();
@@ -2496,9 +2495,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     public ParameterizedExecutableType methodFromUse(MethodInvocationTree tree) {
         ExecutableElement methodElt = TreeUtils.elementFromUse(tree);
         AnnotatedTypeMirror receiverType = getReceiverType(tree);
-        if (receiverType == null && TreeUtils.isSuperConstructorCall(tree)) {
-            // super() calls don't have a receiver, but they should be view-point adapted as if
-            // "this" is the receiver.
+        if (receiverType == null
+                && (TreeUtils.isSuperConstructorCall(tree)
+                        || TreeUtils.isThisConstructorCall(tree))) {
+            // super() and this() calls don't have a receiver, but they should be view-point adapted
+            // as if "this" is the receiver.
             receiverType = getSelfType(tree);
         }
         if (receiverType != null && receiverType.getKind() == TypeKind.DECLARED) {
@@ -5998,20 +5999,21 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     */
 
     /**
-     * Does {@code anno}, which is an {@link org.checkerframework.framework.qual.AnnotatedFor}
-     * annotation, apply to this checker?
+     * Does {@code annotatedForAnno}, which is an {@link
+     * org.checkerframework.framework.qual.AnnotatedFor} annotation, apply to this checker?
      *
      * @param annotatedForAnno an {@link AnnotatedFor} annotation
-     * @return whether {@code anno} applies to this checker
+     * @return whether {@code annotatedForAnno} applies to this checker
      */
     public boolean doesAnnotatedForApplyToThisChecker(AnnotationMirror annotatedForAnno) {
         List<String> annotatedForCheckers =
                 AnnotationUtils.getElementValueArray(
                         annotatedForAnno, annotatedForValueElement, String.class);
+        List<@FullyQualifiedName String> upstreamCheckerNames = checker.getUpstreamCheckerNames();
         for (String annoForChecker : annotatedForCheckers) {
-            if (checker.getUpstreamCheckerNames().contains(annoForChecker)
+            if (upstreamCheckerNames.contains(annoForChecker)
                     || CheckerMain.matchesFullyQualifiedProcessor(
-                            annoForChecker, checker.getUpstreamCheckerNames(), true)) {
+                            annoForChecker, upstreamCheckerNames, true)) {
                 return true;
             }
         }

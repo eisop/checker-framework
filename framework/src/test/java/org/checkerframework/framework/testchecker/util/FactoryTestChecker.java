@@ -56,15 +56,15 @@ import javax.tools.JavaFileObject;
  * <pre>
  *  void test() {
  *      // Comments in the same line
- *      Collections.<@NonNull String>emptyList();  /// List<@NonNull String>
- *      List<@NonNull String> l = Collections.emptyList(); /// Collections.emptyList() -:- List<@NonNull String>
+ *      Collections.&lt;@NonNull String&gt;emptyList();  /// List&lt;@NonNull String&gt;
+ *      List&lt;@NonNull String&gt; l = Collections.emptyList(); /// Collections.emptyList() -:- List&lt;@NonNull String&gt;
  *
  *      // Comments in the previous lines
- *      /// List<@NonNull String>
- *      Collections.<@NonNull String>emptyList();
+ *      /// List&lt;@NonNull String&gt;
+ *      Collections.&lt;@NonNull String&gt;emptyList();
  *
- *      /// Collections.emptyList() -:- List<@NonNull String>
- *      List<@NonNull String> l = Collections.emptyList();
+ *      /// Collections.emptyList() -:- List&lt;@NonNull String&gt;
+ *      List&lt;@NonNull String&gt; l = Collections.emptyList();
  *  }
  * </pre>
  *
@@ -173,7 +173,7 @@ public class FactoryTestChecker extends BaseTypeChecker {
             }
             reader.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new BugInCF("Unexpected IOException!", e);
         }
         return expected;
     }

@@ -384,11 +384,11 @@ result, a programmer rarely writes an explicit annotation on any of those
 locations.
 
 Variables defaulted to top include local variables, resource variables in the
-try-with-resources construct, variables in \<for> statements, and \<catch>
-arguments (known as exception parameters in the Java Language Specification).
+try-with-resources construct, and variables in \<for> statements.
 
-Exception parameters default to the top type because they might catch an
-exception thrown anywhere in the program.
+\item
+Exception parameters in catch clauses default to the top type because they
+might catch an exception thrown anywhere in the program.
 
 An alternate design for exception parameters would be to default exception
 parameters some other type T (instead of the top type); then the Checker
