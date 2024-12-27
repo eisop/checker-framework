@@ -5,10 +5,8 @@ import org.checkerframework.checker.pico.qual.Readonly;
 import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
 
 /**
- * This test case aims to showing the validity of annotation class and object creation.
- *
- * <p>Annotation @Immutable, @Mutable, @ReceiverDependentMutable are valid annotations for
- * class/interface and object creation.
+ * This test case aims to showing the validity of annotation class, type use, inheritance and object
+ * creation.
  */
 /* @Immutable */
 public class ClassAnnotation {
@@ -40,13 +38,88 @@ public class ClassAnnotation {
     // :: error: class.bound.invalid
     @PolyMutable abstract class PolyMutableAbstractClass {}
 
-    /* @Immutable */ class ImmutableClassImplict {}
+    /* @Immutable */ class ImmutableClassImplict {
+
+        /* @Immutable */ ImmutableClassImplict() {}
+
+        @Immutable ImmutableClassImplict(int i) {}
+
+        // :: error: (type.invalid.annotations.on.use)
+        @Mutable ImmutableClassImplict(String str) {}
+
+        // :: error: (type.invalid.annotations.on.use)
+        @ReceiverDependentMutable ImmutableClassImplict(char ch) {}
+
+        // when not annotated explictly, default annotations of <this> is inherited from declaration
+        void method1(/* @Immutable */ ImmutableClassImplict this) {}
+
+        void method2(@Immutable ImmutableClassImplict this) {}
+
+        // TODO(Aosen) maybe we should even issue error here since we know the bound can only be
+        // @Immutable
+        void method3(@Readonly ImmutableClassImplict this) {}
+
+        // TODO(Aosen) should we issue error here, it can only be called by @Immutable and @Bottom
+        void method4(@PolyMutable ImmutableClassImplict this) {}
+
+        // :: error: (type.invalid.annotations.on.use)
+        void method5(@ReceiverDependentMutable ImmutableClassImplict this) {}
+
+        // :: error: (type.invalid.annotations.on.use)
+        void method6(@Mutable ImmutableClassImplict this) {}
+    }
 
     @Immutable class ImmutableClassExplicit {}
 
-    @Mutable class MutableClass {}
+    @Mutable class MutableClass {
+        /* @Mutable */ MutableClass() {}
 
-    @ReceiverDependentMutable class RMDClass {}
+        // :: error: (type.invalid.annotations.on.use)
+        @Immutable MutableClass(int i) {}
+
+        @Mutable MutableClass(String str) {}
+
+        // :: error: (type.invalid.annotations.on.use)
+        @ReceiverDependentMutable MutableClass(char ch) {}
+
+        // when not annotated explictly, default annotations of <this> is inherited from declaration
+        void method1(/* @Mutable */ MutableClass this) {}
+
+        // :: error: (type.invalid.annotations.on.use)
+        void method2(@Immutable MutableClass this) {}
+
+        void method3(@Readonly MutableClass this) {}
+
+        void method4(@PolyMutable MutableClass this) {}
+
+        // :: error: (type.invalid.annotations.on.use)
+        void method5(@ReceiverDependentMutable MutableClass this) {}
+
+        void method6(@Mutable MutableClass this) {}
+    }
+
+    @ReceiverDependentMutable class RDMClass {
+        /* @RDM */ RDMClass() {}
+
+        @Immutable RDMClass(int i) {}
+
+        @Mutable RDMClass(String str) {}
+
+        @ReceiverDependentMutable RDMClass(char ch) {}
+
+        // when not annotated explictly, default annotations of <this> is inherited from declaration
+        void method1(/* @RDM */ RDMClass this) {}
+
+        void method2(@Immutable RDMClass this) {}
+
+        void method3(@Readonly RDMClass this) {}
+
+        void method4(@PolyMutable RDMClass this) {}
+
+        void method5(@ReceiverDependentMutable RDMClass this) {}
+
+        void method6(@Mutable RDMClass this) {}
+    }
 
     // :: error: class.bound.invalid
     @ReceiverDependentMutable static class RDMStaticClass {}
@@ -70,10 +143,29 @@ public class ClassAnnotation {
         // :: error: constructor.invocation.invalid
         new @Immutable MutableClass();
         new @Mutable MutableClass();
-        @Immutable Object obj = new /* @Immutable */ RMDClass();
-        new @Immutable RMDClass();
-        new @Mutable RMDClass();
-        new @ReceiverDependentMutable RMDClass();
+        @Immutable Object obj = new /* @Immutable */ RDMClass();
+        new @Immutable RDMClass();
+        new @Mutable RDMClass();
+        new @ReceiverDependentMutable RDMClass();
+        // Constructor return is @Immutable
+        new /* @Immutable */ RDMClass(1);
+        new @Immutable RDMClass(1);
+        // :: error: constructor.invocation.invalid
+        new @Mutable RDMClass(1);
+        // :: error: constructor.invocation.invalid
+        new @ReceiverDependentMutable RDMClass(1);
+        // Constructor return is @Mutable
+        new /* @Mutable */ RDMClass("str");
+        new @Mutable RDMClass("str");
+        // :: error: constructor.invocation.invalid
+        new @Immutable RDMClass("str");
+        // :: error: constructor.invocation.invalid
+        new @ReceiverDependentMutable RDMClass("str");
+        // Constructor return is @ReceiverDependentMutable
+        new /* @RDM */ RDMClass('c');
+        new @Immutable RDMClass('c');
+        new @Mutable RDMClass('c');
+        new @ReceiverDependentMutable RDMClass('c');
         // :: error: constructor.invocation.invalid
         new @PolyMutable ImmutableClassImplict();
         // :: error: constructor.invocation.invalid
@@ -87,8 +179,52 @@ public class ClassAnnotation {
         // :: error: constructor.invocation.invalid
         new @Readonly MutableClass();
         // TODO :: error: constructor.invocation.invalid
-        new @PolyMutable RMDClass();
+        new @PolyMutable RDMClass();
         // :: error: constructor.invocation.invalid
-        new @Readonly RMDClass();
+        new @Readonly RDMClass();
     }
+
+    // Subclassing check
+    class ImmutableChildClassGood1 extends @ReceiverDependentMutable RDMClass {}
+
+    class ImmutableChildClassGood2 extends ImmutableClassExplicit {}
+
+    class ImmutableChildClassGood3
+            implements ImmutableInterfaceExplict, @ReceiverDependentMutable RDMInterface {}
+
+    // TODO Make the superclass's bound implicit works
+    // :: error: (declaration.inconsistent.with.extends.clause) :: error: (super.invocation.invalid)
+    class ImmutableChildClassBad1 extends @Mutable MutableClass {}
+
+    // :: error: (declaration.inconsistent.with.implements.clause)
+    class ImmutableChildClassBad2 implements @Mutable MutableInterface {}
+
+    @Mutable class MutableChildClassGood1 extends @ReceiverDependentMutable RDMClass {}
+
+    @Mutable class MutableChildClassGood2 extends @Mutable MutableClass {}
+
+    @Mutable class MutableChildClassGood3
+            implements @Mutable MutableInterface, @ReceiverDependentMutable RDMInterface {}
+
+    // :: error: (declaration.inconsistent.with.extends.clause) :: error: (super.invocation.invalid)
+    @Mutable class MutableChildClassBad1 extends @Immutable ImmutableClassExplicit {}
+
+    // :: error: (declaration.inconsistent.with.implements.clause)
+    @Mutable class MutableChildClassBad2 implements @Immutable ImmutableInterfaceExplict {}
+
+    @ReceiverDependentMutable class RDMChildClassGood1 extends @ReceiverDependentMutable RDMClass {}
+
+    @ReceiverDependentMutable class RDMChildClassGood2 implements @ReceiverDependentMutable RDMInterface {}
+
+    // :: error: (declaration.inconsistent.with.extends.clause) :: error: (super.invocation.invalid)
+    @ReceiverDependentMutable class RDMChildClassBad1 extends @Immutable ImmutableClassExplicit {}
+
+    // :: error: (declaration.inconsistent.with.implements.clause)
+    @ReceiverDependentMutable class RDMChildClassBad2 implements @Immutable ImmutableInterfaceExplict {}
+
+    // :: error: (declaration.inconsistent.with.extends.clause) :: error: (super.invocation.invalid)
+    @ReceiverDependentMutable class RDMChildClassBad3 extends @Mutable MutableClass {}
+
+    // :: error: (declaration.inconsistent.with.implements.clause)
+    @ReceiverDependentMutable class RDMChildClassBad4 implements @Mutable MutableInterface {}
 }
