@@ -38,7 +38,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
  */
 def createDataflowShaded(shadedPkgName) {
     tasks.create(name: "dataflow${shadedPkgName}Jar", type: ShadowJar, dependsOn: compileJava, group: 'Build') {
-        description "Builds dataflow-${shadedPkgName}.jar."
+        description = "Builds dataflow-${shadedPkgName}.jar."
         includeEmptyDirs = false
         archiveBaseName.set("dataflow-${shadedPkgName}")
         // Without this line, the Maven artifact will have the classifier "all".
@@ -68,13 +68,14 @@ createDataflowShaded('nullaway')
 createDataflowShaded('errorprone')
 
 task manual(group: 'Documentation') {
-    description 'Build the manual'
+    description = 'Build the manual'
 
     def injected = project.objects.newInstance(InjectedExecOps)
 
     doLast {
         injected.execOps.exec {
-            commandLine 'make', '-C', 'manual'
+            workingDir = file('manual')
+            commandLine 'make'
         }
     }
 }
@@ -87,7 +88,7 @@ tasks.withType(Test) {
 }
 
 tasks.create(name: 'allDataflowTests', group: 'Verification') {
-    description 'Run all dataflow analysis tests'
+    description = 'Run all dataflow analysis tests'
     // 'allDataflowTests' is automatically populated by testDataflowAnalysis().
 }
 
@@ -107,7 +108,7 @@ tasks.create(name: 'allDataflowTests', group: 'Verification') {
  */
 def testDataflowAnalysis(taskName, dirName, className, diff) {
     tasks.create(name: taskName, dependsOn: [assemble, compileTestJava], group: 'Verification') {
-        description "Run the ${dirName} dataflow framework test."
+        description = "Run the ${dirName} dataflow framework test."
 
         def injected = project.objects.newInstance(InjectedExecOps)
 
@@ -123,7 +124,7 @@ def testDataflowAnalysis(taskName, dirName, className, diff) {
         delete("tests/${dirName}/Test.class")
         doLast {
             injected.execOps.javaexec {
-                workingDir = "tests/${dirName}"
+                workingDir = file("tests/${dirName}")
                 if (!JavaVersion.current().java9Compatible) {
                     jvmArgs += "-Xbootclasspath/p:${configurations.javacJar.asPath}".toString()
                 }
@@ -152,7 +153,7 @@ def testDataflowAnalysis(taskName, dirName, className, diff) {
             }
             if (diff) {
                 injected.execOps.exec {
-                    workingDir = "tests/${dirName}"
+                    workingDir = file("tests/${dirName}")
                     executable 'diff'
                     args = [
                         '-u',
