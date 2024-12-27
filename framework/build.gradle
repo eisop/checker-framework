@@ -94,22 +94,22 @@ interface InjectedExecOps {
 }
 
 task cloneAnnotatedJdk() {
-    description 'Obtain or update the annotated JDK.'
+    description = 'Obtain or update the annotated JDK.'
 
     def injected = project.objects.newInstance(InjectedExecOps)
 
     doLast {
         if (file(annotatedJdkHome).exists()) {
             injected.execOps.exec {
-                workingDir annotatedJdkHome
+                workingDir file(annotatedJdkHome)
                 executable 'git'
                 args = ['pull', '-q']
                 ignoreExitValue = true
             }
         } else {
-            println 'Cloning annotated JDK repository.'
+            println "Cloning annotated JDK repository in ${annotatedJdkHome}/../"
             injected.execOps.exec {
-                workingDir "${annotatedJdkHome}/../"
+                workingDir file("${annotatedJdkHome}/../")
                 executable 'git'
                 args = [
                     'clone',
@@ -129,7 +129,7 @@ task copyAndMinimizeAnnotatedJdkFiles(dependsOn: cloneAnnotatedJdk, group: 'Buil
     def inputDir = "${annotatedJdkHome}/src"
     def outputDir = "${buildDir}/generated/resources/annotated-jdk/"
 
-    description "Copy annotated JDK files to ${outputDir}. Removes private and package-private methods, method bodies, comments, etc. from the annotated JDK"
+    description = "Copy annotated JDK files to ${outputDir}. Removes private and package-private methods, method bodies, comments, etc. from the annotated JDK"
 
     inputs.dir file(inputDir)
     outputs.dir file(outputDir)
@@ -175,7 +175,7 @@ sourcesJar.dependsOn(copyAndMinimizeAnnotatedJdkFiles)
 processResources.dependsOn(copyAndMinimizeAnnotatedJdkFiles)
 
 task allSourcesJar(type: Jar, group: 'Build') {
-    description 'Creates a sources jar that includes sources for all Checker Framework classes in framework.jar'
+    description = 'Creates a sources jar that includes sources for all Checker Framework classes in framework.jar'
     destinationDirectory = file("${projectDir}/dist")
     archiveFileName = 'framework-source.jar'
     from (project(':framework').sourceSets.main.java,
@@ -184,7 +184,7 @@ task allSourcesJar(type: Jar, group: 'Build') {
 }
 
 task allJavadocJar(type: Jar, group: 'Build') {
-    description 'Creates javadoc jar include Javadoc for all of the framework'
+    description = 'Creates javadoc jar include Javadoc for all of the framework'
     dependsOn (project(':framework').tasks.javadoc,
             project(':dataflow').tasks.javadoc,
             project(':javacutil').tasks.javadoc)
@@ -198,7 +198,7 @@ task allJavadocJar(type: Jar, group: 'Build') {
 }
 
 shadowJar {
-    description 'Creates the "fat" framework.jar in dist'
+    description = 'Creates the "fat" framework.jar in dist'
     destinationDirectory = file("${projectDir}/dist")
     archiveFileName = 'framework.jar'
     manifest {
@@ -217,7 +217,7 @@ checkCompilerMessages {
 }
 
 task loaderTests(dependsOn: 'shadowJar', group: 'Verification') {
-    description 'Run tests for the annotation class loader'
+    description = 'Run tests for the annotation class loader'
     dependsOn(compileTestJava)
 
     def injected = project.objects.newInstance(InjectedExecOps)
@@ -227,12 +227,8 @@ task loaderTests(dependsOn: 'shadowJar', group: 'Verification') {
     dependsOn project(':checker').tasks.assemble
     doLast {
         injected.execOps.exec {
-            executable 'make'
-            args = [
-                '-C',
-                'tests/annotationclassloader/',
-                'all'
-            ]
+            workingDir = file('tests/annotationclassloader')
+            commandLine 'make', 'all'
         }
     }
 }
@@ -253,7 +249,7 @@ clean {
 
 
 task delombok {
-    description 'Delomboks the source code tree in tests/returnsreceiverlombok'
+    description = 'Delomboks the source code tree in tests/returnsreceiverlombok'
 
     def srcDelomboked = 'tests/returnsreceiverdelomboked'
     def srcJava = 'tests/returnsreceiverlombok'

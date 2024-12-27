@@ -368,7 +368,6 @@ public class AnnotatedTypeCopier
      */
     @SuppressWarnings("unchecked")
     protected <T extends AnnotatedTypeMirror> T makeCopy(T original) {
-
         T copy =
                 (T)
                         AnnotatedTypeMirror.createType(

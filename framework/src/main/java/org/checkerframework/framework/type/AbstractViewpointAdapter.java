@@ -104,7 +104,6 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             AnnotatedTypeMirror receiverType,
             ExecutableElement constructorElt,
             AnnotatedExecutableType constructorType) {
-
         // constructorType's typevar are not substituted when calling viewpointAdaptConstructor
         AnnotatedExecutableType unsubstitutedConstructorType = constructorType.deepCopy();
 
@@ -336,7 +335,6 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             return aat;
         } else if (declared.getKind() == TypeKind.WILDCARD) {
             AnnotatedWildcardType awt = (AnnotatedWildcardType) declared.shallowCopy();
-
             IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> mappings =
                     new IdentityHashMap<>();
 
@@ -361,7 +359,6 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             }
 
             AnnotatedTypeMirror result = AnnotatedTypeCopierWithReplacement.replace(awt, mappings);
-
             return result;
         } else if (declared.getKind() == TypeKind.NULL) {
             AnnotatedNullType ant = (AnnotatedNullType) declared.shallowCopy(true);
