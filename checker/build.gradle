@@ -383,7 +383,7 @@ task jtregJdk11Tests(dependsOn: ':downloadJtreg', group: 'Verification') {
 
     def injected = project.objects.newInstance(InjectedExecOps)
 
-    String jtregOutput = "${projectDir}/build/jtregJdk11"
+    String jtregOutput = "${layout.buildDirectory.get().asFile}/jtregJdk11"
 
     String name = 'all'
     doLast {
@@ -471,7 +471,7 @@ task ainferTestCheckerGenerateStubs(type: Test) {
     dependsOn(compileTestJava)
     doFirst {
         delete('tests/ainfer-testchecker/annotated')
-        delete("${projectDir}/build/ainfer-testchecker/")
+        delete("${layout.buildDirectory.get().asFile}/ainfer-testchecker/")
     }
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerStubsGenerationTest.class'
@@ -530,7 +530,7 @@ task ainferTestCheckerGenerateAjava(type: Test) {
     dependsOn(compileTestJava)
     doFirst {
         delete('tests/ainfer-testchecker/annotated')
-        delete("${projectDir}/build/ainfer-testchecker/")
+        delete("${layout.buildDirectory.get().asFile}/ainfer-testchecker/")
     }
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerAjavaGenerationTest.class'
@@ -736,7 +736,7 @@ task ainferIndexGenerateAjava(type: Test) {
     dependsOn(compileTestJava)
     doFirst {
         delete('tests/ainfer-index/annotated')
-        delete("${projectDir}/build/ainfer-index/")
+        delete("${layout.buildDirectory.get().asFile}/ainfer-index/")
     }
     outputs.upToDateWhen { false }
     include '**/AinferIndexAjavaGenerationTest.class'
@@ -782,7 +782,7 @@ task ainferNullnessGenerateAjava(type: Test) {
     dependsOn(compileTestJava)
     doFirst {
         delete('tests/ainfer-nullness/annotated')
-        delete("${projectDir}/build/ainfer-nullness/")
+        delete("${layout.buildDirectory.get().asFile}/ainfer-nullness/")
     }
     outputs.upToDateWhen { false }
     include '**/AinferNullnessAjavaGenerationTest.class'
@@ -828,7 +828,7 @@ task ainferResourceLeakGenerateAjava(type: Test) {
     dependsOn(compileTestJava)
     doFirst {
         delete('tests/ainfer-resourceleak/annotated')
-        delete("${projectDir}/build/ainfer-resourceleak/")
+        delete("${layout.buildDirectory.get().asFile}/ainfer-resourceleak/")
     }
     outputs.upToDateWhen { false }
     include '**/AinferResourceLeakAjavaGenerationTest.class'
@@ -979,11 +979,11 @@ task wpiManyTest(group: 'Verification') {
     outputs.upToDateWhen { false }
 
     doFirst {
-        delete("${project.projectDir}/build/wpi-many-tests-results/")
+        delete("${layout.buildDirectory.get().asFile}/wpi-many-tests-results/")
         // wpi-many.sh is run in skip mode so that logs are preserved, but
         // we don't actually want to skip previously-failing tests when we
         // re-run the tests locally.
-        delete fileTree("${project.projectDir}/build/wpi-many-tests") {
+        delete fileTree("${layout.buildDirectory.get().asFile}/wpi-many-tests") {
             include '**/.cannot-run-wpi'
         }
     }
@@ -992,13 +992,13 @@ task wpiManyTest(group: 'Verification') {
 
     doLast {
         // Run wpi-many.sh
-        def typecheckFilesDir = "${project.projectDir}/build/wpi-many-tests-results/"
+        def typecheckFilesDir = "${layout.buildDirectory.get().asFile}/wpi-many-tests-results/"
         try {
             injected.execOps.exec {
                 environment CHECKERFRAMEWORK: "${projectDir}/.."
                 commandLine 'bin/wpi-many.sh',
                         '-i', "${project.projectDir}/tests/wpi-many/testin.txt",
-                        '-o', "${project.projectDir}/build/wpi-many-tests",
+                        '-o', "${layout.buildDirectory.get().asFile}/wpi-many-tests",
                         '-s',
                         '--',
                         '--checker', 'nullness,interning,lock,regex,signature,calledmethods,resourceleak',
@@ -1070,7 +1070,7 @@ task wpiManyTest(group: 'Verification') {
 
         // check that WPI causes the expected builds to succeed
         typecheckFiles.visit { FileVisitDetails details ->
-            def filename = "${project.projectDir}/build/wpi-many-tests-results/" + details.getName()
+            def filename = "${layout.buildDirectory.get().asFile}/wpi-many-tests-results/" + details.getName()
             def file = details.getFile()
             if (file.length() == 0) {
                 throw new GradleException('Failure: WPI produced empty typecheck file ' + filename)
