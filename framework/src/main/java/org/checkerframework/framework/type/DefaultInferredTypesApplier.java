@@ -74,7 +74,6 @@ public class DefaultInferredTypesApplier {
             AnnotationMirror top) {
         AnnotationMirror primary = type.getAnnotationInHierarchy(top);
         if (inferred == null) {
-
             if (primary == null) {
                 // Type doesn't have a primary either, nothing to remove
             } else if (type.getKind() == TypeKind.TYPEVAR) {
