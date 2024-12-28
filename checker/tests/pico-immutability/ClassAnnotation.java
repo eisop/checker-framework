@@ -131,6 +131,10 @@ public class ClassAnnotation {
     @PolyMutable class PolyMutableClass {}
 
     void testObjectCreation() {
+        // Default to @Immutable for RDM class constructor without annotation
+        @Immutable RDMClass rdmClass = new RDMClass();
+        @Mutable MutableClass mutableClass = new MutableClass();
+        @Immutable ImmutableClassExplicit immutableClassExplicit = new ImmutableClassExplicit();
         new /* @Immutable */ ImmutableClassImplict();
         new @Immutable ImmutableClassImplict();
         // :: error: constructor.invocation.invalid
