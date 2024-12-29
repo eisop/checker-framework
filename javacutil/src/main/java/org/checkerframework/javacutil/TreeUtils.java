@@ -94,6 +94,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.NestingKind;
+import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ExecutableType;
@@ -290,10 +291,10 @@ public final class TreeUtils {
      * Return the type element corresponding to the given package declaration
      *
      * @param tree package declaration
-     * @return the element for the given package
+     * @return the package element for the given package
      */
-    public static TypeElement elementFromDeclaration(PackageTree tree) {
-        TypeElement result = (TypeElement) TreeInfo.symbolFor((JCTree) tree);
+    public static PackageElement elementFromDeclaration(PackageTree tree) {
+        PackageElement result = (PackageElement) TreeInfo.symbolFor((JCTree) tree);
         if (result == null) {
             throw new BugInCF("null element for package tree %s", tree);
         }

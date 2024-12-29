@@ -1,4 +1,4 @@
-package packageannotatedfornullness;
+package packageannotatedfornullness.annotated;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 
