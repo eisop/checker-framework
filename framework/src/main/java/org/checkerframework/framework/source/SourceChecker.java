@@ -2297,7 +2297,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
                 if (isAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
                     // Return false immediately. Do NOT check for AnnotatedFor in the enclosing
-                    // elements, because they may not have an @AnnotatedFor.
+                    // elements as the closest AnnotatedFor is already found.
                     return false;
                 }
             } else if (TreeUtils.classTreeKinds().contains(decl.getKind())) {
@@ -2309,7 +2309,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
                 if (isAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
                     // Return false immediately. Do NOT check for AnnotatedFor in the enclosing
-                    // elements, because they may not have an @AnnotatedFor.
+                    // elements as the closest AnnotatedFor is already found.
                     return false;
                 }
                 Element packageElement = elt.getEnclosingElement();
@@ -2319,7 +2319,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                     }
                     if (isAnnotatedForThisCheckerOrUpstreamChecker(packageElement)) {
                         // Return false immediately. Do NOT check for AnnotatedFor in the enclosing
-                        // elements, because they may not have an @AnnotatedFor.
+                        // elements as the closest AnnotatedFor is already found.
                         return false;
                     }
                 }
