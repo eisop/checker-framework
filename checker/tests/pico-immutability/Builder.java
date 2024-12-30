@@ -153,6 +153,7 @@ public class Builder {
         private String email;
 
         private void setId(String id) {
+            // :: error: (illegal.field.write)
             this.id = id;
         }
 
