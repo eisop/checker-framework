@@ -21,6 +21,24 @@ public class Operators {
         i += 2;
     }
 
+    class A {
+        int size() {
+            return 0;
+        }
+    }
+
+    void foo(A a) {
+        double mean1 = mean(a);
+    }
+
+    static double mean(A a) {
+        return sum(a) / a.size();
+    }
+
+    static double sum(A a) {
+        return 1.0;
+    }
+
     class UnaryAndCompoundAssignment {
 
         int counter = 0;
