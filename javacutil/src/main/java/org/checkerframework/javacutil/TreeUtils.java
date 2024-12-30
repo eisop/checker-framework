@@ -288,7 +288,7 @@ public final class TreeUtils {
     // `elementFrom*(FooTree)` methods together.
 
     /**
-     * Return the type element corresponding to the given package declaration
+     * Return the package element corresponding to the given package declaration.
      *
      * @param tree package declaration
      * @return the package element for the given package

@@ -2312,7 +2312,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                     return false;
                 }
                 Element packageElement = elt.getEnclosingElement();
-                if (packageElement != null) {
+                if (packageElement != null && packageElement.getKind() == ElementKind.PACKAGE) {
                     if (shouldSuppressWarnings(packageElement, errKey)) {
                         return true;
                     }
