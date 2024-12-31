@@ -42,7 +42,7 @@ import java.util.Date;
     }
 
     class Test {
-        public static void main(String[] args) {
+        void test(String[] args) {
             SupportedBuilderPattern.@Mutable Builder builder =
                     new SupportedBuilderPattern.Builder(0);
             @Mutable SupportedBuilderPattern msbp =

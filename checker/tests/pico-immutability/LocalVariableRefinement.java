@@ -3,7 +3,7 @@ import org.checkerframework.checker.pico.qual.Mutable;
 import org.checkerframework.checker.pico.qual.Readonly;
 
 public class LocalVariableRefinement {
-    class Acceptor {
+    static class Acceptor {
         static void accept1(@Mutable Object o) {}
 
         static void accept2(@Immutable Object o) {}
