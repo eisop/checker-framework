@@ -40,8 +40,7 @@ import java.util.List;
         localList.add("are");
         localList.add("you");
         // Third way is to create a local mutable list, and wrap it with the immutable list but has
-        // the same
-        // content as the mutable list
+        // the same content as the mutable list
         list = new @Immutable ArrayList<String>(localList);
     }
 
