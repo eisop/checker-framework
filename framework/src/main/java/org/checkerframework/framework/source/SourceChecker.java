@@ -85,6 +85,7 @@ import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
@@ -2296,7 +2297,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
                 if (isAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
                     // Return false immediately. Do NOT check for AnnotatedFor in the enclosing
-                    // elements, because they may not have an @AnnotatedFor.
+                    // elements as the closest AnnotatedFor is already found.
                     return false;
                 }
             } else if (TreeUtils.classTreeKinds().contains(decl.getKind())) {
@@ -2308,8 +2309,19 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
                 if (isAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
                     // Return false immediately. Do NOT check for AnnotatedFor in the enclosing
-                    // elements, because they may not have an @AnnotatedFor.
+                    // elements as the closest AnnotatedFor is already found.
                     return false;
+                }
+                Element packageElement = elt.getEnclosingElement();
+                if (packageElement != null && packageElement.getKind() == ElementKind.PACKAGE) {
+                    if (shouldSuppressWarnings(packageElement, errKey)) {
+                        return true;
+                    }
+                    if (isAnnotatedForThisCheckerOrUpstreamChecker(packageElement)) {
+                        // Return false immediately. Do NOT check for AnnotatedFor in the enclosing
+                        // elements as the closest AnnotatedFor is already found.
+                        return false;
+                    }
                 }
             } else {
                 throw new BugInCF("Unexpected declaration kind: " + decl.getKind() + " " + decl);
