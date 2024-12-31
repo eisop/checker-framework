@@ -92,7 +92,7 @@ jobs:
     - name: Install shellcheck and checkbashisms
       if: matrix.script == 'misc'
       run: |
-        sudo apt install shellcheck devscripts python3-pip
+        sudo apt install shellcheck devscripts python3-pip texlive-latex-base imagemagick
         pip install black flake8 html5validator
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
       run: ./checker/bin-devel/test-${{ matrix.script }}.sh
@@ -149,7 +149,7 @@ jobs:
     - name: Install shellcheck and checkbashisms
       if: matrix.script == 'misc'
       run: |
-        sudo apt install shellcheck devscripts python3-pip
+        sudo apt install shellcheck devscripts python3-pip texlive-latex-base imagemagick
         pip install black flake8 html5validator
     - name: Setup Bazel
       uses: bazel-contrib/setup-bazel@0.10.0
