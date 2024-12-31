@@ -43,7 +43,6 @@ public class EqualityAtmComparer extends EquivalentAtmComboScanner<Boolean, Void
         if (type1 == type2) {
             return true;
         }
-
         if (type1 == null || type2 == null) {
             return false;
         }

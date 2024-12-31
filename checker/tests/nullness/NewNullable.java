@@ -3,10 +3,11 @@ import org.checkerframework.checker.nullness.qual.*;
 public class NewNullable {
     Object o = new Object();
     Object nn = new @NonNull Object();
-    // :: warning: (new.class.type.invalid)
+    // :: error: (nullness.on.new.object)
     @Nullable Object lazy = new @MonotonicNonNull Object();
-    // :: warning: (new.class.type.invalid)
+    // :: error: (nullness.on.new.object)
+    // :: error: (invalid.polymorphic.qualifier.use)
     @Nullable Object poly = new @PolyNull Object();
-    // :: warning: (new.class.type.invalid)
+    // :: error: (nullness.on.new.object)
     @Nullable Object nbl = new @Nullable Object();
 }

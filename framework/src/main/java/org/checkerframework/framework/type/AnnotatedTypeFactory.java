@@ -2144,7 +2144,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     public List<AnnotatedTypeParameterBounds> typeVariablesFromUse(
             AnnotatedDeclaredType type, TypeElement element) {
-
         AnnotatedDeclaredType generic = getAnnotatedType(element);
         List<AnnotatedTypeMirror> targs = type.getTypeArguments();
         List<AnnotatedTypeMirror> tvars = generic.getTypeArguments();

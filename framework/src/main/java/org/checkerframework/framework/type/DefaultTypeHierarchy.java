@@ -1300,7 +1300,6 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
                 // If both have primary annotations then just check the primary annotations
                 // as the bounds are the same.
                 return isPrimarySubtype(subtype, supertype);
-
             } else if (!subtypeHasAnno
                     && !supertypeHasAnno
                     && areEqualInHierarchy(subtype, supertype)) {
