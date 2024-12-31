@@ -152,7 +152,7 @@ import javax.tools.Diagnostic;
     // org.checkerframework.framework.source.SourceChecker.report
     "warns",
 
-    // Make checker ignore the expression in dead branch
+    // Ignore dead code
     // org.checkerframework.framework.common.basetype.BaseTypeVisitor.shouldSkipUses
     "ignoreDeadCode",
 

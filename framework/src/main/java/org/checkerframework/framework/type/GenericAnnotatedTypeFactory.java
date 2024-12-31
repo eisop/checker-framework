@@ -275,7 +275,7 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     public final boolean hasOrIsSubchecker;
 
-    /** True if "-AigoreCheckDeadCode" was passed on the command line. */
+    /** True if "-AignoreDeadCode" was passed on the command line. */
     protected final boolean ignoreDeadCode;
 
     /** An empty store. */

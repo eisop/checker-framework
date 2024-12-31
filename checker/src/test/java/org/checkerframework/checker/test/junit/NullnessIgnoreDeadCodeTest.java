@@ -6,10 +6,10 @@ import org.junit.runners.Parameterized;
 import java.io.File;
 import java.util.List;
 
-/** JUnit tests for the Nullness checker when -AignoreDeadCode command-line argument is used. */
+/** JUnit tests for the Nullness Checker when the -AignoreDeadCode command-line argument is used. */
 public class NullnessIgnoreDeadCodeTest extends CheckerFrameworkPerDirectoryTest {
     /**
-     * Create a NullnessNullMarkedTest.
+     * Create a NullnessIgnoreDeadCodeTest.
      *
      * @param testFiles the files containing test code, which will be type-checked
      */
