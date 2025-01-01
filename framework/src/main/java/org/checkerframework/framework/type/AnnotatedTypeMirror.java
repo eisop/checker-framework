@@ -10,6 +10,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeVisitor;
+import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
@@ -1226,8 +1227,8 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          * The varargs type is the last element of {@link paramTypes} if the method or constructor
          * accepts a variable number of arguments and the {@link paramTypes} has not been expanded
          * yet. This type needs to be stored in the field to avoid being affected by calling {@link
-         * org.checkerframework.framework.util.AnnotatedTypes#adaptParameters(AnnotatedTypeFactory,
-         * AnnotatedExecutableType, List, NewClassTree)}.
+         * AnnotatedTypes#adaptParameters(AnnotatedTypeFactory, AnnotatedExecutableType, List,
+         * NewClassTree)}.
          */
         private @MonotonicNonNull AnnotatedArrayType varargType = null;
 
