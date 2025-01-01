@@ -89,7 +89,7 @@ jobs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4.2.2
       # Setup for misc tests
-    - name: Install shellcheck and checkbashisms
+    - name: Install misc dependencies
       if: matrix.script == 'misc'
       run: |
         sudo apt install -y shellcheck devscripts python3-pip \
@@ -151,7 +151,7 @@ jobs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4.2.2
       # Setup for misc tests
-    - name: Install shellcheck and checkbashisms
+    - name: Install misc dependencies
       if: matrix.script == 'misc'
       run: |
         sudo apt install -y shellcheck devscripts python3-pip \
