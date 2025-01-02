@@ -275,6 +275,9 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     public final boolean hasOrIsSubchecker;
 
+    /** True if "-AignoreDeadCode" was passed on the command line. */
+    protected final boolean ignoreDeadCode;
+
     /** An empty store. */
     // Set in postInit only
     protected Store emptyStore;
@@ -396,6 +399,7 @@ public abstract class GenericAnnotatedTypeFactory<
         hasOrIsSubchecker =
                 !this.getChecker().getSubcheckers().isEmpty()
                         || this.getChecker().getParentChecker() != null;
+        ignoreDeadCode = checker.hasOption("ignoreDeadCode");
 
         // Every subclass must call postInit, but it must be called after
         // all other initialization is finished.
@@ -470,7 +474,9 @@ public abstract class GenericAnnotatedTypeFactory<
 
         super.setRoot(root);
         this.scannedClasses.clear();
-        // this.reachableNodes.clear();
+        if (ignoreDeadCode) {
+            this.reachableNodes.clear();
+        }
         this.flowResult = null;
         this.regularExitStores.clear();
         this.exceptionalExitStores.clear();
@@ -1081,13 +1087,13 @@ public abstract class GenericAnnotatedTypeFactory<
         return value != null ? value.getAnnotations().iterator().next() : null;
     }
 
-    /*
+    /**
      * Returns true if the {@code exprTree} is unreachable. This is a conservative estimate and may
      * return {@code false} even though the {@code exprTree} is unreachable.
      *
      * @param exprTree an expression tree
      * @return true if the {@code exprTree} is unreachable
-     *
+     */
     public boolean isUnreachable(ExpressionTree exprTree) {
         if (!everUseFlow) {
             return false;
@@ -1106,7 +1112,6 @@ public abstract class GenericAnnotatedTypeFactory<
         // None of the corresponding nodes is reachable, so this tree is dead.
         return true;
     }
-    */
 
     /**
      * Track the state of org.checkerframework.dataflow analysis scanning for each class tree in the
@@ -1122,7 +1127,7 @@ public abstract class GenericAnnotatedTypeFactory<
     /** Map from ClassTree to their dataflow analysis state. */
     protected final Map<ClassTree, ScanState> scannedClasses = new HashMap<>();
 
-    /*
+    /**
      * A set of trees whose corresponding nodes are reachable. This is not an exhaustive set of
      * reachable trees. Use {@link #isUnreachable(ExpressionTree)} instead of this set directly.
      *
@@ -1130,7 +1135,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * same name but represent different uses of the variable. So instead of storing Nodes, it
      * stores the result of {@code Node#getTree}.
      */
-    // private final Set<Tree> reachableNodes = new HashSet<>();
+    private final Set<Tree> reachableNodes = new HashSet<>();
 
     /**
      * The result of the flow analysis. Invariant:
@@ -1609,15 +1614,16 @@ public abstract class GenericAnnotatedTypeFactory<
             @Nullable Store capturedStore) {
         ControlFlowGraph cfg =
                 CFCFGBuilder.build(this.getRoot(), ast, checker, this, processingEnv);
-        /*
-             cfg.getAllNodes(this::isIgnoredExceptionType)
-                     .forEach(
-                             node -> {
-                                 if (node.getTree() != null) {
-                                     reachableNodes.add(node.getTree());
-                                 }
-                             });
-        */
+        if (ignoreDeadCode) {
+            cfg.getAllNodes(this::isIgnoredExceptionType)
+                    .forEach(
+                            node -> {
+                                if (node.getTree() != null) {
+                                    reachableNodes.add(node.getTree());
+                                }
+                            });
+        }
+
         if (isInitializationCode) {
             Store initStore = !isStatic ? initializationStore : initializationStaticStore;
             if (initStore != null) {

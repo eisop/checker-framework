@@ -3,6 +3,8 @@ Version 3.42.0-eisop6 (January ??, 2025)
 
 **User-visible changes:**
 
+New command-line option `-AignoreDeadCode` to ignore unreachable code when running checkers.
+
 **Implementation details:**
 
 **Closed issues:**
