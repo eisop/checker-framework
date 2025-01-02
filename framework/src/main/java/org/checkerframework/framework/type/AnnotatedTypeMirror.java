@@ -1,6 +1,5 @@
 package org.checkerframework.framework.type;
 
-import com.sun.source.tree.NewClassTree;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
 
 import org.checkerframework.checker.formatter.qual.FormatMethod;
@@ -1227,8 +1226,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          * The varargs type is the last element of {@link paramTypes} if the method or constructor
          * accepts a variable number of arguments and the {@link paramTypes} has not been expanded
          * yet. This type needs to be stored in the field to avoid being affected by calling {@link
-         * AnnotatedTypes#adaptParameters(AnnotatedTypeFactory, AnnotatedExecutableType, List,
-         * NewClassTree)}.
+         * AnnotatedTypes#adaptParameters(AnnotatedTypeFactory, AnnotatedExecutableType, List)}.
          */
         private @MonotonicNonNull AnnotatedArrayType varargType = null;
 
