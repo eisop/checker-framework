@@ -736,6 +736,9 @@ def createJavadocTask(taskName, taskDescription, memberLevel) {
         }
 
         classpath = configurations.allProjects
+        if (isJava8) {
+            classpath += configurations.javacJar
+        }
 
         destinationDir.deleteDir()
         options.memberLevel = memberLevel
