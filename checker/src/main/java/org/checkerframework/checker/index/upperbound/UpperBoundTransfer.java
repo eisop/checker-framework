@@ -180,6 +180,11 @@ public class UpperBoundTransfer extends IndexAbstractTransfer {
      * NumericalSubtractionNode, TransferInput, CFStore)}, and {@link
      * #propagateToMultiplicationOperand(UBQualifier.LessThanLengthOf, Node, Node, TransferInput,
      * CFStore)} for details.
+     *
+     * @param typeOfNode type of node
+     * @param node the node
+     * @param in the TransferInput before propagate to this operand
+     * @param store location to store the refined type
      */
     private void propagateToOperands(
             LessThanLengthOf typeOfNode,
