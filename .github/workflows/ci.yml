@@ -110,24 +110,22 @@ jobs:
       contents: read
     strategy:
       fail-fast: true
-      allJDKVersions: ['8', '11', '17', '23', '24-ea']
-      thoroughJDKVersions: ['8', '23', '24-ea']
       matrix:
         # `jspecify-conformance` and `jspecify-reference-checker` only tested on JDK 21.
         # `runOn` is the array of Java versions to run the script on.
         script: [{name: 'cftests-junit', runOn: ['8', '11', '17', '23', '24-ea'] },
-          {name: 'cftests-nonjunit', runOn: allJDKVersions },
+          {name: 'cftests-nonjunit', runOn: ['8', '11', '17', '23', '24-ea'] },
           # Java 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
           {name: 'cftests-junit-jdk21', runOn: ['11', '17', '23', '24-ea'] },
-          {name: 'typecheck-part1', runOn: thoroughJDKVersions },
-          {name: 'typecheck-part2', runOn: thoroughJDKVersions },
-          {name: 'guava', runOn: thoroughJDKVersions },
+          {name: 'typecheck-part1', runOn:  ['8', '23', '24-ea'] },
+          {name: 'typecheck-part2', runOn: ['8', '23', '24-ea'] },
+          {name: 'guava', runOn: ['8', '23', '24-ea'] },
           # At least one plume-lib project no longer works on Java 8.
           {name: 'plume-lib', runOn: ['23', '24-ea'] },
           # Daikon produces 'this-escape' compiler warnings in JDK 22+.
           {name: 'daikon-part1', runOn: ['17'] },
           {name: 'daikon-part2', runOn: ['17'] },
-          {name: 'misc', runOn: thoroughJDKVersions }]
+          {name: 'misc', runOn: ['8', '23', '24-ea'] }]
         # JDK 21 used by `sanity` and `remainder` before.
         # `experimental` versions use the $version compiler, but run on JDK 21.
         java: [{version: '8', experimental: false},
