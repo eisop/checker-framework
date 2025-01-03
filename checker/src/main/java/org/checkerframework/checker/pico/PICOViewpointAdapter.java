@@ -7,8 +7,6 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 
 import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.Element;
-import javax.lang.model.type.TypeKind;
 
 /** A {@link AbstractViewpointAdapter} for the PICO checker. */
 public class PICOViewpointAdapter extends AbstractViewpointAdapter {
@@ -23,14 +21,6 @@ public class PICOViewpointAdapter extends AbstractViewpointAdapter {
     public PICOViewpointAdapter(AnnotatedTypeFactory atypeFactory) {
         super(atypeFactory);
         picoTypeFactory = (PICONoInitAnnotatedTypeFactory) atypeFactory;
-    }
-
-    @Override
-    protected boolean shouldAdaptMember(AnnotatedTypeMirror type, Element element) {
-        if (!(type.getKind() == TypeKind.DECLARED || type.getKind() == TypeKind.ARRAY)) {
-            return false;
-        }
-        return super.shouldAdaptMember(type, element);
     }
 
     @Override
