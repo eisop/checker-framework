@@ -1,6 +1,6 @@
 import viewpointtest.quals.*;
 
-public class LostNonReflexive {
+@ReceiverDependentQual public class LostNonReflexive {
     @ReceiverDependentQual Object f;
 
     @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
@@ -17,16 +17,15 @@ public class LostNonReflexive {
         this.f = obj.f;
         this.f = bottomObj;
 
-        // :: error: (assignment.type.incompatible)
+        // :: error: (assignment.type.incompatible) :: error: (method.invocation.invalid)
         @A Object aObj = obj.get();
-        // :: error: (assignment.type.incompatible)
+        // :: error: (assignment.type.incompatible) :: error: (method.invocation.invalid)
         @B Object bObj = obj.get();
-        // :: error: (assignment.type.incompatible)
+        // :: error: (assignment.type.incompatible) :: error: (method.invocation.invalid)
         @Bottom Object botObj = obj.get();
 
-        // :: error: (argument.type.incompatible) :: error: (new.class.type.invalid)
+        // :: error: (argument.type.incompatible)
         new LostNonReflexive(obj.f);
-        // :: error: (new.class.type.invalid)
         new LostNonReflexive(bottomObj);
 
         // :: error: (argument.type.incompatible)

@@ -3,7 +3,7 @@ import viewpointtest.quals.*;
 public class PolyConstructor {
 
     static class MyClass {
-        // :: error: (super.invocation.invalid) :: warning: (inconsistent.constructor.type)
+        // :: warning: (inconsistent.constructor.type)
         @PolyVP MyClass(@PolyVP Object o) {
             // :: error: (new.class.type.invalid)
             throw new RuntimeException(" * You are filled with DETERMINATION."); // stub
