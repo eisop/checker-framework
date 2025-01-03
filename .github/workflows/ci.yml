@@ -39,7 +39,7 @@ jobs:
 
     - name: Setup Bazel
       uses: bazel-contrib/setup-bazel@0.10.0
-      if: matrix.script == 'cftests-nonjunit'
+      if: ${{ matrix.script == 'cftests-nonjunit' }}
       with:
         # Avoid downloading Bazel every time.
         bazelisk-cache: true
@@ -70,11 +70,11 @@ jobs:
       JAVA_VERSION: ${{ matrix.java_version }}
     steps:
     - uses: actions/checkout@v4
-      if: matrix.script != 'misc'
+      if: ${{ matrix.script != 'misc' }}
       with:
         fetch-depth: 1
     - uses: actions/checkout@v4
-      if: matrix.script == 'misc'
+      if: ${{ matrix.script == 'misc' }}
       with:
         # CI diff needs more history - 0 fetches all history.
         fetch-depth: 0
@@ -90,7 +90,7 @@ jobs:
       uses: gradle/actions/setup-gradle@v4.2.2
       # Setup for misc tests
     - name: Install misc dependencies
-      if: matrix.script == 'misc'
+      if: ${{ matrix.script == 'misc' }}
       run: |
         sudo apt install -y shellcheck devscripts python3-pip \
           texlive-latex-base texlive-latex-extra latexmk librsvg2-bin \
@@ -138,7 +138,7 @@ jobs:
     continue-on-error: ${{ matrix.java.experimental }}
     steps:
     - uses: actions/checkout@v4
-      if: ${{ matrix.script.name != 'misc' }
+      if: ${{ matrix.script.name != 'misc' }}
       with:
         fetch-depth: 1
     - uses: actions/checkout@v4
@@ -152,7 +152,7 @@ jobs:
         java-version: ${{ matrix.java.version }}
         distribution: 'temurin'
     - name: Set up JDK 21 on an experimental platform
-      if: matrix.java.experimental
+      if: ${{ matrix.java.experimental }}
       uses: actions/setup-java@v4
       with:
         # Install JDK 21 second, to make it the default on which gradle runs.
@@ -225,7 +225,7 @@ jobs:
       uses: gradle/actions/setup-gradle@v4.2.2
 
     - name: Install coreutils on MacOS
-      if: matrix.os == 'macos-latest'
+      if: ${{ matrix.os == 'macos-latest' }}
       run: brew install coreutils
 
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
