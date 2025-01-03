@@ -115,7 +115,7 @@ jobs:
       matrix:
         # `jspecify-conformance` and `jspecify-reference-checker` only tested on JDK 21.
         # `runOn` is the array of Java versions to run the script on.
-        script: [{name: 'cftests-junit', runOn: ${{ allJDKVersions }} },
+        script: [{name: 'cftests-junit', runOn: ['8', '11', '17', '23', '24-ea'] },
           {name: 'cftests-nonjunit', runOn: ${{ allJDKVersions }} },
           # Java 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
           {name: 'cftests-junit-jdk21', runOn: ['11', '17', '23', '24-ea'] },
