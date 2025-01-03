@@ -110,27 +110,31 @@ jobs:
       contents: read
     strategy:
       fail-fast: true
+      allJDKVersions: ['8', '11', '17', '23', '24-ea']
+      thoroughJDKVersions: ['8', '23', '24-ea']
       matrix:
-        # jspecify-conformance and jspecify-reference-checker only tested on JDK 21.
-        # `always` scripts are run on every JDK version, otherwise only on `thorough` versions.
-        script: [{name: 'cftests-junit', always: true},
-          {name: 'cftests-nonjunit', always: true},
-          {name: 'cftests-junit-jdk21', always: true},
-          {name: 'typecheck-part1', always: false},
-          {name: 'typecheck-part2', always: false},
-          {name: 'guava', always: false},
-          {name: 'plume-lib', always: false},
-          {name: 'daikon-part1', always: false},
-          {name: 'daikon-part2', always: false},
-          {name: 'misc', always: false}]
-        # JDK 21 used by sanity and remainder before.
-        # experimental versions use the $version compiler, but run on JDK 21.
-        # `thorough` versions execute non-`always` scripts.
-        java: [{version: '8', experimental: false, thorough: true},
-          {version: '11', experimental: false, thorough: false},
-          {version: '17', experimental: false, thorough: false},
-          {version: '23', experimental: false, thorough: true},
-          {version: '24-ea', experimental: true, thorough: true}]
+        # `jspecify-conformance` and `jspecify-reference-checker` only tested on JDK 21.
+        # `runOn` is the array of Java versions to run the script on.
+        script: [{name: 'cftests-junit', runOn: ${{ allJDKVersions }} },
+          {name: 'cftests-nonjunit', runOn: ${{ allJDKVersions }} },
+          # Java 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
+          {name: 'cftests-junit-jdk21', runOn: ['11', '17', '23', '24-ea'] },
+          {name: 'typecheck-part1', runOn: ${{ thoroughJDKVersions }} },
+          {name: 'typecheck-part2', runOn: ${{ thoroughJDKVersions }} },
+          {name: 'guava', runOn: ${{ thoroughJDKVersions }} },
+          # At least one plume-lib project no longer works on Java 8.
+          {name: 'plume-lib', runOn: ['23', '24-ea'] },
+          # Daikon produces 'this-escape' compiler warnings in JDK 22+.
+          {name: 'daikon-part1', runOn: ['17'] },
+          {name: 'daikon-part2', runOn: ['17'] },
+          {name: 'misc', runOn: ${{ thoroughJDKVersions }} }]
+        # JDK 21 used by `sanity` and `remainder` before.
+        # `experimental` versions use the $version compiler, but run on JDK 21.
+        java: [{version: '8', experimental: false},
+          {version: '11', experimental: false},
+          {version: '17', experimental: false},
+          {version: '23', experimental: false},
+          {version: '24-ea', experimental: true}]
     env:
       JAVA_VERSION: ${{ matrix.java.version }}
     continue-on-error: ${{ matrix.java.experimental }}
@@ -140,7 +144,7 @@ jobs:
       with:
         fetch-depth: 1
     - uses: actions/checkout@v4
-      if: (matrix.script.always || matrix.java.thorough) && matrix.script.name == 'misc'
+      if: contains(matrix.script.runOn, matrix.java.version) && matrix.script.name == 'misc'
       with:
         # CI diff needs more history - 0 fetches all history.
         fetch-depth: 0
@@ -164,7 +168,7 @@ jobs:
       uses: gradle/actions/setup-gradle@v4.2.2
     # Setup for misc tests
     - name: Install misc dependencies
-      if: (matrix.script.always || matrix.java.thorough) && matrix.script.name == 'misc'
+      if: contains(matrix.script.runOn, matrix.java.version) && matrix.script.name == 'misc'
       run: |
         sudo apt install -y shellcheck devscripts python3-pip \
           texlive-latex-base texlive-latex-extra latexmk librsvg2-bin \
@@ -175,7 +179,7 @@ jobs:
         pip install black flake8 html5validator
     - name: Setup Bazel
       uses: bazel-contrib/setup-bazel@0.10.0
-      if: (matrix.script.always || matrix.java.thorough) && matrix.script.name == 'cftests-nonjunit'
+      if: contains(matrix.script.runOn, matrix.java.version) && matrix.script.name == 'cftests-nonjunit'
       with:
         # Avoid downloading Bazel every time.
         bazelisk-cache: true
@@ -189,13 +193,7 @@ jobs:
       # TODO: it would be nicer to not run the job at all, but GH Actions does
       # not allow accessing the matrix on the job-if clause. There is also no way
       # for an earlier step to stop execution successfully.
-      #
-      # At least one plume-lib project no longer works on Java 8.
-      # Java 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
-      # Daikon produces 'this-escape' compiler warnings in JDK 22+.
-      if: (matrix.script.always || matrix.java.thorough) &&
-        (matrix.java.version != 8 || (matrix.script.name != 'plume-lib' && matrix.script.name != 'cftests-junit-jdk21')) &&
-        (matrix.java.version <= 21 || (matrix.script.name != 'daikon-part1' && matrix.script.name != 'daikon-part2'))
+      if: contains(matrix.script.runOn, matrix.java.version)
       # Set the compiler version to use, allowing us to e.g. run Java 23 while gradle does not work
       # on Java 23 yet. This only tests the compiler, it does not use that version to run the tests.
       env:
