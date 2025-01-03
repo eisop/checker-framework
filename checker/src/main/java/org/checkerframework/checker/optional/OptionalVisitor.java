@@ -419,7 +419,7 @@ public class OptionalVisitor
             MethodInvocationTree methodCall = (MethodInvocationTree) receiver;
             if (isOptionalPropagation(methodCall)) {
                 receiver = TreeUtils.getReceiverTree(methodCall);
-                continue;
+                // Continue with new receiver.
             } else if (isOptionalCreation(methodCall)) {
                 checker.reportWarning(tree, "introduce.eliminate");
                 return;

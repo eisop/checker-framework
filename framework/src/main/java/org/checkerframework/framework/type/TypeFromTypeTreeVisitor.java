@@ -115,7 +115,6 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
     @Override
     public AnnotatedTypeMirror visitParameterizedType(
             ParameterizedTypeTree tree, AnnotatedTypeFactory f) {
-
         ClassSymbol baseType = (ClassSymbol) TreeUtils.elementFromTree(tree.getType());
         updateWildcardBounds(tree.getTypeArguments(), baseType.getTypeParameters());
 
@@ -193,7 +192,6 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
     @Override
     public AnnotatedTypeVariable visitTypeParameter(
             TypeParameterTree tree, @FindDistinct AnnotatedTypeFactory f) {
-
         List<AnnotatedTypeMirror> bounds = new ArrayList<>(tree.getBounds().size());
         for (Tree t : tree.getBounds()) {
             AnnotatedTypeMirror bound;
@@ -229,9 +227,7 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
 
     @Override
     public AnnotatedTypeMirror visitWildcard(WildcardTree tree, AnnotatedTypeFactory f) {
-
         AnnotatedTypeMirror bound = visit(tree.getBound(), f);
-
         AnnotatedTypeMirror result = f.type(tree);
         assert result instanceof AnnotatedWildcardType;
 
@@ -318,7 +314,6 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
      */
     private int findIndex(
             List<? extends TypeParameterElement> typeParameters, TypeParameterElement type) {
-
         TypeVariable typeVariable = (TypeVariable) type.asType();
 
         for (int i = 0; i < typeParameters.size(); i++) {
@@ -332,7 +327,6 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
 
     @Override
     public AnnotatedTypeMirror visitIdentifier(IdentifierTree tree, AnnotatedTypeFactory f) {
-
         AnnotatedTypeMirror type = f.type(tree);
 
         if (type.getKind() == TypeKind.TYPEVAR) {
@@ -344,7 +338,6 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
 
     @Override
     public AnnotatedTypeMirror visitMemberSelect(MemberSelectTree tree, AnnotatedTypeFactory f) {
-
         AnnotatedTypeMirror type = f.type(tree);
 
         if (type.getKind() == TypeKind.TYPEVAR) {

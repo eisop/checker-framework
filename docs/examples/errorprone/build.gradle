@@ -6,20 +6,29 @@ plugins {
     id 'java'
     id 'net.ltgt.errorprone' version '4.1.0'
     // Checker Framework pluggable type-checking
-    id 'org.checkerframework' version '0.6.45'
+    id 'org.checkerframework' version '0.6.47'
 }
 
 ext {
     versions = [
-        eisopVersion: '3.42.0-eisop4',
+        eisopVersion: '3.42.0-eisop5',
     ]
 }
 
 apply plugin: 'org.checkerframework'
-dependencies {
-    compileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
-    testCompileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
-    checkerFramework "io.github.eisop:checker:${versions.eisopVersion}"
+if (true) {
+    def cfHome = "${projectDir}/../../.."
+    dependencies {
+        compileOnly files(cfHome + '/checker/dist/checker-qual.jar')
+        testCompileOnly files(cfHome + '/checker/dist/checker-qual.jar')
+        checkerFramework files(cfHome + '/checker/dist/checker.jar')
+    }
+} else {
+    dependencies {
+        compileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
+        testCompileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
+        checkerFramework "io.github.eisop:checker:${versions.eisopVersion}"
+    }
 }
 
 dependencies {
@@ -29,7 +38,7 @@ dependencies {
     } else if (JavaVersion.current() < JavaVersion.VERSION_17) {
         errorprone 'com.google.errorprone:error_prone_core:2.31.0'
     } else {
-        errorprone 'com.google.errorprone:error_prone_core:2.34.0'
+        errorprone 'com.google.errorprone:error_prone_core:2.36.0'
     }
 }
 
@@ -41,6 +50,7 @@ checkerFramework {
     checkers = [
         'org.checkerframework.checker.nullness.NullnessChecker',
     ]
+    extraJavacArgs = ['-Aversion']
 }
 
 compileJava {
