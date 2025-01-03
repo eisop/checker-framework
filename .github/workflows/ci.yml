@@ -175,7 +175,7 @@ jobs:
         pip install black flake8 html5validator
     - name: Setup Bazel
       uses: bazel-contrib/setup-bazel@0.10.0
-      if: (matrix.script.always || matrix.java.thorough) && matrix.script == 'cftests-nonjunit'
+      if: (matrix.script.always || matrix.java.thorough) && matrix.script.name == 'cftests-nonjunit'
       with:
         # Avoid downloading Bazel every time.
         bazelisk-cache: true
@@ -194,8 +194,8 @@ jobs:
       # Java 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
       # Daikon produces 'this-escape' compiler warnings in JDK 22+.
       if: (matrix.script.always || matrix.java.thorough) &&
-        (matrix.java.version != 8 || (matrix.script != 'plume-lib' && matrix.script != 'cftests-junit-jdk21')) &&
-        (matrix.java.version <= 21 || (matrix.script != 'daikon-part1' && matrix.script != 'daikon-part2'))
+        (matrix.java.version != 8 || (matrix.script.name != 'plume-lib' && matrix.script.name != 'cftests-junit-jdk21')) &&
+        (matrix.java.version <= 21 || (matrix.script.name != 'daikon-part1' && matrix.script.name != 'daikon-part2'))
       # Set the compiler version to use, allowing us to e.g. run Java 23 while gradle does not work
       # on Java 23 yet. This only tests the compiler, it does not use that version to run the tests.
       env:
