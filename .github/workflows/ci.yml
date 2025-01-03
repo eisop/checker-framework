@@ -138,11 +138,11 @@ jobs:
     continue-on-error: ${{ matrix.java.experimental }}
     steps:
     - uses: actions/checkout@v4
-      if: matrix.script.name != 'misc'
+      if: ${{ matrix.script.name != 'misc' }
       with:
         fetch-depth: 1
     - uses: actions/checkout@v4
-      if: ${{ contains(fromJSON(matrix.script.runOn), matrix.java.version) && matrix.script.name == 'misc' }}
+      if: ${{ contains(matrix.script.runOn, matrix.java.version) && matrix.script.name == 'misc' }}
       with:
         # CI diff needs more history - 0 fetches all history.
         fetch-depth: 0
@@ -166,7 +166,7 @@ jobs:
       uses: gradle/actions/setup-gradle@v4.2.2
     # Setup for misc tests
     - name: Install misc dependencies
-      if: contains(fromJSON(matrix.script.runOn), matrix.java.version) && matrix.script.name == 'misc'
+      if: ${{ contains(matrix.script.runOn, matrix.java.version) && matrix.script.name == 'misc' }}
       run: |
         sudo apt install -y shellcheck devscripts python3-pip \
           texlive-latex-base texlive-latex-extra latexmk librsvg2-bin \
@@ -177,7 +177,7 @@ jobs:
         pip install black flake8 html5validator
     - name: Setup Bazel
       uses: bazel-contrib/setup-bazel@0.10.0
-      if: contains(fromJSON(matrix.script.runOn), matrix.java.version) && matrix.script.name == 'cftests-nonjunit'
+      if: ${{ contains(matrix.script.runOn, matrix.java.version) && matrix.script.name == 'cftests-nonjunit' }}
       with:
         # Avoid downloading Bazel every time.
         bazelisk-cache: true
@@ -191,7 +191,7 @@ jobs:
       # TODO: it would be nicer to not run the job at all, but GH Actions does
       # not allow accessing the matrix on the job-if clause. There is also no way
       # for an earlier step to stop execution successfully.
-      if: contains(fromJSON(matrix.script.runOn), matrix.java.version)
+      if: ${{ contains(matrix.script.runOn, matrix.java.version) }}
       # Set the compiler version to use, allowing us to e.g. run Java 23 while gradle does not work
       # on Java 23 yet. This only tests the compiler, it does not use that version to run the tests.
       env:
