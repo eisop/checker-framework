@@ -164,9 +164,9 @@ jobs:
           - script: 'daikon-part2'
         include:
           - script: 'daikon-part1'
-            java: {version: '17'}
+            java: {version: '17', experimental: false}
           - script: 'daikon-part2'
-            java: {version: '17'}
+            java: {version: '17', experimental: false}
 
     env:
       JAVA_VERSION: ${{ matrix.java.version }}
