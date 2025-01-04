@@ -137,22 +137,25 @@ jobs:
       JAVA_VERSION: ${{ matrix.java.version }}
     continue-on-error: ${{ matrix.java.experimental }}
     steps:
-    - uses: actions/checkout@v4
-      if: ${{ matrix.script.name != 'misc' }}
+    - name: Check out sources
+      uses: actions/checkout@v4
+      if: ${{ contains(matrix.script.runOn, matrix.java.version) && matrix.script.name != 'misc' }}
       with:
         fetch-depth: 1
-    - uses: actions/checkout@v4
+    - name: Check out sources with all history
+      uses: actions/checkout@v4
       if: ${{ contains(matrix.script.runOn, matrix.java.version) && matrix.script.name == 'misc' }}
       with:
         # CI diff needs more history - 0 fetches all history.
         fetch-depth: 0
     - name: Set up JDK ${{ matrix.java.version }}
+      if: ${{ contains(matrix.script.runOn, matrix.java.version) }}
       uses: actions/setup-java@v4
       with:
         java-version: ${{ matrix.java.version }}
         distribution: 'temurin'
     - name: Set up JDK 21 on an experimental platform
-      if: ${{ matrix.java.experimental }}
+      if: ${{ contains(matrix.script.runOn, matrix.java.version) && matrix.java.experimental }}
       uses: actions/setup-java@v4
       with:
         # Install JDK 21 second, to make it the default on which gradle runs.
@@ -164,7 +167,7 @@ jobs:
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4.2.2
-    # Setup for misc tests
+      if: ${{ contains(matrix.script.runOn, matrix.java.version) }}
     - name: Install misc dependencies
       if: ${{ contains(matrix.script.runOn, matrix.java.version) && matrix.script.name == 'misc' }}
       run: |
@@ -196,6 +199,10 @@ jobs:
       # on Java 23 yet. This only tests the compiler, it does not use that version to run the tests.
       env:
         ORG_GRADLE_PROJECT_useJdkCompiler: ${{ matrix.java.version }}
+
+    - name: Output a message if nothing was done
+      run: echo "No script executed because ${{ matrix.script.name }} is not configured to run on ${{ matrix.java.version }}"
+      if ${{ ! contains(matrix.script.runOn, matrix.java.version) }}
 
   # Sanity tests on Windows and MacOS.
   otheros:
