@@ -202,7 +202,7 @@ jobs:
 
     - name: Output a message if nothing was done
       run: echo "No script executed because ${{ matrix.script.name }} is not configured to run on ${{ matrix.java.version }}"
-      if ${{ ! contains(matrix.script.runOn, matrix.java.version) }}
+      if: ${{ ! contains(matrix.script.runOn, matrix.java.version) }}
 
   # Sanity tests on Windows and MacOS.
   otheros:
