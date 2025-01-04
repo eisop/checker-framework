@@ -129,42 +129,44 @@ jobs:
           {version: '23', experimental: false},
           {version: '24-ea', experimental: true}]
         exclude:
-          # Java 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
+          # JDK 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
           - script: 'cftests-junit-jdk21'
             java: {version: '8'}
-          # Only run `typecheck*`, `guava`, and `misc` scripts on core versions
+          # Only run `typecheck*`, `guava`, and `misc` scripts on core versions,
+          # so exclude 11 and 17.
           - script: 'typecheck-part1'
-            java: {version: '11', experimental: false}
+            java: {version: '11'}
           - script: 'typecheck-part1'
-            java: {version: '17', experimental: false}
+            java: {version: '17'}
           - script: 'typecheck-part2'
-            java: {version: '11', experimental: false}
+            java: {version: '11'}
           - script: 'typecheck-part2'
-            java: {version: '17', experimental: false}
+            java: {version: '17'}
           - script: 'guava'
-            java: {version: '11', experimental: false}
+            java: {version: '11'}
           - script: 'guava'
-            java: {version: '17', experimental: false}
+            java: {version: '17'}
           - script: 'misc'
-            java: {version: '11', experimental: false}
+            java: {version: '11'}
           - script: 'misc'
-            java: {version: '17', experimental: false}
-          # At least one plume-lib project no longer works on Java 8.
+            java: {version: '17'}
+          # At least one plume-lib project no longer works on Java 8,
+          # so exclude 8, 11, and 17.
           - script: 'plume-lib'
-            java: {version: '8', experimental: false}
+            java: {version: '8'}
           - script: 'plume-lib'
-            java: {version: '11', experimental: false}
+            java: {version: '11'}
           - script: 'plume-lib'
-            java: {version: '17', experimental: false}
+            java: {version: '17'}
           # Daikon produces 'this-escape' compiler warnings in JDK 22+.
           # Exclude all versions here and just explicitly include with JDK 17.
           - script: 'daikon-part1'
           - script: 'daikon-part2'
         include:
           - script: 'daikon-part1'
-            java: {version: '17', experimental: false}
+            java: {version: '17'}
           - script: 'daikon-part2'
-            java: {version: '17', experimental: false}
+            java: {version: '17'}
 
     env:
       JAVA_VERSION: ${{ matrix.java.version }}
