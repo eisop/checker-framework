@@ -131,7 +131,7 @@ jobs:
         exclude:
           # Java 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
           - script: 'cftests-junit-jdk21'
-            java: {version: '8', experimental: false}
+            java: {version: '8'}
           # Only run `typecheck*`, `guava`, and `misc` scripts on core versions
           - script: 'typecheck-part1'
             java: {version: '11', experimental: false}
