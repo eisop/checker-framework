@@ -39,7 +39,7 @@ jobs:
 
     - name: Setup Bazel
       uses: bazel-contrib/setup-bazel@0.10.0
-      if: matrix.script == 'cftests-nonjunit'
+      if: ${{ matrix.script == 'cftests-nonjunit' }}
       with:
         # Avoid downloading Bazel every time.
         bazelisk-cache: true
@@ -64,17 +64,21 @@ jobs:
       fail-fast: true
       matrix:
         # No need to run 'cftests-junit-jdk21' on JDK 21.
-        script: ['typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib', 'daikon-part1', 'daikon-part2', 'jspecify-conformance', 'jspecify-reference-checker', 'misc']
+        script: ['typecheck-part1', 'typecheck-part2',
+          'guava', 'plume-lib',
+          'daikon-part1', 'daikon-part2',
+          'jspecify-conformance', 'jspecify-reference-checker',
+          'misc']
         java_version: [21]
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
     steps:
     - uses: actions/checkout@v4
-      if: matrix.script != 'misc'
+      if: ${{ matrix.script != 'misc' }}
       with:
         fetch-depth: 1
     - uses: actions/checkout@v4
-      if: matrix.script == 'misc'
+      if: ${{ matrix.script == 'misc' }}
       with:
         # CI diff needs more history - 0 fetches all history.
         fetch-depth: 0
@@ -90,7 +94,7 @@ jobs:
       uses: gradle/actions/setup-gradle@v4.2.2
       # Setup for misc tests
     - name: Install misc dependencies
-      if: matrix.script == 'misc'
+      if: ${{ matrix.script == 'misc' }}
       run: |
         sudo apt install -y shellcheck devscripts python3-pip \
           texlive-latex-base texlive-latex-extra latexmk librsvg2-bin \
@@ -111,24 +115,71 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        # jspecify-conformance and jspecify-reference-checker only tested on JDK 21.
-        script: ['cftests-junit', 'cftests-nonjunit', 'cftests-junit-jdk21', 'typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib', 'daikon-part1', 'daikon-part2', 'misc']
-        # JDK 21 used by sanity before
+        # `jspecify-conformance` and `jspecify-reference-checker` only tested on JDK 21.
+        script: ['cftests-junit', 'cftests-nonjunit', 'cftests-junit-jdk21',
+          'typecheck-part1', 'typecheck-part2',
+          'guava', 'plume-lib',
+          'daikon-part1', 'daikon-part2',
+          'misc']
+        # JDK 21 used by `sanity` and `remainder` before.
+        # `experimental` versions use the $version compiler, but run on JDK 21.
         java: [{version: '8', experimental: false},
           {version: '11', experimental: false},
           {version: '17', experimental: false},
           {version: '23', experimental: false},
           {version: '24-ea', experimental: true}]
+        exclude:
+          # JDK 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
+          - script: 'cftests-junit-jdk21'
+            java: {version: '8'}
+          # Only run `typecheck*`, `guava`, and `misc` scripts on core versions,
+          # so exclude 11 and 17.
+          - script: 'typecheck-part1'
+            java: {version: '11'}
+          - script: 'typecheck-part1'
+            java: {version: '17'}
+          - script: 'typecheck-part2'
+            java: {version: '11'}
+          - script: 'typecheck-part2'
+            java: {version: '17'}
+          - script: 'guava'
+            java: {version: '11'}
+          - script: 'guava'
+            java: {version: '17'}
+          - script: 'misc'
+            java: {version: '11'}
+          - script: 'misc'
+            java: {version: '17'}
+          # At least one plume-lib project no longer works on Java 8,
+          # so exclude 8, 11, and 17.
+          - script: 'plume-lib'
+            java: {version: '8'}
+          - script: 'plume-lib'
+            java: {version: '11'}
+          - script: 'plume-lib'
+            java: {version: '17'}
+          # Daikon produces 'this-escape' compiler warnings in JDK 22+.
+          # Exclude all versions here and just explicitly include with JDK 17.
+          - script: 'daikon-part1'
+          - script: 'daikon-part2'
+        include:
+          - script: 'daikon-part1'
+            java: {version: '17', experimental: false}
+          - script: 'daikon-part2'
+            java: {version: '17', experimental: false}
+
     env:
       JAVA_VERSION: ${{ matrix.java.version }}
     continue-on-error: ${{ matrix.java.experimental }}
     steps:
-    - uses: actions/checkout@v4
-      if: matrix.script != 'misc'
+    - name: Check out sources
+      uses: actions/checkout@v4
+      if: ${{ matrix.script != 'misc' }}
       with:
         fetch-depth: 1
-    - uses: actions/checkout@v4
-      if: matrix.script == 'misc'
+    - name: Check out sources with all history
+      uses: actions/checkout@v4
+      if: ${{ matrix.script == 'misc' }}
       with:
         # CI diff needs more history - 0 fetches all history.
         fetch-depth: 0
@@ -138,7 +189,7 @@ jobs:
         java-version: ${{ matrix.java.version }}
         distribution: 'temurin'
     - name: Set up JDK 21 on an experimental platform
-      if: matrix.java.experimental
+      if: ${{ matrix.java.experimental }}
       uses: actions/setup-java@v4
       with:
         # Install JDK 21 second, to make it the default on which gradle runs.
@@ -150,9 +201,8 @@ jobs:
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4.2.2
-    # Setup for misc tests
     - name: Install misc dependencies
-      if: matrix.script == 'misc'
+      if: ${{ matrix.script == 'misc' }}
       run: |
         sudo apt install -y shellcheck devscripts python3-pip \
           texlive-latex-base texlive-latex-extra latexmk librsvg2-bin \
@@ -163,7 +213,7 @@ jobs:
         pip install black flake8 html5validator
     - name: Setup Bazel
       uses: bazel-contrib/setup-bazel@0.10.0
-      if: matrix.script == 'cftests-nonjunit'
+      if: ${{ matrix.script == 'cftests-nonjunit' }}
       with:
         # Avoid downloading Bazel every time.
         bazelisk-cache: true
@@ -174,15 +224,6 @@ jobs:
 
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
       run: ./checker/bin-devel/test-${{ matrix.script }}.sh
-      # TODO: it would be nicer to not run the job at all, but GH Actions does
-      # not allow accessing the matrix on the job-if clause. There is also no way
-      # for an earlier step to stop execution successfully.
-      #
-      # At least one plume-lib project no longer works on Java 8.
-      # Java 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
-      # Daikon produces 'this-escape' compiler warnings in JDK 22+.
-      if: (matrix.java.version != 8 || (matrix.script != 'plume-lib' && matrix.script != 'cftests-junit-jdk21')) &&
-        (matrix.java.version <= 21 || (matrix.script != 'daikon-part1' && matrix.script != 'daikon-part2'))
       # Set the compiler version to use, allowing us to e.g. run Java 23 while gradle does not work
       # on Java 23 yet. This only tests the compiler, it does not use that version to run the tests.
       env:
@@ -216,7 +257,7 @@ jobs:
       uses: gradle/actions/setup-gradle@v4.2.2
 
     - name: Install coreutils on MacOS
-      if: matrix.os == 'macos-latest'
+      if: ${{ matrix.os == 'macos-latest' }}
       run: brew install coreutils
 
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
