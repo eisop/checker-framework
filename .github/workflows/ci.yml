@@ -109,7 +109,7 @@ jobs:
   otherjdks:
     name: ${{ matrix.script }} on JDK ${{ matrix.java.version }}
     runs-on: ubuntu-latest
-      # needs: sanity
+    needs: sanity
     permissions:
       contents: read
     strategy:
