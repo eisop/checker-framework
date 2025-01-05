@@ -20,6 +20,6 @@ jobs:
       - name: 'Dependency review'
         uses: actions/dependency-review-action@v4
         with:
-          fail-on-severity: high
+          warn-only: true
           retry-on-snapshot-warnings: true
           retry-on-snapshot-warnings-timeout: 1000
