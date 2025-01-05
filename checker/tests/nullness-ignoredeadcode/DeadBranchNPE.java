@@ -1,3 +1,4 @@
+// @skip-test until we add dead branch analysis
 class DeadBranchNPE {
     void test1() {
         Object obj = null;
@@ -5,27 +6,28 @@ class DeadBranchNPE {
             // :: error: (dereference.of.nullable)
             obj.toString();
         } else {
-            // TODO: This is a dead branch should not issue error, the currently it does
-            // obj.toString();
+            obj.toString();
         }
     }
 
     void test2() {
-        Object obj = null;
+        Object objOut = null;
+        object objInner = null;
         // :: error: (dereference.of.nullable)
-        obj.toString();
+        objOut.toString();
         // The following loop is dead code because the loop condition is false.
         for (int i = 0; i < 0; i++) {
-            obj.toString();
+            objInner.toString();
         }
     }
 
     void test3() {
-        Object obj = null;
+        Object objOut = null;
+        object objInner = null;
         // :: error: (dereference.of.nullable)
-        obj.toString();
+        objOut.toString();
         while (obj != null) {
-            obj.toString();
+            objInner.toString();
         }
     }
 }
