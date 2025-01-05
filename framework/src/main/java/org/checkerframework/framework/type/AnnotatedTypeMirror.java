@@ -1213,7 +1213,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         /** The parameter types; an unmodifiable list. */
         private @MonotonicNonNull List<AnnotatedTypeMirror> paramTypes = null;
 
-        /** Whether {@link paramTypes} has been computed. */
+        /** Whether {@link #paramTypes} has been computed. */
         private boolean paramTypesComputed = false;
 
         /**
@@ -1223,32 +1223,33 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         private @Nullable AnnotatedDeclaredType receiverType;
 
         /**
-         * The varargs type is the last element of {@link paramTypes} if the method or constructor
-         * accepts a variable number of arguments and the {@link paramTypes} has not been expanded
+         * The varargs type is the last element of {@link #paramTypes} if the method or constructor
+         * accepts a variable number of arguments and the {@link #paramTypes} has not been expanded
          * yet. This type needs to be stored in the field to avoid being affected by calling {@link
-         * AnnotatedTypes#adaptParameters(AnnotatedTypeFactory, AnnotatedExecutableType, List)}.
+         * AnnotatedTypes#adaptParameters(AnnotatedTypeFactory,
+         * AnnotatedTypeMirror.AnnotatedExecutableType, List, com.sun.source.tree.NewClassTree)}.
          */
         private @MonotonicNonNull AnnotatedArrayType varargType = null;
 
-        /** Whether {@link receiverType} has been computed. */
+        /** Whether {@link #receiverType} has been computed. */
         private boolean receiverTypeComputed = false;
 
         /** The return type. */
         private AnnotatedTypeMirror returnType;
 
-        /** Whether {@link returnType} has been computed. */
+        /** Whether {@link #returnType} has been computed. */
         private boolean returnTypeComputed = false;
 
         /** The thrown types; an unmodifiable list. */
         private List<AnnotatedTypeMirror> thrownTypes;
 
-        /** Whether {@link thrownTypes} has been computed. */
+        /** Whether {@link #thrownTypes} has been computed. */
         private boolean thrownTypesComputed = false;
 
         /** The type variables; an unmodifiable list. */
         private List<AnnotatedTypeVariable> typeVarTypes;
 
-        /** Whether {@link typeVarTypes} has been computed. */
+        /** Whether {@link #typeVarTypes} has been computed. */
         private boolean typeVarTypesComputed = false;
 
         /**
@@ -1285,7 +1286,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         /**
          * Sets the parameter types of this executable type, excluding the receiver.If paramTypes
          * has been computed and this type is a varargs method, computes and store {@link
-         * varargType} before calling this method, @see {@link varargType}
+         * #varargType} before calling this method, @see {@link #varargType}
          *
          * @param params an unmodifiable list of parameter types to be captured by this method,
          *     excluding the receiver
@@ -1344,11 +1345,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         /**
-         * Computes the vararg type of this executable type and stores it in {@link varargType}.
+         * Computes the vararg type of this executable type and stores it in {@link #varargType}.
          *
-         * <p>This method computes {@link varargType} using the {@link paramTypes} of this
-         * executable type. To use the {@link paramTypes} from different executable type, use {@link
-         * #computeVarargType(AnnotatedExecutableType)}.
+         * <p>This method computes {@link #varargType} using the {@link #paramTypes} of this
+         * executable type. To use the {@link #paramTypes} from different executable type, use
+         * {@link #computeVarargType(AnnotatedTypeMirror.AnnotatedExecutableType)}.
          */
         /*package-private*/ void computeVarargType() {
             computeVarargType(paramTypes);
@@ -1356,7 +1357,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
 
         /**
          * Computes the vararg type using the passed executable type and stores it in this {@link
-         * varargType}.
+         * #varargType}.
          *
          * @param annotatedExecutableType an AnnotatedExecutableType
          */
@@ -1367,7 +1368,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
 
         /**
          * Helper function for {@link #computeVarargType()} and {@link
-         * #computeVarargType(AnnotatedExecutableType)}.
+         * #computeVarargType(AnnotatedTypeMirror.AnnotatedExecutableType)}.
          *
          * @param paramTypes the parameter types to determine the vararg type
          */
