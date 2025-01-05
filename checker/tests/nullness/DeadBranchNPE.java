@@ -12,7 +12,7 @@ class DeadBranchNPE {
 
     void test2() {
         Object objOut = null;
-        object objInner = null;
+        Object objInner = null;
         // :: error: (dereference.of.nullable)
         objOut.toString();
         // The following loop is dead code because the loop condition is false.
@@ -24,10 +24,10 @@ class DeadBranchNPE {
 
     void test3() {
         Object objOut = null;
-        object objInner = null;
+        Object objInner = null;
         // :: error: (dereference.of.nullable)
         objOut.toString();
-        while (obj != null) {
+        while (objOut != null) {
             // :: error: (dereference.of.nullable)
             objInner.toString();
         }
