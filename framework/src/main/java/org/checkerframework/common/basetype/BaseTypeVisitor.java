@@ -3815,7 +3815,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * constructor result type. This is equivalent to down-casting.
      *
      * <p>For type checking of the enclosing expression of inner type instantiations, see {@link
-     * #checkEnclosingExpr(NewClassTree, AnnotatedExecutableType)}
+     * #checkEnclosingExpr(NewClassTree, AnnotatedTypeMirror.AnnotatedExecutableType)}
      *
      * @param invocation the AnnotatedDeclaredType of the constructor invocation
      * @param constructor the AnnotatedExecutableType of the constructor declaration
