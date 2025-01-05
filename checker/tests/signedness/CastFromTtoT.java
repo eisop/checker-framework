@@ -1,6 +1,6 @@
-import org.checkerframework.checker.signedness.qual.*;
-
-import java.util.*;
+import org.checkerframework.checker.signedness.qual.Signed;
+import org.checkerframework.checker.signedness.qual.SignednessGlb;
+import org.checkerframework.checker.signedness.qual.UnknownSignedness;
 
 class CastFromTtoT<T extends @UnknownSignedness Object> {
     @SuppressWarnings("unchecked")

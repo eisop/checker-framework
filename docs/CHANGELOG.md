@@ -14,7 +14,7 @@ is statically verifiable or not.
 
 **Closed issues:**
 
-eisop#1033.
+eisop#155, eisop#1033.
 
 
 Version 3.42.0-eisop5 (December 20, 2024)
@@ -193,7 +193,7 @@ is an enhanced switch statement.
 
 **Closed issues:**
 
-eisop#155, eisop#609, eisop#610, eisop#612.
+eisop#609, eisop#610, eisop#612.
 
 Version 3.40.0 (November 1, 2023)
 ---------------------------------
