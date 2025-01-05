@@ -27,6 +27,7 @@ class DeadBranchNPE {
         Object objInner = null;
         // :: error: (dereference.of.nullable)
         objOut.toString();
+        // :: warning: (nulltest.redundant)
         while (objOut != null) {
             // :: error: (dereference.of.nullable)
             objInner.toString();
