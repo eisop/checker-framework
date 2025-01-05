@@ -150,7 +150,6 @@ public class TypeVariableSubstitutor {
         public AnnotatedTypeMirror visitTypeVariable(
                 AnnotatedTypeVariable original,
                 IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy) {
-
             if (visitingExecutableTypeParam) {
                 // AnnotatedExecutableType differs from AnnotatedDeclaredType in that its list of
                 // type parameters cannot be adapted in place since the
@@ -161,7 +160,6 @@ public class TypeVariableSubstitutor {
                 // AnnotatedTypeVariable's will remain
                 visitingExecutableTypeParam = false;
                 return super.visitTypeVariable(original, originalToCopy);
-
             } else {
                 Element typeVarElem = original.getUnderlyingType().asElement();
                 if (elementToArgMap.containsKey(typeVarElem)) {

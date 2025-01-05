@@ -474,7 +474,6 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
 
             sb.append("?");
             if (!visiting.contains(type)) {
-
                 try {
                     visiting.add(type);
 

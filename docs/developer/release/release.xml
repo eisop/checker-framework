@@ -135,6 +135,17 @@
                 start="${checkers.ver.0}" end="${checkers.ver.1}"
                 with="${release.ver}"/>
 
+        <update file="${cf.docs.examples}/errorprone/build.gradle"
+                start="${checkers.ver.0}" end="${checkers.ver.1}"
+                with="${release.ver}"/>
+
+        <update file="${cf.docs.examples}/BazelExample/maven_install.json"
+                start="${checkers.ver.0}" end="${checkers.ver.1}"
+                with="${release.ver}"/>
+        <update file="${cf.docs.examples}/BazelExample/MODULE.bazel"
+                start="${checkers.ver.0}" end="${checkers.ver.1}"
+                with="${release.ver}"/>
+
     </target>
 
     <target name="zip-checker-framework" description="Creates a zip archive for the Checker Framework.">

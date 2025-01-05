@@ -123,7 +123,6 @@ class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
 
     @Override
     public AnnotatedTypeMirror visitTypeCast(TypeCastTree tree, AnnotatedTypeFactory f) {
-
         // Use the annotated type of the type in the cast.
         return f.fromTypeTree(tree.getType());
     }
@@ -166,7 +165,6 @@ class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
 
     @Override
     public AnnotatedTypeMirror visitAssignment(AssignmentTree tree, AnnotatedTypeFactory f) {
-
         // Recurse on the type of the variable.
         return visit(tree.getVariable(), f);
     }
@@ -319,7 +317,6 @@ class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
 
     @Override
     public AnnotatedTypeMirror visitNewArray(NewArrayTree tree, AnnotatedTypeFactory f) {
-
         // Don't use fromTypeTree here, because tree.getType() is not an array type!
         AnnotatedArrayType result = (AnnotatedArrayType) f.type(tree);
 
@@ -424,14 +421,12 @@ class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
 
     @Override
     public AnnotatedTypeMirror visitParenthesized(ParenthesizedTree tree, AnnotatedTypeFactory f) {
-
         // Recurse on the expression inside the parens.
         return visit(tree.getExpression(), f);
     }
 
     @Override
     public AnnotatedTypeMirror visitWildcard(WildcardTree tree, AnnotatedTypeFactory f) {
-
         AnnotatedTypeMirror bound = visit(tree.getBound(), f);
 
         AnnotatedTypeMirror result = f.type(tree);

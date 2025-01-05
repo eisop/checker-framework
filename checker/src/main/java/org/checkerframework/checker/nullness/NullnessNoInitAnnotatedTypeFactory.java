@@ -51,6 +51,8 @@ import org.checkerframework.framework.type.treeannotator.LiteralTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.PropagationTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.framework.type.typeannotator.DefaultForTypeAnnotator;
+import org.checkerframework.framework.type.typeannotator.ListTypeAnnotator;
+import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.TreeUtils;
@@ -730,20 +732,22 @@ public class NullnessNoInitAnnotatedTypeFactory
             return null;
         }
 
-        // The result of newly allocated structures is always non-null.
+        // The result of newly allocated structures is always non-null,
+        // explicit nullable annotations are left intact for the visitor to inspect.
         @Override
         public Void visitNewClass(NewClassTree tree, AnnotatedTypeMirror type) {
-            type.replaceAnnotation(NONNULL);
+            // The constructor return type should already be NONNULL, so in most cases this will do
+            // nothing.
+            type.addMissingAnnotation(NONNULL);
             return null;
         }
 
+        // The result of newly allocated structures is always non-null,
+        // explicit nullable annotations are left intact for the visitor to inspect.
         @Override
         public Void visitNewArray(NewArrayTree tree, AnnotatedTypeMirror type) {
             super.visitNewArray(tree, type);
-
-            // The result of newly allocated structures is always non-null.
-            type.replaceAnnotation(NONNULL);
-
+            type.addMissingAnnotation(NONNULL);
             return null;
         }
 
@@ -770,6 +774,38 @@ public class NullnessNoInitAnnotatedTypeFactory
                 }
             }
             return super.visitMethodInvocation(tree, type);
+        }
+    }
+
+    @Override
+    protected TypeAnnotator createTypeAnnotator() {
+        return new ListTypeAnnotator(super.createTypeAnnotator(), new NullnessTypeAnnotator(this));
+    }
+
+    /**
+     * This type annotator ensures that constructor return types are NONNULL, unless there is an
+     * explicit different annotation.
+     */
+    protected class NullnessTypeAnnotator extends TypeAnnotator {
+
+        /**
+         * Creates a new NullnessTypeAnnotator.
+         *
+         * @param atypeFactory this factory
+         */
+        public NullnessTypeAnnotator(NullnessNoInitAnnotatedTypeFactory atypeFactory) {
+            super(atypeFactory);
+        }
+
+        @Override
+        public Void visitExecutable(AnnotatedExecutableType t, Void p) {
+            Void result = super.visitExecutable(t, p);
+            Element elem = t.getElement();
+            if (elem.getKind() == ElementKind.CONSTRUCTOR) {
+                AnnotatedDeclaredType returnType = (AnnotatedDeclaredType) t.getReturnType();
+                returnType.addMissingAnnotation(NONNULL);
+            }
+            return result;
         }
     }
 
