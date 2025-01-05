@@ -22,4 +22,4 @@ jobs:
         with:
           fail-on-severity: high
           retry-on-snapshot-warnings: true
-          retry-on-snapshot-warnings-timeout: 600
+          retry-on-snapshot-warnings-timeout: 1000
