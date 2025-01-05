@@ -14,7 +14,7 @@ is statically verifiable or not.
 
 **Closed issues:**
 
-eisop#155, eisop#1033.
+eisop#155, eisop#1003, eisop#1033.
 
 
 Version 3.42.0-eisop5 (December 20, 2024)
