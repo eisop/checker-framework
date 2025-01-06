@@ -328,28 +328,7 @@ task demosTests(dependsOn: assembleForJavac, group: 'Verification') {
 
     doLast {
         File demosDir = new File(projectDir, '../../checker-framework.demos');
-        if (!demosDir.exists()) {
-            injected.execOps.exec {
-                workingDir file(demosDir.toString() + '/../')
-                executable 'git'
-                args = [
-                    'clone',
-                    '--depth',
-                    '1',
-                    'https://github.com/eisop/checker-framework.demos.git'
-                ]
-            }
-        } else {
-            injected.execOps.exec {
-                workingDir demosDir
-                executable 'git'
-                args = [
-                    'pull',
-                    'https://github.com/eisop/checker-framework.demos.git'
-                ]
-                ignoreExitValue = true
-            }
-        }
+        createCloneTask('gettemplatefora-checker', 'https://github.com/eisop/checker-framework.demos.git', templateforCheckerDir)
         ant.properties.put('checker.lib', file("${projectDir}/dist/checker.jar").absolutePath)
         ant.ant(dir: demosDir.toString())
     }
@@ -362,28 +341,7 @@ task templateTests(dependsOn: assembleForJavac, group: 'Verification') {
 
     doLast {
         File templateforCheckerDir = new File(projectDir, '../../templatefora-checker');
-        if (!templateforCheckerDir.exists()) {
-            injected.execOps.exec {
-                workingDir file(templateforCheckerDir.toString() + '/../')
-                executable 'git'
-                args = [
-                    'clone',
-                    '--depth',
-                    '1',
-                    'https://github.com/eisop/templatefora-checker.git'
-                ]
-            }
-        } else {
-            injected.execOps.exec {
-                workingDir templateforCheckerDir
-                executable 'git'
-                args = [
-                    'pull',
-                    'https://github.com/eisop/templatefora-checker.git'
-                ]
-                ignoreExitValue = true
-            }
-        }
+        createCloneTask('gettemplatefora-checker', 'https://github.com/eisop/templatefora-checker.git', templateforCheckerDir)
         println "Running Gradle build in $templateforCheckerDir"
         injected.execOps.exec {
             workingDir = templateforCheckerDir
