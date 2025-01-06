@@ -328,7 +328,7 @@ task demosTests(dependsOn: assembleForJavac, group: 'Verification') {
 
     doLast {
         File demosDir = new File(projectDir, '../../checker-framework.demos');
-        createCloneTask('gettemplatefora-checker', 'https://github.com/eisop/checker-framework.demos.git', templateforCheckerDir)
+        createCloneTask('getDemos', 'https://github.com/eisop/checker-framework.demos.git', demosDir)
         ant.properties.put('checker.lib', file("${projectDir}/dist/checker.jar").absolutePath)
         ant.ant(dir: demosDir.toString())
     }
@@ -341,7 +341,7 @@ task templateTests(dependsOn: assembleForJavac, group: 'Verification') {
 
     doLast {
         File templateforCheckerDir = new File(projectDir, '../../templatefora-checker');
-        createCloneTask('gettemplatefora-checker', 'https://github.com/eisop/templatefora-checker.git', templateforCheckerDir)
+        createCloneTask('getTemplatefora-checker', 'https://github.com/eisop/templatefora-checker.git', templateforCheckerDir)
         println "Running Gradle build in $templateforCheckerDir"
         injected.execOps.exec {
             workingDir = templateforCheckerDir
