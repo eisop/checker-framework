@@ -356,7 +356,7 @@ task demosTests(dependsOn: assembleForJavac, group: 'Verification') {
 }
 
 task templateTests(dependsOn: assembleForJavac, group: 'Verification') {
-    description = 'Test that the templatefora-checker are working as expected.'
+    description = 'Test that the templatefora-checker is working as expected.'
 
     def injected = project.objects.newInstance(InjectedExecOps)
 
@@ -384,7 +384,6 @@ task templateTests(dependsOn: assembleForJavac, group: 'Verification') {
                 ignoreExitValue = true
             }
         }
-        // Run `./gradlew build` in the demos directory
         println "Running Gradle build in $templateforCheckerDir"
         injected.execOps.exec {
             workingDir = templateforCheckerDir
