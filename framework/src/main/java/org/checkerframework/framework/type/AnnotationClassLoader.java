@@ -553,7 +553,6 @@ public class AnnotationClassLoader implements Closeable {
                 throw new BugInCF(
                         "AnnotationClassLoader: cannot open the Jar file " + resourceURL.getFile());
             }
-
         } else if (resourceURL != null && resourceURL.getProtocol().contentEquals("file")) {
             // If the checker class file is found within the file system itself within some
             // directory (usually development build directories), then process the package as a file
