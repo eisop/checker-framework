@@ -810,15 +810,9 @@ def createJavadocTask(taskName, taskDescription, memberLevel) {
 
 createJavadocTask('javadocDoclintAll', 'Runs javadoc with -Xdoclint:all option.', JavadocMemberLevel.PRIVATE)
 
-task manual(group: 'Documentation') {
-  description = 'Build the manual'
-  def injected = project.objects.newInstance(InjectedExecOps)
-  doLast {
-    injected.execOps.exec {
-      workingDir = file('docs/manual')
-      commandLine 'make', 'all'
-    }
-  }
+task manual(type: Exec, group: 'Documentation') {
+  description 'Build the manual'
+  commandLine 'make', '-C', 'docs/manual', 'all'
 }
 
 // No group so it does not show up in the output of `gradlew tasks`
