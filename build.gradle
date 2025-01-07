@@ -66,6 +66,8 @@ ext {
     plumeScriptsHome = "${project(':checker').projectDir}/bin-devel/.plume-scripts"
     htmlToolsHome = "${project(':checker').projectDir}/bin-devel/.html-tools"
     doLikeJavacHome = "${project(':checker').projectDir}/bin/.do-like-javac"
+    templateforCheckerDir = "${parentDir}/templatefora-checker"
+    demosDir = "${parentDir}/checker-framework.demos"
 
     javadocMemberLevel = JavadocMemberLevel.PROTECTED
 
@@ -865,7 +867,8 @@ createCloneTask('getGitScripts', 'https://github.com/eisop-plume-lib/git-scripts
 createCloneTask('getPlumeScripts', 'https://github.com/eisop-plume-lib/plume-scripts.git', plumeScriptsHome)
 createCloneTask('getHtmlTools', 'https://github.com/plume-lib/html-tools.git', htmlToolsHome)
 createCloneTask('getDoLikeJavac', 'https://github.com/opprop/do-like-javac.git', doLikeJavacHome)
-
+createCloneTask('getTemplatefora-checker', 'https://github.com/eisop/templatefora-checker.git', templateforCheckerDir)
+createCloneTask('getDemos', 'https://github.com/eisop/checker-framework.demos.git', demosDir)
 
 // No group so it does not show up in the output of `gradlew tasks`
 task pythonIsInstalled(type: Exec) {
