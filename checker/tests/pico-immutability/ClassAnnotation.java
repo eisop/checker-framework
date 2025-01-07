@@ -55,11 +55,9 @@ public class ClassAnnotation {
 
         void method2(@Immutable ImmutableClassImplict this) {}
 
-        // TODO(Aosen) maybe we should even issue error here since we know the bound can only be
         // @Immutable
         void method3(@Readonly ImmutableClassImplict this) {}
 
-        // TODO(Aosen) should we issue error here, it can only be called by @Immutable and @Bottom
         void method4(@PolyMutable ImmutableClassImplict this) {}
 
         // :: error: (type.invalid.annotations.on.use)

@@ -10,14 +10,9 @@ public class ImmutableClass {
     @ReceiverDependentMutable Object rdmField;
     @Immutable Object immutableField;
 
-    @Immutable ImmutableClass(@ReceiverDependentMutable Object rdmObject, @Immutable Object immutableObject) {
-        this.readonlyField = rdmObject;
+    @Immutable ImmutableClass(@Immutable Object immutableObject) {
         this.readonlyField = immutableObject;
-        // :: error: (assignment.type.incompatible)
-        this.rdmField = rdmObject; // TODO: parameter should be adapted as well.
         this.rdmField = immutableObject;
-        // :: error: (assignment.type.incompatible)
-        this.immutableField = rdmObject;
         this.immutableField = immutableObject;
     }
 

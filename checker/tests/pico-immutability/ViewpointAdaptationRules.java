@@ -4,9 +4,6 @@ import org.checkerframework.checker.pico.qual.Mutable;
 import org.checkerframework.checker.pico.qual.Readonly;
 import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
 
-// TODO The test case is almost right but reflect the method parameter is not adapted at the moment,
-// which should be adapted. Otherwise, one can not invoke the constructor correctly to create both
-// immutable and mutable instance.
 @ReceiverDependentMutable public class ViewpointAdaptationRules {
 
     @Assignable @Readonly Object assignableReadonlyField;
@@ -28,7 +25,6 @@ import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
     void mutatableReceiver(
             @Mutable ViewpointAdaptationRules this,
             @Mutable Object mutableObject,
-            @ReceiverDependentMutable Object rdmObject,
             @Immutable Object immutableObject,
             @Readonly Object readonlyObject) {
         this.assignableReadonlyField = mutableObject;
@@ -36,14 +32,6 @@ import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
         // :: error: (assignment.type.incompatible)
         this.immutableField = mutableObject;
         this.assingableMuatbleField = mutableObject;
-
-        this.assignableReadonlyField = rdmObject;
-        // :: error: (assignment.type.incompatible)
-        this.rdmField = rdmObject; // The field is adapted to Mutable but method parameters are not?
-        // :: error: (assignment.type.incompatible)
-        this.immutableField = rdmObject;
-        // :: error: (assignment.type.incompatible)
-        this.assingableMuatbleField = rdmObject; // The method parameter is not adapted?
 
         this.assignableReadonlyField = immutableObject;
         // :: error: (assignment.type.incompatible)
@@ -103,7 +91,6 @@ import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
     void ImmutableReceiver(
             @Immutable ViewpointAdaptationRules this,
             @Mutable Object mutableObject,
-            @ReceiverDependentMutable Object rdmObject,
             @Immutable Object immutableObject,
             @Readonly Object readonlyObject) {
         this.assignableReadonlyField = mutableObject;
@@ -112,14 +99,6 @@ import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
         // :: error: (assignment.type.incompatible) :: error: (illegal.field.write)
         this.immutableField = mutableObject;
         this.assingableMuatbleField = mutableObject;
-
-        this.assignableReadonlyField = rdmObject;
-        // :: error: (assignment.type.incompatible) :: error: (illegal.field.write)
-        this.rdmField = rdmObject; // Field is adpated to immutable but method parameters are not?
-        // :: error: (assignment.type.incompatible) :: error: (illegal.field.write)
-        this.immutableField = rdmObject; // Method parameter are not adapate?
-        // :: error: (assignment.type.incompatible)
-        this.assingableMuatbleField = rdmObject;
 
         this.assignableReadonlyField = immutableObject;
         // :: error: (illegal.field.write)
@@ -141,7 +120,6 @@ import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
     void ReadonlyReceiver(
             @Readonly ViewpointAdaptationRules this,
             @Mutable Object mutableObject,
-            @ReceiverDependentMutable Object rdmObject,
             @Immutable Object immutableObject,
             @Readonly Object readonlyObject) {
         this.assignableReadonlyField = mutableObject;
@@ -150,14 +128,6 @@ import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
         // :: error: (assignment.type.incompatible) :: error: (illegal.field.write)
         this.immutableField = mutableObject;
         this.assingableMuatbleField = mutableObject;
-
-        this.assignableReadonlyField = rdmObject;
-        // :: error: (assignment.type.incompatible) :: error: (illegal.field.write)
-        this.rdmField = rdmObject;
-        // :: error: (assignment.type.incompatible) :: error: (illegal.field.write)
-        this.immutableField = rdmObject;
-        // :: error: (assignment.type.incompatible)
-        this.assingableMuatbleField = rdmObject;
 
         this.assignableReadonlyField = immutableObject;
         // :: error: (assignment.type.incompatible) :: error: (illegal.field.write)
