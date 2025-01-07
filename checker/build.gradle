@@ -355,6 +355,43 @@ task demosTests(dependsOn: assembleForJavac, group: 'Verification') {
     }
 }
 
+task templateTests(dependsOn: assembleForJavac, group: 'Verification') {
+    description = 'Test that the templatefora-checker is working as expected.'
+
+    def injected = project.objects.newInstance(InjectedExecOps)
+
+    doLast {
+        File templateforCheckerDir = new File(projectDir, '../../templatefora-checker');
+        if (!templateforCheckerDir.exists()) {
+            injected.execOps.exec {
+                workingDir file(templateforCheckerDir.toString() + '/../')
+                executable 'git'
+                args = [
+                    'clone',
+                    '--depth',
+                    '1',
+                    'https://github.com/eisop/templatefora-checker.git'
+                ]
+            }
+        } else {
+            injected.execOps.exec {
+                workingDir templateforCheckerDir
+                executable 'git'
+                args = [
+                    'pull',
+                    'https://github.com/eisop/templatefora-checker.git'
+                ]
+                ignoreExitValue = true
+            }
+        }
+        println "Running Gradle build in $templateforCheckerDir"
+        injected.execOps.exec {
+            workingDir = templateforCheckerDir
+            commandLine "./gradlew", "build"
+        }
+    }
+}
+
 task allNullnessTests(type: Test, group: 'Verification') {
     description = 'Run all JUnit tests for the Nullness Checker.'
     include '**/Nullness*.class'
