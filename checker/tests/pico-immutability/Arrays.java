@@ -6,7 +6,42 @@ import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
 public class Arrays {
     Object[] o = new String[] {""};
 
-    // TODO static array
+    @Mutable class MutableClass {
+        int[] a; // RDM component array resolve as mutable
+
+        void test() {
+            a[0] = 1;
+        }
+    }
+
+    class ImmutableClass {
+        // :: error: (initialization.field.uninitialized)
+        int[] a; // RDM component array resolve as Immutable
+
+        void test() {
+            // :: error: (illegal.array.write)
+            a[0] = 1;
+        }
+    }
+
+    @ReceiverDependentMutable class RDMClass {
+        // :: error: (initialization.field.uninitialized)
+        int[] a;
+
+        void testRDMReceiver(@ReceiverDependentMutable RDMClass this) {
+            // :: error: (illegal.array.write)
+            a[0] = 1; // RDM component array resolve as RDM, can not write to RDM
+        }
+
+        void testImmutableReceiver(@Immutable RDMClass this) {
+            // :: error: (illegal.array.write)
+            a[0] = 1; // RDM component array resolve as immutable
+        }
+
+        void testMutableReceiver(@Mutable RDMClass this) {
+            a[0] = 1; // RDM component array resolve as mutable
+        }
+    }
 
     void test1(String @Immutable [] array) {
         // :: error: (illegal.array.write)
