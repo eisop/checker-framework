@@ -492,10 +492,7 @@ public class PICONoInitAnnotatedTypeFactory
             picoTypeFactory = (PICONoInitAnnotatedTypeFactory) typeFactory;
         }
 
-        /**
-         * {@inheritDoc} Applies pre-knowledged defaults that are same with jdk.astub to toString,
-         * hashCode, equals, clone Object methods.
-         */
+        /** {@inheritDoc} Applies pre-knowledged defaults. */
         @Override
         public Void visitExecutable(AnnotatedExecutableType t, Void p) {
             super.visitExecutable(t, p);

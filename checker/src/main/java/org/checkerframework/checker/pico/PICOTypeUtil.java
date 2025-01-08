@@ -174,7 +174,6 @@ public class PICOTypeUtil {
         // All other elements that are: not implicitly immutable types specified in definition of
         // @Immutable qualifier;
         // Or has no bound annotation on its type element declaration either in source tree or stub
-        // file(jdk.astub) have @Mutable in its bound
         return atypeFactory.getAnnotatedType(element);
 
         // It's a bit strange that bound annotations on implicilty immutable types
