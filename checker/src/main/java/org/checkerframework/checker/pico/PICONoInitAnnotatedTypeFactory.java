@@ -156,11 +156,12 @@ public class PICONoInitAnnotatedTypeFactory
 
     @Override
     public ParameterizedExecutableType constructorFromUse(NewClassTree tree) {
-        boolean hasExplicitAnnos = getExplicitNewClassAnnos(tree).isEmpty();
+        boolean noExplicitAnnotations = getExplicitNewClassAnnos(tree).isEmpty();
         ParameterizedExecutableType mType = super.constructorFromUse(tree);
         AnnotatedExecutableType method = mType.executableType;
-        if (hasExplicitAnnos && method.getReturnType().hasAnnotation(RECEIVER_DEPENDENT_MUTABLE)) {
-            method.getReturnType().replaceAnnotation(MUTABLE);
+        if (noExplicitAnnotations
+                && method.getReturnType().hasAnnotation(RECEIVER_DEPENDENT_MUTABLE)) {
+            method.getReturnType().replaceAnnotation(IMMUTABLE);
         }
         return mType;
     }

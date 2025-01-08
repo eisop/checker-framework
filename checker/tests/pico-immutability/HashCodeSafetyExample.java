@@ -7,7 +7,7 @@ import java.util.Map;
 public class HashCodeSafetyExample {
     public static void main(String[] args) {
         A a = new A();
-        HashMap<A, String> m = new @Mutable HashMap<>();
+        Map<A, String> m = new @Mutable HashMap<>();
         m.put(a, "hello");
         System.out.println("HashCode before: " + a.hashCode());
         // :: error: (illegal.field.write)
