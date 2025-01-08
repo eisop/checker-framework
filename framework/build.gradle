@@ -93,36 +93,12 @@ interface InjectedExecOps {
   ExecOperations getExecOps()
 }
 
-task cloneAnnotatedJdk() {
-  description = 'Obtain or update the annotated JDK.'
-
-  def injected = project.objects.newInstance(InjectedExecOps)
-
-  doLast {
-    if (file(annotatedJdkHome).exists()) {
-      injected.execOps.exec {
-        workingDir file(annotatedJdkHome)
-        executable 'git'
-        args = ['pull', '-q']
-        ignoreExitValue = true
-      }
-    } else {
-      println "Cloning annotated JDK repository in ${annotatedJdkHome}/../"
-      injected.execOps.exec {
-        workingDir file("${annotatedJdkHome}/../")
-        executable 'git'
-        args = [
-          'clone',
-          '-q',
-          '--depth=1',
-          'https://github.com/eisop/jdk.git',
-          'jdk'
-        ]
-      }
-    }
-  }
+tasks.register('cloneAnnotatedJdk', CloneTask) {
+  description 'Obtain or update the annotated JDK.'
+  url.set('https://github.com/eisop/jdk.git')
+  directory.set(file(annotatedJdkHome))
+  outputs.upToDateWhen { false }
 }
-
 
 task copyAndMinimizeAnnotatedJdkFiles(dependsOn: cloneAnnotatedJdk, group: 'Build') {
   dependsOn ':framework:compileJava'

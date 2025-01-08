@@ -12,7 +12,7 @@ include 'docs'
 /* NO-AFU
  includeBuild ('../annotation-tools/annotation-file-utilities') {
  if (!file('../annotation-tools/annotation-file-utilities').exists()) {
- exec {
+ providers.exec {
  executable 'checker/bin-devel/clone-related.sh'
  }
  }
