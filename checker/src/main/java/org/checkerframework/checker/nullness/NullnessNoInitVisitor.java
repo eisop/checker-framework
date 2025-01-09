@@ -286,9 +286,9 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     /** Case 1: Check for null dereferencing. */
     @Override
     public Void visitMemberSelect(MemberSelectTree tree, Void p) {
-        // if (atypeFactory.isUnreachable(tree)) {
-        //     return super.visitMemberSelect(tree, p);
-        // }
+        if (ignoreDeadCode && atypeFactory.isUnreachable(tree)) {
+            return super.visitMemberSelect(tree, p);
+        }
         Element e = TreeUtils.elementFromUse(tree);
         if (e.getKind() == ElementKind.CLASS) {
             if (atypeFactory.containsNullnessAnnotation(null, tree.getExpression())) {
