@@ -2402,7 +2402,9 @@ public abstract class GenericAnnotatedTypeFactory<
      * @see #getTypeFactoryOfSubchecker
      */
     @SuppressWarnings("TypeParameterUnusedInFormals") // Intentional abuse
-    public <T extends GenericAnnotatedTypeFactory<?, ?, ?, ?>> @Nullable T getTypeFactoryOfSubcheckerOrNull(Class<? extends BaseTypeChecker> subCheckerClass) {
+    public <T extends GenericAnnotatedTypeFactory<?, ?, ?, ?>>
+            @Nullable T getTypeFactoryOfSubcheckerOrNull(
+                    Class<? extends BaseTypeChecker> subCheckerClass) {
         BaseTypeChecker subchecker = checker.getSubchecker(subCheckerClass);
         if (subchecker == null) {
             return null;
@@ -2664,8 +2666,8 @@ public abstract class GenericAnnotatedTypeFactory<
 
         switch (tm.getKind()) {
 
-                // Primitives have no subtyping relationships, but the lookup might have failed
-                // because tm has metadata such as annotations.
+            // Primitives have no subtyping relationships, but the lookup might have failed
+            // because tm has metadata such as annotations.
             case BOOLEAN:
             case BYTE:
             case CHAR:
@@ -2681,7 +2683,7 @@ public abstract class GenericAnnotatedTypeFactory<
                 }
                 return false;
 
-                // Void is never relevant
+            // Void is never relevant
             case VOID:
                 return false;
 

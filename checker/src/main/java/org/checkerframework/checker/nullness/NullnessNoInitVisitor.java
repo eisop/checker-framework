@@ -233,7 +233,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                         || !((IdentifierTree) receiver).getName().contentEquals("this")) {
                     return null;
                 }
-                // fallthrough
+            // fallthrough
             case IDENTIFIER:
                 TreePath path = getCurrentPath();
                 if (TreePathUtil.inConstructor(path)) {

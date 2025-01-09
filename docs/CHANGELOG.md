@@ -31,8 +31,8 @@ Make `SourceChecker#suppressWarningsString` protected to allow adaptation in sub
 
 **Closed issues:**
 
-eisop#413, eisop#782, eisop#815, eisop#860, eisop#873, eisop#875, eisop#927, eisop#982,
-eisop#1012.
+eisop#413, eisop#782, eisop#815, eisop#826, eisop#860, eisop#873, eisop#875, eisop#927,
+eisop#982, eisop#1012.
 
 
 Version 3.42.0-eisop4 (July 12, 2024)
