@@ -70,29 +70,29 @@ import javax.lang.model.type.TypeMirror;
 public class PICONoInitAnnotatedTypeFactory
         extends GenericAnnotatedTypeFactory<
                 PICONoInitValue, PICONoInitStore, PICONoInitTransfer, PICONoInitAnalysis> {
-    /** The @{@link Mutable} annotation. */
+    /** The {@link Mutable} annotation. */
     protected final AnnotationMirror MUTABLE = AnnotationBuilder.fromClass(elements, Mutable.class);
 
-    /** The @{@link Immutable} annotation. */
+    /** The {@link Immutable} annotation. */
     protected final AnnotationMirror IMMUTABLE =
             AnnotationBuilder.fromClass(elements, Immutable.class);
 
-    /** The @{@link Readonly} annotation. */
+    /** The {@link Readonly} annotation. */
     protected final AnnotationMirror READONLY =
             AnnotationBuilder.fromClass(elements, Readonly.class);
 
-    /** The @{@link ReceiverDependentMutable} annotation. */
+    /** The {@link ReceiverDependentMutable} annotation. */
     protected final AnnotationMirror RECEIVER_DEPENDENT_MUTABLE =
             AnnotationBuilder.fromClass(elements, ReceiverDependentMutable.class);
 
-    /** The @{@link PolyMutable} annotation. */
+    /** The {@link PolyMutable} annotation. */
     protected final AnnotationMirror POLY_MUTABLE =
             AnnotationBuilder.fromClass(elements, PolyMutable.class);
 
-    /** The @{@link PICOLost} annotation. */
+    /** The {@link PICOLost} annotation. */
     protected final AnnotationMirror LOST = AnnotationBuilder.fromClass(elements, PICOLost.class);
 
-    /** The @{@link PICOBottom} annotation. */
+    /** The {@link PICOBottom} annotation. */
     protected final AnnotationMirror BOTTOM =
             AnnotationBuilder.fromClass(elements, PICOBottom.class);
 
@@ -503,12 +503,12 @@ public class PICONoInitAnnotatedTypeFactory
                 if (PICOTypeUtil.isMethodOrOverridingMethod(t, "toString()", atypeFactory)
                         || PICOTypeUtil.isMethodOrOverridingMethod(t, "hashCode()", atypeFactory)) {
                     assert t.getReceiverType() != null;
-                    t.getReceiverType().replaceAnnotation(picoTypeFactory.READONLY);
+                    t.getReceiverType().addMissingAnnotation(picoTypeFactory.READONLY);
                 } else if (PICOTypeUtil.isMethodOrOverridingMethod(
                         t, "equals(java.lang.Object)", atypeFactory)) {
                     assert t.getReceiverType() != null;
-                    t.getReceiverType().replaceAnnotation(picoTypeFactory.READONLY);
-                    t.getParameterTypes().get(0).replaceAnnotation(picoTypeFactory.READONLY);
+                    t.getReceiverType().addMissingAnnotation(picoTypeFactory.READONLY);
+                    t.getParameterTypes().get(0).addMissingAnnotation(picoTypeFactory.READONLY);
                 }
             } else {
                 return null;

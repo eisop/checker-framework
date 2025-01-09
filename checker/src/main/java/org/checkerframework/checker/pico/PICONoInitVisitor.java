@@ -200,7 +200,7 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
     @Override
     public Void visitMethod(MethodTree node, Void p) {
         AnnotatedExecutableType executableType = atypeFactory.getAnnotatedType(node);
-
+        // Check if the constructor's return type is @ReadOnly or @PolyMutable
         if (TreeUtils.isConstructor(node)) {
             AnnotatedDeclaredType constructorReturnType =
                     (AnnotatedDeclaredType) executableType.getReturnType();
@@ -209,31 +209,6 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
                 checker.reportError(node, "constructor.return.invalid", constructorReturnType);
                 return super.visitMethod(node, p);
             }
-            // if no explicit anno it must inherit from class decl so identical
-        } else {
-            // Feat: let's just use validator to tell whether the receiver is compatible with bound
-            // or not
-            /*
-            AnnotatedTypeMirror bound =
-               PICOTypeUtil.getBoundTypeOfEnclosingTypeDeclaration(node, atypeFactory);
-               // For non-constructor methods
-               AnnotatedDeclaredType declareReceiverType = executableType.getReceiverType();
-               if (declareReceiverType != null) {
-                   if (bound != null
-                           && !bound.hasAnnotation(RECEIVER_DEPENDENT_MUTABLE)
-                           && !atypeFactory
-                                   .getQualifierHierarchy()
-                                   .isSubtypeQualifiersOnly(
-                                           declareReceiverType.getAnnotationInHierarchy(READONLY),
-                                           bound.getAnnotationInHierarchy(READONLY))
-                           // Below three are allowed on declared receiver types of instance methods in
-                           // either @Mutable class or @Immutable class
-                           && !declareReceiverType.hasAnnotation(READONLY)
-                           && !declareReceiverType.hasAnnotation(POLY_MUTABLE)) {
-                       checker.reportError(node, "method.receiver.incompatible", declareReceiverType, bound);
-                   }
-               }
-            */
         }
 
         flexibleOverrideChecker(node);
@@ -272,8 +247,7 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
             AnnotatedExecutableType overriddenMethod =
                     AnnotatedTypes.asMemberOf(types, atypeFactory, enclosingType, pair.getValue());
             // Viewpoint adapt super method executable type to current class bound(is this always
-            // class bound?)
-            // to allow flexible overriding
+            // class bound?) to allow flexible overriding
             atypeFactory
                     .getViewpointAdapter()
                     .viewpointAdaptMethod(enclosingType, pair.getValue(), overriddenMethod);
@@ -287,7 +261,10 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
         }
     }
 
-    // Disables method overriding checks in BaseTypeVisitor
+    /**
+     * Disables method overriding checks in BaseTypeVisitor. The override check is implemented in
+     * {@link #flexibleOverrideChecker(MethodTree)} method.
+     */
     @Override
     protected boolean checkOverride(
             MethodTree overriderTree,
@@ -301,12 +278,10 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
     public Void visitAssignment(AssignmentTree node, Void p) {
         ExpressionTree variable = node.getVariable();
         // TODO Question Here, receiver type uses flow refinement. But in commonAssignmentCheck to
-        // compute lhs type
-        // , it doesn't. This causes inconsistencies when enforcing immutability and doing subtype
-        // check. I overrode
-        // getAnnotatedTypeLhs() to also use flow sensitive refinement, but came across with
-        // "private access" problem
-        // on field "computingAnnotatedTypeMirrorOfLHS"
+        // compute lhs type it doesn't. This causes inconsistencies when enforcing immutability and
+        // doing subtype check. I overrode getAnnotatedTypeLhs() to also use flow sensitive
+        // refinement, but came across with "private access" problem on field
+        // "computingAnnotatedTypeMirrorOfLHS"
         checkAssignment(node, variable);
         return super.visitAssignment(node, p);
     }

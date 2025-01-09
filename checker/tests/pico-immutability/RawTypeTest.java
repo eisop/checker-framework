@@ -38,19 +38,19 @@ public class RawTypeTest {
         // What should be the type if no type parameter on class declaration
         @Override
         @SuppressWarnings("unchecked")
-        public boolean add(Object o) {
+        public boolean add(@Readonly Object o) {
             return super.add(o);
         }
 
         @Override
         @SuppressWarnings("unchecked")
-        public void add(int i, Object o) {
+        public void add(int i, @Readonly Object o) {
             super.add(i, o);
         }
 
         @Override
         @SuppressWarnings("unchecked")
-        public Object set(int i, Object o) {
+        public Object set(int i, @Readonly Object o) {
             return super.set(i, o);
         }
     }
