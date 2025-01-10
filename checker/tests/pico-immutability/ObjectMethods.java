@@ -1,5 +1,6 @@
 import org.checkerframework.checker.pico.qual.Immutable;
 import org.checkerframework.checker.pico.qual.Mutable;
+import org.checkerframework.checker.pico.qual.Readonly;
 import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
 
 public @Mutable class ObjectMethods {
@@ -10,7 +11,7 @@ public @Mutable class ObjectMethods {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Readonly Object o) {
         return super.equals(o);
     }
 
@@ -35,7 +36,7 @@ public @Mutable class ObjectMethods {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Readonly Object o) {
         return super.equals(o);
     }
 
@@ -55,12 +56,12 @@ public @Mutable class ObjectMethods {
     @ReceiverDependentMutable ObjectMethods3() {}
 
     @Override
-    public int hashCode() {
+    public int hashCode(@Readonly ObjectMethods3 this) {
         return super.hashCode();
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Readonly ObjectMethods3 this, @Readonly Object o) {
         return super.equals(o);
     }
 
@@ -71,7 +72,7 @@ public @Mutable class ObjectMethods {
     }
 
     @Override
-    public String toString() {
+    public String toString(@Readonly ObjectMethods3 this) {
         return super.toString();
     }
 }

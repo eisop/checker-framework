@@ -10,12 +10,7 @@ public class LocalVariableRefinement {
     }
 
     void test1() {
-        // Should we allow propagation of @Bottom towards declared type?
-        // We should, otherwise, refined type is always top(lub with top is top)
         @Readonly Object rowNames = null;
-        // TODO Should we give warning here because of refined @Bottom? It will warn if we enforce
-        // forbidding @Bottom in Validator => We don't warn @Bottom anymore, it's internal qualifier
-        // now, and internal usage is always valid
         Acceptor.accept1(rowNames);
         Acceptor.accept2(rowNames);
     }

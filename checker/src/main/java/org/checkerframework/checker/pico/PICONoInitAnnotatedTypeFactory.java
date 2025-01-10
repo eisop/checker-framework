@@ -60,13 +60,7 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 
-/**
- * AnnotatedTypeFactory for PICO. In addition to getting atms, it also propagates and applies
- * mutability qualifiers correctly depending on AST locations(e.g. fields, binary trees) or
- * methods(toString(), hashCode(), clone(), equals(Object o)) using TreeAnnotators and
- * TypeAnnotators. It also applies implicits to method receiver that is not so by default in super
- * implementation.
- */
+/** AnnotatedTypeFactory for PICO. */
 public class PICONoInitAnnotatedTypeFactory
         extends GenericAnnotatedTypeFactory<
                 PICONoInitValue, PICONoInitStore, PICONoInitTransfer, PICONoInitAnalysis> {
@@ -156,10 +150,11 @@ public class PICONoInitAnnotatedTypeFactory
 
     @Override
     public ParameterizedExecutableType constructorFromUse(NewClassTree tree) {
-        boolean noExplicitAnnotations = getExplicitNewClassAnnos(tree).isEmpty();
         ParameterizedExecutableType mType = super.constructorFromUse(tree);
         AnnotatedExecutableType method = mType.executableType;
-        if (noExplicitAnnotations
+        // For object creation, if the constructor return type is @RDM and there is no explicit
+        // annotation on new expression, replace it with @Immutable
+        if (getExplicitNewClassAnnos(tree).isEmpty()
                 && method.getReturnType().hasAnnotation(RECEIVER_DEPENDENT_MUTABLE)) {
             method.getReturnType().replaceAnnotation(IMMUTABLE);
         }
@@ -204,9 +199,6 @@ public class PICONoInitAnnotatedTypeFactory
     protected AnnotationMirrorSet getDefaultTypeDeclarationBounds() {
         AnnotationMirrorSet frameworkDefault =
                 new AnnotationMirrorSet(super.getDefaultTypeDeclarationBounds());
-        //        if (checker.hasOption("immutableDefault")) {
-        //            return replaceAnnotationInHierarchy(frameworkDefault, IMMUTABLE);
-        //        }
         return replaceAnnotationInHierarchy(frameworkDefault, IMMUTABLE);
     }
 
@@ -304,8 +296,6 @@ public class PICONoInitAnnotatedTypeFactory
             // If the field is static, apply @Mutable if there is no explicit annotation and the
             // field type is @RDM
             if (ElementUtils.isStatic(element)) {
-                //               AnnotatedTypeMirror implicitATM =
-                // annotatedTypeFactory.getAnnotatedType(element);
                 AnnotatedTypeMirror explicitATM = annotatedTypeFactory.fromElement(element);
                 AnnotationMirrorSet declBound =
                         annotatedTypeFactory.getTypeDeclarationBounds(element.asType());
@@ -409,9 +399,6 @@ public class PICONoInitAnnotatedTypeFactory
             // however, for type has declaration bound as RDM, its default use is mutable.
             if (noExplicitATM
                     && componentType.hasAnnotation(picoTypeFactory.RECEIVER_DEPENDENT_MUTABLE)) {
-                //                if (checker.hasOption("immutableDefault")) {
-                //                    componentType.replaceAnnotation(IMMUTABLE);
-                //                } else
                 componentType.replaceAnnotation(picoTypeFactory.IMMUTABLE);
             }
             return null;
@@ -423,9 +410,6 @@ public class PICONoInitAnnotatedTypeFactory
             super.visitTypeCast(node, type);
             if (!hasExplicitAnnos
                     && type.hasAnnotation(picoTypeFactory.RECEIVER_DEPENDENT_MUTABLE)) {
-                //                if (checker.hasOption("immutableDefault")) {
-                //                    type.replaceAnnotation(IMMUTABLE);
-                //                } else
                 type.replaceAnnotation(picoTypeFactory.IMMUTABLE);
             }
             return null;
@@ -498,30 +482,13 @@ public class PICONoInitAnnotatedTypeFactory
         public Void visitExecutable(AnnotatedExecutableType t, Void p) {
             super.visitExecutable(t, p);
 
-            // Only handle instance methods, not static methods
-            if (!ElementUtils.isStatic(t.getElement())) {
-                if (PICOTypeUtil.isMethodOrOverridingMethod(t, "toString()", atypeFactory)
-                        || PICOTypeUtil.isMethodOrOverridingMethod(t, "hashCode()", atypeFactory)) {
-                    assert t.getReceiverType() != null;
-                    t.getReceiverType().addMissingAnnotation(picoTypeFactory.READONLY);
-                } else if (PICOTypeUtil.isMethodOrOverridingMethod(
-                        t, "equals(java.lang.Object)", atypeFactory)) {
-                    assert t.getReceiverType() != null;
-                    t.getReceiverType().addMissingAnnotation(picoTypeFactory.READONLY);
-                    t.getParameterTypes().get(0).addMissingAnnotation(picoTypeFactory.READONLY);
-                }
-            } else {
-                return null;
-            }
-
             // Array decl methods
             // Array methods are implemented as JVM native method, so we cannot add that to stubs.
             // for now: default array in receiver, parameter and return type to RDM
             if (t.getReceiverType() != null) {
                 if (PICOTypeUtil.isArrayType(t.getReceiverType(), atypeFactory)) {
-                    if (t.toString()
-                            .equals("Object clone(Array this)")) { // Receiver type will not be
-                        // viewpoint adapted:
+                    if (t.toString().equals("Object clone(Array this)")) {
+                        // Receiver type will not be viewpoint adapted:
                         // SyntheticArrays.replaceReturnType() will rollback the viewpoint adapt
                         // result.
                         // Use readonly to allow all invocations.
@@ -532,7 +499,6 @@ public class PICONoInitAnnotatedTypeFactory
                     }
                 }
             }
-
             return null;
         }
     }
@@ -608,9 +574,6 @@ public class PICONoInitAnnotatedTypeFactory
         /** Also applies implicits to method receiver */
         @Override
         public Void visitExecutable(AnnotatedExecutableType t, Void p) {
-            // TODO The implementation before doesn't work after update. Previously, I scanned the
-            // method receiver without null check. But even if I check nullness, scanning receiver
-            // at first caused some tests to fail. Need to investigate the reason.
             super.visitExecutable(t, p);
             // Also scan the receiver to apply implicit annotation
             if (t.getReceiverType() != null) {
@@ -618,26 +581,8 @@ public class PICONoInitAnnotatedTypeFactory
             }
             return null;
         }
-
-        @Override
-        protected Void scan(AnnotatedTypeMirror type, Void p) {
-            // If underlying type is enum or enum constant, appy @Immutable to type
-            //            PICOTypeUtil.applyImmutableToEnumAndEnumConstant(type);
-            return super.scan(type, p);
-        }
     }
 
-    // TODO Right now, instance method receiver cannot inherit bound annotation from class element,
-    // and this caused the inconsistency when accessing the type of receiver while visiting the
-    // method
-    // and while visiting the variable tree. Implicit annotation can be inserted to method receiver
-    // via
-    // extending DefaultForTypeAnnotator; But InheritedFromClassAnnotator cannot be inheritted
-    // because its constructor is private and I can't override it to also inherit bound annotation
-    // from class
-    // element to the declared receiver type of instance methods. To view the details, look at
-    // ImmutableClass1.java testcase.
-    // class PICOInheritedFromClassAnnotator extends InheritedFromClassAnnotator {}
     /** PICO SuperClause Annotator */
     public static class PICOSuperClauseAnnotator extends TreeAnnotator {
         /** The PICO type factory. */

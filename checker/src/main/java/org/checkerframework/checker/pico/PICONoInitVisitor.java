@@ -81,7 +81,6 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
     // modifying
     // PICOTypeUtil#getBoundTypeOfTypeDeclaration so that it has the same behaviour as
     // ATF#getAnnotatedType(Element)
-    // (at least for types other than java.lang.Object)
     @Override
     public boolean isValidUse(
             AnnotatedDeclaredType declarationType, AnnotatedDeclaredType useType, Tree tree) {
@@ -458,8 +457,6 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
         // Issue warnings on implicit shallow immutable:
         // Condition:
         // * Class decl == Immutable or RDM
-        // * move rdm default error here. see 3.6.3 last part.
-        // liansun
         // * Member is field
         // * Member's declared bound == Mutable
         // * Member's use anno == null

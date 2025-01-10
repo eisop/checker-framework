@@ -1,5 +1,6 @@
 import org.checkerframework.checker.pico.qual.Immutable;
 import org.checkerframework.checker.pico.qual.Mutable;
+import org.checkerframework.checker.pico.qual.Readonly;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -35,7 +36,7 @@ public class HashCodeSafetyExample {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Readonly Object obj) {
         // No cast.unsafe
         return isIn == ((A) obj).isIn;
     }

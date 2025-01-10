@@ -7,7 +7,7 @@ public class OverrideEquals {
         void foo(@Readonly Object o) {}
 
         @Override
-        public boolean equals(Object o) {
+        public boolean equals(@Readonly Object o) {
             return super.equals(o);
         }
 
