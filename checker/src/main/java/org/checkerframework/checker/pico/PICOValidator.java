@@ -60,12 +60,6 @@ public class PICOValidator extends BaseTypeValidator {
     @Override
     protected boolean shouldCheckTopLevelDeclaredOrPrimitiveType(
             AnnotatedTypeMirror type, Tree tree) {
-        // check top annotations in extends/implements clauses
-        if ((tree.getKind() == Kind.IDENTIFIER || tree.getKind() == Kind.PARAMETERIZED_TYPE)
-                && PICONoInitAnnotatedTypeFactory.PICOSuperClauseAnnotator.isSuperClause(
-                        atypeFactory.getPath(tree))) {
-            return true;
-        }
         // allow RDM on mutable fields with enclosing class bounded with mutable
         if (tree instanceof VariableTree) {
             VariableElement element = TreeUtils.elementFromDeclaration((VariableTree) tree);
