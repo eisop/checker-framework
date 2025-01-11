@@ -194,39 +194,38 @@ public class ClassAnnotation {
     class ImmutableChildClassGood3
             implements ImmutableInterfaceExplict, @ReceiverDependentMutable RDMInterface {}
 
-    // TODO Make the superclass's bound implicit works
     // :: error: (declaration.inconsistent.with.extends.clause) :: error: (super.invocation.invalid)
-    class ImmutableChildClassBad1 extends @Mutable MutableClass {}
+    class ImmutableChildClassBad1 extends MutableClass {}
 
     // :: error: (declaration.inconsistent.with.implements.clause)
-    class ImmutableChildClassBad2 implements @Mutable MutableInterface {}
+    class ImmutableChildClassBad2 implements MutableInterface {}
 
-    @Mutable class MutableChildClassGood1 extends @ReceiverDependentMutable RDMClass {}
+    @Mutable class MutableChildClassGood1 extends RDMClass {}
 
-    @Mutable class MutableChildClassGood2 extends @Mutable MutableClass {}
+    @Mutable class MutableChildClassGood2 extends MutableClass {}
 
     @Mutable class MutableChildClassGood3
-            implements @Mutable MutableInterface, @ReceiverDependentMutable RDMInterface {}
+            implements MutableInterface, RDMInterface {}
 
     // :: error: (declaration.inconsistent.with.extends.clause) :: error: (super.invocation.invalid)
-    @Mutable class MutableChildClassBad1 extends @Immutable ImmutableClassExplicit {}
+    @Mutable class MutableChildClassBad1 extends ImmutableClassExplicit {}
 
     // :: error: (declaration.inconsistent.with.implements.clause)
-    @Mutable class MutableChildClassBad2 implements @Immutable ImmutableInterfaceExplict {}
+    @Mutable class MutableChildClassBad2 implements ImmutableInterfaceExplict {}
 
-    @ReceiverDependentMutable class RDMChildClassGood1 extends @ReceiverDependentMutable RDMClass {}
+    @ReceiverDependentMutable class RDMChildClassGood1 extends RDMClass {}
 
-    @ReceiverDependentMutable class RDMChildClassGood2 implements @ReceiverDependentMutable RDMInterface {}
+    @ReceiverDependentMutable class RDMChildClassGood2 implements RDMInterface {}
 
     // :: error: (declaration.inconsistent.with.extends.clause) :: error: (super.invocation.invalid)
-    @ReceiverDependentMutable class RDMChildClassBad1 extends @Immutable ImmutableClassExplicit {}
+    @ReceiverDependentMutable class RDMChildClassBad1 extends ImmutableClassExplicit {}
 
     // :: error: (declaration.inconsistent.with.implements.clause)
-    @ReceiverDependentMutable class RDMChildClassBad2 implements @Immutable ImmutableInterfaceExplict {}
+    @ReceiverDependentMutable class RDMChildClassBad2 implements ImmutableInterfaceExplict {}
 
     // :: error: (declaration.inconsistent.with.extends.clause) :: error: (super.invocation.invalid)
-    @ReceiverDependentMutable class RDMChildClassBad3 extends @Mutable MutableClass {}
+    @ReceiverDependentMutable class RDMChildClassBad3 extends MutableClass {}
 
     // :: error: (declaration.inconsistent.with.implements.clause)
-    @ReceiverDependentMutable class RDMChildClassBad4 implements @Mutable MutableInterface {}
+    @ReceiverDependentMutable class RDMChildClassBad4 implements MutableInterface {}
 }

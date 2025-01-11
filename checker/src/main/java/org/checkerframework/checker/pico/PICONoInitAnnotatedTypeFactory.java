@@ -126,7 +126,6 @@ public class PICONoInitAnnotatedTypeFactory
         annotators.add(new InitializationFieldAccessTreeAnnotator(this));
         annotators.add(new PICOPropagationTreeAnnotator(this));
         annotators.add(new LiteralTreeAnnotator(this));
-        annotators.add(new PICOSuperClauseAnnotator(this));
         annotators.add(new PICOTreeAnnotator(this));
         return new ListTreeAnnotator(annotators);
     }
@@ -580,84 +579,6 @@ public class PICONoInitAnnotatedTypeFactory
                 return scanAndReduce(t.getReceiverType(), p, null);
             }
             return null;
-        }
-    }
-
-    /** PICO SuperClause Annotator */
-    public static class PICOSuperClauseAnnotator extends TreeAnnotator {
-        /** The PICO type factory. */
-        private PICONoInitAnnotatedTypeFactory picoTypeFactory;
-
-        /**
-         * Create a new PICOSuperClauseAnnotator.
-         *
-         * @param atypeFactory the type factory
-         */
-        public PICOSuperClauseAnnotator(AnnotatedTypeFactory atypeFactory) {
-            super(atypeFactory);
-            picoTypeFactory = (PICONoInitAnnotatedTypeFactory) atypeFactory;
-        }
-
-        /**
-         * Check if the given path is a super clause.
-         *
-         * @param path the path to check
-         * @return true if the given path is a super clause, false otherwise
-         */
-        public static boolean isSuperClause(TreePath path) {
-            if (path == null) {
-                return false;
-            }
-            return TreeUtils.isClassTree(path.getParentPath().getLeaf());
-        }
-
-        /**
-         * Add default annotation from main class to super clause
-         *
-         * @param tree the tree to add default annotation
-         * @param mirror the annotated type mirror to add default annotation
-         */
-        private void addDefaultFromMain(Tree tree, AnnotatedTypeMirror mirror) {
-            TreePath path = atypeFactory.getPath(tree);
-
-            // only annotates when:
-            // 1. it's a super clause, AND
-            // 2. atm OR tree is not annotated
-            // Note: TreeUtils.typeOf returns no stub or default annotations, but in this scenario
-            // they are not needed
-            // Here only explicit annotation on super clause have effect because framework default
-            // rule is override
-            if (isSuperClause(path)
-                    && (!mirror.hasAnnotationInHierarchy(picoTypeFactory.READONLY)
-                            || atypeFactory
-                                            .getQualifierHierarchy()
-                                            .findAnnotationInHierarchy(
-                                                    TreeUtils.typeOf(tree).getAnnotationMirrors(),
-                                                    picoTypeFactory.READONLY)
-                                    == null)) {
-                AnnotatedTypeMirror enclosing =
-                        atypeFactory.getAnnotatedType(TreePathUtil.enclosingClass(path));
-                AnnotationMirror mainBound =
-                        enclosing.getAnnotationInHierarchy(picoTypeFactory.READONLY);
-                mirror.replaceAnnotation(mainBound);
-            }
-        }
-
-        @Override
-        public Void visitIdentifier(
-                IdentifierTree identifierTree, AnnotatedTypeMirror annotatedTypeMirror) {
-            // super clauses without type param use this
-            addDefaultFromMain(identifierTree, annotatedTypeMirror);
-            return super.visitIdentifier(identifierTree, annotatedTypeMirror);
-        }
-
-        @Override
-        public Void visitParameterizedType(
-                ParameterizedTypeTree parameterizedTypeTree,
-                AnnotatedTypeMirror annotatedTypeMirror) {
-            // super clauses with type param use this
-            addDefaultFromMain(parameterizedTypeTree, annotatedTypeMirror);
-            return super.visitParameterizedType(parameterizedTypeTree, annotatedTypeMirror);
         }
     }
 

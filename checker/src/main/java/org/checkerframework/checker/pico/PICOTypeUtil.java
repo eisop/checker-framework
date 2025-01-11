@@ -191,22 +191,6 @@ public class PICOTypeUtil {
     }
 
     /**
-     * Helper method to determine a method using method name.
-     *
-     * @param methodType AnnotatedExecutableType of the method
-     * @param methodName Name of the method
-     * @param annotatedTypeFactory AnnotatedTypeFactory
-     * @return whether the method is the method or override a method
-     */
-    public static boolean isMethodOrOverridingMethod(
-            AnnotatedExecutableType methodType,
-            String methodName,
-            AnnotatedTypeFactory annotatedTypeFactory) {
-        return isMethodOrOverridingMethod(
-                methodType.getElement(), methodName, annotatedTypeFactory);
-    }
-
-    /**
      * Helper method to determine if a method is the target method or overriding the target method.
      *
      * @param executableElement ExecutableElement of the method
