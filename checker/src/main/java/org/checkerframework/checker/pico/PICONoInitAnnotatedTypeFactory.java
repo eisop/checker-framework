@@ -2,15 +2,12 @@ package org.checkerframework.checker.pico;
 
 import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.ClassTree;
-import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.NewClassTree;
-import com.sun.source.tree.ParameterizedTypeTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.VariableTree;
-import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.initialization.InitializationFieldAccessTreeAnnotator;
 import org.checkerframework.checker.pico.qual.Immutable;

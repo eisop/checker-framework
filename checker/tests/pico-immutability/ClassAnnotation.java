@@ -204,8 +204,7 @@ public class ClassAnnotation {
 
     @Mutable class MutableChildClassGood2 extends MutableClass {}
 
-    @Mutable class MutableChildClassGood3
-            implements MutableInterface, RDMInterface {}
+    @Mutable class MutableChildClassGood3 implements MutableInterface, RDMInterface {}
 
     // :: error: (declaration.inconsistent.with.extends.clause) :: error: (super.invocation.invalid)
     @Mutable class MutableChildClassBad1 extends ImmutableClassExplicit {}
