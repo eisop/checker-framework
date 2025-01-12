@@ -187,12 +187,15 @@ public class ClassAnnotation {
     }
 
     // Subclassing check
-    class ImmutableChildClassGood1 extends @ReceiverDependentMutable RDMClass {}
+    class ImmutableChildClassGood1 extends RDMClass {}
 
     class ImmutableChildClassGood2 extends ImmutableClassExplicit {}
 
-    class ImmutableChildClassGood3
-            implements ImmutableInterfaceExplict, @ReceiverDependentMutable RDMInterface {}
+    class ImmutableChildClassGood3 implements ImmutableInterfaceExplict, RDMInterface {}
+
+    class ImmutableChildClassGood4 implements RDMInterface {}
+
+    @Immutable class ImmutableChildClassGood5 implements RDMInterface {}
 
     // :: error: (declaration.inconsistent.with.extends.clause) :: error: (super.invocation.invalid)
     class ImmutableChildClassBad1 extends MutableClass {}
@@ -205,6 +208,8 @@ public class ClassAnnotation {
     @Mutable class MutableChildClassGood2 extends MutableClass {}
 
     @Mutable class MutableChildClassGood3 implements MutableInterface, RDMInterface {}
+
+    @Mutable class MutableChildClassGood4 implements RDMInterface {}
 
     // :: error: (declaration.inconsistent.with.extends.clause) :: error: (super.invocation.invalid)
     @Mutable class MutableChildClassBad1 extends ImmutableClassExplicit {}
