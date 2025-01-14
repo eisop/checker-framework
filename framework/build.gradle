@@ -33,6 +33,7 @@ sourceSets {
       srcDirs = ['src/testannotations/java']
     }
   }
+  stubifier
 }
 
 sourcesJar {
@@ -46,6 +47,7 @@ jar {
 }
 
 configurations {
+  implementation.extendsFrom(stubifierImplementation)
   implementation.extendsFrom(annotatedGuava)
 }
 
@@ -54,15 +56,16 @@ dependencies {
   api project(':dataflow')
   // At the moement, there are no differences between eisop and typetools stubparsers.
   api 'org.checkerframework:stubparser:3.26.2'
+  stubifierImplementation 'org.checkerframework:stubparser:3.26.2'
+  implementation sourceSets.stubifier.output
 
-  // NO-AFU
-  /*
-   // AFU is an "includedBuild" imported in checker-framework/settings.gradle, so the version number doesn't matter.
-   // https://docs.gradle.org/current/userguide/composite_builds.html#settings_defined_composite
-   api('org.checkerframework:annotation-file-utilities:*') {
-   exclude group: 'com.google.errorprone', module: 'javac'
-   }
-   */
+  /* NO-AFU
+  // AFU is an "includedBuild" imported in checker-framework/settings.gradle, so the version number doesn't matter.
+  // https://docs.gradle.org/current/userguide/composite_builds.html#settings_defined_composite
+  api('org.checkerframework:annotation-file-utilities:*') {
+    exclude group: 'com.google.errorprone', module: 'javac'
+  }
+  */
 
   api project(':checker-qual')
 
@@ -100,8 +103,8 @@ tasks.register('cloneAnnotatedJdk', CloneTask) {
   outputs.upToDateWhen { false }
 }
 
-task copyAndMinimizeAnnotatedJdkFiles(dependsOn: cloneAnnotatedJdk, group: 'Build') {
-  dependsOn ':framework:compileJava'
+task copyAndMinimizeAnnotatedJdkFiles(type: JavaExec, dependsOn: cloneAnnotatedJdk, group: 'Build') {
+  dependsOn ':framework:compileStubifierJava'
   // we need the next two dependencies because we run JavaStubifier using this project's runtimeClasspath,
   // which refers to the jars for these other projects
   dependsOn ':javacutil:jar'
@@ -114,9 +117,14 @@ task copyAndMinimizeAnnotatedJdkFiles(dependsOn: cloneAnnotatedJdk, group: 'Buil
   inputs.dir file(inputDir)
   outputs.dir file(outputDir)
 
-  def injected = project.objects.newInstance(InjectedExecOps)
+  classpath = sourceSets.stubifier.runtimeClasspath
+  standardOutput = System.out
+  errorOutput = System.err
 
-  doLast {
+  mainClass = 'org.checkerframework.framework.stubifier.JavaStubifier'
+  args outputDir
+
+  doFirst {
     FileTree tree = fileTree(dir: inputDir)
     NavigableSet<String> annotatedForFiles = new TreeSet<>();
     // Populate `annotatedForFiles`.
@@ -140,19 +148,10 @@ task copyAndMinimizeAnnotatedJdkFiles(dependsOn: cloneAnnotatedJdk, group: 'Buil
         include filename.substring(jdkDirStringSize)
       }
     }
-    injected.execOps.javaexec {
-      classpath = sourceSets.main.runtimeClasspath
-      standardOutput = System.out
-      errorOutput = System.err
-
-      mainClass = 'org.checkerframework.framework.stub.JavaStubifier'
-      args outputDir
-    }
   }
 }
 
 sourcesJar.dependsOn(copyAndMinimizeAnnotatedJdkFiles)
-
 processResources.dependsOn(copyAndMinimizeAnnotatedJdkFiles)
 
 task allSourcesJar(type: Jar, group: 'Build') {
