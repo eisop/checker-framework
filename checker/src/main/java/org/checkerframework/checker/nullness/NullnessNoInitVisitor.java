@@ -59,7 +59,6 @@ import org.checkerframework.javacutil.TreeUtilsAfterJava11.BindingPatternUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.SwitchExpressionUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -474,30 +473,28 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             return null;
         }
 
-        List<AnnotationMirror> annotations = new ArrayList<>();
-
+        List<? extends AnnotationMirror> annotations = null;
         if (refTypeTree.getKind() == Tree.Kind.ANNOTATED_TYPE) {
-            annotations.addAll(TreeUtils.annotationsFromTree((AnnotatedTypeTree) refTypeTree));
-        }
-
-        Tree patternTree = TreeUtilsAfterJava11.InstanceOfUtils.getPattern(tree);
-        if (patternTree != null) {
-            if (TreeUtils.isBindingPatternTree(patternTree)) {
+            annotations = TreeUtils.annotationsFromTree((AnnotatedTypeTree) refTypeTree);
+        } else {
+            Tree patternTree = TreeUtilsAfterJava11.InstanceOfUtils.getPattern(tree);
+            if (patternTree != null && TreeUtils.isBindingPatternTree(patternTree)) {
                 VariableTree variableTree = BindingPatternUtils.getVariable(patternTree);
                 if (variableTree.getModifiers() != null) {
                     List<? extends AnnotationTree> annotationTree =
                             variableTree.getModifiers().getAnnotations();
-                    annotations.addAll(
-                            TreeUtils.annotationsFromTypeAnnotationTrees(annotationTree));
+                    annotations = TreeUtils.annotationsFromTypeAnnotationTrees(annotationTree);
                 }
             }
         }
 
-        if (AnnotationUtils.containsSame(annotations, NULLABLE)) {
-            checker.reportError(tree, "instanceof.nullable");
-        }
-        if (AnnotationUtils.containsSame(annotations, NONNULL)) {
-            checker.reportWarning(tree, "instanceof.nonnull.redundant");
+        if (annotations != null) {
+            if (AnnotationUtils.containsSame(annotations, NULLABLE)) {
+                checker.reportError(tree, "instanceof.nullable");
+            }
+            if (AnnotationUtils.containsSame(annotations, NONNULL)) {
+                checker.reportWarning(tree, "instanceof.nonnull.redundant");
+            }
         }
 
         // Don't call super because it will issue an incorrect instanceof.unsafe warning.
