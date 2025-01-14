@@ -10,7 +10,7 @@ and a redundant warning if they are annotated with `@NonNull`.
 
 **Closed issues:**
 
-eisop#1003, eisop#1033, eisop#1058
+eisop#1003, eisop#1033, eisop#1058.
 
 
 Version 3.42.0-eisop5 (December 20, 2024)

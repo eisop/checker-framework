@@ -32,6 +32,12 @@ public class NullnessInstanceOf {
         }
     }
 
+    public void testUnannotatedClassic(Object x) {
+        if (x instanceof String) {
+            System.out.println("Unannotated String instanceof check.");
+        }
+    }
+
     public void testUnannotatedPatternVariable(Object x) {
         if (x instanceof String unannotatedString) {
             System.out.println("Unannotated String length: " + unannotatedString.length());
