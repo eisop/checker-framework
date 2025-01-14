@@ -197,8 +197,8 @@ checkCompilerMessages {
   ]
 }
 
-task loaderTests(dependsOn: 'shadowJar', group: 'Verification') {
-  description = 'Run tests for the annotation class loader'
+task loaderTests(type: Exec, dependsOn: 'shadowJar', group: 'Verification') {
+  description 'Run tests for the annotation class loader'
   dependsOn(compileTestJava)
 
   def injected = project.objects.newInstance(InjectedExecOps)
@@ -206,12 +206,7 @@ task loaderTests(dependsOn: 'shadowJar', group: 'Verification') {
   // TODO: this dependency on checker is a bit ugly.
   dependsOn project(':checker-qual').tasks.jar
   dependsOn project(':checker').tasks.assemble
-  doLast {
-    injected.execOps.exec {
-      workingDir = file('tests/annotationclassloader')
-      commandLine 'make', 'all'
-    }
-  }
+  commandLine 'make', '-C', 'tests/annotationclassloader/', 'all'
 }
 
 clean {

@@ -72,17 +72,9 @@ createDataflowShaded('shaded')
 createDataflowShaded('nullaway')
 createDataflowShaded('errorprone')
 
-task manual(group: 'Documentation') {
-  description = 'Build the manual'
-
-  def injected = project.objects.newInstance(InjectedExecOps)
-
-  doLast {
-    injected.execOps.exec {
-      workingDir = file('manual')
-      commandLine 'make'
-    }
-  }
+task manual(type: Exec, group: 'Documentation') {
+  description 'Build the manual'
+  commandLine 'make', '-C', 'manual'
 }
 
 tasks.withType(Test) {
