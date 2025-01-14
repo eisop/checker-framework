@@ -10,7 +10,7 @@ public class Underflows {
 
     static void chars() {
         char min = Character.MIN_VALUE;
-        // :: warning: (cast.unsafe)
+        // :: error: (cast.incomparable)
         @IntVal(65535) char maxPlus1 = (char) (min - 1);
     }
 

@@ -3,11 +3,18 @@ Version 3.42.0-eisop6 (January ??, 2025)
 
 **User-visible changes:**
 
+A new error message `cast.incomparable` will be raised if the target type qualifier is neither the subtype
+nor the supertype of the expression type qualifier. No longer issue errors for statically verifiable downcast.
+
 **Implementation details:**
+
+Refactored the implementation of `isTypeCastSafe` to categorize the kinds of a typecast, whether
+it is an upcast, downcast or incomparable cast. Based on that, further determine if the typecast
+is statically verifiable or not.
 
 **Closed issues:**
 
-eisop#1003, eisop#1033.
+eisop#155, eisop#1003, eisop#1033.
 
 
 Version 3.42.0-eisop5 (December 20, 2024)
@@ -187,7 +194,6 @@ is an enhanced switch statement.
 **Closed issues:**
 
 eisop#609, eisop#610, eisop#612.
-
 
 Version 3.40.0 (November 1, 2023)
 ---------------------------------

@@ -304,6 +304,26 @@ public abstract class QualifierHierarchy {
     }
 
     /**
+     * Tests whether all qualifiers in {@code qualifiers1} are comparable with the qualifier in the
+     * same hierarchy in {@code qualifiers2}.
+     *
+     * @param qualifiers1 set of qualifiers; exactly one per hierarchy
+     * @param type1 the type associated with {@code qualifiers1}
+     * @param qualifiers2 set of qualifiers; exactly one per hierarchy
+     * @param type2 the type associated with {@code qualifiers2}
+     * @return true iff all qualifiers in {@code qualifiers1} are comparable with qualifiers in
+     *     {@code qualifiers2}
+     */
+    public boolean isComparable(
+            Collection<? extends AnnotationMirror> qualifiers1,
+            TypeMirror type1,
+            Collection<? extends AnnotationMirror> qualifiers2,
+            TypeMirror type2) {
+        return isSubtypeShallow(qualifiers1, type1, qualifiers2, type2)
+                || isSubtypeShallow(qualifiers2, type2, qualifiers1, type1);
+    }
+
+    /**
      * Returns the least upper bound (LUB) of the qualifiers {@code qualifier1} and {@code
      * qualifier2}. Returns {@code null} if the qualifiers are not from the same qualifier
      * hierarchy. Ignores Java basetypes.
