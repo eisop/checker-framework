@@ -60,12 +60,12 @@ dependencies {
   implementation sourceSets.stubifier.output
 
   /* NO-AFU
-  // AFU is an "includedBuild" imported in checker-framework/settings.gradle, so the version number doesn't matter.
-  // https://docs.gradle.org/current/userguide/composite_builds.html#settings_defined_composite
-  api('org.checkerframework:annotation-file-utilities:*') {
-    exclude group: 'com.google.errorprone', module: 'javac'
-  }
-  */
+   // AFU is an "includedBuild" imported in checker-framework/settings.gradle, so the version number doesn't matter.
+   // https://docs.gradle.org/current/userguide/composite_builds.html#settings_defined_composite
+   api('org.checkerframework:annotation-file-utilities:*') {
+   exclude group: 'com.google.errorprone', module: 'javac'
+   }
+   */
 
   api project(':checker-qual')
 
