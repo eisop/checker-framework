@@ -11,13 +11,11 @@ import org.plumelib.util.SystemPlume;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
@@ -34,9 +32,7 @@ import java.util.Set;
 import java.util.StringJoiner;
 
 import javax.tools.Diagnostic;
-import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
-import javax.tools.ToolProvider;
 
 /** Utilities for testing. */
 public class TestUtilities {
@@ -80,12 +76,6 @@ public class TestUtilities {
     /** True if the JVM is version 21 or above. */
     public static final boolean IS_AT_LEAST_21_JVM = SystemUtil.jreVersion >= 21;
 
-    static {
-        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-        OutputStream err = new ByteArrayOutputStream();
-        compiler.run(null, null, err, "-version");
-    }
-
     /**
      * Find test java sources within currentDir/tests.
      *
@@ -120,7 +110,7 @@ public class TestUtilities {
         int i = 0;
         for (String dirName : dirNames) {
             dirs[i] = new File(parent, dirName);
-            i += 1;
+            ++i;
         }
 
         return getJavaFilesAsArgumentList(dirs);
@@ -320,9 +310,15 @@ public class TestUtilities {
         return true;
     }
 
+    /**
+     * Convert a compiler diagnostic to a string.
+     *
+     * @param diagnostic the compiler diagnostic
+     * @param usingAnomsgtxt whether message text should be excluded or not
+     * @return the compiler message string or null for certain lint warnings
+     */
     public static @Nullable String diagnosticToString(
             Diagnostic<? extends JavaFileObject> diagnostic, boolean usingAnomsgtxt) {
-
         String result = diagnostic.toString().trim();
 
         // suppress Xlint warnings
@@ -471,7 +467,6 @@ public class TestUtilities {
             pw.println();
             pw.println();
             pw.flush();
-
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

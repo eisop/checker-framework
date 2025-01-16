@@ -55,6 +55,7 @@ import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11.BindingPatternUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.SwitchExpressionUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
@@ -471,9 +472,23 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             // Handle them properly.
             return null;
         }
+
+        List<? extends AnnotationMirror> annotations = null;
         if (refTypeTree.getKind() == Tree.Kind.ANNOTATED_TYPE) {
-            List<? extends AnnotationMirror> annotations =
-                    TreeUtils.annotationsFromTree((AnnotatedTypeTree) refTypeTree);
+            annotations = TreeUtils.annotationsFromTree((AnnotatedTypeTree) refTypeTree);
+        } else {
+            Tree patternTree = TreeUtilsAfterJava11.InstanceOfUtils.getPattern(tree);
+            if (patternTree != null && TreeUtils.isBindingPatternTree(patternTree)) {
+                VariableTree variableTree = BindingPatternUtils.getVariable(patternTree);
+                if (variableTree.getModifiers() != null) {
+                    List<? extends AnnotationTree> annotationTree =
+                            variableTree.getModifiers().getAnnotations();
+                    annotations = TreeUtils.annotationsFromTypeAnnotationTrees(annotationTree);
+                }
+            }
+        }
+
+        if (annotations != null) {
             if (AnnotationUtils.containsSame(annotations, NULLABLE)) {
                 checker.reportError(tree, "instanceof.nullable");
             }
@@ -481,6 +496,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 checker.reportWarning(tree, "instanceof.nonnull.redundant");
             }
         }
+
         // Don't call super because it will issue an incorrect instanceof.unsafe warning.
         return null;
     }

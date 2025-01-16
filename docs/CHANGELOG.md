@@ -3,11 +3,14 @@ Version 3.42.0-eisop6 (January ??, 2025)
 
 **User-visible changes:**
 
+The Nullness Checker now reports an error if any instanceof pattern variables are annotated with `@Nullable`
+and a redundant warning if they are annotated with `@NonNull`.
+
 **Implementation details:**
 
 **Closed issues:**
 
-eisop#1003, eisop#1033.
+eisop#1003, eisop#1033, eisop#1058.
 
 
 Version 3.42.0-eisop5 (December 20, 2024)
