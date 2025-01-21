@@ -956,7 +956,10 @@ public class AnnotatedTypes {
                     throw new BugInCF("Missing primary annotations: subtype: %s", subtype);
                 }
                 AnnotationMirror ubAnno = subtype.getEffectiveAnnotationInHierarchy(top);
-                if (qualHierarchy.isSubtypeQualifiersOnly(superAnno, ubAnno)) {
+                if (!qualHierarchy.isSubtypeQualifiersOnly(ubAnno, superAnno)) {
+                    //  if (qualHierarchy.isSubtypeQualifiersOnly(superAnno, ubAnno)) {
+                    // Instead of superAnno <: ubAnno check for ubAnno <!: superAnno to exclude the
+                    // case where ubAnno == superAnno.
                     // We know that `glb` is a type variable, because `subtype` is.
                     // Do not add the annotation to the type variable itself, because that would
                     // change the upper and the lower bound.
