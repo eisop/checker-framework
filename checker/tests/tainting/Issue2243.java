@@ -8,6 +8,7 @@ import org.checkerframework.checker.tainting.qual.Untainted;
 public @Tainted class Issue2243 extends Y2243 {}
 
 // :: error: (declaration.inconsistent.with.extends.clause)
+// :: error: (annotation.on.supertype)
 class ExtendsSubTypingExplicit2243 extends @Untainted X2243 {}
 
 class X2243 {}
