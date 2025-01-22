@@ -957,7 +957,6 @@ public class AnnotatedTypes {
                 }
                 AnnotationMirror ubAnno = subtype.getEffectiveAnnotationInHierarchy(top);
                 if (!qualHierarchy.isSubtypeQualifiersOnly(ubAnno, superAnno)) {
-                    //  if (qualHierarchy.isSubtypeQualifiersOnly(superAnno, ubAnno)) {
                     // Instead of superAnno <: ubAnno check for ubAnno <!: superAnno to exclude the
                     // case where ubAnno == superAnno.
                     // We know that `glb` is a type variable, because `subtype` is.
