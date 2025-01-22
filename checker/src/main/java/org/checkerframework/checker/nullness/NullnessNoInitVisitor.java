@@ -636,14 +636,6 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
 
     @Override
     public void processClassTree(ClassTree classTree) {
-        Tree extendsClause = classTree.getExtendsClause();
-        if (extendsClause != null) {
-            reportErrorIfSupertypeContainsNullnessAnnotation(extendsClause);
-        }
-        for (Tree implementsClause : classTree.getImplementsClause()) {
-            reportErrorIfSupertypeContainsNullnessAnnotation(implementsClause);
-        }
-
         if (classTree.getKind() == Tree.Kind.ENUM) {
             for (Tree member : classTree.getMembers()) {
                 if (member.getKind() == Tree.Kind.VARIABLE
@@ -661,21 +653,6 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         }
 
         super.processClassTree(classTree);
-    }
-
-    /**
-     * Report "nullness.on.supertype" error if a supertype has a nullness annotation.
-     *
-     * @param typeTree a supertype tree, from an {@code extends} or {@code implements} clause
-     */
-    private void reportErrorIfSupertypeContainsNullnessAnnotation(Tree typeTree) {
-        if (typeTree.getKind() == Tree.Kind.ANNOTATED_TYPE) {
-            List<? extends AnnotationTree> annoTrees =
-                    ((AnnotatedTypeTree) typeTree).getAnnotations();
-            if (atypeFactory.containsNullnessAnnotation(annoTrees)) {
-                checker.reportError(typeTree, "nullness.on.supertype");
-            }
-        }
     }
 
     // ///////////// Utility methods //////////////////////////////

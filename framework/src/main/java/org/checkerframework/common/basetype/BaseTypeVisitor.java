@@ -834,11 +834,32 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         // there is no need to do any subtype checking.
         if (classTree.getExtendsClause() != null) {
             Tree boundClause = classTree.getExtendsClause();
+            reportErrorIfSupertypeContainsAnnotation(boundClause);
             checkExtendsOrImplements(boundClause, classBounds, classType, true);
         }
         // Do the same check as above for implements clauses.
         for (Tree boundClause : classTree.getImplementsClause()) {
+            reportErrorIfSupertypeContainsAnnotation(boundClause);
             checkExtendsOrImplements(boundClause, classBounds, classType, false);
+        }
+    }
+
+    /**
+     * Report "annotation.on.supertype" error if a supertype has annotation. Other checkers can
+     * override this method to permit annotation on supertype.
+     *
+     * @param typeTree a supertype tree, from an {@code extends} or {@code implements} clause
+     */
+    protected void reportErrorIfSupertypeContainsAnnotation(Tree typeTree) {
+        if (typeTree.getKind() == Tree.Kind.ANNOTATED_TYPE) {
+            List<? extends AnnotationTree> annoTrees =
+                    ((AnnotatedTypeTree) typeTree).getAnnotations();
+            for (AnnotationTree annoTree : annoTrees) {
+                AnnotationMirror am = TreeUtils.annotationFromAnnotationTree(annoTree);
+                if (AnnotationUtils.isTypeUseAnnotation(am)) {
+                    checker.reportError(typeTree, "annotation.on.supertype");
+                }
+            }
         }
     }
 
