@@ -90,14 +90,8 @@ dependencies {
   testImplementation "org.projectlombok:lombok:${versions.lombok}"
 }
 
-// Enable exec/javaexec
-interface InjectedExecOps {
-  @Inject
-  ExecOperations getExecOps()
-}
-
 tasks.register('cloneAnnotatedJdk', CloneTask) {
-  description 'Obtain or update the annotated JDK.'
+  description = 'Obtain or update the annotated JDK.'
   url.set('https://github.com/eisop/jdk.git')
   directory.set(file(annotatedJdkHome))
   outputs.upToDateWhen { false }
@@ -197,10 +191,8 @@ checkCompilerMessages {
 }
 
 task loaderTests(type: Exec, dependsOn: 'shadowJar', group: 'Verification') {
-  description 'Run tests for the annotation class loader'
+  description = 'Run tests for the annotation class loader'
   dependsOn(compileTestJava)
-
-  def injected = project.objects.newInstance(InjectedExecOps)
 
   // TODO: this dependency on checker is a bit ugly.
   dependsOn project(':checker-qual').tasks.jar
@@ -208,18 +200,17 @@ task loaderTests(type: Exec, dependsOn: 'shadowJar', group: 'Verification') {
   commandLine 'make', '-C', 'tests/annotationclassloader/', 'all'
 }
 
+task cleanLoaderTests(type: Exec) {
+  description = 'Clean up after the annotation class loader tests'
+  commandLine 'make', '-C', 'tests/annotationclassloader/', 'clean'
+}
+
 clean {
-  def injected = project.objects.newInstance(InjectedExecOps)
+  dependsOn(cleanLoaderTests)
 
   delete('tests/returnsreceiverdelomboked')
   delete('dist')
   delete('tests/build')
-  doLast {
-    injected.execOps.exec {
-      workingDir = file('tests/annotationclassloader')
-      commandLine 'make', 'clean'
-    }
-  }
 }
 
 

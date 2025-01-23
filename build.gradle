@@ -770,7 +770,7 @@ task allJavadoc(type: Javadoc, group: 'Documentation') {
 javadoc.dependsOn(allJavadoc)
 
 task cleanManual(type: Exec) {
-  description 'Clean the manual'
+  description = 'Clean the manual'
   commandLine 'make', '-C', 'docs/manual', 'clean'
 }
 clean.dependsOn(cleanManual)
@@ -830,7 +830,7 @@ def createJavadocTask(taskName, taskDescription, memberLevel) {
 createJavadocTask('javadocDoclintAll', 'Runs javadoc with -Xdoclint:all option.', JavadocMemberLevel.PRIVATE)
 
 task manual(type: Exec, group: 'Documentation') {
-  description 'Build the manual'
+  description = 'Build the manual'
   commandLine 'make', '-C', 'docs/manual', 'all'
 }
 
@@ -899,7 +899,7 @@ task docTags(type: Exec, group: 'Emacs') {
 
 task tags(type: Exec, group: 'Emacs') {
   dependsOn docTags
-  description 'Create Emacs TAGS table'
+  description = 'Create Emacs TAGS table'
   // running this task will also run the tags task in the subprojects, which is defined later in this file.
   commandLine 'etags', '-i', 'checker/TAGS', '-i', 'checker-qual/TAGS', '-i', 'checker-util/TAGS', '-i', 'dataflow/TAGS', '-i', 'framework/TAGS', '-i', 'framework-test/TAGS', '-i', 'javacutil/TAGS', '-i', 'docs/manual/TAGS'
 }
@@ -1039,7 +1039,7 @@ subprojects {
     // Add jtregTests to framework and checker modules
     if (project.name.is('framework') || project.name.is('checker')) {
       tasks.create(name: 'jtregTests', type: Exec, group: 'Verification') {
-        description 'Run the jtreg tests. Requires jtreg to be installed.'
+        description = 'Run the jtreg tests. Requires jtreg to be installed.'
 
         if (currentRuntimeJavaVersion < 11) {
           // jtreg only works on JDK 11+

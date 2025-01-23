@@ -73,7 +73,7 @@ createDataflowShaded('nullaway')
 createDataflowShaded('errorprone')
 
 task manual(type: Exec, group: 'Documentation') {
-  description 'Build the manual'
+  description = 'Build the manual'
   commandLine 'make', '-C', 'manual'
 }
 
@@ -117,7 +117,7 @@ def testDataflowAnalysis(taskName, dirName, className, diff) {
     }
   }
   tasks.create(name: taskName, type: JavaExec, dependsOn: [assemble, compileTestJava], group: 'Verification') {
-    description "Run the ${dirName} dataflow framework test."
+    description = "Run the ${dirName} dataflow framework test."
     if (diff) {
       inputs.file("tests/${dirName}/Expected.txt")
     }
