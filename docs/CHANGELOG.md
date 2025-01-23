@@ -3,11 +3,14 @@ Version 3.42.0-eisop6 (January ??, 2025)
 
 **User-visible changes:**
 
+The Nullness Checker now reports an error if any instanceof pattern variables are annotated with `@Nullable`
+and a redundant warning if they are annotated with `@NonNull`.
+
 **Implementation details:**
 
 **Closed issues:**
 
-eisop#1033.
+eisop#1003, eisop#1033, eisop#1058.
 
 
 Version 3.42.0-eisop5 (December 20, 2024)
@@ -31,8 +34,8 @@ Make `SourceChecker#suppressWarningsString` protected to allow adaptation in sub
 
 **Closed issues:**
 
-eisop#413, eisop#782, eisop#815, eisop#860, eisop#873, eisop#875, eisop#927, eisop#982,
-eisop#1012.
+eisop#413, eisop#782, eisop#815, eisop#826, eisop#860, eisop#873, eisop#875, eisop#927,
+eisop#982, eisop#1012.
 
 
 Version 3.42.0-eisop4 (July 12, 2024)

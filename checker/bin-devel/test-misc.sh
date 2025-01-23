@@ -16,6 +16,10 @@ PLUME_SCRIPTS="$SCRIPTDIR/.plume-scripts"
 "$GIT_SCRIPTS/git-clone-related" eisop checker-framework.demos
 ./gradlew :checker:demosTests --console=plain --warning-mode=all
 
+## Checker Framework templatefora-checker
+"$GIT_SCRIPTS/git-clone-related" eisop templatefora-checker
+./gradlew :checker:templateTests --console=plain --warning-mode=all
+
 status=0
 
 ## Code style and formatting
