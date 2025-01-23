@@ -259,7 +259,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
      * @param declared declared type
      * @return {@link AnnotatedTypeMirror} after viewpoint adaptation
      */
-    public AnnotatedTypeMirror combineAnnotationWithType(
+    protected AnnotatedTypeMirror combineAnnotationWithType(
             AnnotationMirror receiverAnnotation, AnnotatedTypeMirror declared) {
         if (declared.getKind().isPrimitive()) {
             AnnotatedPrimitiveType apt = (AnnotatedPrimitiveType) declared.shallowCopy();

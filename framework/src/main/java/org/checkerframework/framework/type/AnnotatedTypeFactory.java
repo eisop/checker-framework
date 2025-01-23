@@ -1581,6 +1581,21 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         return qualifierUpperBounds.getBoundQualifiers(type);
     }
 
+    public AnnotationMirrorSet getAdaptedTypeDeclarationBounds(
+            TypeMirror type, AnnotatedDeclaredType useType) {
+        if (viewpointAdapter != null) {
+            AnnotationMirrorSet result = new AnnotationMirrorSet();
+            for (AnnotationMirror anno : getTypeDeclarationBounds(type)) {
+                result.addAll(
+                        ((AbstractViewpointAdapter) viewpointAdapter)
+                                .combineAnnotationWithType(anno, useType)
+                                .getAnnotations());
+            }
+            return result;
+        }
+        return getTypeDeclarationBounds(type);
+    }
+
     /**
      * Compare the given {@code annos} with the declaration bounds of {@code type} and return the
      * appropriate qualifiers. For each qualifier in {@code annos}, if it is a subtype of the
@@ -5687,15 +5702,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /** Accessor for the tree utilities. */
     public Trees getTreeUtils() {
         return this.trees;
-    }
-
-    /**
-     * Accessor for the viewpoint adapter.
-     *
-     * @return the viewpoint adapter
-     */
-    public ViewpointAdapter getViewpointAdapter() {
-        return this.viewpointAdapter;
     }
 
     /**
