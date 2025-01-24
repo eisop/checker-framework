@@ -1,8 +1,10 @@
 import viewpointtest.quals.*;
 
+// :: warning: (inconsistent.constructor.type)
 public class PolyWithVPA {
+    // :: warning: (inconsistent.constructor.type)
     static class PolyClass {
-        @ReceiverDependentQual Object foo(@PolyVP Object o) {
+        @ReceiverDependentQual Object foo(@PolyVP PolyClass this, @PolyVP Object o) {
             return null;
         }
     }
