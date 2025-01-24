@@ -5,7 +5,7 @@ import viewpointtest.quals.*;
 
     @ReceiverDependentQual LostNonReflexive(@ReceiverDependentQual Object args) {}
 
-    @ReceiverDependentQual Object get() {
+    @ReceiverDependentQual Object get(@Top LostNonReflexive this) {
         return null;
     }
 
@@ -16,11 +16,11 @@ import viewpointtest.quals.*;
         this.f = obj.f;
         this.f = bottomObj;
 
-        // :: error: (assignment.type.incompatible) :: error: (method.invocation.invalid)
+        // :: error: (assignment.type.incompatible)
         @A Object aObj = obj.get();
-        // :: error: (assignment.type.incompatible) :: error: (method.invocation.invalid)
+        // :: error: (assignment.type.incompatible)
         @B Object bObj = obj.get();
-        // :: error: (assignment.type.incompatible) :: error: (method.invocation.invalid)
+        // :: error: (assignment.type.incompatible)
         @Bottom Object botObj = obj.get();
 
         // :: error: (argument.type.incompatible)
