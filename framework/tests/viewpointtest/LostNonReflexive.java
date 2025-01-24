@@ -3,7 +3,7 @@ import viewpointtest.quals.*;
 @ReceiverDependentQual public class LostNonReflexive {
     @ReceiverDependentQual Object f;
 
-    @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
+    @SuppressWarnings("super.invocation.invalid")
     @ReceiverDependentQual LostNonReflexive(@ReceiverDependentQual Object args) {}
 
     @ReceiverDependentQual Object get() {

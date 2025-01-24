@@ -3,18 +3,15 @@
 import viewpointtest.quals.*;
 
 @ReceiverDependentQual public class SuperConstructorCalls {
-    @SuppressWarnings("inconsistent.constructor.type")
     public SuperConstructorCalls() {}
 
-    @SuppressWarnings("inconsistent.constructor.type")
     public SuperConstructorCalls(@ReceiverDependentQual Object obj) {}
 
-    @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
+    @SuppressWarnings("super.invocation.invalid")
     public @ReceiverDependentQual SuperConstructorCalls(
             @ReceiverDependentQual Object obj, int dummy) {}
 
     @ReceiverDependentQual class Inner extends SuperConstructorCalls {
-        @SuppressWarnings("inconsistent.constructor.type")
         public Inner() {
             super();
         }
@@ -22,23 +19,19 @@ import viewpointtest.quals.*;
         // The constructor's return type is implicitly @Top by default.
         // When calling the super constructor, @Top becomes @Lost in the super constructor's
         // signature, causing a type mismatch with the expected @ReceiverDependentQual parameter.
-        @SuppressWarnings("inconsistent.constructor.type")
         public Inner(@Top Object objTop) {
             // :: error: (argument.type.incompatible)
             super(objTop);
         }
 
-        @SuppressWarnings("inconsistent.constructor.type")
         public @A Inner(@A Object objA, int dummy) {
             super(objA, 0);
         }
 
-        @SuppressWarnings("inconsistent.constructor.type")
         public @A Inner(@A Object objA, @B Object objB) {
             super(objA);
         }
 
-        @SuppressWarnings("inconsistent.constructor.type")
         public @A Inner(@A Object objA, @B Object objB, int dummy) {
             // :: error: (argument.type.incompatible)
             super(objB, 0);

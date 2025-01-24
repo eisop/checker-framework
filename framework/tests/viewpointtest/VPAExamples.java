@@ -1,6 +1,5 @@
 import viewpointtest.quals.*;
 
-@SuppressWarnings("inconsistent.constructor.type")
 @ReceiverDependentQual public class VPAExamples {
 
     static class RDContainer {

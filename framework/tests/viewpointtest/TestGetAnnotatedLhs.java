@@ -6,11 +6,6 @@ import viewpointtest.quals.Top;
 @ReceiverDependentQual class TestGetAnnotatedLhs {
     @ReceiverDependentQual Object f;
 
-    @SuppressWarnings({
-        "inconsistent.constructor.type",
-        "super.invocation.invalid",
-        "cast.unsafe.constructor.invocation"
-    })
     @ReceiverDependentQual TestGetAnnotatedLhs() {
         this.f = new @ReceiverDependentQual Object();
     }

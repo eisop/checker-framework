@@ -25,7 +25,6 @@ import viewpointtest.quals.*;
     }
 
     @ReceiverDependentQual class Inner {
-        @SuppressWarnings("inconsistent.constructor.type")
         @ReceiverDependentQual Inner(@ReceiverDependentQual Object... args) {}
 
         void foo() {
