@@ -2948,7 +2948,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         while (true) {
             switch (t.getKind()) {
 
-                    // Recurse for compound types whose top level is not at the far left.
+                // Recurse for compound types whose top level is not at the far left.
                 case ARRAY_TYPE:
                     t = ((ArrayTypeTree) t).getType();
                     continue;
@@ -2959,7 +2959,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     t = ((ParameterizedTypeTree) t).getType();
                     continue;
 
-                    // Base cases
+                // Base cases
                 case PRIMITIVE_TYPE:
                 case IDENTIFIER:
                     maybeReportAnnoOnIrrelevant(t, TreeUtils.typeOf(t), annoTrees);
@@ -3815,7 +3815,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * constructor result type. This is equivalent to down-casting.
      *
      * <p>For type checking of the enclosing expression of inner type instantiations, see {@link
-     * #checkEnclosingExpr(NewClassTree, AnnotatedExecutableType)}
+     * #checkEnclosingExpr(NewClassTree, AnnotatedTypeMirror.AnnotatedExecutableType)}
      *
      * @param invocation the AnnotatedDeclaredType of the constructor invocation
      * @param constructor the AnnotatedExecutableType of the constructor declaration

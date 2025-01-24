@@ -21,6 +21,7 @@ import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.NewClassTree;
+import com.sun.source.tree.PackageTree;
 import com.sun.source.tree.ParameterizedTypeTree;
 import com.sun.source.tree.ParenthesizedTree;
 import com.sun.source.tree.PrimitiveTypeTree;
@@ -93,6 +94,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.NestingKind;
+import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ExecutableType;
@@ -284,6 +286,20 @@ public final class TreeUtils {
     //  * use elementFromTree in other cases; note that it may return null
     // This section of the file groups methods by their receiver type; that is, it puts all
     // `elementFrom*(FooTree)` methods together.
+
+    /**
+     * Return the package element corresponding to the given package declaration.
+     *
+     * @param tree package declaration
+     * @return the package element for the given package
+     */
+    public static PackageElement elementFromDeclaration(PackageTree tree) {
+        PackageElement result = (PackageElement) TreeInfo.symbolFor((JCTree) tree);
+        if (result == null) {
+            throw new BugInCF("null element for package tree %s", tree);
+        }
+        return result;
+    }
 
     // TODO: Document when this may return null.
     /**
@@ -676,8 +692,8 @@ public final class TreeUtils {
         }
 
         switch (tree.getKind()) {
-                // symbol() only works on MethodSelects, so we need to get it manually
-                // for method invocations.
+            // symbol() only works on MethodSelects, so we need to get it manually
+            // for method invocations.
             case METHOD_INVOCATION:
                 return TreeInfo.symbol(((JCMethodInvocation) tree).getMethodSelect());
 
@@ -2121,7 +2137,7 @@ public final class TreeUtils {
                 // These operators do binary promotion on the two arguments together.
                 return true;
 
-                // TODO: CONDITIONAL_EXPRESSION (?:) sometimes does numeric promotion.
+            // TODO: CONDITIONAL_EXPRESSION (?:) sometimes does numeric promotion.
 
             default:
                 return false;

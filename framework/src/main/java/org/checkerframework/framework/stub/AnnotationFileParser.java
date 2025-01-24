@@ -82,6 +82,7 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.ArrayMap;
 import org.plumelib.util.CollectionsPlume;
@@ -1990,11 +1991,7 @@ public class AnnotationFileParser {
                 }
                 if (param.getTypeBound().size() == 1
                         && param.getTypeBound().get(0).getAnnotations().isEmpty()
-                        && paramType
-                                .getUpperBound()
-                                .getUnderlyingType()
-                                .toString()
-                                .contentEquals("java.lang.Object")) {
+                        && TypesUtils.isObject(paramType.getUpperBound().getUnderlyingType())) {
                     // If there is an explicit "T extends Object" type parameter bound,
                     // treat it like an explicit use of "Object" in code.
                     AnnotatedTypeMirror ub = atypeFactory.getAnnotatedType(Object.class);
@@ -2748,9 +2745,9 @@ public class AnnotationFileParser {
             return convert(((LongLiteralExpr) expr).asNumber(), valueKind);
         } else if (expr instanceof UnaryExpr) {
             switch (expr.toString()) {
-                    // Special-case the minimum values.  Separately parsing a "-" and a value
-                    // doesn't correctly handle the minimum values, because the absolute value of
-                    // the smallest member of an integral type is larger than the largest value.
+                // Special-case the minimum values.  Separately parsing a "-" and a value
+                // doesn't correctly handle the minimum values, because the absolute value of
+                // the smallest member of an integral type is larger than the largest value.
                 case "-9223372036854775808L":
                 case "-9223372036854775808l":
                     return convert(Long.MIN_VALUE, valueKind, false);

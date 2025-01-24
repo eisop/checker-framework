@@ -1,6 +1,11 @@
 version: 2
 updates:
 - package-ecosystem: "gradle"
+  directory: "/"
+  schedule:
+    interval: "daily"
+
+- package-ecosystem: "gradle"
   directory: "/docs/examples/errorprone/"
   schedule:
     interval: "daily"

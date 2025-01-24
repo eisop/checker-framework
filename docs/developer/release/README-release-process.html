@@ -299,10 +299,11 @@ repositories {
   maven { url 'https://oss.sonatype.org/content/repositories/snapshots/' }
 }
 
-ext.checkerFrameworkVersion = '3.28.1-SNAPSHOT'
+ext.checkerFrameworkVersion = '3.42.0-eisop5-SNAPSHOT'
 dependencies {
   compileOnly "io.github.eisop:checker-qual:${checkerFrameworkVersion}"
   testCompileOnly "io.github.eisop:checker-qual:${checkerFrameworkVersion}"
+  checkerFramework "io.github.eisop:checker-qual:${checkerFrameworkVersion}"
   checkerFramework "io.github.eisop:checker:${checkerFrameworkVersion}"
 }
 configurations.all {
@@ -315,10 +316,11 @@ configurations.all {
   to use the snapshot version of the Checker Framework:
 
   <pre>
-val checkerFrameworkVersion = "3.41.1-SNAPSHOT"
+val checkerFrameworkVersion = "3.42.0-eisop5-SNAPSHOT"
 dependencies {
    compileOnly("io.github.eisop:checker-qual:${checkerFrameworkVersion}")
    testCompileOnly("io.github.eisop:checker-qual:${checkerFrameworkVersion}")
+   checkerFramework("io.github.eisop:checker-qual:${checkerFrameworkVersion}")
    checkerFramework("io.github.eisop:checker:${checkerFrameworkVersion}")
 }
 configurations.all({

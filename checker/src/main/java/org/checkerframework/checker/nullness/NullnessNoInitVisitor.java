@@ -47,7 +47,6 @@ import org.checkerframework.framework.flow.CFCFGBuilder;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
-import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiveType;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
@@ -56,12 +55,11 @@ import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11.BindingPatternUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.SwitchExpressionUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
-import java.lang.annotation.Annotation;
 import java.util.List;
-import java.util.Set;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
@@ -174,16 +172,6 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         return true;
     }
 
-    private boolean containsSameByName(
-            Set<Class<? extends Annotation>> quals, AnnotationMirror anno) {
-        for (Class<? extends Annotation> q : quals) {
-            if (atypeFactory.areSameByClass(anno, q)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     @Override
     protected void checkConstructorResult(
             AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {
@@ -246,7 +234,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                         || !((IdentifierTree) receiver).getName().contentEquals("this")) {
                     return null;
                 }
-                // fallthrough
+            // fallthrough
             case IDENTIFIER:
                 TreePath path = getCurrentPath();
                 if (TreePathUtil.inConstructor(path)) {
@@ -347,6 +335,12 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                     "new.array.type.invalid",
                     componentType.getAnnotations(),
                     type.toString());
+        }
+
+        if (type.hasEffectiveAnnotation(NULLABLE)
+                || type.hasEffectiveAnnotation(MONOTONIC_NONNULL)
+                || type.hasEffectiveAnnotation(POLYNULL)) {
+            checker.reportError(tree, "nullness.on.new.array");
         }
 
         return super.visitNewArray(tree, p);
@@ -478,9 +472,23 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             // Handle them properly.
             return null;
         }
+
+        List<? extends AnnotationMirror> annotations = null;
         if (refTypeTree.getKind() == Tree.Kind.ANNOTATED_TYPE) {
-            List<? extends AnnotationMirror> annotations =
-                    TreeUtils.annotationsFromTree((AnnotatedTypeTree) refTypeTree);
+            annotations = TreeUtils.annotationsFromTree((AnnotatedTypeTree) refTypeTree);
+        } else {
+            Tree patternTree = TreeUtilsAfterJava11.InstanceOfUtils.getPattern(tree);
+            if (patternTree != null && TreeUtils.isBindingPatternTree(patternTree)) {
+                VariableTree variableTree = BindingPatternUtils.getVariable(patternTree);
+                if (variableTree.getModifiers() != null) {
+                    List<? extends AnnotationTree> annotationTree =
+                            variableTree.getModifiers().getAnnotations();
+                    annotations = TreeUtils.annotationsFromTypeAnnotationTrees(annotationTree);
+                }
+            }
+        }
+
+        if (annotations != null) {
             if (AnnotationUtils.containsSame(annotations, NULLABLE)) {
                 checker.reportError(tree, "instanceof.nullable");
             }
@@ -488,6 +496,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 checker.reportWarning(tree, "instanceof.nonnull.redundant");
             }
         }
+
         // Don't call super because it will issue an incorrect instanceof.unsafe warning.
         return null;
     }
@@ -837,28 +846,13 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         if (enclosingExpr != null) {
             checkForNullability(enclosingExpr, DEREFERENCE_OF_NULLABLE);
         }
-        AnnotatedDeclaredType type = atypeFactory.getAnnotatedType(tree);
-        ExpressionTree identifier = tree.getIdentifier();
-        if (identifier instanceof AnnotatedTypeTree) {
-            AnnotatedTypeTree t = (AnnotatedTypeTree) identifier;
-            for (AnnotationMirror a : atypeFactory.getAnnotatedType(t).getAnnotations()) {
-                // is this an annotation of the nullness checker?
-                boolean nullnessCheckerAnno =
-                        containsSameByName(atypeFactory.getNullnessAnnotations(), a);
-                if (nullnessCheckerAnno && !AnnotationUtils.areSame(NONNULL, a)) {
-                    // The type is not non-null => warning
-                    checker.reportWarning(tree, "new.class.type.invalid", type.getAnnotations());
-                    // Note that other consistency checks are made by isValid.
-                }
-            }
-            if (t.toString().contains("@PolyNull")) {
-                // TODO: this is a hack, but PolyNull gets substituted
-                // afterwards
-                checker.reportWarning(tree, "new.class.type.invalid", type.getAnnotations());
-            }
+
+        AnnotatedTypeMirror.AnnotatedDeclaredType type = atypeFactory.getAnnotatedType(tree);
+        if (type.hasEffectiveAnnotation(NULLABLE)
+                || type.hasEffectiveAnnotation(MONOTONIC_NONNULL)
+                || type.hasEffectiveAnnotation(POLYNULL)) {
+            checker.reportError(tree, "nullness.on.new.object");
         }
-        // TODO: It might be nicer to introduce a framework-level
-        // isValidNewClassType or some such.
         return super.visitNewClass(tree, p);
     }
 

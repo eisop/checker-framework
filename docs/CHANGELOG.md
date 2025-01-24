@@ -1,16 +1,41 @@
-Version 3.42.0-eisop5 (July ?, 2024)
-------------------------------------
+Version 3.42.0-eisop6 (January ??, 2025)
+----------------------------------------
+
+**User-visible changes:**
+
+The Nullness Checker now reports an error if any instanceof pattern variables are annotated with `@Nullable`
+and a redundant warning if they are annotated with `@NonNull`.
+
+**Implementation details:**
+
+**Closed issues:**
+
+eisop#1003, eisop#1033, eisop#1058.
+
+
+Version 3.42.0-eisop5 (December 20, 2024)
+-----------------------------------------
 
 **User-visible changes:**
 
 Removed support for the `-Anocheckjdk` option, which was deprecated in version 3.1.1.
 Use `-ApermitMissingJdk` instead.
 
+The Nullness Checker now reports an error if an array or object creation is annotated
+with `@Nullable`, as array and object creations are intrinsically non-null.
+
 **Implementation details:**
+
+Changed `org.checkerframework.framework.util.ContractsFromMethod` to an interface.
+Use `DefaultContractsFromMethod` to get the default behavior or use the new
+`NoContractsFromMethod` if you want no support for contracts.
 
 Make `SourceChecker#suppressWarningsString` protected to allow adaptation in subclasses.
 
 **Closed issues:**
+
+eisop#413, eisop#782, eisop#815, eisop#826, eisop#860, eisop#873, eisop#875, eisop#927,
+eisop#982, eisop#1012.
 
 
 Version 3.42.0-eisop4 (July 12, 2024)
