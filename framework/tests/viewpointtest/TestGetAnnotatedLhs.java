@@ -19,7 +19,6 @@ import viewpointtest.quals.Top;
     // This method could only be called by @B instances.
     void bMethod(@B TestGetAnnotatedLhs this) {}
 
-    @SuppressWarnings({"cast.unsafe.constructor.invocation"})
     void topWithRefinement() {
         TestGetAnnotatedLhs a = new @A TestGetAnnotatedLhs();
         TestGetAnnotatedLhs b = new @B TestGetAnnotatedLhs();
@@ -45,7 +44,6 @@ import viewpointtest.quals.Top;
         top.f = new @A Object(); // no error here
     }
 
-    @SuppressWarnings({"cast.unsafe.constructor.invocation"})
     void topWithoutRefinement() {
         // :: error: (new.class.type.invalid)
         TestGetAnnotatedLhs top = new @Top TestGetAnnotatedLhs();

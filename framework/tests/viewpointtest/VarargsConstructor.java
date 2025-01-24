@@ -3,10 +3,8 @@
 import viewpointtest.quals.*;
 
 @ReceiverDependentQual public class VarargsConstructor {
-    @SuppressWarnings("inconsistent.constructor.type")
     VarargsConstructor(String str, Object... args) {}
 
-    @SuppressWarnings("inconsistent.constructor.type")
     @ReceiverDependentQual VarargsConstructor(@ReceiverDependentQual Object... args) {}
 
     void foo() {

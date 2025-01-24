@@ -7,7 +7,6 @@ import viewpointtest.quals.*;
 
     public ThisConstructorCalls(@ReceiverDependentQual Object obj) {}
 
-    @SuppressWarnings("super.invocation.invalid")
     public @ReceiverDependentQual ThisConstructorCalls(
             @ReceiverDependentQual Object obj, int dummy) {}
 
