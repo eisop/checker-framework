@@ -394,7 +394,6 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
         if (!(type.hasAnnotation(atypeFactory.IMMUTABLE)
                 || type.hasAnnotation(atypeFactory.MUTABLE)
                 || type.hasAnnotation(atypeFactory.RECEIVER_DEPENDENT_MUTABLE)
-                // TODO: allow poly_mutable creation or not?
                 || type.hasAnnotation(atypeFactory.POLY_MUTABLE))) {
             checker.reportError(tree, "array.new.invalid", type);
         }

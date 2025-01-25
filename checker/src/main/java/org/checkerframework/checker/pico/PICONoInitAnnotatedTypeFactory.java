@@ -289,7 +289,7 @@ public class PICONoInitAnnotatedTypeFactory
             AnnotatedTypeMirror annotatedTypeMirror,
             Element element) {
         if (element != null && element.getKind() == ElementKind.FIELD) {
-            // If the field is static, apply @Mutable if there is no explicit annotation and the
+            // If the field is static, apply @Immutable if there is no explicit annotation and the
             // field type is @RDM
             if (ElementUtils.isStatic(element)) {
                 AnnotatedTypeMirror explicitATM = annotatedTypeFactory.fromElement(element);
