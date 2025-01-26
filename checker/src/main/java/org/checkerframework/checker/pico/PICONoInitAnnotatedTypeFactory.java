@@ -3,7 +3,6 @@ package org.checkerframework.checker.pico;
 import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.MethodTree;
-import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeCastTree;
@@ -146,15 +145,15 @@ public class PICONoInitAnnotatedTypeFactory
 
     @Override
     public ParameterizedExecutableType constructorFromUse(NewClassTree tree) {
-        ParameterizedExecutableType mType = super.constructorFromUse(tree);
-        AnnotatedExecutableType method = mType.executableType;
+        ParameterizedExecutableType cType = super.constructorFromUse(tree);
+        AnnotatedExecutableType constructor = cType.executableType;
         // For object creation, if the constructor return type is @RDM and there is no explicit
         // annotation on new expression, replace it with @Immutable
         if (getExplicitNewClassAnnos(tree).isEmpty()
-                && method.getReturnType().hasAnnotation(RECEIVER_DEPENDENT_MUTABLE)) {
-            method.getReturnType().replaceAnnotation(IMMUTABLE);
+                && constructor.getReturnType().hasAnnotation(RECEIVER_DEPENDENT_MUTABLE)) {
+            constructor.getReturnType().replaceAnnotation(IMMUTABLE);
         }
-        return mType;
+        return cType;
     }
 
     /**
@@ -187,25 +186,27 @@ public class PICONoInitAnnotatedTypeFactory
     }
 
     /**
-     * {@inheritDoc} Changes the framework default to @Mutable
+     * {@inheritDoc} Changes the framework default to @Immutable TODO: This should be controlled by
+     * additional meta annotation to opt in two different defaults
      *
      * @return Mutable default AnnotationMirrorSet
      */
     @Override
     protected AnnotationMirrorSet getDefaultTypeDeclarationBounds() {
-        AnnotationMirrorSet frameworkDefault =
+        AnnotationMirrorSet classBoundDefault =
                 new AnnotationMirrorSet(super.getDefaultTypeDeclarationBounds());
-        return replaceAnnotationInHierarchy(frameworkDefault, IMMUTABLE);
+        return replaceAnnotationInHierarchy(classBoundDefault, IMMUTABLE);
     }
 
     @Override
     public AnnotationMirrorSet getTypeDeclarationBounds(TypeMirror type) {
-        AnnotationMirror mut = getTypeDeclarationBoundForMutability(type);
-        AnnotationMirrorSet frameworkDefault = super.getTypeDeclarationBounds(type);
-        if (mut != null) {
-            frameworkDefault = replaceAnnotationInHierarchy(frameworkDefault, mut);
+        // Get the mutability bound for the type declaration
+        AnnotationMirror bound = getTypeDeclarationBoundForMutability(type);
+        AnnotationMirrorSet classBoundDefault = super.getTypeDeclarationBounds(type);
+        if (bound != null) {
+            classBoundDefault = replaceAnnotationInHierarchy(classBoundDefault, bound);
         }
-        return frameworkDefault;
+        return classBoundDefault;
     }
 
     /**
@@ -259,13 +260,12 @@ public class PICONoInitAnnotatedTypeFactory
 
     @Override
     public AnnotatedTypeMirror getTypeOfExtendsImplements(Tree clause) {
-        // this is still needed with PICOSuperClauseAnnotator.
-        // maybe just use getAnnotatedType add default anno from class main qual, if no qual present
+        // TODO This is a work around to allow @Immutable/@Mutable class extends/implements @RDM
+        // class/interface.
+        // Fixes after EISOP#1032
         AnnotatedTypeMirror fromTypeTree = super.getTypeOfExtendsImplements(clause);
         if (fromTypeTree.hasAnnotation(RECEIVER_DEPENDENT_MUTABLE)) {
             ClassTree enclosingClass = TreePathUtil.enclosingClass(getPath(clause));
-            // TODO This is a hack but fixed a few crash errors, look what will be the overall
-            // solution.
             if (enclosingClass == null) {
                 return fromTypeTree;
             } else {
@@ -290,7 +290,7 @@ public class PICONoInitAnnotatedTypeFactory
             Element element) {
         if (element != null && element.getKind() == ElementKind.FIELD) {
             // If the field is static, apply @Immutable if there is no explicit annotation and the
-            // field type is @RDM
+            // field type upperbound is @RDM
             if (ElementUtils.isStatic(element)) {
                 AnnotatedTypeMirror explicitATM = annotatedTypeFactory.fromElement(element);
                 AnnotationMirrorSet declBound =
@@ -298,11 +298,7 @@ public class PICONoInitAnnotatedTypeFactory
                 if (!explicitATM.hasAnnotationInHierarchy(READONLY)
                         && AnnotationUtils.containsSameByName(
                                 declBound, RECEIVER_DEPENDENT_MUTABLE)) {
-                    if (!PICOTypeUtil.isImplicitlyImmutableType(explicitATM)) {
-                        annotatedTypeMirror.replaceAnnotation(IMMUTABLE);
-                    } else {
-                        annotatedTypeMirror.replaceAnnotation(MUTABLE);
-                    }
+                    annotatedTypeMirror.replaceAnnotation(IMMUTABLE);
                 }
             } else {
                 // Apply default annotation to instance fields if there is no explicit annotation
@@ -337,7 +333,7 @@ public class PICONoInitAnnotatedTypeFactory
                             }
                         }
                     } else if (explicitATM instanceof AnnotatedTypeMirror.AnnotatedArrayType) {
-                        // If the ATM is array type, apply RMD to array's component type.
+                        // If the ATM is array type, replace array's component type with @RDM.
                         annotatedTypeMirror.replaceAnnotation(RECEIVER_DEPENDENT_MUTABLE);
                     }
                 }
@@ -346,9 +342,12 @@ public class PICONoInitAnnotatedTypeFactory
     }
 
     /**
-     * Add default annotation from type declaration to constructor return type if elt is constructor
-     * and doesn't have explicit annotation(type is actually AnnotatedExecutableType of executable
-     * element - elt constructor).
+     * Add class bound declaration to constructor return type if the constructor doesn't have
+     * explicit annotation.
+     *
+     * <p>For @Immutable class bound, add @Immutable annotation to constructor return type. For @RDM
+     * class bound, add @RDM annotation to constructor return type. For @Mutable class bound,
+     * add @Mutable annotation to constructor return type.
      *
      * @param annotatedTypeFactory the annotated type factory
      * @param elt the element to add default annotation
@@ -378,26 +377,6 @@ public class PICONoInitAnnotatedTypeFactory
         public PICOPropagationTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
             picoTypeFactory = (PICONoInitAnnotatedTypeFactory) atypeFactory;
-        }
-
-        //
-        // TODO This is very ugly. Why is array component type from lhs propagates to
-        // rhs?!
-        @Override
-        public Void visitNewArray(NewArrayTree tree, AnnotatedTypeMirror type) {
-            AnnotatedTypeMirror componentType =
-                    ((AnnotatedTypeMirror.AnnotatedArrayType) type).getComponentType();
-            boolean noExplicitATM =
-                    !componentType.hasAnnotation(picoTypeFactory.RECEIVER_DEPENDENT_MUTABLE);
-            super.visitNewArray(tree, type);
-            // if new explicit anno before, but RDM after, the RDM must come from the type
-            // declaration bound
-            // however, for type has declaration bound as RDM, its default use is mutable.
-            if (noExplicitATM
-                    && componentType.hasAnnotation(picoTypeFactory.RECEIVER_DEPENDENT_MUTABLE)) {
-                componentType.replaceAnnotation(picoTypeFactory.IMMUTABLE);
-            }
-            return null;
         }
 
         @Override
@@ -537,8 +516,6 @@ public class PICONoInitAnnotatedTypeFactory
                 type.addMissingAnnotations(annosToApply);
             }
 
-            // Below copied from super.super
-            // TODO add a function to super.super visitor
             if (!type.getTypeArguments().isEmpty()) {
                 // Only declared types with type arguments might be recursive.
                 if (visitedNodes.containsKey(type)) {

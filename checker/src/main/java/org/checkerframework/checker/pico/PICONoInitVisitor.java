@@ -163,7 +163,12 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
             NewClassTree newClassTree) {
         // Forbid creation of @Readonly Object
         if (invocation.hasAnnotation(atypeFactory.READONLY)) {
-            checker.reportError(newClassTree, "constructor.invocation.invalid", invocation);
+            checker.reportError(
+                    newClassTree,
+                    "constructor.invocation.invalid",
+                    constructor.toString(),
+                    invocation.getEffectiveAnnotationInHierarchy(atypeFactory.READONLY),
+                    constructor.getReturnType().getAnnotationInHierarchy(atypeFactory.READONLY));
             return;
         }
         super.checkConstructorInvocation(invocation, constructor, newClassTree);
@@ -172,14 +177,14 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
     @Override
     public Void visitMethod(MethodTree node, Void p) {
         AnnotatedExecutableType executableType = atypeFactory.getAnnotatedType(node);
-        // Check if the constructor's return type is @ReadOnly or @PolyMutable
+        // Report error if the constructor's return type is @ReadOnly or @PolyMutable. Validity are
+        // checked in BasetypeValidator.
         if (TreeUtils.isConstructor(node)) {
             AnnotatedDeclaredType constructorReturnType =
                     (AnnotatedDeclaredType) executableType.getReturnType();
             if (constructorReturnType.hasAnnotation(atypeFactory.READONLY)
                     || constructorReturnType.hasAnnotation(atypeFactory.POLY_MUTABLE)) {
                 checker.reportError(node, "constructor.return.invalid", constructorReturnType);
-                return super.visitMethod(node, p);
             }
         }
 
