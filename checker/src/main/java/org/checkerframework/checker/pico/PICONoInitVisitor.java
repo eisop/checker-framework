@@ -161,39 +161,12 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
             AnnotatedDeclaredType invocation,
             AnnotatedExecutableType constructor,
             NewClassTree newClassTree) {
-        // TODO Is the copied code really needed?
-        /*Copied Code Start*/
-        AnnotatedDeclaredType returnType = (AnnotatedDeclaredType) constructor.getReturnType();
-        // When an interface is used as the identifier in an anonymous class (e.g. new Comparable()
-        // {})
-        // the constructor method will be Object.init() {} which has an Object return type
-        // When TypeHierarchy attempts to convert it to the supertype (e.g. Comparable) it will
-        // return
-        // null from asSuper and return false for the check.  Instead, copy the primary annotations
-        // to the declared type and then do a subtyping check
-        if (invocation.getUnderlyingType().asElement().getKind().isInterface()
-                && TypesUtils.isObject(returnType.getUnderlyingType())) {
-            final AnnotatedDeclaredType retAsDt = invocation.deepCopy();
-            retAsDt.replaceAnnotations(returnType.getAnnotations());
-            returnType = retAsDt;
-        } else if (newClassTree.getClassBody() != null) {
-            // An anonymous class invokes the constructor of its super class, so the underlying
-            // types of invocation and returnType are not the same.  Call asSuper so they are the
-            // same and the is subtype tests below work correctly
-            invocation = AnnotatedTypes.asSuper(atypeFactory, invocation, returnType);
+        // Forbid creation of @Readonly Object
+        if (invocation.hasAnnotation(atypeFactory.READONLY)) {
+            checker.reportError(newClassTree, "constructor.invocation.invalid", invocation);
+            return;
         }
-        /*Copied Code End*/
-
-        // The immutability return qualifier of the constructor (returnType) must be supertype of
-        // the constructor invocation immutability qualifier(invocation).
-        if (!atypeFactory
-                .getQualifierHierarchy()
-                .isSubtypeQualifiersOnly(
-                        invocation.getAnnotationInHierarchy(atypeFactory.READONLY),
-                        returnType.getAnnotationInHierarchy(atypeFactory.READONLY))) {
-            checker.reportError(
-                    newClassTree, "constructor.invocation.invalid", invocation, returnType);
-        }
+        super.checkConstructorInvocation(invocation, constructor, newClassTree);
     }
 
     @Override
