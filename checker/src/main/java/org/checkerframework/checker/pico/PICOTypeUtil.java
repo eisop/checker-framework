@@ -130,63 +130,29 @@ public class PICOTypeUtil {
         }
 
         if (typeElement != null) {
-            return getBoundTypeOfTypeDeclaration(typeElement, atypeFactory);
+            return atypeFactory.getAnnotatedType(typeElement);
         }
 
         return null;
     }
 
     /**
-     * Returns the bound of type declaration enclosing the element. If no annotation exists on type
-     * declaration, bound is defaulted to @Mutable instead of having empty annotations. This method
-     * simply gets/defaults annotation on bounds of classes, but doesn't validate the correctness of
-     * the annotation. They are validated in {@link PICONoInitVisitor#processClassTree(ClassTree)}
-     * method.
+     * Returns the bound of class declaration. If no annotation exists on class declaration, bound
+     * is defaulted to @Immutable. This method simply gets/defaults annotation on bounds of classes,
+     * but doesn't validate the correctness of the annotation. They are validated in {@link
+     * PICONoInitVisitor#processClassTree(ClassTree)} method.
      *
      * @param element element whose enclosing type declaration's bound annotation is to be extracted
      * @param atypeFactory pico type factory
      * @return annotation on the bound of enclosing type declaration
      */
-    public static AnnotatedTypeMirror getBoundTypeOfEnclosingTypeDeclaration(
+    public static AnnotatedTypeMirror getBoundTypeOfEnclosingClass(
             Element element, AnnotatedTypeFactory atypeFactory) {
         TypeElement typeElement = ElementUtils.enclosingTypeElement(element);
         if (typeElement != null) {
-            return getBoundTypeOfTypeDeclaration(typeElement, atypeFactory);
+            return atypeFactory.getAnnotatedType(typeElement);
         }
         return null;
-    }
-
-    /**
-     * Returns the bound of type declaration. If no annotation exists on type declaration, bound is
-     * defaulted to @Mutable instead of having empty annotations. This method simply gets/defaults
-     * annotation on bounds of classes, but doesn't validate the correctness of the annotation. They
-     * are validated in {@link PICONoInitVisitor#processClassTree(ClassTree)} method.
-     *
-     * @param element type declaration whose bound annotation is to be extracted
-     * @param atypeFactory pico type factory
-     * @return annotation on the bound of type declaration
-     */
-    public static AnnotatedTypeMirror getBoundTypeOfTypeDeclaration(
-            Element element, AnnotatedTypeFactory atypeFactory) {
-        // Reads bound annotation from source code or stub files
-        // Implicitly immutable types have @Immutable in its bound
-        // All other elements that are: not implicitly immutable types specified in definition of
-        // @Immutable qualifier;
-        // Or has no bound annotation on its type element declaration either in source tree or stub
-        return atypeFactory.getAnnotatedType(element);
-
-        // It's a bit strange that bound annotations on implicilty immutable types
-        // are not specified in the stub file. For implicitly immutable types, having bounds in stub
-        // file suppresses type cast warnings, because in base implementation, it checks cast type
-        // is whether
-        // from element itself. If yes, no matter what the casted type is, the warning is
-        // suppressed, which is
-        // also not wanted. BUT, they are applied @Immutable as their bounds CORRECTLY, because we
-        // have TypeAnnotator!
-
-        // TODO This method doesn't have logic of handling anonymous class! We should implement it,
-        // maybe in different
-        // places, at some time.
     }
 
     /**

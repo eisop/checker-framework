@@ -9,7 +9,7 @@ import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
 
     @Mutable RDMClass(boolean dummy) {}
 
-    void RDMMethod(@ReceiverDependentMutable RDMClass this) {}
+    void RDMMethod(RDMClass this) {}
 
     void ImmutableMethod(@Immutable RDMClass this) {}
 

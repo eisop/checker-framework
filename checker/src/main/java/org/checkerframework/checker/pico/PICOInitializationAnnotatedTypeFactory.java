@@ -77,8 +77,7 @@ public class PICOInitializationAnnotatedTypeFactory extends InitializationAnnota
                 var -> {
                     ClassTree enclosingClass = TreePathUtil.enclosingClass(getPath(var));
                     TypeElement typeElement = TreeUtils.elementFromDeclaration(enclosingClass);
-                    AnnotatedTypeMirror bound =
-                            PICOTypeUtil.getBoundTypeOfTypeDeclaration(typeElement, factory);
+                    AnnotatedTypeMirror bound = factory.getAnnotatedType(typeElement);
                     // If the class is not annotated with @Immutable or @ReceiverDependentMutable,
                     // return false
                     if (bound.hasAnnotation(MUTABLE)) {

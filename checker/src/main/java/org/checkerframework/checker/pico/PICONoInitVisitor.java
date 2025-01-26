@@ -418,8 +418,7 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
         }
         // TODO(Aosen): since this is also checking validity, consider whether we can move this to
         // PICOValidator
-        AnnotatedTypeMirror bound =
-                PICOTypeUtil.getBoundTypeOfTypeDeclaration(typeElement, atypeFactory);
+        AnnotatedTypeMirror bound = atypeFactory.getAnnotatedType(typeElement);
         // Class annotation has to be either @Mutable, @ReceiverDependentMutable or @Immutable
         // Static class can not be @RDM
         if ((!bound.hasAnnotation(atypeFactory.MUTABLE)

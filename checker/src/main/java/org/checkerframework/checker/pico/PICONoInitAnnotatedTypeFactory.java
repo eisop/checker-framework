@@ -173,6 +173,7 @@ public class PICONoInitAnnotatedTypeFactory
     public void addComputedTypeAnnotations(Element elt, AnnotatedTypeMirror type) {
         addDefaultForField(this, type, elt);
         defaultConstructorReturnToClassBound(this, elt, type);
+        defaultMethodReceiverToClassBound(this, elt, type);
         super.addComputedTypeAnnotations(elt, type);
     }
 
@@ -325,9 +326,7 @@ public class PICONoInitAnnotatedTypeFactory
                         }
                         // If the declaration bound is RDM, replace the annotation as RDM
                         if (typeElement instanceof TypeElement) {
-                            AnnotatedTypeMirror bound =
-                                    PICOTypeUtil.getBoundTypeOfTypeDeclaration(
-                                            typeElement, annotatedTypeFactory);
+                            AnnotatedTypeMirror bound = getAnnotatedType(typeElement);
                             if (bound.hasAnnotation(RECEIVER_DEPENDENT_MUTABLE)) {
                                 annotatedTypeMirror.replaceAnnotation(RECEIVER_DEPENDENT_MUTABLE);
                             }
@@ -342,25 +341,55 @@ public class PICONoInitAnnotatedTypeFactory
     }
 
     /**
-     * Add class bound declaration to constructor return type if the constructor doesn't have
-     * explicit annotation.
+     * Add class bound declaration to constructor return type if it doesn't have explicit
+     * annotation.
      *
      * <p>For @Immutable class bound, add @Immutable annotation to constructor return type. For @RDM
      * class bound, add @RDM annotation to constructor return type. For @Mutable class bound,
      * add @Mutable annotation to constructor return type.
      *
      * @param annotatedTypeFactory the annotated type factory
-     * @param elt the element to add default annotation
+     * @param element the element to add default annotation
      * @param type the type to add default annotation
      */
     private void defaultConstructorReturnToClassBound(
-            AnnotatedTypeFactory annotatedTypeFactory, Element elt, AnnotatedTypeMirror type) {
-        if (elt.getKind() == ElementKind.CONSTRUCTOR && type instanceof AnnotatedExecutableType) {
+            AnnotatedTypeFactory annotatedTypeFactory, Element element, AnnotatedTypeMirror type) {
+        if (element.getKind() == ElementKind.CONSTRUCTOR
+                && type instanceof AnnotatedExecutableType) {
             AnnotatedTypeMirror bound =
-                    PICOTypeUtil.getBoundTypeOfEnclosingTypeDeclaration(elt, annotatedTypeFactory);
+                    PICOTypeUtil.getBoundTypeOfEnclosingClass(element, annotatedTypeFactory);
+            assert bound != null;
             ((AnnotatedExecutableType) type)
                     .getReturnType()
-                    .addMissingAnnotations(Arrays.asList(bound.getAnnotationInHierarchy(READONLY)));
+                    .addMissingAnnotations(
+                            Collections.singletonList(bound.getAnnotationInHierarchy(READONLY)));
+        }
+    }
+
+    /**
+     * Add class bound declaration to method receiver type if it doesn't have explicit annotation.
+     *
+     * <p>For @Immutable class bound, add @Immutable annotation to method receiver type. For @RDM
+     * class bound, add @RDM annotation to method receiver type. For @Mutable class bound,
+     * add @Mutable annotation to method receiver type.
+     *
+     * @param annotatedTypeFactory the annotated type factory
+     * @param element the element to add default annotation
+     * @param type the type to add default annotation
+     */
+    private void defaultMethodReceiverToClassBound(
+            AnnotatedTypeFactory annotatedTypeFactory, Element element, AnnotatedTypeMirror type) {
+        if (element.getKind() == ElementKind.METHOD
+                && type instanceof AnnotatedExecutableType
+                && !ElementUtils.isStatic(element)) {
+            AnnotatedTypeMirror bound =
+                    PICOTypeUtil.getBoundTypeOfEnclosingClass(element, annotatedTypeFactory);
+            AnnotatedExecutableType methodType = (AnnotatedExecutableType) type;
+            assert bound != null;
+            methodType
+                    .getReceiverType()
+                    .addMissingAnnotations(
+                            Collections.singletonList(bound.getAnnotationInHierarchy(READONLY)));
         }
     }
 
@@ -419,6 +448,7 @@ public class PICONoInitAnnotatedTypeFactory
         public Void visitMethod(MethodTree tree, AnnotatedTypeMirror p) {
             Element element = TreeUtils.elementFromDeclaration(tree);
             picoTypeFactory.defaultConstructorReturnToClassBound(atypeFactory, element, p);
+            picoTypeFactory.defaultMethodReceiverToClassBound(atypeFactory, element, p);
             return super.visitMethod(tree, p);
         }
 
