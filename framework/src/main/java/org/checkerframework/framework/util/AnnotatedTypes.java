@@ -955,13 +955,17 @@ public class AnnotatedTypes {
                 if (subtype.getKind() != TypeKind.TYPEVAR) {
                     throw new BugInCF("Missing primary annotations: subtype: %s", subtype);
                 }
-                AnnotationMirrorSet lb = findEffectiveLowerBoundAnnotations(qualHierarchy, subtype);
-                AnnotationMirror lbAnno = qualHierarchy.findAnnotationInHierarchy(lb, top);
-                if (lbAnno != null
-                        && !qualHierarchy.isSubtypeShallow(lbAnno, subTM, superAnno, superTM)) {
-                    // The superAnno is lower than the lower bound annotation, so add it.
-                    glb.addAnnotation(superAnno);
-                } // else don't add any annotation.
+                AnnotationMirror ubAnno = subtype.getEffectiveAnnotationInHierarchy(top);
+                if (!qualHierarchy.isSubtypeQualifiersOnly(ubAnno, superAnno)) {
+                    // Instead of superAnno <: ubAnno check for ubAnno <!: superAnno to exclude the
+                    // case where ubAnno == superAnno.
+                    // We know that `glb` is a type variable, because `subtype` is.
+                    // Do not add the annotation to the type variable itself, because that would
+                    // change the upper and the lower bound.
+                    // Adding the more restrictive `superAnno` only to the upper bound ensures that
+                    // the type variable is below `superAnno`.
+                    ((AnnotatedTypeVariable) glb).getUpperBound().replaceAnnotation(superAnno);
+                }
             } else {
                 throw new BugInCF("GLB: subtype: %s, supertype: %s", subtype, supertype);
             }
