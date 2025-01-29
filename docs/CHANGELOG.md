@@ -8,6 +8,8 @@ and a redundant warning if they are annotated with `@NonNull`.
 
 **Implementation details:**
 
+Fixed intersection of wildcards with extends bounds, to ensure the correct bounds are used.
+
 **Closed issues:**
 
 eisop#1003, eisop#1033, eisop#1058.
