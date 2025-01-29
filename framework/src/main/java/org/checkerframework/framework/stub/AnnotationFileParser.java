@@ -2070,7 +2070,7 @@ public class AnnotationFileParser {
      * zero or more mappings. Each mapping is from an element that {@code member} would override to
      * {@code member}.
      *
-     * <p>This method does not read or write field {@link annotationFileAnnos}.
+     * <p>This method does not read or write field {@link #annotationFileAnnos}.
      *
      * @param elementsToDecl the mapping that is side-effected by this method
      * @param fakeOverrideDecls fake overrides, also side-effected by this method
@@ -2745,9 +2745,9 @@ public class AnnotationFileParser {
             return convert(((LongLiteralExpr) expr).asNumber(), valueKind);
         } else if (expr instanceof UnaryExpr) {
             switch (expr.toString()) {
-                    // Special-case the minimum values.  Separately parsing a "-" and a value
-                    // doesn't correctly handle the minimum values, because the absolute value of
-                    // the smallest member of an integral type is larger than the largest value.
+                // Special-case the minimum values.  Separately parsing a "-" and a value
+                // doesn't correctly handle the minimum values, because the absolute value of
+                // the smallest member of an integral type is larger than the largest value.
                 case "-9223372036854775808L":
                 case "-9223372036854775808l":
                     return convert(Long.MIN_VALUE, valueKind, false);

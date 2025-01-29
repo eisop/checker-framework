@@ -82,7 +82,7 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
     protected final StructuralEqualityVisitHistory areEqualVisitHistory;
 
     /** The Covariant.value field/element. */
-    final ExecutableElement covariantValueElement;
+    protected final ExecutableElement covariantValueElement;
 
     /**
      * Creates a DefaultTypeHierarchy.
@@ -392,8 +392,8 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
             areEqualVisitHistory.put(inside, outside, currentTop, result);
             return result;
         }
-        if ((TypesUtils.isCapturedTypeVariable(outside.getUnderlyingType())
-                && !TypesUtils.isCapturedTypeVariable(inside.getUnderlyingType()))) {
+        if (TypesUtils.isCapturedTypeVariable(outside.getUnderlyingType())
+                && !TypesUtils.isCapturedTypeVariable(inside.getUnderlyingType())) {
             // TODO: This branch should be removed after #979 is fixed.
             // This workaround is only needed when outside is a captured type variable,
             // but inside is not.
@@ -977,33 +977,58 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
         TypeMirror superTM = supertype.getUnderlyingType();
         if (AnnotatedTypes.haveSameDeclaration(checker.getTypeUtils(), subtype, supertype)) {
             // The underlying types of subtype and supertype are uses of the same type parameter,
-            // but they
-            // may have different primary annotations.
-            boolean subtypeHasAnno = subtype.getAnnotationInHierarchy(currentTop) != null;
-            boolean supertypeHasAnno = supertype.getAnnotationInHierarchy(currentTop) != null;
+            // but they may have different primary annotations.
+            AnnotationMirror subtypeAnno = subtype.getAnnotationInHierarchy(currentTop);
+            boolean subtypeHasAnno = subtypeAnno != null;
+            AnnotationMirror supertypeAnno = supertype.getAnnotationInHierarchy(currentTop);
+            boolean supertypeHasAnno = supertypeAnno != null;
 
             if (subtypeHasAnno && supertypeHasAnno) {
                 // If both have primary annotations then just check the primary annotations
                 // as the bounds are the same.
                 return isPrimarySubtype(subtype, supertype);
             } else if (!subtypeHasAnno && !supertypeHasAnno) {
-                // two unannotated uses of the same type parameter are of the same type
-                return areEqualInHierarchy(subtype, supertype);
-            } else if (subtypeHasAnno && !supertypeHasAnno) {
-                // This is the case "@A T <: T" where T is a type variable.
+                // Two unannotated uses of the same type parameter need to compare
+                // both upper and lower bounds.
+
+                // Upper bound of the subtype needs to be below the upper bound of the supertype.
+                if (!qualHierarchy.isSubtypeShallow(
+                        subtype.getEffectiveAnnotationInHierarchy(currentTop),
+                        subTM,
+                        supertype.getEffectiveAnnotationInHierarchy(currentTop),
+                        superTM)) {
+                    return false;
+                }
+
+                // Lower bound of the subtype needs to be below the lower bound of the supertype.
+                // TODO: Think through this and add better test coverage.
+                AnnotationMirrorSet subLBs =
+                        AnnotatedTypes.findEffectiveLowerBoundAnnotations(qualHierarchy, subtype);
+                AnnotationMirror subLB =
+                        qualHierarchy.findAnnotationInHierarchy(subLBs, currentTop);
                 AnnotationMirrorSet superLBs =
                         AnnotatedTypes.findEffectiveLowerBoundAnnotations(qualHierarchy, supertype);
                 AnnotationMirror superLB =
                         qualHierarchy.findAnnotationInHierarchy(superLBs, currentTop);
-                return qualHierarchy.isSubtypeShallow(
-                        subtype.getAnnotationInHierarchy(currentTop), subTM, superLB, superTM);
+                return qualHierarchy.isSubtypeShallow(subLB, subTM, superLB, superTM);
+            } else if (subtypeHasAnno && !supertypeHasAnno) {
+                // This is the case "@A T <: T" where T is a type variable.
+                // TODO: should this also test the upper bounds?
+                AnnotationMirrorSet superLBs =
+                        AnnotatedTypes.findEffectiveLowerBoundAnnotations(qualHierarchy, supertype);
+                AnnotationMirror superLB =
+                        qualHierarchy.findAnnotationInHierarchy(superLBs, currentTop);
+                return qualHierarchy.isSubtypeShallow(subtypeAnno, subTM, superLB, superTM);
             } else if (!subtypeHasAnno && supertypeHasAnno) {
                 // This is the case "T <: @A T" where T is a type variable.
+                // TODO: should this also test the lower bounds?
                 return qualHierarchy.isSubtypeShallow(
                         subtype.getEffectiveAnnotationInHierarchy(currentTop),
                         subTM,
-                        supertype.getAnnotationInHierarchy(currentTop),
+                        supertypeAnno,
                         superTM);
+            } else {
+                throw new BugInCF("Unreachable");
             }
         }
 
