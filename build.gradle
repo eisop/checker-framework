@@ -12,8 +12,8 @@ buildscript {
 }
 
 plugins {
-    // https://plugins.gradle.org/plugin/com.github.johnrengelman.shadow
-    id 'com.github.johnrengelman.shadow' version '8.1.1'
+    // https://plugins.gradle.org/plugin/com.gradleup.shadow
+    id 'com.gradleup.shadow' version '8.3.5'
     // https://plugins.gradle.org/plugin/de.undercouch.download
     id 'de.undercouch.download' version '5.6.0'
     id 'java'
@@ -167,7 +167,7 @@ allprojects {
 
     apply plugin: 'java'
     apply plugin: 'eclipse'
-    apply plugin: 'com.github.johnrengelman.shadow'
+    apply plugin: 'com.gradleup.shadow'
     apply plugin: 'de.undercouch.download'
     apply plugin: 'net.ltgt.errorprone'
 
