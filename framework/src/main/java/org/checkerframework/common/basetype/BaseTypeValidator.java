@@ -628,6 +628,13 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                 if (!atypeFactory
                         .getTypeHierarchy()
                         .isSubtype(captureTypeVarUB, wildcard.getExtendsBound())) {
+                    // For most captured type variables, this will trivially hold, as capturing
+                    // incorporated the extends bound of the wildcard into the upper bound of the
+                    // type variable.
+                    // This will fail if the bound and the wildcard have generic types and there is
+                    // no appropriate GLB.
+                    // This issues an error for types that cannot be satisfied, because the two
+                    // bounds have contradictory requirements.
                     checker.reportError(
                             tree.getTypeArguments().get(i),
                             "type.argument.type.incompatible",
