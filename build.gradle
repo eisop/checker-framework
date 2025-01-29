@@ -305,8 +305,8 @@ allprojects {
                 target targets
                 targetExclude doNotFormat
 
-                googleJavaFormat().aosp()
-                importOrder('com', 'jdk', 'lib', 'lombok', 'org', 'java', 'javax')
+                googleJavaFormat()// .aosp()
+                // importOrder('com', 'jdk', 'lib', 'lombok', 'org', 'java', 'javax')
                 formatAnnotations().addTypeAnnotation("PolyInitialized").addTypeAnnotation("PolyVP").addTypeAnnotation("ReceiverDependentQual")
             }
 

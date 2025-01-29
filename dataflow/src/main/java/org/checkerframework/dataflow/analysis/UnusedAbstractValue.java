@@ -11,13 +11,13 @@ import org.checkerframework.javacutil.BugInCF;
  */
 public final class UnusedAbstractValue implements AbstractValue<UnusedAbstractValue> {
 
-    /** This class cannot be instantiated */
-    private UnusedAbstractValue() {
-        throw new AssertionError("Class UnusedAbstractValue cannot be instantiated.");
-    }
+  /** This class cannot be instantiated */
+  private UnusedAbstractValue() {
+    throw new AssertionError("Class UnusedAbstractValue cannot be instantiated.");
+  }
 
-    @Override
-    public UnusedAbstractValue leastUpperBound(UnusedAbstractValue other) {
-        throw new BugInCF("UnusedAbstractValue.leastUpperBound was called!");
-    }
+  @Override
+  public UnusedAbstractValue leastUpperBound(UnusedAbstractValue other) {
+    throw new BugInCF("UnusedAbstractValue.leastUpperBound was called!");
+  }
 }
