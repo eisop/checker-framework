@@ -57,11 +57,11 @@ public class UseOfVariable extends AbstractType {
     this.qualifierVars = qualifierVars;
     this.variable = variable;
     this.type = type.deepCopy();
-    this.hasPrimaryAnno = !type.getPrimaryAnnotations().isEmpty();
+    this.hasPrimaryAnno = !type.getAnnotations().isEmpty();
     this.bots = new AnnotationMirrorSet();
     this.tops = new AnnotationMirrorSet();
     if (hasPrimaryAnno) {
-      for (AnnotationMirror anno : type.getPrimaryAnnotations()) {
+      for (AnnotationMirror anno : type.getAnnotations()) {
         bots.add(qh.getBottomAnnotation(anno));
         tops.add(qh.getTopAnnotation(anno));
       }
@@ -187,8 +187,7 @@ public class UseOfVariable extends AbstractType {
   @Override
   public Set<AbstractQualifier> getQualifiers() {
     if (hasPrimaryAnno) {
-      return AbstractQualifier.create(
-          getAnnotatedType().getPrimaryAnnotations(), qualifierVars, context);
+      return AbstractQualifier.create(getAnnotatedType().getAnnotations(), qualifierVars, context);
     } else {
       return Collections.emptySet();
     }

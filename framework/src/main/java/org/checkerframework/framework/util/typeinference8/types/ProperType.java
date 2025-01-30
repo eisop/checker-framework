@@ -265,8 +265,7 @@ public class ProperType extends AbstractType {
 
   @Override
   public Set<AbstractQualifier> getQualifiers() {
-    return AbstractQualifier.create(
-        getAnnotatedType().getPrimaryAnnotations(), qualifierVars, context);
+    return AbstractQualifier.create(getAnnotatedType().getAnnotations(), qualifierVars, context);
   }
 
   @Override

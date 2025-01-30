@@ -167,7 +167,7 @@ public class ResourceLeakAnnotatedTypeFactory extends CalledMethodsAnnotatedType
     } else {
       throw new IllegalArgumentException("Unsupported type: " + obj.getClass().getName());
     }
-    return mustCallAnnotatedType.getPrimaryAnnotation(MustCall.class);
+    return mustCallAnnotatedType.getAnnotation(MustCall.class);
   }
 
   /**

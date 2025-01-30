@@ -74,7 +74,7 @@ public class InvocationType {
     SimpleAnnotatedTypeScanner<Void, Set<AnnotationMirror>> s =
         new SimpleAnnotatedTypeScanner<>(
             (type, polys) -> {
-              for (AnnotationMirror a : type.getPrimaryAnnotations()) {
+              for (AnnotationMirror a : type.getAnnotations()) {
                 if (typeFactory.getQualifierHierarchy().isPolymorphicQualifier(a)) {
                   polys.add(a);
                 }

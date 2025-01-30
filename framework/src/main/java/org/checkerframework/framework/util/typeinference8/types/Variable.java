@@ -132,9 +132,7 @@ import org.checkerframework.javacutil.TypesUtils;
 
     Set<? extends AbstractQualifier> quals =
         AbstractQualifier.create(
-            typeVariable.getLowerBound().getPrimaryAnnotations(),
-            AnnotationMirrorMap.emptyMap(),
-            context);
+            typeVariable.getLowerBound().getAnnotations(), AnnotationMirrorMap.emptyMap(), context);
     variableBounds.addQualifierBound(BoundKind.LOWER, quals);
   }
 

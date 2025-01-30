@@ -1127,9 +1127,9 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
     // TODO: Implement this.
     //
     // Some notes:
-    // - javacTree.getPrimaryAnnotations() seems to always return empty, any annotations on
+    // - javacTree.getAnnotations() seems to always return empty, any annotations on
     // the base type seem to go on the type itself in javacTree.getType(). The JavaParser
-    // version doesn't even have a corresponding getPrimaryAnnotations method.
+    // version doesn't even have a corresponding getAnnotations method.
     // - When there are no initializers, both systems use similar representations. The
     // dimensions line up.
     // - When there is an initializer, they differ greatly for multi-dimensional arrays. Javac

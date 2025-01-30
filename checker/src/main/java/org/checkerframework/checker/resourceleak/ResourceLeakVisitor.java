@@ -233,7 +233,7 @@ public class ResourceLeakVisitor extends CalledMethodsVisitor {
     }
 
     AnnotatedTypeMirror returnType = mcAtf.getMethodReturnType(tree);
-    boolean isMustCallAliasAnnoOnReturnType = returnType.hasPrimaryAnnotation(PolyMustCall.class);
+    boolean isMustCallAliasAnnoOnReturnType = returnType.hasAnnotation(PolyMustCall.class);
     checkMustCallAliasAnnoMismatch(
         paramWithMustCallAliasAnno, isMustCallAliasAnnoOnReturnType, tree);
   }
