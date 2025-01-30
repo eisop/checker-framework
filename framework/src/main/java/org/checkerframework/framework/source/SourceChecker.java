@@ -618,9 +618,6 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
    */
   protected TreePathCacher treePathCacher = null;
 
-  /** Default constructor. */
-  protected SourceChecker() {}
-
   /** True if the -Afilenames command-line argument was passed. */
   private boolean printFilenames;
 

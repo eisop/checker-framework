@@ -995,7 +995,8 @@ public class AnnotatedTypes {
   public static List<AnnotatedTypeMirror> adaptParameters(
       AnnotatedTypeFactory atypeFactory,
       AnnotatedExecutableType method,
-      List<? extends ExpressionTree> args) {
+      List<? extends ExpressionTree> args,
+      @Nullable NewClassTree tree) {
     List<AnnotatedTypeMirror> parameters = method.getParameterTypes();
     // Handle anonymous constructors that extend a class with an enclosing type.
     // There is a mismatch between the number of parameters and arguments when

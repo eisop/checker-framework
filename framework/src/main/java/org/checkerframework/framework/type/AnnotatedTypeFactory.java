@@ -528,9 +528,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
   /** Mapping from a Tree to its TreePath. Shared between all instances. */
   private final TreePathCacher treePathCache;
 
-  /** Mapping from CFG-generated trees to their enclosing elements. */
-  protected final Map<Tree, Element> artificialTreeToEnclosingElementMap;
-
   /** Whether to ignore type arguments from raw types. */
   public final boolean ignoreRawTypeArguments;
 
@@ -1491,9 +1488,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     if (tree.getKind() == Kind.TYPE_CAST) {
       type = applyCaptureConversion(type);
     }
-    logGat(
-        "getAnnotatedType(%s): after addComputedTypeAnnotations, type=%s%n",
-        TreeUtils.toStringTruncated(tree, 60), type);
 
     if (shouldCache && (TreeUtils.isClassTree(tree) || tree.getKind() == Tree.Kind.METHOD)) {
       // Don't cache VARIABLE

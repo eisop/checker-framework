@@ -2504,7 +2504,7 @@ public final class TreeUtils {
 
   /**
    * Returns true if the given switch statement tree is an enhanced switch statement, as described
-   * in <a href="https://docs.oracle.com/javase/specs/jls/se21/html/jls-14.html#jls-14.11.2">JSL
+   * in <a href="https://docs.oracle.com/javase/specs/jls/se21/html/jls-14.html#jls-14.11.2">JLS
    * 14.11.2</a>.
    *
    * @param switchTree the switch statement to check
@@ -2551,37 +2551,6 @@ public final class TreeUtils {
    */
   public static boolean isYield(Tree tree) {
     return tree.getKind().name().equals("YIELD");
-  }
-
-  /**
-   * Returns true if the given switch statement tree is an enhanced switch statement, as described
-   * in <a href="https://docs.oracle.com/javase/specs/jls/se21/html/jls-14.html#jls-14.11.2">JSL
-   * 14.11.2</a>.
-   *
-   * @param switchTree the switch statement to check
-   * @return true if the given tree is an enhanced switch statement
-   */
-  public static boolean isEnhancedSwitchStatement(SwitchTree switchTree) {
-    TypeMirror exprType = typeOf(switchTree.getExpression());
-    // TODO: this should be only char, byte, short, int, Character, Byte, Short, Integer. Is the
-    // over-approximation a problem?
-    Element exprElem = TypesUtils.getTypeElement(exprType);
-    boolean isNotEnum = exprElem == null || exprElem.getKind() != ElementKind.ENUM;
-    if (!TypesUtils.isPrimitiveOrBoxed(exprType) && !TypesUtils.isString(exprType) && isNotEnum) {
-      return true;
-    }
-
-    for (CaseTree caseTree : switchTree.getCases()) {
-      for (Tree caseLabel : CaseUtils.getLabels(caseTree)) {
-        if (caseLabel.getKind() == Tree.Kind.NULL_LITERAL
-            || TreeUtils.isBindingPatternTree(caseLabel)
-            || TreeUtils.isDeconstructionPatternTree(caseLabel)) {
-          return true;
-        }
-      }
-    }
-
-    return false;
   }
 
   /**
