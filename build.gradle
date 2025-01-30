@@ -76,7 +76,7 @@ ext {
   versions = [
     autoValue       : '1.11.0',
     errorprone      : '2.36.0',
-    googleJavaFormat : '1.19.2',
+    googleJavaFormat : '1.25.2',
     hashmapUtil     : '0.0.1',
     junit           : '4.13.2',
     lombok          : '1.18.36',

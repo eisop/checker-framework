@@ -13,7 +13,7 @@ public class NullableSwitchSelector {
     return switch (obj) {
       case Integer i -> obj.toString();
       case String s -> String.format("String %s", s);
-        // :: error: (dereference.of.nullable)
+      // :: error: (dereference.of.nullable)
       case null -> obj.toString();
       default -> obj.toString();
     };
@@ -35,7 +35,7 @@ public class NullableSwitchSelector {
     return switch (obj) {
       case Integer i -> obj.toString();
       case String s -> String.format("String %s", s);
-        // :: error: (dereference.of.nullable)
+      // :: error: (dereference.of.nullable)
       case null, default -> obj.toString();
     };
   }
