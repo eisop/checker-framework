@@ -384,7 +384,7 @@ public abstract class AbstractType {
       argTypes.add(arg.getAnnotatedType());
     }
     newType.setTypeArguments(argTypes);
-    newType.replaceAnnotations(getAnnotatedType().getPrimaryAnnotations());
+    newType.replaceAnnotations(getAnnotatedType().getAnnotations());
     return create(newType, newTypeJava);
   }
 
