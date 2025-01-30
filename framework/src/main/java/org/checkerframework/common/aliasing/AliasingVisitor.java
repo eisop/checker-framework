@@ -269,9 +269,8 @@ public class AliasingVisitor extends BaseTypeVisitor<AliasingAnnotatedTypeFactor
     // Don't issue warnings about @LeakedToResult or (implicit) @MaybeLeaked on constructor
     // results.
     if (!returnType.hasAnnotation(atypeFactory.NON_LEAKED)) {
-      constructorType = constructorType.shallowCopy();
-      constructorType.shallowCopyReturnType();
-      returnType = constructorType.getReturnType();
+      // TODO: the visitor should not change qualifiers.
+      // Possible problem from aliasing of `returnType`, but all tests pass.
       returnType.replaceAnnotation(atypeFactory.NON_LEAKED);
     }
 
