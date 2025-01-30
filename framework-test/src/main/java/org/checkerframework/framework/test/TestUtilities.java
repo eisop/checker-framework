@@ -3,7 +3,6 @@ package org.checkerframework.framework.test;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
@@ -155,7 +154,7 @@ public class TestUtilities {
         // Without this check Windows will treat the file as a meaningless one and skip it.
         if (dir.isFile()) {
           File p = dir;
-          try (BufferedReader br = new BufferedReader(new FileReader(dir))) {
+          try (BufferedReader br = Files.newBufferedReader(dir.toPath(), StandardCharsets.UTF_8)) {
             String allSystemPath = br.readLine();
             if (allSystemPath == null) {
               throw new BugInCF("test directory does not exist: %s", dir);
