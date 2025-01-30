@@ -4,6 +4,8 @@ import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.LiteralTree;
+import com.sun.source.tree.MemberReferenceTree;
+import com.sun.source.tree.MemberReferenceTree.ReferenceMode;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewArrayTree;
@@ -929,5 +931,21 @@ public abstract class InitializationParentAnnotatedTypeFactory
       assert (unknowninit1 || underinit1) && (unknowninit2 || underinit2);
       return createUnderInitializationAnnotation(typeFrame);
     }
+  }
+
+  // TODO: check where this method should go.
+  @Override
+  protected ParameterizedExecutableType methodFromUse(
+      ExpressionTree tree,
+      ExecutableElement methodElt,
+      AnnotatedTypeMirror receiverType,
+      boolean inferTypeArgs) {
+    ParameterizedExecutableType x =
+        super.methodFromUse(tree, methodElt, receiverType, inferTypeArgs);
+    if (tree.getKind() == Tree.Kind.MEMBER_REFERENCE
+        && ((MemberReferenceTree) tree).getMode() == ReferenceMode.NEW) {
+      x.executableType.getReturnType().replaceAnnotation(INITIALIZED);
+    }
+    return x;
   }
 }
