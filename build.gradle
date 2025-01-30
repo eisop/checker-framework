@@ -313,7 +313,7 @@ allprojects { currentProj ->
                     target targets
                 } else {
                     // not the root project; format all .java files in the sub-project
-                    target '**/*.java'
+                    target '**/*.java', '**/*.ajava'
                 }
                 targetExclude doNotFormat
 
