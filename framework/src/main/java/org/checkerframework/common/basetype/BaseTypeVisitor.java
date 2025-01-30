@@ -1144,14 +1144,16 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
       if (suggestPureMethods && !TreeUtils.isSynthetic(tree)) {
         // Issue a warning if the method is pure, but not annotated as such.
         EnumSet<Pure.Kind> additionalKinds = r.getKinds().clone();
-        if (!infer) {
-          // During WPI, propagate all purity kinds, even those that are already
-          // present (because they were inferred in a previous WPI round).
-          additionalKinds.removeAll(kinds);
-        }
+        /* NO-AFU
+        if (!infer) {*/
+        // During WPI, propagate all purity kinds, even those that are already
+        // present (because they were inferred in a previous WPI round).
+        additionalKinds.removeAll(kinds);
+        // NO-AFU }
         if (TreeUtils.isConstructor(tree) || TreeUtils.isVoidReturn(tree)) {
           additionalKinds.remove(Pure.Kind.DETERMINISTIC);
         }
+        /* NO-AFU
         if (infer) {
           WholeProgramInference wpi = atypeFactory.getWholeProgramInference();
           ExecutableElement methodElt = TreeUtils.elementFromDeclaration(tree);
@@ -1167,7 +1169,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
           for (ExecutableElement overriddenElt : overriddenMethods) {
             inferPurityAnno(additionalKinds, wpi, overriddenElt);
           }
-        } else if (additionalKinds.isEmpty()) {
+        } else */
+        if (additionalKinds.isEmpty()) {
           // No need to suggest @Impure, since it is equivalent to no annotation.
         } else if (additionalKinds.size() == 2) {
           checker.reportWarning(tree, "purity.more.pure", tree.getName());
@@ -1179,24 +1182,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
           throw new BugInCF("Unexpected purity kind in " + additionalKinds);
         }
       }
-      /* NO-AFU
-        if (infer) {
-          WholeProgramInference wpi = atypeFactory.getWholeProgramInference();
-          ExecutableElement methodElt = TreeUtils.elementFromDeclaration(tree);
-          inferPurityAnno(additionalKinds, wpi, methodElt);
-          // The purity of overridden methods is impacted by the purity of this method. If a
-          // superclass method is pure, but an implementation in a subclass is not, WPI ought to treat
-          // **neither** as pure. The purity kind of the superclass method is the LUB of its own
-          // purity and the purity of all the methods that override it. Logically, this rule is the
-          // same as the WPI rule for overrides, but purity isn't a type system and therefore must be
-          // special-cased.
-          Set<? extends ExecutableElement> overriddenMethods =
-              ElementUtils.getOverriddenMethods(methodElt, types);
-          for (ExecutableElement overriddenElt : overriddenMethods) {
-            inferPurityAnno(additionalKinds, wpi, overriddenElt);
-          }
-        }
-      */
     }
 
     // There will be code here that *may* use `body` (and may set `body` before using it).
@@ -1992,7 +1977,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         methodName,
         invokedMethod.getTypeVariables());
     List<AnnotatedTypeMirror> params =
-        AnnotatedTypes.adaptParameters(atypeFactory, invokedMethod, tree.getArguments());
+        AnnotatedTypes.adaptParameters(atypeFactory, invokedMethod, tree.getArguments(), null);
     checkArguments(params, tree.getArguments(), methodName, method.getParameters());
     checkVarargs(invokedMethod, tree);
 
