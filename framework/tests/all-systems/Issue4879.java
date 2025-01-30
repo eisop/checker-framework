@@ -1,23 +1,23 @@
 abstract class L4879<B> {
-  protected L4879(A4879<B> c) {}
+    protected L4879(A4879<B> c) {}
 }
 
 class A4879<A> {
-  static class B4879<T> {
-    public B4879() {}
+    static class B4879<T> {
+        public B4879() {}
 
-    A4879<T> build() {
-      throw new AssertionError();
+        A4879<T> build() {
+            throw new AssertionError();
+        }
     }
-  }
 }
 
 class Issue4879 {
-  private final class I4879 extends L4879<Object> {
-    // Any non-top default checker will issue a true postive error.
-    @SuppressWarnings("argument")
-    private I4879() {
-      super(new A4879.B4879<>().build());
+    private final class I4879 extends L4879<Object> {
+        // Any non-top default checker will issue a true postive error.
+        @SuppressWarnings("argument")
+        private I4879() {
+            super(new A4879.B4879<>().build());
+        }
     }
-  }
 }

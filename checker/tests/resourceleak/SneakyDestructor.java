@@ -3,23 +3,24 @@
 // is not fooled by a must-call method that closes the owned field
 // of another instance of the class.
 
-import java.io.*;
 import org.checkerframework.checker.calledmethods.qual.*;
 import org.checkerframework.checker.mustcall.qual.*;
 
+import java.io.*;
+
 @InheritableMustCall("close")
 public class SneakyDestructor {
-  // :: error: required.method.not.called
-  private final @Owning Closeable resource;
+    // :: error: required.method.not.called
+    private final @Owning Closeable resource;
 
-  public SneakyDestructor(Closeable r) {
-    this.resource = r;
-  }
+    public SneakyDestructor(Closeable r) {
+        this.resource = r;
+    }
 
-  // ...
+    // ...
 
-  @EnsuresCalledMethods(value = "#1.resource", methods = "close")
-  public void close(SneakyDestructor other) throws IOException {
-    other.resource.close();
-  }
+    @EnsuresCalledMethods(value = "#1.resource", methods = "close")
+    public void close(SneakyDestructor other) throws IOException {
+        other.resource.close();
+    }
 }
