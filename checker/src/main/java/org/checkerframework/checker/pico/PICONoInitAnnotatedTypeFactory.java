@@ -44,7 +44,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
@@ -190,7 +189,7 @@ public class PICONoInitAnnotatedTypeFactory
      * {@inheritDoc} Changes the framework default to @Immutable TODO: This should be controlled by
      * additional meta annotation to opt in two different defaults
      *
-     * @return Mutable default AnnotationMirrorSet
+     * @return Immutable default AnnotationMirrorSet
      */
     @Override
     protected AnnotationMirrorSet getDefaultTypeDeclarationBounds() {
@@ -236,12 +235,12 @@ public class PICONoInitAnnotatedTypeFactory
      * @param type the type to get the upperbound for
      * @return the upperbound for the given type
      */
-    public AnnotationMirror getTypeDeclarationBoundForMutability(TypeMirror type) {
+    private AnnotationMirror getTypeDeclarationBoundForMutability(TypeMirror type) {
         if (PICOTypeUtil.isImplicitlyImmutableType(toAnnotatedType(type, false))) {
             return IMMUTABLE;
         }
         if (type.getKind() == TypeKind.ARRAY) {
-            return RECEIVER_DEPENDENT_MUTABLE; // if decided to use vpa for array, return RDM.
+            return RECEIVER_DEPENDENT_MUTABLE;
         }
         // IMMUTABLE for enum w/o decl anno
         if (type instanceof DeclaredType) {
@@ -309,21 +308,6 @@ public class PICONoInitAnnotatedTypeFactory
                         AnnotatedTypeMirror.AnnotatedDeclaredType adt =
                                 (AnnotatedTypeMirror.AnnotatedDeclaredType) explicitATM;
                         Element typeElement = adt.getUnderlyingType().asElement();
-
-                        AnnotationMirrorSet enclosingBound =
-                                annotatedTypeFactory.getTypeDeclarationBounds(
-                                        Objects.requireNonNull(
-                                                        ElementUtils.enclosingTypeElement(element))
-                                                .asType());
-                        AnnotationMirrorSet declBound =
-                                annotatedTypeFactory.getTypeDeclarationBounds(element.asType());
-                        // Add RDM if Type declaration bound=M and enclosing class Bound=M/RDM
-                        // If the declaration bound is mutable and the enclosing class is also
-                        // mutable, replace the annotation as RDM.
-                        if (AnnotationUtils.containsSameByName(declBound, MUTABLE)
-                                && AnnotationUtils.containsSameByName(enclosingBound, MUTABLE)) {
-                            annotatedTypeMirror.replaceAnnotation(RECEIVER_DEPENDENT_MUTABLE);
-                        }
                         // If the declaration bound is RDM, replace the annotation as RDM
                         if (typeElement instanceof TypeElement) {
                             AnnotatedTypeMirror bound = getAnnotatedType(typeElement);

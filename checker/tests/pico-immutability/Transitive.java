@@ -26,16 +26,13 @@ public class Transitive {
 
     static class Caller {
         void test(@Readonly A a) {
-            // :: error: (illegal.field.write)
             a.b.field = 1;
             // :: error: (method.invocation.invalid)
             a.getB().field = 1;
 
-            // :: error: (illegal.field.write)
             a.b.c.field = 1;
             // :: error: (method.invocation.invalid)
             a.getB().getC().field = 1;
-            // :: error: (method.invocation.invalid)
             a.b.getC().field = 1;
             // :: error: (method.invocation.invalid)
             a.getB().c.field = 1;
