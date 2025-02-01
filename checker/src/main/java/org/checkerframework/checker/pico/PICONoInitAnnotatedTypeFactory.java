@@ -3,6 +3,7 @@ package org.checkerframework.checker.pico;
 import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeCastTree;
@@ -316,7 +317,7 @@ public class PICONoInitAnnotatedTypeFactory
                             }
                         }
                     } else if (explicitATM instanceof AnnotatedTypeMirror.AnnotatedArrayType) {
-                        // If the ATM is array type, replace array's component type with @RDM.
+                        // If the ATM is array type, replace array type with @RDM.
                         annotatedTypeMirror.replaceAnnotation(RECEIVER_DEPENDENT_MUTABLE);
                     }
                 }
@@ -422,6 +423,20 @@ public class PICONoInitAnnotatedTypeFactory
         public PICOTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
             picoTypeFactory = (PICONoInitAnnotatedTypeFactory) atypeFactory;
+        }
+
+        @Override
+        public Void visitNewArray(NewArrayTree tree, AnnotatedTypeMirror type) {
+            AnnotatedTypeMirror componentType =
+                    ((AnnotatedTypeMirror.AnnotatedArrayType) type).getComponentType();
+            super.visitNewArray(tree, type);
+            // If the array component type get from treeAnnotator is @RDM, replace it with
+            // @Immutable. This will not change the mutability type when the component type is
+            // explicit annotated.
+            if (componentType.hasAnnotation(picoTypeFactory.RECEIVER_DEPENDENT_MUTABLE)) {
+                componentType.replaceAnnotation(picoTypeFactory.IMMUTABLE);
+            }
+            return null;
         }
 
         /**

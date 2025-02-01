@@ -5,6 +5,20 @@ import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
 
 public class Arrays {
     Object[] o = new String[] {""};
+    Object[] o1 = new Object[10];
+    Object[] o2 = new @ReceiverDependentMutable Object[10];
+    // :: error: (assignment.type.incompatible)
+    @Mutable Object[] o3 = new Object[10];
+    // :: error: (assignment.type.incompatible) rhs is resolved to @Immutable Object @Immutable []
+    // based on the class bound @Immutable
+    @Mutable Object[] o4 = new @ReceiverDependentMutable Object[10];
+    static Object[] o5 = new Object[10];
+    static Object[] o6 = new String[10];
+    static Object[] o7 = new @ReceiverDependentMutable Object[10];
+    // :: error: (assignment.type.incompatible)
+    static @Mutable Object[] o8 = new Object[10];
+    // :: error: (assignment.type.incompatible)
+    static @Mutable Object[] o9 = new @ReceiverDependentMutable Object[10];
 
     @Mutable class MutableClass {
         int[] a; // RDM component array resolve as mutable
