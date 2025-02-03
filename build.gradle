@@ -270,16 +270,22 @@ allprojects { currentProj ->
             // add them to spotlessPredeclare block.
 
             // Always skip formatting of files under build directory
-            def doNotFormat = ['build/**']
+            def doNotFormat = [
+                'build/**',
+                'examples/lombok/build/**'
+            ]
             if (currentProj != project.rootProject) {
                 if (perProjectDoNotFormat.containsKey(currentProj.name)) {
                     doNotFormat += perProjectDoNotFormat[currentProj.name]
                 }
+                if (currentRuntimeJavaVersion < 14) {
+                    doNotFormat += ['**/*record*/']
+                }
                 if (currentRuntimeJavaVersion < 16) {
-                    doNotFormat += [
-                        'tests/**/java17/',
-                        'tests/*record*/'
-                    ]
+                    // TODO: directories should be renamed `-switchexpr` or some such,
+                    // as they  only contain examples for switch expressions, which were
+                    // added in Java 14, not Java 17.
+                    doNotFormat += ['**/java17/']
                 }
                 if (currentRuntimeJavaVersion < 21) {
                     doNotFormat += ['tests/**/java21/']

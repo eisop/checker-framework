@@ -261,8 +261,11 @@ public class AnnotatedTypes {
                 enclosingType = enclosingType.getEnclosingType();
             }
             if (enclosingType == null) {
-                throw new BugInCF(
-                        "Enclosing type not found: type: %s supertype: %s", dt, superType);
+                // TODO: work around a failure in guava that happens without this hack.
+                // throw new BugInCF("Enclosing type not found %s %s", dt, superType);
+                return superType;
+                //  throw new BugInCF(
+                //          "Enclosing type not found: type: %s supertype: %s", dt, superType);
             }
             return asSuper(atypeFactory, dt, superType);
         }
@@ -711,7 +714,6 @@ public class AnnotatedTypes {
      */
     private static final IPair<Map<TypeVariable, AnnotatedTypeMirror>, Boolean> emptyFalsePair =
             IPair.of(Collections.emptyMap(), false);
-    ;
 
     /**
      * Given a method or constructor invocation, return a mapping of the type variables to their

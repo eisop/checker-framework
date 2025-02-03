@@ -21,6 +21,8 @@ automatically as part of whole-program inference.
 
 Deprecated `ObjectCreationNode#getConstructor` in favor of new
 `ObjectCreationNode#getTypeToInstantiate()`.
+(EISOP note: this already happened in Version 3.39.0-eisop1 on
+October 22, 2023.)
 
 Renamed `AbstractCFGVisualizer.visualizeBlockHelper()` to
 `visualizeBlockWithSeparator()`.

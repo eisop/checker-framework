@@ -894,9 +894,9 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     public abstract AnnotatedTypeMirror shallowCopy();
 
     /**
-     * Whether this contains any captured type variables.
+     * Whether this type contains any captured type variables.
      *
-     * @return whether the {@code type} contains any captured type variables
+     * @return whether this type contains any captured type variables
      */
     public boolean containsCapturedTypes() {
         return atypeFactory.containsCapturedTypes(this);
@@ -1096,7 +1096,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
 
             DeclaredType t = getUnderlyingType();
             typeArgs = new ArrayList<>(t.getTypeArguments().size());
-
+            // TODO: make typeArgs immutable. Optimize for empty set.
             if (isUnderlyingTypeRaw()) {
                 TypeElement typeElement = (TypeElement) atypeFactory.types.asElement(t);
                 Map<TypeVariable, AnnotatedTypeMirror> typeParameterToWildcard = new HashMap<>();
@@ -1483,7 +1483,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          *
          * @param receiverType the receiver type
          */
-        public void setReceiverType(@Nullable AnnotatedDeclaredType receiverType) {
+        /*package-private*/ void setReceiverType(@Nullable AnnotatedDeclaredType receiverType) {
             this.receiverType = receiverType;
             receiverTypeComputed = true;
         }
@@ -1909,6 +1909,8 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          * an explicit lower bound declaration, capture conversion can produce a type variable with
          * a non-trivial lower bound. Type variables otherwise have a lower bound of NullType.
          *
+         * <p>This method is for framework usage only.
+         *
          * @param type the lower bound type
          */
         public void setLowerBound(AnnotatedTypeMirror type) {
@@ -1975,6 +1977,8 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
 
         /**
          * Set the upper bound of this variable type.
+         *
+         * <p>This method is for framework usage only.
          *
          * @param type the upper bound type
          */
@@ -2262,6 +2266,8 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         /**
          * Sets the super bound of this wildcard.
          *
+         * <p>This method is for framework usage only.
+         *
          * @param type the type of the lower bound
          */
         public void setSuperBound(AnnotatedTypeMirror type) {
@@ -2291,6 +2297,8 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
 
         /**
          * Sets the upper bound of this wildcard.
+         *
+         * <p>This method is for framework usage only.
          *
          * @param type the type of the upper bound
          */

@@ -382,6 +382,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /**
      * Initializes all fields of {@code type}.
      *
+     * <p>This method is for framework usage only.
+     *
      * @param type annotated type mirror
      */
     public void initializeAtm(AnnotatedTypeMirror type) {
@@ -1138,16 +1140,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     public final QualifierHierarchy getQualifierHierarchy() {
         return qualHierarchy;
-    }
-
-    /**
-     * Returns true if the given qualifer is one of the top annotations for the qualifer hierarchy.
-     *
-     * @param qualifier a type qualifier
-     * @return true if the given qualifer is one of the top annotations for the qualifer hierarchy
-     */
-    public final boolean isTop(AnnotationMirror qualifier) {
-        return qualHierarchy.isTop(qualifier);
     }
 
     /**
@@ -2928,8 +2920,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         // The return type for constructors should only have explicit annotations from the
         // constructor. The code below recreates some of the logic from TypeFromTree.visitNewClass
-        // to do
-        // this.
+        // to do this.
 
         // The return type of the constructor will be the type of the expression of the member
         // reference tree.
