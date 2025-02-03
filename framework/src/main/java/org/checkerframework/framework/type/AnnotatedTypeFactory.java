@@ -2572,11 +2572,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // Store varargType before calling setParameterTypes, otherwise we may lose the varargType
         // as it is the last element of the original parameterTypes.
         method.computeVarargType();
-        // Adapt parameters, which makes parameters and arguments be the same size for later
-        // checking.
-        List<AnnotatedTypeMirror> parameters =
-                AnnotatedTypes.adaptParameters(this, method, tree.getArguments(), null);
-        method.setParameterTypes(parameters);
+
+        if (inferTypeArgs) {
+            // Adapt parameters, which makes parameters and arguments be the same size for later
+            // checking.
+            List<AnnotatedTypeMirror> parameters =
+                    AnnotatedTypes.adaptParameters(this, method, tree.getArguments(), null);
+            method.setParameterTypes(parameters);
+        }
         return result;
     }
 
@@ -3062,12 +3065,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             con.getReturnType().replaceAnnotations(enumAnnos);
         }
 
-        // Adapt parameters, which makes parameters and arguments be the same size for later
-        // checking. The vararg type of con has been already computed and stored when calling
-        // typeVarSubstitutor.substitute.
-        List<AnnotatedTypeMirror> parameters =
-                AnnotatedTypes.adaptParameters(this, con, tree.getArguments(), tree);
-        con.setParameterTypes(parameters);
+        if (inferTypeArgs) {
+            // Adapt parameters, which makes parameters and arguments be the same size for later
+            // checking.
+            // The vararg type of con has been already computed and stored when calling
+            // typeVarSubstitutor.substitute.
+            List<AnnotatedTypeMirror> parameters =
+                    AnnotatedTypes.adaptParameters(this, con, tree.getArguments(), tree);
+            con.setParameterTypes(parameters);
+        }
 
         return new ParameterizedExecutableType(con, typeargs);
     }
