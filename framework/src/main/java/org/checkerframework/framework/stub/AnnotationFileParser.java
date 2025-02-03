@@ -1689,7 +1689,8 @@ public class AnnotationFileParser {
                     AnnotatedTypeVariable atv =
                             (AnnotatedTypeVariable)
                                     atypeFactory.getAnnotatedType(
-                                            wildcardType.getTypeVariable().asElement());
+                                            TypesUtils.wildcardToTypeParam(
+                                                    wildcardType.getUnderlyingType()));
                     wildcardType
                             .getExtendsBound()
                             .addAnnotations(atv.getUpperBound().getAnnotations());
