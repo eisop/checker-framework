@@ -22,12 +22,12 @@ public class SwitchExpressionTypeArgInference {
                         });
     }
 
-    void test2(int i, @Nullable String nullable) {
+    void test2(int i) {
         @NonNull String s =
                 method(
                         switch (i) {
                             case 0:
-                                yield method("nullable");
+                                yield method("nonnull");
                             case 1:
                                 yield "";
                             default:

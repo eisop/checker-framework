@@ -394,8 +394,7 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
             return result;
         } else if (TypesUtils.isCapturedTypeVariable(outside.getUnderlyingType())) {
             // Sometimes the wildcard has been captured too early, so treat the captured type
-            // variable
-            // as wildcard.
+            // variable as wildcard.
             // This is all cases except bullet 6, "T <= T".
             AnnotatedTypeVariable outsideTypeVar = (AnnotatedTypeVariable) outside;
 
@@ -876,7 +875,7 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
         if (shouldIgnoreRawTypeArgs(supertype)) {
             return true;
         }
-        // this can occur when passing a primitive to a method on a raw type (see test
+        // This can occur when passing a primitive to a method on a raw type (see test
         // checker/tests/nullness/RawAndPrimitive.java).  This can also occur because we don't box
         // primitives when we should and don't capture convert.
         return isPrimarySubtype(subtype, supertype.getSuperBound());
@@ -950,7 +949,7 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
     @Override
     public Boolean visitTypevar_Intersection(
             AnnotatedTypeVariable subtype, AnnotatedIntersectionType supertype, Void p) {
-        // this can happen when checking type param bounds
+        // This can happen when checking type param bounds.
         return visitType_Intersection(subtype, supertype);
     }
 

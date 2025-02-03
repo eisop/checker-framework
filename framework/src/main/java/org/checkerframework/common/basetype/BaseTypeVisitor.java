@@ -3689,7 +3689,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             List<? extends Tree> typeargTrees,
             CharSequence typeOrMethodName,
             List<?> paramNames) {
-
         // System.out.printf("BaseTypeVisitor.checkTypeArguments: %s, TVs: %s, TAs: %s, TATs: %s%n",
         //         toptree, paramBounds, typeargs, typeargTrees);
 
@@ -3706,7 +3705,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         + paramBounds;
 
         for (int i = 0; i < size; i++) {
-
             AnnotatedTypeParameterBounds bounds = paramBounds.get(i);
             AnnotatedTypeMirror typeArg = typeargs.get(i);
 

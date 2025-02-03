@@ -80,7 +80,7 @@ public class InferenceFactory {
     private final AnnotatedTypeFactory typeFactory;
 
     /** Stores information about the current inference problem being solved. */
-    private Java8InferenceContext context;
+    private final Java8InferenceContext context;
 
     /**
      * Creates an inference factory
@@ -1040,12 +1040,10 @@ public class InferenceFactory {
                             .getThrownTypes();
             if (thrownTypes.size() != thrownTypeMirrors.size()) {
                 // TODO: the thrown types are not stored in the ExecutableElements, so the above
-                // method
-                // doesn't find any thrown types.  Below gets the types thrown type from the
-                // ExecutableType
-                // and just adds default annotations.  This is just a work around for this problem.
-                // We need
-                // to figure out how to get the type with the correct annotations.
+                // method doesn't find any thrown types.  Below gets the types thrown type from the
+                // ExecutableType and just adds default annotations.  This is just a work around for
+                // this problem. We need to figure out how to get the type with the correct
+                // annotations.
                 List<AnnotatedTypeMirror> thrownTypesNew =
                         new ArrayList<>(thrownTypeMirrors.size());
                 for (TypeMirror thrown : thrownTypeMirrors) {

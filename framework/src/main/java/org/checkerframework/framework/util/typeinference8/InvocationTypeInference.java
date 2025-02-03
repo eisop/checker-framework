@@ -189,7 +189,6 @@ public class InvocationTypeInference {
      * @throws FalseBoundException if inference fails because of the java types
      */
     public InferenceResult infer(MemberReferenceTree invocation) throws FalseBoundException {
-
         ProperType target = context.inferenceTypeFactory.getTargetType();
         AbstractType target1 =
                 InferenceType.create(
@@ -360,7 +359,6 @@ public class InvocationTypeInference {
                             .reduce(context);
             b2.incorporateToFixedPoint(b);
             return b2;
-
         } else if (r.isWildcardParameterizedType()) {
             // Otherwise, if r is a parameterized type, G<A1, ..., An>, and one of A1, ...,
             // An is a wildcard, then, for fresh inference variables B1, ..., Bn, the constraint
@@ -386,15 +384,14 @@ public class InvocationTypeInference {
                 compatibility |= alpha.getBounds().hasLowerBoundDifferentParam();
             } else if (target.isParameterizedType()) {
                 // The target type is a parameterization of a generic class or interface, G, and B2
-                // contains a
-                // bound of one of the forms alpha = S or S <: alpha, where there exists no type of
-                // the form G<...> that is a supertype of S, but the raw type |G<...>| is a
-                // supertype of S.
+                // contains a bound of one of the forms alpha = S or S <: alpha, where there exists
+                // no type of the form G<...> that is a supertype of S, but the raw type |G<...>| is
+                // a supertype of S.
                 compatibility = alpha.getBounds().hasRawTypeLowerOrEqualBound(target);
             } else if (target.getTypeKind().isPrimitive()) {
                 // The target is a primitive type, and one of the primitive wrapper classes
-                // mentioned in
-                // 5.1.7 is an instantiation, upper bound, or lower bound for alpha in B2.
+                // mentioned in 5.1.7 is an instantiation, upper bound, or lower bound for alpha in
+                // B2.
                 compatibility = alpha.getBounds().hasPrimitiveWrapperBound();
             }
             if (compatibility) {
@@ -641,7 +638,6 @@ public class InvocationTypeInference {
                                     (ExpressionTree tree, Void unused) ->
                                             notPertinentToApplicability(tree, isTargetVariable),
                                     (r1, r2) -> (r1 != null && r1) || (r2 != null && r2));
-                    ;
                     return scanner.scanSwitchExpression(expressionTree, null);
                 }
                 return false;

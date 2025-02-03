@@ -111,7 +111,6 @@ public final class TypesUtils {
      * @return the class for {@code typeMirror}
      */
     public static Class<?> getClassFromType(TypeMirror typeMirror) {
-
         switch (typeMirror.getKind()) {
             case INT:
                 return int.class;
@@ -1053,10 +1052,8 @@ public final class TypesUtils {
      */
     public static TypeMirror substituteMethodReturnType(
             Element methodElement, TypeMirror substitutedReceiverType, ProcessingEnvironment env) {
-
         com.sun.tools.javac.code.Types types =
                 com.sun.tools.javac.code.Types.instance(InternalUtils.getJavacContext(env));
-
         Type substitutedMethodType =
                 types.memberType((Type) substitutedReceiverType, (Symbol) methodElement);
         return substitutedMethodType.getReturnType();
@@ -1174,7 +1171,7 @@ public final class TypesUtils {
         int counter = 0;
         TypeMirror type = arrayType;
         while (type.getKind() == TypeKind.ARRAY) {
-            counter++;
+            ++counter;
             type = ((ArrayType) type).getComponentType();
         }
         return counter;

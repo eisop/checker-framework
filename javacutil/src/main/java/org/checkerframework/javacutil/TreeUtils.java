@@ -1395,7 +1395,7 @@ public final class TreeUtils {
                     && exec.getParameters().size() == paramTypes.length) {
                 boolean typesMatch = true;
                 List<? extends VariableElement> params = exec.getParameters();
-                for (int i = 0; i < paramTypes.length; i++) {
+                for (int i = 0; i < paramTypes.length; ++i) {
                     VariableElement ve = params.get(i);
                     TypeMirror tm = TypeAnnotationUtils.unannotatedType(ve.asType());
                     if (!tm.toString().equals(paramTypes[i])) {
@@ -2643,8 +2643,7 @@ public final class TreeUtils {
         }
         int numParams = elementFromUse(invok).getParameters().size();
         // The comparison of the number of arguments to the number of formals (minus one) checks
-        // whether
-        // there are no varargs actuals
+        // whether there are no varargs actuals
         return invok.getArguments().size() == numParams - 1;
     }
 

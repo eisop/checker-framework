@@ -12,7 +12,7 @@ public class I18nCollectorsToList {
         List<String> collectedStrings1 = s.collect(Collectors.<String>toList());
         List<String> collectedStrings = s.collect(Collectors.toList());
 
-        // :: error: (methodref.param)
+        // :: error: (methodref.param.invalid)
         collectedStrings.forEach(System.out::println);
     }
 

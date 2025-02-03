@@ -585,7 +585,6 @@ public class AnnotationFileParser {
                             importedConstants.addAll(getImportableMembers(element));
                             addEnclosingTypesToImportedTypes(element);
                         }
-
                     } else {
                         // Wildcard import of members of a package
                         PackageElement element = findPackage(imported, importDecl);
@@ -603,12 +602,10 @@ public class AnnotationFileParser {
 
                     TypeElement importType = elements.getTypeElement(imported);
                     if (importType == null && !importDecl.isStatic()) {
-                        // Class or nested class (according to JSL), but we can't resolve
-
+                        // Class or nested class (according to JLS), but we can't resolve
                         stubWarnNotFound(importDecl, "imported type not found: " + imported);
                     } else if (importType == null) {
-                        // static import of field or method.
-
+                        // Static import of field or method.
                         IPair<@FullyQualifiedName String, String> typeParts =
                                 AnnotationFileUtil.partitionQualifiedName(imported);
                         String type = typeParts.first;
@@ -632,9 +629,8 @@ public class AnnotationFileParser {
                                 }
                             }
                         }
-
                     } else if (importType.getKind() == ElementKind.ANNOTATION_TYPE) {
-                        // Single annotation or nested annotation
+                        // Single annotation or nested annotation.
                         TypeElement annoElt = elements.getTypeElement(imported);
                         if (annoElt != null) {
                             putIfAbsent(result, annoElt.getSimpleName().toString(), annoElt);
@@ -643,7 +639,7 @@ public class AnnotationFileParser {
                             stubWarnNotFound(importDecl, "could not load import: " + imported);
                         }
                     } else {
-                        // Class or nested class
+                        // Class or nested class.
                         // TODO: Is this needed?
                         importedConstants.add(imported);
                         TypeElement element =
@@ -1178,7 +1174,6 @@ public class AnnotationFileParser {
      * @return the type's type parameter declarations
      */
     private List<AnnotatedTypeVariable> processType(TypeDeclaration<?> decl, TypeElement elt) {
-
         recordDeclAnnotation(elt, decl.getAnnotations(), decl);
         AnnotatedDeclaredType type = atypeFactory.fromElement(elt);
         annotate(type, decl.getAnnotations(), decl);
@@ -1249,7 +1244,6 @@ public class AnnotationFileParser {
      * @return the enum's type parameter declarations
      */
     private List<AnnotatedTypeVariable> processEnum(EnumDeclaration decl, TypeElement elt) {
-
         recordDeclAnnotation(elt, decl.getAnnotations(), decl);
         AnnotatedDeclaredType type = atypeFactory.fromElement(elt);
         annotate(type, decl.getAnnotations(), decl);
@@ -2222,7 +2216,6 @@ public class AnnotationFileParser {
      * @return true if the two types are the same
      */
     private boolean sameType(TypeMirror javacType, Type javaParserType) {
-
         switch (javacType.getKind()) {
             case BOOLEAN:
                 return javaParserType.equals(PrimitiveType.booleanType());
@@ -2635,7 +2628,6 @@ public class AnnotationFileParser {
      */
     private @Nullable AnnotationMirror getAnnotation(
             AnnotationExpr annotation, Map<String, TypeElement> allAnnotations) {
-
         @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
         @FullyQualifiedName String annoNameFq = annotation.getNameAsString();
         TypeElement annoTypeElt = allAnnotations.get(annoNameFq);
