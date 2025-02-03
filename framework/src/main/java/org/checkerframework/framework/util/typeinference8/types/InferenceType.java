@@ -66,7 +66,8 @@ public class InferenceType extends AbstractType {
             AnnotationMirrorMap<QualifierVar> qualifierVars,
             Java8InferenceContext context) {
         super(context);
-        assert type.getKind() == typeMirror.getKind();
+        assert type.getKind() == typeMirror.getKind()
+                : "Expected kind: " + type.getKind() + ", but got: " + typeMirror.getKind();
         this.type = type.asUse();
         this.typeMirror = typeMirror;
         this.qualifierVars = qualifierVars;
