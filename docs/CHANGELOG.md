@@ -1,3 +1,13 @@
+Version 3.49.1 (March 3, 2025)
+------------------------------
+
+**User-visible changes:**
+
+**Implementation details:**
+
+**Closed issues:**
+
+
 Version 3.49.0-eisop1 (February ??, 2025)
 -----------------------------------------
 
@@ -35,6 +45,7 @@ The JavaStubifier implementation now appears in package
 `org.checkerframework.framework.stubifier.JavaStubifier`.
 
 **Closed issues:**
+
 #6935, #6936, #6939.
 
 
