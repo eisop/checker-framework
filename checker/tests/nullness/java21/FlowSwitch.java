@@ -6,14 +6,30 @@
 // @infer-ajava-skip-test
 // @infer-stubs-skip-test
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 public class FlowSwitch {
 
     void test0(Number n) {
         String s = null;
         switch (n) {
+            // :: warning: (nulltest.redundant)
             case null, default:
                 {
-                    // TODO: this should issue a dereference of nullable error.
+                    // As n is non-null, this cannot produce an NPE.
+                    n.toString();
+                    s = "";
+                }
+        }
+        s.toString();
+    }
+
+    void test0Nbl(@Nullable Number n) {
+        String s = null;
+        switch (n) {
+            case null, default:
+                {
+                    // :: error: (dereference.of.nullable)
                     n.toString();
                     s = "";
                 }

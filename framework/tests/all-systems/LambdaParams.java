@@ -14,6 +14,9 @@ public class LambdaParams {
         throw new RuntimeException();
     }
 
+    // TODO: inference results in invalid annotations for some type systems.
+    // What is a better solution?
+    @SuppressWarnings("type.invalid.annotations.on.location")
     static void method() {
         Function<? super Method, ? extends Stream<? extends String>> mapper =
                 identity(f -> stream(f.getAnnotations()).map(annotation -> ""));

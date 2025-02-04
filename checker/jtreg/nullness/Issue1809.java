@@ -32,7 +32,7 @@ abstract class Issue1809 {
 
     interface S {}
 
-    @SuppressWarnings("nullness")
+    @SuppressWarnings("nullness") // TODO: filter should change expression type.
     private Stream<A> xrefsFor(B b) {
         return concat(b.g().stream().flatMap(a -> a.h().stream().map(c -> f())))
                 .filter(Optional::isPresent)

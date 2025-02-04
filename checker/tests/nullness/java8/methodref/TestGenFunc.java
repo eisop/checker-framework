@@ -22,9 +22,7 @@ public class TestGenFunc {
     }
 
     void context() {
-        // :: error: (type.arguments.not.inferred)
         FuncNullableParam f = TestGenFunc::nonNullReturn;
-        // :: error: (type.arguments.not.inferred)
         FuncNonNullParam f2 = TestGenFunc::nonNullReturn;
     }
 

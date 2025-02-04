@@ -2,8 +2,6 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-// @skip-test this is crashing because inference the new inference isn't used throught the
-// framework.
 @SuppressWarnings("all")
 public class Issue2370 {
     private Stream<Action2370> getAction2370s(final State2370 state) {
