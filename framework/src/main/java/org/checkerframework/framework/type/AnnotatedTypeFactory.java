@@ -2669,10 +2669,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             adaptGetClassReturnTypeToReceiver(methodType, receiverType, tree);
         }
 
-        if (inferTypeArgs) {
-            methodType.setReturnType(applyCaptureConversion(methodType.getReturnType()));
-        }
-
         return new ParameterizedExecutableType(methodType, typeargs);
     }
 
