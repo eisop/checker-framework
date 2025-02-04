@@ -1131,6 +1131,13 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 for (TypeMirror javaTypeArg : t.getTypeArguments()) {
                     AnnotatedTypeMirror typeArg =
                             AnnotatedTypeMirror.createType(javaTypeArg, atypeFactory, false);
+                    if (typeArg.getKind() == TypeKind.WILDCARD) {
+                        AnnotatedWildcardType wildcardType = (AnnotatedWildcardType) typeArg;
+                        wildcardType.setTypeVariable(
+                                ((TypeElement) atypeFactory.types.asElement(t))
+                                        .getTypeParameters()
+                                        .get(typeArgs.size()));
+                    }
                     typeArgs.add(typeArg);
                 }
             }
