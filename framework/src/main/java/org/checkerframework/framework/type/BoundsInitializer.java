@@ -243,7 +243,17 @@ public class BoundsInitializer {
                 }
             }
 
-            annotatedDeclaredType.setTypeArguments(typeArgs);
+            List<AnnotatedTypeMirror> typeArgReplacements = new ArrayList<>(typeArgs.size());
+            for (int i = 0; i < typeArgs.size(); i++) {
+                AnnotatedTypeMirror typeArg = typeArgs.get(i);
+                if (typeArg.getKind() == TypeKind.WILDCARD) {
+                    ((AnnotatedWildcardType) typeArg)
+                            .setTypeVariable(typeElement.getTypeParameters().get(i));
+                }
+                typeArgReplacements.add(typeArg);
+            }
+
+            annotatedDeclaredType.setTypeArguments(typeArgReplacements);
             return annotatedDeclaredType;
         }
 
