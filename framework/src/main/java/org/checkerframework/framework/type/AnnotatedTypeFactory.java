@@ -2882,8 +2882,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
       // If the method reference is missing type arguments, e.g. LinkedHashMap::new, then the
       // constructorReturnType will be raw.  So, use the return type from the constructor instead.
       AnnotatedTypeMirror re = constructorType.getReturnType().deepCopy(false);
-      re.clearPrimaryAnnotations();
-      re.addAnnotations(constructorReturnType.getPrimaryAnnotations());
+      re.clearAnnotations();
+      re.addAnnotations(constructorReturnType.getAnnotations());
       constructorReturnType = re;
     }
 

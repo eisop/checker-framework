@@ -42,8 +42,8 @@ public class OptionalAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
   }
 
   @Override
-  protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type, boolean iUseFlow) {
-    super.addComputedTypeAnnotations(tree, type, iUseFlow);
+  protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type) {
+    super.addComputedTypeAnnotations(tree, type);
     optionalMapNonNull(tree, type);
   }
 
