@@ -1,5 +1,10 @@
 package org.checkerframework.checker.lock.qual;
 
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import org.checkerframework.framework.qual.DefaultFor;
 import org.checkerframework.framework.qual.DefaultQualifierInHierarchy;
 import org.checkerframework.framework.qual.JavaExpression;
@@ -7,12 +12,6 @@ import org.checkerframework.framework.qual.SubtypeOf;
 import org.checkerframework.framework.qual.TypeKind;
 import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.qual.UpperBoundFor;
-
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
 
 /**
  * Indicates that a thread may dereference the value referred to by the annotated variable only if
@@ -43,37 +42,37 @@ import java.lang.annotation.Target;
 // These are required because the default for local variables is @GuardedByUnknown, but if the local
 // variable is one of these type kinds, the default should be @GuardedByUnknown.
 @DefaultFor(
-        value = {TypeUseLocation.EXCEPTION_PARAMETER, TypeUseLocation.UPPER_BOUND},
-        typeKinds = {
-            TypeKind.BOOLEAN,
-            TypeKind.BYTE,
-            TypeKind.CHAR,
-            TypeKind.DOUBLE,
-            TypeKind.FLOAT,
-            TypeKind.INT,
-            TypeKind.LONG,
-            TypeKind.SHORT
-        },
-        types = {String.class, Void.class})
+    value = {TypeUseLocation.EXCEPTION_PARAMETER, TypeUseLocation.UPPER_BOUND},
+    typeKinds = {
+      TypeKind.BOOLEAN,
+      TypeKind.BYTE,
+      TypeKind.CHAR,
+      TypeKind.DOUBLE,
+      TypeKind.FLOAT,
+      TypeKind.INT,
+      TypeKind.LONG,
+      TypeKind.SHORT
+    },
+    types = {String.class, Void.class})
 @UpperBoundFor(
-        typeKinds = {
-            TypeKind.BOOLEAN,
-            TypeKind.BYTE,
-            TypeKind.CHAR,
-            TypeKind.DOUBLE,
-            TypeKind.FLOAT,
-            TypeKind.INT,
-            TypeKind.LONG,
-            TypeKind.SHORT
-        },
-        types = String.class)
+    typeKinds = {
+      TypeKind.BOOLEAN,
+      TypeKind.BYTE,
+      TypeKind.CHAR,
+      TypeKind.DOUBLE,
+      TypeKind.FLOAT,
+      TypeKind.INT,
+      TypeKind.LONG,
+      TypeKind.SHORT
+    },
+    types = String.class)
 public @interface GuardedBy {
-    /**
-     * The Java value expressions that need to be held.
-     *
-     * @see <a href="https://eisop.github.io/cf/manual/#java-expressions-as-arguments">Syntax of
-     *     Java expressions</a>
-     */
-    @JavaExpression
-    String[] value() default {};
+  /**
+   * The Java value expressions that need to be held.
+   *
+   * @see <a href="https://eisop.github.io/cf/manual/#java-expressions-as-arguments">Syntax of Java
+   *     expressions</a>
+   */
+  @JavaExpression
+  String[] value() default {};
 }

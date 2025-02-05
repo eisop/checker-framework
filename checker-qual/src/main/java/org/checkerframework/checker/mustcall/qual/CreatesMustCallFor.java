@@ -1,15 +1,14 @@
 package org.checkerframework.checker.mustcall.qual;
 
-import org.checkerframework.checker.calledmethods.qual.CalledMethods;
-import org.checkerframework.framework.qual.InheritedAnnotation;
-import org.checkerframework.framework.qual.JavaExpression;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import org.checkerframework.checker.calledmethods.qual.CalledMethods;
+import org.checkerframework.framework.qual.InheritedAnnotation;
+import org.checkerframework.framework.qual.JavaExpression;
 
 /**
  * Indicates that the method resets the expression's must-call type to its declared type. This
@@ -75,39 +74,39 @@ import java.lang.annotation.Target;
 @Repeatable(CreatesMustCallFor.List.class)
 public @interface CreatesMustCallFor {
 
-    /**
-     * Returns the expression whose must-call type is reset after a call to a method with this
-     * annotation. The expression must be visible in the scope immediately before each call site, so
-     * it can only refer to fields, the method's parameters (which should be referenced via the "#X"
-     * syntax, where "#1" is the first argument, #2 is the second, etc.), or {@code "this"}. The
-     * default is {@code "this"}. At call-sites, the viewpoint-adapted referent of expression must
-     * be owning (an owning field, a local variable tracked in a resource alias set, etc.) or a
-     * {@code reset.not.owning} error is issued.
-     *
-     * @return the expression to which must-call obligations are added when the annotated method is
-     *     invoked
-     */
-    @JavaExpression
-    String value() default "this";
+  /**
+   * Returns the expression whose must-call type is reset after a call to a method with this
+   * annotation. The expression must be visible in the scope immediately before each call site, so
+   * it can only refer to fields, the method's parameters (which should be referenced via the "#X"
+   * syntax, where "#1" is the first argument, #2 is the second, etc.), or {@code "this"}. The
+   * default is {@code "this"}. At call-sites, the viewpoint-adapted referent of expression must be
+   * owning (an owning field, a local variable tracked in a resource alias set, etc.) or a {@code
+   * reset.not.owning} error is issued.
+   *
+   * @return the expression to which must-call obligations are added when the annotated method is
+   *     invoked
+   */
+  @JavaExpression
+  String value() default "this";
 
+  /**
+   * A wrapper annotation that makes the {@link CreatesMustCallFor} annotation repeatable.
+   *
+   * <p>Programmers generally do not need to write this. It is created by Java when a programmer
+   * writes more than one {@link CreatesMustCallFor} annotation at the same location.
+   *
+   * @checker_framework.manual #must-call-checker Must Call Checker
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.METHOD})
+  @InheritedAnnotation
+  public static @interface List {
     /**
-     * A wrapper annotation that makes the {@link CreatesMustCallFor} annotation repeatable.
+     * Return the repeatable annotations.
      *
-     * <p>Programmers generally do not need to write this. It is created by Java when a programmer
-     * writes more than one {@link CreatesMustCallFor} annotation at the same location.
-     *
-     * @checker_framework.manual #must-call-checker Must Call Checker
+     * @return the repeatable annotations
      */
-    @Documented
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target({ElementType.METHOD})
-    @InheritedAnnotation
-    public static @interface List {
-        /**
-         * Return the repeatable annotations.
-         *
-         * @return the repeatable annotations
-         */
-        CreatesMustCallFor[] value();
-    }
+    CreatesMustCallFor[] value();
+  }
 }

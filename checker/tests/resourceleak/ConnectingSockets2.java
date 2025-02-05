@@ -5,12 +5,12 @@ import java.net.*;
 
 class ConnectingSockets2 {
 
-    void run(InetSocketAddress isa) {
-        try (Socket serverSocket = new Socket()) {
-            serverSocket.close();
-            serverSocket.connect(isa);
-        } catch (IOException e) {
-            // do nothing
-        }
+  void run(InetSocketAddress isa) {
+    try (Socket serverSocket = new Socket()) {
+      serverSocket.close();
+      serverSocket.connect(isa);
+    } catch (IOException e) {
+      // do nothing
     }
+  }
 }

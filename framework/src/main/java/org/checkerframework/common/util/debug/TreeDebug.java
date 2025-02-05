@@ -10,9 +10,7 @@ import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.tree.JCTree.JCNewArray;
-
 import java.util.Set;
-
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
@@ -40,91 +38,91 @@ import javax.lang.model.util.ElementFilter;
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 public class TreeDebug extends AbstractProcessor {
 
-    protected Visitor createSourceVisitor(CompilationUnitTree root) {
-        return new Visitor();
-    }
+  protected Visitor createSourceVisitor(CompilationUnitTree root) {
+    return new Visitor();
+  }
 
-    private static final String LINE_SEPARATOR = System.lineSeparator();
+  private static final String LINE_SEPARATOR = System.lineSeparator();
 
-    public static class Visitor extends TreePathScanner<Void, Void> {
+  public static class Visitor extends TreePathScanner<Void, Void> {
 
-        private final StringBuilder buf;
+    private final StringBuilder buf;
 
-        public Visitor() {
-            buf = new StringBuilder();
-        }
-
-        @Override
-        public Void scan(Tree tree, Void p) {
-
-            // Indent according to subtrees.
-            if (getCurrentPath() != null) {
-                for (TreePath tp = getCurrentPath(); tp != null; tp = tp.getParentPath()) {
-                    buf.append("  ");
-                }
-            }
-
-            // Add tree kind to the buffer.
-            if (tree == null) {
-                buf.append("null");
-            } else {
-                buf.append(tree.getKind());
-            }
-            buf.append(LINE_SEPARATOR);
-
-            // Visit subtrees.
-            super.scan(tree, p);
-
-            // Display and clear the buffer.
-            System.out.print(buf.toString());
-            buf.setLength(0);
-
-            return null;
-        }
-
-        /**
-         * Splices additional information for an AST node into the buffer.
-         *
-         * @param text additional information for the AST node
-         */
-        private void insert(Object text) {
-            buf.insert(buf.length() - 1, " ");
-            buf.insert(buf.length() - 1, text);
-        }
-
-        @Override
-        public Void visitIdentifier(IdentifierTree tree, Void p) {
-            insert(tree);
-            return super.visitIdentifier(tree, p);
-        }
-
-        @Override
-        public Void visitMemberSelect(MemberSelectTree tree, Void p) {
-            insert(tree.getExpression() + "." + tree.getIdentifier());
-            return super.visitMemberSelect(tree, p);
-        }
-
-        @Override
-        public Void visitNewArray(NewArrayTree tree, Void p) {
-            insert(((JCNewArray) tree).annotations);
-            insert("|");
-            insert(((JCNewArray) tree).dimAnnotations);
-            return super.visitNewArray(tree, p);
-        }
-
-        @Override
-        public Void visitLiteral(LiteralTree tree, Void p) {
-            insert(tree.getValue());
-            return super.visitLiteral(tree, p);
-        }
+    public Visitor() {
+      buf = new StringBuilder();
     }
 
     @Override
-    public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        for (TypeElement element : ElementFilter.typesIn(roundEnv.getRootElements())) {
-            TreePath path = Trees.instance(processingEnv).getPath(element);
-            new Visitor().scan(path, null);
+    public Void scan(Tree tree, Void p) {
+
+      // Indent according to subtrees.
+      if (getCurrentPath() != null) {
+        for (TreePath tp = getCurrentPath(); tp != null; tp = tp.getParentPath()) {
+          buf.append("  ");
         }
-        return false;
+      }
+
+      // Add tree kind to the buffer.
+      if (tree == null) {
+        buf.append("null");
+      } else {
+        buf.append(tree.getKind());
+      }
+      buf.append(LINE_SEPARATOR);
+
+      // Visit subtrees.
+      super.scan(tree, p);
+
+      // Display and clear the buffer.
+      System.out.print(buf.toString());
+      buf.setLength(0);
+
+      return null;
     }
+
+    /**
+     * Splices additional information for an AST node into the buffer.
+     *
+     * @param text additional information for the AST node
+     */
+    private void insert(Object text) {
+      buf.insert(buf.length() - 1, " ");
+      buf.insert(buf.length() - 1, text);
+    }
+
+    @Override
+    public Void visitIdentifier(IdentifierTree tree, Void p) {
+      insert(tree);
+      return super.visitIdentifier(tree, p);
+    }
+
+    @Override
+    public Void visitMemberSelect(MemberSelectTree tree, Void p) {
+      insert(tree.getExpression() + "." + tree.getIdentifier());
+      return super.visitMemberSelect(tree, p);
+    }
+
+    @Override
+    public Void visitNewArray(NewArrayTree tree, Void p) {
+      insert(((JCNewArray) tree).annotations);
+      insert("|");
+      insert(((JCNewArray) tree).dimAnnotations);
+      return super.visitNewArray(tree, p);
+    }
+
+    @Override
+    public Void visitLiteral(LiteralTree tree, Void p) {
+      insert(tree.getValue());
+      return super.visitLiteral(tree, p);
+    }
+  }
+
+  @Override
+  public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+    for (TypeElement element : ElementFilter.typesIn(roundEnv.getRootElements())) {
+      TreePath path = Trees.instance(processingEnv).getPath(element);
+      new Visitor().scan(path, null);
+    }
+    return false;
+  }
 }

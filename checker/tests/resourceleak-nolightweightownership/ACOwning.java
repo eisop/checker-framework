@@ -8,53 +8,53 @@ import org.checkerframework.common.returnsreceiver.qual.*;
 
 class ACOwning {
 
-    @InheritableMustCall("a")
-    static class Foo {
-        void a() {}
-    }
+  @InheritableMustCall("a")
+  static class Foo {
+    void a() {}
+  }
 
-    Foo makeFoo() {
-        return new Foo();
-    }
+  Foo makeFoo() {
+    return new Foo();
+  }
 
-    static void takeOwnership(@Owning Foo foo) {
-        foo.a();
-    }
+  static void takeOwnership(@Owning Foo foo) {
+    foo.a();
+  }
 
-    static void noOwnership(Foo foo) {}
+  static void noOwnership(Foo foo) {}
 
-    static void takeOwnershipWrong(@Owning Foo foo) {}
+  static void takeOwnershipWrong(@Owning Foo foo) {}
 
-    static @NotOwning Foo getNonOwningFoo() {
-        return new Foo();
-    }
+  static @NotOwning Foo getNonOwningFoo() {
+    return new Foo();
+  }
 
-    static void callGetNonOwningFoo() {
-        // :: error: (required.method.not.called)
-        getNonOwningFoo();
-    }
+  static void callGetNonOwningFoo() {
+    // :: error: (required.method.not.called)
+    getNonOwningFoo();
+  }
 
-    static void ownershipInCallee() {
-        // :: error: (required.method.not.called)
-        Foo f = new Foo();
-        takeOwnership(f);
-        // :: error: (required.method.not.called)
-        Foo g = new Foo();
-        noOwnership(g);
-    }
+  static void ownershipInCallee() {
+    // :: error: (required.method.not.called)
+    Foo f = new Foo();
+    takeOwnership(f);
+    // :: error: (required.method.not.called)
+    Foo g = new Foo();
+    noOwnership(g);
+  }
 
-    @Owning
-    public Foo owningAtReturn() {
-        return new Foo();
-    }
+  @Owning
+  public Foo owningAtReturn() {
+    return new Foo();
+  }
 
-    void owningAtReturnTest() {
-        // :: error: (required.method.not.called)
-        Foo f = owningAtReturn();
-    }
+  void owningAtReturnTest() {
+    // :: error: (required.method.not.called)
+    Foo f = owningAtReturn();
+  }
 
-    void ownershipTest() {
-        // :: error: (required.method.not.called)
-        takeOwnership(new Foo());
-    }
+  void ownershipTest() {
+    // :: error: (required.method.not.called)
+    takeOwnership(new Foo());
+  }
 }

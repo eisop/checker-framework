@@ -1,85 +1,85 @@
 buildscript {
-    dependencies {
-        if (JavaVersion.current() >= JavaVersion.VERSION_17) {
-            // bnd builder depends on Java 17.
-            // As EISOP releases are made on Java 21, this shouldn't impact releases.
-            classpath('biz.aQute.bnd:biz.aQute.bnd.gradle:7.1.0')
-        }
+  dependencies {
+    if (JavaVersion.current() >= JavaVersion.VERSION_17) {
+      // bnd builder depends on Java 17.
+      // As EISOP releases are made on Java 21, this shouldn't impact releases.
+      classpath('biz.aQute.bnd:biz.aQute.bnd.gradle:7.1.0')
     }
+  }
 }
 
 plugins {
-    id 'java-library'
+  id 'java-library'
 }
 
 if (JavaVersion.current() >= JavaVersion.VERSION_17) {
-    apply plugin: 'biz.aQute.bnd.builder'
+  apply plugin: 'biz.aQute.bnd.builder'
 }
 
 sourceSets {
-    main {
-        java {
-            exclude 'module-info.java'
-        }
+  main {
+    java {
+      exclude 'module-info.java'
     }
-    module_info {
-        java {
-            srcDirs ('src/main')
-        }
+  }
+  module_info {
+    java {
+      srcDirs ('src/main')
     }
+  }
 }
 
 task compileJava9(type: JavaCompile) {
-    source = sourceSets.module_info.java
-    destinationDirectory = sourceSets.main.output.classesDirs[0]
-    classpath = configurations.allProjects
-    options.release = 9
+  source = sourceSets.module_info.java
+  destinationDirectory = sourceSets.main.output.classesDirs[0]
+  classpath = configurations.allProjects
+  options.release = 9
 }
 
 compileJava {
-    if (JavaVersion.current() >= JavaVersion.VERSION_1_9) {
-        dependsOn compileJava9
-    }
+  if (JavaVersion.current() >= JavaVersion.VERSION_1_9) {
+    dependsOn compileJava9
+  }
 }
 
 javadoc {
-    modularity.inferModulePath = false
+  modularity.inferModulePath = false
 }
 
 jar {
-    manifest {
-        attributes('Export-Package': '*')
-    }
+  manifest {
+    attributes('Export-Package': '*')
+  }
 }
 
 apply from: rootProject.file('gradle-mvn-push.gradle')
 
 /** Adds information to the publication for uploading to Maven repositories. */
 final checkerQualPom(publication) {
-    sharedPublicationConfiguration(publication)
-    publication.from components.java
-    publication.pom {
-        name = 'Checker Qual'
-        description = 'checker-qual contains annotations (type qualifiers) that a programmer\n' +
-                'writes to specify Java code for type-checking by the Checker Framework.\n'
-        licenses {
-            license {
-                name = 'The MIT License'
-                url = 'http://opensource.org/licenses/MIT'
-                distribution = 'repo'
-            }
-        }
+  sharedPublicationConfiguration(publication)
+  publication.from components.java
+  publication.pom {
+    name = 'Checker Qual'
+    description = 'checker-qual contains annotations (type qualifiers) that a programmer\n' +
+        'writes to specify Java code for type-checking by the Checker Framework.\n'
+    licenses {
+      license {
+        name = 'The MIT License'
+        url = 'http://opensource.org/licenses/MIT'
+        distribution = 'repo'
+      }
     }
+  }
 }
 
 publishing {
-    publications {
-        checkerQual(MavenPublication) {
-            checkerQualPom it
-        }
+  publications {
+    checkerQual(MavenPublication) {
+      checkerQualPom it
     }
+  }
 }
 
 signing {
-    sign publishing.publications.checkerQual
+  sign publishing.publications.checkerQual
 }
