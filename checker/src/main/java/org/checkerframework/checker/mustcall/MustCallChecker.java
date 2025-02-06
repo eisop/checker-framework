@@ -10,33 +10,33 @@ import org.checkerframework.framework.source.SupportedOptions;
  * another. The Resource Leak Checker verifies that the given methods are actually called.
  */
 @StubFiles({
-    "IOUtils.astub",
-    "JavaEE.astub",
-    "JdkCompiler.astub",
-    "Reflection.astub",
-    "SocketCreatesMustCallFor.astub",
+  "IOUtils.astub",
+  "JavaEE.astub",
+  "JdkCompiler.astub",
+  "Reflection.astub",
+  "SocketCreatesMustCallFor.astub",
 })
 @SupportedOptions({
-    MustCallChecker.NO_CREATES_MUSTCALLFOR,
-    MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP,
-    MustCallChecker.NO_RESOURCE_ALIASES
+  MustCallChecker.NO_CREATES_MUSTCALLFOR,
+  MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP,
+  MustCallChecker.NO_RESOURCE_ALIASES
 })
 public class MustCallChecker extends BaseTypeChecker {
 
-    /**
-     * Disables @CreatesMustCallFor support. Not of interest to most users. Not documented in the
-     * manual.
-     */
-    public static final String NO_CREATES_MUSTCALLFOR = "noCreatesMustCallFor";
+  /**
+   * Disables @CreatesMustCallFor support. Not of interest to most users. Not documented in the
+   * manual.
+   */
+  public static final String NO_CREATES_MUSTCALLFOR = "noCreatesMustCallFor";
 
-    /**
-     * Disables @Owning/@NotOwning support. Not of interest to most users. Not documented in the
-     * manual.
-     */
-    public static final String NO_LIGHTWEIGHT_OWNERSHIP = "noLightweightOwnership";
+  /**
+   * Disables @Owning/@NotOwning support. Not of interest to most users. Not documented in the
+   * manual.
+   */
+  public static final String NO_LIGHTWEIGHT_OWNERSHIP = "noLightweightOwnership";
 
-    /**
-     * Disables @MustCallAlias support. Not of interest to most users. Not documented in the manual.
-     */
-    public static final String NO_RESOURCE_ALIASES = "noResourceAliases";
+  /**
+   * Disables @MustCallAlias support. Not of interest to most users. Not documented in the manual.
+   */
+  public static final String NO_RESOURCE_ALIASES = "noResourceAliases";
 }
