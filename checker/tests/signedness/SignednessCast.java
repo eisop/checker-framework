@@ -2,38 +2,38 @@ import java.io.Serializable;
 
 @SuppressWarnings("deprecation") // newInstance is deprecated.
 public class SignednessCast {
-  static class Instruction {}
+    static class Instruction {}
 
-  public Instruction createCast(String name) {
-    Instruction i = null;
-    try {
-      i = (Instruction) java.lang.Class.forName(name).newInstance();
-    } catch (final Exception e) {
-      throw new IllegalArgumentException("Could not find instruction: " + name, e);
+    public Instruction createCast(String name) {
+        Instruction i = null;
+        try {
+            i = (Instruction) java.lang.Class.forName(name).newInstance();
+        } catch (final Exception e) {
+            throw new IllegalArgumentException("Could not find instruction: " + name, e);
+        }
+        return i;
     }
-    return i;
-  }
 
-  static class SerializableInstruction implements Serializable {}
+    static class SerializableInstruction implements Serializable {}
 
-  SerializableInstruction other(String name) {
-    SerializableInstruction i = null;
-    try {
-      i = (SerializableInstruction) java.lang.Class.forName(name).newInstance();
-    } catch (final Exception e) {
-      throw new IllegalArgumentException("Could not find instruction: " + name, e);
+    SerializableInstruction other(String name) {
+        SerializableInstruction i = null;
+        try {
+            i = (SerializableInstruction) java.lang.Class.forName(name).newInstance();
+        } catch (final Exception e) {
+            throw new IllegalArgumentException("Could not find instruction: " + name, e);
+        }
+        return i;
     }
-    return i;
-  }
 
-  Serializable maybeNumber(String name) {
-    Serializable i = null;
-    try {
-      i = (Serializable) java.lang.Class.forName(name).newInstance();
-    } catch (final Exception e) {
-      throw new IllegalArgumentException("Could not find instruction: " + name, e);
+    Serializable maybeNumber(String name) {
+        Serializable i = null;
+        try {
+            i = (Serializable) java.lang.Class.forName(name).newInstance();
+        } catch (final Exception e) {
+            throw new IllegalArgumentException("Could not find instruction: " + name, e);
+        }
+        // :: error: (return.type.incompatible)
+        return i;
     }
-    // :: error: (return.type.incompatible)
-    return i;
-  }
 }
