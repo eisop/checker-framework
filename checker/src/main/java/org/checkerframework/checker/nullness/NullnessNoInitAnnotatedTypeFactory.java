@@ -651,7 +651,7 @@ public class NullnessNoInitAnnotatedTypeFactory
      * always @Initialized (the default qualifier).
      */
     // Would this be valid to move into CommitmentTreeAnnotator?
-    protected static class NullnessPropagationTreeAnnotator extends PropagationTreeAnnotator {
+    protected class NullnessPropagationTreeAnnotator extends PropagationTreeAnnotator {
 
         /**
          * Creates a NullnessPropagationTreeAnnotator.
