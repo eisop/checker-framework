@@ -9,8 +9,8 @@
  * @compile/fail/ref=User.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker User.java
  */
 class User {
-  void go(Lib lib, Lib7 lib7) {
-    String[] b = lib.get();
-    String[] b7 = lib7.get();
-  }
+    void go(Lib lib, Lib7 lib7) {
+        String[] b = lib.get();
+        String[] b7 = lib7.get();
+    }
 }
