@@ -1,22 +1,22 @@
 import org.gradle.internal.jvm.Jvm
 
 sourceSets {
-  taglet
-  tagletJdk8
+    taglet
+    tagletJdk8
 }
 
 dependencies {
-  implementation "junit:junit:${versions.junit}"
-  implementation project(':javacutil')
-  implementation project(':checker-qual')
+    implementation "junit:junit:${versions.junit}"
+    implementation project(':javacutil')
+    implementation project(':checker-qual')
 
-  implementation "org.plumelib:plume-util:${versions.plumeUtil}"
+    implementation "org.plumelib:plume-util:${versions.plumeUtil}"
 
-  if (Jvm.current().toolsJar) {
-    tagletJdk8Implementation files(Jvm.current().toolsJar)
-  }
+    if (Jvm.current().toolsJar) {
+        tagletJdk8Implementation files(Jvm.current().toolsJar)
+    }
 
-  testImplementation project(':framework')
+    testImplementation project(':framework')
 }
 
 jar.archiveBaseName = 'framework-test'
@@ -25,31 +25,31 @@ apply from: rootProject.file('gradle-mvn-push.gradle')
 
 /** Adds information to the publication for uploading to Maven repositories. */
 final frameworkTest(publication) {
-  sharedPublicationConfiguration(publication)
-  publication.from components.java
-  publication.pom {
-    name = 'Checker Framework Testing Library'
-    description = String.join(System.lineSeparator(),
-        'framework-test contains utility classes for testing type-checkers' +
-        'that are built on the Checker Framework.')
-    licenses {
-      license {
-        name = 'GNU General Public License, version 2 (GPL2), with the classpath exception'
-        url = 'http://www.gnu.org/software/classpath/license.html'
-        distribution = 'repo'
-      }
+    sharedPublicationConfiguration(publication)
+    publication.from components.java
+    publication.pom {
+        name = 'Checker Framework Testing Library'
+        description = String.join(System.lineSeparator(),
+                'framework-test contains utility classes for testing type-checkers' +
+                'that are built on the Checker Framework.')
+        licenses {
+            license {
+                name = 'GNU General Public License, version 2 (GPL2), with the classpath exception'
+                url = 'http://www.gnu.org/software/classpath/license.html'
+                distribution = 'repo'
+            }
+        }
     }
-  }
 }
 
 publishing {
-  publications {
-    frameworkTest(MavenPublication) {
-      frameworkTest it
+    publications {
+        frameworkTest(MavenPublication) {
+            frameworkTest it
+        }
     }
-  }
 }
 
 signing {
-  sign publishing.publications.frameworkTest
+    sign publishing.publications.frameworkTest
 }
