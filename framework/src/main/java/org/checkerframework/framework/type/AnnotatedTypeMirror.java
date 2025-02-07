@@ -1334,7 +1334,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          *     excluding the receiver
          */
         /*package-private*/ void setParameterTypes(List<AnnotatedTypeMirror> params) {
-            if (paramTypesComputed && isVarArgs() && varargType == null) {
+            if (paramTypesComputed && isVarargs() && varargType == null) {
                 throw new BugInCF("Set vararg type before resetting parameter types");
             }
             paramTypes = params;
@@ -1415,7 +1415,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          * @param paramTypes the parameter types to determine the vararg type
          */
         private void computeVarargType(List<AnnotatedTypeMirror> paramTypes) {
-            if (!isVarArgs()) {
+            if (!isVarargs()) {
                 return;
             }
             varargType = (AnnotatedArrayType) paramTypes.get(paramTypes.size() - 1);
