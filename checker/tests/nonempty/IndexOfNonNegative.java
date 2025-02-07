@@ -1,84 +1,83 @@
 // @skip-test : contains() has a call to a locally-defined indexOf() method, which is hard to verify
 
+import java.util.AbstractSet;
+import java.util.Collection;
+import java.util.Iterator;
 import org.checkerframework.checker.nonempty.qual.PolyNonEmpty;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 
-import java.util.AbstractSet;
-import java.util.Collection;
-import java.util.Iterator;
-
 public class IndexOfNonNegative<E extends Object> extends AbstractSet<E> {
 
-    @SideEffectFree
-    public IndexOfNonNegative() {}
+  @SideEffectFree
+  public IndexOfNonNegative() {}
 
-    // Query Operations
+  // Query Operations
 
-    @Pure
-    @Override
-    public int size() {
-        return -1;
+  @Pure
+  @Override
+  public int size() {
+    return -1;
+  }
+
+  @Pure
+  @Override
+  public boolean isEmpty() {
+    return size() == 0;
+  }
+
+  @Pure
+  private int indexOf(Object value) {
+    return -1;
+  }
+
+  @Pure
+  @Override
+  public boolean contains(Object value) {
+    // return indexOf(value) != -1;
+    if (indexOf(value) != -1) {
+      return true;
+    } else {
+      return false;
     }
+  }
 
-    @Pure
-    @Override
-    public boolean isEmpty() {
-        return size() == 0;
-    }
+  // Modification Operations
 
-    @Pure
-    private int indexOf(Object value) {
-        return -1;
-    }
+  @Override
+  public boolean add(E value) {
+    return false;
+  }
 
-    @Pure
-    @Override
-    public boolean contains(Object value) {
-        // return indexOf(value) != -1;
-        if (indexOf(value) != -1) {
-            return true;
-        } else {
-            return false;
-        }
-    }
+  @Override
+  public boolean remove(Object value) {
+    return true;
+  }
 
-    // Modification Operations
+  // Bulk Operations
 
-    @Override
-    public boolean add(E value) {
-        return false;
-    }
+  @Override
+  public boolean addAll(Collection<? extends E> c) {
+    return false;
+  }
 
-    @Override
-    public boolean remove(Object value) {
-        return true;
-    }
+  @Override
+  public boolean removeAll(Collection<?> c) {
+    return true;
+  }
 
-    // Bulk Operations
+  // Inherit retainAll() from AbstractCollection.
 
-    @Override
-    public boolean addAll(Collection<? extends E> c) {
-        return false;
-    }
+  @Override
+  public void clear() {}
 
-    @Override
-    public boolean removeAll(Collection<?> c) {
-        return true;
-    }
+  ///////////////////////////////////////////////////////////////////////////
 
-    // Inherit retainAll() from AbstractCollection.
+  // iterators
 
-    @Override
-    public void clear() {}
-
-    ///////////////////////////////////////////////////////////////////////////
-
-    // iterators
-
-    @Override
-    // :: error: (override.receiver.invalid)
-    public @PolyNonEmpty Iterator<E> iterator(@PolyNonEmpty IndexOfNonNegative<E> this) {
-        throw new Error("");
-    }
+  @Override
+  // :: error: (override.receiver.invalid)
+  public @PolyNonEmpty Iterator<E> iterator(@PolyNonEmpty IndexOfNonNegative<E> this) {
+    throw new Error("");
+  }
 }

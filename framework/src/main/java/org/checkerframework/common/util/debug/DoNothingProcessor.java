@@ -1,7 +1,6 @@
 package org.checkerframework.common.util.debug;
 
 import java.util.Set;
-
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
@@ -17,16 +16,16 @@ import javax.lang.model.element.TypeElement;
 @SupportedAnnotationTypes("*")
 public class DoNothingProcessor extends AbstractProcessor {
 
-    /** Creates a DoNothingProcessor. */
-    public DoNothingProcessor() {}
+  /** Creates a DoNothingProcessor. */
+  public DoNothingProcessor() {}
 
-    @Override
-    public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        return false;
-    }
+  @Override
+  public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+    return false;
+  }
 
-    @Override
-    public SourceVersion getSupportedSourceVersion() {
-        return SourceVersion.latest();
-    }
+  @Override
+  public SourceVersion getSupportedSourceVersion() {
+    return SourceVersion.latest();
+  }
 }

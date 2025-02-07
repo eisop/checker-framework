@@ -10,20 +10,20 @@ public sealed class Figure
 
 @SuppressWarnings("initializedfields:contracts.postcondition")
 final class Circle extends Figure {
-    float radius;
+  float radius;
 }
 
 @SuppressWarnings("initializedfields:contracts.postcondition")
 non-sealed class Square extends Figure {
-    float side;
+  float side;
 }
 
 @SuppressWarnings("initializedfields:contracts.postcondition")
 sealed class Rectangle extends Figure {
-    float length, width;
+  float length, width;
 }
 
 @SuppressWarnings("initializedfields:contracts.postcondition")
 final class FilledRectangle extends Rectangle {
-    int red, green, blue, sealed;
+  int red, green, blue, sealed;
 }

@@ -5,13 +5,13 @@ import java.io.*;
 
 class BinaryInputArchive {
 
-    private DataInput in;
+  private DataInput in;
 
-    public BinaryInputArchive(DataInput in) {
-        this.in = in;
-    }
+  public BinaryInputArchive(DataInput in) {
+    this.in = in;
+  }
 
-    public static BinaryInputArchive getArchive(InputStream strm) {
-        return new BinaryInputArchive(new DataInputStream(strm));
-    }
+  public static BinaryInputArchive getArchive(InputStream strm) {
+    return new BinaryInputArchive(new DataInputStream(strm));
+  }
 }
