@@ -4,49 +4,49 @@ import org.checkerframework.checker.testchecker.ainfer.qual.AinferSibling2;
 
 public class MethodReturnTest {
 
-    static int getAinferSibling1NotAnnotated() {
-        return (@AinferSibling1 int) 0;
+  static int getAinferSibling1NotAnnotated() {
+    return (@AinferSibling1 int) 0;
+  }
+
+  static @AinferSibling1 int getAinferSibling1() {
+    // :: warning: (return.type.incompatible)
+    return getAinferSibling1NotAnnotated();
+  }
+
+  public static boolean bool = false;
+
+  public static int lubTest() {
+    if (bool) {
+      return (@AinferSibling1 int) 0;
+    } else {
+      return (@AinferSibling2 int) 0;
+    }
+  }
+
+  public static @AinferParent int getParent() {
+    int x = lubTest();
+    // :: warning: (return.type.incompatible)
+    return x;
+  }
+
+  class InnerClass {
+    int field = 0;
+
+    int getParent2() {
+      field = getParent();
+      return getParent();
     }
 
-    static @AinferSibling1 int getAinferSibling1() {
-        // :: warning: (return.type.incompatible)
-        return getAinferSibling1NotAnnotated();
+    void receivesAinferSibling1(int i) {
+      // :: warning: (argument.type.incompatible)
+      expectsAinferSibling1(i);
     }
 
-    public static boolean bool = false;
+    void expectsAinferSibling1(@AinferSibling1 int i) {}
 
-    public static int lubTest() {
-        if (bool) {
-            return (@AinferSibling1 int) 0;
-        } else {
-            return (@AinferSibling2 int) 0;
-        }
+    void test() {
+      @AinferSibling1 int sib = (@AinferSibling1 int) 0;
+      receivesAinferSibling1(sib);
     }
-
-    public static @AinferParent int getParent() {
-        int x = lubTest();
-        // :: warning: (return.type.incompatible)
-        return x;
-    }
-
-    class InnerClass {
-        int field = 0;
-
-        int getParent2() {
-            field = getParent();
-            return getParent();
-        }
-
-        void receivesAinferSibling1(int i) {
-            // :: warning: (argument.type.incompatible)
-            expectsAinferSibling1(i);
-        }
-
-        void expectsAinferSibling1(@AinferSibling1 int i) {}
-
-        void test() {
-            @AinferSibling1 int sib = (@AinferSibling1 int) 0;
-            receivesAinferSibling1(sib);
-        }
-    }
+  }
 }

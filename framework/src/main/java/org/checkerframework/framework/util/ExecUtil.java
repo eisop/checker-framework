@@ -10,78 +10,78 @@ import java.nio.charset.StandardCharsets;
 /** Utilities for executing external processes. */
 public class ExecUtil {
 
-    public static int execute(String[] cmd, OutputStream std, OutputStream err) {
+  public static int execute(String[] cmd, OutputStream std, OutputStream err) {
 
-        Redirection outRedirect = new Redirection(std, BLOCK_SIZE);
-        Redirection errRedirect = new Redirection(err, BLOCK_SIZE);
+    Redirection outRedirect = new Redirection(std, BLOCK_SIZE);
+    Redirection errRedirect = new Redirection(err, BLOCK_SIZE);
 
-        try {
-            Process proc = Runtime.getRuntime().exec(cmd);
-            outRedirect.redirect(proc.getInputStream());
-            errRedirect.redirect(proc.getErrorStream());
+    try {
+      Process proc = Runtime.getRuntime().exec(cmd);
+      outRedirect.redirect(proc.getInputStream());
+      errRedirect.redirect(proc.getErrorStream());
 
-            IOException stdExc = outRedirect.join();
-            IOException errExc = errRedirect.join();
-            int exitStatus = proc.waitFor();
+      IOException stdExc = outRedirect.join();
+      IOException errExc = errRedirect.join();
+      int exitStatus = proc.waitFor();
 
-            if (stdExc != null) {
-                throw stdExc;
-            }
+      if (stdExc != null) {
+        throw stdExc;
+      }
 
-            if (errExc != null) {
-                throw errExc;
-            }
+      if (errExc != null) {
+        throw errExc;
+      }
 
-            return exitStatus;
+      return exitStatus;
 
-        } catch (InterruptedException e) {
-            throw new RuntimeException("Exception executing command: " + String.join(" ", cmd), e);
-        } catch (IOException e) {
-            throw new RuntimeException("Exception executing command: " + String.join(" ", cmd), e);
-        }
+    } catch (InterruptedException e) {
+      throw new RuntimeException("Exception executing command: " + String.join(" ", cmd), e);
+    } catch (IOException e) {
+      throw new RuntimeException("Exception executing command: " + String.join(" ", cmd), e);
+    }
+  }
+
+  public static final int BLOCK_SIZE = 1024;
+
+  public static class Redirection {
+    private final char[] buffer;
+    private final OutputStreamWriter out;
+
+    private Thread thread;
+    private IOException exception;
+
+    public Redirection(OutputStream out, int bufferSize) {
+      this.buffer = new char[bufferSize];
+      this.out = new OutputStreamWriter(out, StandardCharsets.UTF_8);
     }
 
-    public static final int BLOCK_SIZE = 1024;
+    public void redirect(InputStream inStream) {
 
-    public static class Redirection {
-        private final char[] buffer;
-        private final OutputStreamWriter out;
+      exception = null;
 
-        private Thread thread;
-        private IOException exception;
-
-        public Redirection(OutputStream out, int bufferSize) {
-            this.buffer = new char[bufferSize];
-            this.out = new OutputStreamWriter(out, StandardCharsets.UTF_8);
-        }
-
-        public void redirect(InputStream inStream) {
-
-            exception = null;
-
-            this.thread =
-                    new Thread(
-                            () -> {
-                                try (InputStreamReader in =
-                                        new InputStreamReader(inStream, StandardCharsets.UTF_8)) {
-                                    int read = 0;
-                                    while (read > -1) {
-                                        read = in.read(buffer);
-                                        if (read > 0) {
-                                            out.write(buffer, 0, read);
-                                        }
-                                    }
-                                    out.flush();
-                                } catch (IOException exc) {
-                                    exception = exc;
-                                }
-                            });
-            thread.start();
-        }
-
-        public IOException join() throws InterruptedException {
-            thread.join();
-            return exception;
-        }
+      this.thread =
+          new Thread(
+              () -> {
+                try (InputStreamReader in =
+                    new InputStreamReader(inStream, StandardCharsets.UTF_8)) {
+                  int read = 0;
+                  while (read > -1) {
+                    read = in.read(buffer);
+                    if (read > 0) {
+                      out.write(buffer, 0, read);
+                    }
+                  }
+                  out.flush();
+                } catch (IOException exc) {
+                  exception = exc;
+                }
+              });
+      thread.start();
     }
+
+    public IOException join() throws InterruptedException {
+      thread.join();
+      return exception;
+    }
+  }
 }
