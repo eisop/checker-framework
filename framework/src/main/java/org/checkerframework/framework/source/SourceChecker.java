@@ -649,12 +649,6 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
   /** List of upstream checker names. Includes the current checker. */
   protected @MonotonicNonNull List<@FullyQualifiedName String> upstreamCheckerNames;
 
-  /**
-   * TreePathCacher to share between instances. Initialized in getTreePathCacher (which is also
-   * called from {@link BaseTypeChecker#instantiateSubcheckers(Map)}).
-   */
-  protected TreePathCacher treePathCacher = null;
-
   /** True if the -Afilenames command-line argument was passed. */
   private boolean printFilenames;
 
@@ -946,19 +940,6 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
       messagesProperties.putAll(getProperties(checker, MSGS_FILE, true));
     }
     return messagesProperties;
-  }
-
-  /**
-   * Get the shared TreePathCacher instance.
-   *
-   * @return the shared TreePathCacher instance.
-   */
-  public TreePathCacher getTreePathCacher() {
-    if (treePathCacher == null) {
-      // In case it wasn't already set in instantiateSubcheckers.
-      treePathCacher = new TreePathCacher();
-    }
-    return treePathCacher;
   }
 
   /**

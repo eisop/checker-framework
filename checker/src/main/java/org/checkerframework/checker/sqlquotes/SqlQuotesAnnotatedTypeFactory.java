@@ -4,7 +4,6 @@ import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.CompoundAssignmentTree;
 import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.Tree;
-import java.util.Set;
 import javax.lang.model.element.AnnotationMirror;
 import org.checkerframework.checker.sqlquotes.qual.SqlEvenQuotes;
 import org.checkerframework.checker.sqlquotes.qual.SqlOddQuotes;
@@ -57,7 +56,7 @@ public class SqlQuotesAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
   }
 
   @Override
-  protected Set<AnnotationMirror> getEnumConstructorQualifiers() {
+  protected AnnotationMirrorSet getEnumConstructorQualifiers() {
     return setOfSqlEvenQuotes;
   }
 
@@ -168,24 +167,24 @@ public class SqlQuotesAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      */
     private AnnotationMirror getResultingType(
         AnnotatedTypeMirror leftType, AnnotatedTypeMirror rightType) {
-      if (leftType.hasPrimaryAnnotation(SQL_QUOTES_UNKNOWN)
-          || rightType.hasPrimaryAnnotation(SQL_QUOTES_UNKNOWN)) {
+      if (leftType.hasAnnotation(SQL_QUOTES_UNKNOWN)
+          || rightType.hasAnnotation(SQL_QUOTES_UNKNOWN)) {
         return SQL_QUOTES_UNKNOWN;
       }
 
-      if (leftType.hasPrimaryAnnotation(SQL_QUOTES_BOTTOM)) {
-        return rightType.getPrimaryAnnotation();
-      } else if (rightType.hasPrimaryAnnotation(SQL_QUOTES_BOTTOM)) {
-        return leftType.getPrimaryAnnotation();
+      if (leftType.hasAnnotation(SQL_QUOTES_BOTTOM)) {
+        return rightType.getAnnotationInHierarchy(SQL_QUOTES_BOTTOM);
+      } else if (rightType.hasAnnotation(SQL_QUOTES_BOTTOM)) {
+        return leftType.getAnnotationInHierarchy(SQL_QUOTES_BOTTOM);
       }
 
       int leftParity = 0;
-      if (leftType.hasPrimaryAnnotation(SQL_ODD_QUOTES)) {
+      if (leftType.hasAnnotation(SQL_ODD_QUOTES)) {
         leftParity = 1;
       }
 
       int rightParity = 0;
-      if (rightType.hasPrimaryAnnotation(SQL_ODD_QUOTES)) {
+      if (rightType.hasAnnotation(SQL_ODD_QUOTES)) {
         rightParity = 1;
       }
 

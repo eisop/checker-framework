@@ -226,7 +226,7 @@ public class InitializedFieldsAnnotatedTypeFactory extends AccumulationAnnotated
       for (SourceChecker subchecker : defaultValueAtypeFactory.getChecker().getSubcheckers()) {
         AnnotatedTypeFactory subATF =
             defaultValueAtypeFactory.getTypeFactoryOfSubchecker(subchecker.getClass());
-        subATF.setRoot(root);
+        subATF.setRoot(this.getRoot());
       }
       AnnotatedTypeMirror fieldType = defaultValueAtypeFactory.getAnnotatedType(field);
       AnnotatedTypeMirror defaultValueType =
