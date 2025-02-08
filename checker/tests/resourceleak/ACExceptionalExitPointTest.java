@@ -4,36 +4,36 @@ import org.checkerframework.common.returnsreceiver.qual.*;
 
 class ACExceptionalExitPointTest {
 
-    @InheritableMustCall("a")
-    class Foo {
-        void a() {}
+  @InheritableMustCall("a")
+  class Foo {
+    void a() {}
 
-        @This Foo b() {
-            return this;
-        }
-
-        void c() {}
+    @This Foo b() {
+      return this;
     }
 
-    Foo makeFoo() {
-        return new Foo();
-    }
+    void c() {}
+  }
 
-    @CalledMethods({"a"}) Foo makeFoo2() {
-        Foo f = new Foo();
-        f.a();
-        return f;
-    }
+  Foo makeFoo() {
+    return new Foo();
+  }
 
-    void exceptionalExitWrong() throws Exception {
-        // :: error: required.method.not.called
-        Foo fw = makeFoo();
-        throw new Exception();
-    }
+  @CalledMethods({"a"}) Foo makeFoo2() {
+    Foo f = new Foo();
+    f.a();
+    return f;
+  }
 
-    void exceptionalExitCorrect() throws Exception {
-        Foo fw = new Foo();
-        fw.a();
-        throw new Exception();
-    }
+  void exceptionalExitWrong() throws Exception {
+    // :: error: required.method.not.called
+    Foo fw = makeFoo();
+    throw new Exception();
+  }
+
+  void exceptionalExitCorrect() throws Exception {
+    Foo fw = new Foo();
+    fw.a();
+    throw new Exception();
+  }
 }

@@ -11,27 +11,26 @@
 // must-call methods at some point in the future through a different alias; it
 // does not promise to call those methods before returning.
 
-import org.checkerframework.checker.calledmethods.qual.*;
-import org.checkerframework.checker.mustcall.qual.*;
-
 import java.io.*;
 import java.net.Socket;
+import org.checkerframework.checker.calledmethods.qual.*;
+import org.checkerframework.checker.mustcall.qual.*;
 
 @InheritableMustCall("dispose")
 public class OwningEnsuresCalledMethods {
 
-    @Owning Socket con;
+  @Owning Socket con;
 
-    @EnsuresCalledMethods(value = "this.con", methods = "close")
-    // ::error: (contracts.postcondition.not.satisfied)
-    void dispose() {
-        closeCon(con);
-    }
+  @EnsuresCalledMethods(value = "this.con", methods = "close")
+  // ::error: (contracts.postcondition.not.satisfied)
+  void dispose() {
+    closeCon(con);
+  }
 
-    static void closeCon(@Owning Socket con) {
-        try {
-            con.close();
-        } catch (IOException e) {
-        }
+  static void closeCon(@Owning Socket con) {
+    try {
+      con.close();
+    } catch (IOException e) {
     }
+  }
 }

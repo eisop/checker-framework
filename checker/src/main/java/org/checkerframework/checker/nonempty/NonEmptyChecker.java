@@ -10,8 +10,8 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
  */
 public class NonEmptyChecker extends BaseTypeChecker {
 
-    /** Creates a NonEmptyChecker. */
-    public NonEmptyChecker() {
-        super();
-    }
+  /** Creates a NonEmptyChecker. */
+  public NonEmptyChecker() {
+    super();
+  }
 }
