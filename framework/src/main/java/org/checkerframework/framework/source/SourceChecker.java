@@ -1193,7 +1193,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      */
     @SuppressWarnings("unchecked")
     public <T extends SourceChecker> @Nullable T getSubchecker(Class<T> checkerClass) {
-        for (SourceChecker checker : immediateSubcheckers) {
+        for (SourceChecker checker : subcheckers) {
             if (checker.getClass() == checkerClass) {
                 return (T) checker;
             }
@@ -1249,7 +1249,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             instance.setProcessingEnvironment(this.processingEnv);
             instance.treePathCacher = this.getTreePathCacher();
             // Prevent the new checker from storing non-immediate subcheckers
-            instance.subcheckers = Collections.emptyList();
+            instance.subcheckers = null;
             instance.immediateSubcheckers =
                     instance.instantiateSubcheckers(alreadyInitializedSubcheckerMap);
             instance.setParentChecker(this);
