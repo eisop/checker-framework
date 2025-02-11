@@ -12,7 +12,6 @@ import org.checkerframework.common.initializedfields.qual.EnsuresInitializedFiel
 import org.checkerframework.common.initializedfields.qual.InitializedFields;
 import org.checkerframework.common.initializedfields.qual.InitializedFieldsBottom;
 import org.checkerframework.framework.source.SourceChecker;
-import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.util.Contract;
@@ -231,15 +230,11 @@ public class InitializedFieldsAnnotatedTypeFactory extends AccumulationAnnotated
 
         for (GenericAnnotatedTypeFactory<?, ?, ?, ?> defaultValueAtypeFactory :
                 defaultValueAtypeFactories) {
+            // Set the root for all type factories before asking any factory for the type.
             defaultValueAtypeFactory.setRoot(this.getRoot());
-            // Set the root on all the subcheckers, too.
-            for (SourceChecker subchecker :
-                    defaultValueAtypeFactory.getChecker().getSubcheckers()) {
-                // Direct cast is safe because every subchecker is a subclass of BaseTypeChecker.
-                // Should use the instance instead of subchecker.getClass() to the ATM.
-                AnnotatedTypeFactory subATF = ((BaseTypeChecker) subchecker).getTypeFactory();
-                subATF.setRoot(this.getRoot());
-            }
+        }
+        for (GenericAnnotatedTypeFactory<?, ?, ?, ?> defaultValueAtypeFactory :
+                defaultValueAtypeFactories) {
             AnnotatedTypeMirror fieldType = defaultValueAtypeFactory.getAnnotatedType(field);
             AnnotatedTypeMirror defaultValueType =
                     defaultValueAtypeFactory.getDefaultValueAnnotatedType(
