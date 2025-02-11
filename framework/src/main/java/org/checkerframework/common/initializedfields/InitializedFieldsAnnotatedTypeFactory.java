@@ -235,6 +235,8 @@ public class InitializedFieldsAnnotatedTypeFactory extends AccumulationAnnotated
             // Set the root on all the subcheckers, too.
             for (SourceChecker subchecker :
                     defaultValueAtypeFactory.getChecker().getSubcheckers()) {
+                // Direct cast is safe because every subchecker is a subclass of BaseTypeChecker.
+                // Should use the instance instead of subchecker.getClass() to the ATM.
                 AnnotatedTypeFactory subATF = ((BaseTypeChecker) subchecker).getTypeFactory();
                 subATF.setRoot(this.getRoot());
             }
