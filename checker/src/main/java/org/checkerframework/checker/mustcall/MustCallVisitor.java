@@ -246,7 +246,7 @@ public class MustCallVisitor extends BaseTypeVisitor<MustCallAnnotatedTypeFactor
       // source, it must have been derived from an @MustCallAlias annotation (which we do
       // infer).
       boolean ajavaFileHasMustCallAlias =
-          useType.hasPrimaryAnnotation(PolyMustCall.class)
+          useType.hasAnnotation(PolyMustCall.class)
               && !atypeFactory.containsSameByClass(elt.getAnnotationMirrors(), PolyMustCall.class);
       if (ajavaFileHasMustCallAlias) {
         return true;

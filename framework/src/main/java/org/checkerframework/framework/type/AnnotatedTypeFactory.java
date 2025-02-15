@@ -2971,9 +2971,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
       }
       Set<? extends AnnotationMirror> lub =
           qualHierarchy.leastUpperBoundsShallow(
-              type.getPrimaryAnnotations(),
+              type.getAnnotations(),
               type.getUnderlyingType(),
-              superCon.getReturnType().getPrimaryAnnotations(),
+              superCon.getReturnType().getAnnotations(),
               superCon.getReturnType().getUnderlyingType());
       con.getReturnType().replaceAnnotations(lub);
     } else {
@@ -3700,7 +3700,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
       Class<? extends Annotation> annotationClass,
       AnnotationMirror annotationToUse) {
     addAliasedDeclAnnotation(
-        alias.getCanonicalName(), annotation.getCanonicalName(), annotationToUse);
+        alias.getCanonicalName(), annotationClass.getCanonicalName(), annotationToUse);
   }
 
   /**
@@ -4037,15 +4037,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
   @Override
   public final AnnotationMirror getDeclAnnotation(
       Element elt, Class<? extends Annotation> annoClass) {
-    logGat("entering getDeclAnnotation(%s [%s], %s)%n", elt, elt.getKind(), annoClass);
-    if (debugGat) {
-      if (elt.toString().equals("java.lang.CharSequence")) {
-        new Error("stack trace").printStackTrace();
-      }
-    }
     AnnotationMirror result = getDeclAnnotation(elt, annoClass, true);
-    logGat(
-        "  exiting getDeclAnnotation(%s [%s], %s) => %s%n", elt, elt.getKind(), annoClass, result);
     return result;
   }
 

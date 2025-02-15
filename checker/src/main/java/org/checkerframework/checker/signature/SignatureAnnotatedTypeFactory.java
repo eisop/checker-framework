@@ -219,8 +219,8 @@ public class SignatureAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         AnnotatedTypeMirror rType = getAnnotatedType(tree.getRightOperand());
 
         // An identifier can end, but not start, with digits
-        if (lType.getPrimaryAnnotation(Identifier.class) != null
-            && (rType.getPrimaryAnnotation(Identifier.class) != null
+        if (lType.getAnnotation(Identifier.class) != null
+            && (rType.getAnnotation(Identifier.class) != null
                 || TypesUtils.isIntegralNumericOrBoxed(rType.getUnderlyingType()))) {
           type.replaceAnnotation(IDENTIFIER);
         } else {
@@ -290,7 +290,7 @@ public class SignatureAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             && receiverType.getAnnotation(BinaryName.class) != null) {
           type.replaceAnnotation(INTERNAL_FORM);
         } else if ((oldChar == '/' && newChar == '.')
-            && receiverType.getPrimaryAnnotation(InternalForm.class) != null) {
+            && receiverType.getAnnotation(InternalForm.class) != null) {
           type.replaceAnnotation(DOT_SEPARATED_IDENTIFIERS);
         }
       } else {
