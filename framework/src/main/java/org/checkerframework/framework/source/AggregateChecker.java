@@ -2,11 +2,9 @@ package org.checkerframework.framework.source;
 
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.Tree;
-
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Set;
-
 import javax.tools.Diagnostic;
 
 /**
@@ -29,27 +27,27 @@ import javax.tools.Diagnostic;
  */
 public abstract class AggregateChecker extends SourceChecker {
 
-    /** Create a new AggregateChecker. */
-    protected AggregateChecker() {}
+  /** Create a new AggregateChecker. */
+  protected AggregateChecker() {}
 
-    /**
-     * Returns the list of independent subcheckers to be run together. Subclasses need to override
-     * this method.
-     *
-     * @return the list of checkers to be run
-     */
-    protected abstract Collection<Class<? extends SourceChecker>> getSupportedCheckers();
+  /**
+   * Returns the list of independent subcheckers to be run together. Subclasses need to override
+   * this method.
+   *
+   * @return the list of checkers to be run
+   */
+  protected abstract Collection<Class<? extends SourceChecker>> getSupportedCheckers();
 
-    @Override
-    protected final Set<Class<? extends SourceChecker>> getImmediateSubcheckerClasses() {
-        return new LinkedHashSet<>(getSupportedCheckers());
-    }
+  @Override
+  protected final Set<Class<? extends SourceChecker>> getImmediateSubcheckerClasses() {
+    return new LinkedHashSet<>(getSupportedCheckers());
+  }
 
-    @Override
-    protected SourceVisitor<?, ?> createSourceVisitor() {
-        return new SourceVisitor<Void, Void>(this) {
-            // Aggregate checkers do not visit source,
-            // the checkers in the aggregate checker do.
-        };
-    }
+  @Override
+  protected SourceVisitor<?, ?> createSourceVisitor() {
+    return new SourceVisitor<Void, Void>(this) {
+      // Aggregate checkers do not visit source,
+      // the checkers in the aggregate checker do.
+    };
+  }
 }

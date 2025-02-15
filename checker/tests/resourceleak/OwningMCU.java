@@ -6,10 +6,10 @@ import org.checkerframework.checker.mustcall.qual.*;
 
 public class OwningMCU {
 
-    @Owning @MustCallUnknown Object foo;
+  @Owning @MustCallUnknown Object foo;
 
-    // :: error: missing.creates.mustcall.for
-    void test() {
-        foo = new Object();
-    }
+  // :: error: missing.creates.mustcall.for
+  void test() {
+    foo = new Object();
+  }
 }

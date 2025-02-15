@@ -4,5 +4,5 @@
 import org.checkerframework.checker.mustcall.qual.*;
 
 @MustCall("foo") public final class NotInheritableMustCallOnFinalClassNoError {
-    public void foo() {}
+  public void foo() {}
 }
