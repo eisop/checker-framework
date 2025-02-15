@@ -1,3 +1,154 @@
+Version 3.48.0 (October 2, 2024)
+--------------------------------
+
+**User-visible changes:**
+
+The new SqlQuotesChecker prevents errors in quoting in SQL queries.  It prevents
+injection attacks that exploit quoting errors.
+
+Aggregate Checkers now interleave error messages so that all errors about a line of code
+appear together.
+(EISOP note: some signatures changed from `BaseTypeChecker` to `SourceChecker`,
+which might require adaptation in checkers.)
+
+**Closed issues:**
+
+#3568, #6725, #6753, #6769, #6770, #6780, #6785, #6795, #6804, #6811, #6825.
+
+
+Version 3.47.0 (September 3, 2024)
+----------------------------------
+
+**User-visible changes:**
+
+The Checker Framework runs under JDK 22 -- that is, it runs on a version 22 JVM.
+The Checker Framework runs under JDK 23 -- that is, it runs on a version 23 JVM.
+(EISOP note: this has been working for a while already, this just cleaned up
+compiler warnings.)
+
+The Optional Checker no longer supports the `@OptionalBottom` annotation.
+
+**Implementation details:**
+
+Removed annotations:
+  * `@OptionalBottom`
+
+**Closed issues:**
+
+#6510, #6704, #6743, #6749, #6760, #6761.
+
+
+Version 3.46.0 (August 1, 2024)
+-----------------------------
+
+**User-visible changes:**
+
+Renamed `@EnsuresCalledMethodsVarArgs`to `@EnsuresCalledMethodsVarargs`.
+
+**Implementation details:**
+
+Many symbols that contained `VarArgs` were similarly renamed to use `Varargs`,
+e.g. `AnnotatedTypeMirror.isVarargs()`.
+
+**Closed issues:**
+
+#4923, #6420, #6469, #6652, #6664.
+
+
+Version 3.45.0 (July 1, 2024)
+-----------------------------
+
+**Implementation details:**
+
+Added a `Tree` argument to `AnnotatedTypes.adaptParameters()`
+
+Deprecated methods:
+ * `TreeUtils.isVarArgs()` => `isVarargsCall()`
+ * `TreeUtils.isVarArgMethodCall()` => `isVarargsCall()`
+
+**Closed issues:**
+
+#152, #5575, #6630, #6641, #6648, #6676.
+
+
+Version 3.44.0 (June 3, 2024)
+-----------------------------
+
+**Implementation details:**
+
+Removed methods:
+ * `AbstractAnalysis.readFromStore()`:  use `Map.get()`
+
+Renamed methods:
+ * `CFAbstractStore.methodValues()` => `methodCallExpressions()`
+ * `AbstractCFGVisualizer.format()` => `escapeString()`
+
+Renamed fields:
+ * `AnalysisResult.stores` => `inputs`
+
+Deprecated methods:
+ * `AbstractAnalysis.getContainingMethod()` => `getEnclosingMethod()`
+ * `AbstractAnalysis.getContainingClass()` => `getEnclosingMethod()`
+ * `ControlFlowGraph.getContainingMethod()` => `getEnclosingMethod()`
+ * `ControlFlowGraph.getContainingClass()` => `getEnclosingClass()`
+ * `JavaExpression.isUnassignableByOtherCode()` => `isAssignableByOtherCode()`
+ * `JavaExpression.isUnmodifiableByOtherCode()` => `isModifiableByOtherCode()`
+
+`BaseTypeVisitor#visitMethod(MethodTree, Void)` is now `final`.
+Subclasses should override `BaseTypeVisitor#processMethodTree(MethodTree)`.
+
+**Closed issues:**
+
+#802, #2676, #2780, #2926, #3378, #3612, #3764, #4007, #4964, #5070, #5176,
+#5237, #5541, #6046, #6382, #6388, #6566, #6568, #6570, #6576, #6577, #6631,
+#6635, #6636, #6644.
+
+
+Version 3.43.0 (May 1, 2024)
+----------------------------
+
+**User-visible changes:**
+
+Method, constructor, lambda, and method reference type inference has been
+greatly improved.  The `-AconservativeUninferredTypeArguments` option is
+no longer necessary and has been removed.
+
+Renamed command-line arguments:
+ * `-AskipDirs` has been renamed to `-AskipFiles`.
+   `-AskipDirs` will continue to work for the time being.
+
+New command-line arguments:
+ * `-AonlyFiles` complements `-AskipFiles`
+
+A specialized inference algorithm for the Resource Leak Checker runs
+automatically as part of whole-program inference.
+
+**Implementation details:**
+
+Deprecated `ObjectCreationNode#getConstructor` in favor of new
+`ObjectCreationNode#getTypeToInstantiate()`.
+(EISOP note: this already happened in Version 3.39.0-eisop1 on
+October 22, 2023.)
+
+Renamed `AbstractCFGVisualizer.visualizeBlockHelper()` to
+`visualizeBlockWithSeparator()`.
+
+Moved methods from `TreeUtils` to subclasses of `TreeUtilsAfterJava11`:
+ * isConstantCaseLabelTree
+ * isDefaultCaseLabelTree
+ * isPatternCaseLabelTree
+
+Renamed `BaseTypeVisitor.checkForPolymorphicQualifiers()` to
+`warnInvalidPolymorphicQualifier()`.
+
+**Closed issues:**
+
+#979, #4559, #4593, #5058, #5734, #5781, #6071, #6093, #6239, #6297, #6317,
+#6322, #6346, #6373, #6376, #6378, #6379, #6380, #6389, #6393, #6396, #6402,
+#6406, #6407, #6417, #6421, #6430, #6433, #6438, #6442, #6473, #6480, #6507,
+#6531, #6535.
+
+
 Version 3.42.0-eisop6 (January ??, 2025)
 ----------------------------------------
 
@@ -124,7 +275,7 @@ possibly throws an assertion.  Using it can make flow-sensitive type refinement
 more effective.
 
 In `org.checkerframework.common.util.debug`, renamed `EmptyProcessor` to `DoNothingProcessor`.
-Removed `org.checkerframework.common.util.report.DoNothingChecker`.
+Removed `org.checkerframework.common.util.report.DoNothingChecker`; use `DoNothingProcessor`.
 Moved `ReportChecker` from `org.checkerframework.common.util.report` to `org.checkerframework.common.util.count.report`.
 (EISOP note: we did not follow this renaming - if anything, `counting` could be a special case of `reporting`, not
 the other way around.)
@@ -149,7 +300,7 @@ Version 3.41.0 (December 4, 2023)
 **User-visible changes:**
 
 New command-line options:
-* `-AassumePureGetters`: Unsoundly assume that every getter method is pure.
+ * `-AassumePureGetters`: Unsoundly assume that every getter method is pure.
 
 **Implementation details:**
 

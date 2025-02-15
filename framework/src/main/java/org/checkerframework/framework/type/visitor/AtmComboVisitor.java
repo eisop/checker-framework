@@ -52,7 +52,7 @@ public interface AtmComboVisitor<RETURN_TYPE, PARAM> {
 
     /**
      * Called by the default implementation of every AbstractAtmComboVisitor visit method. This
-     * methodnS issues a runtime exception by default. In general, it should handle the case where a
+     * method issues a runtime exception by default. In general, it should handle the case where a
      * visit method has been called with a pair of type mirrors that should never be passed to this
      * particular visitor.
      *

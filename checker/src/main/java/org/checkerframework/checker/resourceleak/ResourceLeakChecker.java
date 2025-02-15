@@ -8,9 +8,9 @@ import org.checkerframework.checker.mustcall.MustCallChecker;
 import org.checkerframework.checker.mustcall.MustCallNoCreatesMustCallForChecker;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.qual.StubFiles;
+import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.source.SupportedOptions;
 
 import java.io.UnsupportedEncodingException;
@@ -147,8 +147,8 @@ public class ResourceLeakChecker extends CalledMethodsChecker {
     private @MonotonicNonNull SetOfTypes ignoredExceptions = null;
 
     @Override
-    protected Set<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
-        Set<Class<? extends BaseTypeChecker>> checkers = super.getImmediateSubcheckerClasses();
+    protected Set<Class<? extends SourceChecker>> getImmediateSubcheckerClasses() {
+        Set<Class<? extends SourceChecker>> checkers = super.getImmediateSubcheckerClasses();
 
         if (this.processingEnv.getOptions().containsKey(MustCallChecker.NO_CREATES_MUSTCALLFOR)) {
             checkers.add(MustCallNoCreatesMustCallForChecker.class);
@@ -243,7 +243,7 @@ public class ResourceLeakChecker extends CalledMethodsChecker {
     @SuppressWarnings({
         // user input might not be a legal @CanonicalName, but it should be safe to pass to
         // `SetOfTypes.anyOfTheseNames`
-        "signature:argument",
+        "signature:type.arguments.not.inferred",
     })
     protected @Nullable SetOfTypes parseExceptionSpecifier(
             String exceptionSpecifier, String ignoredExceptionsOptionValue) {
@@ -279,7 +279,8 @@ public class ResourceLeakChecker extends CalledMethodsChecker {
         } else if (!exceptionSpecifier.trim().isEmpty()) {
             message(
                     Diagnostic.Kind.WARNING,
-                    "The string '%s' appears in the -A%s=%s option, but it is not a legal exception specifier",
+                    "The string '%s' appears in the -A%s=%s option,"
+                            + " but it is not a legal exception specifier",
                     exceptionSpecifier,
                     IGNORED_EXCEPTIONS,
                     ignoredExceptionsOptionValue);
@@ -295,7 +296,6 @@ public class ResourceLeakChecker extends CalledMethodsChecker {
      */
     @SuppressWarnings({
         "signature:argument", // `s` is not a qualified name, but we pass it to getTypeElement
-        // anyway
     })
     protected @Nullable TypeMirror checkCanonicalName(String s) {
         TypeElement elem = getProcessingEnvironment().getElementUtils().getTypeElement(s);

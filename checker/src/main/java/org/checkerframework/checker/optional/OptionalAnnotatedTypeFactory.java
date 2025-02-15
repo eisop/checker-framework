@@ -45,10 +45,9 @@ public class OptionalAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     @Override
-    public AnnotatedTypeMirror getAnnotatedType(Tree tree) {
-        AnnotatedTypeMirror result = super.getAnnotatedType(tree);
-        optionalMapNonNull(tree, result);
-        return result;
+    protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type) {
+        super.addComputedTypeAnnotations(tree, type);
+        optionalMapNonNull(tree, type);
     }
 
     /**

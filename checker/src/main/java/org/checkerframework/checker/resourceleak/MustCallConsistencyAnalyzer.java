@@ -27,8 +27,8 @@ import org.checkerframework.dataflow.cfg.UnderlyingAST;
 import org.checkerframework.dataflow.cfg.UnderlyingAST.Kind;
 import org.checkerframework.dataflow.cfg.block.Block;
 import org.checkerframework.dataflow.cfg.block.Block.BlockType;
+import org.checkerframework.dataflow.cfg.block.ConditionalBlock;
 import org.checkerframework.dataflow.cfg.block.ExceptionBlock;
-import org.checkerframework.dataflow.cfg.block.SingleSuccessorBlock;
 import org.checkerframework.dataflow.cfg.node.AssignmentNode;
 import org.checkerframework.dataflow.cfg.node.ClassNameNode;
 import org.checkerframework.dataflow.cfg.node.FieldAccessNode;
@@ -40,7 +40,6 @@ import org.checkerframework.dataflow.cfg.node.ObjectCreationNode;
 import org.checkerframework.dataflow.cfg.node.ReturnNode;
 import org.checkerframework.dataflow.cfg.node.SuperNode;
 import org.checkerframework.dataflow.cfg.node.ThisNode;
-import org.checkerframework.dataflow.cfg.node.TypeCastNode;
 import org.checkerframework.dataflow.expression.FieldAccess;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.expression.LocalVariable;
@@ -51,11 +50,13 @@ import org.checkerframework.framework.flow.CFValue;
 import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
 import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.TypesUtils;
+import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.IPair;
 
 import java.util.ArrayDeque;
@@ -75,7 +76,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.StringJoiner;
-import java.util.stream.Collectors;
 
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.AnnotationMirror;
@@ -470,7 +470,7 @@ class MustCallConsistencyAnalyzer {
          *
          * <ul>
          *   <li>it is passed to another method or constructor in an @MustCallAlias position, and
-         *       then the containing method returns that method’s result, or the call is a super()
+         *       then the enclosing method returns that method’s result, or the call is a super()
          *       constructor call annotated with {@link MustCallAlias}, or
          *   <li>it is stored in an owning field of the class under analysis
          * </ul>
@@ -637,7 +637,7 @@ class MustCallConsistencyAnalyzer {
             incrementNumMustCall(node);
         }
 
-        if (!shouldTrackInvocationResult(obligations, node)) {
+        if (!shouldTrackInvocationResult(obligations, node, false)) {
             return;
         }
 
@@ -941,9 +941,11 @@ class MustCallConsistencyAnalyzer {
      * @param obligations the current set of Obligations, which may be side-effected
      * @param node the invocation node to check; must be {@link MethodInvocationNode} or {@link
      *     ObjectCreationNode}
+     * @param isMustCallInference true if this method is invoked as part of a MustCall inference
      * @return true iff the result of {@code node} should be tracked in {@code obligations}
      */
-    private boolean shouldTrackInvocationResult(Set<Obligation> obligations, Node node) {
+    public boolean shouldTrackInvocationResult(
+            Set<Obligation> obligations, Node node, boolean isMustCallInference) {
         Tree callTree = node.getTree();
         if (callTree.getKind() == Tree.Kind.NEW_CLASS) {
             // Constructor results from new expressions are tracked as long as the declared type has
@@ -960,8 +962,12 @@ class MustCallConsistencyAnalyzer {
         // Now callTree.getKind() == Tree.Kind.METHOD_INVOCATION.
         MethodInvocationTree methodInvokeTree = (MethodInvocationTree) callTree;
 
-        if (TreeUtils.isSuperConstructorCall(methodInvokeTree)
-                || TreeUtils.isThisConstructorCall(methodInvokeTree)) {
+        // For must call inference, we do not want to bail out on tracking the obligations for
+        // 'this()' or 'super()' calls because this tracking is necessary to correctly infer the
+        // @MustCallAlias annotation for the constructor and its aliasing parameter.
+        if (!isMustCallInference
+                && (TreeUtils.isSuperConstructorCall(methodInvokeTree)
+                        || TreeUtils.isThisConstructorCall(methodInvokeTree))) {
             List<Node> mustCallAliasArguments = getMustCallAliasArgumentNodes(node);
             // If there is a MustCallAlias argument that is also in the set of Obligations, then
             // remove it; its must-call obligation has been fulfilled by being passed on to the
@@ -1001,36 +1007,6 @@ class MustCallConsistencyAnalyzer {
             }
         }
         return !mustCallAliasArguments.isEmpty();
-    }
-
-    /**
-     * Checks if {@code node} is either directly enclosed by a {@link TypeCastNode}, by looking at
-     * the successor block in the CFG. In this case the enclosing operator is a "no-op" that
-     * evaluates to the same value as {@code node}. This method is only used within {@link
-     * #propagateObligationsToSuccessorBlocks(ControlFlowGraph, Set, Block, Set, Deque)} to ensure
-     * Obligations are propagated to cast nodes properly. It relies on the assumption that a {@link
-     * TypeCastNode} will only appear in a CFG as the first node in a block.
-     *
-     * @param node the CFG node
-     * @return {@code true} if {@code node} is in a {@link SingleSuccessorBlock} {@code b}, the
-     *     first {@link Node} in {@code b}'s successor block is a {@link TypeCastNode}, and {@code
-     *     node} is an operand of the successor node; {@code false} otherwise
-     */
-    private boolean inCast(Node node) {
-        if (!(node.getBlock() instanceof SingleSuccessorBlock)) {
-            return false;
-        }
-        Block successorBlock = ((SingleSuccessorBlock) node.getBlock()).getSuccessor();
-        if (successorBlock != null) {
-            List<Node> succNodes = successorBlock.getNodes();
-            if (succNodes.size() > 0) {
-                Node succNode = succNodes.get(0);
-                if (succNode instanceof TypeCastNode) {
-                    return ((TypeCastNode) succNode).getOperand().equals(node);
-                }
-            }
-        }
-        return false;
     }
 
     /**
@@ -1083,7 +1059,7 @@ class MustCallConsistencyAnalyzer {
                         Obligation localObligation = getObligationForVar(obligations, local);
                         // Passing to an owning parameter is not sufficient to resolve the
                         // obligation created from a MustCallAlias parameter, because the
-                        // containing method must actually return the value.
+                        // enclosing method must actually return the value.
                         if (!localObligation.derivedFromMustCallAlias()) {
                             // Transfer ownership!
                             obligations.remove(localObligation);
@@ -1195,9 +1171,9 @@ class MustCallConsistencyAnalyzer {
 
                 LocalVariableNode rhsVar = (LocalVariableNode) rhs;
 
-                MethodTree containingMethod = cfg.getContainingMethod(assignmentNode.getTree());
+                MethodTree enclosingMethod = cfg.getEnclosingMethod(assignmentNode.getTree());
                 boolean inConstructor =
-                        containingMethod != null && TreeUtils.isConstructor(containingMethod);
+                        enclosingMethod != null && TreeUtils.isConstructor(enclosingMethod);
 
                 // Determine which obligations this field assignment can clear.  In a constructor,
                 // assignments to `this.field` only clears obligations on normal return, since
@@ -1519,7 +1495,7 @@ class MustCallConsistencyAnalyzer {
 
         // TODO: it would be better to defer getting the path until after checking
         // for a CreatesMustCallFor annotation, because getting the path can be expensive.
-        // It might be possible to exploit the CFG structure to find the containing
+        // It might be possible to exploit the CFG structure to find the enclosing
         // method (rather than using the path, as below), because if a method is being
         // analyzed then it should be the root of the CFG (I think).
         TreePath currentPath = typeFactory.getPath(node.getTree());
@@ -1590,13 +1566,13 @@ class MustCallConsistencyAnalyzer {
         // The following code handles a special case where the field being assigned is itself
         // getting passed in an owning position to another method on the RHS of the assignment.
         // For example, if the field's type is a class whose constructor takes another instance
-        // of itself (such as a node in a linked list) in an owning position, re-assigning the field
-        // to a new instance that takes the field's value as an owning parameter is safe (the new
-        // value has taken responsibility for closing the old value). In such a case, it is not
-        // required that the must-call obligation of the field be satisfied via method calls before
-        // the assignment, since the invoked method will take ownership of the object previously
-        // referenced by the field and handle the obligation. This fixes the false positive in
-        // https://github.com/typetools/checker-framework/issues/5971.
+        // of itself (such as a node in a linked list) in an owning position, re-assigning the
+        // field to a new instance that takes the field's value as an owning parameter is safe
+        // (the new value has taken responsibility for closing the old value). In such a case,
+        // it is not required that the must-call obligation of the field be satisfied via method
+        // calls before the assignment, since the invoked method will take ownership of the
+        // object previously referenced by the field and handle the obligation. This fixes the
+        // false positive in https://github.com/typetools/checker-framework/issues/5971.
         Node rhs = node.getExpression();
         if (!noLightweightOwnership
                 && (rhs instanceof ObjectCreationNode || rhs instanceof MethodInvocationNode)) {
@@ -2115,17 +2091,6 @@ class MustCallConsistencyAnalyzer {
                     }
                 }
 
-                // Always propagate the Obligation to the successor if current block represents
-                // code nested in a cast.  Without this logic, the analysis may report a false
-                // positive when the Obligation represents a temporary variable for a nested
-                // expression, as the temporary may not appear in the successor store and hence
-                // seems to be going out of scope.  The temporary will be handled with special
-                // logic; casts are unwrapped at various points in the analysis.
-                if (currentBlockNodes.size() == 1 && inCast(currentBlockNodes.get(0))) {
-                    successorObligations.add(obligation);
-                    continue;
-                }
-
                 // At this point, a consistency check will definitely occur, unless the
                 // obligation was derived from a MustCallAlias parameter. If it was, an error is
                 // immediately issued, because such a parameter should not go out of scope
@@ -2147,16 +2112,20 @@ class MustCallConsistencyAnalyzer {
                     continue;
                 }
 
-                // Which stores from the called-methods and must-call checkers are used in
-                // the consistency check varies depending on the context. The rules are:
-                // 1. if the current block has no nodes (and therefore the store must come from
-                // a block
-                //    rather than a node):
+                // Which stores from the called-methods and must-call checkers are used in the
+                // consistency check varies depending on the context.  Generally speaking, we would
+                // like to use the store propagated along the CFG edge from currentBlock to
+                // successor.  But, there are special cases to consider.  The rules are:
+                // 1. if the current block has no nodes, it is either a ConditionalBlock or a
+                //    SpecialBlock.
+                //    For the called-methods store, we obtain the exact CFG edge store that we need
+                //    (see getStoreForEdgeFromEmptyBlock()).  For the must-call store, due to API
+                //    limitations, we use the following heuristics:
                 //    1a. if there is information about any alias in the resource alias set
-                //        in the successor store, use the successor's CM and MC stores, which
-                //        contain whatever information is true after this block finishes.
+                //        in the successor store, use the successor's MC store, which
+                //        contains whatever information is true after this block finishes.
                 //    1b. if there is not any information about any alias in the resource alias
-                //        set in the successor store, use the current blocks' CM and MC stores,
+                //        set in the successor store, use the current block's MC store,
                 //        which contain whatever information is true before this (empty) block.
                 // 2. if the current block has one or more nodes, always use the CM store after
                 //    the last node. To decide which MC store to use:
@@ -2173,10 +2142,13 @@ class MustCallConsistencyAnalyzer {
                 CFStore mcStore;
                 AccumulationStore cmStore;
                 if (currentBlockNodes.size() == 0 /* currentBlock is special or conditional */) {
-                    cmStore =
-                            obligationGoesOutOfScopeBeforeSuccessor
-                                    ? analysis.getInput(currentBlock).getRegularStore() // 1a. (CM)
-                                    : regularStoreOfSuccessor; // 1b. (CM)
+                    cmStore = getStoreForEdgeFromEmptyBlock(currentBlock, successor); // 1. (CM)
+                    // For the Must Call Checker, we currently apply a less precise handling and do
+                    // not get the store for the specific CFG edge from currentBlock to successor.
+                    // We do not believe this will impact precision except in convoluted and
+                    // uncommon cases.  If we find that we need more precision, we can revisit this,
+                    // but it will require additional API support in the AnalysisResult type to get
+                    // the information that we need.
                     mcStore =
                             mcAtf.getStoreForBlock(
                                     obligationGoesOutOfScopeBeforeSuccessor,
@@ -2231,6 +2203,33 @@ class MustCallConsistencyAnalyzer {
         }
 
         propagate(new BlockWithObligations(successor, successorObligations), visited, worklist);
+    }
+
+    /**
+     * Gets the store propagated by the {@link ResourceLeakAnalysis} (containing called methods
+     * information) along a particular CFG edge during local type inference. The source {@link
+     * Block} of the edge must contain no {@link Node}s.
+     *
+     * @param currentBlock source block of the CFG edge. Must contain no {@link Node}s.
+     * @param successor target block of the CFG edge.
+     * @return store propagated by the {@link ResourceLeakAnalysis} along the CFG edge.
+     */
+    private AccumulationStore getStoreForEdgeFromEmptyBlock(Block currentBlock, Block successor) {
+        switch (currentBlock.getType()) {
+            case CONDITIONAL_BLOCK:
+                ConditionalBlock condBlock = (ConditionalBlock) currentBlock;
+                if (condBlock.getThenSuccessor().equals(successor)) {
+                    return analysis.getInput(currentBlock).getThenStore();
+                } else if (condBlock.getElseSuccessor().equals(successor)) {
+                    return analysis.getInput(currentBlock).getElseStore();
+                } else {
+                    throw new BugInCF("successor not found");
+                }
+            case SPECIAL_BLOCK:
+                return analysis.getInput(successor).getRegularStore();
+            default:
+                throw new BugInCF("unexpected block type " + currentBlock.getType());
+        }
     }
 
     /**
@@ -2322,7 +2321,7 @@ class MustCallConsistencyAnalyzer {
      * Gets the Obligation whose resource aliase set contains the given local variable, if one
      * exists in {@code obligations}.
      *
-     * @param obligations set of Obligations
+     * @param obligations a set of Obligations
      * @param node variable of interest
      * @return the Obligation in {@code obligations} whose resource alias set contains {@code node},
      *     or {@code null} if there is no such Obligation
@@ -2357,8 +2356,9 @@ class MustCallConsistencyAnalyzer {
         Map<ResourceAlias, List<String>> mustCallValues =
                 obligation.getMustCallMethods(typeFactory, mcStore);
 
-        // optimization: if mustCallValues is null, always issue a warning (there is no way to
-        // satisfy the check). A null mustCallValue occurs when the type is top (@MustCallUnknown).
+        // Optimization: if mustCallValues is null, always issue a warning (there is no way to
+        // satisfy the check). A null mustCallValue occurs when the type is top
+        // (@MustCallUnknown).
         if (mustCallValues == null) {
             // Report the error at the first alias' definition. This choice is arbitrary but
             // consistent.
@@ -2405,8 +2405,11 @@ class MustCallConsistencyAnalyzer {
                 } else {
                     for (AnnotationMirror anno : cmValue.getAnnotations()) {
                         if (AnnotationUtils.areSameByName(
-                                anno,
-                                "org.checkerframework.checker.calledmethods.qual.CalledMethods")) {
+                                        anno,
+                                        "org.checkerframework.checker.calledmethods.qual.CalledMethods")
+                                || AnnotationUtils.areSameByName(
+                                        anno,
+                                        "org.checkerframework.checker.calledmethods.qual.CalledMethodsBottom")) {
                             cmAnno = anno;
                         }
                     }
@@ -2507,8 +2510,7 @@ class MustCallConsistencyAnalyzer {
         // Create this annotation and use a subtype test because there's no guarantee that
         // cmAnno is actually an instance of CalledMethods: it could be CMBottom or CMPredicate.
         AnnotationMirror cmAnnoForMustCallMethods =
-                typeFactory.createCalledMethods(
-                        mustCallValues.toArray(new String[mustCallValues.size()]));
+                typeFactory.createCalledMethods(mustCallValues.toArray(new String[0]));
         return typeFactory
                 .getQualifierHierarchy()
                 .isSubtypeQualifiersOnly(cmAnno, cmAnnoForMustCallMethods);
@@ -2612,7 +2614,7 @@ class MustCallConsistencyAnalyzer {
             for (BlockWithObligations bwo : bwos) {
                 blocksWithDuplicates.add(bwo.block);
             }
-            List<Block> duplicateBlocks = duplicates(blocksWithDuplicates);
+            Collection<Block> duplicateBlocks = CollectionsPlume.duplicates(blocksWithDuplicates);
             StringJoiner result = new StringJoiner(", ", "BWOs[", "]");
             for (BlockWithObligations bwo : bwos) {
                 ImmutableSet<Obligation> obligations = bwo.obligations;
@@ -2633,19 +2635,5 @@ class MustCallConsistencyAnalyzer {
             }
             return result.toString();
         }
-    }
-
-    // TODO: Use from plume-lib's CollectionsPlume once version 1.9.0 is released.
-    /**
-     * Returns the elements (once each) that appear more than once in the given collection.
-     *
-     * @param <T> the type of elements
-     * @param c a collection
-     * @return the elements (once each) that appear more than once in the given collection
-     */
-    public static <T> List<T> duplicates(Collection<T> c) {
-        // Inefficient (because of streams) but simple implementation.
-        Set<T> withoutDuplicates = new HashSet<>();
-        return c.stream().filter(n -> !withoutDuplicates.add(n)).collect(Collectors.toList());
     }
 }

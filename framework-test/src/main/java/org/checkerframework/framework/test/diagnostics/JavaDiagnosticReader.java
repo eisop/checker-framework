@@ -10,9 +10,10 @@ import org.checkerframework.dataflow.qual.Pure;
 
 import java.io.Closeable;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.LineNumberReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -28,9 +29,9 @@ import javax.tools.JavaFileObject;
  */
 public class JavaDiagnosticReader implements Iterator<TestDiagnosticLine>, Closeable {
 
-    ///
-    /// This class begins with the public static methods that clients use to read diagnostics.
-    ///
+    //
+    // This class begins with the public static methods that clients use to read diagnostics.
+    //
 
     /**
      * Returns all the diagnostics in any of the Java source files.
@@ -85,9 +86,9 @@ public class JavaDiagnosticReader implements Iterator<TestDiagnosticLine>, Close
         return result;
     }
 
-    ///
-    /// End of public static methods, start of private static methods.
-    ///
+    //
+    // End of public static methods, start of private static methods.
+    //
 
     /**
      * Reads all the diagnostics in the file.
@@ -151,9 +152,9 @@ public class JavaDiagnosticReader implements Iterator<TestDiagnosticLine>, Close
         TestDiagnosticLine createTestDiagnosticLine(String filename, String line, long lineNumber);
     }
 
-    ///
-    /// End of static methods, start of per-instance state.
-    ///
+    //
+    // End of static methods, start of per-instance state.
+    //
 
     /** Converts a file line into a TestDiagnosticLine. */
     private final StringToTestDiagnosticLine codec;
@@ -181,7 +182,9 @@ public class JavaDiagnosticReader implements Iterator<TestDiagnosticLine>, Close
         this.filename = toRead.getName();
         LineNumberReader reader = null;
         try {
-            reader = new LineNumberReader(new FileReader(toRead));
+            reader =
+                    new LineNumberReader(
+                            Files.newBufferedReader(toRead.toPath(), StandardCharsets.UTF_8));
             this.reader = reader;
             advance();
         } catch (IOException e) {

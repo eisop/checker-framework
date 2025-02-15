@@ -82,6 +82,24 @@ public class AnnotationUtils {
     }
 
     /**
+     * Returns the fully-qualified name of an annotation as a String.
+     *
+     * @param annotation the annotation whose name to return
+     * @return the fully-qualified name of an annotation as a String
+     */
+    public static final @CanonicalName @Interned String annotationNameInterned(
+            AnnotationMirror annotation) {
+        if (annotation instanceof AnnotationBuilder.CheckerFrameworkAnnotationMirror) {
+            return ((AnnotationBuilder.CheckerFrameworkAnnotationMirror) annotation).annotationName;
+        }
+        DeclaredType annoType = annotation.getAnnotationType();
+        TypeElement elm = (TypeElement) annoType.asElement();
+        @SuppressWarnings("signature:assignment") // JDK needs annotations
+        @CanonicalName String name = elm.getQualifiedName().toString();
+        return name.intern();
+    }
+
+    /**
      * Returns the binary name of an annotation as a String.
      *
      * @param annotation the annotation whose binary name to return
@@ -448,7 +466,7 @@ public class AnnotationUtils {
             // Don't compare setwise, because order can matter. These mean different things:
             //   @LTLengthOf(value={"a1","a2"}, offest={"0", "1"})
             //   @LTLengthOf(value={"a2","a1"}, offest={"0", "1"})
-            for (int i = 0; i < list1.size(); i++) {
+            for (int i = 0; i < list1.size(); ++i) {
                 Object v1 = list1.get(i);
                 Object v2 = list2.get(i);
                 int result = compareAnnotationValueValue(v1, v2);
@@ -1147,7 +1165,7 @@ public class AnnotationUtils {
         int size = la.size();
         @SuppressWarnings("unchecked")
         T[] result = (T[]) Array.newInstance(expectedType, size);
-        for (int i = 0; i < size; i++) {
+        for (int i = 0; i < size; ++i) {
             AnnotationValue a = la.get(i);
             T value = Enum.valueOf(expectedType, a.getValue().toString());
             result[i] = value;
@@ -1401,7 +1419,6 @@ public class AnnotationUtils {
      */
     public static <T extends @NonNull Object> void updateMappingToImmutableSet(
             Map<T, AnnotationMirrorSet> map, T key, AnnotationMirrorSet newQual) {
-
         AnnotationMirrorSet result = new AnnotationMirrorSet();
         // TODO: if T is also an AnnotationMirror, should we use areSame?
         if (!map.containsKey(key)) {

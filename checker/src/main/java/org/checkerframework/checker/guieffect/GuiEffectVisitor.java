@@ -263,7 +263,7 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
     }
 
     @Override
-    protected void checkForPolymorphicQualifiers(ClassTree classTree) {
+    protected void warnInvalidPolymorphicQualifier(ClassTree classTree) {
         // Polymorphic qualifiers are legal on classes, so skip this check.
     }
 
@@ -380,7 +380,7 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
     }
 
     @Override
-    public Void visitMethod(MethodTree tree, Void p) {
+    public void processMethodTree(MethodTree tree) {
         AnnotatedExecutableType methodType = atypeFactory.getAnnotatedType(tree).deepCopy();
         AnnotatedDeclaredType previousReceiverType = receiverType;
         receiverType = methodType.getReceiverType();
@@ -458,11 +458,10 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
                     "Pushing " + effStack.peek() + " onto the stack when checking " + methElt);
         }
 
-        Void ret = super.visitMethod(tree, p);
+        super.processMethodTree(tree);
         currentMethods.removeFirst();
         effStack.removeFirst();
         receiverType = previousReceiverType;
-        return ret;
     }
 
     @Override

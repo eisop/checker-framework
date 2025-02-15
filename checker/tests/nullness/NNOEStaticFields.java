@@ -80,9 +80,9 @@ public class NNOEStaticFields {
         @NonNull Object f = System.out;
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    /// Copied from Daikon's ChicoryPremain
-    ///
+    // ///////////////////////////////////////////////////////////////////////////
+    // Copied from Daikon's ChicoryPremain
+    //
 
     static class ChicoryPremain1 {
 

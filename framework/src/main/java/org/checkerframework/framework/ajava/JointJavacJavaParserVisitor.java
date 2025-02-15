@@ -45,6 +45,7 @@ import com.github.javaparser.ast.expr.SuperExpr;
 import com.github.javaparser.ast.expr.SwitchExpr;
 import com.github.javaparser.ast.expr.ThisExpr;
 import com.github.javaparser.ast.expr.TypeExpr;
+import com.github.javaparser.ast.expr.TypePatternExpr;
 import com.github.javaparser.ast.expr.UnaryExpr;
 import com.github.javaparser.ast.modules.ModuleDeclaration;
 import com.github.javaparser.ast.modules.ModuleExportsDirective;
@@ -286,7 +287,7 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
      */
     @SuppressWarnings("UnusedVariable")
     public Void visitBindingPattern17(Tree javacTree, Node javaParserNode) {
-        PatternExpr patternExpr = castNode(PatternExpr.class, javaParserNode, javacTree);
+        TypePatternExpr patternExpr = castNode(TypePatternExpr.class, javaParserNode, javacTree);
         processBindingPattern(javacTree, patternExpr);
         VariableTree variableTree = BindingPatternUtils.getVariable(javacTree);
         // The name expression can be null, even when a name exists.
@@ -664,8 +665,25 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
         CompilationUnit node = castNode(CompilationUnit.class, javaParserNode, javacTree);
         processCompilationUnit(javacTree, node);
         visitOptional(javacTree.getPackage(), node.getPackageDeclaration());
+
+        // This is the fix for https://github.com/typetools/checker-framework/issues/6570.
+        // If the input java file contains semicolons between classes, then
+        // the javac tree will contain "type declarations" for those semicolons
+        // (for some reason? a javac bug?) but an ajava file will not (JavaParser
+        // appears to strip them out? frankly, we're not sure why). This code works
+        // around the problem by filtering any "type declarations" that contain only
+        // a single semicolon from the javacTypeDecls list before passing the list
+        // to the rest of the visitor.
+        List<? extends Tree> javacTypeDecls = javacTree.getTypeDecls();
+        List<Tree> javacTypeDeclsWithoutSemicolons = new ArrayList<>();
+        for (Tree javacTypeDecl : javacTypeDecls) {
+            if (javacTypeDecl.getKind() != Tree.Kind.EMPTY_STATEMENT) {
+                javacTypeDeclsWithoutSemicolons.add(javacTypeDecl);
+            }
+        }
+
         visitLists(javacTree.getImports(), node.getImports());
-        visitLists(javacTree.getTypeDecls(), node.getTypes());
+        visitLists(javacTypeDeclsWithoutSemicolons, node.getTypes());
         return null;
     }
 
@@ -785,9 +803,9 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
                             .getExpression()
                             .accept(this, initializer);
                 } else {
-                    // This is likely to lead to a crash, if it ever happens: javacInitializer
-                    // is a StatementTree of some kind, but initializer is a raw expression (not
-                    // wrapped in a statement).
+                    // This is likely to lead to a crash, if it ever happens: javacInitializer is a
+                    // StatementTree of some kind, but initializer is a raw expression (not wrapped
+                    // in a statement).
                     javacInitializer.accept(this, initializer);
                 }
             }
@@ -935,10 +953,11 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
     public Void visitMemberReference(MemberReferenceTree javacTree, Node javaParserNode) {
         MethodReferenceExpr node = castNode(MethodReferenceExpr.class, javaParserNode, javacTree);
         processMemberReference(javacTree, node);
+        Tree preColonTree = javacTree.getQualifierExpression();
         if (node.getScope().isTypeExpr()) {
-            javacTree.getQualifierExpression().accept(this, node.getScope().asTypeExpr().getType());
+            preColonTree.accept(this, node.getScope().asTypeExpr().getType());
         } else {
-            javacTree.getQualifierExpression().accept(this, node.getScope());
+            preColonTree.accept(this, node.getScope());
         }
 
         assert (javacTree.getTypeArguments() != null) == node.getTypeArguments().isPresent();
@@ -1152,9 +1171,9 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
         // TODO: Implement this.
         //
         // Some notes:
-        // - javacTree.getAnnotations() seems to always return empty, any annotations on the
-        // base type seem to go on the type itself in javacTree.getType(). The JavaParser version
-        // doesn't even have a corresponding getAnnotations method.
+        // - javacTree.getAnnotations() seems to always return empty, any annotations on
+        // the base type seem to go on the type itself in javacTree.getType(). The JavaParser
+        // version doesn't even have a corresponding getAnnotations method.
         // - When there are no initializers, both systems use similar representations. The
         // dimensions line up.
         // - When there is an initializer, they differ greatly for multi-dimensional arrays. Javac
@@ -2355,8 +2374,8 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
     }
 
     /**
-     * Given a javac tree and JavaPaser node which were visited but didn't correspond to each other,
-     * throws an exception indicating that the visiting process failed for those nodes.
+     * Given a javac tree and JavaParser node which were visited but didn't correspond to each
+     * other, throws an exception indicating that the visiting process failed for those nodes.
      *
      * @param javacTree a tree that was visited
      * @param javaParserNode a node that was visited at the same time as {@code javacTree}, but
@@ -2376,9 +2395,9 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
     }
 
     /**
-     * Given a javac tree and JavaPaser node which were visited but didn't correspond to each other,
-     * throws an exception indicating that the visiting process failed for those nodes because
-     * {@code javaParserNode} was expected to be of type {@code expectedType}.
+     * Given a javac tree and JavaParser node which were visited but didn't correspond to each
+     * other, throws an exception indicating that the visiting process failed for those nodes
+     * because {@code javaParserNode} was expected to be of type {@code expectedType}.
      *
      * @param javacTree a tree that was visited
      * @param javaParserNode a node that was visited at the same time as {@code javacTree}, but

@@ -209,7 +209,8 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
 
     /** Treat non-owning method parameters as @MustCallUnknown (top) when the method is called. */
     @Override
-    public void methodFromUsePreSubstitution(ExpressionTree tree, AnnotatedExecutableType type) {
+    public void methodFromUsePreSubstitution(
+            ExpressionTree tree, AnnotatedExecutableType type, boolean resolvePolyQuals) {
         ExecutableElement declaration;
         if (tree instanceof MethodInvocationTree) {
             declaration = TreeUtils.elementFromUse((MethodInvocationTree) tree);
@@ -219,15 +220,15 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
             throw new TypeSystemError("unexpected type of method tree: " + tree.getKind());
         }
         changeNonOwningParameterTypesToTop(declaration, type);
-        super.methodFromUsePreSubstitution(tree, type);
+        super.methodFromUsePreSubstitution(tree, type, resolvePolyQuals);
     }
 
     @Override
     protected void constructorFromUsePreSubstitution(
-            NewClassTree tree, AnnotatedExecutableType type) {
+            NewClassTree tree, AnnotatedExecutableType type, boolean resolvePolyQuals) {
         ExecutableElement declaration = TreeUtils.elementFromUse(tree);
         changeNonOwningParameterTypesToTop(declaration, type);
-        super.constructorFromUsePreSubstitution(tree, type);
+        super.constructorFromUsePreSubstitution(tree, type, resolvePolyQuals);
     }
 
     /**
@@ -264,8 +265,8 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
                                     getMustCallValueElement(),
                                     String.class,
                                     Collections.emptyList());
-                    // replacement only customized when parameter type has a non-empty must-call
-                    // obligation
+                    // Replacement is only customized when the parameter type has a non-empty
+                    // must-call obligation.
                     if (!extentReplacementVals.isEmpty()) {
                         AnnotationMirror inheritableMustCall =
                                 getDeclAnnotation(typeElement, InheritableMustCall.class);
@@ -278,9 +279,9 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
                                             Collections.emptyList());
                             if (!inheritableMustCallVals.equals(extentReplacementVals)) {
                                 // Use the must call values from the @InheritableMustCall annotation
-                                // instead.
-                                // This allows for wrapper types to have a must-call method with a
-                                // different name than the must-call method for the wrapped type
+                                // instead. This allows for wrapper types to have a must-call method
+                                // with a different name than the must-call method for the wrapped
+                                // type.
                                 AnnotationMirror mustCall = createMustCall(inheritableMustCallVals);
                                 realReplacements = new AnnotationMirrorMap<>();
                                 realReplacements.put(POLY, mustCall);
@@ -310,9 +311,9 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
     private void changeNonOwningParameterTypesToTop(
             ExecutableElement declaration, AnnotatedExecutableType type) {
         // Formal parameters without a declared owning annotation are disregarded by the RLC
-        // _analysis_, as their @MustCall obligation is set to Top in this method. However, this
-        // computation is not desirable for RLC _inference_ in unannotated programs, where a goal is
-        // to infer and add @Owning annotations to formal parameters.
+        // _analysis_, as their @MustCall obligation is set to Top in this method. However,
+        // this computation is not desirable for RLC _inference_ in unannotated programs,
+        // where a goal is to infer and add @Owning annotations to formal parameters.
         /* NO-AFU
         if (getWholeProgramInference() != null && !isWpiEnabledForRLC()) {
           return;
@@ -442,7 +443,7 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
      */
     private AnnotationMirror createMustCallImpl(List<String> methodList) {
         AnnotationBuilder builder = new AnnotationBuilder(processingEnv, MustCall.class);
-        String[] methodArray = methodList.toArray(new String[methodList.size()]);
+        String[] methodArray = methodList.toArray(new String[0]);
         Arrays.sort(methodArray);
         builder.setValue("value", methodArray);
         return builder.build();
@@ -517,9 +518,9 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
         public Void visitIdentifier(IdentifierTree tree, AnnotatedTypeMirror type) {
             Element elt = TreeUtils.elementFromUse(tree);
             // The following changes are not desired for RLC _inference_ in unannotated programs,
-            // where a goal is to infer and add @Owning annotations to formal parameters. Therefore,
-            // if WPI is enabled, they should not be executed.
-            if ( // NO-AFU getWholeProgramInference() == null
+            // where a goal is to infer and add @Owning annotations to formal parameters.
+            // Therefore, if WPI is enabled, they should not be executed.
+            if ( // NO-AFU getWholeProgramInference() == null &&
             elt.getKind() == ElementKind.PARAMETER
                     && (noLightweightOwnership || getDeclAnnotation(elt, Owning.class) == null)) {
                 if (!type.hasAnnotation(POLY)) {

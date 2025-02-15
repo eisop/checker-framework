@@ -40,7 +40,12 @@ def createDataflowShaded(shadedPkgName) {
     tasks.create(name: "dataflow${shadedPkgName}Jar", type: ShadowJar, dependsOn: compileJava, group: 'Build') {
         description = "Builds dataflow-${shadedPkgName}.jar."
         includeEmptyDirs = false
-        archiveBaseName.set("dataflow-${shadedPkgName}")
+        base {
+            archivesName = "dataflow-${shadedPkgName}"
+        }
+        dependencies {
+            exclude(project(':checker-qual'))
+        }
         // Without this line, the Maven artifact will have the classifier "all".
         archiveClassifier.set('')
 
@@ -176,6 +181,11 @@ testDataflowAnalysis("issue3447Test", "issue3447", "livevar.LiveVariable", false
 testDataflowAnalysis("liveVariableTest", "live-variable", "livevar.LiveVariable", true)
 testDataflowAnalysis("reachingDefinitionTest", "reachingdef", "reachingdef.ReachingDefinition", true)
 
+test {
+    // The tests are run by allDataflowTests.
+    exclude '**/*'
+}
+
 apply from: rootProject.file('gradle-mvn-push.gradle')
 
 /** Adds information to the publication for uploading the dataflow artifacts to Maven repositories. */
@@ -206,17 +216,28 @@ final dataflowShadedPom(MavenPublication publication, String shadedPkgName) {
     publication.artifactId = "dataflow-${shadedPkgName}"
     publication.pom {
         name = "Dataflow (${shadedPkgName})"
-        description = "dataflow-${shadedPkgName} is a dataflow framework based on the javac compiler.\n" +
-                '\n' +
-                'It differs from the org.checkerframework:dataflow artifact in two ways.\n' +
-                "First, the packages in this artifact have been renamed to org.checkerframework.${shadedPkgName}.*.\n" +
-                'Second, unlike the dataflow artifact, this artifact contains the dependencies it requires.'
+        description =
+                String.join(System.lineSeparator(),
+                "dataflow-${shadedPkgName} is a dataflow framework based on the javac compiler.",
+                '',
+                'It differs from the org.checkerframework:dataflow artifact in two ways.',
+                "First, the packages in this artifact have been renamed to org.checkerframework.${shadedPkgName}.*.",
+                'Second, unlike the dataflow artifact, this artifact contains the dependencies it requires.')
         licenses {
             license {
                 name = 'GNU General Public License, version 2 (GPL2), with the classpath exception'
                 url = 'http://www.gnu.org/software/classpath/license.html'
                 distribution = 'repo'
             }
+        }
+        withXml {
+            // This should just happen automatically, but I can't figure out how to make it happen with
+            // a custom Shadow task.
+            asNode().appendNode('dependencies').appendNode('dependency')
+                    .appendNode('groupId', 'io.github.eisop').parent()
+                    .appendNode('artifactId', 'checker-qual').parent()
+                    .appendNode('version', version).parent()
+                    .appendNode('scope','runtime')
         }
     }
 }

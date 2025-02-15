@@ -1,7 +1,6 @@
 plugins {
     id 'java-library'
     id 'base'
-
     // https://github.com/n0mer/gradle-git-properties
     // Generates file build/resources/main/git.properties when the `classes` task runs.
     id 'com.gorylenko.gradle-git-properties' version '2.4.2'
@@ -90,6 +89,9 @@ dependencies {
     testImplementation 'org.apiguardian:apiguardian-api:1.1.2'
     // For tests that use JSpecify annotations
     testImplementation 'org.jspecify:jspecify:1.0.0'
+    // To test for an obscure crash in CFG construction for try-with-resources;
+    // see https://github.com/typetools/checker-framework/issues/6396
+    testImplementation 'org.apache.spark:spark-sql_2.12:3.3.2'
 
     // Required for checker/tests/index-initializedfields/RequireJavadoc.java
     if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
@@ -199,6 +201,9 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 task checkerJar(type: ShadowJar, dependsOn: compileJava, group: 'Build') {
     description = "Builds checker-${project.version}.jar with all dependencies except checker-qual and checker-util."
     includeEmptyDirs = false
+    base {
+        archivesName = 'checker'
+    }
 
     from shadowJar.source
     configurations = shadowJar.configurations
@@ -484,9 +489,9 @@ if (skipDelombok) {
     tasks.test.dependsOn('delombok')
 }
 
-///
-/// Tests of the -Ainfer command-line argument.  These are not whole-program inference tests.
-///
+//
+// Tests of the -Ainfer command-line argument.  These are not whole-program inference tests.
+//
 
 test {
     useJUnit {
@@ -1002,9 +1007,9 @@ task ainferTest(group: 'Verification') {
     dependsOn('ainferResourceLeakAjavaTest')
 }
 
-///
-/// Whole-program inference tests
-///
+//
+// Whole-program inference tests
+//
 
 // This is run as part of the inferenceTests task.
 task wpiManyTest(group: 'Verification') {
@@ -1166,12 +1171,14 @@ final checkerPom(publication) {
     // Don't use publication.from components.java which would publish the skinny jar as checker.jar.
     publication.pom {
         name = 'Checker Framework'
-        description = 'The Checker Framework enhances Java\'s type system to\n' +
-                'make it more powerful and useful. This lets software developers\n' +
-                'detect and prevent errors in their Java programs.\n' +
-                'The Checker Framework includes compiler plug-ins ("checkers")\n' +
-                'that find bugs or verify their absence. It also permits you to\n' +
-                'write your own compiler plug-ins.'
+        description =
+                String.join(System.lineSeparator(),
+                'The Checker Framework enhances Java\'s type system to',
+                'make it more powerful and useful. This lets software developers',
+                'detect and prevent errors in their Java programs.',
+                'The Checker Framework includes compiler plug-ins ("checkers")',
+                'that find bugs or verify their absence. It also permits you to',
+                'write your own compiler plug-ins.')
         licenses {
             license {
                 name = 'GNU General Public License, version 2 (GPL2), with the classpath exception'

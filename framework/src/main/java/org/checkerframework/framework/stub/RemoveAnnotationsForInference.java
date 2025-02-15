@@ -34,12 +34,11 @@ import org.plumelib.util.ArraysPlume;
 import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.StringsPlume;
 
-import java.io.BufferedWriter;
 import java.io.FileNotFoundException;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -106,9 +105,9 @@ public class RemoveAnnotationsForInference {
      * @param args command-line arguments: directories to process
      */
     public static void main(String[] args) {
-        // TODO: using plume-lib's options here would be better, but would add a dependency
-        // to the whole Checker Framework, which is undesirable. Move this program elsewhere
-        // (e.g., to a plume-lib project)?
+        // TODO: using plume-lib's "Options" project here would be better, but would add a
+        // dependency to the whole Checker Framework, which is undesirable. Move this program
+        // elsewhere (e.g., to a plume-lib project)?
         if (args[0].contentEquals("-keepFile")) {
             if (args.length < 2) {
                 System.err.println(
@@ -277,7 +276,9 @@ public class RemoveAnnotationsForInference {
         }
 
         try (PrintWriter pw =
-                new PrintWriter(new BufferedWriter(new FileWriter(absolutePath.toString())))) {
+                new PrintWriter(
+                        Files.newBufferedWriter(
+                                Paths.get(absolutePath.toString()), StandardCharsets.UTF_8))) {
             for (String line : lines) {
                 pw.println(line);
             }
@@ -580,9 +581,8 @@ public class RemoveAnnotationsForInference {
                 } else if (v instanceof NameExpr) {
                     // TODO: is it better to return null here, thus causing nothing under this
                     // warning to be treated as "suppressed", or to return any keys that are string
-                    // literals?
-                    // Returning null here ensures that if any argument to the SW annotation isn't a
-                    // string literal, then none of them are considered.
+                    // literals?  Returning null here ensures that if any argument to the SW
+                    // annotation isn't a string literal, then none of them are considered.
                     return null;
                 } else {
                     throw new BugInCF(

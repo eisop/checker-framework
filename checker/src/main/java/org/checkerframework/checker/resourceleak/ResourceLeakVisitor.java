@@ -12,10 +12,13 @@ import org.checkerframework.checker.mustcall.MustCallChecker;
 import org.checkerframework.checker.mustcall.qual.CreatesMustCallFor;
 import org.checkerframework.checker.mustcall.qual.NotOwning;
 import org.checkerframework.checker.mustcall.qual.Owning;
+import org.checkerframework.checker.mustcall.qual.PolyMustCall;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.dataflow.expression.FieldAccess;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.util.JavaExpressionParseUtil;
 import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
@@ -85,7 +88,7 @@ public class ResourceLeakVisitor extends CalledMethodsVisitor {
     }
 
     @Override
-    public Void visitMethod(MethodTree tree, Void p) {
+    public void processMethodTree(MethodTree tree) {
         ExecutableElement elt = TreeUtils.elementFromDeclaration(tree);
         MustCallAnnotatedTypeFactory mcAtf =
                 rlTypeFactory.getTypeFactoryOfSubchecker(MustCallChecker.class);
@@ -95,7 +98,12 @@ public class ResourceLeakVisitor extends CalledMethodsVisitor {
             checkCreatesMustCallForTargetsHaveNonEmptyMustCall(tree, mcAtf);
         }
         checkOwningOverrides(tree, elt, mcAtf);
-        return super.visitMethod(tree, p);
+        if (TreeUtils.isConstructor(tree)) {
+            checkMustCallAliasAnnotationForConstructor(tree);
+        } else {
+            checkMustCallAliasAnnotationForMethod(tree, mcAtf);
+        }
+        super.processMethodTree(tree);
     }
 
     /**
@@ -175,8 +183,8 @@ public class ResourceLeakVisitor extends CalledMethodsVisitor {
         for (ExecutableElement overridden :
                 ElementUtils.getOverriddenMethods(overrider, this.types)) {
             // Check for @Owning parameters. Must use an explicitly-indexed for loop so that the
-            // same parameter index can be accessed in the overrider's parameter list, which is the
-            // same length.
+            // same parameter index can be accessed in the overrider's parameter list, which is
+            // the same length.
             for (int i = 0; i < overridden.getParameters().size(); i++) {
                 if (mcAtf.getDeclAnnotation(overridden.getParameters().get(i), Owning.class)
                         != null) {
@@ -205,6 +213,111 @@ public class ResourceLeakVisitor extends CalledMethodsVisitor {
                         ElementUtils.getEnclosingClassName(overridden));
             }
         }
+    }
+
+    /**
+     * If a {@code @MustCallAlias} annotation appears in a method declaration, it must appear as an
+     * annotation on both the return type, and a parameter type.
+     *
+     * <p>The return type is checked if it is annotated with {@code @PolyMustCall} because the Must
+     * Call Checker treats {@code @MustCallAlias} as an alias of {@code @PolyMustCall}.
+     *
+     * @param tree the method declaration
+     * @param mcAtf the MustCallAnnotatedTypeFactory
+     */
+    private void checkMustCallAliasAnnotationForMethod(
+            MethodTree tree, MustCallAnnotatedTypeFactory mcAtf) {
+
+        Element paramWithMustCallAliasAnno = getParameterWithMustCallAliasAnno(tree);
+        boolean isMustCallAliasAnnoOnParameter = paramWithMustCallAliasAnno != null;
+
+        if (TreeUtils.isVoidReturn(tree) && isMustCallAliasAnnoOnParameter) {
+            checker.reportWarning(
+                    tree, "mustcallalias.method.return.and.param", "this method has a void return");
+            return;
+        }
+
+        AnnotatedTypeMirror returnType = mcAtf.getMethodReturnType(tree);
+        boolean isMustCallAliasAnnoOnReturnType = returnType.hasAnnotation(PolyMustCall.class);
+        checkMustCallAliasAnnoMismatch(
+                paramWithMustCallAliasAnno, isMustCallAliasAnnoOnReturnType, tree);
+    }
+
+    /**
+     * Given a constructor, a {@code @MustCallAlias} must appear in both the list of parameters and
+     * as an annotation on the constructor itself, if it is to appear at all.
+     *
+     * <p>That is, a {@code @MustCallAlias} annotation must appear on both the constructor and its
+     * parameter list, or not at all.
+     *
+     * @param tree the constructor
+     */
+    private void checkMustCallAliasAnnotationForConstructor(MethodTree tree) {
+        ExecutableElement constructorDecl = TreeUtils.elementFromDeclaration(tree);
+        boolean isMustCallAliasAnnoOnConstructor =
+                constructorDecl != null && rlTypeFactory.hasMustCallAlias(constructorDecl);
+        Element paramWithMustCallAliasAnno = getParameterWithMustCallAliasAnno(tree);
+        checkMustCallAliasAnnoMismatch(
+                paramWithMustCallAliasAnno, isMustCallAliasAnnoOnConstructor, tree);
+    }
+
+    /**
+     * Construct the warning message for the case where a {@code @MustCallAlias} annotation does not
+     * appear in pairs in a method or constructor declaration.
+     *
+     * <p>If a parameter of a method or a constructor is annotated with a {@code @MustCallAlias}
+     * annotation, the return type (for a method) should also be annotated with
+     * {@code @MustCallAlias}. In the case of a constructor, which has no return type, a
+     * {@code @MustCallAlias} annotation must appear on its declaration.
+     *
+     * @param paramWithMustCallAliasAnno a parameter with a {@code @MustCallAlias} annotation, null
+     *     if there are none
+     * @param isMustCallAliasAnnoOnMethodOrConstructorDecl true if and only if a
+     *     {@code @MustCallAlias} annotation appears on a method or constructor declaration
+     * @param tree the method or constructor declaration
+     */
+    private void checkMustCallAliasAnnoMismatch(
+            @Nullable Element paramWithMustCallAliasAnno,
+            boolean isMustCallAliasAnnoOnMethodOrConstructorDecl,
+            MethodTree tree) {
+        boolean isMustCallAliasAnnotationOnParameter = paramWithMustCallAliasAnno != null;
+        if (isMustCallAliasAnnotationOnParameter != isMustCallAliasAnnoOnMethodOrConstructorDecl) {
+            String locationOfCheck =
+                    TreeUtils.isClassTree(tree) ? "this constructor" : "the return type";
+            String message =
+                    isMustCallAliasAnnotationOnParameter
+                            ? String.format(
+                                    "there is no @MustCallAlias annotation on %s, even though the parameter %s is"
+                                            + " annotated with @MustCallAlias",
+                                    locationOfCheck, paramWithMustCallAliasAnno)
+                            : "no parameter has a @MustCallAlias annotation, even though the return type is"
+                                    + " annotated with @MustCallAlias";
+            checker.reportWarning(tree, "mustcallalias.method.return.and.param", message);
+        }
+    }
+
+    /**
+     * Given a method and its parameter list, look through each of the parameters and see if any are
+     * annotated with the {@code @MustCallAlias} annotation.
+     *
+     * <p>Return the first parameter that is annotated with {@code @MustCallAlias}, otherwise return
+     * null.
+     *
+     * @param tree the method declaration
+     * @return the first parameter that is annotated with {@code @MustCallAlias}, otherwise return
+     *     null
+     */
+    private @Nullable Element getParameterWithMustCallAliasAnno(MethodTree tree) {
+        VariableTree receiverParameter = tree.getReceiverParameter();
+        if (receiverParameter != null && rlTypeFactory.hasMustCallAlias(receiverParameter)) {
+            return TreeUtils.elementFromDeclaration(receiverParameter);
+        }
+        for (VariableTree param : tree.getParameters()) {
+            if (rlTypeFactory.hasMustCallAlias(param)) {
+                return TreeUtils.elementFromDeclaration(param);
+            }
+        }
+        return null;
     }
 
     /* NO-AFU
@@ -457,7 +570,7 @@ public class ResourceLeakVisitor extends CalledMethodsVisitor {
                         }
 
                         // Optimization: stop early as soon as we've exhausted the list of
-                        // obligations
+                        // obligations.
                         if (unsatisfiedMustCallObligationsOfOwningField.isEmpty()) {
                             return;
                         }

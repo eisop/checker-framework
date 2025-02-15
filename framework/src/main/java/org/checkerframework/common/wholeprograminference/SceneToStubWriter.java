@@ -27,6 +27,7 @@ import org.checkerframework.javacutil.BugInCF;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -584,7 +585,7 @@ public final class SceneToStubWriter {
      *
      * @param innermostTypeElt the innermost type element: either an inner class or an outer class
      *     without any inner classes that should be printed
-     * @param classNames the names of the containing classes, from outer to inner
+     * @param classNames the names of the enclosing classes, from outer to inner
      * @return an array of TypeElements whose entry at a given index represents the type named at
      *     that index in {@code classNames}
      */
@@ -754,7 +755,7 @@ public final class SceneToStubWriter {
                             if (fileWriter != null || printWriter != null) {
                                 throw new Error("This can't happen");
                             }
-                            fileWriter = new FileWriter(filename);
+                            fileWriter = new FileWriter(filename, StandardCharsets.UTF_8);
                             printWriter = new PrintWriter(fileWriter);
                         } catch (IOException e) {
                             throw new BugInCF("error writing file during WPI: " + filename);

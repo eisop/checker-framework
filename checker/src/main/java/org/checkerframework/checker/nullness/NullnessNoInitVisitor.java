@@ -316,6 +316,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     @Override
     public Void visitArrayAccess(ArrayAccessTree tree, Void p) {
         checkForNullability(tree.getExpression(), ACCESSING_NULLABLE);
+        checkForNullability(tree.getIndex(), UNBOXING_OF_NULLABLE);
         return super.visitArrayAccess(tree, p);
     }
 
@@ -341,6 +342,9 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 || type.hasEffectiveAnnotation(MONOTONIC_NONNULL)
                 || type.hasEffectiveAnnotation(POLYNULL)) {
             checker.reportError(tree, "nullness.on.new.array");
+        }
+        for (ExpressionTree dimension : tree.getDimensions()) {
+            checkForNullability(dimension, UNBOXING_OF_NULLABLE);
         }
 
         return super.visitNewArray(tree, p);
@@ -577,7 +581,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     }
 
     @Override
-    public Void visitMethod(MethodTree tree, Void p) {
+    public void processMethodTree(MethodTree tree) {
         VariableTree receiver = tree.getReceiverParameter();
 
         if (TreeUtils.isConstructor(tree)) {
@@ -596,7 +600,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             }
         }
 
-        return super.visitMethod(tree, p);
+        super.processMethodTree(tree);
     }
 
     @Override

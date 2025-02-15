@@ -118,7 +118,6 @@ public class ConditionalTransferResult<V extends AbstractValue<V>, S extends Sto
         this.storeChanged = storeChanged;
     }
 
-    /** The regular result store. */
     @Override
     public S getRegularStore() {
         return thenStore.leastUpperBound(elseStore);
