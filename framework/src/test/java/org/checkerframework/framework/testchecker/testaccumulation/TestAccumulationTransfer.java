@@ -12,25 +12,25 @@ import org.checkerframework.dataflow.cfg.node.Node;
 /** A basic transfer function that accumulates the names of methods called. */
 public class TestAccumulationTransfer extends AccumulationTransfer {
 
-  /**
-   * default constructor
-   *
-   * @param analysis the analysis
-   */
-  public TestAccumulationTransfer(AccumulationAnalysis analysis) {
-    super(analysis);
-  }
-
-  @Override
-  public TransferResult<AccumulationValue, AccumulationStore> visitMethodInvocation(
-      MethodInvocationNode node, TransferInput<AccumulationValue, AccumulationStore> input) {
-    TransferResult<AccumulationValue, AccumulationStore> result =
-        super.visitMethodInvocation(node, input);
-    Node receiver = node.getTarget().getReceiver();
-    if (receiver != null) {
-      String methodName = node.getTarget().getMethod().getSimpleName().toString();
-      accumulate(receiver, result, methodName);
+    /**
+     * default constructor
+     *
+     * @param analysis the analysis
+     */
+    public TestAccumulationTransfer(AccumulationAnalysis analysis) {
+        super(analysis);
     }
-    return result;
-  }
+
+    @Override
+    public TransferResult<AccumulationValue, AccumulationStore> visitMethodInvocation(
+            MethodInvocationNode node, TransferInput<AccumulationValue, AccumulationStore> input) {
+        TransferResult<AccumulationValue, AccumulationStore> result =
+                super.visitMethodInvocation(node, input);
+        Node receiver = node.getTarget().getReceiver();
+        if (receiver != null) {
+            String methodName = node.getTarget().getMethod().getSimpleName().toString();
+            accumulate(receiver, result, methodName);
+        }
+        return result;
+    }
 }

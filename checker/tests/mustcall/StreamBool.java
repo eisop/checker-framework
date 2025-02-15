@@ -3,9 +3,9 @@
 import java.io.InputStream;
 
 class StreamBool {
-  InputStream stream;
+    InputStream stream;
 
-  boolean isActive() {
-    return stream != null;
-  }
+    boolean isActive() {
+        return stream != null;
+    }
 }
