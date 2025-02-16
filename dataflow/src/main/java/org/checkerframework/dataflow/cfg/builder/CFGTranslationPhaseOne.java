@@ -1894,34 +1894,6 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             // `tree` has an explicit receiver.
             MemberSelectTree mtree = (MemberSelectTree) tree;
             return scan(mtree.getExpression(), null);
-        } else {
-            // `tree` lacks an explicit reciever.
-            Element ele = TreeUtils.elementFromUse(tree);
-            TypeElement declaringClass = ElementUtils.enclosingTypeElement(ele);
-            TypeMirror typeOfDeclaringClass = ElementUtils.getType(declaringClass);
-            if (ElementUtils.isStatic(ele)) {
-                ClassNameNode node = new ClassNameNode(typeOfDeclaringClass, declaringClass);
-                extendWithClassNameNode(node);
-                return node;
-            } else {
-                ClassTree classTree = TreePathUtil.enclosingClass(getCurrentPath());
-                TypeElement classEle = TreeUtils.elementFromDeclaration(classTree);
-
-                // An implicit receiver is the first enclosing type that is a subtype of the type
-                // where the
-                // element is declared.
-                while (!TypesUtils.isErasedSubtype(
-                        classEle.asType(), typeOfDeclaringClass, types)) {
-                    Element enclosing = classEle.getEnclosingElement();
-                    while (!(enclosing instanceof TypeElement)) {
-                        enclosing = enclosing.getEnclosingElement();
-                    }
-                    classEle = (TypeElement) enclosing;
-                }
-                Node node = new ImplicitThisNode(classEle.asType());
-                extendWithNode(node);
-                return node;
-            }
         }
 
         // Access through an implicit receiver
