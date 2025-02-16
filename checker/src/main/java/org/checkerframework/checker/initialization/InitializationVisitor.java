@@ -350,10 +350,6 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
             initExitStore, targetExitStore, getCurrentPath(), staticFields, receiverAnnotations);
     uninitializedFields.removeAll(initializedFields);
 
-    // Remove fields that have already been initialized by an initializer block.
-    violatingFields.removeAll(initializedFields);
-    nonviolatingFields.removeAll(initializedFields);
-
     // Errors are issued at the field declaration if the field is static or if the constructor
     // is the default constructor.
     // Errors are issued at the constructor declaration if the field is non-static and the
