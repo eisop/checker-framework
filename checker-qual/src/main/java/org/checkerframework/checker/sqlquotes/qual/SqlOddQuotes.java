@@ -1,11 +1,12 @@
 package org.checkerframework.checker.sqlquotes.qual;
 
+import org.checkerframework.framework.qual.SubtypeOf;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.checkerframework.framework.qual.SubtypeOf;
 
 /**
  * Denotes a String that contains an odd number of unescaped single quotes -- i.e., there must be an

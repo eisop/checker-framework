@@ -5,38 +5,38 @@ import org.checkerframework.common.aliasing.qual.Unique;
 
 public class OtherAnnotations {
 
-  void requireAinferSibling1(@AinferSibling1 int a) {}
+    void requireAinferSibling1(@AinferSibling1 int a) {}
 
-  @Unique int x;
+    @Unique int x;
 
-  void assignX(@AinferSibling1 int y) {
-    x = y;
-  }
+    void assignX(@AinferSibling1 int y) {
+        x = y;
+    }
 
-  void useX() {
-    // :: warning: argument.type.incompatible
-    requireAinferSibling1(x);
-  }
+    void useX() {
+        // :: warning: argument.type.incompatible
+        requireAinferSibling1(x);
+    }
 
-  void methodWithAnnotatedParam(@Unique int z) {
-    // :: warning: argument.type.incompatible
-    requireAinferSibling1(z);
-  }
+    void methodWithAnnotatedParam(@Unique int z) {
+        // :: warning: argument.type.incompatible
+        requireAinferSibling1(z);
+    }
 
-  void useMethodWithAnnotatedParam(@AinferSibling1 int w) {
-    methodWithAnnotatedParam(w);
-  }
+    void useMethodWithAnnotatedParam(@AinferSibling1 int w) {
+        methodWithAnnotatedParam(w);
+    }
 
-  @AinferSibling1 int getAinferSibling1() {
-    return 5;
-  }
+    @AinferSibling1 int getAinferSibling1() {
+        return 5;
+    }
 
-  @Unique int getIntVal5() {
-    return getAinferSibling1();
-  }
+    @Unique int getIntVal5() {
+        return getAinferSibling1();
+    }
 
-  void useGetIntVal5() {
-    // :: warning: argument.type.incompatible
-    requireAinferSibling1(getIntVal5());
-  }
+    void useGetIntVal5() {
+        // :: warning: argument.type.incompatible
+        requireAinferSibling1(getIntVal5());
+    }
 }

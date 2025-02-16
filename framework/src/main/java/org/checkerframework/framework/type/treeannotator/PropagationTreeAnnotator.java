@@ -12,11 +12,7 @@ import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
-import java.util.Map;
-import java.util.Set;
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeMirror;
+
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
@@ -29,6 +25,13 @@ import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeKindUtils;
 import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.IPair;
+
+import java.util.Map;
+import java.util.Set;
+
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 
 /**
  * {@link PropagationTreeAnnotator} adds qualifiers to types where the resulting type is a function
@@ -47,340 +50,348 @@ import org.plumelib.util.IPair;
  */
 public class PropagationTreeAnnotator extends TreeAnnotator {
 
-  private final QualifierHierarchy qualHierarchy;
+    private final QualifierHierarchy qualHierarchy;
 
-  /** Creates a {@link PropagationTreeAnnotator} for the given {@code atypeFactory}. */
-  public PropagationTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
-    super(atypeFactory);
-    this.qualHierarchy = atypeFactory.getQualifierHierarchy();
-  }
-
-  /**
-   * Whether to use the assignment context when computing the type of a new array expression. This
-   * is a hack to prevent infinite recursion if computing the type of the assignment context
-   * includes computing the type of the right-hand side of the assignment. This happens when the
-   * assignment is the pseudo-assignment of a method argument to a formal parameter.
-   */
-  private boolean useAssignmentContext = true;
-
-  /**
-   * A mapping from {@code MethodInvocationTree} to the type of its declaration adapted to the call
-   * site. This is a cache used when getting the type of a new array expression that is an argument
-   * to a method. Getting the call-site-adapted type of a method also gets the type of all the
-   * arguments at the call site. (This happens both for resolving polymorphic methods and for method
-   * type argument inference.) {@link #useAssignmentContext} is used to prevent infinite recursion
-   * and this cache is used to improve performance.
-   */
-  private final Map<MethodInvocationTree, AnnotatedExecutableType> methodInvocationToType =
-      CollectionsPlume.createLruCache(300);
-
-  @Override
-  public Void visitNewArray(NewArrayTree arrayTree, AnnotatedTypeMirror arrayType) {
-    assert arrayType.getKind() == TypeKind.ARRAY
-        : "PropagationTreeAnnotator.visitNewArray: should be an array type";
-
-    AnnotatedTypeMirror componentType = ((AnnotatedArrayType) arrayType).getComponentType();
-    TypeMirror componentTM = componentType.getUnderlyingType();
-
-    // prev is the lub of the initializers if they exist, otherwise the current component type.
-    Set<? extends AnnotationMirror> prev = null;
-    if (arrayTree.getInitializers() != null && !arrayTree.getInitializers().isEmpty()) {
-      // We have initializers, either with or without an array type.
-
-      // TODO (issue #599): This only works at the top level.  It should work at all levels of
-      // the array.
-      for (ExpressionTree init : arrayTree.getInitializers()) {
-        AnnotatedTypeMirror initType = atypeFactory.getAnnotatedType(init);
-        // initType might be a typeVariable, so use effectiveAnnotations.
-        AnnotationMirrorSet annos = initType.getEffectiveAnnotations();
-
-        prev =
-            (prev == null)
-                ? annos
-                : qualHierarchy.leastUpperBoundsShallow(
-                    prev, componentTM, annos, initType.getUnderlyingType());
-      }
-    } else {
-      prev = componentType.getAnnotations();
+    /** Creates a {@link PropagationTreeAnnotator} for the given {@code atypeFactory}. */
+    public PropagationTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        super(atypeFactory);
+        this.qualHierarchy = atypeFactory.getQualifierHierarchy();
     }
 
-    assert prev != null
-        : "PropagationTreeAnnotator.visitNewArray: violated assumption about qualifiers";
+    /**
+     * Whether to use the assignment context when computing the type of a new array expression. This
+     * is a hack to prevent infinite recursion if computing the type of the assignment context
+     * includes computing the type of the right-hand side of the assignment. This happens when the
+     * assignment is the pseudo-assignment of a method argument to a formal parameter.
+     */
+    private boolean useAssignmentContext = true;
 
-    TreePath path = atypeFactory.getPath(arrayTree);
-    AnnotatedTypeMirror contextType = null;
-    if (path != null && path.getParentPath() != null) {
-      Tree parentTree = path.getParentPath().getLeaf();
-      if (parentTree.getKind() == Tree.Kind.ASSIGNMENT) {
-        Tree var = ((AssignmentTree) parentTree).getVariable();
-        contextType = atypeFactory.getAnnotatedType(var);
-      } else if (parentTree.getKind() == Tree.Kind.VARIABLE) {
-        if (!TreeUtils.isVariableTreeDeclaredUsingVar((VariableTree) parentTree)) {
-          contextType = atypeFactory.getAnnotatedType(parentTree);
-        }
-      } else if (parentTree instanceof CompoundAssignmentTree) {
-        Tree var = ((CompoundAssignmentTree) parentTree).getVariable();
-        contextType = atypeFactory.getAnnotatedType(var);
-      } else if (parentTree.getKind() == Tree.Kind.RETURN) {
-        Tree methodTree = TreePathUtil.enclosingMethodOrLambda(path.getParentPath());
-        if (methodTree.getKind() == Tree.Kind.METHOD) {
-          AnnotatedExecutableType methodType =
-              atypeFactory.getAnnotatedType((MethodTree) methodTree);
-          contextType = methodType.getReturnType();
-        }
-      } else if (parentTree.getKind() == Tree.Kind.METHOD_INVOCATION && useAssignmentContext) {
-        MethodInvocationTree methodInvocationTree = (MethodInvocationTree) parentTree;
-        useAssignmentContext = false;
-        AnnotatedExecutableType m;
-        try {
-          if (atypeFactory.shouldCache
-              && methodInvocationToType.containsKey(methodInvocationTree)) {
-            m = methodInvocationToType.get(methodInvocationTree);
-          } else {
-            m = atypeFactory.methodFromUse(methodInvocationTree).executableType;
-            if (atypeFactory.shouldCache) {
-              methodInvocationToType.put(methodInvocationTree, m);
+    /**
+     * A mapping from {@code MethodInvocationTree} to the type of its declaration adapted to the
+     * call site. This is a cache used when getting the type of a new array expression that is an
+     * argument to a method. Getting the call-site-adapted type of a method also gets the type of
+     * all the arguments at the call site. (This happens both for resolving polymorphic methods and
+     * for method type argument inference.) {@link #useAssignmentContext} is used to prevent
+     * infinite recursion and this cache is used to improve performance.
+     */
+    private final Map<MethodInvocationTree, AnnotatedExecutableType> methodInvocationToType =
+            CollectionsPlume.createLruCache(300);
+
+    @Override
+    public Void visitNewArray(NewArrayTree arrayTree, AnnotatedTypeMirror arrayType) {
+        assert arrayType.getKind() == TypeKind.ARRAY
+                : "PropagationTreeAnnotator.visitNewArray: should be an array type";
+
+        AnnotatedTypeMirror componentType = ((AnnotatedArrayType) arrayType).getComponentType();
+        TypeMirror componentTM = componentType.getUnderlyingType();
+
+        // prev is the lub of the initializers if they exist, otherwise the current component type.
+        Set<? extends AnnotationMirror> prev = null;
+        if (arrayTree.getInitializers() != null && !arrayTree.getInitializers().isEmpty()) {
+            // We have initializers, either with or without an array type.
+
+            // TODO (issue #599): This only works at the top level.  It should work at all levels of
+            // the array.
+            for (ExpressionTree init : arrayTree.getInitializers()) {
+                AnnotatedTypeMirror initType = atypeFactory.getAnnotatedType(init);
+                // initType might be a typeVariable, so use effectiveAnnotations.
+                AnnotationMirrorSet annos = initType.getEffectiveAnnotations();
+
+                prev =
+                        (prev == null)
+                                ? annos
+                                : qualHierarchy.leastUpperBoundsShallow(
+                                        prev, componentTM, annos, initType.getUnderlyingType());
             }
-          }
-        } finally {
-          useAssignmentContext = true;
+        } else {
+            prev = componentType.getAnnotations();
         }
 
-        int parametersCount = m.getParameterTypes().size();
-        boolean isVarargs = m.getElement().isVarArgs();
+        assert prev != null
+                : "PropagationTreeAnnotator.visitNewArray: violated assumption about qualifiers";
 
-        // If the method accepts varargs, we handle the vararg parameter after this
-        // for-loop.
-        for (int i = 0; i < parametersCount; i++) {
-          @SuppressWarnings("interning") // Tree must be exactly the same.
-          boolean foundArgument = methodInvocationTree.getArguments().get(i) == arrayTree;
-          if (foundArgument) {
-            contextType = m.getParameterTypes().get(i);
-            break;
-          }
+        TreePath path = atypeFactory.getPath(arrayTree);
+        AnnotatedTypeMirror contextType = null;
+        if (path != null && path.getParentPath() != null) {
+            Tree parentTree = path.getParentPath().getLeaf();
+            if (parentTree.getKind() == Tree.Kind.ASSIGNMENT) {
+                Tree var = ((AssignmentTree) parentTree).getVariable();
+                contextType = atypeFactory.getAnnotatedType(var);
+            } else if (parentTree.getKind() == Tree.Kind.VARIABLE) {
+                if (!TreeUtils.isVariableTreeDeclaredUsingVar((VariableTree) parentTree)) {
+                    contextType = atypeFactory.getAnnotatedType(parentTree);
+                }
+            } else if (parentTree instanceof CompoundAssignmentTree) {
+                Tree var = ((CompoundAssignmentTree) parentTree).getVariable();
+                contextType = atypeFactory.getAnnotatedType(var);
+            } else if (parentTree.getKind() == Tree.Kind.RETURN) {
+                Tree methodTree = TreePathUtil.enclosingMethodOrLambda(path.getParentPath());
+                if (methodTree.getKind() == Tree.Kind.METHOD) {
+                    AnnotatedExecutableType methodType =
+                            atypeFactory.getAnnotatedType((MethodTree) methodTree);
+                    contextType = methodType.getReturnType();
+                }
+            } else if (parentTree.getKind() == Tree.Kind.METHOD_INVOCATION
+                    && useAssignmentContext) {
+                MethodInvocationTree methodInvocationTree = (MethodInvocationTree) parentTree;
+                useAssignmentContext = false;
+                AnnotatedExecutableType m;
+                try {
+                    if (atypeFactory.shouldCache
+                            && methodInvocationToType.containsKey(methodInvocationTree)) {
+                        m = methodInvocationToType.get(methodInvocationTree);
+                    } else {
+                        m = atypeFactory.methodFromUse(methodInvocationTree).executableType;
+                        if (atypeFactory.shouldCache) {
+                            methodInvocationToType.put(methodInvocationTree, m);
+                        }
+                    }
+                } finally {
+                    useAssignmentContext = true;
+                }
+
+                int parametersCount = m.getParameterTypes().size();
+                boolean isVarargs = m.getElement().isVarArgs();
+
+                // If the method accepts varargs, we handle the vararg parameter after this
+                // for-loop.
+                for (int i = 0; i < parametersCount; i++) {
+                    @SuppressWarnings("interning") // Tree must be exactly the same.
+                    boolean foundArgument = methodInvocationTree.getArguments().get(i) == arrayTree;
+                    if (foundArgument) {
+                        contextType = m.getParameterTypes().get(i);
+                        break;
+                    }
+                }
+
+                if (isVarargs && contextType == null) {
+                    // The previous for-loop did not find any arguments matching the
+                    // new array tree, thus the tree has to be an argument for varargs.
+                    //
+                    // The tree could be an artificial tree when the code doesn't provide
+                    // any explicit arguments for the varargs (i.e., an empty array).
+                    // So we don't try getting the argument from methodInvocationTree
+                    // to avoid out-of-bound exception.
+                    contextType = m.getVarargType();
+                }
+            }
+        }
+        Set<? extends AnnotationMirror> post;
+
+        if (contextType instanceof AnnotatedArrayType) {
+            AnnotatedTypeMirror contextComponentType =
+                    ((AnnotatedArrayType) contextType).getComponentType();
+            // Only compare the qualifiers that existed in the array type.
+            // Defaulting wasn't performed yet, so prev might have fewer qualifiers than
+            // contextComponentType, which would cause a failure.
+            // TODO: better solution?
+            TypeMirror contextCTM = contextComponentType.getUnderlyingType();
+            boolean prevIsSubtype = true;
+            for (AnnotationMirror am : prev) {
+                if (contextComponentType.hasAnnotationInHierarchy(am)
+                        && !this.qualHierarchy.isSubtypeShallow(
+                                am,
+                                contextCTM,
+                                contextComponentType.getAnnotationInHierarchy(am),
+                                contextCTM)) {
+                    prevIsSubtype = false;
+                }
+            }
+            // TODO: checking conformance of component kinds is a basic sanity check
+            // It fails for array initializer expressions. Those should be handled nicer.
+            if (contextComponentType.getKind() == componentType.getKind()
+                    && (prev.isEmpty()
+                            || (!contextComponentType.getAnnotations().isEmpty()
+                                    && prevIsSubtype))) {
+                post = contextComponentType.getAnnotations();
+            } else {
+                // The type of the array initializers is incompatible with the context type!
+                // Somebody else will complain.
+                post = prev;
+            }
+        } else {
+            // No context is available - simply use what we have.
+            post = prev;
+        }
+        // TODO (issue #599): This only works at the top level.  It should work at all levels of
+        // the array.
+        addAnnoOrBound(componentType, post);
+
+        return null;
+    }
+
+    @Override
+    public Void visitCompoundAssignment(CompoundAssignmentTree tree, AnnotatedTypeMirror type) {
+        if (hasPrimaryAnnotationInAllHierarchies(type)) {
+            // If the type already has a primary annotation in all hierarchies, then the
+            // propagated annotations won't be applied.  So don't compute them.
+            return null;
         }
 
-        if (isVarargs && contextType == null) {
-          // The previous for-loop did not find any arguments matching the
-          // new array tree, thus the tree has to be an argument for varargs.
-          //
-          // The tree could be an artificial tree when the code doesn't provide
-          // any explicit arguments for the varargs (i.e., an empty array).
-          // So we don't try getting the argument from methodInvocationTree
-          // to avoid out-of-bound exception.
-          contextType = m.getVarargType();
+        IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> argTypes =
+                atypeFactory.compoundAssignmentTreeArgTypes(tree);
+        AnnotatedTypeMirror rhs = argTypes.first;
+        AnnotatedTypeMirror lhs = argTypes.second;
+        Set<? extends AnnotationMirror> lubs =
+                qualHierarchy.leastUpperBoundsShallow(
+                        rhs.getEffectiveAnnotations(),
+                        rhs.getUnderlyingType(),
+                        lhs.getEffectiveAnnotations(),
+                        lhs.getUnderlyingType());
+        type.addMissingAnnotations(lubs);
+
+        return null;
+    }
+
+    @Override
+    public Void visitBinary(BinaryTree tree, AnnotatedTypeMirror type) {
+        if (hasPrimaryAnnotationInAllHierarchies(type)) {
+            // If the type already has a primary annotation in all hierarchies, then the
+            // propagated annotations won't be applied.  So don't compute them.
+            // Also, calling getAnnotatedType on the left and right operands is potentially
+            // expensive.
+            return null;
         }
-      }
-    }
-    Set<? extends AnnotationMirror> post;
 
-    if (contextType instanceof AnnotatedArrayType) {
-      AnnotatedTypeMirror contextComponentType =
-          ((AnnotatedArrayType) contextType).getComponentType();
-      // Only compare the qualifiers that existed in the array type.
-      // Defaulting wasn't performed yet, so prev might have fewer qualifiers than
-      // contextComponentType, which would cause a failure.
-      // TODO: better solution?
-      TypeMirror contextCTM = contextComponentType.getUnderlyingType();
-      boolean prevIsSubtype = true;
-      for (AnnotationMirror am : prev) {
-        if (contextComponentType.hasAnnotationInHierarchy(am)
-            && !this.qualHierarchy.isSubtypeShallow(
-                am, contextCTM, contextComponentType.getAnnotationInHierarchy(am), contextCTM)) {
-          prevIsSubtype = false;
+        if (!((GenericAnnotatedTypeFactory) atypeFactory).isRelevant(type)) {
+            return null;
         }
-      }
-      // TODO: checking conformance of component kinds is a basic sanity check
-      // It fails for array initializer expressions. Those should be handled nicer.
-      if (contextComponentType.getKind() == componentType.getKind()
-          && (prev.isEmpty()
-              || (!contextComponentType.getAnnotations().isEmpty() && prevIsSubtype))) {
-        post = contextComponentType.getAnnotations();
-      } else {
-        // The type of the array initializers is incompatible with the context type!
-        // Somebody else will complain.
-        post = prev;
-      }
-    } else {
-      // No context is available - simply use what we have.
-      post = prev;
-    }
-    // TODO (issue #599): This only works at the top level.  It should work at all levels of
-    // the array.
-    addAnnoOrBound(componentType, post);
 
-    return null;
-  }
+        IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> argTypes =
+                atypeFactory.binaryTreeArgTypes(tree);
+        AnnotatedTypeMirror type1 = argTypes.first;
+        AnnotatedTypeMirror type2 = argTypes.second;
+        Set<? extends AnnotationMirror> lubs =
+                qualHierarchy.leastUpperBoundsShallow(
+                        type1.getEffectiveAnnotations(),
+                        type1.getUnderlyingType(),
+                        type2.getEffectiveAnnotations(),
+                        type2.getUnderlyingType());
 
-  @Override
-  public Void visitCompoundAssignment(CompoundAssignmentTree tree, AnnotatedTypeMirror type) {
-    if (hasPrimaryAnnotationInAllHierarchies(type)) {
-      // If the type already has a primary annotation in all hierarchies, then the
-      // propagated annotations won't be applied.  So don't compute them.
-      return null;
-    }
-
-    IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> argTypes =
-        atypeFactory.compoundAssignmentTreeArgTypes(tree);
-    AnnotatedTypeMirror rhs = argTypes.first;
-    AnnotatedTypeMirror lhs = argTypes.second;
-    Set<? extends AnnotationMirror> lubs =
-        qualHierarchy.leastUpperBoundsShallow(
-            rhs.getEffectiveAnnotations(),
-            rhs.getUnderlyingType(),
-            lhs.getEffectiveAnnotations(),
-            lhs.getUnderlyingType());
-    type.addMissingAnnotations(lubs);
-
-    return null;
-  }
-
-  @Override
-  public Void visitBinary(BinaryTree tree, AnnotatedTypeMirror type) {
-    if (hasPrimaryAnnotationInAllHierarchies(type)) {
-      // If the type already has a primary annotation in all hierarchies, then the
-      // propagated annotations won't be applied.  So don't compute them.
-      // Also, calling getAnnotatedType on the left and right operands is potentially
-      // expensive.
-      return null;
-    }
-
-    if (!((GenericAnnotatedTypeFactory) atypeFactory).isRelevant(type)) {
-      return null;
-    }
-
-    IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> argTypes =
-        atypeFactory.binaryTreeArgTypes(tree);
-    AnnotatedTypeMirror type1 = argTypes.first;
-    AnnotatedTypeMirror type2 = argTypes.second;
-    Set<? extends AnnotationMirror> lubs =
-        qualHierarchy.leastUpperBoundsShallow(
-            type1.getEffectiveAnnotations(),
-            type1.getUnderlyingType(),
-            type2.getEffectiveAnnotations(),
-            type2.getUnderlyingType());
-
-    if (TreeUtils.isBinaryComparison(tree)) {
-      // When we have binary comparison, the result type (boolean) can be different
-      // from the operands' types. So we need to apply the bounds of boolean to the
-      // lubs.
-      lubs = atypeFactory.getAnnotationOrTypeDeclarationBound(type.getUnderlyingType(), lubs);
-    }
-
-    log(
-        "%s PTA.visitBinary(%s, %s)%n  argTypes=%s%n  lubs=%s%n",
-        atypeFactory.getClass().getSimpleName(), tree, type, argTypes, lubs);
-
-    type.addMissingAnnotations(lubs);
-    log("PTA.visitBinary(%s, ...): final type = %s%n", tree, type);
-
-    return null;
-  }
-
-  @Override
-  public Void visitUnary(UnaryTree tree, AnnotatedTypeMirror type) {
-    if (hasPrimaryAnnotationInAllHierarchies(type)) {
-      // If the type already has a primary annotation in all hierarchies, then the
-      // propagated annotations won't be applied.  So don't compute them.
-      return null;
-    }
-
-    AnnotatedTypeMirror exp = atypeFactory.getAnnotatedType(tree.getExpression());
-    type.addMissingAnnotations(exp.getAnnotations());
-    return null;
-  }
-
-  /*
-   * TODO: would this make sense in general?
-  @Override
-  public Void visitConditionalExpression(ConditionalExpressionTree tree, AnnotatedTypeMirror type) {
-      if (!type.isAnnotated()) {
-          AnnotatedTypeMirror a = typeFactory.getAnnotatedType(tree.getTrueExpression());
-          AnnotatedTypeMirror b = typeFactory.getAnnotatedType(tree.getFalseExpression());
-          AnnotationMirrorSet lubs = qualHierarchy.leastUpperBounds(a.getEffectiveAnnotations(), b.getEffectiveAnnotations());
-          type.replaceAnnotations(lubs);
-      }
-      return super.visitConditionalExpression(tree, type);
-  }*/
-
-  @Override
-  public Void visitTypeCast(TypeCastTree tree, AnnotatedTypeMirror type) {
-    if (!((GenericAnnotatedTypeFactory) atypeFactory).isRelevant(type)) {
-      return null;
-    }
-
-    if (hasPrimaryAnnotationInAllHierarchies(type)) {
-      // If the type is already has a primary annotation in all hierarchies, then the
-      // propagated annotations won't be applied.  So don't compute them.
-      log("PTA.visitTypeCast(%s, %s): hasPrimaryAnnotationInAllHierarchies%n", tree, type);
-      return null;
-    }
-
-    AnnotatedTypeMirror exprType = atypeFactory.getAnnotatedType(tree.getExpression());
-    if (type.getKind() == TypeKind.TYPEVAR) {
-      if (exprType.getKind() == TypeKind.TYPEVAR) {
-        // If both types are type variables, take the direct annotations.
-        type.addMissingAnnotations(exprType.getAnnotations());
-      }
-      // else do nothing.
-    } else {
-      // Use effective annotations from the expression, to get upper bound of type variables.
-      AnnotationMirrorSet expressionAnnos = exprType.getEffectiveAnnotations();
-      log(
-          "PTA.visitTypeCast(%s, %s): getEffectiveAnnotations(%s) = %s%n",
-          tree, type, exprType, expressionAnnos);
-
-      TypeKind castKind = type.getPrimitiveKind();
-      if (castKind != null) {
-        TypeKind exprKind = exprType.getPrimitiveKind();
-        if (exprKind != null) {
-          switch (TypeKindUtils.getPrimitiveConversionKind(exprKind, castKind)) {
-            case WIDENING:
-              expressionAnnos =
-                  atypeFactory.getWidenedAnnotations(expressionAnnos, exprKind, castKind);
-              break;
-            case NARROWING:
-              atypeFactory.getNarrowedAnnotations(expressionAnnos, exprKind, castKind);
-              break;
-            case SAME:
-              // Nothing to do
-              break;
-          }
+        if (TreeUtils.isBinaryComparison(tree)) {
+            // When we have binary comparison, the result type (boolean) can be different
+            // from the operands' types. So we need to apply the bounds of boolean to the
+            // lubs.
+            lubs = atypeFactory.getAnnotationOrTypeDeclarationBound(type.getUnderlyingType(), lubs);
         }
-      }
 
-      // If the qualifier on the expression type is a supertype of the qualifier upper bound
-      // of the cast type, then apply the bound as the default qualifier rather than the
-      // expression qualifier.
-      addAnnoOrBound(type, expressionAnnos);
+        log(
+                "%s PTA.visitBinary(%s, %s)%n  argTypes=%s%n  lubs=%s%n",
+                atypeFactory.getClass().getSimpleName(), tree, type, argTypes, lubs);
+
+        type.addMissingAnnotations(lubs);
+        log("PTA.visitBinary(%s, ...): final type = %s%n", tree, type);
+
+        return null;
     }
 
-    return null;
-  }
+    @Override
+    public Void visitUnary(UnaryTree tree, AnnotatedTypeMirror type) {
+        if (hasPrimaryAnnotationInAllHierarchies(type)) {
+            // If the type already has a primary annotation in all hierarchies, then the
+            // propagated annotations won't be applied.  So don't compute them.
+            return null;
+        }
 
-  private boolean hasPrimaryAnnotationInAllHierarchies(AnnotatedTypeMirror type) {
-    boolean annotated = true;
-    for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
-      if (type.getEffectiveAnnotationInHierarchy(top) == null) {
-        annotated = false;
-      }
+        AnnotatedTypeMirror exp = atypeFactory.getAnnotatedType(tree.getExpression());
+        type.addMissingAnnotations(exp.getAnnotations());
+        return null;
     }
-    return annotated;
-  }
 
-  /**
-   * Adds the qualifiers in {@code annos} to {@code type} that are below the qualifier upper bound
-   * of type and for which type does not already have annotation in the same hierarchy. If a
-   * qualifier in {@code annos} is above the bound, then the bound is added to {@code type} instead.
-   *
-   * @param type annotations are added to this type
-   * @param annos annotations to add to type
-   */
-  private void addAnnoOrBound(AnnotatedTypeMirror type, Set<? extends AnnotationMirror> annos) {
-    log("addAnnoOrBound(%s, %s)%n", type, annos);
-    AnnotationMirrorSet annosToAdd =
-        atypeFactory.getAnnotationOrTypeDeclarationBound(type.getUnderlyingType(), annos);
-    type.addMissingAnnotations(annosToAdd);
-    log("addAnnoOrBound#2(%s, %s)%n", type, annos);
-  }
+    /*
+     * TODO: would this make sense in general?
+    @Override
+    public Void visitConditionalExpression(ConditionalExpressionTree tree, AnnotatedTypeMirror type) {
+        if (!type.isAnnotated()) {
+            AnnotatedTypeMirror a = typeFactory.getAnnotatedType(tree.getTrueExpression());
+            AnnotatedTypeMirror b = typeFactory.getAnnotatedType(tree.getFalseExpression());
+            AnnotationMirrorSet lubs = qualHierarchy.leastUpperBounds(a.getEffectiveAnnotations(), b.getEffectiveAnnotations());
+            type.replaceAnnotations(lubs);
+        }
+        return super.visitConditionalExpression(tree, type);
+    }*/
+
+    @Override
+    public Void visitTypeCast(TypeCastTree tree, AnnotatedTypeMirror type) {
+        if (!((GenericAnnotatedTypeFactory) atypeFactory).isRelevant(type)) {
+            return null;
+        }
+
+        if (hasPrimaryAnnotationInAllHierarchies(type)) {
+            // If the type is already has a primary annotation in all hierarchies, then the
+            // propagated annotations won't be applied.  So don't compute them.
+            log("PTA.visitTypeCast(%s, %s): hasPrimaryAnnotationInAllHierarchies%n", tree, type);
+            return null;
+        }
+
+        AnnotatedTypeMirror exprType = atypeFactory.getAnnotatedType(tree.getExpression());
+        if (type.getKind() == TypeKind.TYPEVAR) {
+            if (exprType.getKind() == TypeKind.TYPEVAR) {
+                // If both types are type variables, take the direct annotations.
+                type.addMissingAnnotations(exprType.getAnnotations());
+            }
+            // else do nothing.
+        } else {
+            // Use effective annotations from the expression, to get upper bound of type variables.
+            AnnotationMirrorSet expressionAnnos = exprType.getEffectiveAnnotations();
+            log(
+                    "PTA.visitTypeCast(%s, %s): getEffectiveAnnotations(%s) = %s%n",
+                    tree, type, exprType, expressionAnnos);
+
+            TypeKind castKind = type.getPrimitiveKind();
+            if (castKind != null) {
+                TypeKind exprKind = exprType.getPrimitiveKind();
+                if (exprKind != null) {
+                    switch (TypeKindUtils.getPrimitiveConversionKind(exprKind, castKind)) {
+                        case WIDENING:
+                            expressionAnnos =
+                                    atypeFactory.getWidenedAnnotations(
+                                            expressionAnnos, exprKind, castKind);
+                            break;
+                        case NARROWING:
+                            atypeFactory.getNarrowedAnnotations(
+                                    expressionAnnos, exprKind, castKind);
+                            break;
+                        case SAME:
+                            // Nothing to do
+                            break;
+                    }
+                }
+            }
+
+            // If the qualifier on the expression type is a supertype of the qualifier upper bound
+            // of the cast type, then apply the bound as the default qualifier rather than the
+            // expression qualifier.
+            addAnnoOrBound(type, expressionAnnos);
+        }
+
+        return null;
+    }
+
+    private boolean hasPrimaryAnnotationInAllHierarchies(AnnotatedTypeMirror type) {
+        boolean annotated = true;
+        for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
+            if (type.getEffectiveAnnotationInHierarchy(top) == null) {
+                annotated = false;
+            }
+        }
+        return annotated;
+    }
+
+    /**
+     * Adds the qualifiers in {@code annos} to {@code type} that are below the qualifier upper bound
+     * of type and for which type does not already have annotation in the same hierarchy. If a
+     * qualifier in {@code annos} is above the bound, then the bound is added to {@code type}
+     * instead.
+     *
+     * @param type annotations are added to this type
+     * @param annos annotations to add to type
+     */
+    private void addAnnoOrBound(AnnotatedTypeMirror type, Set<? extends AnnotationMirror> annos) {
+        log("addAnnoOrBound(%s, %s)%n", type, annos);
+        AnnotationMirrorSet annosToAdd =
+                atypeFactory.getAnnotationOrTypeDeclarationBound(type.getUnderlyingType(), annos);
+        type.addMissingAnnotations(annosToAdd);
+        log("addAnnoOrBound#2(%s, %s)%n", type, annos);
+    }
 }

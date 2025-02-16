@@ -5,97 +5,97 @@
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 final class FinalClassLambda1 {
-  @Nullable String s;
+    @Nullable String s;
 
-  FinalClassLambda1() {
-    use(this::init);
-  }
+    FinalClassLambda1() {
+        use(this::init);
+    }
 
-  void init() {}
+    void init() {}
 
-  static void use(Runnable r) {}
+    static void use(Runnable r) {}
 }
 
 final class FinalClassLambda2 extends FinalClassLambda2Base {
-  @Nullable String s;
+    @Nullable String s;
 
-  FinalClassLambda2() {
-    use(() -> init());
-    use(
-        new Runnable() {
-          @Override
-          public void run() {
-            init();
-          }
-        });
-  }
+    FinalClassLambda2() {
+        use(() -> init());
+        use(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        init();
+                    }
+                });
+    }
 
-  void init() {}
+    void init() {}
 }
 
 class FinalClassLambda2Base {
-  void use(Runnable r) {}
+    void use(Runnable r) {}
 }
 
 final class FinalClassLambda3 {
-  String s;
+    String s;
 
-  FinalClassLambda3() {
-    s = "hello";
-    use(this::init);
-  }
+    FinalClassLambda3() {
+        s = "hello";
+        use(this::init);
+    }
 
-  void init() {}
+    void init() {}
 
-  static void use(Runnable r) {}
+    static void use(Runnable r) {}
 }
 
 final class FinalClassLambda4 extends FinalClassLambda2Base {
-  String s;
+    String s;
 
-  FinalClassLambda4() {
-    s = "world";
-    use(() -> init());
-    use(
-        new Runnable() {
-          @Override
-          public void run() {
-            init();
-          }
-        });
-  }
+    FinalClassLambda4() {
+        s = "world";
+        use(() -> init());
+        use(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        init();
+                    }
+                });
+    }
 
-  void init() {}
+    void init() {}
 }
 
 // Not a final class, but uses same name for consistency.
 class FinalClassLambda5 extends FinalClassLambda2Base {
-  String s;
+    String s;
 
-  FinalClassLambda5() {
-    s = "hello";
-    // :: error: (method.invocation.invalid)
-    use(
-        // :: error: (methodref.receiver.bound.invalid)
-        this::init);
-  }
-
-  FinalClassLambda5(int dummy) {
-    s = "world";
-    // :: error: (method.invocation.invalid)
-    use(
+    FinalClassLambda5() {
+        s = "hello";
         // :: error: (method.invocation.invalid)
-        () -> init());
-    // :: error: (method.invocation.invalid)
-    use(
-        new Runnable() {
-          @Override
-          public void run() {
-            // :: error: (method.invocation.invalid)
-            init();
-          }
-        });
-  }
+        use(
+                // :: error: (methodref.receiver.bound.invalid)
+                this::init);
+    }
 
-  void init() {}
+    FinalClassLambda5(int dummy) {
+        s = "world";
+        // :: error: (method.invocation.invalid)
+        use(
+                // :: error: (method.invocation.invalid)
+                () -> init());
+        // :: error: (method.invocation.invalid)
+        use(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        // :: error: (method.invocation.invalid)
+                        init();
+                    }
+                });
+    }
+
+    void init() {}
 }

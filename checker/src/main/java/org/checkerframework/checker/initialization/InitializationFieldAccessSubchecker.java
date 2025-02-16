@@ -1,9 +1,10 @@
 package org.checkerframework.checker.initialization;
 
-import java.util.List;
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
+
+import java.util.List;
 
 /**
  * Part of the freedom-before-commitment type system.
@@ -21,32 +22,33 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
  */
 public class InitializationFieldAccessSubchecker extends BaseTypeChecker {
 
-  /** Default constructor for InitializationFieldAccessSubchecker. */
-  public InitializationFieldAccessSubchecker() {}
+    /** Default constructor for InitializationFieldAccessSubchecker. */
+    public InitializationFieldAccessSubchecker() {}
 
-  /**
-   * Also handle {@code AnnotatedFor} annotations for the {@link InitializationChecker}. See {@link
-   * InitializationChecker#getUpstreamCheckerNames()} and the two implementations should be kept in
-   * sync.
-   */
-  @Override
-  public List<@FullyQualifiedName String> getUpstreamCheckerNames() {
-    if (upstreamCheckerNames == null) {
-      super.getUpstreamCheckerNames();
-      upstreamCheckerNames.add(InitializationChecker.class.getName());
+    /**
+     * Also handle {@code AnnotatedFor} annotations for the {@link InitializationChecker}. See
+     * {@link InitializationChecker#getUpstreamCheckerNames()} and the two implementations should be
+     * kept in sync.
+     */
+    @Override
+    public List<@FullyQualifiedName String> getUpstreamCheckerNames() {
+        if (upstreamCheckerNames == null) {
+            super.getUpstreamCheckerNames();
+            upstreamCheckerNames.add(InitializationChecker.class.getName());
+        }
+        return upstreamCheckerNames;
     }
-    return upstreamCheckerNames;
-  }
 
-  // Suppress all errors and warnings, since they are also reported by the InitializationChecker
+    // Suppress all errors and warnings, since they are also reported by the InitializationChecker
 
-  @Override
-  public void reportError(Object source, @CompilerMessageKey String messageKey, Object... args) {
-    // do nothing
-  }
+    @Override
+    public void reportError(Object source, @CompilerMessageKey String messageKey, Object... args) {
+        // do nothing
+    }
 
-  @Override
-  public void reportWarning(Object source, @CompilerMessageKey String messageKey, Object... args) {
-    // do nothing
-  }
+    @Override
+    public void reportWarning(
+            Object source, @CompilerMessageKey String messageKey, Object... args) {
+        // do nothing
+    }
 }
