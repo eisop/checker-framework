@@ -6,26 +6,26 @@
 
 public class ConflictingAnnotationsTest {
 
-  int getWPINamespaceAinferSibling1() {
-    return getAinferSibling1();
-  }
+    int getWPINamespaceAinferSibling1() {
+        return getAinferSibling1();
+    }
 
-  // This version of AinferSibling1 is not typechecked - it doesn't belong to the checker and
-  // instead is
-  // defined in the AinferSibling1.java file in this directory.
-  @AinferSibling1 Object getLocalAinferSibling1(Object o) {
-    return o;
-  }
+    // This version of AinferSibling1 is not typechecked - it doesn't belong to the checker and
+    // instead is
+    // defined in the AinferSibling1.java file in this directory.
+    @AinferSibling1 Object getLocalAinferSibling1(Object o) {
+        return o;
+    }
 
-  void test() {
-    // :: warning: argument.type.incompatible
-    expectsAinferSibling1(getWPINamespaceAinferSibling1());
-  }
+    void test() {
+        // :: warning: argument.type.incompatible
+        expectsAinferSibling1(getWPINamespaceAinferSibling1());
+    }
 
-  @org.checkerframework.checker.testchecker.ainfer.qual.AinferSibling1 int getAinferSibling1() {
-    return 1;
-  }
+    @org.checkerframework.checker.testchecker.ainfer.qual.AinferSibling1 int getAinferSibling1() {
+        return 1;
+    }
 
-  void expectsAinferSibling1(
-      @org.checkerframework.checker.testchecker.ainfer.qual.AinferSibling1 int i) {}
+    void expectsAinferSibling1(
+            @org.checkerframework.checker.testchecker.ainfer.qual.AinferSibling1 int i) {}
 }
