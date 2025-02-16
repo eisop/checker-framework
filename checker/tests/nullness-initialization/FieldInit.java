@@ -1,5 +1,5 @@
 public class FieldInit {
-    // :: error: (argument.type.incompatible) :: error: (method.invocation.invalid)
+    // :: error: (argument.type.incompatible) :: error: (initialization.method.invocation.invalid)
     String f = init(this);
 
     String init(FieldInit o) {
