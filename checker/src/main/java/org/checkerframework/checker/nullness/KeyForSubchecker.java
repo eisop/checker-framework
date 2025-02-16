@@ -1,8 +1,7 @@
 package org.checkerframework.checker.nullness;
 
-import org.checkerframework.common.basetype.BaseTypeChecker;
-
 import javax.annotation.processing.SupportedOptions;
+import org.checkerframework.common.basetype.BaseTypeChecker;
 
 /**
  * A type-checker for determining which values are keys for which maps. Typically used as part of
