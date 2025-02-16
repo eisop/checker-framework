@@ -3,7 +3,10 @@ package org.checkerframework.checker.initialization;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
-
+import java.util.ArrayList;
+import java.util.List;
+import java.util.NavigableSet;
+import java.util.Set;
 import org.checkerframework.checker.initialization.qual.HoldsForDefaultValue;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.NullnessChecker;
@@ -15,11 +18,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.source.SourceChecker;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.NavigableSet;
-import java.util.Set;
 
 /**
  * Tracks whether a value is initialized (all its fields are set), and checks that values are
@@ -72,89 +70,89 @@ import java.util.Set;
  */
 public abstract class InitializationChecker extends BaseTypeChecker {
 
-    /** Default constructor for InitializationChecker. */
-    public InitializationChecker() {}
+  /** Default constructor for InitializationChecker. */
+  public InitializationChecker() {}
 
-    /**
-     * Whether to check primitives for initialization.
-     *
-     * @return whether to check primitives for initialization
-     */
-    public abstract boolean checkPrimitives();
+  /**
+   * Whether to check primitives for initialization.
+   *
+   * @return whether to check primitives for initialization
+   */
+  public abstract boolean checkPrimitives();
 
-    /**
-     * The checker for the target type system for which to check initialization.
-     *
-     * @return the checker for the target type system.
-     */
-    public abstract Class<? extends BaseTypeChecker> getTargetCheckerClass();
+  /**
+   * The checker for the target type system for which to check initialization.
+   *
+   * @return the checker for the target type system.
+   */
+  public abstract Class<? extends BaseTypeChecker> getTargetCheckerClass();
 
-    /**
-     * Also handle {@code AnnotatedFor} annotations for this checker. See {@link
-     * InitializationFieldAccessSubchecker#getUpstreamCheckerNames()} and the two implementations
-     * should be kept in sync.
-     */
-    @Override
-    public List<@FullyQualifiedName String> getUpstreamCheckerNames() {
-        if (upstreamCheckerNames == null) {
-            super.getUpstreamCheckerNames();
-            upstreamCheckerNames.add(InitializationChecker.class.getName());
-        }
-        return upstreamCheckerNames;
+  /**
+   * Also handle {@code AnnotatedFor} annotations for this checker. See {@link
+   * InitializationFieldAccessSubchecker#getUpstreamCheckerNames()} and the two implementations
+   * should be kept in sync.
+   */
+  @Override
+  public List<@FullyQualifiedName String> getUpstreamCheckerNames() {
+    if (upstreamCheckerNames == null) {
+      super.getUpstreamCheckerNames();
+      upstreamCheckerNames.add(InitializationChecker.class.getName());
     }
+    return upstreamCheckerNames;
+  }
 
-    @Override
-    public NavigableSet<String> getSuppressWarningsPrefixes() {
-        NavigableSet<String> result = super.getSuppressWarningsPrefixes();
-        // "fbc" is for backward compatibility only; you should use
-        // "initialization" instead.
-        result.add("fbc");
-        // The default prefix "initialization" must be added manually because this checker class
-        // is abstract and its subclasses are not named "InitializationChecker".
-        result.add("initialization");
-        return result;
-    }
+  @Override
+  public NavigableSet<String> getSuppressWarningsPrefixes() {
+    NavigableSet<String> result = super.getSuppressWarningsPrefixes();
+    // "fbc" is for backward compatibility only; you should use
+    // "initialization" instead.
+    result.add("fbc");
+    // The default prefix "initialization" must be added manually because this checker class
+    // is abstract and its subclasses are not named "InitializationChecker".
+    result.add("initialization");
+    return result;
+  }
 
-    @Override
-    protected Set<Class<? extends SourceChecker>> getImmediateSubcheckerClasses() {
-        Set<Class<? extends SourceChecker>> checkers = super.getImmediateSubcheckerClasses();
-        checkers.add(getTargetCheckerClass());
-        return checkers;
-    }
+  @Override
+  protected Set<Class<? extends SourceChecker>> getImmediateSubcheckerClasses() {
+    Set<Class<? extends SourceChecker>> checkers = super.getImmediateSubcheckerClasses();
+    checkers.add(getTargetCheckerClass());
+    return checkers;
+  }
 
-    /**
-     * Returns a list of all fields of the given class.
-     *
-     * @param clazz the class
-     * @return a list of all fields of {@code clazz}
-     */
-    public static List<VariableTree> getAllFields(ClassTree clazz) {
-        List<VariableTree> fields = new ArrayList<>();
-        for (Tree t : clazz.getMembers()) {
-            if (t.getKind() == Tree.Kind.VARIABLE) {
-                VariableTree vt = (VariableTree) t;
-                fields.add(vt);
-            }
-        }
-        return fields;
+  /**
+   * Returns a list of all fields of the given class.
+   *
+   * @param clazz the class
+   * @return a list of all fields of {@code clazz}
+   */
+  public static List<VariableTree> getAllFields(ClassTree clazz) {
+    List<VariableTree> fields = new ArrayList<>();
+    for (Tree t : clazz.getMembers()) {
+      if (t.getKind() == Tree.Kind.VARIABLE) {
+        VariableTree vt = (VariableTree) t;
+        fields.add(vt);
+      }
     }
+    return fields;
+  }
 
-    @Override
-    public InitializationAnnotatedTypeFactory getTypeFactory() {
-        return (InitializationAnnotatedTypeFactory) super.getTypeFactory();
-    }
+  @Override
+  public InitializationAnnotatedTypeFactory getTypeFactory() {
+    return (InitializationAnnotatedTypeFactory) super.getTypeFactory();
+  }
 
-    @Override
-    protected InitializationVisitor createSourceVisitor() {
-        return new InitializationVisitor(this);
-    }
+  @Override
+  protected InitializationVisitor createSourceVisitor() {
+    return new InitializationVisitor(this);
+  }
 
-    @Override
-    protected boolean messageKeyMatches(
-            String messageKey, String messageKeyInSuppressWarningsString) {
-        // Also support the shorter keys used by typetools
-        return super.messageKeyMatches(messageKey, messageKeyInSuppressWarningsString)
-                || super.messageKeyMatches(
-                        messageKey.replace(".invalid", ""), messageKeyInSuppressWarningsString);
-    }
+  @Override
+  protected boolean messageKeyMatches(
+      String messageKey, String messageKeyInSuppressWarningsString) {
+    // Also support the shorter keys used by typetools
+    return super.messageKeyMatches(messageKey, messageKeyInSuppressWarningsString)
+        || super.messageKeyMatches(
+            messageKey.replace(".invalid", ""), messageKeyInSuppressWarningsString);
+  }
 }

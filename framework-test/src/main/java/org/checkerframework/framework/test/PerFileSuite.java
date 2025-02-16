@@ -1,16 +1,5 @@
 package org.checkerframework.framework.test;
 
-import org.checkerframework.javacutil.BugInCF;
-import org.junit.runner.Runner;
-import org.junit.runner.notification.RunNotifier;
-import org.junit.runners.BlockJUnit4ClassRunner;
-import org.junit.runners.Parameterized.Parameters;
-import org.junit.runners.model.FrameworkMethod;
-import org.junit.runners.model.InitializationError;
-import org.junit.runners.model.Statement;
-import org.junit.runners.model.TestClass;
-import org.plumelib.util.CollectionsPlume;
-
 import java.io.File;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -21,6 +10,16 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.StringJoiner;
+import org.checkerframework.javacutil.BugInCF;
+import org.junit.runner.Runner;
+import org.junit.runner.notification.RunNotifier;
+import org.junit.runners.BlockJUnit4ClassRunner;
+import org.junit.runners.Parameterized.Parameters;
+import org.junit.runners.model.FrameworkMethod;
+import org.junit.runners.model.InitializationError;
+import org.junit.runners.model.Statement;
+import org.junit.runners.model.TestClass;
+import org.plumelib.util.CollectionsPlume;
 
 // TODO: large parts of this file are the same as PerDirectorySuite.java.
 // Reduce duplication by moving common parts to an abstract class.
@@ -37,189 +36,186 @@ import java.util.StringJoiner;
  */
 public class PerFileSuite extends RootedSuite {
 
-    /** Name */
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.METHOD)
-    public @interface Name {}
+  /** Name */
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  public @interface Name {}
 
-    private final ArrayList<Runner> runners = new ArrayList<>();
+  private final ArrayList<Runner> runners = new ArrayList<>();
+
+  @Override
+  protected List<Runner> getChildren() {
+    return runners;
+  }
+
+  /**
+   * Only called reflectively. Do not use programmatically.
+   *
+   * @param klass the class whose tests to run
+   */
+  @SuppressWarnings("nullness") // JUnit needs to be annotated
+  public PerFileSuite(Class<?> klass) throws Throwable {
+    super(klass, Collections.emptyList());
+    TestClass testClass = getTestClass();
+    Class<?> javaTestClass = testClass.getJavaClass();
+    List<Object[]> parametersList = getParametersList(testClass);
+
+    for (Object[] parameters : parametersList) {
+      runners.add(new PerParameterSetTestRunner(javaTestClass, resolveTestDirectory(), parameters));
+    }
+  }
+
+  /** Returns a list of one-element arrays, each containing a Java File. */
+  @SuppressWarnings({
+    "unchecked",
+    "nullness" // JUnit needs to be annotated
+  })
+  private List<Object[]> getParametersList(TestClass klass) throws Throwable {
+    FrameworkMethod method = getParametersMethod(klass);
+
+    List<File> javaFiles;
+    // We will have either a method getTestDirs which returns String [] or getTestFiles
+    // which returns List<Object []> or getParametersMethod would fail
+    if (method == null) {
+      throw new BugInCF("no method annotated with @Parameters");
+    }
+    if (method.getReturnType().isArray()) {
+      String[] dirs = (String[]) method.invokeExplosively(null);
+      javaFiles = TestUtilities.findRelativeNestedJavaFiles(resolveTestDirectory(), dirs);
+    } else {
+      javaFiles = (List<File>) method.invokeExplosively(null);
+    }
+
+    List<Object[]> argumentLists =
+        CollectionsPlume.mapList((File javaFile) -> new Object[] {javaFile}, javaFiles);
+
+    return argumentLists;
+  }
+
+  /** Returns method annotated @Parameters, typically the getTestDirs or getTestFiles method. */
+  private FrameworkMethod getParametersMethod(TestClass testClass) {
+    List<FrameworkMethod> parameterMethods = testClass.getAnnotatedMethods(Parameters.class);
+    if (parameterMethods.size() != 1) {
+      // Construct error message
+
+      String methods;
+      if (parameterMethods.isEmpty()) {
+        methods = "[No methods specified]";
+      } else {
+        StringJoiner sj = new StringJoiner(", ");
+        for (FrameworkMethod method : parameterMethods) {
+          sj.add(method.getName());
+        }
+        methods = sj.toString();
+      }
+
+      throw new BugInCF(requiredFormsMessage, testClass.getName(), methods);
+    } // else
+
+    FrameworkMethod method = parameterMethods.get(0);
+
+    Class<?> returnType = method.getReturnType();
+    String methodName = method.getName();
+    switch (methodName) {
+      case "getTestDirs":
+        if (returnType.isArray()) {
+          if (returnType.getComponentType() != String.class) {
+            throw new RuntimeException(
+                "Component type of getTestDirs must be java.lang.String, found "
+                    + returnType.getComponentType().getCanonicalName());
+          }
+        }
+        break;
+
+      case "getTestFiles":
+        // We'll force people to return a List for now but enforcing exactly List<File> or a
+        // subtype thereof is not easy.
+        if (!List.class.getCanonicalName().equals(returnType.getCanonicalName())) {
+          throw new RuntimeException("getTestFiles must return a List<File>, found " + returnType);
+        }
+        break;
+
+      default:
+        throw new BugInCF(requiredFormsMessage, testClass.getName(), method);
+    }
+
+    int modifiers = method.getMethod().getModifiers();
+    if (!Modifier.isStatic(modifiers) || !Modifier.isPublic(modifiers)) {
+      throw new RuntimeException(
+          "Parameter method (" + method.getName() + ") must be public and static");
+    }
+
+    return method;
+  }
+
+  /** The message about the required getTestDirs or getTestFiles method. */
+  private static final String requiredFormsMessage =
+      "Parameter method must have one of the following two forms:%n"
+          + "@Parameters String [] getTestDirs()%n"
+          + "@Parameters List<File> getTestFiles()%n"
+          + "testClass=%s%n"
+          + "parameterMethods=%s";
+
+  /** Runs the test class for the set of parameters passed in the constructor. */
+  private static class PerParameterSetTestRunner extends BlockJUnit4ClassRunner {
+    /** A directory prefix to remove from the test name. */
+    private final File directoryPrefix;
+
+    /** The parameters, java source file(s) under {@link #directoryPrefix}. */
+    private final Object[] parameters;
+
+    /**
+     * Creates a PerParameterSetTestRunner for the test class {@code type}.
+     *
+     * @param type the test class
+     * @param directoryPrefix directory prefix to remove from the test name
+     * @param parameters java source file(s) under {@link #directoryPrefix}
+     * @throws InitializationError if the test class is malformed
+     */
+    PerParameterSetTestRunner(Class<?> type, File directoryPrefix, Object[] parameters)
+        throws InitializationError {
+      super(type);
+      this.directoryPrefix = directoryPrefix;
+      this.parameters = parameters;
+    }
 
     @Override
-    protected List<Runner> getChildren() {
-        return runners;
+    public Object createTest() throws Exception {
+      return getTestClass().getOnlyConstructor().newInstance(parameters);
     }
 
     /**
-     * Only called reflectively. Do not use programmatically.
+     * Returns the test case's name.
      *
-     * @param klass the class whose tests to run
+     * @return the test case's name
      */
-    @SuppressWarnings("nullness") // JUnit needs to be annotated
-    public PerFileSuite(Class<?> klass) throws Throwable {
-        super(klass, Collections.emptyList());
-        TestClass testClass = getTestClass();
-        Class<?> javaTestClass = testClass.getJavaClass();
-        List<Object[]> parametersList = getParametersList(testClass);
-
-        for (Object[] parameters : parametersList) {
-            runners.add(
-                    new PerParameterSetTestRunner(
-                            javaTestClass, resolveTestDirectory(), parameters));
-        }
+    String testCaseName() {
+      File file = (File) parameters[0];
+      String name =
+          file.getPath()
+              .replace(".java", "")
+              .replace(directoryPrefix.getPath() + File.separator, "");
+      return name;
     }
 
-    /** Returns a list of one-element arrays, each containing a Java File. */
-    @SuppressWarnings({
-        "unchecked",
-        "nullness" // JUnit needs to be annotated
-    })
-    private List<Object[]> getParametersList(TestClass klass) throws Throwable {
-        FrameworkMethod method = getParametersMethod(klass);
-
-        List<File> javaFiles;
-        // We will have either a method getTestDirs which returns String [] or getTestFiles
-        // which returns List<Object []> or getParametersMethod would fail
-        if (method == null) {
-            throw new BugInCF("no method annotated with @Parameters");
-        }
-        if (method.getReturnType().isArray()) {
-            String[] dirs = (String[]) method.invokeExplosively(null);
-            javaFiles = TestUtilities.findRelativeNestedJavaFiles(resolveTestDirectory(), dirs);
-        } else {
-            javaFiles = (List<File>) method.invokeExplosively(null);
-        }
-
-        List<Object[]> argumentLists =
-                CollectionsPlume.mapList((File javaFile) -> new Object[] {javaFile}, javaFiles);
-
-        return argumentLists;
+    @Override
+    protected String getName() {
+      return String.format("[%s]", testCaseName());
     }
 
-    /** Returns method annotated @Parameters, typically the getTestDirs or getTestFiles method. */
-    private FrameworkMethod getParametersMethod(TestClass testClass) {
-        List<FrameworkMethod> parameterMethods = testClass.getAnnotatedMethods(Parameters.class);
-        if (parameterMethods.size() != 1) {
-            // Construct error message
-
-            String methods;
-            if (parameterMethods.isEmpty()) {
-                methods = "[No methods specified]";
-            } else {
-                StringJoiner sj = new StringJoiner(", ");
-                for (FrameworkMethod method : parameterMethods) {
-                    sj.add(method.getName());
-                }
-                methods = sj.toString();
-            }
-
-            throw new BugInCF(requiredFormsMessage, testClass.getName(), methods);
-        } // else
-
-        FrameworkMethod method = parameterMethods.get(0);
-
-        Class<?> returnType = method.getReturnType();
-        String methodName = method.getName();
-        switch (methodName) {
-            case "getTestDirs":
-                if (returnType.isArray()) {
-                    if (returnType.getComponentType() != String.class) {
-                        throw new RuntimeException(
-                                "Component type of getTestDirs must be java.lang.String, found "
-                                        + returnType.getComponentType().getCanonicalName());
-                    }
-                }
-                break;
-
-            case "getTestFiles":
-                // We'll force people to return a List for now but enforcing exactly List<File> or a
-                // subtype thereof is not easy.
-                if (!List.class.getCanonicalName().equals(returnType.getCanonicalName())) {
-                    throw new RuntimeException(
-                            "getTestFiles must return a List<File>, found " + returnType);
-                }
-                break;
-
-            default:
-                throw new BugInCF(requiredFormsMessage, testClass.getName(), method);
-        }
-
-        int modifiers = method.getMethod().getModifiers();
-        if (!Modifier.isStatic(modifiers) || !Modifier.isPublic(modifiers)) {
-            throw new RuntimeException(
-                    "Parameter method (" + method.getName() + ") must be public and static");
-        }
-
-        return method;
+    @Override
+    protected String testName(FrameworkMethod method) {
+      return String.format("%s[%s]", method.getName(), testCaseName());
     }
 
-    /** The message about the required getTestDirs or getTestFiles method. */
-    private static final String requiredFormsMessage =
-            "Parameter method must have one of the following two forms:%n"
-                    + "@Parameters String [] getTestDirs()%n"
-                    + "@Parameters List<File> getTestFiles()%n"
-                    + "testClass=%s%n"
-                    + "parameterMethods=%s";
-
-    /** Runs the test class for the set of parameters passed in the constructor. */
-    private static class PerParameterSetTestRunner extends BlockJUnit4ClassRunner {
-        /** A directory prefix to remove from the test name. */
-        private final File directoryPrefix;
-
-        /** The parameters, java source file(s) under {@link #directoryPrefix}. */
-        private final Object[] parameters;
-
-        /**
-         * Creates a PerParameterSetTestRunner for the test class {@code type}.
-         *
-         * @param type the test class
-         * @param directoryPrefix directory prefix to remove from the test name
-         * @param parameters java source file(s) under {@link #directoryPrefix}
-         * @throws InitializationError if the test class is malformed
-         */
-        PerParameterSetTestRunner(Class<?> type, File directoryPrefix, Object[] parameters)
-                throws InitializationError {
-            super(type);
-            this.directoryPrefix = directoryPrefix;
-            this.parameters = parameters;
-        }
-
-        @Override
-        public Object createTest() throws Exception {
-            return getTestClass().getOnlyConstructor().newInstance(parameters);
-        }
-
-        /**
-         * Returns the test case's name.
-         *
-         * @return the test case's name
-         */
-        String testCaseName() {
-            File file = (File) parameters[0];
-            String name =
-                    file.getPath()
-                            .replace(".java", "")
-                            .replace(directoryPrefix.getPath() + File.separator, "");
-            return name;
-        }
-
-        @Override
-        protected String getName() {
-            return String.format("[%s]", testCaseName());
-        }
-
-        @Override
-        protected String testName(FrameworkMethod method) {
-            return String.format("%s[%s]", method.getName(), testCaseName());
-        }
-
-        @Override
-        protected void validateZeroArgConstructor(List<Throwable> errors) {
-            // constructor should have args.
-        }
-
-        @Override
-        protected Statement classBlock(RunNotifier notifier) {
-            return childrenInvoker(notifier);
-        }
+    @Override
+    protected void validateZeroArgConstructor(List<Throwable> errors) {
+      // constructor should have args.
     }
+
+    @Override
+    protected Statement classBlock(RunNotifier notifier) {
+      return childrenInvoker(notifier);
+    }
+  }
 }
