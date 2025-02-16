@@ -4,7 +4,7 @@
 import org.junit.jupiter.api.Assertions;
 
 class JUnitNull {
-    {
-        Assertions.assertEquals(null, "dummy");
-    }
+  {
+    Assertions.assertEquals(null, "dummy");
+  }
 }

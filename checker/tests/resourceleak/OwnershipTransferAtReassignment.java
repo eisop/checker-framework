@@ -9,30 +9,30 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @InheritableMustCall("disconnect")
 public class OwnershipTransferAtReassignment {
 
-    private @Owning @Nullable Node head = null;
+  private @Owning @Nullable Node head = null;
 
-    @CreatesMustCallFor("this")
-    public boolean add() {
-        head = new Node(head);
-        return true;
+  @CreatesMustCallFor("this")
+  public boolean add() {
+    head = new Node(head);
+    return true;
+  }
+
+  @EnsuresCalledMethods(value = "this.head", methods = "disconnect")
+  public void disconnect() {
+    head.disconnect();
+  }
+
+  @InheritableMustCall("disconnect")
+  private static class Node {
+    @Owning private final @Nullable Node next;
+
+    public Node(@Owning @Nullable Node next) {
+      this.next = next;
     }
 
-    @EnsuresCalledMethods(value = "this.head", methods = "disconnect")
+    @EnsuresCalledMethods(value = "this.next", methods = "disconnect")
     public void disconnect() {
-        head.disconnect();
+      next.disconnect();
     }
-
-    @InheritableMustCall("disconnect")
-    private static class Node {
-        @Owning private final @Nullable Node next;
-
-        public Node(@Owning @Nullable Node next) {
-            this.next = next;
-        }
-
-        @EnsuresCalledMethods(value = "this.next", methods = "disconnect")
-        public void disconnect() {
-            next.disconnect();
-        }
-    }
+  }
 }
