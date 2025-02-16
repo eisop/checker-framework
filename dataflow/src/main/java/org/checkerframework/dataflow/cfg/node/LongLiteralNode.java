@@ -2,6 +2,7 @@ package org.checkerframework.dataflow.cfg.node;
 
 import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.Tree;
+
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -14,33 +15,33 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class LongLiteralNode extends ValueLiteralNode {
 
-  /**
-   * Create a new LongLiteralNode.
-   *
-   * @param t the tree for the literal value
-   */
-  public LongLiteralNode(LiteralTree t) {
-    super(t);
-    assert t.getKind() == Tree.Kind.LONG_LITERAL;
-  }
-
-  @Override
-  public Long getValue() {
-    return (Long) tree.getValue();
-  }
-
-  @Override
-  public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
-    return visitor.visitLongLiteral(this, p);
-  }
-
-  @Override
-  public boolean equals(@Nullable Object obj) {
-    // test that obj is a LongLiteralNode
-    if (!(obj instanceof LongLiteralNode)) {
-      return false;
+    /**
+     * Create a new LongLiteralNode.
+     *
+     * @param t the tree for the literal value
+     */
+    public LongLiteralNode(LiteralTree t) {
+        super(t);
+        assert t.getKind() == Tree.Kind.LONG_LITERAL;
     }
-    // super method compares values
-    return super.equals(obj);
-  }
+
+    @Override
+    public Long getValue() {
+        return (Long) tree.getValue();
+    }
+
+    @Override
+    public <R, P> R accept(NodeVisitor<R, P> visitor, P p) {
+        return visitor.visitLongLiteral(this, p);
+    }
+
+    @Override
+    public boolean equals(@Nullable Object obj) {
+        // test that obj is a LongLiteralNode
+        if (!(obj instanceof LongLiteralNode)) {
+            return false;
+        }
+        // super method compares values
+        return super.equals(obj);
+    }
 }

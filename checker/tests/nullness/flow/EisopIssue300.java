@@ -4,24 +4,24 @@
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class EisopIssue300 {
-  class Bug {
-    void setFieldNull(Bug b) {
-      EisopIssue300.this.currentNode = null;
+    class Bug {
+        void setFieldNull(Bug b) {
+            EisopIssue300.this.currentNode = null;
+        }
     }
-  }
 
-  @Nullable Bug currentNode = new Bug();
+    @Nullable Bug currentNode = new Bug();
 
-  void test() {
-    if (currentNode == null) {
-      return;
+    void test() {
+        if (currentNode == null) {
+            return;
+        }
+        currentNode.setFieldNull(currentNode);
+        // :: error: (dereference.of.nullable)
+        currentNode.toString();
     }
-    currentNode.setFieldNull(currentNode);
-    // :: error: (dereference.of.nullable)
-    currentNode.toString();
-  }
 
-  public static void main(String[] args) {
-    new EisopIssue300().test();
-  }
+    public static void main(String[] args) {
+        new EisopIssue300().test();
+    }
 }

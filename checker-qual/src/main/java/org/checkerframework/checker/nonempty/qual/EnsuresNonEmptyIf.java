@@ -1,12 +1,13 @@
 package org.checkerframework.checker.nonempty.qual;
 
+import org.checkerframework.framework.qual.ConditionalPostconditionAnnotation;
+import org.checkerframework.framework.qual.InheritedAnnotation;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.checkerframework.framework.qual.ConditionalPostconditionAnnotation;
-import org.checkerframework.framework.qual.InheritedAnnotation;
 
 /**
  * Indicates that the specific expressions are non-empty, if the method returns the given result
@@ -53,35 +54,35 @@ import org.checkerframework.framework.qual.InheritedAnnotation;
 @InheritedAnnotation
 public @interface EnsuresNonEmptyIf {
 
-  /**
-   * A return value of the method; when the method returns that value, the postcondition holds.
-   *
-   * @return the return value of the method for which the postcondition holds
-   */
-  boolean result();
-
-  /**
-   * Returns the Java expressions that are non-empty after the method returns the given result.
-   *
-   * @return the Java expressions that are non-empty after the method returns the given result
-   */
-  String[] expression();
-
-  /**
-   * A wrapper annotation that makes the {@link EnsuresNonEmptyIf} annotation repeatable.
-   *
-   * <p>Programmers generally do not need to write ths. It is created by Java when a programmer
-   * writes more than one {@link EnsuresNonEmptyIf} annotation at the same location.
-   */
-  @Retention(RetentionPolicy.RUNTIME)
-  @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
-  @ConditionalPostconditionAnnotation(qualifier = NonEmpty.class)
-  @interface List {
     /**
-     * Returns the repeatable annotations.
+     * A return value of the method; when the method returns that value, the postcondition holds.
      *
-     * @return the repeatable annotations
+     * @return the return value of the method for which the postcondition holds
      */
-    EnsuresNonEmptyIf[] value();
-  }
+    boolean result();
+
+    /**
+     * Returns the Java expressions that are non-empty after the method returns the given result.
+     *
+     * @return the Java expressions that are non-empty after the method returns the given result
+     */
+    String[] expression();
+
+    /**
+     * A wrapper annotation that makes the {@link EnsuresNonEmptyIf} annotation repeatable.
+     *
+     * <p>Programmers generally do not need to write ths. It is created by Java when a programmer
+     * writes more than one {@link EnsuresNonEmptyIf} annotation at the same location.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
+    @ConditionalPostconditionAnnotation(qualifier = NonEmpty.class)
+    @interface List {
+        /**
+         * Returns the repeatable annotations.
+         *
+         * @return the repeatable annotations
+         */
+        EnsuresNonEmptyIf[] value();
+    }
 }

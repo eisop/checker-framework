@@ -14,6 +14,6 @@ import org.checkerframework.framework.qual.StubFiles;
 @StubFiles({"BCryptPasswordEncoder.astub", "Statement.astub"})
 @RelevantJavaTypes(CharSequence.class)
 public class SqlQuotesChecker extends BaseTypeChecker {
-  /** Creates a SqlQuotesChecker. */
-  public SqlQuotesChecker() {}
+    /** Creates a SqlQuotesChecker. */
+    public SqlQuotesChecker() {}
 }
