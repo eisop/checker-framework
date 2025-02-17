@@ -241,7 +241,7 @@ public class OptionalImplTransfer extends CFTransfer {
     if (receiverType.getKind() == TypeKind.DECLARED) {
       // The receiver is a field, not a local variable
       AnnotationMirrorSet receiverAnnos =
-          AnnotatedDeclaredType.getPrimaryAnnotationsFromElement(
+          AnnotatedDeclaredType.getAnnotationsFromElement(
               receiverElement, (DeclaredType) receiverType, optionalTypeFactory);
       return receiverAnnos.contains(NON_EMPTY);
     }
