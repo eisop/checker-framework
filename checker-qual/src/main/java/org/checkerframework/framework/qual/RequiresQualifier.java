@@ -21,36 +21,36 @@ import java.lang.annotation.Target;
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
 @Repeatable(RequiresQualifier.List.class)
 public @interface RequiresQualifier {
-  /**
-   * Returns the Java expressions for which the annotation need to be present.
-   *
-   * @return the Java expressions for which the annotation need to be present
-   * @checker_framework.manual #java-expressions-as-arguments Syntax of Java expressions
-   */
-  String[] expression();
-
-  /**
-   * Returns the qualifier that is required.
-   *
-   * @return the qualifier that is required
-   */
-  Class<? extends Annotation> qualifier();
-
-  /**
-   * A wrapper annotation that makes the {@link RequiresQualifier} annotation repeatable.
-   *
-   * <p>Programmers generally do not need to write this. It is created by Java when a programmer
-   * writes more than one {@link RequiresQualifier} annotation at the same location.
-   */
-  @Documented
-  @Retention(RetentionPolicy.RUNTIME)
-  @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
-  public static @interface List {
     /**
-     * Returns the repeatable annotations.
+     * Returns the Java expressions for which the annotation need to be present.
      *
-     * @return the repeatable annotations
+     * @return the Java expressions for which the annotation need to be present
+     * @checker_framework.manual #java-expressions-as-arguments Syntax of Java expressions
      */
-    RequiresQualifier[] value();
-  }
+    String[] expression();
+
+    /**
+     * Returns the qualifier that is required.
+     *
+     * @return the qualifier that is required
+     */
+    Class<? extends Annotation> qualifier();
+
+    /**
+     * A wrapper annotation that makes the {@link RequiresQualifier} annotation repeatable.
+     *
+     * <p>Programmers generally do not need to write this. It is created by Java when a programmer
+     * writes more than one {@link RequiresQualifier} annotation at the same location.
+     */
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
+    public static @interface List {
+        /**
+         * Returns the repeatable annotations.
+         *
+         * @return the repeatable annotations
+         */
+        RequiresQualifier[] value();
+    }
 }
