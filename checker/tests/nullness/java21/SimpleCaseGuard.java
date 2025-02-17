@@ -11,21 +11,21 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class SimpleCaseGuard {
 
-    @Nullable String field;
+  @Nullable String field;
 
-    void test2(Object obj, boolean b) {
-        switch (obj) {
-            case String s when field != null -> {
-                @NonNull String z = field;
-            }
-            case String s -> {
-                // :: error: (assignment.type.incompatible)
-                @NonNull String z = field;
-            }
-            default -> {
-                // :: error: (assignment.type.incompatible)
-                @NonNull String z = field;
-            }
-        }
+  void test2(Object obj, boolean b) {
+    switch (obj) {
+      case String s when field != null -> {
+        @NonNull String z = field;
+      }
+      case String s -> {
+        // :: error: (assignment.type.incompatible)
+        @NonNull String z = field;
+      }
+      default -> {
+        // :: error: (assignment.type.incompatible)
+        @NonNull String z = field;
+      }
     }
+  }
 }

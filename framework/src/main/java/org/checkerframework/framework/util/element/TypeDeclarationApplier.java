@@ -4,151 +4,146 @@ import com.sun.tools.javac.code.Attribute;
 import com.sun.tools.javac.code.Attribute.TypeCompound;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.TargetType;
-
+import java.util.List;
+import javax.lang.model.element.Element;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.util.element.ElementAnnotationUtil.UnexpectedAnnotationLocationException;
 import org.checkerframework.javacutil.TypesUtils;
 
-import java.util.List;
-
-import javax.lang.model.element.Element;
-
 /** Apply annotations to a declared type based on its declaration. */
 public class TypeDeclarationApplier extends TargetedElementAnnotationApplier {
 
-    /**
-     * Apply annotations from {@code element} to {@code type}.
-     *
-     * @param type the type to annotate
-     * @param element the corresponding element
-     * @param atypeFactory the type factory
-     * @throws UnexpectedAnnotationLocationException if there is trouble
-     */
-    public static void apply(
-            final AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory atypeFactory)
-            throws UnexpectedAnnotationLocationException {
-        new TypeDeclarationApplier(type, element, atypeFactory).extractAndApply();
-    }
+  /**
+   * Apply annotations from {@code element} to {@code type}.
+   *
+   * @param type the type to annotate
+   * @param element the corresponding element
+   * @param atypeFactory the type factory
+   * @throws UnexpectedAnnotationLocationException if there is trouble
+   */
+  public static void apply(
+      final AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory atypeFactory)
+      throws UnexpectedAnnotationLocationException {
+    new TypeDeclarationApplier(type, element, atypeFactory).extractAndApply();
+  }
 
-    /**
-     * If a type_index == -1 it means that the index refers to the immediate supertype class of the
-     * declaration. There is only ever one of these since Java has no multiple inheritance
-     */
-    public static final int SUPERCLASS_INDEX = -1;
+  /**
+   * If a type_index == -1 it means that the index refers to the immediate supertype class of the
+   * declaration. There is only ever one of these since Java has no multiple inheritance
+   */
+  public static final int SUPERCLASS_INDEX = -1;
 
-    /**
-     * Returns true if type is an annotated declared type and element is a ClassSymbol.
-     *
-     * @param type a type
-     * @param element an element
-     * @return true if type is an annotated declared type and element is a ClassSymbol
-     */
-    public static boolean accepts(AnnotatedTypeMirror type, Element element) {
-        return type instanceof AnnotatedDeclaredType && element instanceof Symbol.ClassSymbol;
-    }
+  /**
+   * Returns true if type is an annotated declared type and element is a ClassSymbol.
+   *
+   * @param type a type
+   * @param element an element
+   * @return true if type is an annotated declared type and element is a ClassSymbol
+   */
+  public static boolean accepts(AnnotatedTypeMirror type, Element element) {
+    return type instanceof AnnotatedDeclaredType && element instanceof Symbol.ClassSymbol;
+  }
 
-    /** The type factory to use. */
-    private final AnnotatedTypeFactory atypeFactory;
+  /** The type factory to use. */
+  private final AnnotatedTypeFactory atypeFactory;
 
-    /** The type symbol. */
-    private final Symbol.ClassSymbol typeSymbol;
+  /** The type symbol. */
+  private final Symbol.ClassSymbol typeSymbol;
 
-    /** The declared type. */
-    private final AnnotatedDeclaredType declaredType;
+  /** The declared type. */
+  private final AnnotatedDeclaredType declaredType;
 
-    /**
-     * Constructor.
-     *
-     * @param type the type to annotate
-     * @param element the corresponding element
-     * @param atypeFactory the type factory
-     */
-    /*package-private*/ TypeDeclarationApplier(
-            AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory atypeFactory) {
-        super(type, element);
-        this.atypeFactory = atypeFactory;
-        this.typeSymbol = (Symbol.ClassSymbol) element;
-        this.declaredType = (AnnotatedDeclaredType) type;
-    }
+  /**
+   * Constructor.
+   *
+   * @param type the type to annotate
+   * @param element the corresponding element
+   * @param atypeFactory the type factory
+   */
+  /*package-private*/ TypeDeclarationApplier(
+      AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory atypeFactory) {
+    super(type, element);
+    this.atypeFactory = atypeFactory;
+    this.typeSymbol = (Symbol.ClassSymbol) element;
+    this.declaredType = (AnnotatedDeclaredType) type;
+  }
 
-    /** The annotated targets. */
-    private static final TargetType[] annotatedTargets =
-            new TargetType[] {TargetType.CLASS_EXTENDS};
+  /** The annotated targets. */
+  private static final TargetType[] annotatedTargets = new TargetType[] {TargetType.CLASS_EXTENDS};
 
-    @Override
-    protected TargetType[] annotatedTargets() {
-        return annotatedTargets;
-    }
+  @Override
+  protected TargetType[] annotatedTargets() {
+    return annotatedTargets;
+  }
 
-    /** The valid targets. */
-    private static final TargetType[] validTargets =
-            new TargetType[] {
-                TargetType.RESOURCE_VARIABLE,
-                TargetType.EXCEPTION_PARAMETER,
-                TargetType.NEW,
-                TargetType.CAST,
-                TargetType.INSTANCEOF,
-                TargetType.METHOD_INVOCATION_TYPE_ARGUMENT,
-                TargetType.CONSTRUCTOR_INVOCATION_TYPE_ARGUMENT,
-                TargetType.METHOD_REFERENCE,
-                TargetType.CONSTRUCTOR_REFERENCE,
-                TargetType.METHOD_REFERENCE_TYPE_ARGUMENT,
-                TargetType.CONSTRUCTOR_REFERENCE_TYPE_ARGUMENT,
-                TargetType.CLASS_TYPE_PARAMETER,
-                TargetType.CLASS_TYPE_PARAMETER_BOUND
-            };
+  /** The valid targets. */
+  private static final TargetType[] validTargets =
+      new TargetType[] {
+        TargetType.RESOURCE_VARIABLE,
+        TargetType.EXCEPTION_PARAMETER,
+        TargetType.NEW,
+        TargetType.CAST,
+        TargetType.INSTANCEOF,
+        TargetType.METHOD_INVOCATION_TYPE_ARGUMENT,
+        TargetType.CONSTRUCTOR_INVOCATION_TYPE_ARGUMENT,
+        TargetType.METHOD_REFERENCE,
+        TargetType.CONSTRUCTOR_REFERENCE,
+        TargetType.METHOD_REFERENCE_TYPE_ARGUMENT,
+        TargetType.CONSTRUCTOR_REFERENCE_TYPE_ARGUMENT,
+        TargetType.CLASS_TYPE_PARAMETER,
+        TargetType.CLASS_TYPE_PARAMETER_BOUND
+      };
 
-    @Override
-    protected TargetType[] validTargets() {
-        return validTargets;
-    }
+  @Override
+  protected TargetType[] validTargets() {
+    return validTargets;
+  }
 
-    /** All TypeCompounds (annotations) on the ClassSymbol. */
-    @Override
-    protected Iterable<Attribute.TypeCompound> getRawTypeAttributes() {
-        return typeSymbol.getRawTypeAttributes();
-    }
+  /** All TypeCompounds (annotations) on the ClassSymbol. */
+  @Override
+  protected Iterable<Attribute.TypeCompound> getRawTypeAttributes() {
+    return typeSymbol.getRawTypeAttributes();
+  }
 
-    /**
-     * While more than just annotations on extends or implements clause are annotated by this class,
-     * only these annotations are passed to handleTargeted (as they are the only in the
-     * annotatedTargets list). See extractAndApply for type parameters
-     *
-     * @param extendsAndImplementsAnnos annotations with a TargetType of CLASS_EXTENDS
-     */
-    @Override
-    protected void handleTargeted(List<TypeCompound> extendsAndImplementsAnnos)
-            throws UnexpectedAnnotationLocationException {
-        if (TypesUtils.isAnonymous(typeSymbol.type)) {
-            // If this is an anonymous class, then the annotations after "new" but before the class
-            // name are stored as super class annotations. Treat them as annotations on the class.
-            for (Attribute.TypeCompound anno : extendsAndImplementsAnnos) {
-                if (anno.position.type_index >= SUPERCLASS_INDEX
-                        && anno.position.location.isEmpty()) {
-                    type.addAnnotation(anno);
-                }
-            }
+  /**
+   * While more than just annotations on extends or implements clause are annotated by this class,
+   * only these annotations are passed to handleTargeted (as they are the only in the
+   * annotatedTargets list). See extractAndApply for type parameters
+   *
+   * @param extendsAndImplementsAnnos annotations with a TargetType of CLASS_EXTENDS
+   */
+  @Override
+  protected void handleTargeted(List<TypeCompound> extendsAndImplementsAnnos)
+      throws UnexpectedAnnotationLocationException {
+    if (TypesUtils.isAnonymous(typeSymbol.type)) {
+      // If this is an anonymous class, then the annotations after "new" but before the class
+      // name are stored as super class annotations. Treat them as annotations on the class.
+      for (Attribute.TypeCompound anno : extendsAndImplementsAnnos) {
+        if (anno.position.type_index >= SUPERCLASS_INDEX && anno.position.location.isEmpty()) {
+          type.addAnnotation(anno);
         }
+      }
     }
+  }
 
-    /** Adds extends/implements and class annotations to type. Annotates type parameters. */
-    @Override
-    public void extractAndApply() throws UnexpectedAnnotationLocationException {
-        // ensures that we check that there only valid target types on this class, there are no
-        // "targeted" locations
-        super.extractAndApply();
+  /** Adds extends/implements and class annotations to type. Annotates type parameters. */
+  @Override
+  public void extractAndApply() throws UnexpectedAnnotationLocationException {
+    // ensures that we check that there only valid target types on this class, there are no
+    // "targeted" locations
+    super.extractAndApply();
 
-        // Annotate raw types // TODO: ASK WERNER WHAT THIS MIGHT MEAN?  WHAT ACTUALLY GOES HERE?
-        type.addAnnotations(typeSymbol.getAnnotationMirrors());
+    // Annotate raw types // TODO: ASK WERNER WHAT THIS MIGHT MEAN?  WHAT ACTUALLY GOES HERE?
+    type.addAnnotations(typeSymbol.getAnnotationMirrors());
 
-        ElementAnnotationUtil.applyAllElementAnnotations(
-                declaredType.getTypeArguments(), typeSymbol.getTypeParameters(), atypeFactory);
-    }
+    ElementAnnotationUtil.applyAllElementAnnotations(
+        declaredType.getTypeArguments(), typeSymbol.getTypeParameters(), atypeFactory);
+  }
 
-    @Override
-    protected boolean isAccepted() {
-        return accepts(type, element);
-    }
+  @Override
+  protected boolean isAccepted() {
+    return accepts(type, element);
+  }
 }

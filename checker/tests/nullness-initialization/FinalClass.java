@@ -9,37 +9,37 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 final class EisopIssue610_1 {
-    @MonotonicNonNull String s;
+  @MonotonicNonNull String s;
 
-    EisopIssue610_1() {
-        init();
-    }
+  EisopIssue610_1() {
+    init();
+  }
 
-    void init() {}
+  void init() {}
 }
 
 final class EisopIssue610_2 {
-    @Nullable String s;
+  @Nullable String s;
 
-    EisopIssue610_2() {
-        init();
-    }
+  EisopIssue610_2() {
+    init();
+  }
 
-    void init() {}
+  void init() {}
 }
 
 final class EisopIssue610_3 {
-    @MonotonicNonNull String s;
+  @MonotonicNonNull String s;
 
-    EisopIssue610_3() {
-        @Initialized EisopIssue610_3 other = this;
-    }
+  EisopIssue610_3() {
+    @Initialized EisopIssue610_3 other = this;
+  }
 }
 
 final class EisopIssue610_4 {
-    @Nullable String s;
+  @Nullable String s;
 
-    EisopIssue610_4() {
-        @Initialized EisopIssue610_4 other = this;
-    }
+  EisopIssue610_4() {
+    @Initialized EisopIssue610_4 other = this;
+  }
 }

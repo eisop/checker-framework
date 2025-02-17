@@ -7,18 +7,18 @@ import org.checkerframework.checker.testchecker.ainfer.qual.AinferSibling1;
 import org.checkerframework.checker.testchecker.ainfer.qual.AinferTreatAsSibling1;
 
 public class InnerClassFieldDeclAnno {
-    static class Outer {
-        static class Inner {}
-    }
+  static class Outer {
+    static class Inner {}
+  }
 
-    public Outer.Inner iShouldBeTreatedAsSibling1 = new Outer.Inner();
+  public Outer.Inner iShouldBeTreatedAsSibling1 = new Outer.Inner();
 
-    @AinferTreatAsSibling1 public Outer.Inner preAnnotated = null;
+  @AinferTreatAsSibling1 public Outer.Inner preAnnotated = null;
 
-    public static void test(InnerClassFieldDeclAnno a) {
-        // :: warning: (assignment.type.incompatible)
-        @AinferSibling1 Object obj = a.iShouldBeTreatedAsSibling1;
-        // Test that the annotation works as expected.
-        @AinferSibling1 Object obj2 = a.preAnnotated;
-    }
+  public static void test(InnerClassFieldDeclAnno a) {
+    // :: warning: (assignment.type.incompatible)
+    @AinferSibling1 Object obj = a.iShouldBeTreatedAsSibling1;
+    // Test that the annotation works as expected.
+    @AinferSibling1 Object obj2 = a.preAnnotated;
+  }
 }
