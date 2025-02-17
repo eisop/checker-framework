@@ -23,6 +23,8 @@ plugins {
     id 'eclipse'
     // To show task list as a tree, run: ./gradlew <taskname> taskTree
     id 'com.dorongold.task-tree' version '4.0.0'
+    // needed for formatting Gradle files
+    id 'groovy'
 }
 
 // There is another `repositories { ... }` block below; if you change this one, change that one as well.
@@ -156,6 +158,9 @@ if (currentRuntimeJavaVersion >= 11) {
         groovyGradle {
             greclipse()
         }
+        groovy {
+            greclipse()
+        }
     }
 }
 
@@ -165,7 +170,7 @@ allprojects { currentProj ->
     //   * any new checkers have been added, or
     //   * backward-incompatible changes have been made to APIs or elsewhere.
     // To make a snapshot release, version should end in "-SNAPSHOT", then: ./gradlew publish
-    version = '3.48.4'
+    version = '3.49.0'
 
     tasks.withType(JavaCompile).configureEach {
         options.fork = true
@@ -312,6 +317,17 @@ allprojects { currentProj ->
                 leadingTabsToSpaces(2)
                 trimTrailingWhitespace()
                 // endWithNewline() // Don't want to end empty files with a newline
+            }
+
+            groovy {
+                target 'buildSrc/**/*.groovy'
+                importOrder()
+
+                // removes semicolons at the end of lines
+                removeSemicolons()
+                greclipse()
+                indentWithSpaces(2)
+                trimTrailingWhitespace()
             }
 
             java {
@@ -701,6 +717,23 @@ project(':framework').afterEvaluate {
     requireJavadocDirs += project(':framework').sourceSets.testannotations.allJava
 }
 
+task addFavicon(type: Exec) {
+    dependsOn 'allJavadoc'
+    workingDir "${rootDir}/docs/api"
+    executable "${htmlToolsHome}/html-add-favicon"
+    args += [
+        '.',
+        'favicon-checkerframework.png'
+    ]
+    doFirst {
+        copy {
+            from 'docs/logo/Checkmark/CFCheckmark_favicon.png'
+            rename('CFCheckmark_favicon.png', 'favicon-checkerframework.png')
+            into "${rootDir}/docs/api"
+        }
+    }
+}
+
 // `gradle allJavadoc` builds the Javadoc for all modules in `docs/api`.
 //   This is what is published to checkerframework.org.
 // `gradle javadoc` builds the Javadoc for each sub-project in <subproject>/build/docs/javadoc/ .
@@ -730,33 +763,19 @@ task allJavadoc(type: Javadoc, group: 'Documentation') {
     // disable interpreting module-info.java files until all sub-modules support them
     modularity.inferModulePath = false
 
-    doLast {
-        copy {
-            from 'docs/logo/Checkmark/CFCheckmark_favicon.png'
-            rename('CFCheckmark_favicon.png', 'favicon-checkerframework.png')
-            into "${rootDir}/docs/api"
-        }
-        injected.execOps.exec {
-            workingDir file("${rootDir}/docs/api")
-            executable "${htmlToolsHome}/html-add-favicon"
-            args += [
-                '.',
-                'favicon-checkerframework.png'
-            ]
-        }
-    }
+    finalizedBy 'addFavicon'
 }
 
 // See documentation for allJavadoc task.
 javadoc.dependsOn(allJavadoc)
 
+task cleanManual(type: Exec) {
+    description = 'Clean the manual'
+    commandLine 'make', '-C', 'docs/manual', 'clean'
+}
+clean.dependsOn(cleanManual)
 clean {
     delete(file("${rootDir}/docs/api"))
-    doLast {
-        exec {
-            commandLine 'make', '-C', 'docs/manual', 'clean'
-        }
-    }
 }
 
 configurations {
@@ -810,15 +829,9 @@ def createJavadocTask(taskName, taskDescription, memberLevel) {
 
 createJavadocTask('javadocDoclintAll', 'Runs javadoc with -Xdoclint:all option.', JavadocMemberLevel.PRIVATE)
 
-task manual(group: 'Documentation') {
+task manual(type: Exec, group: 'Documentation') {
     description = 'Build the manual'
-    def injected = project.objects.newInstance(InjectedExecOps)
-    doLast {
-        injected.execOps.exec {
-            workingDir = file('docs/manual')
-            commandLine 'make', 'all'
-        }
-    }
+    commandLine 'make', '-C', 'docs/manual', 'all'
 }
 
 // No group so it does not show up in the output of `gradlew tasks`
@@ -849,85 +862,29 @@ task downloadJtreg(type: Download) {
     }
 }
 
-/**
- * Quietly clones the given git repository, {@code url}, to {@code directory} at a depth of 1.
- *
- * @param url git repository to clone
- * @param directory where to clone
- * @param ignoreError whether to fail the build if the clone command fails
- * @param extraArgs any extra arguments to pass to git
- */
-void clone(url, directory, ignoreError, extraArgs = []){
-    def injected = project.objects.newInstance(InjectedExecOps)
-    injected.execOps.exec {
-        workingDir file("${directory}/../")
-        executable 'git'
-        args = [
-            'clone',
-            '-q',
-            '--depth=1',
-            url,
-            file(directory).toPath().last()
-        ]
-        args += extraArgs
-        ignoreExitValue = ignoreError
-    }
-    // TODO: not sure this does what it is supposed to.
-    // timeout = Duration.ofSeconds(60)
+tasks.register('getGitScripts', CloneTask) {
+    url.set('https://github.com/eisop-plume-lib/git-scripts.git')
+    directory.set(file(gitScriptsHome))
+    outputs.upToDateWhen { false }
 }
 
-/**
- * Creates a task named {@code taskName} that updates or clones the git repository at
- * {@code url} into {@code directory}.  If the clone command fails, the task waits
- * a minute and then trys again.
- *
- * @param taskName name of the created task
- * @param url location of the git repository
- * @param directory where to clone the repository
- * @param extraArgs arguments to pass to the git command
- */
-def createCloneTask(taskName, url, directory, extraArgs = []) {
-    tasks.create(name: taskName) {
-        description = "Obtain or update ${url}"
-
-        // Always run.
-        outputs.upToDateWhen { false }
-
-        def injected = project.objects.newInstance(InjectedExecOps)
-
-        doLast {
-            if (file(directory).exists()) {
-                injected.execOps.exec {
-                    workingDir file(directory)
-                    executable 'git'
-                    args = ['pull', '-q']
-                    ignoreExitValue = true
-                }
-                // TODO: not sure this does what it is supposed to.
-                // timeout = Duration.ofSeconds(60)
-            } else {
-                try {
-                    clone(url, directory, true, extraArgs)
-                } catch (Throwable t) {
-                    println "Exception while cloning ${url}"
-                    t.printStackTrace()
-                }
-                if (!file(directory).exists()) {
-                    println "Cloning failed, will try again in 1 minute: clone(${url}, ${directory}, true, ${extraArgs})"
-                    sleep(60000) // wait 1 minute, then try again
-                    clone(url, directory, false, extraArgs)
-                }
-            }
-        }
-    }
+tasks.register('getPlumeScripts', CloneTask) {
+    url.set('https://github.com/eisop-plume-lib/plume-scripts.git')
+    directory.set(file(plumeScriptsHome))
+    outputs.upToDateWhen { false }
 }
 
+tasks.register('getHtmlTools', CloneTask) {
+    url.set('https://github.com/plume-lib/html-tools.git')
+    directory.set(file(htmlToolsHome))
+    outputs.upToDateWhen { false }
+}
 
-createCloneTask('getGitScripts', 'https://github.com/eisop-plume-lib/git-scripts.git', gitScriptsHome)
-createCloneTask('getPlumeScripts', 'https://github.com/eisop-plume-lib/plume-scripts.git', plumeScriptsHome)
-createCloneTask('getHtmlTools', 'https://github.com/plume-lib/html-tools.git', htmlToolsHome)
-createCloneTask('getDoLikeJavac', 'https://github.com/opprop/do-like-javac.git', doLikeJavacHome)
-
+tasks.register('getDoLikeJavac', CloneTask) {
+    url.set('https://github.com/opprop/do-like-javac.git')
+    directory.set(file(doLikeJavacHome))
+    outputs.upToDateWhen { false }
+}
 
 // No group so it does not show up in the output of `gradlew tasks`
 task pythonIsInstalled(type: Exec) {
@@ -936,20 +893,15 @@ task pythonIsInstalled(type: Exec) {
     args '--version'
 }
 
-task tags {
-    group = 'Emacs'
+task docTags(type: Exec, group: 'Emacs') {
+    commandLine 'make', '-C', 'docs/manual', 'tags'
+}
+
+task tags(type: Exec, group: 'Emacs') {
+    dependsOn docTags
     description = 'Create Emacs TAGS table'
-
-    def injected = project.objects.newInstance(InjectedExecOps)
-
-    doLast {
-        injected.execOps.exec {
-            commandLine 'etags', '-i', 'checker/TAGS', '-i', 'checker-qual/TAGS', '-i', 'checker-util/TAGS', '-i', 'dataflow/TAGS', '-i', 'framework/TAGS', '-i', 'framework-test/TAGS', '-i', 'javacutil/TAGS', '-i', 'docs/manual/TAGS'
-        }
-        injected.execOps.exec {
-            commandLine 'make', '-C', 'docs/manual', 'tags'
-        }
-    }
+    // running this task will also run the tags task in the subprojects, which is defined later in this file.
+    commandLine 'etags', '-i', 'checker/TAGS', '-i', 'checker-qual/TAGS', '-i', 'checker-util/TAGS', '-i', 'dataflow/TAGS', '-i', 'framework/TAGS', '-i', 'framework-test/TAGS', '-i', 'javacutil/TAGS', '-i', 'docs/manual/TAGS'
 }
 
 subprojects {
@@ -1086,8 +1038,8 @@ subprojects {
 
         // Add jtregTests to framework and checker modules
         if (project.name.is('framework') || project.name.is('checker')) {
-            tasks.create(name: 'jtregTests', group: 'Verification') {
-                description = 'Run the jtreg tests.'
+            tasks.create(name: 'jtregTests', type: Exec, group: 'Verification') {
+                description = 'Run the jtreg tests. Requires jtreg to be installed.'
 
                 if (currentRuntimeJavaVersion < 11) {
                     // jtreg only works on JDK 11+
@@ -1108,69 +1060,54 @@ subprojects {
                 String name = 'all'
                 String tests = '.'
 
-                doLast {
-                    try {
-                        injected.execOps.exec {
-                            executable "${jtregHome}/bin/jtreg"
-                            args = [
-                                "-dir:${projectDir}/jtreg",
-                                "-workDir:${jtregOutput}/${name}/work",
-                                "-reportDir:${jtregOutput}/${name}/report",
-                                '-verbose:error,fail,nopass',
-                                // Don't add debugging information
-                                //  '-javacoptions:-g',
-                                '-keywords:!ignore',
-                                '-samevm',
-                                "-javacoptions:-classpath ${tasks.shadowJar.archiveFile.get()}:${sourceSets.test.output.asPath}",
-                                // Required for checker/jtreg/nullness/PersistUtil.java and other tests
-                                "-vmoptions:-classpath ${tasks.shadowJar.archiveFile.get()}:${sourceSets.test.output.asPath}",
-                            ]
-                            args += [
-                                // checker/jtreg/nullness/defaultsPersist/ReferenceInfoUtil.java
-                                // uses the jdk.jdeps module.
-                                '-javacoptions:--add-modules jdk.jdeps',
-                                '-javacoptions:--add-exports=jdk.jdeps/com.sun.tools.classfile=ALL-UNNAMED',
-                                '-vmoptions:--add-opens=jdk.jdeps/com.sun.tools.classfile=ALL-UNNAMED',
-                                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
-                                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED',
-                                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED',
-                                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
-                                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED',
-                                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
-                                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED',
-                                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
-                                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED',
-                            ]
-                            if (isFramework) {
-                                // Do not check for the annotated JDK
-                                args += [
-                                    '-javacoptions:-ApermitMissingJdk'
-                                ]
-                            } else if (isChecker) {
-                                args += [
-                                    "-javacoptions:-classpath ${sourceSets.testannotations.output.asPath}",
-                                ]
-                            }
-
-                            // Allow running on any JRE version.
-                            args += [
-                                "-javacoptions:-AnoJreVersionCheck"
-                            ]
-
-                            // Location of jtreg tests
-                            args += "${tests}"
-                        }
-                    } catch (Exception ex) {
-                        if (ex.getCause() != null && ex.getCause().getCause()!= null) {
-                            String msg = String.join(System.lineSeparator(),
-                                    ex.getCause().getLocalizedMessage() + ':',
-                                    ex.getCause().getCause().getLocalizedMessage(),
-                                    'Have you installed jtreg?')
-                            println msg
-                        }
-                        throw ex
-                    }
+                executable 'jtreg'
+                args = [
+                    "-dir:${projectDir}/jtreg",
+                    "-workDir:${jtregOutput}/${name}/work",
+                    "-reportDir:${jtregOutput}/${name}/report",
+                    '-verbose:error,fail,nopass',
+                    // Don't add debugging information
+                    //  '-javacoptions:-g',
+                    '-keywords:!ignore',
+                    '-samevm',
+                    "-javacoptions:-classpath ${tasks.shadowJar.archiveFile.get()}:${sourceSets.test.output.asPath}",
+                    // Required for checker/jtreg/nullness/PersistUtil.java and other tests
+                    "-vmoptions:-classpath ${tasks.shadowJar.archiveFile.get()}:${sourceSets.test.output.asPath}",
+                ]
+                args += [
+                    // checker/jtreg/nullness/defaultsPersist/ReferenceInfoUtil.java
+                    // uses the jdk.jdeps module.
+                    '-javacoptions:--add-modules jdk.jdeps',
+                    '-javacoptions:--add-exports=jdk.jdeps/com.sun.tools.classfile=ALL-UNNAMED',
+                    '-vmoptions:--add-opens=jdk.jdeps/com.sun.tools.classfile=ALL-UNNAMED',
+                    '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
+                    '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED',
+                    '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED',
+                    '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
+                    '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED',
+                    '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
+                    '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED',
+                    '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
+                    '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED',
+                ]
+                if (project.name.is('framework')) {
+                    // Do not check for the annotated JDK
+                    args += [
+                        '-javacoptions:-ApermitMissingJdk'
+                    ]
+                } else if (project.name.is('checker')) {
+                    args += [
+                        "-javacoptions:-classpath ${sourceSets.testannotations.output.asPath}",
+                    ]
                 }
+
+                // Allow running on any JRE version.
+                args += [
+                    "-javacoptions:-AnoJreVersionCheck"
+                ]
+
+                // Location of jtreg tests
+                args += "${tests}"
             }
         }
 

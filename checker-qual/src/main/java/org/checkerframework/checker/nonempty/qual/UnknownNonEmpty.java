@@ -11,7 +11,8 @@ import java.lang.annotation.Target;
 
 /**
  * The {@link java.util.Collection Collection}, {@link java.util.Iterator Iterator}, {@link
- * java.lang.Iterable Iterable}, or {@link java.util.Map Map} may or may not be empty.
+ * java.lang.Iterable Iterable}, {@link java.util.Map Map}, or {@link java.util.stream.Stream
+ * Stream} may or may not be empty.
  *
  * @checker_framework.manual #non-empty-checker Non-Empty Checker
  */

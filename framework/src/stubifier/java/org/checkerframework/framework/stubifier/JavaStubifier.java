@@ -1,6 +1,7 @@
-package org.checkerframework.framework.stub;
+package org.checkerframework.framework.stubifier;
 
 import com.github.javaparser.ParseResult;
+import com.github.javaparser.ParserConfiguration.LanguageLevel;
 import com.github.javaparser.ast.AccessSpecifier;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
@@ -20,8 +21,6 @@ import com.github.javaparser.utils.CollectionStrategy;
 import com.github.javaparser.utils.ParserCollectionStrategy;
 import com.github.javaparser.utils.ProjectRoot;
 import com.github.javaparser.utils.SourceRoot;
-
-import org.checkerframework.framework.util.JavaParserUtil;
 
 import java.io.File;
 import java.io.IOException;
@@ -44,6 +43,8 @@ import java.util.Optional;
  * </ol>
  */
 public class JavaStubifier {
+    public static final LanguageLevel DEFAULT_LANGUAGE_LEVEL = LanguageLevel.JAVA_21;
+
     /**
      * Processes each provided command-line argument; see class documentation for details.
      *
@@ -70,7 +71,7 @@ public class JavaStubifier {
         CollectionStrategy strategy = new ParserCollectionStrategy();
         // Required to include directories that contain a module-info.java, which don't parse by
         // default.
-        strategy.getParserConfiguration().setLanguageLevel(JavaParserUtil.DEFAULT_LANGUAGE_LEVEL);
+        strategy.getParserConfiguration().setLanguageLevel(DEFAULT_LANGUAGE_LEVEL);
         ProjectRoot projectRoot = strategy.collect(root);
 
         projectRoot
