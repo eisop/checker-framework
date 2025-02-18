@@ -6,6 +6,8 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 
+import javax.lang.model.element.ExecutableElement;
+
 /** The visitor for the Viewpoint Test Checker. */
 public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotatedTypeFactory> {
     /**
@@ -24,5 +26,12 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
             checker.reportError(tree, "new.class.type.invalid", Type.getAnnotations());
         }
         return super.visitNewClass(tree, p);
+    }
+
+    @Override
+    protected void checkConstructorResult(
+            AnnotatedTypeMirror.AnnotatedExecutableType constructorType,
+            ExecutableElement constructorElement) {
+        // Do nothing
     }
 }
