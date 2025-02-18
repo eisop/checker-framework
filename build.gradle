@@ -335,13 +335,14 @@ allprojects { currentProj ->
                 }
                 targetExclude doNotFormat
 
+
                 if (eisopFormatting) {
                     googleJavaFormat(versions.googleJavaFormat).aosp()
                     importOrder('com', 'jdk', 'lib', 'lombok', 'org', 'java', 'javax')
                 } else {
                     googleJavaFormat(versions.googleJavaFormat) // the formatter to apply to Java files
                 }
-                formatAnnotations().addTypeAnnotation("PolyInitialized").addTypeAnnotation("PolyVP").addTypeAnnotation("ReceiverDependentQual")
+                formatAnnotations().addTypeAnnotation("PolyInitialized").addTypeAnnotation("PolyVP").addTypeAnnotation("ReceiverDependentQual").addTypeAnnotation("Immutable").addTypeAnnotation("Readonly").addTypeAnnotation("Mutable").addTypeAnnotation("ReceiverDependentMutable").addTypeAnnotation("PolyMutable")
             }
 
             // Only define a groovyGradle task on the root project, for simplicity in setting the target pattern
