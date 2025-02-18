@@ -33,6 +33,7 @@ sourceSets {
             srcDirs = ['src/testannotations/java']
         }
     }
+    stubifier
 }
 
 sourcesJar {
@@ -46,6 +47,7 @@ jar {
 }
 
 configurations {
+    implementation.extendsFrom(stubifierImplementation)
     implementation.extendsFrom(annotatedGuava)
 }
 
@@ -54,9 +56,10 @@ dependencies {
     api project(':dataflow')
     // At the moement, there are no differences between eisop and typetools stubparsers.
     api 'org.checkerframework:stubparser:3.26.2'
+    stubifierImplementation 'org.checkerframework:stubparser:3.26.2'
+    implementation sourceSets.stubifier.output
 
-    // NO-AFU
-    /*
+    /* NO-AFU
      // AFU is an "includedBuild" imported in checker-framework/settings.gradle, so the version number doesn't matter.
      // https://docs.gradle.org/current/userguide/composite_builds.html#settings_defined_composite
      api('org.checkerframework:annotation-file-utilities:*') {
@@ -87,45 +90,15 @@ dependencies {
     testImplementation "org.projectlombok:lombok:${versions.lombok}"
 }
 
-// Enable exec/javaexec
-interface InjectedExecOps {
-    @Inject
-    ExecOperations getExecOps()
-}
-
-task cloneAnnotatedJdk() {
+tasks.register('cloneAnnotatedJdk', CloneTask) {
     description = 'Obtain or update the annotated JDK.'
-
-    def injected = project.objects.newInstance(InjectedExecOps)
-
-    doLast {
-        if (file(annotatedJdkHome).exists()) {
-            injected.execOps.exec {
-                workingDir file(annotatedJdkHome)
-                executable 'git'
-                args = ['pull', '-q']
-                ignoreExitValue = true
-            }
-        } else {
-            println "Cloning annotated JDK repository in ${annotatedJdkHome}/../"
-            injected.execOps.exec {
-                workingDir file("${annotatedJdkHome}/../")
-                executable 'git'
-                args = [
-                    'clone',
-                    '-q',
-                    '--depth=1',
-                    'https://github.com/eisop/jdk.git',
-                    'jdk'
-                ]
-            }
-        }
-    }
+    url.set('https://github.com/eisop/jdk.git')
+    directory.set(file(annotatedJdkHome))
+    outputs.upToDateWhen { false }
 }
 
-
-task copyAndMinimizeAnnotatedJdkFiles(dependsOn: cloneAnnotatedJdk, group: 'Build') {
-    dependsOn ':framework:compileJava'
+task copyAndMinimizeAnnotatedJdkFiles(type: JavaExec, dependsOn: cloneAnnotatedJdk, group: 'Build') {
+    dependsOn ':framework:compileStubifierJava'
     // we need the next two dependencies because we run JavaStubifier using this project's runtimeClasspath,
     // which refers to the jars for these other projects
     dependsOn ':javacutil:jar'
@@ -138,9 +111,14 @@ task copyAndMinimizeAnnotatedJdkFiles(dependsOn: cloneAnnotatedJdk, group: 'Buil
     inputs.dir file(inputDir)
     outputs.dir file(outputDir)
 
-    def injected = project.objects.newInstance(InjectedExecOps)
+    classpath = sourceSets.stubifier.runtimeClasspath
+    standardOutput = System.out
+    errorOutput = System.err
 
-    doLast {
+    mainClass = 'org.checkerframework.framework.stubifier.JavaStubifier'
+    args outputDir
+
+    doFirst {
         FileTree tree = fileTree(dir: inputDir)
         NavigableSet<String> annotatedForFiles = new TreeSet<>();
         // Populate `annotatedForFiles`.
@@ -164,19 +142,10 @@ task copyAndMinimizeAnnotatedJdkFiles(dependsOn: cloneAnnotatedJdk, group: 'Buil
                 include filename.substring(jdkDirStringSize)
             }
         }
-        injected.execOps.javaexec {
-            classpath = sourceSets.main.runtimeClasspath
-            standardOutput = System.out
-            errorOutput = System.err
-
-            mainClass = 'org.checkerframework.framework.stub.JavaStubifier'
-            args outputDir
-        }
     }
 }
 
 sourcesJar.dependsOn(copyAndMinimizeAnnotatedJdkFiles)
-
 processResources.dependsOn(copyAndMinimizeAnnotatedJdkFiles)
 
 task allSourcesJar(type: Jar, group: 'Build') {
@@ -221,35 +190,27 @@ checkCompilerMessages {
     ]
 }
 
-task loaderTests(dependsOn: 'shadowJar', group: 'Verification') {
+task loaderTests(type: Exec, dependsOn: 'shadowJar', group: 'Verification') {
     description = 'Run tests for the annotation class loader'
     dependsOn(compileTestJava)
-
-    def injected = project.objects.newInstance(InjectedExecOps)
 
     // TODO: this dependency on checker is a bit ugly.
     dependsOn project(':checker-qual').tasks.jar
     dependsOn project(':checker').tasks.assemble
-    doLast {
-        injected.execOps.exec {
-            workingDir = file('tests/annotationclassloader')
-            commandLine 'make', 'all'
-        }
-    }
+    commandLine 'make', '-C', 'tests/annotationclassloader/', 'all'
+}
+
+task cleanLoaderTests(type: Exec) {
+    description = 'Clean up after the annotation class loader tests'
+    commandLine 'make', '-C', 'tests/annotationclassloader/', 'clean'
 }
 
 clean {
-    def injected = project.objects.newInstance(InjectedExecOps)
+    dependsOn(cleanLoaderTests)
 
     delete('tests/returnsreceiverdelomboked')
     delete('dist')
     delete('tests/build')
-    doLast {
-        injected.execOps.exec {
-            workingDir = file('tests/annotationclassloader')
-            commandLine 'make', 'clean'
-        }
-    }
 }
 
 
@@ -268,7 +229,7 @@ task delombok {
     dependsOn project(':checker-qual').tasks.jar
 
     doLast {
-        if(!skipDelombok) {
+        if (!skipDelombok) {
             def collection = files(configurations.testCompileClasspath)
             ant.taskdef(name: 'delombok', classname: 'lombok.delombok.ant.Tasks$Delombok',
             classpath: collection.asPath)

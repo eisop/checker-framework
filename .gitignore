@@ -116,6 +116,8 @@ target/
 *.iws
 *.iml
 /.gradle/
+# TODO: why this second gradle directory?
+/buildSrc/.gradle/
 
 ## Tests
 
