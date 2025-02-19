@@ -299,7 +299,7 @@ public class AnnotationFileParser {
          * files than in the real files. So, map keys are the verbose element name, as returned by
          * ElementUtils.getQualifiedName.
          */
-        public final Map<String, AnnotationMirrorSet> declAnnos = new HashMap<>(1);
+        public final Map<String, AnnotationMirrorSet> declAnnos = new HashMap<>(4);
 
         /**
          * Map from a method element to all the fake overrides of it. Given a key {@code ee}, the
@@ -307,7 +307,7 @@ public class AnnotationFileParser {
          * same as {@code ee.getReceiverType()}.
          */
         public final Map<ExecutableElement, List<IPair<TypeMirror, AnnotatedTypeMirror>>>
-                fakeOverrides = new HashMap<>(1);
+                fakeOverrides = new HashMap<>(4);
 
         /** Maps fully qualified record name to information in the stub file. */
         public final Map<String, RecordStub> records = new HashMap<>();

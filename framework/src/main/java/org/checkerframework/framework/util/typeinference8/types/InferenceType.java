@@ -97,7 +97,6 @@ public class InferenceType extends AbstractType {
             TypeMirror typeMirror,
             @Nullable Theta map,
             Java8InferenceContext context) {
-
         return create(type, typeMirror, map, AnnotationMirrorMap.emptyMap(), context);
     }
 
@@ -245,7 +244,7 @@ public class InferenceType extends AbstractType {
 
     @Override
     public TypeMirror getJavaType() {
-        return typeMirror;
+        return type.getUnderlyingType();
     }
 
     @Override

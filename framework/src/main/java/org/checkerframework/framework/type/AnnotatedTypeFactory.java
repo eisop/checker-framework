@@ -986,21 +986,21 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /**
      * Set the CompilationUnitTree that should be used.
      *
-     * @param root the new compilation unit to use
+     * @param newRoot the new compilation unit to use
      */
-    public void setRoot(@Nullable CompilationUnitTree root) {
+    public void setRoot(@Nullable CompilationUnitTree newRoot) {
         /* NO-AFU
-               if (root != null && wholeProgramInference != null) {
-                   for (Tree typeDecl : root.getTypeDecls()) {
-                       if (typeDecl.getKind() == Tree.Kind.CLASS) {
-                           ClassTree classTree = (ClassTree) typeDecl;
-                           wholeProgramInference.preprocessClassTree(classTree);
-                       }
-                   }
-               }
+        if (newRoot != null && wholeProgramInference != null) {
+          for (Tree typeDecl : newRoot.getTypeDecls()) {
+            if (typeDecl.getKind() == Tree.Kind.CLASS) {
+              ClassTree classTree = (ClassTree) typeDecl;
+              wholeProgramInference.preprocessClassTree(classTree);
+            }
+          }
+        }
         */
 
-        this.root = root;
+        this.root = newRoot;
         // Do not clear here. Only the primary checker should clear this cache.
         // treePathCache.clear();
 
@@ -2989,12 +2989,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // 3. compute and store the vararg type.
             // 4. copy the parameters to the anonymous constructor, `con`.
             // 5. copy annotations on the return type to `con`.
-            AnnotatedExecutableType superCon =
-                    getAnnotatedType(TreeUtils.getSuperConstructor(tree));
+            ExecutableElement superCtor = TreeUtils.getSuperConstructor(tree);
+            AnnotatedExecutableType superCon = getAnnotatedType(superCtor);
             constructorFromUsePreSubstitution(tree, superCon, inferTypeArgs);
-            // no viewpoint adaptation needed for super invocation
             superCon =
                     AnnotatedTypes.asMemberOf(types, this, type, superCon.getElement(), superCon);
+            if (viewpointAdapter != null) {
+                // Viewpoint adapt the super constructor, because the return type could depend on
+                // the viewpoint and there is an LUB computation later.
+                viewpointAdapter.viewpointAdaptConstructor(type, superCtor, superCon);
+            }
             con.computeVarargType(superCon);
             if (superCon.getParameterTypes().size() == con.getParameterTypes().size()) {
                 con.setParameterTypes(superCon.getParameterTypes());
@@ -3018,7 +3022,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 p.addAll(superCon.getParameterTypes());
                 con.setParameterTypes(Collections.unmodifiableList(p));
             }
-            con.getReturnType().replaceAnnotations(superCon.getReturnType().getAnnotations());
+            Set<? extends AnnotationMirror> lub =
+                    qualHierarchy.leastUpperBoundsShallow(
+                            type.getAnnotations(),
+                            type.getUnderlyingType(),
+                            superCon.getReturnType().getAnnotations(),
+                            superCon.getReturnType().getUnderlyingType());
+            con.getReturnType().replaceAnnotations(lub);
         } else {
             // Store varargType before calling setParameterTypes, otherwise we may lose the
             // varargType as it is the last element of the original parameterTypes.
@@ -3752,15 +3762,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * <p>The point of {@code annotationToUse} is that it may include elements/fields.
      *
      * @param alias the class of the alias annotation
-     * @param annotation the class of the canonical annotation
+     * @param annotationClass the class of the canonical annotation
      * @param annotationToUse the annotation mirror to use
      */
     protected void addAliasedDeclAnnotation(
             Class<? extends Annotation> alias,
-            Class<? extends Annotation> annotation,
+            Class<? extends Annotation> annotationClass,
             AnnotationMirror annotationToUse) {
         addAliasedDeclAnnotation(
-                alias.getCanonicalName(), annotation.getCanonicalName(), annotationToUse);
+                alias.getCanonicalName(), annotationClass.getCanonicalName(), annotationToUse);
     }
 
     /**
@@ -3772,24 +3782,25 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * <p>The point of {@code annotationToUse} is that it may include elements/fields.
      *
      * @param alias the fully-qualified name of the alias annotation
-     * @param annotation the fully-qualified name of the canonical annotation
+     * @param annotationClassName the fully-qualified name of the canonical annotation
      * @param annotationToUse the annotation mirror to use
      */
     protected void addAliasedDeclAnnotation(
             @FullyQualifiedName String alias,
-            @FullyQualifiedName String annotation,
+            @FullyQualifiedName String annotationClassName,
             AnnotationMirror annotationToUse) {
-        Map<@FullyQualifiedName String, AnnotationMirror> mapping = declAliases.get(annotation);
+        Map<@FullyQualifiedName String, AnnotationMirror> mapping =
+                declAliases.get(annotationClassName);
         if (mapping == null) {
             mapping = new HashMap<>(1);
-            declAliases.put(annotation, mapping);
+            declAliases.put(annotationClassName, mapping);
         }
         AnnotationMirror prev = mapping.put(alias, annotationToUse);
         // There already was a mapping. Raise an error.
         if (prev != null && !AnnotationUtils.areSame(prev, annotationToUse)) {
             throw new TypeSystemError(
                     "Multiple aliases for %s: %s cannot map to %s and %s.",
-                    annotation, alias, prev, annotationToUse);
+                    annotationClassName, alias, prev, annotationToUse);
         }
     }
 
@@ -4096,12 +4107,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *
      * @see #getDeclAnnotationNoAliases
      * @param elt the element to retrieve the declaration annotation from
-     * @param anno annotation class
-     * @return the annotation mirror for anno
+     * @param annoClass annotation class
+     * @return the annotation mirror for annoClass
      */
     @Override
-    public final AnnotationMirror getDeclAnnotation(Element elt, Class<? extends Annotation> anno) {
-        AnnotationMirror result = getDeclAnnotation(elt, anno, true);
+    public final AnnotationMirror getDeclAnnotation(
+            Element elt, Class<? extends Annotation> annoClass) {
+        AnnotationMirror result = getDeclAnnotation(elt, annoClass, true);
         return result;
     }
 
@@ -4119,12 +4131,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *
      * @see #getDeclAnnotation
      * @param elt the element to retrieve the declaration annotation from
-     * @param anno annotation class
-     * @return the annotation mirror for anno
+     * @param annoClass annotation class
+     * @return the annotation mirror for annoClass
      */
     public final @Nullable AnnotationMirror getDeclAnnotationNoAliases(
-            Element elt, Class<? extends Annotation> anno) {
-        return getDeclAnnotation(elt, anno, false);
+            Element elt, Class<? extends Annotation> annoClass) {
+        return getDeclAnnotation(elt, annoClass, false);
     }
 
     /**
@@ -5753,8 +5765,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /**
      * Checks that the annotation {@code am} has the name of {@code annoClass}. Values are ignored.
      *
-     * <p>This method is faster than {@link AnnotationUtils#areSameByClass(AnnotationMirror, Class)}
-     * because it caches the name of the class rather than computing it each time.
+     * <p>In the end, all annotation comparisons are by name. This method is faster than {@link
+     * AnnotationUtils#areSameByClass(AnnotationMirror, Class)} because it caches the name of {@code
+     * annoClass} rather than computing it on each invocation of this method.
      *
      * @param am the AnnotationMirror whose class to compare
      * @param annoClass the class to compare
@@ -5772,35 +5785,38 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     /**
      * Checks that the collection contains the annotation. Using {@code Collection.contains} does
-     * not always work, because it does not use {@code areSame()} for comparison.
+     * not always work, because it does not use {@link AnnotationUtils#areSame} for comparison.
      *
-     * <p>This method is faster than {@link AnnotationUtils#containsSameByClass(Collection, Class)}
-     * because is caches the name of the class rather than computing it each time.
+     * <p>In the end, all annotation comparisons are by name. This method is faster than {@link
+     * AnnotationUtils#containsSameByClass(Collection, Class)} because it (actually, its callee)
+     * caches the name of {@code annoClass} rather than computing it each time.
      *
      * @param c a collection of AnnotationMirrors
-     * @param anno the annotation class to search for in c
-     * @return true iff c contains anno, according to areSameByClass
+     * @param annoClass the annotation class to search for in c
+     * @return true iff c contains an annotation of class annoClass, according to {@link
+     *     #areSameByClass}
      */
     public boolean containsSameByClass(
-            Collection<? extends AnnotationMirror> c, Class<? extends Annotation> anno) {
-        return getAnnotationByClass(c, anno) != null;
+            Collection<? extends AnnotationMirror> c, Class<? extends Annotation> annoClass) {
+        return getAnnotationByClass(c, annoClass) != null;
     }
 
     /**
-     * Returns the AnnotationMirror in {@code c} that has the same class as {@code anno}.
+     * Returns the AnnotationMirror in {@code c} that has class {@code annoClass}.
      *
      * <p>This method is faster than {@link AnnotationUtils#getAnnotationByClass(Collection, Class)}
-     * because is caches the name of the class rather than computing it each time.
+     * because it (actually, its callee) caches the name of the class rather than computing it each
+     * time.
      *
      * @param c a collection of AnnotationMirrors
-     * @param anno the class to search for in c
-     * @return AnnotationMirror with the same class as {@code anno} iff c contains anno, according
-     *     to areSameByClass; otherwise, {@code null}
+     * @param annoClass the class to search for in c
+     * @return an AnnotationMirror with class {@code annoClass} iff c contains one, according to
+     *     areSameByClass; otherwise, {@code null}
      */
     public @Nullable AnnotationMirror getAnnotationByClass(
-            Collection<? extends AnnotationMirror> c, Class<? extends Annotation> anno) {
+            Collection<? extends AnnotationMirror> c, Class<? extends Annotation> annoClass) {
         for (AnnotationMirror an : c) {
-            if (areSameByClass(an, anno)) {
+            if (areSameByClass(an, annoClass)) {
                 return an;
             }
         }
@@ -5849,10 +5865,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * Side-effects the method or constructor annotations to make any desired changes before writing
      * to an annotation file.
      *
+     * @param className the class that contains the method, for diagnostics only
      * @param methodAnnos the method or constructor annotations to modify
      */
     /* NO-AFU
-    public void wpiPrepareMethodForWriting(AMethod methodAnnos) {
+    public void wpiPrepareMethodForWriting(String className, AMethod methodAnnos) {
       // This implementation does nothing.
     }
     */
@@ -5874,18 +5891,54 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos methodAnnos,
         Collection<WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos> inSupertypes,
         Collection<WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos> inSubtypes) {
-      Map<String, IPair<AnnotatedTypeMirror, AnnotatedTypeMirror>> precondMap =
-          methodAnnos.getPreconditions();
-      Map<String, IPair<AnnotatedTypeMirror, AnnotatedTypeMirror>> postcondMap =
-          methodAnnos.getPostconditions();
+      Map<String, InferredDeclared> precondMap = methodAnnos.getPreconditions();
+      Map<String, InferredDeclared> postcondMap = methodAnnos.getPostconditions();
+      String className = methodAnnos.className;
+      String methodName = methodAnnos.declaration.getName().toString();
       for (WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos inSupertype :
           inSupertypes) {
-        makeConditionConsistentWithOtherMethod(precondMap, inSupertype, true, true);
-        makeConditionConsistentWithOtherMethod(postcondMap, inSupertype, false, true);
+        // methodName and otherMethodName are usually the same, but not for constructors.
+        String otherMethodName = inSupertype.declaration.getName().toString();
+        makeConditionConsistentWithOtherMethod(
+            methodName,
+            otherMethodName,
+            className,
+            inSupertype.className,
+            precondMap,
+            inSupertype,
+            true,
+            true);
+        makeConditionConsistentWithOtherMethod(
+            methodName,
+            otherMethodName,
+            className,
+            inSupertype.className,
+            postcondMap,
+            inSupertype,
+            false,
+            true);
       }
       for (WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos inSubtype : inSubtypes) {
-        makeConditionConsistentWithOtherMethod(precondMap, inSubtype, true, false);
-        makeConditionConsistentWithOtherMethod(postcondMap, inSubtype, false, false);
+        // methodName and otherMethodName are usually the same, but not for constructors.
+        String otherMethodName = inSubtype.declaration.getName().toString();
+        makeConditionConsistentWithOtherMethod(
+            methodName,
+            otherMethodName,
+            className,
+            inSubtype.className,
+            precondMap,
+            inSubtype,
+            true,
+            false);
+        makeConditionConsistentWithOtherMethod(
+            methodName,
+            otherMethodName,
+            className,
+            inSubtype.className,
+            postcondMap,
+            inSubtype,
+            false,
+            false);
       }
     }
     */
@@ -5899,6 +5952,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * <p>Overriding implementations should call {@code
      * super.makeConditionConsistentWithOtherMethod()}.
      *
+     * @param methodName the method name, for diagnostics only
+     * @param otherMethodName the other method name, for diagnostics only
+     * @param className the class containing the method
+     * @param otherClassName the class containing the other method, for diagnostics only
      * @param conditionMap pre- or post-condition annotations on a method M; may be side-effected
      * @param otherDeclAnnos annotations on a method that M overrides or that overrides M; that is, on
      *     a method in the same "method family" as M; may be side-effected
@@ -5909,20 +5966,23 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     /* NO-AFU
     protected void makeConditionConsistentWithOtherMethod(
-        Map<String, IPair<AnnotatedTypeMirror, AnnotatedTypeMirror>> conditionMap,
+        String methodName,
+        String otherMethodName,
+        String className,
+        String otherClassName,
+        Map<String, InferredDeclared> conditionMap,
         WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos otherDeclAnnos,
         boolean isPrecondition,
         boolean otherIsSupertype) {
-      for (Map.Entry<String, IPair<AnnotatedTypeMirror, AnnotatedTypeMirror>> entry :
-          conditionMap.entrySet()) {
+      for (Map.Entry<String, InferredDeclared> entry : conditionMap.entrySet()) {
         String expr = entry.getKey();
-        IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> pair = entry.getValue();
-        AnnotatedTypeMirror inferredType = pair.first;
-        AnnotatedTypeMirror declaredType = pair.second;
+        InferredDeclared pair = entry.getValue();
+        AnnotatedTypeMirror inferredType = pair.inferred;
+        AnnotatedTypeMirror declaredType = pair.declared;
         if (otherIsSupertype ? isPrecondition : !isPrecondition) {
           // other is a supertype & compare preconditions, or
           // other is a subtype & compare postconditions.
-          Map<String, IPair<AnnotatedTypeMirror, AnnotatedTypeMirror>> otherConditionMap =
+          Map<String, InferredDeclared> otherConditionMap =
               isPrecondition ? otherDeclAnnos.getPreconditions() : otherDeclAnnos.getPostconditions();
           // TODO: Complete support for "every expression" conditions, then remove the
           // `!otherConditionMap.containsKey(expr)` test.
@@ -5938,8 +5998,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
           } else {
             AnnotatedTypeMirror otherInferredType =
                 isPrecondition
-                    ? otherDeclAnnos.getPreconditionsForExpression(expr, declaredType, this)
-                    : otherDeclAnnos.getPostconditionsForExpression(expr, declaredType, this);
+                    ? otherDeclAnnos.getPreconditionsForExpression(
+                        className, methodName, expr, declaredType, this)
+                    : otherDeclAnnos.getPostconditionsForExpression(
+                        className, methodName, expr, declaredType, this);
             this.getWholeProgramInference().updateAtmWithLub(inferredType, otherInferredType);
           }
         }

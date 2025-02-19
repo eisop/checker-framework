@@ -1888,7 +1888,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
 
             AnnotatedTypeVariable result = this.shallowCopy();
             result.declaration = false;
-            Map<TypeVariable, AnnotatedTypeMirror> mapping = new HashMap<>(1);
+            Map<TypeVariable, AnnotatedTypeMirror> mapping = new HashMap<>(4);
             mapping.put(getUnderlyingType(), result);
             AnnotatedTypeMirror upperBound =
                     atypeFactory

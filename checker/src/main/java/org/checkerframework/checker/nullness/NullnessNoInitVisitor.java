@@ -581,9 +581,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     }
 
     @Override
-    public void processMethodTree(MethodTree tree) {
-        VariableTree receiver = tree.getReceiverParameter();
-
+    public void processMethodTree(String className, MethodTree tree) {
         if (TreeUtils.isConstructor(tree)) {
             // Constructor results are always @NonNull. Any annotations are forbidden.
             List<? extends AnnotationTree> annoTrees = tree.getModifiers().getAnnotations();
@@ -592,6 +590,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             }
         }
 
+        VariableTree receiver = tree.getReceiverParameter();
         if (receiver != null) {
             List<? extends AnnotationTree> annoTrees = receiver.getModifiers().getAnnotations();
             Tree type = receiver.getType();
@@ -600,7 +599,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             }
         }
 
-        super.processMethodTree(tree);
+        super.processMethodTree(className, tree);
     }
 
     @Override

@@ -470,7 +470,7 @@ class MustCallConsistencyAnalyzer {
          *
          * <ul>
          *   <li>it is passed to another method or constructor in an @MustCallAlias position, and
-         *       then the enclosing method returns that method’s result, or the call is a super()
+         *       then the enclosing method returns that method's result, or the call is a super()
          *       constructor call annotated with {@link MustCallAlias}, or
          *   <li>it is stored in an owning field of the class under analysis
          * </ul>

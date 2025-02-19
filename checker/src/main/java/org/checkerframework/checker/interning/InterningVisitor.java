@@ -230,7 +230,7 @@ public final class InterningVisitor extends BaseTypeVisitor<InterningAnnotatedTy
 
     // Ensure that method annotations are not written on methods they don't apply to.
     @Override
-    public void processMethodTree(MethodTree tree) {
+    public void processMethodTree(String className, MethodTree tree) {
         ExecutableElement methElt = TreeUtils.elementFromDeclaration(tree);
         boolean hasCompareToMethodAnno =
                 atypeFactory.getDeclAnnotation(methElt, CompareToMethod.class) != null;
@@ -255,7 +255,7 @@ public final class InterningVisitor extends BaseTypeVisitor<InterningAnnotatedTy
                     tree, "invalid.method.annotation", "@InternMethod", "0", methElt, params);
         }
 
-        super.processMethodTree(tree);
+        super.processMethodTree(className, tree);
     }
 
     /**

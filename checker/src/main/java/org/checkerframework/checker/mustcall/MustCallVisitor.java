@@ -106,7 +106,7 @@ public class MustCallVisitor extends BaseTypeVisitor<MustCallAnnotatedTypeFactor
                     lhs.getKind() == Tree.Kind.MEMBER_SELECT
                             && atypeFactory.getDeclAnnotation(lhsElt, Owning.class) != null;
             boolean rhsIsMCA =
-                    AnnotationUtils.containsSameByClass(
+                    atypeFactory.containsSameByClass(
                             rhsElt.getAnnotationMirrors(), MustCallAlias.class);
             boolean rhsIsConstructorParam =
                     rhsElt.getKind() == ElementKind.PARAMETER
@@ -266,7 +266,7 @@ public class MustCallVisitor extends BaseTypeVisitor<MustCallAnnotatedTypeFactor
             // infer).
             boolean ajavaFileHasMustCallAlias =
                     useType.hasAnnotation(PolyMustCall.class)
-                            && !AnnotationUtils.containsSameByClass(
+                            && !atypeFactory.containsSameByClass(
                                     elt.getAnnotationMirrors(), PolyMustCall.class);
             if (ajavaFileHasMustCallAlias) {
                 return true;

@@ -26,6 +26,7 @@ Before: InitializationStore#4(
 7:
 Before: InitializationStore#8(
   in > CFAV{, S}
+  this > CFAV{@Initialized, Issue5174Super}
   Issue5174Super<S>.sf > CFAV{@Initialized, Object}
   this.f > CFAV{, S}
   initialized fields = [f, sf])
@@ -35,6 +36,7 @@ Before: InitializationStore#8(
 8:
 Before: InitializationStore#8(
   in > CFAV{, S}
+  this > CFAV{@Initialized, Issue5174Super}
   Issue5174Super<S>.sf > CFAV{@Initialized, Object}
   this.f > CFAV{, S}
   initialized fields = [f, sf])
@@ -45,6 +47,7 @@ return in   [ Return ]
 5:
 Before: InitializationStore#9(
   in > CFAV{, S}
+  this > CFAV{@Initialized, Issue5174Super}
   Issue5174Super<S>.sf > CFAV{@Initialized, Object}
   this.f > CFAV{, S}
   initialized fields = [f, sf])
@@ -60,6 +63,7 @@ Before: InitializationStore#9(
 13:
 Before: InitializationStore#13(
   f > CFAV{, S}
+  this > CFAV{@UnderInitialization, Issue5174Super}
   Issue5174Super<S>.sf > CFAV{@Initialized, Object}
   initialized fields = [sf])
 ~~~~~~~~~
@@ -68,15 +72,17 @@ Before: InitializationStore#13(
 14:
 Before: InitializationStore#13(
   f > CFAV{, S}
+  this > CFAV{@UnderInitialization, Issue5174Super}
   Issue5174Super<S>.sf > CFAV{@Initialized, Object}
   initialized fields = [sf])
 ~~~~~~~~~
-(this)   [ ImplicitThis ]
+(this)   [ ImplicitThis ]    > CFAV{@UnderInitialization, Issue5174Super}
 (this).<init>   [ MethodAccess ]    > CFAV{@UnderInitialization, Issue5174Super}
 
 15:
 Before: InitializationStore#14(
   f > CFAV{, S}
+  this > CFAV{@UnderInitialization, Issue5174Super}
   Issue5174Super<S>.sf > CFAV{@Initialized, Object}
   initialized fields = [sf])
 ~~~~~~~~~
@@ -85,11 +91,13 @@ Before: InitializationStore#14(
 16:
 Before: then=InitializationStore#15(
   f > CFAV{, S}
+  this > CFAV{@UnderInitialization, Issue5174Super}
   Issue5174Super<S>.sf > CFAV{@Initialized, Object}
   this.<init>() > CFAV{@UnderInitialization, Object}
   initialized fields = [sf]),
 else=InitializationStore#16(
   f > CFAV{, S}
+  this > CFAV{@UnderInitialization, Issue5174Super}
   Issue5174Super<S>.sf > CFAV{@Initialized, Object}
   this.<init>() > CFAV{@UnderInitialization, Object}
   initialized fields = [sf])
@@ -104,6 +112,7 @@ expression statement this.f = f   [ ExpressionStatement ]
 12:
 Before: InitializationStore#17(
   f > CFAV{, S}
+  this > CFAV{@UnderInitialization, Issue5174Super}
   Issue5174Super<S>.sf > CFAV{@Initialized, Object}
   initialized fields = [sf])
 ~~~~~~~~~
@@ -112,6 +121,7 @@ Before: InitializationStore#17(
 11:
 Before: InitializationStore#22(
   f > CFAV{, S}
+  this > CFAV{@UnderInitialization, Issue5174Super}
   Issue5174Super<S>.sf > CFAV{@Initialized, Object}
   this.f > CFAV{, S}
   initialized fields = [f, sf])
@@ -150,6 +160,7 @@ Before: NullnessNoInitStore#33(
 7:
 Before: NullnessNoInitStore#37(
   in > NV{, S, poly nn/n=f/f}
+  this > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
   Issue5174Super<S>.sf > NV{@NonNull, Object, poly nn/n=f/f}
   this.f > NV{, S, poly nn/n=f/f}
   isPolyNullNonNull = false
@@ -160,6 +171,7 @@ Before: NullnessNoInitStore#37(
 8:
 Before: NullnessNoInitStore#37(
   in > NV{, S, poly nn/n=f/f}
+  this > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
   Issue5174Super<S>.sf > NV{@NonNull, Object, poly nn/n=f/f}
   this.f > NV{, S, poly nn/n=f/f}
   isPolyNullNonNull = false
@@ -171,6 +183,7 @@ return in   [ Return ]    > NV{@NonNull, boolean, poly nn/n=f/f}
 5:
 Before: NullnessNoInitStore#38(
   in > NV{, S, poly nn/n=f/f}
+  this > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
   Issue5174Super<S>.sf > NV{@NonNull, Object, poly nn/n=f/f}
   this.f > NV{, S, poly nn/n=f/f}
   isPolyNullNonNull = false
@@ -187,6 +200,7 @@ Before: NullnessNoInitStore#38(
 13:
 Before: NullnessNoInitStore#42(
   f > NV{, S, poly nn/n=f/f}
+  this > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
   Issue5174Super<S>.sf > NV{@NonNull, Object, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
@@ -196,11 +210,12 @@ Before: NullnessNoInitStore#42(
 14:
 Before: NullnessNoInitStore#42(
   f > NV{, S, poly nn/n=f/f}
+  this > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
   Issue5174Super<S>.sf > NV{@NonNull, Object, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
-(this)   [ ImplicitThis ]
+(this)   [ ImplicitThis ]    > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
 (this).<init>   [ MethodAccess ]    > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
 
 15:
@@ -266,6 +281,7 @@ Before: NullnessNoInitStore#51(
 20:
 Before: InitializationStore#63(
   f > CFAV{, T}
+  this > CFAV{@UnderInitialization(Issue5174Super.class), Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 <entry>
@@ -273,15 +289,17 @@ Before: InitializationStore#63(
 21:
 Before: InitializationStore#63(
   f > CFAV{, T}
+  this > CFAV{@UnderInitialization(Issue5174Super.class), Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
-(this)   [ ImplicitThis ]
+(this)   [ ImplicitThis ]    > CFAV{@UnderInitialization(Issue5174Super.class), Issue5174Sub}
 (this).<init>   [ MethodAccess ]    > CFAV{@UnderInitialization(Issue5174Sub.class), Issue5174Sub}
 f   [ LocalVariable ]    > CFAV{, T}
 
 22:
 Before: InitializationStore#64(
   f > CFAV{, T}
+  this > CFAV{@UnderInitialization(Issue5174Super.class), Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 (this).<init>(f)   [ MethodInvocation ]    > CFAV{@UnderInitialization, Issue5174Super}
@@ -289,9 +307,11 @@ Before: InitializationStore#64(
 23:
 Before: then=InitializationStore#65(
   f > CFAV{, T}
+  this > CFAV{@UnderInitialization(Issue5174Super.class), Issue5174Sub}
   initialized fields = [f, sf]),
 else=InitializationStore#66(
   f > CFAV{, T}
+  this > CFAV{@UnderInitialization(Issue5174Super.class), Issue5174Sub}
   initialized fields = [f, sf])
 ~~~~~~~~~
 expression statement super(f)   [ ExpressionStatement ]
@@ -299,6 +319,7 @@ expression statement super(f)   [ ExpressionStatement ]
 19:
 Before: InitializationStore#67(
   f > CFAV{, T}
+  this > CFAV{@UnderInitialization(Issue5174Super.class), Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 <exceptional-exit>
@@ -306,6 +327,7 @@ Before: InitializationStore#67(
 18:
 Before: InitializationStore#72(
   f > CFAV{, T}
+  this > CFAV{@UnderInitialization(Issue5174Super.class), Issue5174Sub}
   initialized fields = [f, sf])
 ~~~~~~~~~
 <exit>
@@ -319,6 +341,7 @@ Before: InitializationStore#72(
 27:
 Before: InitializationStore#79(
   in > CFAV{, T}
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 <entry>
@@ -326,16 +349,18 @@ Before: InitializationStore#79(
 28:
 Before: InitializationStore#79(
   in > CFAV{, T}
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 o   [ VariableDeclaration ]
-(this)   [ ImplicitThis ]
+(this)   [ ImplicitThis ]    > CFAV{@Initialized, Issue5174Sub}
 (this).methodInner   [ MethodAccess ]
 in   [ LocalVariable ]    > CFAV{, T}
 
 29:
 Before: InitializationStore#80(
   in > CFAV{, T}
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 (this).methodInner(in)   [ MethodInvocation ]    > CFAV{, T}
@@ -343,9 +368,11 @@ Before: InitializationStore#80(
 30:
 Before: then=InitializationStore#81(
   in > CFAV{, T}
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = []),
 else=InitializationStore#82(
   in > CFAV{, T}
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 o = (this).methodInner(in)   [ Assignment ]    > CFAV{, T}
@@ -353,6 +380,7 @@ o = (this).methodInner(in)   [ Assignment ]    > CFAV{, T}
 26:
 Before: InitializationStore#83(
   in > CFAV{, T}
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 <exceptional-exit>
@@ -361,6 +389,7 @@ Before: InitializationStore#83(
 Before: InitializationStore#88(
   in > CFAV{, T}
   o > CFAV{, T}
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 <exit>
@@ -374,6 +403,7 @@ Before: InitializationStore#88(
 34:
 Before: InitializationStore#95(
   in > CFAV{, T}
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 <entry>
@@ -381,6 +411,7 @@ Before: InitializationStore#95(
 35:
 Before: InitializationStore#95(
   in > CFAV{, T}
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 o   [ VariableDeclaration ]
@@ -391,6 +422,7 @@ in   [ LocalVariable ]    > CFAV{, T}
 36:
 Before: InitializationStore#96(
   in > CFAV{, T}
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 this.methodInner(in)   [ MethodInvocation ]    > CFAV{, T}
@@ -398,9 +430,11 @@ this.methodInner(in)   [ MethodInvocation ]    > CFAV{, T}
 37:
 Before: then=InitializationStore#97(
   in > CFAV{, T}
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = []),
 else=InitializationStore#98(
   in > CFAV{, T}
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 o = this.methodInner(in)   [ Assignment ]    > CFAV{, T}
@@ -408,6 +442,7 @@ o = this.methodInner(in)   [ Assignment ]    > CFAV{, T}
 33:
 Before: InitializationStore#99(
   in > CFAV{, T}
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 <exceptional-exit>
@@ -416,6 +451,7 @@ Before: InitializationStore#99(
 Before: InitializationStore#104(
   in > CFAV{, T}
   o > CFAV{, T}
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 <exit>
@@ -424,22 +460,25 @@ Before: InitializationStore#104(
 
 41:
 Before: InitializationStore#111(
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 <entry>
 
 42:
 Before: InitializationStore#111(
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 o   [ VariableDeclaration ]
-(this)   [ ImplicitThis ]
+(this)   [ ImplicitThis ]    > CFAV{@Initialized, Issue5174Sub}
 (this).f   [ FieldAccess ]    > CFAV{, T}
 o = (this).f   [ Assignment ]    > CFAV{, T}
 
 39:
 Before: InitializationStore#112(
   o > CFAV{, T}
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 <exit>
@@ -448,12 +487,14 @@ Before: InitializationStore#112(
 
 46:
 Before: InitializationStore#116(
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 <entry>
 
 47:
 Before: InitializationStore#116(
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 o   [ VariableDeclaration ]
@@ -464,6 +505,7 @@ o = this.f   [ Assignment ]    > CFAV{, T}
 44:
 Before: InitializationStore#117(
   o > CFAV{, T}
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 <exit>
@@ -490,12 +532,14 @@ Before: InitializationStore#117(
 
 51:
 Before: InitializationStore#121(
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 <entry>
 
 52:
 Before: InitializationStore#121(
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 o   [ VariableDeclaration ]
@@ -503,12 +547,14 @@ o   [ LocalVariable ]
 
 53:
 Before: InitializationStore#122(
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 Issue5174Super   [ ClassName ]
 
 54:
 Before: InitializationStore#123(
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 Issue5174Super.sf   [ FieldAccess ]    > CFAV{@Initialized, Object}
@@ -518,6 +564,7 @@ o   [ LocalVariable ]
 
 50:
 Before: InitializationStore#124(
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 <exceptional-exit>
@@ -525,6 +572,7 @@ Before: InitializationStore#124(
 55:
 Before: InitializationStore#131(
   o > CFAV{@Initialized, Object}
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 Issue5174Sub   [ ClassName ]    > CFAV{@Initialized, Issue5174Sub}
@@ -532,6 +580,7 @@ Issue5174Sub   [ ClassName ]    > CFAV{@Initialized, Issue5174Sub}
 56:
 Before: InitializationStore#132(
   o > CFAV{@Initialized, Object}
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 Issue5174Sub.sf   [ FieldAccess ]    > CFAV{@Initialized, Object}
@@ -542,6 +591,7 @@ o   [ LocalVariable ]
 57:
 Before: InitializationStore#141(
   o > CFAV{@Initialized, Object}
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 Issue5174Super   [ ClassName ]    > CFAV{@Initialized, Issue5174Super}
@@ -549,6 +599,7 @@ Issue5174Super   [ ClassName ]    > CFAV{@Initialized, Issue5174Super}
 58:
 Before: InitializationStore#142(
   o > CFAV{@Initialized, Object}
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 Issue5174Super.sf   [ FieldAccess ]    > CFAV{@Initialized, Object}
@@ -558,6 +609,7 @@ expression statement o = Issue5174Super.sf   [ ExpressionStatement ]
 49:
 Before: InitializationStore#151(
   o > CFAV{@Initialized, Object}
+  this > CFAV{@Initialized, Issue5174Sub}
   initialized fields = [])
 ~~~~~~~~~
 <exit>
@@ -570,28 +622,33 @@ Before: InitializationStore#151(
 
 62:
 Before: InitializationStore#162(
+  this > CFAV{@UnderInitialization, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 <entry>
 
 63:
 Before: InitializationStore#162(
+  this > CFAV{@UnderInitialization, SubNested}
   initialized fields = [])
 ~~~~~~~~~
-(this)   [ ImplicitThis ]
+(this)   [ ImplicitThis ]    > CFAV{@UnderInitialization, SubNested}
 (this).<init>   [ MethodAccess ]    > CFAV{@UnderInitialization(Issue5174Sub.SubNested.class), SubNested}
 
 64:
 Before: InitializationStore#163(
+  this > CFAV{@UnderInitialization, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 (this).<init>()   [ MethodInvocation ]    > CFAV{@UnderInitialization, Object}
 
 65:
 Before: then=InitializationStore#164(
+  this > CFAV{@UnderInitialization, SubNested}
   this.<init>() > CFAV{@UnderInitialization, Object}
   initialized fields = []),
 else=InitializationStore#165(
+  this > CFAV{@UnderInitialization, SubNested}
   this.<init>() > CFAV{@UnderInitialization, Object}
   initialized fields = [])
 ~~~~~~~~~
@@ -599,12 +656,14 @@ expression statement super()   [ ExpressionStatement ]
 
 61:
 Before: InitializationStore#166(
+  this > CFAV{@UnderInitialization, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 <exceptional-exit>
 
 60:
 Before: InitializationStore#171(
+  this > CFAV{@UnderInitialization, SubNested}
   this.<init>() > CFAV{@UnderInitialization, Object}
   initialized fields = [])
 ~~~~~~~~~
@@ -619,6 +678,7 @@ Before: InitializationStore#171(
 69:
 Before: InitializationStore#178(
   in > CFAV{, T}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 <entry>
@@ -626,16 +686,18 @@ Before: InitializationStore#178(
 70:
 Before: InitializationStore#178(
   in > CFAV{, T}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 o   [ VariableDeclaration ]
-(this)   [ ImplicitThis ]
+(this)   [ ImplicitThis ]    > CFAV{@Initialized, SubNested}
 (this).methodInner   [ MethodAccess ]
 in   [ LocalVariable ]    > CFAV{, T}
 
 71:
 Before: InitializationStore#179(
   in > CFAV{, T}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 (this).methodInner(in)   [ MethodInvocation ]    > CFAV{, T}
@@ -643,9 +705,11 @@ Before: InitializationStore#179(
 72:
 Before: then=InitializationStore#180(
   in > CFAV{, T}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = []),
 else=InitializationStore#181(
   in > CFAV{, T}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 o = (this).methodInner(in)   [ Assignment ]    > CFAV{, T}
@@ -653,6 +717,7 @@ o = (this).methodInner(in)   [ Assignment ]    > CFAV{, T}
 68:
 Before: InitializationStore#182(
   in > CFAV{, T}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 <exceptional-exit>
@@ -661,6 +726,7 @@ Before: InitializationStore#182(
 Before: InitializationStore#187(
   in > CFAV{, T}
   o > CFAV{, T}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 <exit>
@@ -684,6 +750,7 @@ Before: InitializationStore#187(
 76:
 Before: InitializationStore#194(
   in > CFAV{, T}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 <entry>
@@ -691,6 +758,7 @@ Before: InitializationStore#194(
 77:
 Before: InitializationStore#194(
   in > CFAV{, T}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 o   [ VariableDeclaration ]
@@ -698,6 +766,7 @@ o   [ VariableDeclaration ]
 78:
 Before: InitializationStore#195(
   in > CFAV{, T}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 Issue5174Sub   [ ClassName ]    > CFAV{@Initialized, Issue5174Sub}
@@ -705,6 +774,7 @@ Issue5174Sub   [ ClassName ]    > CFAV{@Initialized, Issue5174Sub}
 80:
 Before: InitializationStore#196(
   in > CFAV{, T}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 Issue5174Sub.this   [ FieldAccess ]    > CFAV{@Initialized, Issue5174Sub}
@@ -712,6 +782,7 @@ Issue5174Sub.this   [ FieldAccess ]    > CFAV{@Initialized, Issue5174Sub}
 75:
 Before: InitializationStore#197(
   in > CFAV{, T}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 <exceptional-exit>
@@ -719,6 +790,7 @@ Before: InitializationStore#197(
 82:
 Before: InitializationStore#204(
   in > CFAV{, T}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 Issue5174Sub.this.methodInner   [ MethodAccess ]
@@ -726,6 +798,7 @@ Issue5174Sub.this.methodInner   [ MethodAccess ]
 83:
 Before: InitializationStore#207(
   in > CFAV{, T}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 in   [ LocalVariable ]    > CFAV{, T}
@@ -733,6 +806,7 @@ in   [ LocalVariable ]    > CFAV{, T}
 84:
 Before: InitializationStore#210(
   in > CFAV{, T}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 Issue5174Sub.this.methodInner(in)   [ MethodInvocation ]    > CFAV{, T}
@@ -740,9 +814,11 @@ Issue5174Sub.this.methodInner(in)   [ MethodInvocation ]    > CFAV{, T}
 85:
 Before: then=InitializationStore#211(
   in > CFAV{, T}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = []),
 else=InitializationStore#212(
   in > CFAV{, T}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 o = Issue5174Sub.this.methodInner(in)   [ Assignment ]    > CFAV{, T}
@@ -751,6 +827,7 @@ o = Issue5174Sub.this.methodInner(in)   [ Assignment ]    > CFAV{, T}
 Before: InitializationStore#219(
   in > CFAV{, T}
   o > CFAV{, T}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 <exit>
@@ -759,22 +836,25 @@ Before: InitializationStore#219(
 
 89:
 Before: InitializationStore#230(
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 <entry>
 
 90:
 Before: InitializationStore#230(
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 o   [ VariableDeclaration ]
-(this)   [ ImplicitThis ]
+(this)   [ ImplicitThis ]    > CFAV{@Initialized, SubNested}
 (this).f   [ FieldAccess ]    > CFAV{, T}
 o = (this).f   [ Assignment ]    > CFAV{, T}
 
 87:
 Before: InitializationStore#231(
   o > CFAV{, T}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 <exit>
@@ -793,42 +873,49 @@ Before: InitializationStore#231(
 
 94:
 Before: InitializationStore#235(
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 <entry>
 
 95:
 Before: InitializationStore#235(
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 o   [ VariableDeclaration ]
 
 96:
 Before: InitializationStore#236(
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 Issue5174Sub   [ ClassName ]    > CFAV{@Initialized, Issue5174Sub}
 
 98:
 Before: InitializationStore#237(
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 Issue5174Sub.this   [ FieldAccess ]    > CFAV{@Initialized, Issue5174Sub}
 
 93:
 Before: InitializationStore#238(
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 <exceptional-exit>
 
 100:
 Before: InitializationStore#245(
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 Issue5174Sub.this.f   [ FieldAccess ]    > CFAV{, T}
 
 101:
 Before: InitializationStore#248(
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 o = Issue5174Sub.this.f   [ Assignment ]    > CFAV{, T}
@@ -836,6 +923,7 @@ o = Issue5174Sub.this.f   [ Assignment ]    > CFAV{, T}
 92:
 Before: InitializationStore#251(
   o > CFAV{, T}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 <exit>
@@ -862,12 +950,14 @@ Before: InitializationStore#251(
 
 105:
 Before: InitializationStore#260(
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 <entry>
 
 106:
 Before: InitializationStore#260(
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 o   [ VariableDeclaration ]
@@ -875,12 +965,14 @@ o   [ LocalVariable ]
 
 107:
 Before: InitializationStore#261(
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 Issue5174Super   [ ClassName ]
 
 108:
 Before: InitializationStore#262(
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 Issue5174Super.sf   [ FieldAccess ]    > CFAV{@Initialized, Object}
@@ -890,6 +982,7 @@ o   [ LocalVariable ]
 
 104:
 Before: InitializationStore#263(
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 <exceptional-exit>
@@ -897,6 +990,7 @@ Before: InitializationStore#263(
 109:
 Before: InitializationStore#270(
   o > CFAV{@Initialized, Object}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 Issue5174Sub   [ ClassName ]    > CFAV{@Initialized, Issue5174Sub}
@@ -904,6 +998,7 @@ Issue5174Sub   [ ClassName ]    > CFAV{@Initialized, Issue5174Sub}
 110:
 Before: InitializationStore#271(
   o > CFAV{@Initialized, Object}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 Issue5174Sub.sf   [ FieldAccess ]    > CFAV{@Initialized, Object}
@@ -914,6 +1009,7 @@ o   [ LocalVariable ]
 111:
 Before: InitializationStore#280(
   o > CFAV{@Initialized, Object}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 Issue5174Super   [ ClassName ]    > CFAV{@Initialized, Issue5174Super}
@@ -921,6 +1017,7 @@ Issue5174Super   [ ClassName ]    > CFAV{@Initialized, Issue5174Super}
 112:
 Before: InitializationStore#281(
   o > CFAV{@Initialized, Object}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 Issue5174Super.sf   [ FieldAccess ]    > CFAV{@Initialized, Object}
@@ -930,6 +1027,7 @@ expression statement o = Issue5174Super.sf   [ ExpressionStatement ]
 103:
 Before: InitializationStore#290(
   o > CFAV{@Initialized, Object}
+  this > CFAV{@Initialized, SubNested}
   initialized fields = [])
 ~~~~~~~~~
 <exit>
@@ -943,6 +1041,7 @@ Before: InitializationStore#290(
 20:
 Before: NullnessNoInitStore#301(
   f > NV{, T, poly nn/n=f/f}
+  this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -951,10 +1050,11 @@ Before: NullnessNoInitStore#301(
 21:
 Before: NullnessNoInitStore#301(
   f > NV{, T, poly nn/n=f/f}
+  this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
-(this)   [ ImplicitThis ]
+(this)   [ ImplicitThis ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
 (this).<init>   [ MethodAccess ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
 f   [ LocalVariable ]    > NV{, T, poly nn/n=f/f}
 
@@ -1008,6 +1108,7 @@ Before: NullnessNoInitStore#310(
 27:
 Before: NullnessNoInitStore#317(
   in > NV{, T, poly nn/n=f/f}
+  this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1016,11 +1117,12 @@ Before: NullnessNoInitStore#317(
 28:
 Before: NullnessNoInitStore#317(
   in > NV{, T, poly nn/n=f/f}
+  this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
 o   [ VariableDeclaration ]
-(this)   [ ImplicitThis ]
+(this)   [ ImplicitThis ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
 (this).methodInner   [ MethodAccess ]
 in   [ LocalVariable ]    > NV{, T, poly nn/n=f/f}
 
@@ -1075,6 +1177,7 @@ Before: NullnessNoInitStore#326(
 34:
 Before: NullnessNoInitStore#333(
   in > NV{, T, poly nn/n=f/f}
+  this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1083,6 +1186,7 @@ Before: NullnessNoInitStore#333(
 35:
 Before: NullnessNoInitStore#333(
   in > NV{, T, poly nn/n=f/f}
+  this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1137,7 +1241,7 @@ Before: NullnessNoInitStore#342(
 
 41:
 Before: NullnessNoInitStore#349(
-
+  this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1145,12 +1249,12 @@ Before: NullnessNoInitStore#349(
 
 42:
 Before: NullnessNoInitStore#349(
-
+  this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
 o   [ VariableDeclaration ]
-(this)   [ ImplicitThis ]
+(this)   [ ImplicitThis ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
 (this).f   [ FieldAccess ]    > NV{, T, poly nn/n=f/f}
 o = (this).f   [ Assignment ]    > NV{, T, poly nn/n=f/f}
 
@@ -1167,7 +1271,7 @@ Before: NullnessNoInitStore#350(
 
 46:
 Before: NullnessNoInitStore#354(
-
+  this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1175,7 +1279,7 @@ Before: NullnessNoInitStore#354(
 
 47:
 Before: NullnessNoInitStore#354(
-
+  this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1215,7 +1319,7 @@ Before: NullnessNoInitStore#355(
 
 51:
 Before: NullnessNoInitStore#359(
-
+  this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1223,7 +1327,7 @@ Before: NullnessNoInitStore#359(
 
 52:
 Before: NullnessNoInitStore#359(
-
+  this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1232,7 +1336,7 @@ o   [ LocalVariable ]
 
 53:
 Before: NullnessNoInitStore#360(
-
+  this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1240,7 +1344,7 @@ Issue5174Super   [ ClassName ]
 
 54:
 Before: NullnessNoInitStore#361(
-
+  this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1251,7 +1355,7 @@ o   [ LocalVariable ]
 
 50:
 Before: NullnessNoInitStore#362(
-
+  this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1260,6 +1364,7 @@ Before: NullnessNoInitStore#362(
 55:
 Before: NullnessNoInitStore#369(
   o > NV{@NonNull, Object, poly nn/n=f/f}
+  this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1268,6 +1373,7 @@ Issue5174Sub   [ ClassName ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
 56:
 Before: NullnessNoInitStore#370(
   o > NV{@NonNull, Object, poly nn/n=f/f}
+  this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1279,6 +1385,7 @@ o   [ LocalVariable ]
 57:
 Before: NullnessNoInitStore#379(
   o > NV{@NonNull, Object, poly nn/n=f/f}
+  this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1287,6 +1394,7 @@ Issue5174Super   [ ClassName ]    > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
 58:
 Before: NullnessNoInitStore#380(
   o > NV{@NonNull, Object, poly nn/n=f/f}
+  this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1297,6 +1405,7 @@ expression statement o = Issue5174Super.sf   [ ExpressionStatement ]
 49:
 Before: NullnessNoInitStore#389(
   o > NV{@NonNull, Object, poly nn/n=f/f}
+  this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1310,7 +1419,7 @@ Before: NullnessNoInitStore#389(
 
 62:
 Before: NullnessNoInitStore#400(
-
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1318,11 +1427,11 @@ Before: NullnessNoInitStore#400(
 
 63:
 Before: NullnessNoInitStore#400(
-
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
-(this)   [ ImplicitThis ]
+(this)   [ ImplicitThis ]    > NV{@NonNull, SubNested, poly nn/n=f/f}
 (this).<init>   [ MethodAccess ]    > NV{@NonNull, SubNested, poly nn/n=f/f}
 
 64:
@@ -1373,6 +1482,7 @@ Before: NullnessNoInitStore#409(
 69:
 Before: NullnessNoInitStore#416(
   in > NV{, T, poly nn/n=f/f}
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1381,11 +1491,12 @@ Before: NullnessNoInitStore#416(
 70:
 Before: NullnessNoInitStore#416(
   in > NV{, T, poly nn/n=f/f}
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
 o   [ VariableDeclaration ]
-(this)   [ ImplicitThis ]
+(this)   [ ImplicitThis ]    > NV{@NonNull, SubNested, poly nn/n=f/f}
 (this).methodInner   [ MethodAccess ]
 in   [ LocalVariable ]    > NV{, T, poly nn/n=f/f}
 
@@ -1450,6 +1561,7 @@ Before: NullnessNoInitStore#425(
 76:
 Before: NullnessNoInitStore#432(
   in > NV{, T, poly nn/n=f/f}
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1458,6 +1570,7 @@ Before: NullnessNoInitStore#432(
 77:
 Before: NullnessNoInitStore#432(
   in > NV{, T, poly nn/n=f/f}
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1466,6 +1579,7 @@ o   [ VariableDeclaration ]
 78:
 Before: NullnessNoInitStore#433(
   in > NV{, T, poly nn/n=f/f}
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1474,6 +1588,7 @@ Issue5174Sub   [ ClassName ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
 80:
 Before: NullnessNoInitStore#434(
   in > NV{, T, poly nn/n=f/f}
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1482,7 +1597,7 @@ Issue5174Sub.this   [ FieldAccess ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/
 75:
 Before: NullnessNoInitStore#452(
   in > NV{, T, poly nn/n=f/f}
-  this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
+  this > NV{@NonNull, Object, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1491,6 +1606,7 @@ Before: NullnessNoInitStore#452(
 82:
 Before: NullnessNoInitStore#442(
   in > NV{, T, poly nn/n=f/f}
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   Issue5174Sub.class > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
@@ -1548,7 +1664,7 @@ Before: NullnessNoInitStore#457(
 
 89:
 Before: NullnessNoInitStore#468(
-
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1556,12 +1672,12 @@ Before: NullnessNoInitStore#468(
 
 90:
 Before: NullnessNoInitStore#468(
-
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
 o   [ VariableDeclaration ]
-(this)   [ ImplicitThis ]
+(this)   [ ImplicitThis ]    > NV{@NonNull, SubNested, poly nn/n=f/f}
 (this).f   [ FieldAccess ]    > NV{, T, poly nn/n=f/f}
 o = (this).f   [ Assignment ]    > NV{, T, poly nn/n=f/f}
 
@@ -1588,7 +1704,7 @@ Before: NullnessNoInitStore#469(
 
 94:
 Before: NullnessNoInitStore#473(
-
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1596,7 +1712,7 @@ Before: NullnessNoInitStore#473(
 
 95:
 Before: NullnessNoInitStore#473(
-
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1604,7 +1720,7 @@ o   [ VariableDeclaration ]
 
 96:
 Before: NullnessNoInitStore#474(
-
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1612,7 +1728,7 @@ Issue5174Sub   [ ClassName ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
 
 98:
 Before: NullnessNoInitStore#475(
-
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1620,7 +1736,7 @@ Issue5174Sub.this   [ FieldAccess ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/
 
 93:
 Before: NullnessNoInitStore#476(
-
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1628,6 +1744,7 @@ Before: NullnessNoInitStore#476(
 
 100:
 Before: NullnessNoInitStore#483(
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   Issue5174Sub.class > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
@@ -1675,7 +1792,7 @@ Before: NullnessNoInitStore#489(
 
 105:
 Before: NullnessNoInitStore#498(
-
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1683,7 +1800,7 @@ Before: NullnessNoInitStore#498(
 
 106:
 Before: NullnessNoInitStore#498(
-
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1692,7 +1809,7 @@ o   [ LocalVariable ]
 
 107:
 Before: NullnessNoInitStore#499(
-
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1700,7 +1817,7 @@ Issue5174Super   [ ClassName ]
 
 108:
 Before: NullnessNoInitStore#500(
-
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1711,7 +1828,7 @@ o   [ LocalVariable ]
 
 104:
 Before: NullnessNoInitStore#501(
-
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1720,6 +1837,7 @@ Before: NullnessNoInitStore#501(
 109:
 Before: NullnessNoInitStore#508(
   o > NV{@NonNull, Object, poly nn/n=f/f}
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1728,6 +1846,7 @@ Issue5174Sub   [ ClassName ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
 110:
 Before: NullnessNoInitStore#509(
   o > NV{@NonNull, Object, poly nn/n=f/f}
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1739,6 +1858,7 @@ o   [ LocalVariable ]
 111:
 Before: NullnessNoInitStore#518(
   o > NV{@NonNull, Object, poly nn/n=f/f}
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1747,6 +1867,7 @@ Issue5174Super   [ ClassName ]    > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
 112:
 Before: NullnessNoInitStore#519(
   o > NV{@NonNull, Object, poly nn/n=f/f}
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~
@@ -1757,6 +1878,7 @@ expression statement o = Issue5174Super.sf   [ ExpressionStatement ]
 103:
 Before: NullnessNoInitStore#528(
   o > NV{@NonNull, Object, poly nn/n=f/f}
+  this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
   isPolyNullNull = false)
 ~~~~~~~~~

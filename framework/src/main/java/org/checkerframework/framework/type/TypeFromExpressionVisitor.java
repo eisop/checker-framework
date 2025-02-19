@@ -22,9 +22,11 @@ import com.sun.source.tree.ParameterizedTypeTree;
 import com.sun.source.tree.ParenthesizedTree;
 import com.sun.source.tree.PrimitiveTypeTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.WildcardTree;
+import com.sun.source.util.TreePath;
 
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
@@ -276,8 +278,8 @@ class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
             return AnnotatedTypes.asSuper(
                     f, thisType, AnnotatedTypeMirror.createType(superTypeMirror, f, false));
         } else {
-            // tree must be a field access, so get the type of the (receiver) expression, and then
-            // call asMemberOf.
+            // tree must be a field access or an enum constant, so get the type of the (receiver)
+            // expression, and then call asMemberOf.
             AnnotatedTypeMirror typeOfReceiver;
             if (f instanceof GenericAnnotatedTypeFactory) {
                 // If calling GenericAnnotatedTypeFactory#getAnnotatedTypeLhs(Tree lhsTree) to
@@ -295,8 +297,20 @@ class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
                 typeOfReceiver = f.getAnnotatedType(tree.getExpression());
             }
             typeOfReceiver = f.applyCaptureConversion(typeOfReceiver);
-            return f.applyCaptureConversion(
-                    AnnotatedTypes.asMemberOf(f.types, f, typeOfReceiver, elt));
+            AnnotatedTypeMirror typeOfFieldAccess =
+                    AnnotatedTypes.asMemberOf(f.types, f, typeOfReceiver, elt);
+            TreePath path = f.getPath(tree);
+
+            // Only capture the type if this is not the left hand side of an assignment.
+            if (path != null && path.getParentPath().getLeaf().getKind() == Kind.ASSIGNMENT) {
+                AssignmentTree assignmentTree = (AssignmentTree) path.getParentPath().getLeaf();
+                @SuppressWarnings("interning:not.interned") // Looking for exact object.
+                boolean leftHandSide = assignmentTree.getExpression() != tree;
+                if (leftHandSide) {
+                    return typeOfFieldAccess;
+                }
+            }
+            return f.applyCaptureConversion(typeOfFieldAccess);
         }
     }
 

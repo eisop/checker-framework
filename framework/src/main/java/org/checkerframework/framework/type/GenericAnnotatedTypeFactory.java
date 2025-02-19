@@ -2452,7 +2452,7 @@ public abstract class GenericAnnotatedTypeFactory<
             }
             boolean verbose = checker.hasOption("verbosecfg");
 
-            Map<String, Object> args = new HashMap<>(2);
+            Map<String, Object> args = new HashMap<>(4);
             args.put("outdir", flowdotdir);
             args.put("verbose", verbose);
             args.put("checkerName", getCheckerName());
@@ -2911,11 +2911,10 @@ public abstract class GenericAnnotatedTypeFactory<
     public List<AnnotationMirror> getPreconditionAnnotations(
         WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos methodAnnos) {
       List<AnnotationMirror> result = new ArrayList<>();
-      for (Map.Entry<String, IPair<AnnotatedTypeMirror, AnnotatedTypeMirror>> entry :
-          methodAnnos.getPreconditions().entrySet()) {
+      for (Map.Entry<String, InferredDeclared> entry : methodAnnos.getPreconditions().entrySet()) {
         result.addAll(
             getPreconditionAnnotations(
-                entry.getKey(), entry.getValue().first, entry.getValue().second));
+                entry.getKey(), entry.getValue().inferred, entry.getValue().declared));
       }
       Collections.sort(result, Ordering.usingToString());
       return result;
@@ -2938,11 +2937,10 @@ public abstract class GenericAnnotatedTypeFactory<
         WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos methodAnnos,
         List<AnnotationMirror> preconds) {
       List<AnnotationMirror> result = new ArrayList<>();
-      for (Map.Entry<String, IPair<AnnotatedTypeMirror, AnnotatedTypeMirror>> entry :
-          methodAnnos.getPostconditions().entrySet()) {
+      for (Map.Entry<String, InferredDeclared> entry : methodAnnos.getPostconditions().entrySet()) {
         result.addAll(
             getPostconditionAnnotations(
-                entry.getKey(), entry.getValue().first, entry.getValue().second, preconds));
+                entry.getKey(), entry.getValue().inferred, entry.getValue().declared, preconds));
       }
       Collections.sort(result, Ordering.usingToString());
       return result;

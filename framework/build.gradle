@@ -73,7 +73,7 @@ dependencies {
     implementation "org.plumelib:plume-util:${versions.plumeUtil}"
     implementation "org.plumelib:reflection-util:${versions.reflectionUtil}"
     // Add this dependency if needed to debug classpath issues.
-    // implementation 'io.github.classgraph:classgraph:4.8.176'
+    // implementation 'io.github.classgraph:classgraph:4.8.179'
 
     testImplementation "junit:junit:${versions.junit}"
     testImplementation project(':framework-test')
@@ -143,6 +143,7 @@ task copyAndMinimizeAnnotatedJdkFiles(dependsOn: cloneAnnotatedJdk, group: 'Buil
     doLast {
         FileTree tree = fileTree(dir: inputDir)
         NavigableSet<String> annotatedForFiles = new TreeSet<>();
+        // Populate `annotatedForFiles`.
         tree.visit { FileVisitDetails fvd ->
             if (!fvd.file.isDirectory() && fvd.file.name.matches('.*\\.java')
                     && !fvd.file.path.contains('org/checkerframework')) {

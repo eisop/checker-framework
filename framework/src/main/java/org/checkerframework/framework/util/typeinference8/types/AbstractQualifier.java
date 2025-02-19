@@ -1,6 +1,7 @@
 package org.checkerframework.framework.util.typeinference8.types;
 
 import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.checker.signature.qual.CanonicalName;
 import org.checkerframework.framework.util.typeinference8.util.Java8InferenceContext;
 import org.checkerframework.javacutil.AnnotationMirrorMap;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
@@ -23,7 +24,7 @@ import javax.lang.model.element.AnnotationMirror;
 public abstract class AbstractQualifier {
 
     /** The (interned) name of the top qualifier in the same hierarchy as the qualifier. */
-    protected final @Interned String hierarchyName;
+    protected final @Interned @CanonicalName String hierarchyName;
 
     /** The context. */
     protected final Java8InferenceContext context;
@@ -36,7 +37,7 @@ public abstract class AbstractQualifier {
      */
     AbstractQualifier(AnnotationMirror anno, Java8InferenceContext context) {
         AnnotationMirror top = context.typeFactory.getQualifierHierarchy().getTopAnnotation(anno);
-        hierarchyName = AnnotationUtils.annotationNameInterned(top);
+        hierarchyName = AnnotationUtils.annotationName(top).intern();
         this.context = context;
     }
 

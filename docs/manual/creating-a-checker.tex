@@ -924,10 +924,8 @@ it, or to compare to the string expression of an existing expression
 annotation.
 To obtain the string, first create a
 \refclass{dataflow/expression}{JavaExpression} object by calling
-\refmethodanchortext{dataflow/expression}{JavaExpression}{fromTree}{(com.sun.source.tree.ExpressionTree)}{fromTree(
-ExpressionTree)} or
-\refmethodanchortext{dataflow/expression}{JavaExpression}{fromNode}{(org.checkerframework.dataflow.cfg.node.Node)}{fromNode(
-Node)}.
+\refmethodanchortext{dataflow/expression}{JavaExpression}{fromTree}{(com.sun.source.tree.ExpressionTree)}{fromTree(ExpressionTree)} or
+\refmethodanchortext{dataflow/expression}{JavaExpression}{fromNode}{(org.checkerframework.dataflow.cfg.node.Node)}{fromNode(Node)}.
 Then, call \<toString()> on the \<JavaExpression> object.
 
 
@@ -1073,14 +1071,17 @@ the user can write
 
 \noindent
 if you define an aggregate checker class.  Extend \refclass{framework/source}{AggregateChecker} and override
-the \<getImmediateSubcheckerClasses> method, like the following:
+the \<getSupportedCheckers> method, like the following:
 
 \begin{Verbatim}
   public class MyUnitCheckers extends AggregateChecker {
-    protected Set<Class<? extends SourceChecker>> getImmediateSubcheckerClasses() {
-      return new LinkedHashSet<>(Arrays.asList(DistanceUnitChecker.class,
-                                               VelocityUnitChecker.class,
-                                               MassUnitChecker.class));
+    @Override
+    protected Collection<Class<? extends SourceChecker>> getSupportedCheckers() {
+      Collection<Class<? extends SourceChecker>> checkers = new ArrayList<>(3);
+      Collections.addAll(
+        checkers,
+        DistanceUnitChecker.class, VelocityUnitChecker.class, MassUnitChecker.class);
+      return checkers;
     }
   }
 \end{Verbatim}
@@ -1098,7 +1099,7 @@ that might be the case if MyHelperChecker computes some information that
 MyChecker needs to use.
 
 Override
-\<MyChecker.\refmethodterse{common/basetype}{BaseTypeChecker}{getImmediateSubcheckerClasses}{()}>
+\<MyChecker.\refmethodterse{framework/source}{SourceChecker}{getImmediateSubcheckerClasses}{()}>
 to return a list of the checkers that MyChecker depends on.  Every one of
 them will be run before MyChecker is run.  One of MyChecker's subcheckers
 may itself be a compound checker, and multiple checkers may declare a

@@ -4,7 +4,9 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 
 import java.util.AbstractSet;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Set;
 
 public class SizeInIsEmpty<E extends Object> extends AbstractSet<E> {
 
@@ -32,7 +34,17 @@ public class SizeInIsEmpty<E extends Object> extends AbstractSet<E> {
 
     @EnsuresNonEmptyIf(result = false, expression = "this")
     public boolean isEmpty2() {
+        // :: error: contracts.conditional.postcondition.not.satisfied
         return size() == 0 ? true : false;
+    }
+
+    Set<Object> set = new HashSet<>();
+
+    @EnsuresNonEmptyIf(result = false, expression = "this.set")
+    public boolean isEmpty2B() {
+        // TODO: this is a false positive
+        // :: error: contracts.conditional.postcondition.not.satisfied
+        return set.size() == 0 ? true : false;
     }
 
     @EnsuresNonEmptyIf(result = false, expression = "this")

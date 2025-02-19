@@ -97,7 +97,7 @@ public class UseOfVariable extends AbstractType {
 
     @Override
     public TypeVariable getJavaType() {
-        return variable.typeVariableJava;
+        return variable.typeVariable.getUnderlyingType();
     }
 
     @Override

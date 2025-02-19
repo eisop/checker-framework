@@ -87,7 +87,7 @@ public class DOTCFGVisualizer<
             ControlFlowGraph cfg, Block entry, @Nullable Analysis<V, S, T> analysis) {
         String dotGraph = visualizeGraph(cfg, entry, analysis);
 
-        Map<String, Object> vis = new HashMap<>(2);
+        Map<String, Object> vis = new HashMap<>(4);
         vis.put("dotGraph", dotGraph);
         return vis;
     }
