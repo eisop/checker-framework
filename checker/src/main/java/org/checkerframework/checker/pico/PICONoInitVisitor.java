@@ -175,29 +175,28 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
     }
 
     @Override
-    public Void visitMethod(MethodTree node, Void p) {
-        AnnotatedExecutableType executableType = atypeFactory.getAnnotatedType(node);
+    public void processMethodTree(MethodTree tree) {
+        AnnotatedExecutableType executableType = atypeFactory.getAnnotatedType(tree);
         // Report error if the constructor's return type is @ReadOnly or @PolyMutable. Validity are
         // checked in BasetypeValidator.
-        if (TreeUtils.isConstructor(node)) {
+        if (TreeUtils.isConstructor(tree)) {
             AnnotatedDeclaredType constructorReturnType =
                     (AnnotatedDeclaredType) executableType.getReturnType();
             if (constructorReturnType.hasAnnotation(atypeFactory.READONLY)
                     || constructorReturnType.hasAnnotation(atypeFactory.POLY_MUTABLE)) {
-                checker.reportError(node, "constructor.return.invalid", constructorReturnType);
+                checker.reportError(tree, "constructor.return.invalid", constructorReturnType);
             }
         }
 
-        flexibleOverrideChecker(node);
+        flexibleOverrideChecker(tree);
 
         // ObjectIdentityMethod check
         if (abstractStateOnly) {
-            if (PICOTypeUtil.isObjectIdentityMethod(node, atypeFactory)) {
+            if (PICOTypeUtil.isObjectIdentityMethod(tree, atypeFactory)) {
                 ObjectIdentityMethodEnforcer.check(
-                        atypeFactory.getPath(node.getBody()), atypeFactory, checker);
+                        atypeFactory.getPath(tree.getBody()), atypeFactory, checker);
             }
         }
-        return super.visitMethod(node, p);
     }
 
     /**

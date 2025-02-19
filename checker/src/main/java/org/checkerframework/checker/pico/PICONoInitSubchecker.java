@@ -3,6 +3,7 @@ package org.checkerframework.checker.pico;
 import org.checkerframework.checker.initialization.InitializationFieldAccessSubchecker;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
+import org.checkerframework.framework.source.SourceChecker;
 
 import java.util.Set;
 
@@ -17,8 +18,8 @@ public class PICONoInitSubchecker extends BaseTypeChecker {
     }
 
     @Override
-    protected Set<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
-        Set<Class<? extends BaseTypeChecker>> checkers = super.getImmediateSubcheckerClasses();
+    protected Set<Class<? extends SourceChecker>> getImmediateSubcheckerClasses() {
+        Set<Class<? extends SourceChecker>> checkers = super.getImmediateSubcheckerClasses();
         checkers.add(InitializationFieldAccessSubchecker.class);
         return checkers;
     }
