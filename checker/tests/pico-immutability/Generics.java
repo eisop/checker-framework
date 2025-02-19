@@ -64,7 +64,7 @@ public class Generics {
         md.setTime(123L);
     }
 
-    interface MIt<E extends @Readonly Object> {
+    @Mutable interface MIt<E extends @Readonly Object> {
         E next();
     }
 

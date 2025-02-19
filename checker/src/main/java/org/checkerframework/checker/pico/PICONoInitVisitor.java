@@ -175,7 +175,7 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
     }
 
     @Override
-    public void processMethodTree(MethodTree tree) {
+    public void processMethodTree(String className, MethodTree tree) {
         AnnotatedExecutableType executableType = atypeFactory.getAnnotatedType(tree);
         // Report error if the constructor's return type is @ReadOnly or @PolyMutable. Validity are
         // checked in BasetypeValidator.
@@ -197,6 +197,7 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
                         atypeFactory.getPath(tree.getBody()), atypeFactory, checker);
             }
         }
+        super.processMethodTree(className, tree);
     }
 
     /**
