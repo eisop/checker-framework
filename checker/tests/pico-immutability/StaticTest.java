@@ -1,7 +1,9 @@
+import org.checkerframework.checker.pico.qual.Immutable;
+import org.checkerframework.checker.pico.qual.Mutable;
 import org.checkerframework.checker.pico.qual.Readonly;
 import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
 
-public class StaticTest {
+@ReceiverDependentMutable public class StaticTest {
     // :: error: (static.receiverdependentmutable.forbidden)
     static @ReceiverDependentMutable Object rmdField = new @ReceiverDependentMutable Object();
 
@@ -23,5 +25,12 @@ public class StaticTest {
     static <T extends @ReceiverDependentMutable Object> void foo(T p) {
         // :: error: (static.receiverdependentmutable.forbidden)
         p = null;
+    }
+
+    @ReceiverDependentMutable static class RDMStaticClass {}
+
+    void test() {
+        new StaticTest.@Mutable RDMStaticClass();
+        new StaticTest.@Immutable RDMStaticClass();
     }
 }

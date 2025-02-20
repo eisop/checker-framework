@@ -119,7 +119,6 @@ public class ClassAnnotation {
         void method6(@Mutable RDMClass this) {}
     }
 
-    // :: error: class.bound.invalid
     @ReceiverDependentMutable static class RDMStaticClass {}
 
     // :: error: class.bound.invalid

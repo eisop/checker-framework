@@ -41,7 +41,6 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
@@ -443,12 +442,9 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
         // PICOValidator
         AnnotatedTypeMirror bound = atypeFactory.getAnnotatedType(typeElement);
         // Class annotation has to be either @Mutable, @ReceiverDependentMutable or @Immutable
-        // Static class can not be @RDM
         if ((!bound.hasAnnotation(atypeFactory.MUTABLE)
-                        && !bound.hasAnnotation(atypeFactory.RECEIVER_DEPENDENT_MUTABLE)
-                        && !bound.hasAnnotation(atypeFactory.IMMUTABLE))
-                || (tree.getModifiers().getFlags().contains(Modifier.STATIC)
-                        && bound.hasAnnotation(atypeFactory.RECEIVER_DEPENDENT_MUTABLE))) {
+                && !bound.hasAnnotation(atypeFactory.RECEIVER_DEPENDENT_MUTABLE)
+                && !bound.hasAnnotation(atypeFactory.IMMUTABLE))) {
             checker.reportError(tree, "class.bound.invalid", bound);
             return; // Doesn't process the class tree anymore
         }
