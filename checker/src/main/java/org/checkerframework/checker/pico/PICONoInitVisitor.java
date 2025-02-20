@@ -34,6 +34,7 @@ import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
+import java.util.List;
 import java.util.Map;
 
 import javax.lang.model.element.AnnotationMirror;
@@ -289,12 +290,22 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
     private void checkAssignment(Tree tree, ExpressionTree variable) {
         AnnotatedTypeMirror receiverType = atypeFactory.getReceiverType(variable);
         MethodTree enclosingMethod = TreePathUtil.enclosingMethod(getCurrentPath());
-        if (enclosingMethod != null && TreeUtils.isConstructor(enclosingMethod)) {
-            // If the enclosing method is constructor, we don't need to check the receiver type
-            return;
+        if (enclosingMethod != null) {
+            List<? extends AnnotationMirror> recieverAnnotations =
+                    getAllRecieverAnnotation(enclosingMethod);
+            for (AnnotationMirror anno : recieverAnnotations) {
+                if (AnnotationUtils.areSame(anno, atypeFactory.UNDER_INITALIZATION)) {
+                    // If the enclosing method receiver is under initialization, allow assignment
+                    return;
+                }
+            }
+            if (TreeUtils.isConstructor(enclosingMethod)) {
+                // If the enclosing method is constructor, allow assignment
+                return;
+            }
         }
         if (TreePathUtil.isTopLevelAssignmentInInitializerBlock(getCurrentPath())) {
-            // If the assignment is in initializer block, we don't need to check the receiver type
+            // If the assignment is in initializer block, allow assignment
             return;
         }
         // Cannot use receiverTree = TreeUtils.getReceiverTree(variable) to determine if it's
@@ -303,6 +314,18 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
         if (receiverType != null && !allowWrite(receiverType, variable)) {
             reportFieldOrArrayWriteError(tree, variable, receiverType);
         }
+    }
+
+    /**
+     * Get all receiver annotations of the method from all annotated type factory.
+     *
+     * @param tree the method tree
+     * @return the list of receiver annotations
+     */
+    private List<? extends AnnotationMirror> getAllRecieverAnnotation(MethodTree tree) {
+        com.sun.tools.javac.code.Symbol meth =
+                (com.sun.tools.javac.code.Symbol) TreeUtils.elementFromDeclaration(tree);
+        return meth.getRawTypeAttributes();
     }
 
     /**

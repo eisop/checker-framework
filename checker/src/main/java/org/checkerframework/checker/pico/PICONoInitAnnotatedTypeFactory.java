@@ -10,6 +10,7 @@ import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.checker.initialization.InitializationFieldAccessTreeAnnotator;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.pico.qual.Immutable;
 import org.checkerframework.checker.pico.qual.Mutable;
 import org.checkerframework.checker.pico.qual.PICOBottom;
@@ -50,6 +51,7 @@ import java.util.Set;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
@@ -85,6 +87,12 @@ public class PICONoInitAnnotatedTypeFactory
     /** The {@link PICOBottom} annotation. */
     protected final AnnotationMirror BOTTOM =
             AnnotationBuilder.fromClass(elements, PICOBottom.class);
+
+    protected final AnnotationMirror UNDER_INITALIZATION =
+            AnnotationBuilder.fromClass(elements, UnderInitialization.class);
+
+    protected final ExecutableElement underInitializationValueElement =
+            TreeUtils.getMethod(UnderInitialization.class, "value", 0, processingEnv);
 
     /**
      * Create a new PICONoInitAnnotatedTypeFactory.
