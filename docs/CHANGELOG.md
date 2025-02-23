@@ -14,7 +14,7 @@ bounds are used.
 
 **Closed issues:**
 
-eisop#1003, eisop#1033, eisop#1058.
+eisop#778, eisop#1003, eisop#1033, eisop#1058.
 
 
 Version 3.49.0 (February 3, 2025)
