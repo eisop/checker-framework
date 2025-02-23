@@ -316,6 +316,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     @Override
     public Void visitArrayAccess(ArrayAccessTree tree, Void p) {
         checkForNullability(tree.getExpression(), ACCESSING_NULLABLE);
+        checkForNullability(tree.getIndex(), UNBOXING_OF_NULLABLE);
         return super.visitArrayAccess(tree, p);
     }
 
@@ -341,6 +342,9 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 || type.hasEffectiveAnnotation(MONOTONIC_NONNULL)
                 || type.hasEffectiveAnnotation(POLYNULL)) {
             checker.reportError(tree, "nullness.on.new.array");
+        }
+        for (ExpressionTree dimension : tree.getDimensions()) {
+            checkForNullability(dimension, UNBOXING_OF_NULLABLE);
         }
 
         return super.visitNewArray(tree, p);
@@ -577,9 +581,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     }
 
     @Override
-    public Void visitMethod(MethodTree tree, Void p) {
-        VariableTree receiver = tree.getReceiverParameter();
-
+    public void processMethodTree(String className, MethodTree tree) {
         if (TreeUtils.isConstructor(tree)) {
             // Constructor results are always @NonNull. Any annotations are forbidden.
             List<? extends AnnotationTree> annoTrees = tree.getModifiers().getAnnotations();
@@ -588,6 +590,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             }
         }
 
+        VariableTree receiver = tree.getReceiverParameter();
         if (receiver != null) {
             List<? extends AnnotationTree> annoTrees = receiver.getModifiers().getAnnotations();
             Tree type = receiver.getType();
@@ -596,7 +599,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             }
         }
 
-        return super.visitMethod(tree, p);
+        super.processMethodTree(className, tree);
     }
 
     @Override

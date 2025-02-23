@@ -17,9 +17,9 @@ public class CollectionUtils {
         throw new Error("Do not instantiate");
     }
 
-    ///
-    /// Deprecated utility methods
-    ///
+    //
+    // Deprecated utility methods
+    //
 
     /**
      * Creates a LRU cache.

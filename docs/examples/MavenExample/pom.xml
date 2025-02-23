@@ -68,7 +68,7 @@
         <plugins>
           <plugin>
             <artifactId>maven-compiler-plugin</artifactId>
-            <version>3.13.0</version>
+            <version>3.14.0</version>
             <configuration>
               <fork>true</fork> <!-- Must fork or else JVM arguments are ignored. -->
               <annotationProcessorPaths>
@@ -108,7 +108,7 @@
         <plugins>
           <plugin>
             <!-- This plugin execution will copy the com.google.errorprone:javac jar file to
-                 your project’s output directory without adding that jar as an explicit
+                 your project's output directory without adding that jar as an explicit
                  dependency. -->
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-dependency-plugin</artifactId>

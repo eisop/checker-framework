@@ -302,13 +302,6 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         }
 
         boolean skipChecks = checker.shouldSkipUses(type.getUnderlyingType().asElement());
-        if (type.containsUninferredTypeArguments()) {
-            if (!atypeFactory.ignoreUninferredTypeArguments) {
-                // TODO: document the logic here.
-                isValid = true;
-            }
-            return null;
-        }
 
         if (checkTopLevelDeclaredOrPrimitiveType && !skipChecks) {
             // Ensure that type use is a subtype of the element type
@@ -729,8 +722,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         } else {
             // When upperBoundAnnos.size() != lowerBoundAnnos.size() one of the two bound types will
             // be reported as invalid.  Therefore, we do not do any other comparisons nor do we
-            // report
-            // a bound.
+            // report a bound.
             return true;
         }
     }
