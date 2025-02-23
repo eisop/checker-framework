@@ -1,5 +1,7 @@
 // @below-java11-jdk-skip-test
 
+import org.checkerframework.dataflow.qual.*;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -13,6 +15,7 @@ public class Marks3aJdk11 {
             return 42;
         }
 
+        @Pure
         String getName() {
             return "Fozzy Bear";
         }

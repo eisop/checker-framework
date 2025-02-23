@@ -1,3 +1,43 @@
+Version 3.49.0-eisop1 (February ??, 2025)
+-----------------------------------------
+
+**User-visible changes:**
+
+The Nullness Checker now reports an error if any instanceof pattern variables
+are annotated with `@Nullable` and a redundant warning if they are annotated
+with `@NonNull`.
+
+**Implementation details:**
+
+Fixed intersection of wildcards with extends bounds, to ensure the correct
+bounds are used.
+
+**Closed issues:**
+
+eisop#1003, eisop#1033, eisop#1058.
+
+
+Version 3.49.0 (February 3, 2025)
+---------------------------------
+
+**User-visible changes:**
+
+The Optional Checker is more precise for `Optional` values resulting from
+operations on container types (e.g., `List`, `Map`, `Iterable`).  It supports
+two new annotations:
+ * `@NonEmpty`
+ * `@UnknownNonEmpty`
+
+The Signature Checker no longer supports `@BinaryNameWithoutPackage` because
+it is equivalent to `@Identifier`; use `@Identifier` instead.
+
+The JavaStubifier implementation now appears in package
+`org.checkerframework.framework.stubifier.JavaStubifier`.
+
+**Closed issues:**
+#6935, #6936, #6939.
+
+
 Version 3.48.4 (January 2, 2025)
 --------------------------------
 
@@ -7,7 +47,7 @@ Version 3.48.4 (January 2, 2025)
 
 
 Version 3.48.3 (December 2, 2024)
---------------------------------
+---------------------------------
 
 **Closed issues:**
 
@@ -15,7 +55,7 @@ Version 3.48.3 (December 2, 2024)
 
 
 Version 3.48.2 (November 1, 2024)
---------------------------------
+---------------------------------
 
 **Closed issues:**
 
@@ -23,13 +63,13 @@ Version 3.48.2 (November 1, 2024)
 
 
 Version 3.48.1 (October 11, 2024)
---------------------------------
+---------------------------------
 
 **User-visible changes:**
 
-The Returns Receiver sub-checker is now disabled by default when running the Resource Leak Checker,
-as usually it is not needed and it adds overhead. To enable it, use the new
-`-AenableReturnsReceiverForRlc` command-line argument.
+The Returns Receiver sub-checker is now disabled by default when running
+the Resource Leak Checker, as usually it is not needed and it adds overhead.
+To enable it, use the new `-AenableReturnsReceiverForRlc` command-line argument.
 
 **Closed issues:**
 
@@ -69,7 +109,7 @@ The Optional Checker no longer supports the `@OptionalBottom` annotation.
 **Implementation details:**
 
 Removed annotations:
-  * `@OptionalBottom`
+ * `@OptionalBottom`
 
 **Closed issues:**
 
@@ -77,7 +117,7 @@ Removed annotations:
 
 
 Version 3.46.0 (August 1, 2024)
------------------------------
+-------------------------------
 
 **User-visible changes:**
 
@@ -187,23 +227,6 @@ Renamed `BaseTypeVisitor.checkForPolymorphicQualifiers()` to
 #6531, #6535.
 
 
-Version 3.42.0-eisop6 (January ??, 2025)
-----------------------------------------
-
-**User-visible changes:**
-
-The Nullness Checker now reports an error if any instanceof pattern variables are annotated with `@Nullable`
-and a redundant warning if they are annotated with `@NonNull`.
-
-**Implementation details:**
-
-Fixed intersection of wildcards with extends bounds, to ensure the correct bounds are used.
-
-**Closed issues:**
-
-eisop#1003, eisop#1033, eisop#1058.
-
-
 Version 3.42.0-eisop5 (December 20, 2024)
 -----------------------------------------
 
@@ -246,9 +269,9 @@ to `AnnotationMirrorSet`.
 Field `AnnotatedTypeFactory#root` is now private and can only be accessed through `getRoot`/`setRoot`.
 
 framework-test:
-- Improvements to more consistently handle tests that do not use `-Anomsgtext`.
-- Added new class `DetailedTestDiagnostic` to directly represent test diagnostics when
-  `-Adetailedmsgtext` is used.
+ * Improvements to more consistently handle tests that do not use `-Anomsgtext`.
+ * Added new class `DetailedTestDiagnostic` to directly represent test diagnostics when
+   `-Adetailedmsgtext` is used.
 
 **Closed issues:**
 
@@ -436,10 +459,10 @@ Removed class `StringConcatenateAssignmentNode` and its last usages.
 The class was deprecated in release 3.21.3-eisop1 (March 23, 2022) and no longer used in CFGs.
 
 Changed the return types of
-- `BaseTypeChecker#getImmediateSubcheckerClasses()` and overrides to
-  `Set<Class<? extends BaseTypeChecker>>`,
-- `AnalysisResult#getFinalLocalValues()` to `Map<VariableElement, V>`, and
-- `GenericAnnotatedTypeFactory#getFinalLocalValues()` to `Map<VariableElement, Value>`.
+ * `BaseTypeChecker#getImmediateSubcheckerClasses()` and overrides to
+   `Set<Class<? extends BaseTypeChecker>>`,
+ * `AnalysisResult#getFinalLocalValues()` to `Map<VariableElement, V>`, and
+ * `GenericAnnotatedTypeFactory#getFinalLocalValues()` to `Map<VariableElement, Value>`.
 
 **Closed issues:**
 
@@ -858,10 +881,10 @@ With this flag, a warning is issued if an explicitly written annotation on a typ
 as the default annotation for this type and location.
 
 Support additional Nullness Checker annotation aliases from:
-- `io.micronaut.core.annotation`
-- `io.vertx.codegen.annotations`
-- `jakarta.annotation`
-- `net.bytebuddy[.agent].utility.nullability`
+ * `io.micronaut.core.annotation`
+ * `io.vertx.codegen.annotations`
+ * `jakarta.annotation`
+ * `net.bytebuddy[.agent].utility.nullability`
 
 **Implementation details:**
 
