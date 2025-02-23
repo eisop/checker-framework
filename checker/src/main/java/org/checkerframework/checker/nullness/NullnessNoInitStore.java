@@ -81,7 +81,7 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
         // because in the case of a field that is both unassignable and
         // initialized, the initializedFields cache may contain an older,
         // less refined value.
-        if (fieldAccess.isUnassignableByOtherCode()) {
+        if (!fieldAccess.isAssignableByOtherCode()) {
             return value;
         }
 

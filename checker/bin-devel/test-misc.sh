@@ -1,13 +1,12 @@
 #!/bin/bash
 
 set -e
-set -o verbose
+# set -o verbose
 set -o xtrace
 export SHELLOPTS
 echo "SHELLOPTS=${SHELLOPTS}"
 
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-# shellcheck disable=SC1090 # In newer shellcheck than 0.6.0, pass: "-P SCRIPTDIR" (literally)
 source "$SCRIPTDIR"/clone-related.sh
 
 PLUME_SCRIPTS="$SCRIPTDIR/.plume-scripts"
@@ -24,16 +23,16 @@ status=0
 
 ## Code style and formatting
 JAVA_VER=$(java -version 2>&1 | head -1 | cut -d'"' -f2 | sed '/^1\./s///' | cut -d'.' -f1 | sed 's/-ea//')
-if [ "${JAVA_VER}" != "8" ] && [ "${JAVA_VER}" != "20" ] ; then
+if [ "${JAVA_VER}" != "8" ] ; then
   ./gradlew spotlessCheck --console=plain --warning-mode=all
 fi
 if grep -n -r --exclude-dir=build --exclude-dir=examples --exclude-dir=jtreg --exclude-dir=tests --exclude="*.astub" --exclude="*.tex" '^\(import static \|import .*\*;$\)'; then
   echo "Don't use static import or wildcard import"
   exit 1
 fi
-make -C checker/bin
-make -C checker/bin-devel
-make -C docs/developer/release check-python-style
+make -C checker/bin --jobs="$(getconf _NPROCESSORS_ONLN)"
+make -C checker/bin-devel --jobs="$(getconf _NPROCESSORS_ONLN)"
+make -C docs/developer/release check-python-style --jobs="$(getconf _NPROCESSORS_ONLN)"
 
 ## HTML legality
 ./gradlew htmlValidate --console=plain --warning-mode=all
@@ -54,10 +53,13 @@ else
 fi
 if [ $status -ne 0 ]; then exit $status; fi
 
+# Shell script style
+make -C checker/bin --jobs="$(getconf _NPROCESSORS_ONLN)" shell-script-style
+make -C checker/bin-devel --jobs="$(getconf _NPROCESSORS_ONLN)" shell-script-style
 
 ## User documentation
 ./gradlew manual
-git diff  --exit-code docs/manual/contributors.tex || \
+git diff --exit-code docs/manual/contributors.tex || \
     (set +x && set +v &&
      echo "docs/manual/contributors.tex is not up to date." &&
      echo "If the above suggestion is appropriate, run: make -C docs/manual contributors.tex" &&

@@ -3,6 +3,7 @@ package org.checkerframework.common.reflection;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.common.value.ValueChecker;
+import org.checkerframework.framework.source.SourceChecker;
 import org.plumelib.util.CollectionsPlume;
 
 import java.util.LinkedHashSet;
@@ -21,11 +22,11 @@ public class ClassValChecker extends BaseTypeChecker {
     }
 
     @Override
-    protected Set<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
+    protected Set<Class<? extends SourceChecker>> getImmediateSubcheckerClasses() {
         // Don't call super otherwise MethodVal will be added as a subChecker
         // which creates a circular dependency.
         // Use the same Set implementation as super.
-        Set<Class<? extends BaseTypeChecker>> subCheckers =
+        Set<Class<? extends SourceChecker>> subCheckers =
                 new LinkedHashSet<>(CollectionsPlume.mapCapacity(2));
         subCheckers.add(ValueChecker.class);
         return subCheckers;

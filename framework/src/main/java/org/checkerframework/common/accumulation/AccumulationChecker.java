@@ -3,12 +3,11 @@ package org.checkerframework.common.accumulation;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.returnsreceiver.ReturnsReceiverChecker;
+import org.checkerframework.framework.source.SourceChecker;
 
 import java.util.EnumSet;
 import java.util.Set;
 
-// TODO: This Javadoc comment should reference the Checker Framework manual, once the Accumulation
-// Checker chapter is uncommented in the manual's LaTeX source.
 /**
  * An accumulation checker is one that accumulates some property: method calls, map keys, etc.
  *
@@ -21,6 +20,8 @@ import java.util.Set;
  *
  * <p>The primary extension point is the constructor of {@link AccumulationAnnotatedTypeFactory},
  * which every subclass should override to provide custom annotations.
+ *
+ * @checker_framework.manual #accumulation-checker Building an accumulation checker
  */
 public abstract class AccumulationChecker extends BaseTypeChecker {
 
@@ -34,8 +35,8 @@ public abstract class AccumulationChecker extends BaseTypeChecker {
     }
 
     @Override
-    protected Set<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
-        Set<Class<? extends BaseTypeChecker>> checkers = super.getImmediateSubcheckerClasses();
+    protected Set<Class<? extends SourceChecker>> getImmediateSubcheckerClasses() {
+        Set<Class<? extends SourceChecker>> checkers = super.getImmediateSubcheckerClasses();
         if (isEnabled(AliasAnalysis.RETURNS_RECEIVER)) {
             checkers.add(ReturnsReceiverChecker.class);
         }

@@ -158,7 +158,7 @@ public class AinferValidatePerDirectoryTest extends CheckerFrameworkWPIPerDirect
                         Paths.get(inferenceBaseDir), "*" + fileBaseName + "{-,$}*" + extension)) {
             dirStream.forEach(f -> sb.append(f).append(":"));
         } catch (IOException ignored) {
-            // Ignore errors.
+            System.err.println("Ignored: " + ignored.getMessage());
         }
         // remove the last ":"
         if (sb.length() > 0) {

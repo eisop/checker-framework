@@ -102,7 +102,7 @@ public class GenerateDataKeyRequestExamples {
         client.generateDataKey(request);
     }
 
-    /// Interprocedural
+    // Interprocedural
 
     void callee2(
             AWSKMS client,
