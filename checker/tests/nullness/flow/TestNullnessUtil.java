@@ -24,6 +24,7 @@ public class TestNullnessUtil {
         @NonNull Object[] l2 = NullnessUtil.castNonNullDeep(a);
         // Careful, the non-deep version only casts the main modifier.
         // :: error: (assignment.type.incompatible)
+        // :: error: (type.arguments.not.inferred)
         @NonNull Object[] l2b = NullnessUtil.castNonNull(a);
         // OK
         @Nullable Object[] l2c = NullnessUtil.castNonNull(a);
@@ -34,6 +35,7 @@ public class TestNullnessUtil {
         @NonNull Object[] l2 = NullnessUtil.castNonNullDeep(a);
         // Careful, the non-deep version only casts the main modifier.
         // :: error: (assignment.type.incompatible)
+        // :: error: (type.arguments.not.inferred)
         @NonNull Object[] l2b = NullnessUtil.castNonNull(a);
         // OK
         @Nullable Object[] l2c = NullnessUtil.castNonNull(a);

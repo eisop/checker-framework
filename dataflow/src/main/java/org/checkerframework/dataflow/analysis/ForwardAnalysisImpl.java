@@ -37,7 +37,7 @@ import javax.lang.model.type.TypeMirror;
  *
  * @param <V> the abstract value type to be tracked by the analysis
  * @param <S> the store type used in the analysis
- * @param <T> the transfer function type that is used to approximate runtime behavior
+ * @param <T> the transfer function type that is used to approximate run-time behavior
  */
 public class ForwardAnalysisImpl<
                 V extends AbstractValue<V>,
@@ -581,9 +581,9 @@ public class ForwardAnalysisImpl<
     protected @Nullable S getStoreBefore(Block b, Store.Kind kind) {
         switch (kind) {
             case THEN:
-                return readFromStore(thenStores, b);
+                return thenStores.get(b);
             case ELSE:
-                return readFromStore(elseStores, b);
+                return elseStores.get(b);
             default:
                 throw new BugInCF("Unexpected Store.Kind: " + kind);
         }
