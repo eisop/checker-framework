@@ -22,7 +22,7 @@ plugins {
     // https://docs.gradle.org/current/userguide/eclipse_plugin.html
     id 'eclipse'
     // To show task list as a tree, run: ./gradlew <taskname> taskTree
-    id 'com.dorongold.task-tree' version '4.0.0'
+    id 'com.dorongold.task-tree' version '4.0.1'
     // needed for formatting Gradle files
     id 'groovy'
 }
