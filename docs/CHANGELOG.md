@@ -3,6 +3,10 @@ Version 3.49.0-eisop1 (February ??, 2025)
 
 **User-visible changes:**
 
+The framework now issues `annotation.on.supertype` error for annotation write on supertype in class declaration. This is
+a generalized behavior for `nullness.on.supertype`. Other checker can override this behavior by overriding
+`reportErrorIfSupertypeContainsAnnotation` method in `BaseTypeChecker`.
+
 The Nullness Checker now reports an error if any instanceof pattern variables
 are annotated with `@Nullable` and a redundant warning if they are annotated
 with `@NonNull`.
@@ -14,7 +18,7 @@ bounds are used.
 
 **Closed issues:**
 
-eisop#1003, eisop#1033, eisop#1058.
+eisop#1003, eisop#1033, eisop#1058, eisop#1059.
 
 
 Version 3.49.0 (February 3, 2025)

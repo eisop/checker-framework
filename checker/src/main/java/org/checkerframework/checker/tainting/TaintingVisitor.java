@@ -1,5 +1,7 @@
 package org.checkerframework.checker.tainting;
 
+import com.sun.source.tree.Tree;
+
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
@@ -26,4 +28,9 @@ public class TaintingVisitor extends BaseTypeVisitor<BaseAnnotatedTypeFactory> {
     @Override
     protected void checkConstructorResult(
             AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {}
+
+    @Override
+    protected void reportErrorIfSupertypeContainsAnnotation(Tree typeTree) {
+        // Do nothing
+    }
 }
