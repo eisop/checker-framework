@@ -1,8 +1,10 @@
 package org.checkerframework.framework.type;
 
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.util.AnnotatedTypes;
 
 import java.util.Collection;
+import java.util.List;
 
 import javax.lang.model.element.AnnotationMirror;
 
@@ -163,4 +165,12 @@ public interface TypeHierarchy {
      *     {@code supertype} in the same hierarchy as {@code subQualifier}
      */
     boolean isSubtypeShallowEffective(AnnotationMirror subQualifier, AnnotatedTypeMirror supertype);
+
+    /**
+     * Returns a list of the indices of the type arguments that are covariant.
+     *
+     * @param type a type
+     * @return a list of the indices of the type arguments that are covariant
+     */
+    List<Integer> getCovariantArgIndexes(AnnotatedDeclaredType type);
 }

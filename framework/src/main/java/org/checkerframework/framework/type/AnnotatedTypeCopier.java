@@ -313,8 +313,8 @@ public class AnnotatedTypeCopier
 
         AnnotatedWildcardType copy = makeOrReturnCopy(original, originalToCopy);
 
-        if (original.isUninferredTypeArgument()) {
-            copy.setUninferredTypeArgument();
+        if (original.isTypeArgOfRawType()) {
+            copy.setTypeArgOfRawType();
         }
 
         if (original.getExtendsBoundField() != null) {

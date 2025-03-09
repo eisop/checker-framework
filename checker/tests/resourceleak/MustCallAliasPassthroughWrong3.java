@@ -7,6 +7,7 @@ import java.io.*;
 
 class MustCallAliasPassthroughWrong3 {
 
+    // :: warning: (mustcallalias.method.return.and.param)
     static InputStream missingMCA(@MustCallAlias InputStream is) {
         // :: error: (return.type.incompatible)
         return is;

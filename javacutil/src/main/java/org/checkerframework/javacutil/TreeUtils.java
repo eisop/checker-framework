@@ -13,6 +13,8 @@ import com.sun.source.tree.ExpressionStatementTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.InstanceOfTree;
+import com.sun.source.tree.LambdaExpressionTree;
+import com.sun.source.tree.LambdaExpressionTree.BodyKind;
 import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MemberReferenceTree.ReferenceMode;
@@ -25,6 +27,7 @@ import com.sun.source.tree.PackageTree;
 import com.sun.source.tree.ParameterizedTypeTree;
 import com.sun.source.tree.ParenthesizedTree;
 import com.sun.source.tree.PrimitiveTypeTree;
+import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.StatementTree;
 import com.sun.source.tree.SwitchTree;
 import com.sun.source.tree.Tree;
@@ -35,6 +38,7 @@ import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.UnionTypeTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.SimpleTreeVisitor;
+import com.sun.source.util.TreeScanner;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
@@ -53,6 +57,7 @@ import com.sun.tools.javac.tree.JCTree.JCLambda;
 import com.sun.tools.javac.tree.JCTree.JCLambda.ParameterKind;
 import com.sun.tools.javac.tree.JCTree.JCLiteral;
 import com.sun.tools.javac.tree.JCTree.JCMemberReference;
+import com.sun.tools.javac.tree.JCTree.JCMemberReference.OverloadKind;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
 import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
 import com.sun.tools.javac.tree.JCTree.JCNewArray;
@@ -85,6 +90,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.stream.Collectors;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.SourceVersion;
@@ -97,6 +103,8 @@ import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.ArrayType;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -305,6 +313,11 @@ public final class TreeUtils {
     /**
      * Returns the type element corresponding to the given class declaration.
      *
+     * <p>This method returns null instead of crashing when no element exists for the class tree,
+     * which can happen for certain kinds of anonymous classes, such as Ordering$1 in
+     * PolyCollectorTypeVar.java in the all-systems test suite and "class MyFileFilter" in
+     * PurgeTxnLog.java.
+     *
      * @param tree class declaration
      * @return the element for the given class
      */
@@ -342,6 +355,19 @@ public final class TreeUtils {
     @Pure
     public static TypeElement elementFromUse(ClassTree tree) {
         return elementFromDeclaration(tree);
+    }
+
+    /**
+     * Returns the fields that are declared within the given class declaration.
+     *
+     * @param tree the {@link ClassTree} node to get the fields for
+     * @return the list of fields that are declared within the given class declaration
+     */
+    public static List<VariableTree> fieldsFromClassTree(ClassTree tree) {
+        return tree.getMembers().stream()
+                .filter(t -> t.getKind() == Kind.VARIABLE)
+                .map(t -> (VariableTree) t)
+                .collect(Collectors.toList());
     }
 
     /**
@@ -514,7 +540,7 @@ public final class TreeUtils {
      * Returns the ExecutableElement for the given method declaration.
      *
      * <p>The result can be null, when {@code tree} is a method in an anonymous class and that class
-     * has not been processed yet. An exception will be raised. Adapt your processing order.
+     * has not been processed yet. To work around this, adapt your processing order.
      *
      * @param tree a method declaration
      * @return the element for the given method
@@ -940,6 +966,7 @@ public final class TreeUtils {
      * Returns true if the tree is of a diamond type. In contrast to the implementation in TreeInfo,
      * this version works on Trees.
      *
+     * @param tree a tree
      * @see com.sun.tools.javac.tree.TreeInfo#isDiamond(JCTree)
      */
     public static boolean isDiamondTree(Tree tree) {
@@ -955,7 +982,30 @@ public final class TreeUtils {
         }
     }
 
-    /** Returns true if the tree represents a {@code String} concatenation operation. */
+    /**
+     * Returns the type arguments to the given new class tree.
+     *
+     * @param tree a new class tree
+     * @return the type arguments to the given new class tree
+     */
+    public static List<? extends Tree> getTypeArgumentsToNewClassTree(NewClassTree tree) {
+        Tree typeTree = tree.getIdentifier();
+        if (typeTree.getKind() == Kind.ANNOTATED_TYPE) {
+            typeTree = ((AnnotatedTypeTree) typeTree).getUnderlyingType();
+        }
+
+        if (typeTree.getKind() == Kind.PARAMETERIZED_TYPE) {
+            return ((ParameterizedTypeTree) typeTree).getTypeArguments();
+        }
+        return Collections.emptyList();
+    }
+
+    /**
+     * Returns true if the tree represents a {@code String} concatenation operation.
+     *
+     * @param tree a tree
+     * @return true if the tree represents a {@code String} concatenation operation
+     */
     public static boolean isStringConcatenation(Tree tree) {
         return (tree.getKind() == Tree.Kind.PLUS && TypesUtils.isString(TreeUtils.typeOf(tree)));
     }
@@ -1360,7 +1410,7 @@ public final class TreeUtils {
                     && exec.getParameters().size() == paramTypes.length) {
                 boolean typesMatch = true;
                 List<? extends VariableElement> params = exec.getParameters();
-                for (int i = 0; i < paramTypes.length; i++) {
+                for (int i = 0; i < paramTypes.length; ++i) {
                     VariableElement ve = params.get(i);
                     TypeMirror tm = TypeAnnotationUtils.unannotatedType(ve.asType());
                     if (!tm.toString().equals(paramTypes[i])) {
@@ -1498,6 +1548,23 @@ public final class TreeUtils {
             }
         }
         return null;
+    }
+
+    /**
+     * Return the {@code statementTree} as an instance of {@link AssignmentTree}, or null.
+     *
+     * @param statementTree a statement tree that might represent an assignment
+     * @return the {@code statementTree} as an instance of {@link AssignmentTree}, or null
+     */
+    public static @Nullable AssignmentTree asAssignmentTree(StatementTree statementTree) {
+        if (statementTree.getKind() != Tree.Kind.EXPRESSION_STATEMENT) {
+            return null;
+        }
+        ExpressionTree exprTree = ((ExpressionStatementTree) statementTree).getExpression();
+        if (exprTree.getKind() != Tree.Kind.ASSIGNMENT) {
+            return null;
+        }
+        return (AssignmentTree) exprTree;
     }
 
     /**
@@ -1733,7 +1800,12 @@ public final class TreeUtils {
      */
     public static boolean isAutoGeneratedRecordMember(Tree member) {
         Element e = elementFromTree(member);
-        return e != null && ElementUtils.isAutoGeneratedRecordMember(e);
+        if (e == null) {
+            throw new BugInCF(
+                    "TreeUtils.isAutoGeneratedRecordMember: null element for member tree: "
+                            + member);
+        }
+        return ElementUtils.isAutoGeneratedRecordMember(e);
     }
 
     /**
@@ -1824,6 +1896,9 @@ public final class TreeUtils {
      * Returns the type as a TypeMirror of {@code tree}. To obtain {@code tree}'s
      * AnnotatedTypeMirror, call {@code AnnotatedTypeFactory.getAnnotatedType()}.
      *
+     * <p>Note that for the expression "super", this method returns the type of "this", not "this"'s
+     * superclass.
+     *
      * @return the type as a TypeMirror of {@code tree}
      */
     public static TypeMirror typeOf(Tree tree) {
@@ -1890,6 +1965,19 @@ public final class TreeUtils {
                     type);
         }
         return (ExecutableType) type;
+    }
+
+    /**
+     * Determines the symbol for a constructor given an invocation via {@code new}.
+     *
+     * @see #elementFromUse(NewClassTree)
+     * @param tree the constructor invocation
+     * @return the {@link ExecutableElement} corresponding to the constructor call in {@code tree}
+     * @deprecated use elementFromUse instead
+     */
+    @Deprecated // 2022-09-12
+    public static ExecutableElement constructor(NewClassTree tree) {
+        return (ExecutableElement) ((JCNewClass) tree).constructor;
     }
 
     /**
@@ -2475,7 +2563,7 @@ public final class TreeUtils {
 
     /**
      * Returns true if the given switch statement tree is an enhanced switch statement, as described
-     * in <a href="https://docs.oracle.com/javase/specs/jls/se21/html/jls-14.html#jls-14.11.2">JSL
+     * in <a href="https://docs.oracle.com/javase/specs/jls/se21/html/jls-14.html#jls-14.11.2">JLS
      * 14.11.2</a>.
      *
      * @param switchTree the switch statement to check
@@ -2507,6 +2595,26 @@ public final class TreeUtils {
     }
 
     /**
+     * Returns true if the given tree is a switch expression.
+     *
+     * @param tree a tree to check
+     * @return true if the given tree is a switch expression
+     */
+    public static boolean isSwitchExpression(Tree tree) {
+        return tree.getKind().name().equals("SWITCH_EXPRESSION");
+    }
+
+    /**
+     * Returns true if the given tree is a yield expression.
+     *
+     * @param tree a tree to check
+     * @return true if the given tree is a yield expression
+     */
+    public static boolean isYield(Tree tree) {
+        return tree.getKind().name().equals("YIELD");
+    }
+
+    /**
      * Returns the value (expression) for {@code yieldTree}.
      *
      * @param yieldTree the yield tree
@@ -2530,19 +2638,32 @@ public final class TreeUtils {
     }
 
     /**
+     * Returns true if the given method reference has a varargs formal parameter.
+     *
+     * @param methref a method reference
+     * @return if the given method reference has a varargs formal parameter
+     */
+    public static boolean hasVarargsParameter(MemberReferenceTree methref) {
+        JCMemberReference jcMethoRef = (JCMemberReference) methref;
+        return jcMethoRef.varargsElement != null;
+    }
+
+    /**
      * Returns true if the given method/constructor invocation is a varargs invocation.
      *
      * @param tree a method/constructor invocation
      * @return true if the given method/constructor invocation is a varargs invocation
      */
-    public static boolean isVarArgs(Tree tree) {
+    public static boolean isVarargsCall(Tree tree) {
         switch (tree.getKind()) {
             case METHOD_INVOCATION:
-                return isVarArgs((MethodInvocationTree) tree);
+                return isVarargsCall((MethodInvocationTree) tree);
             case NEW_CLASS:
-                return isVarArgs((NewClassTree) tree);
+                return isVarargsCall((NewClassTree) tree);
+            case MEMBER_REFERENCE:
+                return hasVarargsParameter((MemberReferenceTree) tree);
             default:
-                throw new BugInCF("TreeUtils.isVarArgs: unexpected kind of tree: " + tree);
+                return false;
         }
     }
 
@@ -2551,9 +2672,71 @@ public final class TreeUtils {
      *
      * @param invok the method invocation
      * @return true if the given method invocation is a varargs invocation
+     * @deprecated use {@link #isVarargsCall(MethodInvocationTree)}
      */
+    @Deprecated // 2024-06-04
     public static boolean isVarArgs(MethodInvocationTree invok) {
-        return isVarArgs(elementFromUse(invok), invok.getArguments());
+        return ((JCMethodInvocation) invok).varargsElement != null;
+    }
+
+    /**
+     * Returns true if the given method invocation is a varargs invocation.
+     *
+     * @param invok the method invocation
+     * @return true if the given method invocation is a varargs invocation
+     */
+    public static boolean isVarargsCall(MethodInvocationTree invok) {
+        if (((JCMethodInvocation) invok).varargsElement != null) {
+            return true;
+        }
+
+        // For some calls the varargsElement element disappears when it should not. This seems to
+        // only be a problem with MethodHandle#invoke and only with no arguments.  See
+        // framework/tests/all-systems/Issue6078.java.
+        // So also check for a mismatch between parameter and argument size.
+        // Such a mismatch occurs for every enum constructor: no args, two params (String name, int
+        // ordinal).
+
+        List<? extends VariableElement> parameters = elementFromUse(invok).getParameters();
+        int numParameters = parameters.size();
+        if (numParameters != invok.getArguments().size()) {
+            if (numParameters > 0
+                    && parameters.get(numParameters - 1).asType() instanceof ArrayType) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Returns true if the given method invocation is an invocation of a method with a vararg
+     * parameter, and the invocation has zero vararg actuals.
+     *
+     * @param invok the method invocation
+     * @return true if the given method invocation is an invocation of a method with a vararg
+     *     parameter, and the invocation has with zero vararg actuals
+     */
+    public static boolean isCallToVarargsMethodWithZeroVarargsActuals(MethodInvocationTree invok) {
+        if (!TreeUtils.isVarArgs(invok)) {
+            return false;
+        }
+        int numParams = elementFromUse(invok).getParameters().size();
+        // The comparison of the number of arguments to the number of formals (minus one) checks
+        // whether there are no varargs actuals.
+        return invok.getArguments().size() == numParams - 1;
+    }
+
+    /**
+     * Returns true if the given constructor invocation is a varargs invocation.
+     *
+     * @param newClassTree the constructor invocation
+     * @return true if the given method invocation is a varargs invocation
+     * @deprecated use {@link #isVarargsCall(NewClassTree)}
+     */
+    @Deprecated // 2024-06-04
+    public static boolean isVarArgs(NewClassTree newClassTree) {
+        return isVarargsCall(newClassTree);
     }
 
     /**
@@ -2562,38 +2745,8 @@ public final class TreeUtils {
      * @param newClassTree the constructor invocation
      * @return true if the given method invocation is a varargs invocation
      */
-    public static boolean isVarArgs(NewClassTree newClassTree) {
-        return isVarArgs(elementFromUse(newClassTree), newClassTree.getArguments());
-    }
-
-    /**
-     * Returns true if a method/constructor invocation is a varargs invocation.
-     *
-     * @param method the method or constructor
-     * @param args the arguments passed at the invocation
-     * @return true if the given method/constructor invocation is a varargs invocation
-     */
-    private static boolean isVarArgs(
-            ExecutableElement method, List<? extends ExpressionTree> args) {
-        if (!method.isVarArgs()) {
-            return false;
-        }
-
-        List<? extends VariableElement> parameters = method.getParameters();
-        if (parameters.size() != args.size()) {
-            return true;
-        }
-
-        TypeMirror lastArgType = typeOf(args.get(args.size() - 1));
-        if (lastArgType.getKind() == TypeKind.NULL) {
-            return false;
-        }
-        if (lastArgType.getKind() != TypeKind.ARRAY) {
-            return true;
-        }
-
-        TypeMirror varargsParamType = parameters.get(parameters.size() - 1).asType();
-        return TypesUtils.getArrayDepth(varargsParamType) != TypesUtils.getArrayDepth(lastArgType);
+    public static boolean isVarargsCall(NewClassTree newClassTree) {
+        return ((JCNewClass) newClassTree).varargsElement != null;
     }
 
     /**
@@ -2676,10 +2829,181 @@ public final class TreeUtils {
      */
     public static JCFieldAccess Select(
             TreeMaker treeMaker, Tree base, com.sun.tools.javac.util.Name name) {
-        /*
-         * There's no need for reflection here. The only reason we even declare this method is so that
-         * callers don't have to remember which overload we provide a wrapper around.
-         */
+        // There's no need for reflection here. The only reason we even declare this method
+        // is so that callers don't have to remember which overload we provide a wrapper around.
         return treeMaker.Select((JCExpression) base, name);
+    }
+
+    /**
+     * Returns true if {@code tree} is an explicitly typed lambda.
+     *
+     * <p>An lambda whose formal type parameters have declared types or with no parameters is an
+     * explicitly typed lambda. (See JLS 15.27.1)
+     *
+     * @param tree any kind of tree
+     * @return true iff {@code tree} is an implicitly typed lambda
+     */
+    public static boolean isExplicitlyTypeLambda(Tree tree) {
+        return tree.getKind() == Tree.Kind.LAMBDA_EXPRESSION
+                && ((JCLambda) tree).paramKind == ParameterKind.EXPLICIT;
+    }
+
+    /**
+     * Returns all expressions that might be the result of {@code lambda}.
+     *
+     * @param lambda a lambda with or without a body
+     * @return a list of expressions that are returned by {@code lambda}
+     */
+    public static List<ExpressionTree> getReturnedExpressions(LambdaExpressionTree lambda) {
+        if (lambda.getBodyKind() == BodyKind.EXPRESSION) {
+            return Collections.singletonList((ExpressionTree) lambda.getBody());
+        }
+
+        List<ExpressionTree> returnExpressions = new ArrayList<>();
+        TreeScanner<Void, Void> scanner =
+                new TreeScanner<Void, Void>() {
+                    @Override
+                    public Void visitReturn(ReturnTree tree, Void o) {
+                        if (tree.getExpression() != null) {
+                            returnExpressions.add(tree.getExpression());
+                        }
+                        return super.visitReturn(tree, o);
+                    }
+
+                    @Override
+                    public Void visitLambdaExpression(LambdaExpressionTree node, Void unused) {
+                        // Don't visit inside anther lambda.
+                        return null;
+                    }
+                };
+        scanner.scan(lambda.getBody(), null);
+        return returnExpressions;
+    }
+
+    /**
+     * Returns whether or not {@code ref} is an exact method reference.
+     *
+     * <p>From JLS 15.13.1 "If there is only one possible compile-time declaration with only one
+     * possible invocation, it is said to be exact."
+     *
+     * @param ref a method reference
+     * @return whether or not {@code ref} is an exact method reference
+     */
+    public static boolean isExactMethodReference(MemberReferenceTree ref) {
+        // Seems like overloaded means the same thing as inexact.
+        // overloadKind is set
+        // com.sun.tools.javac.comp.DeferredAttr.DeferredChecker.visitReference()
+        // IsExact: https://docs.oracle.com/javase/specs/jls/se8/html/jls-15.html#jls-15.13.1-400
+        // Treat OverloadKind.ERROR as overloaded.
+        return ((JCMemberReference) ref).getOverloadKind() == OverloadKind.UNOVERLOADED;
+    }
+
+    /**
+     * Returns whether or not {@code expression} is a poly expression as defined in JLS 15.2.
+     *
+     * @param expression expression
+     * @return whether or not {@code expression} is a poly expression
+     */
+    public static boolean isPolyExpression(ExpressionTree expression) {
+        return !isStandaloneExpression(expression);
+    }
+
+    /**
+     * Returns whether or not {@code expression} is a standalone expression as defined in JLS 15.2.
+     *
+     * @param expression expression
+     * @return whether or not {@code expression} is a standalone expression
+     */
+    public static boolean isStandaloneExpression(ExpressionTree expression) {
+        expression = TreeUtils.withoutParens(expression);
+        if (expression instanceof JCTree.JCExpression) {
+            if (((JCTree.JCExpression) expression).isStandalone()) {
+                return true;
+            }
+            if (expression.getKind() == Tree.Kind.METHOD_INVOCATION) {
+                // This seems to be a bug in at least Java 11.  If a method has type arguments, then
+                // it is a standalone expression.
+                return !((MethodInvocationTree) expression).getTypeArguments().isEmpty();
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Was applicability by variable arity invocation necessary to determine the method signature?
+     *
+     * <p>This isn't the same as {@link ExecutableElement#isVarArgs()}. That method returns true if
+     * the method accepts a variable number of arguments. This method returns true if the method
+     * invocation actually used that fact to invoke the method.
+     *
+     * @param methodInvocation a method or constructor invocation
+     * @return whether applicability by variable arity invocation is necessary to determine the
+     *     method signature
+     * @deprecated use {@link #isVarargsCall(Tree)}
+     */
+    @Deprecated // 2024-06-04
+    public static boolean isVarArgMethodCall(ExpressionTree methodInvocation) {
+        return isVarargsCall(methodInvocation);
+    }
+
+    /**
+     * Is the tree a reference to a constructor of a generic class whose type argument isn't
+     * specified? For example, {@code HashSet::new)}.
+     *
+     * @param tree may or may not be a {@link MemberReferenceTree}
+     * @return true if tree is a reference to a constructor of a generic class whose type argument
+     *     isn't specified
+     */
+    public static boolean isDiamondMemberReference(ExpressionTree tree) {
+        if (tree.getKind() != Tree.Kind.MEMBER_REFERENCE) {
+            return false;
+        }
+        MemberReferenceTree memRef = (MemberReferenceTree) tree;
+        TypeMirror type = TreeUtils.typeOf(memRef.getQualifierExpression());
+        if (memRef.getMode() == ReferenceMode.NEW && type.getKind() == TypeKind.DECLARED) {
+            // No need to check array::new because the generic arrays can't be created.
+            TypeElement classElt = (TypeElement) ((Type) type).asElement();
+            DeclaredType classTypeMirror = (DeclaredType) classElt.asType();
+            return !classTypeMirror.getTypeArguments().isEmpty()
+                    && ((Type) type).getTypeArguments().isEmpty();
+        }
+        return false;
+    }
+
+    /**
+     * Return whether {@code tree} is a method reference with a raw type to the left of {@code ::}.
+     * For example, {@code Class::getName}.
+     *
+     * @param tree a tree
+     * @return whether {@code tree} is a method reference with a raw type to the left of {@code ::}
+     */
+    public static boolean isLikeDiamondMemberReference(ExpressionTree tree) {
+        if (tree.getKind() != Tree.Kind.MEMBER_REFERENCE) {
+            return false;
+        }
+        MemberReferenceTree memberReferenceTree = (MemberReferenceTree) tree;
+        if (TreeUtils.MemberReferenceKind.getMemberReferenceKind(memberReferenceTree).isUnbound()) {
+            TypeMirror preColonTreeType = typeOf(memberReferenceTree.getQualifierExpression());
+            return TypesUtils.isRaw(preColonTreeType);
+        }
+        return false;
+    }
+
+    /**
+     * Returns whether the method reference tree needs type argument inference.
+     *
+     * @param memberReferenceTree a method reference tree
+     * @return whether the method reference tree needs type argument inference
+     */
+    public static boolean needsTypeArgInference(MemberReferenceTree memberReferenceTree) {
+        if (isDiamondMemberReference(memberReferenceTree)
+                || isLikeDiamondMemberReference(memberReferenceTree)) {
+            return true;
+        }
+
+        ExecutableElement element = TreeUtils.elementFromUse(memberReferenceTree);
+        return !element.getTypeParameters().isEmpty()
+                && (memberReferenceTree.getTypeArguments() == null
+                        || memberReferenceTree.getTypeArguments().isEmpty());
     }
 }

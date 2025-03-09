@@ -7,7 +7,6 @@ import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.LambdaExpressionTree;
-import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewClassTree;
@@ -62,6 +61,7 @@ import org.checkerframework.framework.qual.QualifierForLiterals;
 import org.checkerframework.framework.qual.RelevantJavaTypes;
 import org.checkerframework.framework.qual.RequiresQualifier;
 import org.checkerframework.framework.qual.TypeUseLocation;
+import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.poly.DefaultQualifierPolymorphism;
@@ -76,7 +76,6 @@ import org.checkerframework.framework.type.typeannotator.IrrelevantTypeAnnotator
 import org.checkerframework.framework.type.typeannotator.ListTypeAnnotator;
 import org.checkerframework.framework.type.typeannotator.PropagationTypeAnnotator;
 import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
-import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.Contract;
 import org.checkerframework.framework.util.ContractsFromMethod;
 import org.checkerframework.framework.util.DefaultContractsFromMethod;
@@ -86,7 +85,6 @@ import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.framework.util.defaults.QualifierDefaults;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesTreeAnnotator;
-import org.checkerframework.framework.util.typeinference.TypeArgInferenceUtil;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
@@ -279,6 +277,10 @@ public abstract class GenericAnnotatedTypeFactory<
     // Set in postInit only
     protected Store emptyStore;
 
+    /**
+     * {@code analysis.getResult()} is the result of the most recent analysis. Compare to {@link
+     * #flowResult}.
+     */
     // Set in postInit only
     protected FlowAnalysis analysis;
 
@@ -299,6 +301,8 @@ public abstract class GenericAnnotatedTypeFactory<
      * @see AnalysisResult#runAnalysisFor(Node, Analysis.BeforeOrAfter, TransferInput,
      *     IdentityHashMap, Map)
      */
+    // This is only used in `getStoreBefore()` and `getStoreAfter()`.
+    // We do not understand its relationship to the `analysisCaches` field of each result.
     protected final Map<
                     TransferInput<Value, Store>,
                     IdentityHashMap<Node, TransferResult<Value, Store>>>
@@ -927,42 +931,21 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * Gets the type of the resulting constructor call of a MemberReferenceTree.
+     * Returns the primary annotation with {@code clazz} on {@code expression}'s type, at a
+     * particular location. The returned annotation may be null even if the expression should have a
+     * primary annotation of {@code clazz}. This is because {@link JavaExpression}s do not always
+     * have enough information to get an annotated type.
      *
-     * @param memberReferenceTree MemberReferenceTree where the member is a constructor
-     * @param constructorType AnnotatedExecutableType of the declaration of the constructor
-     * @return AnnotatedTypeMirror of the resulting type of the constructor
-     */
-    public AnnotatedTypeMirror getResultingTypeOfConstructorMemberReference(
-            MemberReferenceTree memberReferenceTree, AnnotatedExecutableType constructorType) {
-        assert memberReferenceTree.getMode() == MemberReferenceTree.ReferenceMode.NEW;
-
-        // The return type for constructors should only have explicit annotations from the
-        // constructor.  Recreate some of the logic from TypeFromTree.visitNewClass here.
-
-        // The return type of the constructor will be the type of the expression of the member
-        // reference tree.
-        AnnotatedDeclaredType constructorReturnType =
-                (AnnotatedDeclaredType) fromTypeTree(memberReferenceTree.getQualifierExpression());
-
-        // Keep only explicit annotations and those from @Poly
-        AnnotatedTypes.copyOnlyExplicitConstructorAnnotations(
-                this, constructorReturnType, constructorType);
-
-        // Now add back defaulting.
-        addComputedTypeAnnotations(
-                memberReferenceTree.getQualifierExpression(), constructorReturnType);
-        return constructorReturnType;
-    }
-
-    /**
-     * Returns the primary annotation on expression if it were evaluated at path.
+     * <p>This method should only be used if a tree, element, or node is not available for {@code
+     * expression}. Use {@link #getAnnotatedType(Tree)} or {@link #getAnnotatedType(Element)}
+     * instead.
      *
-     * @param expression a Java expression
+     * @param expression the expression for which the annotation is returned
      * @param tree current tree
      * @param path location at which expression is evaluated
-     * @param clazz class of the annotation
-     * @return the annotation on expression or null if one does not exist
+     * @param clazz the annotation class for which to look
+     * @return the annotation of {@code clazz} on {@code expression}'s type, or null if one does not
+     *     exist or if {@code expression} does not have enough information to get the annotated type
      * @throws JavaExpressionParseException thrown if the expression cannot be parsed
      */
     public @Nullable AnnotationMirror getAnnotationFromJavaExpressionString(
@@ -973,12 +956,19 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * Returns the primary annotation on an expression, at a particular location.
+     * Returns the primary annotation with {@code clazz} on {@code expr}'s type, at a particular
+     * location. The returned annotation may be null even if the expression should have a primary
+     * annotation of {@code clazz}. This is because {@link JavaExpression}s do not always have
+     * enough information to get an annotated type.
+     *
+     * <p>This method should only be used if a tree, element, or node is not available for {@code
+     * expr}. Use {@link #getAnnotatedType(Tree)} or {@link #getAnnotatedType(Element)} instead.
      *
      * @param expr the expression for which the annotation is returned
      * @param tree current tree
-     * @param clazz the Class of the annotation
-     * @return the annotation on expression or null if one does not exist
+     * @param clazz the annotation class for which to look
+     * @return the annotation of {@code clazz} on {@code expr}'s type, or null if one does not exist
+     *     or if {@code expr} does not have enough information to get the annotated type
      */
     public @Nullable AnnotationMirror getAnnotationFromJavaExpression(
             JavaExpression expr, Tree tree, Class<? extends Annotation> clazz) {
@@ -986,14 +976,20 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * Returns the primary annotations on an expression, at a particular location.
+     * Returns the primary annotations on an expression, at a particular location. The returned set
+     * of annotations may be empty even if the expression should have primary annotations. This is
+     * because {@link JavaExpression} do not always have enough information to get an annotated
+     * type.
+     *
+     * <p>This method should only be used if a tree, element, or node is not available for {@code
+     * expr}. Use {@link #getAnnotatedType(Tree)} or {@link #getAnnotatedType(Element)} instead.
      *
      * @param expr the expression for which the annotation is returned
      * @param tree current tree
-     * @return the annotation on expression or null if one does not exist
+     * @return the annotations on the expression. May be empty if {@code expr} does not have enough
+     *     information to get the annotated type.
      */
-    public @Nullable AnnotationMirrorSet getAnnotationsFromJavaExpression(
-            JavaExpression expr, Tree tree) {
+    public AnnotationMirrorSet getAnnotationsFromJavaExpression(JavaExpression expr, Tree tree) {
         // Look in the store
         if (CFAbstractStore.canInsertJavaExpression(expr)) {
             Store store = getStoreBefore(tree);
@@ -1001,8 +997,6 @@ public abstract class GenericAnnotatedTypeFactory<
             if (store != null) {
                 Value value = store.getValue(expr);
                 if (value != null) {
-                    // Is it possible that this lacks some annotations that appear in the type
-                    // factory?
                     return value.getAnnotations();
                 }
             }
@@ -1133,7 +1127,7 @@ public abstract class GenericAnnotatedTypeFactory<
     // private final Set<Tree> reachableNodes = new HashSet<>();
 
     /**
-     * The result of the flow analysis. Invariant:
+     * The merged result of all the analyses performed in the current compilation unit. Invariant:
      *
      * <pre>
      *  scannedClasses.get(c) == FINISHED for some class c &rArr; flowResult != null
@@ -1745,8 +1739,9 @@ public abstract class GenericAnnotatedTypeFactory<
      * this default is too conservative. So this method is used instead of {@link
      * GenericAnnotatedTypeFactory#getAnnotatedTypeLhs(Tree)}.
      *
-     * <p>{@link TypeArgInferenceUtil#assignedToVariable(AnnotatedTypeFactory, VariableTree)}
-     * explains why a different type is used.
+     * <p>{@link
+     * org.checkerframework.framework.util.typeinference8.types.InferenceFactory#assignedToVariable(AnnotatedTypeFactory,
+     * Tree)} explains why a different type is used.
      *
      * @param lhsTree left-hand side of an assignment
      * @return AnnotatedTypeMirror of {@code lhsTree}
@@ -1963,8 +1958,9 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     @Override
-    public ParameterizedExecutableType constructorFromUse(NewClassTree tree) {
-        ParameterizedExecutableType mType = super.constructorFromUse(tree);
+    protected ParameterizedExecutableType constructorFromUse(
+            NewClassTree tree, boolean inferTypeArgs) {
+        ParameterizedExecutableType mType = super.constructorFromUse(tree, inferTypeArgs);
         AnnotatedExecutableType method = mType.executableType;
         dependentTypesHelper.atConstructorInvocation(method, tree);
         return mType;
@@ -1972,8 +1968,10 @@ public abstract class GenericAnnotatedTypeFactory<
 
     @Override
     protected void constructorFromUsePreSubstitution(
-            NewClassTree tree, AnnotatedExecutableType type) {
-        poly.resolve(tree, type);
+            NewClassTree tree, AnnotatedExecutableType type, boolean resolvePolyQuals) {
+        if (resolvePolyQuals) {
+            poly.resolve(tree, type);
+        }
     }
 
     @Override
@@ -2328,17 +2326,19 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     @Override
-    public ParameterizedExecutableType methodFromUse(MethodInvocationTree tree) {
-        ParameterizedExecutableType mType = super.methodFromUse(tree);
+    protected ParameterizedExecutableType methodFromUse(
+            MethodInvocationTree tree, boolean inferTypeArg) {
+        ParameterizedExecutableType mType = super.methodFromUse(tree, inferTypeArg);
         AnnotatedExecutableType method = mType.executableType;
         dependentTypesHelper.atMethodInvocation(method, tree);
         return mType;
     }
 
     @Override
-    public void methodFromUsePreSubstitution(ExpressionTree tree, AnnotatedExecutableType type) {
-        super.methodFromUsePreSubstitution(tree, type);
-        if (tree instanceof MethodInvocationTree) {
+    public void methodFromUsePreSubstitution(
+            ExpressionTree tree, AnnotatedExecutableType type, boolean resolvePolyQuals) {
+        super.methodFromUsePreSubstitution(tree, type, resolvePolyQuals);
+        if (tree instanceof MethodInvocationTree && resolvePolyQuals) {
             poly.resolve((MethodInvocationTree) tree, type);
         }
     }
@@ -2375,7 +2375,7 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     @SuppressWarnings("TypeParameterUnusedInFormals") // Intentional abuse
     public final <T extends GenericAnnotatedTypeFactory<?, ?, ?, ?>> T getTypeFactoryOfSubchecker(
-            Class<? extends BaseTypeChecker> subCheckerClass) {
+            Class<? extends SourceChecker> subCheckerClass) {
         T result = getTypeFactoryOfSubcheckerOrNull(subCheckerClass);
         if (result == null) {
             throw new TypeSystemError(
@@ -2404,11 +2404,13 @@ public abstract class GenericAnnotatedTypeFactory<
     @SuppressWarnings("TypeParameterUnusedInFormals") // Intentional abuse
     public <T extends GenericAnnotatedTypeFactory<?, ?, ?, ?>>
             @Nullable T getTypeFactoryOfSubcheckerOrNull(
-                    Class<? extends BaseTypeChecker> subCheckerClass) {
-        BaseTypeChecker subchecker = checker.getSubchecker(subCheckerClass);
-        if (subchecker == null) {
+                    Class<? extends SourceChecker> subCheckerClass) {
+        SourceChecker subSourceChecker = checker.getSubchecker(subCheckerClass);
+        if (subSourceChecker == null || !(subSourceChecker instanceof BaseTypeChecker)) {
             return null;
         }
+
+        BaseTypeChecker subchecker = (BaseTypeChecker) subSourceChecker;
 
         @SuppressWarnings(
                 "unchecked" // This might not be safe, but the caller of the method should use the
@@ -2450,7 +2452,7 @@ public abstract class GenericAnnotatedTypeFactory<
             }
             boolean verbose = checker.hasOption("verbosecfg");
 
-            Map<String, Object> args = new HashMap<>(2);
+            Map<String, Object> args = new HashMap<>(4);
             args.put("outdir", flowdotdir);
             args.put("verbose", verbose);
             args.put("checkerName", getCheckerName());
@@ -2480,6 +2482,9 @@ public abstract class GenericAnnotatedTypeFactory<
 
             CFGVisualizer<Value, Store, TransferFunction> res =
                     BaseTypeChecker.invokeConstructorFor(vizClassName, null, null);
+            if (res == null) {
+                throw new UserError("Can't load " + vizClassName);
+            }
             res.init(args);
             return res;
         }
@@ -2590,6 +2595,7 @@ public abstract class GenericAnnotatedTypeFactory<
     @FormatMethod
     private static void log(String format, Object... args) {
         if (debug) {
+            System.out.flush();
             SystemPlume.sleep(1); // logging can interleave with typechecker output
             System.out.printf(format, args);
         }
@@ -2905,11 +2911,10 @@ public abstract class GenericAnnotatedTypeFactory<
     public List<AnnotationMirror> getPreconditionAnnotations(
         WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos methodAnnos) {
       List<AnnotationMirror> result = new ArrayList<>();
-      for (Map.Entry<String, IPair<AnnotatedTypeMirror, AnnotatedTypeMirror>> entry :
-          methodAnnos.getPreconditions().entrySet()) {
+      for (Map.Entry<String, InferredDeclared> entry : methodAnnos.getPreconditions().entrySet()) {
         result.addAll(
             getPreconditionAnnotations(
-                entry.getKey(), entry.getValue().first, entry.getValue().second));
+                entry.getKey(), entry.getValue().inferred, entry.getValue().declared));
       }
       Collections.sort(result, Ordering.usingToString());
       return result;
@@ -2932,11 +2937,10 @@ public abstract class GenericAnnotatedTypeFactory<
         WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos methodAnnos,
         List<AnnotationMirror> preconds) {
       List<AnnotationMirror> result = new ArrayList<>();
-      for (Map.Entry<String, IPair<AnnotatedTypeMirror, AnnotatedTypeMirror>> entry :
-          methodAnnos.getPostconditions().entrySet()) {
+      for (Map.Entry<String, InferredDeclared> entry : methodAnnos.getPostconditions().entrySet()) {
         result.addAll(
             getPostconditionAnnotations(
-                entry.getKey(), entry.getValue().first, entry.getValue().second, preconds));
+                entry.getKey(), entry.getValue().inferred, entry.getValue().declared, preconds));
       }
       Collections.sort(result, Ordering.usingToString());
       return result;
