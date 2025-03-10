@@ -22,7 +22,7 @@ import java.util.StringJoiner;
  *
  * @checker_framework.manual #i18n-formatter-checker Internationalization Format String Checker
  */
-@AnnotatedFor("nullness")
+@AnnotatedFor("nullness1")
 public enum I18nConversionCategory {
 
     /**
