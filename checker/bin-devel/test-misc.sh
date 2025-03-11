@@ -79,7 +79,7 @@ jdk_dir="$current_path/../jdk/src/java.base/share/classes/org/checkerframework"
 
 difference_found=false
 
-for file in $(find "$src_dir" -name "*.java"); do
+find "$src_dir" -name "*.java" | while read -r file; do
     rel_path="${file#"$src_dir"/}"
     jdk_file="$jdk_dir/$rel_path"
 
