@@ -79,7 +79,7 @@ jdk_dir="$current_path/../jdk/src/java.base/share/classes/org/checkerframework"
 
 difference_found=false
 
-find "$src_dir" -name "*.java" | while read -r file; do
+while read -r file; do
     rel_path="${file#"$src_dir"/}"
     jdk_file="$jdk_dir/$rel_path"
 
@@ -93,7 +93,7 @@ find "$src_dir" -name "*.java" | while read -r file; do
             difference_found=true
         fi
     fi
-done
+done < <(find "$src_dir" -name "*.java")
 
 # If any difference was found, exit with a non-zero status
 if [ "$difference_found" = true ]; then
