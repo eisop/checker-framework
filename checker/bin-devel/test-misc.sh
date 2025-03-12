@@ -85,7 +85,6 @@ while read -r file; do
     # Use parameter expansion to get the relative path of the file
     # e.g. rel_path= "checker/nullness/qual/Nullable.java"
     rel_path="${file#"$src_dir"/}"
-    echo "rel_path: ${file#"$src_dir"/}"
     jdk_file="$jdk_dir/$rel_path"
 
     # Check if the file exists in the JDK directory
