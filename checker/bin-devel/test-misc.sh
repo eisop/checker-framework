@@ -72,7 +72,6 @@ git diff --exit-code docs/manual/contributors.tex || \
      false)
 
 # Check the definition of qualifiers in Checker Framework against the JDK
-set +o xtrace # Disable xtrace because diff will fail and end the script if there is diff output
 CURRENT_PATH=$(pwd)
 src_dir="$CURRENT_PATH/checker-qual/src/main/java/org/checkerframework"
 jdk_dir="$CURRENT_PATH/../jdk/src/java.base/share/classes/org/checkerframework"
@@ -115,7 +114,7 @@ while read -r jdk_file; do
 done < <(find "$jdk_dir" -name "*.java")
 
 # If any difference, missing, or removed file was found, exit with failure
-if [ "$difference_found" = true ] || [ "$file_missing_in_jdk" = true ] || [ "$file_removed_in_cf" = true ]; then
+if [ "$difference_found" ] || [ "$file_missing_in_jdk" ] || [ "$file_removed_in_cf" ]; then
     echo "Differences found or files missing/removed. Exiting with failure."
     exit 1  # Exit with failure
 else
