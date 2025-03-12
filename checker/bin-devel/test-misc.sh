@@ -120,5 +120,4 @@ if [ "$difference_found" = true ] || [ "$file_missing_in_jdk" = true ] || [ "$fi
     exit 1  # Exit with failure
 else
     echo "No differences found and no files missing/removed."
-    exit 0  # Exit with success
 fi
