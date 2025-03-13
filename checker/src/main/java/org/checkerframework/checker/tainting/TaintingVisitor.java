@@ -30,7 +30,7 @@ public class TaintingVisitor extends BaseTypeVisitor<BaseAnnotatedTypeFactory> {
             AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {}
 
     @Override
-    protected void reportErrorIfSupertypeContainsAnnotation(Tree typeTree) {
+    protected void checkSupertypeAnnotations(Tree typeTree) {
         // Do nothing
     }
 }
