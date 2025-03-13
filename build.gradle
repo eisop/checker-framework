@@ -1182,34 +1182,6 @@ subprojects {
             }
         }
 
-        //        ext {
-        //            checkerJavac = project.rootDir.resolve("checker/bin/javac").absolutePath
-        //            jdkSourcePath = project.rootDir.resolve("jdk/src/java.base/share/classes").absolutePath
-        //            javaUtilFiles = File(jdkSourcePath).resolve("java/util").listFiles { file ->
-        //                file.extension == "java"
-        //            }?.joinToString(" ") { it.absolutePath } ?: ""
-        //        }
-        //
-        //        tasks.register<Exec>("checkJdkNullness") {
-        //            description = "Runs the Checker Framework's Nullness Checker on java.util"
-        //            group = "verification"
-        //
-        //            commandLine = listOf(
-        //                    checkerJavac,
-        //                    "-processor", "nullness",
-        //                    "--patch-module", "java.base=$jdkSourcePath",
-        //                    "-Xmaxerrs", "5000",
-        //                    "-nowarn"
-        //            ) + javaUtilFiles.split(" ")
-        //
-        //            doFirst {
-        //                if (javaUtilFiles.isEmpty()) {
-        //                    throw GradleException("No Java files found in java.util. Check JDK source path.")
-        //                }
-        //                println("Running Checker Framework's Nullness Checker on java.util")
-        //            }
-        //        }
-
         // Create a nonJunitTests task per project
         tasks.create(name: 'nonJunitTests', group: 'Verification') {
             description = 'Run all Checker Framework tests except for the JUnit tests and inference tests.'
