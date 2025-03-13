@@ -5,6 +5,7 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.source.SourceChecker;
 
+import java.util.NavigableSet;
 import java.util.Set;
 
 /** The PICO subchecker. */
@@ -22,6 +23,13 @@ public class PICONoInitSubchecker extends BaseTypeChecker {
         Set<Class<? extends SourceChecker>> checkers = super.getImmediateSubcheckerClasses();
         checkers.add(InitializationFieldAccessSubchecker.class);
         return checkers;
+    }
+
+    @Override
+    public NavigableSet<String> getSuppressWarningsPrefixes() {
+        NavigableSet<String> result = super.getSuppressWarningsPrefixes();
+        result.add("pico");
+        return result;
     }
 
     @Override
