@@ -76,7 +76,7 @@ echo "Checking the definition of qualifiers in Checker Framework against the JDK
 CURRENT_PATH=$(pwd)
 src_dir="$CURRENT_PATH/checker-qual/src/main/java/org/checkerframework"
 jdk_dir="$CURRENT_PATH/../jdk/src/java.base/share/classes/org/checkerframework"
-set +o xtrace  # Turn off xtrace to verbose output
+set +o xtrace  # Turn off xtrace to avoid verbose output
 
 difference_found=false
 file_missing_in_jdk=false
@@ -123,4 +123,4 @@ else
     echo "No differences found and no files missing/removed."
 fi
 
-set -o xtrace  # Turn on xtrace to verbose
+set -o xtrace  # Turn on xtrace output
