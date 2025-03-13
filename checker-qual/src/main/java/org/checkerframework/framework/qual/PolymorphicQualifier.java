@@ -19,7 +19,6 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.ANNOTATION_TYPE})
-@AnnotatedFor({"initialization", "nullness"})
 public @interface PolymorphicQualifier {
     /**
      * Indicates which type system this annotation refers to (optional, and usually unnecessary).

@@ -2,7 +2,6 @@ package org.checkerframework.checker.formatter.qual;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -35,7 +34,6 @@ import java.util.StringJoiner;
  * @checker_framework.manual #formatter-checker Format String Checker
  */
 @SuppressWarnings("unchecked") // ".class" expressions in varargs position
-@AnnotatedFor({"initialization", "nullness"})
 public enum ConversionCategory {
     /** Use if the parameter can be of any type. Applicable for conversions b, B, h, H, s, S. */
     GENERAL("bBhHsS", (Class<?>[]) null /* everything */),
