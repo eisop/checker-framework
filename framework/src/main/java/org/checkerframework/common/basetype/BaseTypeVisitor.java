@@ -863,7 +863,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     ((AnnotatedTypeTree) typeTree).getAnnotations();
             for (AnnotationTree annoTree : annoTrees) {
                 AnnotationMirror am = TreeUtils.annotationFromAnnotationTree(annoTree);
-                if (AnnotationUtils.isTypeUseAnnotation(am)) {
+                if (atypeFactory.isSupportedQualifier(am)) {
                     checker.reportError(typeTree, "annotation.on.supertype");
                 }
             }
