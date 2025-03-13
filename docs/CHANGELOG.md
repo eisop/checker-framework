@@ -3,9 +3,9 @@ Version 3.49.0-eisop1 (February ??, 2025)
 
 **User-visible changes:**
 
-The framework now issues `annotation.on.supertype` error for annotation write on supertype in class declaration. This is
-a generalized behavior for `nullness.on.supertype`. Other checker can override this behavior by overriding
-`reportErrorIfSupertypeContainsAnnotation` method in `BaseTypeChecker`.
+All checkers issue `annotation.on.supertype` error for annotation write on
+supertype in class declaration. Other support annotations on supertype can override
+`BaseTypeVisitor#checkSupertypeAnnotations(Tree)` to disable the check.
 
 The Nullness Checker now reports an error if any instanceof pattern variables
 are annotated with `@Nullable` and a redundant warning if they are annotated
