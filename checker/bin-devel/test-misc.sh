@@ -71,7 +71,5 @@ git diff --exit-code docs/manual/contributors.tex || \
      echo "    and remake contributors.tex after that pull request is merged." &&
      false)
 
-set +o xtrace  # Turn off xtrace to avoid verbose output
 # Check the definition of qualifiers in Checker Framework against the JDK
-./checker/bin-devel/test-qualifier-consistency.sh
-set -o xtrace  # Turn on xtrace output
+./checker/bin-devel/check-jdk-consistency.sh

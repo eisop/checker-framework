@@ -1,6 +1,8 @@
 #!/bin/bash
+set +o xtrace  # Turn off xtrace to avoid verbose output
 
 # Check the definition of qualifiers in Checker Framework against the JDK
+# This script assume JDK is cloned and located in the parent directory of the Checker Framework
 echo "Checking the definition of qualifiers in Checker Framework against the JDK"
 CURRENT_PATH=$(pwd)
 src_dir="$CURRENT_PATH/checker-qual/src/main/java/org/checkerframework"
@@ -50,3 +52,5 @@ if [ "$difference_found" = true ] || [ "$file_missing_in_jdk" = true ] || [ "$fi
 else
     echo "No differences found and no files missing/removed."
 fi
+
+set -o xtrace  # Turn on xtrace output
