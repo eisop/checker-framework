@@ -50,6 +50,8 @@ while read -r jdk_file; do
     fi
 done < <(find "$jdk_dir" -name "*.java")
 
+if [ "$reset_trace" = true ]; then set -x; fi # Turn on xtrace output
+
 # If any difference, missing, or removed file was found, exit with failure
 if [ "$difference_found" = true ] || [ "$file_missing_in_jdk" = true ] || [ "$file_removed_in_cf" = true ]; then
     echo "Differences found or files missing/removed. Exiting with failure."
@@ -57,5 +59,3 @@ if [ "$difference_found" = true ] || [ "$file_missing_in_jdk" = true ] || [ "$fi
 else
     echo "No differences found and no files missing/removed."
 fi
-
-"$reset_trace" && set +x # Turn on xtrace output
