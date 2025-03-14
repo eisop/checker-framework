@@ -1,5 +1,10 @@
 #!/bin/bash
-set +o xtrace  # Turn off xtrace to avoid verbose output
+
+reset_trace=false
+if [ -o xtrace ]; then
+    set +x # Turn off xtrace to avoid verbose output
+    reset_trace=true
+fi
 
 # Check the definition of qualifiers in Checker Framework against the JDK
 # This script assume JDK is cloned and located in the parent directory of the Checker Framework
@@ -53,4 +58,4 @@ else
     echo "No differences found and no files missing/removed."
 fi
 
-set -o xtrace  # Turn on xtrace output
+"$reset_trace" && set +x # Turn on xtrace output
