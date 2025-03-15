@@ -68,7 +68,7 @@ jobs:
           'guava', 'plume-lib',
           'daikon-part1', 'daikon-part2',
           'jspecify-conformance', 'jspecify-reference-checker',
-          'misc']
+          'misc', 'typecheck-jdk']
         java_version: [21]
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
