@@ -11,8 +11,9 @@ concurrency:
   cancel-in-progress: ${{ !contains(github.ref, 'heads/master')}}
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
+  security-events: write
 
 jobs:
   dependency-review:
