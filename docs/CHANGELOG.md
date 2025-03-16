@@ -1,13 +1,230 @@
-Version 3.42.0-eisop6 (January ??, 2025)
-----------------------------------------
+Version 3.49.0-eisop1 (February ??, 2025)
+-----------------------------------------
 
 **User-visible changes:**
 
+The Nullness Checker now reports an error if any instanceof pattern variables
+are annotated with `@Nullable` and a redundant warning if they are annotated
+with `@NonNull`.
+
 **Implementation details:**
+
+Fixed intersection of wildcards with extends bounds, to ensure the correct
+bounds are used.
 
 **Closed issues:**
 
-eisop#1033.
+eisop#1003, eisop#1033, eisop#1058.
+
+
+Version 3.49.0 (February 3, 2025)
+---------------------------------
+
+**User-visible changes:**
+
+The Optional Checker is more precise for `Optional` values resulting from
+operations on container types (e.g., `List`, `Map`, `Iterable`).  It supports
+two new annotations:
+ * `@NonEmpty`
+ * `@UnknownNonEmpty`
+
+The Signature Checker no longer supports `@BinaryNameWithoutPackage` because
+it is equivalent to `@Identifier`; use `@Identifier` instead.
+
+The JavaStubifier implementation now appears in package
+`org.checkerframework.framework.stubifier.JavaStubifier`.
+
+**Closed issues:**
+#6935, #6936, #6939.
+
+
+Version 3.48.4 (January 2, 2025)
+--------------------------------
+
+**Closed issues:**
+
+#6919, #6630.
+
+
+Version 3.48.3 (December 2, 2024)
+---------------------------------
+
+**Closed issues:**
+
+#6886.
+
+
+Version 3.48.2 (November 1, 2024)
+---------------------------------
+
+**Closed issues:**
+
+#6371, #6867.
+
+
+Version 3.48.1 (October 11, 2024)
+---------------------------------
+
+**User-visible changes:**
+
+The Returns Receiver sub-checker is now disabled by default when running
+the Resource Leak Checker, as usually it is not needed and it adds overhead.
+To enable it, use the new `-AenableReturnsReceiverForRlc` command-line argument.
+
+**Closed issues:**
+
+#6434, #6810, #6839, #6842, #6856.
+
+
+Version 3.48.0 (October 2, 2024)
+--------------------------------
+
+**User-visible changes:**
+
+The new SqlQuotesChecker prevents errors in quoting in SQL queries.  It prevents
+injection attacks that exploit quoting errors.
+
+Aggregate Checkers now interleave error messages so that all errors about a line of code
+appear together.
+(EISOP note: some signatures changed from `BaseTypeChecker` to `SourceChecker`,
+which might require adaptation in checkers.)
+
+**Closed issues:**
+
+#3568, #6725, #6753, #6769, #6770, #6780, #6785, #6795, #6804, #6811, #6825.
+
+
+Version 3.47.0 (September 3, 2024)
+----------------------------------
+
+**User-visible changes:**
+
+The Checker Framework runs under JDK 22 -- that is, it runs on a version 22 JVM.
+The Checker Framework runs under JDK 23 -- that is, it runs on a version 23 JVM.
+(EISOP note: this has been working for a while already, this just cleaned up
+compiler warnings.)
+
+The Optional Checker no longer supports the `@OptionalBottom` annotation.
+
+**Implementation details:**
+
+Removed annotations:
+ * `@OptionalBottom`
+
+**Closed issues:**
+
+#6510, #6704, #6743, #6749, #6760, #6761.
+
+
+Version 3.46.0 (August 1, 2024)
+-------------------------------
+
+**User-visible changes:**
+
+Renamed `@EnsuresCalledMethodsVarArgs`to `@EnsuresCalledMethodsVarargs`.
+
+**Implementation details:**
+
+Many symbols that contained `VarArgs` were similarly renamed to use `Varargs`,
+e.g. `AnnotatedTypeMirror.isVarargs()`.
+
+**Closed issues:**
+
+#4923, #6420, #6469, #6652, #6664.
+
+
+Version 3.45.0 (July 1, 2024)
+-----------------------------
+
+**Implementation details:**
+
+Added a `Tree` argument to `AnnotatedTypes.adaptParameters()`
+
+Deprecated methods:
+ * `TreeUtils.isVarArgs()` => `isVarargsCall()`
+ * `TreeUtils.isVarArgMethodCall()` => `isVarargsCall()`
+
+**Closed issues:**
+
+#152, #5575, #6630, #6641, #6648, #6676.
+
+
+Version 3.44.0 (June 3, 2024)
+-----------------------------
+
+**Implementation details:**
+
+Removed methods:
+ * `AbstractAnalysis.readFromStore()`:  use `Map.get()`
+
+Renamed methods:
+ * `CFAbstractStore.methodValues()` => `methodCallExpressions()`
+ * `AbstractCFGVisualizer.format()` => `escapeString()`
+
+Renamed fields:
+ * `AnalysisResult.stores` => `inputs`
+
+Deprecated methods:
+ * `AbstractAnalysis.getContainingMethod()` => `getEnclosingMethod()`
+ * `AbstractAnalysis.getContainingClass()` => `getEnclosingMethod()`
+ * `ControlFlowGraph.getContainingMethod()` => `getEnclosingMethod()`
+ * `ControlFlowGraph.getContainingClass()` => `getEnclosingClass()`
+ * `JavaExpression.isUnassignableByOtherCode()` => `isAssignableByOtherCode()`
+ * `JavaExpression.isUnmodifiableByOtherCode()` => `isModifiableByOtherCode()`
+
+`BaseTypeVisitor#visitMethod(MethodTree, Void)` is now `final`.
+Subclasses should override `BaseTypeVisitor#processMethodTree(MethodTree)`.
+
+**Closed issues:**
+
+#802, #2676, #2780, #2926, #3378, #3612, #3764, #4007, #4964, #5070, #5176,
+#5237, #5541, #6046, #6382, #6388, #6566, #6568, #6570, #6576, #6577, #6631,
+#6635, #6636, #6644.
+
+
+Version 3.43.0 (May 1, 2024)
+----------------------------
+
+**User-visible changes:**
+
+Method, constructor, lambda, and method reference type inference has been
+greatly improved.  The `-AconservativeUninferredTypeArguments` option is
+no longer necessary and has been removed.
+
+Renamed command-line arguments:
+ * `-AskipDirs` has been renamed to `-AskipFiles`.
+   `-AskipDirs` will continue to work for the time being.
+
+New command-line arguments:
+ * `-AonlyFiles` complements `-AskipFiles`
+
+A specialized inference algorithm for the Resource Leak Checker runs
+automatically as part of whole-program inference.
+
+**Implementation details:**
+
+Deprecated `ObjectCreationNode#getConstructor` in favor of new
+`ObjectCreationNode#getTypeToInstantiate()`.
+(EISOP note: this already happened in Version 3.39.0-eisop1 on
+October 22, 2023.)
+
+Renamed `AbstractCFGVisualizer.visualizeBlockHelper()` to
+`visualizeBlockWithSeparator()`.
+
+Moved methods from `TreeUtils` to subclasses of `TreeUtilsAfterJava11`:
+ * isConstantCaseLabelTree
+ * isDefaultCaseLabelTree
+ * isPatternCaseLabelTree
+
+Renamed `BaseTypeVisitor.checkForPolymorphicQualifiers()` to
+`warnInvalidPolymorphicQualifier()`.
+
+**Closed issues:**
+
+#979, #4559, #4593, #5058, #5734, #5781, #6071, #6093, #6239, #6297, #6317,
+#6322, #6346, #6373, #6376, #6378, #6379, #6380, #6389, #6393, #6396, #6402,
+#6406, #6407, #6417, #6421, #6430, #6433, #6438, #6442, #6473, #6480, #6507,
+#6531, #6535.
 
 
 Version 3.42.0-eisop5 (December 20, 2024)
@@ -31,8 +248,8 @@ Make `SourceChecker#suppressWarningsString` protected to allow adaptation in sub
 
 **Closed issues:**
 
-eisop#413, eisop#782, eisop#815, eisop#860, eisop#873, eisop#875, eisop#927, eisop#982,
-eisop#1012.
+eisop#413, eisop#782, eisop#815, eisop#826, eisop#860, eisop#873, eisop#875, eisop#927,
+eisop#982, eisop#1012.
 
 
 Version 3.42.0-eisop4 (July 12, 2024)
@@ -52,9 +269,9 @@ to `AnnotationMirrorSet`.
 Field `AnnotatedTypeFactory#root` is now private and can only be accessed through `getRoot`/`setRoot`.
 
 framework-test:
-- Improvements to more consistently handle tests that do not use `-Anomsgtext`.
-- Added new class `DetailedTestDiagnostic` to directly represent test diagnostics when
-  `-Adetailedmsgtext` is used.
+ * Improvements to more consistently handle tests that do not use `-Anomsgtext`.
+ * Added new class `DetailedTestDiagnostic` to directly represent test diagnostics when
+   `-Adetailedmsgtext` is used.
 
 **Closed issues:**
 
@@ -119,7 +336,7 @@ possibly throws an assertion.  Using it can make flow-sensitive type refinement
 more effective.
 
 In `org.checkerframework.common.util.debug`, renamed `EmptyProcessor` to `DoNothingProcessor`.
-Removed `org.checkerframework.common.util.report.DoNothingChecker`.
+Removed `org.checkerframework.common.util.report.DoNothingChecker`; use `DoNothingProcessor`.
 Moved `ReportChecker` from `org.checkerframework.common.util.report` to `org.checkerframework.common.util.count.report`.
 (EISOP note: we did not follow this renaming - if anything, `counting` could be a special case of `reporting`, not
 the other way around.)
@@ -144,7 +361,7 @@ Version 3.41.0 (December 4, 2023)
 **User-visible changes:**
 
 New command-line options:
-* `-AassumePureGetters`: Unsoundly assume that every getter method is pure.
+ * `-AassumePureGetters`: Unsoundly assume that every getter method is pure.
 
 **Implementation details:**
 
@@ -242,10 +459,10 @@ Removed class `StringConcatenateAssignmentNode` and its last usages.
 The class was deprecated in release 3.21.3-eisop1 (March 23, 2022) and no longer used in CFGs.
 
 Changed the return types of
-- `BaseTypeChecker#getImmediateSubcheckerClasses()` and overrides to
-  `Set<Class<? extends BaseTypeChecker>>`,
-- `AnalysisResult#getFinalLocalValues()` to `Map<VariableElement, V>`, and
-- `GenericAnnotatedTypeFactory#getFinalLocalValues()` to `Map<VariableElement, Value>`.
+ * `BaseTypeChecker#getImmediateSubcheckerClasses()` and overrides to
+   `Set<Class<? extends BaseTypeChecker>>`,
+ * `AnalysisResult#getFinalLocalValues()` to `Map<VariableElement, V>`, and
+ * `GenericAnnotatedTypeFactory#getFinalLocalValues()` to `Map<VariableElement, Value>`.
 
 **Closed issues:**
 
@@ -664,10 +881,10 @@ With this flag, a warning is issued if an explicitly written annotation on a typ
 as the default annotation for this type and location.
 
 Support additional Nullness Checker annotation aliases from:
-- `io.micronaut.core.annotation`
-- `io.vertx.codegen.annotations`
-- `jakarta.annotation`
-- `net.bytebuddy[.agent].utility.nullability`
+ * `io.micronaut.core.annotation`
+ * `io.vertx.codegen.annotations`
+ * `jakarta.annotation`
+ * `net.bytebuddy[.agent].utility.nullability`
 
 **Implementation details:**
 

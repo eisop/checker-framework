@@ -5,13 +5,23 @@
 # See releases at https://hub.docker.com/_/ubuntu for available images.
 # See https://packages.ubuntu.com/search?suite=default&section=all&arch=any&keywords=openjdk-17-jdk&searchon=names
 # to see what Ubuntu versions support a particular OpenJDK version.
+# Both might lag behind; as of 2024-11-16, ubuntu:rolling was still 24.04 rather than 24.10.
 FROM ubuntu
-MAINTAINER Werner Dietl <wdietl@gmail.com>
+LABEL org.opencontainers.image.authors="Werner Dietl <wdietl@gmail.com>"
 
 # According to
 # https://docs.docker.com/engine/userguide/eng-image/dockerfile_best-practices/:
 #  * Put "apt-get update" and "apt-get install" and "apt cleanup" in the same RUN command.
 #  * Do not run "apt-get upgrade"; instead get upstream to update.
+
+RUN export DEBIAN_FRONTEND=noninteractive \
+&& apt-get -qqy update \
+&& apt-get install -y locales \
+&& rm -rf /var/lib/apt/lists/* \
+&& locale-gen "en_US.UTF-8"
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8
 
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get -qqy update \
@@ -35,6 +45,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
   cpp \
   git \
   jq \
+  jtreg7 \
   libcurl3-gnutls \
   make \
   maven \
@@ -42,8 +53,6 @@ RUN export DEBIAN_FRONTEND=noninteractive \
   python3-setuptools \
   unzip \
   wget \
-&& aptitude -y install \
-  jtreg7
 
 RUN wget https://github.com/bazelbuild/bazelisk/releases/download/v1.23.0/bazelisk-linux-amd64 \
     && chmod +x bazelisk-linux-amd64 \

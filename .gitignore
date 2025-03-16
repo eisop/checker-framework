@@ -13,6 +13,7 @@ tags
 *.swp
 *.orig
 .DS_Store
+dot_files
 
 # Eclipse files
 .metadata
@@ -20,7 +21,7 @@ tags
 .project
 .externalToolBuilders
 .settings
-dot_files
+**/*.factorypath
 
 # Intellij files
 .idea
@@ -115,6 +116,8 @@ target/
 *.iws
 *.iml
 /.gradle/
+# TODO: why this second gradle directory?
+/buildSrc/.gradle/
 
 ## Tests
 
@@ -124,6 +127,7 @@ checker/tests/nullness-extra/*.class
 checker/tests/nullness-extra/compat/Out.txt
 checker/tests/nullness-extra/compat/javax/annotation/Nullable.class
 checker/tests/nullness-extra/compat/lib/Lib.class
+checker/tests/nullness-extra/issue265/bin/
 checker/tests/nullness-extra/issue3597/testpkg/Issue3597A.class
 checker/tests/nullness-extra/issue3597/testpkg/Issue3597B.class
 checker/tests/nullness-extra/issue502/Issue502.class

@@ -13,7 +13,8 @@ import javax.lang.model.type.TypeMirror;
  * org.checkerframework.dataflow.cfg.node.Node} is not explicitly stored in {@code TransferResult}.
  *
  * <p>A {@code TransferResult} consists of a result value, plus one or more stores. It contains one
- * or two stores (for 'then' and 'else'), and zero or more stores with a cause ({@link TypeMirror}).
+ * or two stores (for 'then' and 'else'), plus zero or more stores with a cause ({@link
+ * TypeMirror}).
  *
  * @param <V> type of the abstract value that is tracked
  * @param <S> the store type used in the analysis

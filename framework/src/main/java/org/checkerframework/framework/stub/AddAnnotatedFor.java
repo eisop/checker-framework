@@ -23,12 +23,16 @@ import org.checkerframework.afu.scenelib.io.ParseException;
 import org.checkerframework.checker.signature.qual.BinaryName;
 import org.plumelib.util.ArraySet;
 
-import java.io.FileReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -87,12 +91,20 @@ public class AddAnnotatedFor {
         AScene scene = new AScene();
         boolean useFile = args.length == 1;
         String filename = useFile ? args[0] : "System.in";
-        try (Reader r = useFile ? new FileReader(filename) : new InputStreamReader(System.in)) {
+        try (Reader r =
+                useFile
+                        ? Files.newBufferedReader(Paths.get(filename), StandardCharsets.UTF_8)
+                        : new InputStreamReader(System.in, StandardCharsets.UTF_8)) {
             IndexFileParser.parse(new LineNumberReader(r), filename, scene);
         }
         scene.prune();
         addAnnotatedFor(scene);
-        IndexFileWriter.write(scene, new PrintWriter(System.out, true));
+        IndexFileWriter.write(
+                scene,
+                new PrintWriter(
+                        new BufferedWriter(
+                                new OutputStreamWriter(System.out, StandardCharsets.UTF_8)),
+                        true));
     }
 
     /**
