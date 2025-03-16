@@ -23,7 +23,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-      - name: 'Generate and save dependency graph'
+      - name: Generate and save dependency graph
         uses: gradle/actions/dependency-submission@v4
         with:
           dependency-graph: generate-and-upload
