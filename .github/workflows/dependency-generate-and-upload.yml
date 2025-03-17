@@ -1,5 +1,5 @@
 # See: https://github.com/gradle/actions/blob/main/docs/dependency-submission.md#usage-with-pull-requests-from-public-forked-repositories
-name: Generate and save dependency graph
+name: 'Generate and save dependency graph'
 
 on:
   pull_request:
