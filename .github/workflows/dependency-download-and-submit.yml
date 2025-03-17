@@ -2,7 +2,9 @@
 name: Download and submit dependency graph
 
 on:
-  workflow_call:
+  workflow_run:
+    workflows: ['Generate and save dependency graph']
+    types: [completed]
 
 permissions:
   actions: read

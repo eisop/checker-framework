@@ -3,6 +3,7 @@ name: Generate and save dependency graph
 
 on:
   pull_request:
+  push:
 
 # Configure GitHub Actions cancel in progress workflow to avoid redundant runs in pull requests.
 # See: https://docs.github.com/en/enterprise-cloud@latest/actions/writing-workflows/choosing-what-your-workflow-does/control-the-concurrency-of-workflows-and-jobs
@@ -11,8 +12,7 @@ concurrency:
   cancel-in-progress: ${{ !contains(github.ref, 'heads/master')}}
 
 permissions:
-  actions: read
-  contents: write # 'write' permission is not available
+  contents: read # 'write' permission is not available
 
 jobs:
   dependency-submission:
