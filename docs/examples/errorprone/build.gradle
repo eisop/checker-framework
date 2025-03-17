@@ -3,60 +3,60 @@
 //
 
 plugins {
-    id 'java'
-    id 'net.ltgt.errorprone' version '4.1.0'
-    // Checker Framework pluggable type-checking
-    id 'org.checkerframework' version '0.6.52' apply false
+  id 'java'
+  id 'net.ltgt.errorprone' version '4.1.0'
+  // Checker Framework pluggable type-checking
+  id 'org.checkerframework' version '0.6.52' apply false
 }
 
 ext {
-    versions = [
-        eisopVersion: '3.42.0-eisop5',
-    ]
+  versions = [
+    eisopVersion: '3.42.0-eisop5',
+  ]
 }
 
 apply plugin: 'org.checkerframework'
 if (false) {
-    def cfHome = "${projectDir}/../../.."
-    dependencies {
-        compileOnly files(cfHome + '/checker/dist/checker-qual.jar')
-        testCompileOnly files(cfHome + '/checker/dist/checker-qual.jar')
-        checkerFramework files(cfHome + '/checker/dist/checker.jar')
-    }
+  def cfHome = "${projectDir}/../../.."
+  dependencies {
+    compileOnly files(cfHome + '/checker/dist/checker-qual.jar')
+    testCompileOnly files(cfHome + '/checker/dist/checker-qual.jar')
+    checkerFramework files(cfHome + '/checker/dist/checker.jar')
+  }
 } else {
-    dependencies {
-        compileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
-        testCompileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
-        checkerFramework "io.github.eisop:checker-qual:${versions.eisopVersion}"
-        checkerFramework "io.github.eisop:checker:${versions.eisopVersion}"
-    }
+  dependencies {
+    compileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
+    testCompileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
+    checkerFramework "io.github.eisop:checker-qual:${versions.eisopVersion}"
+    checkerFramework "io.github.eisop:checker:${versions.eisopVersion}"
+  }
 }
 
 dependencies {
-    // Must use at least version 2.4.0 of Error Prone.
-    if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
-        errorprone 'com.google.errorprone:error_prone_core:2.10.0'
-    } else if (JavaVersion.current() < JavaVersion.VERSION_17) {
-        errorprone 'com.google.errorprone:error_prone_core:2.31.0'
-    } else {
-        errorprone 'com.google.errorprone:error_prone_core:2.36.0'
-    }
+  // Must use at least version 2.4.0 of Error Prone.
+  if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
+    errorprone 'com.google.errorprone:error_prone_core:2.10.0'
+  } else if (JavaVersion.current() < JavaVersion.VERSION_17) {
+    errorprone 'com.google.errorprone:error_prone_core:2.31.0'
+  } else {
+    errorprone 'com.google.errorprone:error_prone_core:2.36.0'
+  }
 }
 
 repositories {
-    mavenCentral()
+  mavenCentral()
 }
 
 checkerFramework {
-    checkers = [
-        'org.checkerframework.checker.nullness.NullnessChecker',
-    ]
-    extraJavacArgs = ['-Aversion']
+  checkers = [
+    'org.checkerframework.checker.nullness.NullnessChecker',
+  ]
+  extraJavacArgs = ['-Aversion']
 }
 
 compileJava {
-    // A checker will only run if Error Prone does not issue any warnings.  So
-    // convert the expected error to a warning to test that both Error Prone
-    // and the Nullness Checker run.
-    options.errorprone.warn('CollectionIncompatibleType')
+  // A checker will only run if Error Prone does not issue any warnings.  So
+  // convert the expected error to a warning to test that both Error Prone
+  // and the Nullness Checker run.
+  options.errorprone.warn('CollectionIncompatibleType')
 }
