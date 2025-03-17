@@ -28,6 +28,3 @@ jobs:
         uses: gradle/actions/dependency-submission@v4
         with:
           dependency-graph: generate-and-upload
-  call-submit:
-    needs: dependency-submission
-    uses: ./.github/workflows/dependency-download-and-submit.yml
