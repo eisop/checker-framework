@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: ${{ !contains(github.ref, 'heads/master')}}
 
 permissions:
-  contents: read # 'write' permission is not available
+  contents: write # 'write' permission is not available
 
 jobs:
   dependency-submission:
