@@ -289,6 +289,7 @@ allprojects { currentProj ->
             // Always skip formatting of files under build directory
             def doNotFormat = [
                 'build/**',
+                'docs/examples/BazelExample/bazel-BazelExample',
                 'examples/lombok/build/**'
             ]
             if (currentProj != project.rootProject) {
