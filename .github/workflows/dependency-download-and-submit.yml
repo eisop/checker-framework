@@ -20,3 +20,4 @@ jobs:
         uses: gradle/actions/dependency-submission@v4
         with:
           dependency-graph: download-and-submit # Download saved dependency-graph and submit
+          cache-disabled: true
