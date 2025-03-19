@@ -58,7 +58,8 @@ public class ElementForPolyQualifierHierarchy extends MostlyNoElementQualifierHi
                                 "value",
                                 0,
                                 atypeFactory.getProcessingEnv()),
-                        String.class);
+                        String.class,
+                        "");
         String superValue =
                 AnnotationUtils.getElementValue(
                         superAnno,
@@ -67,7 +68,8 @@ public class ElementForPolyQualifierHierarchy extends MostlyNoElementQualifierHi
                                 "value",
                                 0,
                                 atypeFactory.getProcessingEnv()),
-                        String.class);
+                        String.class,
+                        "");
         return subValue.equals(superValue);
     }
 
