@@ -18,7 +18,11 @@ jobs:
     # Only run this job if the workflow was triggered from the default branch
     if: github.event.workflow_run.head_branch == github.event.repository.default_branch
     steps:
+      - name: debug
+        run: echo "The workflow run was triggered from the default branch"
       - name: Download and submit dependency graph
         uses: gradle/actions/dependency-submission@v4
         with:
           dependency-graph: download-and-submit # Download saved dependency-graph and submit
+      - name: Show info
+        run: cat /home/runner/work/checker-framework/checker-framework/dependency-graph-reports/generate_and_save_dependency_graph-dependency-submission.json
