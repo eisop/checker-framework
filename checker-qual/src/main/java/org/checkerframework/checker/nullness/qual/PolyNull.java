@@ -23,5 +23,11 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @PolymorphicQualifier(Nullable.class)
 public @interface PolyNull {
+    /**
+     * The value of a polymorphic qualifier. It is used to distinguish different polymorphic
+     * qualifiers.
+     *
+     * @return the value of the annotation
+     */
     String value() default "";
 }
