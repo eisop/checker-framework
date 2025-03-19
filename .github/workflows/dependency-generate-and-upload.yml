@@ -2,8 +2,6 @@
 name: Generate and save dependency graph
 
 on:
-  push:
-    branches: [ "master" ]  # Run on pushes to master
   pull_request:
     branches: [ "master" ]  # Also run on PRs to master
 
@@ -26,6 +24,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
+
       - name: Generate and save dependency graph
         uses: gradle/actions/dependency-submission@v4
         with:

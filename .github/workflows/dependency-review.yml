@@ -12,17 +12,14 @@ concurrency:
 
 permissions:
   contents: read
-  pull-requests: read
 
 jobs:
   dependency-review:
     runs-on: ubuntu-latest
     steps:
-      - name: 'Checkout repository'
-        uses: actions/checkout@v4
       - name: 'Dependency review'
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
           retry-on-snapshot-warnings: true
-          retry-on-snapshot-warnings-timeout: 3600
+          retry-on-snapshot-warnings-timeout: 600
