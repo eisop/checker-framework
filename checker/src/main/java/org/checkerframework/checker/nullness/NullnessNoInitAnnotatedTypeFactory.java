@@ -46,8 +46,6 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVari
 import org.checkerframework.framework.type.ElementForPolyQualifierHierarchy;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.QualifierHierarchy;
-import org.checkerframework.framework.type.poly.DefaultQualifierPolymorphism;
-import org.checkerframework.framework.type.poly.QualifierPolymorphism;
 import org.checkerframework.framework.type.treeannotator.ListTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.LiteralTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.PropagationTreeAnnotator;
@@ -484,11 +482,6 @@ public class NullnessNoInitAnnotatedTypeFactory
     @Override
     protected NullnessNoInitAnalysis createFlowAnalysis() {
         return new NullnessNoInitAnalysis(checker, this);
-    }
-
-    @Override
-    protected QualifierPolymorphism createQualifierPolymorphism() {
-        return new DefaultQualifierPolymorphism(processingEnv, this);
     }
 
     @Override
