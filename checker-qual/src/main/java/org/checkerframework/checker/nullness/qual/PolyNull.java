@@ -22,4 +22,6 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @PolymorphicQualifier(Nullable.class)
-public @interface PolyNull {}
+public @interface PolyNull {
+    String value() default "";
+}

@@ -39,7 +39,7 @@ import javax.lang.model.util.Elements;
 public abstract class ElementQualifierHierarchy extends QualifierHierarchy {
 
     /** {@link org.checkerframework.javacutil.ElementUtils}. */
-    private final Elements elements;
+    protected final Elements elements;
 
     /** {@link QualifierKindHierarchy}. */
     protected final QualifierKindHierarchy qualifierKindHierarchy;

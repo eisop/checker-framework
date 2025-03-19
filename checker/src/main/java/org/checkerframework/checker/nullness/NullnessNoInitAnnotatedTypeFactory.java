@@ -43,9 +43,11 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedNoType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiveType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
+import org.checkerframework.framework.type.ElementForPolyQualifierHierarchy;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
-import org.checkerframework.framework.type.NoElementQualifierHierarchy;
 import org.checkerframework.framework.type.QualifierHierarchy;
+import org.checkerframework.framework.type.poly.DefaultQualifierPolymorphism;
+import org.checkerframework.framework.type.poly.QualifierPolymorphism;
 import org.checkerframework.framework.type.treeannotator.ListTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.LiteralTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.PropagationTreeAnnotator;
@@ -485,6 +487,11 @@ public class NullnessNoInitAnnotatedTypeFactory
     }
 
     @Override
+    protected QualifierPolymorphism createQualifierPolymorphism() {
+        return new DefaultQualifierPolymorphism(processingEnv, this);
+    }
+
+    @Override
     public NullnessNoInitTransfer createFlowTransferFunction(
             CFAbstractAnalysis<NullnessNoInitValue, NullnessNoInitStore, NullnessNoInitTransfer>
                     analysis) {
@@ -828,7 +835,7 @@ public class NullnessNoInitAnnotatedTypeFactory
 
     @Override
     protected QualifierHierarchy createQualifierHierarchy() {
-        return new NoElementQualifierHierarchy(getSupportedTypeQualifiers(), elements, this);
+        return new ElementForPolyQualifierHierarchy(getSupportedTypeQualifiers(), elements, this);
     }
 
     /**
