@@ -210,7 +210,7 @@ allprojects { currentProj ->
             errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: versions.errorprone
         } else {
             // EP 2.31.0 is the last release that works on Java < 17.
-            errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: '2.31.0'
+            errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: '2.37.0'
         }
         // Always define javacJar, not just when `isJava8` is true, because we redistribute it in checker/build.gradle.
         javacJar group: 'com.google.errorprone', name: 'javac', version: "9+181-r4173-1"
