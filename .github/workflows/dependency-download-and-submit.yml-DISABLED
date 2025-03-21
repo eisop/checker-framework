@@ -3,8 +3,8 @@ name: Download and submit dependency graph
 
 on:
   workflow_run:
-    workflows: [ 'Generate and save dependency graph' ]
-    types: [ completed ]
+    workflows: ['Generate and save dependency graph']
+    types: [completed]
 
 permissions:
   actions: read
@@ -15,9 +15,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download and submit dependency graph
-        env:
-          GITHUB_DEPENDENCY_GRAPH_REF: refs/heads/master
         uses: gradle/actions/dependency-submission@v4
         with:
           dependency-graph: download-and-submit # Download saved dependency-graph and submit
-          cache-disabled: true
