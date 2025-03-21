@@ -4,6 +4,8 @@ import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.LiteralTree;
+import com.sun.source.tree.MemberReferenceTree;
+import com.sun.source.tree.MemberReferenceTree.ReferenceMode;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewArrayTree;
@@ -451,7 +453,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
             boolean isStatic,
             Collection<? extends AnnotationMirror> receiverAnnotations) {
         ClassTree currentClass = TreePathUtil.enclosingClass(path);
-        List<VariableTree> fields = InitializationChecker.getAllFields(currentClass);
+        List<VariableTree> fields = TreeUtils.fieldsFromClassTree(currentClass);
         List<VariableTree> uninit = new ArrayList<>();
         for (VariableTree field : fields) {
             if (isUnused(field, receiverAnnotations)) {
@@ -478,7 +480,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
         // TODO: Instead of passing the TreePath around, can we use
         // getCurrentClassTree?
         ClassTree currentClass = TreePathUtil.enclosingClass(path);
-        List<VariableTree> fields = InitializationChecker.getAllFields(currentClass);
+        List<VariableTree> fields = TreeUtils.fieldsFromClassTree(currentClass);
         List<VariableTree> initializedFields = new ArrayList<>();
         for (VariableTree field : fields) {
             VariableElement fieldElem = TreeUtils.elementFromDeclaration(field);
@@ -760,7 +762,13 @@ public abstract class InitializationParentAnnotatedTypeFactory
             boolean allInitialized = true;
             Type type = ((JCTree) tree).type;
             for (ExpressionTree a : tree.getArguments()) {
+                if (!TreeUtils.isStandaloneExpression(a)) {
+                    continue;
+                }
+                boolean oldShouldCache = shouldCache;
+                shouldCache = false;
                 AnnotatedTypeMirror t = getAnnotatedType(a);
+                shouldCache = oldShouldCache;
                 allInitialized &= (isInitialized(t) || isFbcBottom(t));
             }
             if (!allInitialized) {
@@ -956,5 +964,21 @@ public abstract class InitializationParentAnnotatedTypeFactory
             assert (unknowninit1 || underinit1) && (unknowninit2 || underinit2);
             return createUnderInitializationAnnotation(typeFrame);
         }
+    }
+
+    // TODO: check where this method should go.
+    @Override
+    protected ParameterizedExecutableType methodFromUse(
+            ExpressionTree tree,
+            ExecutableElement methodElt,
+            AnnotatedTypeMirror receiverType,
+            boolean inferTypeArgs) {
+        ParameterizedExecutableType x =
+                super.methodFromUse(tree, methodElt, receiverType, inferTypeArgs);
+        if (tree.getKind() == Tree.Kind.MEMBER_REFERENCE
+                && ((MemberReferenceTree) tree).getMode() == ReferenceMode.NEW) {
+            x.executableType.getReturnType().replaceAnnotation(INITIALIZED);
+        }
+        return x;
     }
 }

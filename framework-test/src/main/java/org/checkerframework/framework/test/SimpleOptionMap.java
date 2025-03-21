@@ -9,8 +9,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * SimpleOptionMap is a very basic Option container. The keys of the Option container are the set of
- * Options and the values are the arguments to those options if they exists: e.g.,
+ * SimpleOptionMap is a very basic command-line option container. The keys of the option container
+ * are the command-line flags and the values are the arguments to those options if they exist: e.g.,
  *
  * <pre>{@code
  * Map(
@@ -20,7 +20,7 @@ import java.util.Map;
  * }</pre>
  *
  * This class is mainly used by TestConfigurationBuilder to make working with existing options
- * simpler and less error prone. It is not intended for a general Option container because users
+ * simpler and less error prone. It is not intended for a general option container because users
  * creating tests via source code can more easily manipulate the map whereas a lot of sugar would be
  * needed to make this class usable from the command line.
  */

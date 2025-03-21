@@ -1,7 +1,7 @@
 #!/bin/bash
 
 set -e
-set -o verbose
+# set -o verbose
 set -o xtrace
 export SHELLOPTS
 echo "SHELLOPTS=${SHELLOPTS}"
@@ -14,7 +14,7 @@ source "$SCRIPTDIR"/clone-related.sh
 
 GIT_SCRIPTS="$SCRIPTDIR/.git-scripts"
 # TODO: remove uses of `main-eisop` once that becomes `main`.
-"$GIT_SCRIPTS/git-clone-related" --upstream-branch main-eisop jspecify jspecify-reference-checker
+"$GIT_SCRIPTS/git-clone-related" --upstream-branch main-eisop eisop jspecify-reference-checker
 
 cd ../jspecify-reference-checker
 

@@ -139,6 +139,11 @@ public class InitializationTransfer
         return result;
     }
 
+    /**
+     * If an invariant field is initialized and has the invariant annotation, then it has at least
+     * the invariant annotation. Note that only fields of the 'this' receiver are tracked for
+     * initialization.
+     */
     @Override
     public TransferResult<CFValue, InitializationStore> visitMethodInvocation(
             MethodInvocationNode n, TransferInput<CFValue, InitializationStore> in) {

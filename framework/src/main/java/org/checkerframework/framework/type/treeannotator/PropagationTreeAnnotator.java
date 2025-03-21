@@ -35,8 +35,11 @@ import javax.lang.model.type.TypeMirror;
 
 /**
  * {@link PropagationTreeAnnotator} adds qualifiers to types where the resulting type is a function
- * of an input type, e.g. the result of a binary operation is a LUB of the type of expressions in
- * the binary operation.
+ * of an input type.
+ *
+ * <p>By default, it applies LUBs, e.g., the result of a binary operation is a LUB of the type of
+ * expressions in the binary operation, and likewise for compound operations. It also handles unary
+ * expressions, array creation, and casts.
  *
  * <p>{@link PropagationTreeAnnotator} is generally run first by {@link ListTreeAnnotator} since the
  * trees it handles are not usually targets of {@code @DefaultFor}.
