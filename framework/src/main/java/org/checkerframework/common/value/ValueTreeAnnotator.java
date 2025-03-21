@@ -272,7 +272,6 @@ class ValueTreeAnnotator extends TreeAnnotator {
 
       TypeMirror newType = atm.getUnderlyingType();
       AnnotationMirror newAnno;
-      Range range;
 
       if (TypesUtils.isString(newType) || newType.getKind() == TypeKind.ARRAY) {
         // Strings and arrays do not allow conversions
