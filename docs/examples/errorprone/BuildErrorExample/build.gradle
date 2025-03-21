@@ -1,0 +1,64 @@
+///////////////////////////////////////////////////////////////////////////
+/// Checker Framework pluggable type-checking and Error Prone example
+///
+
+plugins {
+    id 'java'
+    // Checker Framework pluggable type-checking
+    id 'org.checkerframework' version '0.6.48' apply true
+
+    // error prone
+    id "net.ltgt.errorprone" version "3.1.0" apply true
+}
+
+ext {
+    versions = [
+            eisopVersion: '3.42.0-eisop5',
+    ]
+}
+
+apply plugin: 'org.checkerframework'
+
+dependencies {
+//    compileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
+//    testCompileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
+    checkerFramework "io.github.eisop:checker-qual:${versions.eisopVersion}"
+    checkerFramework "io.github.eisop:checker:${versions.eisopVersion}"
+
+    errorprone 'com.uber.nullaway:nullaway:0.12.3'
+	errorprone 'com.google.errorprone:error_prone_core:2.35.1'
+}
+
+
+repositories {
+    mavenCentral()
+}
+
+checkerFramework {
+    checkers = [
+            'org.checkerframework.checker.nullness.NullnessChecker',
+    ]
+    extraJavacArgs = [
+            '-Awarns',
+            '-AsuppressWarnings=type.anno.before',
+            '-AcheckPurityAnnotations',
+            '-Alint=redundantNullComparison',
+            '-Aversion'
+    ]
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.errorprone {
+//    	disableAllChecks = true
+        allErrorsAsWarnings = true
+        enable("NullAway")
+//		option("NullAway:OnlyNullMarked", "true")
+		option("NullAway:CustomContractAnnotations", "org.springframework.lang.Contract")
+		option("NullAway:JSpecifyMode", "true")
+        option("NullAway:AnnotatedPackages", "org.example")
+    }
+}
+tasks.compileJava {
+//     The check defaults to a warning, bump it up to an error for the main sources
+//    options.errorprone.error("NullAway")
+}
