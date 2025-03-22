@@ -164,6 +164,8 @@ jobs:
           - script: 'daikon-part2'
           - script: 'typecheck-jdk'
             java: {version: '23'}
+          - script: 'typecheck-jdk'
+            java: { version: '8' }
         include:
           - script: 'daikon-part1'
             java: {version: '17', experimental: false}
