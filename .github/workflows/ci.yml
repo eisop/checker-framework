@@ -162,17 +162,13 @@ jobs:
           # Exclude all versions here and just explicitly include with JDK 17.
           - script: 'daikon-part1'
           - script: 'daikon-part2'
+          - script: 'typecheck-jdk'
+            java: {version: '23'}
         include:
           - script: 'daikon-part1'
             java: {version: '17', experimental: false}
           - script: 'daikon-part2'
             java: {version: '17', experimental: false}
-          - script: 'typecheck-jdk'
-            java: {version: '17'}
-          - script: 'typecheck-jdk'
-            java: {version: '11'}
-          - script: 'typecheck-jdk'
-            java: {version: '8'}
     env:
       JAVA_VERSION: ${{ matrix.java.version }}
     continue-on-error: ${{ matrix.java.experimental }}
