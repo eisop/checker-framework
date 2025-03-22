@@ -68,7 +68,7 @@ ext {
     plumeScriptsHome = "${project(':checker').projectDir}/bin-devel/.plume-scripts"
     htmlToolsHome = "${project(':checker').projectDir}/bin-devel/.html-tools"
     doLikeJavacHome = "${project(':checker').projectDir}/bin/.do-like-javac"
-    templateforCheckerDir = "${parentDir}/templatefora-checker"
+    templateforaCheckerDir = "${parentDir}/templatefora-checker"
     demosDir = "${parentDir}/checker-framework.demos"
 
     javadocMemberLevel = JavadocMemberLevel.PROTECTED
@@ -888,9 +888,9 @@ tasks.register('getDoLikeJavac', CloneTask) {
     outputs.upToDateWhen { false }
 }
 
-tasks.register('getTemplatefora-checker', CloneTask) {
+tasks.register('getTemplateforaChecker', CloneTask) {
     url.set('https://github.com/eisop/templatefora-checker.git')
-    directory.set(file(templateforCheckerDir))
+    directory.set(file(templateforaCheckerDir))
     outputs.upToDateWhen { false }
 }
 

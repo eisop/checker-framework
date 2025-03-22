@@ -342,7 +342,7 @@ task demosTests(dependsOn: [assembleForJavac, ':getDemos'], group: 'Verification
 
 task templateTests(dependsOn: [
     assembleForJavac,
-    ':getTemplatefora-checker'
+    ':getTemplateforaChecker'
 ], group: 'Verification') {
     description = 'Test that the templatefora-checker is working as expected.'
     def injected = project.objects.newInstance(InjectedExecOps)
