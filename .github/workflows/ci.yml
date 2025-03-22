@@ -68,8 +68,8 @@ jobs:
           'guava', 'plume-lib',
           'daikon-part1', 'daikon-part2',
           'jspecify-conformance', 'jspecify-reference-checker',
-          'misc', 'typecheck-jdk']
-        java_version: [8, 11, 17]
+          'misc']
+        java_version: [21]
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
     steps:
@@ -167,7 +167,12 @@ jobs:
             java: {version: '17', experimental: false}
           - script: 'daikon-part2'
             java: {version: '17', experimental: false}
-
+          - script: 'typecheck-jdk'
+            java: {version: '17'}
+          - script: 'typecheck-jdk'
+            java: {version: '11'}
+          - script: 'typecheck-jdk'
+            java: {version: '8'}
     env:
       JAVA_VERSION: ${{ matrix.java.version }}
     continue-on-error: ${{ matrix.java.experimental }}
