@@ -69,7 +69,7 @@ jobs:
           'daikon-part1', 'daikon-part2',
           'jspecify-conformance', 'jspecify-reference-checker',
           'misc', 'typecheck-jdk']
-        java_version: [21]
+        java_version: [17]
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
     steps:
