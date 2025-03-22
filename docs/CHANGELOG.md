@@ -6,7 +6,7 @@ Version 3.49.1-eisop2 (March ??, 2025)
 **Implementation details:**
 
 **Closed issues:**
-
+eisop#1051
 
 Version 3.49.1-eisop1 (March 17, 2025)
 --------------------------------------
