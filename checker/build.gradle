@@ -334,13 +334,12 @@ task demosTests(dependsOn: [assembleForJavac, ':getDemos'], group: 'Verification
     description = 'Test that the demos are working as expected.'
 
     doLast {
-        File demosDir = new File(projectDir, '../../checker-framework.demos');
         ant.properties.put('checker.lib', file("${projectDir}/dist/checker.jar").absolutePath)
         ant.ant(dir: demosDir.toString())
     }
 }
 
-task templateTests(dependsOn: [
+task templateforaCheckerTests(dependsOn: [
     assembleForJavac,
     ':getTemplateforaChecker'
 ], group: 'Verification') {
@@ -348,10 +347,8 @@ task templateTests(dependsOn: [
     def injected = project.objects.newInstance(InjectedExecOps)
 
     doLast {
-        File templateforCheckerDir = new File(projectDir, '../../templatefora-checker');
-        println "Running Gradle build in $templateforCheckerDir"
         injected.execOps.exec {
-            workingDir = templateforCheckerDir
+            workingDir = templateforaCheckerDir
             commandLine "./gradlew", "build"
         }
     }
