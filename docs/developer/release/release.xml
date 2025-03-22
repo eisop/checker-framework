@@ -115,6 +115,9 @@
         <replaceregexp file="${checker.manual}/external-tools.tex" byline="true"
                        match="ext.checkerFrameworkVersion = '${release.version.regexp}'"
                        replace="ext.checkerFrameworkVersion = '${release.ver}'"/>
+        <replaceregexp file="${checker.manual}/external-tools.tex" byline="true"
+                       match="eisopVersion: '${release.version.regexp}'"
+                       replace="eisopVersion: '${release.ver}'"/>
 
         <replaceregexp file="${checker}/../build-common.properties" byline="true"
                        match="build.version = ${release.version.regexp}" replace="build.version = ${release.ver}"/>
@@ -135,16 +138,18 @@
                 start="${checkers.ver.0}" end="${checkers.ver.1}"
                 with="${release.ver}"/>
 
-        <update file="${cf.docs.examples}/errorprone/build.gradle"
-                start="${checkers.ver.0}" end="${checkers.ver.1}"
-                with="${release.ver}"/>
+        <replaceregexp file="${cf.docs.examples}/errorprone/build.gradle" byline="true"
+                       match="eisopVersion: '${release.version.regexp}'"
+                       replace="eisopVersion: '${release.ver}'"/>
 
-        <update file="${cf.docs.examples}/BazelExample/maven_install.json"
-                start="${checkers.ver.0}" end="${checkers.ver.1}"
-                with="${release.ver}"/>
-        <update file="${cf.docs.examples}/BazelExample/MODULE.bazel"
-                start="${checkers.ver.0}" end="${checkers.ver.1}"
-                with="${release.ver}"/>
+        <!-- Do not replace version in BazelExample, as the files also contain checksums. Instead, run `pin` again.
+        <replaceregexp file="${cf.docs.examples}/BazelExample/maven_install.json" byline="true"
+                       match="${old.release.ver}"
+                       replace="${release.ver}"/>
+        <replaceregexp file="${cf.docs.examples}/BazelExample/MODULE.bazel" byline="true"
+                       match="${release.version.regexp}"
+                       replace="${release.ver}"/>
+        -->
 
     </target>
 
