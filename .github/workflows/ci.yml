@@ -169,7 +169,7 @@ jobs:
           - script: 'daikon-part2'
             java: {version: '17', experimental: false}
           - script: 'typecheck-jdk'
-            java: {version: '11', experimental: false}
+            java: {version: '17', experimental: false}
     env:
       JAVA_VERSION: ${{ matrix.java.version }}
     continue-on-error: ${{ matrix.java.experimental }}
