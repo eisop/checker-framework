@@ -287,8 +287,9 @@ class ValueTreeAnnotator extends TreeAnnotator {
         } else {
           // This re-computes a value from the condition above, but the code is easier to
           // read like this.
-          range = atypeFactory.getRange(oldAnno);
-          newAnno = atypeFactory.createIntRangeAnnotation(NumberUtils.castRange(newType, range));
+          newAnno =
+              atypeFactory.createIntRangeAnnotation(
+                  NumberUtils.castRange(newType, atypeFactory.getRange(oldAnno)));
         }
       } else {
         List<?> values =
