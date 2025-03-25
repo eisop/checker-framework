@@ -17,7 +17,7 @@ PLUME_SCRIPTS="$SCRIPTDIR/.plume-scripts"
 
 ## Checker Framework templatefora-checker
 "$GIT_SCRIPTS/git-clone-related" eisop templatefora-checker
-./gradlew :checker:templateTests --console=plain --warning-mode=all
+./gradlew :checker:templateforaCheckerTests --console=plain --warning-mode=all
 
 status=0
 
@@ -70,3 +70,6 @@ git diff --exit-code docs/manual/contributors.tex || \
      echo "    https://github.com/eisop-plume-lib/git-scripts/blob/master/git-authors.sed" &&
      echo "    and remake contributors.tex after that pull request is merged." &&
      false)
+
+# Check the definition of qualifiers in Checker Framework against the JDK
+./checker/bin-devel/check-jdk-consistency.sh

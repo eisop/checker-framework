@@ -79,13 +79,13 @@ dependencies {
     testImplementation 'com.amazonaws:aws-java-sdk-ec2'
     testImplementation 'com.amazonaws:aws-java-sdk-kms'
     // The AWS SDK is used for testing the Called Methods Checker.
-    testImplementation platform('com.amazonaws:aws-java-sdk-bom:1.12.780')
+    testImplementation platform('com.amazonaws:aws-java-sdk-bom:1.12.782')
     // For the Resource Leak Checker's support for JavaEE.
     testImplementation 'javax.servlet:javax.servlet-api:4.0.1'
     // For the Resource Leak Checker's support for IOUtils.
     testImplementation 'commons-io:commons-io:2.18.0'
     // For the Nullness Checker test of junit-assertions.astub in JUnitNull.java
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.12.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.12.1'
     testImplementation 'org.apiguardian:apiguardian-api:1.1.2'
     // For tests that use JSpecify annotations
     testImplementation 'org.jspecify:jspecify:1.0.0'
@@ -330,72 +330,25 @@ task exampleTests(type: Exec, dependsOn: assembleForJavac, group: 'Verification'
     args = ['-C', '../docs/examples']
 }
 
-task demosTests(dependsOn: assembleForJavac, group: 'Verification') {
+task demosTests(dependsOn: [assembleForJavac, ':getDemos'], group: 'Verification') {
     description = 'Test that the demos are working as expected.'
 
-    def injected = project.objects.newInstance(InjectedExecOps)
-
     doLast {
-        File demosDir = new File(projectDir, '../../checker-framework.demos');
-        if (!demosDir.exists()) {
-            injected.execOps.exec {
-                workingDir file(demosDir.toString() + '/../')
-                executable 'git'
-                args = [
-                    'clone',
-                    '--depth',
-                    '1',
-                    'https://github.com/eisop/checker-framework.demos.git'
-                ]
-            }
-        } else {
-            injected.execOps.exec {
-                workingDir demosDir
-                executable 'git'
-                args = [
-                    'pull',
-                    'https://github.com/eisop/checker-framework.demos.git'
-                ]
-                ignoreExitValue = true
-            }
-        }
         ant.properties.put('checker.lib', file("${projectDir}/dist/checker.jar").absolutePath)
         ant.ant(dir: demosDir.toString())
     }
 }
 
-task templateTests(dependsOn: assembleForJavac, group: 'Verification') {
+task templateforaCheckerTests(dependsOn: [
+    assembleForJavac,
+    ':getTemplateforaChecker'
+], group: 'Verification') {
     description = 'Test that the templatefora-checker is working as expected.'
-
     def injected = project.objects.newInstance(InjectedExecOps)
 
     doLast {
-        File templateforCheckerDir = new File(projectDir, '../../templatefora-checker');
-        if (!templateforCheckerDir.exists()) {
-            injected.execOps.exec {
-                workingDir file(templateforCheckerDir.toString() + '/../')
-                executable 'git'
-                args = [
-                    'clone',
-                    '--depth',
-                    '1',
-                    'https://github.com/eisop/templatefora-checker.git'
-                ]
-            }
-        } else {
-            injected.execOps.exec {
-                workingDir templateforCheckerDir
-                executable 'git'
-                args = [
-                    'pull',
-                    'https://github.com/eisop/templatefora-checker.git'
-                ]
-                ignoreExitValue = true
-            }
-        }
-        println "Running Gradle build in $templateforCheckerDir"
         injected.execOps.exec {
-            workingDir = templateforCheckerDir
+            workingDir = templateforaCheckerDir
             commandLine "./gradlew", "build"
         }
     }
