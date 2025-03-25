@@ -1312,7 +1312,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          * accepts a variable number of arguments and the {@link #paramTypes} has not been expanded
          * yet. This type needs to be stored in the field to avoid being affected by calling {@link
          * AnnotatedTypes#adaptParameters(AnnotatedTypeFactory,
-         * AnnotatedTypeMirror.AnnotatedExecutableType, List, com.sun.source.tree.NewClassTree)}.
+         * AnnotatedTypeMirror.AnnotatedExecutableType, List, com.sun.source.tree.Tree)}.
          */
         private @MonotonicNonNull AnnotatedArrayType varargType = null;
 
