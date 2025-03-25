@@ -299,7 +299,7 @@ public class Resolution {
           lubTV.getLowerBound().replaceAnnotations(newLubAnnos);
         }
       }
-      ai.getBounds().addBound(VariableBounds.BoundKind.EQUAL, lubProperType);
+      ai.getBounds().addBound(null, VariableBounds.BoundKind.EQUAL, lubProperType);
       return;
     }
 
@@ -322,9 +322,11 @@ public class Resolution {
       if (useRuntimeEx) {
         ai.getBounds()
             .addBound(
-                VariableBounds.BoundKind.EQUAL, context.inferenceTypeFactory.getRuntimeException());
+                null,
+                VariableBounds.BoundKind.EQUAL,
+                context.inferenceTypeFactory.getRuntimeException());
       } else {
-        ai.getBounds().addBound(VariableBounds.BoundKind.EQUAL, ti);
+        ai.getBounds().addBound(null, VariableBounds.BoundKind.EQUAL, ti);
       }
     }
   }
@@ -417,7 +419,7 @@ public class Resolution {
     // Create the new bounds.
     for (int i = 0; i < asList.size(); i++) {
       Variable ai = asList.get(i);
-      ai.getBounds().addBound(VariableBounds.BoundKind.EQUAL, subsTypeArg.get(i));
+      ai.getBounds().addBound(null, VariableBounds.BoundKind.EQUAL, subsTypeArg.get(i));
     }
 
     boundSet.incorporateToFixedPoint(resolvedBoundSet);
