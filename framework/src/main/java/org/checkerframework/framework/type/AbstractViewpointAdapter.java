@@ -431,8 +431,8 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
                 mappings.put(formalTypeParameter, actualTypeArgument);
                 // The following code does the wrong thing!
             }
-            // We must use AnnotatedTypeReplacer to replace the formal type parameters with
-            // actual type arguments, but not replace with its main qualifier
+            // We must use AnnotatedTypeReplacer to replace the formal type parameters with actual
+            // type arguments, but not replace with its main qualifier
             rhs = AnnotatedTypeCopierWithReplacement.replace(adt, mappings);
         } else if (rhs.getKind() == TypeKind.WILDCARD) {
             AnnotatedWildcardType awt = (AnnotatedWildcardType) rhs.shallowCopy();
