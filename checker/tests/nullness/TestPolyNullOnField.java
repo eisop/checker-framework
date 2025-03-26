@@ -14,6 +14,7 @@ public class TestPolyNullOnField {
         // :: error: (invalid.polymorphic.qualifier.use)
         @PolyNull String field;
 
+        // :: error: (invalid.polymorphic.qualifier.use)
         @PolyNull("test") String field2;
     }
 }
