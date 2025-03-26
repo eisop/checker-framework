@@ -17,4 +17,4 @@ echo "running \"./gradlew assembleForJavac\" for checker-framework"
   --patch-module java.base=../jdk/src/java.base/share/classes \
   -Xmaxerrs 5000 \
   -nowarn \
-  ../jdk/src/java.base/share/classes/java/util/*.java
+  ../jdk/src/java.base/share/classes/java/lang/*.java
