@@ -1,8 +1,8 @@
-package org.example;
+package com.example;
 
 import org.checkerframework.checker.nullness.qual.NonNull;
 
-public class NullTest {
+public class NullawayWithEISOP {
 
     public String generateGreeting(@NonNull String name) {
         if (name.isEmpty()) {
@@ -12,7 +12,7 @@ public class NullTest {
     }
 
     public static void main(String[] args) {
-        NullTest test = new NullTest();
+        NullawayWithEISOP test = new NullawayWithEISOP();
         String greeting = test.generateGreeting(null);
         System.out.println(greeting);
     }
