@@ -61,6 +61,8 @@ checkerFramework {
 tasks.withType(JavaCompile).configureEach {
     options.errorprone {
         enable("NullAway")
+        allErrorsAsWarnings = true
+
         option("NullAway:CustomContractAnnotations", "org.springframework.lang.Contract")
         option("NullAway:JSpecifyMode", "true")
         option("NullAway:AnnotatedPackages", "com.example")
@@ -72,5 +74,4 @@ compileJava {
     // convert the expected error to a warning to test that both Error Prone
     // and the Nullness Checker run.
     options.errorprone.warn('CollectionIncompatibleType')
-    options.errorprone.warn("NullAway")
 }
