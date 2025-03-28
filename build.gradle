@@ -25,7 +25,6 @@ repositories {
   mavenCentral()
 }
 
-
 def majorVersionToInt(majorVersionString) {
   if (majorVersionString.endsWith("-ea")) {
     majorVersionString = majorVersionString.substring(0, majorVersionString.length() - 3)
@@ -296,6 +295,10 @@ allprojects { currentProj ->
       doNotFormat += ['**/java17/']
       // if (currentRuntimeJavaVersion < 21) {
       doNotFormat += ['tests/**/java21/']
+      // TODO: run Gradle on a JDK between 21 and 24.
+      if (currentRuntimeJavaVersion < 22) {
+        doNotFormat += ['tests/**/java22/']
+      }
     }
 
     format 'misc', {
