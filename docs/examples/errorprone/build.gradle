@@ -52,7 +52,10 @@ checkerFramework {
     checkers = [
         'org.checkerframework.checker.nullness.NullnessChecker',
     ]
-    extraJavacArgs = ['-Aversion']
+    extraJavacArgs = [
+        '-Awarns',
+        '-Aversion'
+    ]
 }
 
 tasks.withType(JavaCompile).configureEach {
