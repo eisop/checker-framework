@@ -448,7 +448,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     if (root == null
         || !ajavaChecks
         // TODO: Make annotation insertion work for Java 21.
-        || root.getSourceFile().toUri().toString().contains("java21")) {
+        || root.getSourceFile().toUri().toString().contains("java21")
+        || root.getSourceFile().toUri().toString().contains("java22")) {
       return;
     }
 
@@ -497,7 +498,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     if (root == null
         || !ajavaChecks
         // TODO: Make annotation insertion work for Java 21.
-        || root.getSourceFile().toUri().toString().contains("java21")) {
+        || root.getSourceFile().toUri().toString().contains("java21")
+        || root.getSourceFile().toUri().toString().contains("java22")) {
       return;
     }
 
