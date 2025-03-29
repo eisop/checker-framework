@@ -526,7 +526,7 @@ allprojects { currentProj ->
       String lint = '-Xlint:-options,-fallthrough,-classfile'
 
       if (useJdkVersionInt >= 21) {
-        // TODO: Ignore this-escape for now, we may want to review and suppress each one later.
+        // TODO: Ignore this-escape warnings for now; perhaps review and suppress each one later.
         lint +=',-this-escape'
       }
 
