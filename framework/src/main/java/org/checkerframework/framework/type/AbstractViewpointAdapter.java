@@ -266,10 +266,6 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
      */
     protected AnnotatedTypeMirror combineAnnotationWithType(
             AnnotationMirror receiverAnnotation, AnnotatedTypeMirror declared) {
-        if (visitedTypes.contains(declared)) {
-            return declared;
-        }
-        visitedTypes.add(declared);
         if (declared.getKind().isPrimitive()) {
             AnnotatedPrimitiveType apt = (AnnotatedPrimitiveType) declared.shallowCopy();
 
@@ -277,7 +273,6 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
                     combineAnnotationWithAnnotation(
                             receiverAnnotation, extractAnnotationMirror(apt));
             apt.replaceAnnotation(resultAnnotation);
-            visitedTypes.remove(declared);
             return apt;
         } else if (declared.getKind() == TypeKind.TYPEVAR) {
             if (!isTypeVarExtends) {
@@ -301,11 +296,16 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
                 isTypeVarExtends = false;
                 return result;
             }
-            visitedTypes.remove(declared);
             return declared;
         } else if (declared.getKind() == TypeKind.DECLARED) {
             AnnotatedDeclaredType adt = (AnnotatedDeclaredType) declared.shallowCopy();
-
+            boolean shouldStoreType = !adt.getTypeArguments().isEmpty();
+            if (shouldStoreType && visitedTypes.contains(declared)) {
+                return declared;
+            }
+            if (shouldStoreType) {
+                visitedTypes.add(declared);
+            }
             // Mapping between declared type argument to combined type argument
             IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> mappings =
                     new IdentityHashMap<>();
@@ -340,7 +340,6 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             AnnotatedTypeMirror combinedCompoType =
                     combineAnnotationWithType(receiverAnnotation, compo);
             aat.setComponentType(combinedCompoType);
-            visitedTypes.remove(declared);
             return aat;
         } else if (declared.getKind() == TypeKind.WILDCARD) {
             AnnotatedWildcardType awt = (AnnotatedWildcardType) declared.shallowCopy();
@@ -369,7 +368,6 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             }
 
             AnnotatedTypeMirror result = AnnotatedTypeCopierWithReplacement.replace(awt, mappings);
-            visitedTypes.remove(declared);
             return result;
         } else if (declared.getKind() == TypeKind.NULL) {
             AnnotatedNullType ant = (AnnotatedNullType) declared.shallowCopy(true);
@@ -377,7 +375,6 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
                     combineAnnotationWithAnnotation(
                             receiverAnnotation, extractAnnotationMirror(ant));
             ant.replaceAnnotation(resultAnnotation);
-            visitedTypes.remove(declared);
             return ant;
         } else {
             throw new BugInCF(
