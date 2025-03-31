@@ -49,7 +49,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
     /** The annotated type factory. */
     protected final AnnotatedTypeFactory atypeFactory;
 
-    /** The set of type parameter that have been visited. */
+    /** The set of types that have been visited. */
     private final Set<AnnotatedTypeMirror> visitedTypes = new HashSet<>();
 
     /**
