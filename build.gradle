@@ -88,7 +88,7 @@ ext {
         googleJavaFormat : '1.25.2',
         hashmapUtil     : '0.0.1',
         junit           : '4.13.2',
-        lombok          : '1.18.36',
+        lombok          : '1.18.38',
         // plume-util includes a version of reflection-util. When updating ensure the versions are consistent.
         plumeUtil       : '1.9.3',
         reflectionUtil  : '1.1.3',
