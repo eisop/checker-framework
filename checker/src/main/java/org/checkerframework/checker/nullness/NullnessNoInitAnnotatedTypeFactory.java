@@ -122,10 +122,12 @@ public class NullnessNoInitAnnotatedTypeFactory
     // "rest".
     // Keep the original string constant in a comment to allow searching for it.
     /** Aliases for {@code @Nonnull}. */
-    @SuppressWarnings(
-            "signature:assignment.type.incompatible") // Class names intentionally obfuscated
+    @SuppressWarnings({
+        "signature:argument.type.incompatible", // Class names intentionally obfuscated
+        "signature:assignment.type.incompatible" // Class names intentionally obfuscated
+    })
     private static final List<@FullyQualifiedName String> NONNULL_ALIASES =
-            Arrays.asList(
+            Arrays.<@FullyQualifiedName String>asList(
                     // https://android.googlesource.com/platform/frameworks/base/+/master/core/java/android/annotation/NonNull.java
                     // https://developer.android.com/reference/androidx/annotation/NonNull
                     "android.annotation.NonNull",
@@ -166,6 +168,8 @@ public class NullnessNoInitAnnotatedTypeFactory
                     "io.reactivex.rxjava3.annotations.NonNull",
                     // https://github.com/jakartaee/common-annotations-api/blob/master/api/src/main/java/jakarta/annotation/Nonnull.java
                     "jakarta.annotation.Nonnull",
+                    // https://jakarta.ee/specifications/bean-validation/3.0/apidocs/jakarta/validation/constraints/notnull
+                    "jakarta.validation.constraints.NotNull",
                     // https://jcp.org/en/jsr/detail?id=305; no documentation at
                     // https://www.javadoc.io/doc/com.google.code.findbugs/jsr305/3.0.1/javax/annotation/Nonnull.html
                     "javax.annotation.Nonnull",
@@ -215,10 +219,12 @@ public class NullnessNoInitAnnotatedTypeFactory
     // ../../../../../../../../docs/manual/nullness-checker.tex .
     // See more comments with NONNULL_ALIASES above.
     /** Aliases for {@code @Nullable}. */
-    @SuppressWarnings(
-            "signature:assignment.type.incompatible") // Class names intentionally obfuscated
+    @SuppressWarnings({
+        "signature:argument.type.incompatible", // Class names intentionally obfuscated
+        "signature:assignment.type.incompatible" // Class names intentionally obfuscated
+    })
     private static final List<@FullyQualifiedName String> NULLABLE_ALIASES =
-            Arrays.asList(
+            Arrays.<@FullyQualifiedName String>asList(
                     // https://android.googlesource.com/platform/frameworks/base/+/master/core/java/android/annotation/Nullable.java
                     // https://developer.android.com/reference/androidx/annotation/Nullable
                     "android.annotation.Nullable",
@@ -348,10 +354,12 @@ public class NullnessNoInitAnnotatedTypeFactory
     // ../../../../../../../../docs/manual/nullness-checker.tex .
     // See more comments with NONNULL_ALIASES above.
     /** Aliases for {@code @PolyNull}. */
-    @SuppressWarnings(
-            "signature:assignment.type.incompatible") // Class names intentionally obfuscated
+    @SuppressWarnings({
+        "signature:argument.type.incompatible", // Class names intentionally obfuscated
+        "signature:assignment.type.incompatible" // Class names intentionally obfuscated
+    })
     private static final List<@FullyQualifiedName String> POLYNULL_ALIASES =
-            Arrays.asList(
+            Arrays.<@FullyQualifiedName String>asList(
                     // "com.google.protobuf.Internal.ProtoPassThroughNullness",
                     "com.go".toString() + "ogle.protobuf.Internal.ProtoPassThroughNullness");
 
@@ -498,8 +506,9 @@ public class NullnessNoInitAnnotatedTypeFactory
     }
 
     @Override
-    public ParameterizedExecutableType methodFromUse(MethodInvocationTree tree) {
-        ParameterizedExecutableType mType = super.methodFromUse(tree);
+    protected ParameterizedExecutableType methodFromUse(
+            MethodInvocationTree tree, boolean inferTypeArgs) {
+        ParameterizedExecutableType mType = super.methodFromUse(tree, inferTypeArgs);
         AnnotatedExecutableType method = mType.executableType;
 
         // Special cases for method invocations with specific arguments.
@@ -640,6 +649,7 @@ public class NullnessNoInitAnnotatedTypeFactory
     }
 
     /** Adds nullness-specific propagation rules */
+    // Would this be valid to move into CommitmentTreeAnnotator?
     protected class NullnessPropagationTreeAnnotator extends PropagationTreeAnnotator {
 
         /**
@@ -654,8 +664,6 @@ public class NullnessNoInitAnnotatedTypeFactory
         @Override
         public Void visitTypeCast(TypeCastTree tree, AnnotatedTypeMirror type) {
             if (type.getKind().isPrimitive()) {
-                AnnotationMirror NONNULL =
-                        ((NullnessNoInitAnnotatedTypeFactory) atypeFactory).NONNULL;
                 // If a @Nullable expression is cast to a primitive, then an unboxing.of.nullable
                 // error is issued.  Treat the cast as if it were annotated as @NonNull to avoid an
                 // "type.invalid.annotations.on.use" error.

@@ -375,9 +375,9 @@ public class SameLenAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         return AnnotationUtils.getElementValueArray(sameLenAnno, sameLenValueElement, String.class);
     }
 
-    ///
-    /// Creating @SameLen annotations
-    ///
+    //
+    // Creating @SameLen annotations
+    //
 
     /**
      * Creates a @SameLen annotation whose values are the given strings.
@@ -388,7 +388,7 @@ public class SameLenAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      */
     public AnnotationMirror createSameLen(Collection<String> exprs) {
         AnnotationBuilder builder = new AnnotationBuilder(processingEnv, SameLen.class);
-        String[] exprArray = exprs.toArray(new String[exprs.size()]);
+        String[] exprArray = exprs.toArray(new String[0]);
         builder.setValue("value", exprArray);
         return builder.build();
     }
