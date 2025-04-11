@@ -2,15 +2,17 @@ public final class ExceptionInLambdaTest {
 
     public static void exceptionInLambda() {
         try {
-            runLambda(new Object(), obj -> {
-                throw new Exception();
-            });
+            runLambda(
+                    new Object(),
+                    obj -> {
+                        throw new Exception();
+                    });
         } catch (Exception e) {
         }
     }
 
-    public static <T, E extends Throwable> void runLambda(
-            T t, ConsumerWithException<T, E> lambda) throws E {
+    public static <T, E extends Throwable> void runLambda(T t, ConsumerWithException<T, E> lambda)
+            throws E {
         lambda.run(t);
     }
 
