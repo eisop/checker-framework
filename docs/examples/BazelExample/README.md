@@ -29,3 +29,5 @@ https://github.com/bazelbuild/rules_jvm_external/blob/master/docs/bzlmod.md
 bazel run @maven//:pin
 mv -i rules_jvm_external\~\~maven\~maven_install.json maven_install.json
 ````
+
+Moving `maven_install.json` does not seem necessary, just running `pin` seems to update the required files.
