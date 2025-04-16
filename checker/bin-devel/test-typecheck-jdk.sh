@@ -13,7 +13,7 @@ source "$SCRIPTDIR"/clone-related.sh
 echo "running \"./gradlew assembleForJavac\" for checker-framework"
 ./gradlew assembleForJavac --console=plain -Dorg.gradle.internal.http.socketTimeout=60000 -Dorg.gradle.internal.http.connectionTimeout=60000
 
-./checker/bin/javac\
+./checker/bin/javac -processor nullness \
   --patch-module java.base=../jdk/src/java.base/share/classes \
   -Xmaxerrs 5000 \
   -nowarn \
