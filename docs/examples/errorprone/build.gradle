@@ -4,7 +4,7 @@
 
 plugins {
     id 'java'
-    id 'net.ltgt.errorprone' version '4.1.0'
+    id 'net.ltgt.errorprone' version '4.2.0'
     // Checker Framework pluggable type-checking
     id 'org.checkerframework' version '0.6.53' apply false
 }
