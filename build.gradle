@@ -273,15 +273,19 @@ allprojects { currentProj ->
                 'bin-devel/.git-scripts/**',
                 'bin-devel/.plume-scripts/**',
                 'dist/**',
-                'tests/ainfer-*/annotated/*',
+                'tests/ainfer-*/annotated/**',
                 'tests/build/**',
-                'tests/calledmethods-delomboked/*',
-                'tests/nullness-javac-errors/*',
+                'tests/calledmethods-delomboked/**',
+                'tests/nullness-javac-errors/**',
             ],
-            'dataflow': ['manual/examples/'],
+            'dataflow': ['manual/examples/**'],
+            'docs': [
+                'examples/BazelExample/bazel-BazelExample/**',
+                'examples/lombok/build/**'
+            ],
             'framework': [
                 'tests/build/**',
-                'tests/returnsreceiverdelomboked/*',
+                'tests/returnsreceiverdelomboked/**',
             ],
         ]
         spotless {
@@ -291,8 +295,6 @@ allprojects { currentProj ->
             // Always skip formatting of files under build directory
             def doNotFormat = [
                 'build/**',
-                'docs/examples/BazelExample/bazel-BazelExample',
-                'examples/lombok/build/**'
             ]
             if (currentProj != project.rootProject) {
                 if (perProjectDoNotFormat.containsKey(currentProj.name)) {
@@ -334,22 +336,8 @@ allprojects { currentProj ->
             }
 
             java {
-                if (currentProj == currentProj.rootProject) {
-                    // format .java files outside of Gradle sub-projects
-                    def targets = [
-                        'docs/examples',
-                        'docs/tutorial',
-                    ]
-                    targets = targets.collectMany {
-                        [
-                            // must call toString() to convert GString to String
-                            "${it}/**/*.java".toString(),
-                            // Not .ajava files because formatting would remove import statements.
-                        ]
-                    }
-                    target targets
-                } else {
-                    // not the root project; format all .java files in the sub-project
+                if (currentProj != currentProj.rootProject) {
+                    // not the root project; format all .java and .ajava files in the sub-project
                     target '**/*.java', '**/*.ajava'
                 }
                 targetExclude doNotFormat
