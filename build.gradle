@@ -84,7 +84,7 @@ ext {
         //  * Temporarily comment out "-Werror" elsewhere in this file
         //  * Repeatedly run `./gradlew clean compileJava` and fix all errors
         //  * Uncomment "-Werror"
-        errorprone      : '2.36.0',
+        errorprone      : '2.38.0',
         googleJavaFormat : '1.25.2',
         hashmapUtil     : '0.0.1',
         junit           : '4.13.2',
@@ -210,9 +210,6 @@ allprojects { currentProj ->
     dependencies {
         if (currentRuntimeJavaVersion >= 17) {
             errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: versions.errorprone
-        } else {
-            // EP 2.31.0 is the last release that works on Java < 17.
-            errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: '2.31.0'
         }
         // Always define javacJar, not just when `isJava8` is true, because we redistribute it in checker/build.gradle.
         javacJar group: 'com.google.errorprone', name: 'javac', version: "9+181-r4173-1"
@@ -602,6 +599,14 @@ allprojects { currentProj ->
                     // https://github.com/google/error-prone/issues/436
                     '-Werror',
                 ]
+
+                if (compilationTask.name.equals('compileTestJava')) {
+                    options.errorprone.errorproneArgs.addAll([
+                        // Some Value Checker tests use int literals intentionally(?).
+                        '-Xep:IntLiteralCast:OFF'
+                    ])
+                }
+
                 if (!isJava8) {
                     // Options needed for Error Prone on Java 16+, but don't hurt on Java 9+
                     options.forkOptions.jvmArgs += [
