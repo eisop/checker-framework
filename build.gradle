@@ -569,7 +569,7 @@ allprojects { currentProj ->
                 // Error Prone must be available in the annotation processor path
                 options.annotationProcessorPath = configurations.errorProneAnnotationProcessor
                 // Enable Error Prone
-                options.errorprone.enabled = (useJdkCompiler >= 17) && (useJdkCompiler <= 23)
+                options.errorprone.enabled = (currentRuntimeJavaVersion >= 17) && (currentRuntimeJavaVersion <= 24)
                 options.errorprone.disableWarningsInGeneratedCode = true
                 options.errorprone.errorproneArgs = [
                     // Many compiler classes are interned.
