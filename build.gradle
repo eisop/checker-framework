@@ -447,22 +447,25 @@ allprojects { currentProj ->
         // Add standard javac options
         tasks.withType(JavaCompile) { compilationTask ->
             dependsOn(':installGitHooks')
-            String useJdkCompilerProp = project.getProperties().get('useJdkCompiler')
-            int useJdkCompiler
-            if (useJdkCompilerProp == null) {
+            String useJdkVersionProp = project.getProperties().get('useJdkVersion')
+            int useJdkVersion
+            if (useJdkVersionProp == null) {
                 // If the property is not given, use the same version as the runtime.
-                useJdkCompiler = currentRuntimeJavaVersion
+                useJdkVersion = currentRuntimeJavaVersion
             } else {
-                useJdkCompiler = majorVersionToInt(useJdkCompilerProp)
-                boolean useToolchains = (currentRuntimeJavaVersion != useJdkCompiler)
+                useJdkVersion = majorVersionToInt(useJdkVersionProp)
+                boolean useToolchains = (currentRuntimeJavaVersion != useJdkVersion)
                 if (!isJava8 && useToolchains) {
-                    // This uses the requested Java compiler to compile all code.
+                    // This uses the requested Java toolchain.
+                    // On CI, gradle always runs with JDK 21 and different versions are selected as toolchains.
                     // CI test test-cftests-junit-jdk21 runs the JUnit tests on the different JDK versions,
                     // to ensure there is no version mismatch between compiled-against javac APIs and runtime APIs.
                     //   https://docs.gradle.org/current/userguide/toolchains.html
                     // This property is final on Java 8, so don't set it then.
-                    javaCompiler = javaToolchains.compilerFor {
-                        languageVersion = JavaLanguageVersion.of(useJdkCompiler)
+                    java {
+                        toolchain {
+                            languageVersion = JavaLanguageVersion.of(useJdkVersion)
+                        }
                     }
                 }
             }
@@ -527,10 +530,10 @@ allprojects { currentProj ->
             //   warnings are suppressible with a "// fall through" comment.
             // -classfile: classgraph jar file and https://bugs.openjdk.org/browse/JDK-8190452
             String lint = '-Xlint:-options,-fallthrough,-classfile'
-            // Java 8 uses the Error Prone javac, not what is requested with useJdkCompiler.
+            // Java 8 uses the Error Prone javac, not what is requested with useJdkVersion.
             // So there is no need to set additional lint options.
             if (!isJava8) {
-                if (useJdkCompiler >= 21) {
+                if (useJdkVersion >= 21) {
                     // TODO: Ignore this-escape for now, we may want to review and suppress each one later.
                     lint +=',-this-escape'
                 }
@@ -557,7 +560,7 @@ allprojects { currentProj ->
                 // Error Prone must be available in the annotation processor path
                 options.annotationProcessorPath = configurations.errorProneAnnotationProcessor
                 // Enable Error Prone
-                options.errorprone.enabled = (currentRuntimeJavaVersion >= 17) && (currentRuntimeJavaVersion <= 24)
+                options.errorprone.enabled = (useJdkVersion >= 17) && (useJdkVersion <= 24)
                 options.errorprone.disableWarningsInGeneratedCode = true
                 options.errorprone.errorproneArgs = [
                     // Many compiler classes are interned.
