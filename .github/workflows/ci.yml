@@ -111,11 +111,11 @@ jobs:
   otherjdks:
     name: ${{ matrix.script }} on JDK ${{ matrix.java.version }}
     runs-on: ubuntu-latest
-    needs: sanity
+      #    needs: sanity
     permissions:
       contents: read
     strategy:
-      fail-fast: true
+      # fail-fast: true
       matrix:
         # `jspecify-conformance` and `jspecify-reference-checker` only tested on JDK 21.
         script: ['cftests-junit', 'cftests-nonjunit', 'cftests-junit-jdk21',
