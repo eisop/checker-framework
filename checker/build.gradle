@@ -303,14 +303,14 @@ checkCompilerMessages {
 task nullnessExtraTests(type: Exec, dependsOn: assembleForJavac, group: 'Verification') {
     description = 'Run extra tests for the Nullness Checker.'
     executable 'make'
-    environment JAVAC: "${projectDir}/bin/javac -version -Aversion -AnoJreVersionCheck", JAVAP: 'javap'
+    environment JAVAC: "${projectDir}/bin/javac -version -AnoJreVersionCheck", JAVAP: 'javap'
     args = ['-C', 'tests/nullness-extra/']
 }
 
 task commandLineTests(type: Exec, dependsOn: assembleForJavac, group: 'Verification') {
     description = 'Run tests that need a special command line.'
     executable 'make'
-    environment JAVAC: "${projectDir}/bin/javac -version -Aversion -AnoJreVersionCheck"
+    environment JAVAC: "${projectDir}/bin/javac -version -AnoJreVersionCheck"
     args = ['-C', 'tests/command-line/']
 }
 
@@ -326,7 +326,7 @@ task tutorialTests(dependsOn: assembleForJavac, group: 'Verification') {
 task exampleTests(type: Exec, dependsOn: assembleForJavac, group: 'Verification') {
     description = 'Run tests for the example programs.'
     executable 'make'
-    environment JAVAC: "${projectDir}/bin/javac -version -Aversion -AnoJreVersionCheck"
+    environment JAVAC: "${projectDir}/bin/javac -version -AnoJreVersionCheck"
     args = ['-C', '../docs/examples']
 }
 
