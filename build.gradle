@@ -6,7 +6,7 @@ buildscript {
             // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
             // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
             // Only works on JDK 11+.
-            classpath 'com.diffplug.spotless:spotless-plugin-gradle:7.0.2'
+            classpath 'com.diffplug.spotless:spotless-plugin-gradle:7.0.3'
         }
     }
 }
@@ -18,7 +18,7 @@ plugins {
     id 'de.undercouch.download' version '5.6.0'
     id 'java'
     // https://github.com/tbroyer/gradle-errorprone-plugin
-    id 'net.ltgt.errorprone' version '4.1.0'
+    id 'net.ltgt.errorprone' version '4.2.0'
     // https://docs.gradle.org/current/userguide/eclipse_plugin.html
     id 'eclipse'
     // To show task list as a tree, run: ./gradlew <taskname> taskTree
@@ -84,14 +84,14 @@ ext {
         //  * Temporarily comment out "-Werror" elsewhere in this file
         //  * Repeatedly run `./gradlew clean compileJava` and fix all errors
         //  * Uncomment "-Werror"
-        errorprone      : '2.36.0',
+        errorprone      : '2.38.0',
         googleJavaFormat : '1.25.2',
         hashmapUtil     : '0.0.1',
         junit           : '4.13.2',
-        lombok          : '1.18.36',
+        lombok          : '1.18.38',
         // plume-util includes a version of reflection-util. When updating ensure the versions are consistent.
-        plumeUtil       : '1.9.3',
-        reflectionUtil  : '1.1.3',
+        plumeUtil       : '1.10.1',
+        reflectionUtil  : '1.1.5',
     ]
 }
 
@@ -210,9 +210,6 @@ allprojects { currentProj ->
     dependencies {
         if (currentRuntimeJavaVersion >= 17) {
             errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: versions.errorprone
-        } else {
-            // EP 2.31.0 is the last release that works on Java < 17.
-            errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: '2.31.0'
         }
         // Always define javacJar, not just when `isJava8` is true, because we redistribute it in checker/build.gradle.
         javacJar group: 'com.google.errorprone', name: 'javac', version: "9+181-r4173-1"
@@ -273,15 +270,19 @@ allprojects { currentProj ->
                 'bin-devel/.git-scripts/**',
                 'bin-devel/.plume-scripts/**',
                 'dist/**',
-                'tests/ainfer-*/annotated/*',
+                'tests/ainfer-*/annotated/**',
                 'tests/build/**',
-                'tests/calledmethods-delomboked/*',
-                'tests/nullness-javac-errors/*',
+                'tests/calledmethods-delomboked/**',
+                'tests/nullness-javac-errors/**',
             ],
-            'dataflow': ['manual/examples/'],
+            'dataflow': ['manual/examples/**'],
+            'docs': [
+                'examples/BazelExample/bazel-BazelExample/**',
+                'examples/lombok/build/**'
+            ],
             'framework': [
                 'tests/build/**',
-                'tests/returnsreceiverdelomboked/*',
+                'tests/returnsreceiverdelomboked/**',
             ],
         ]
         spotless {
@@ -291,8 +292,6 @@ allprojects { currentProj ->
             // Always skip formatting of files under build directory
             def doNotFormat = [
                 'build/**',
-                'docs/examples/BazelExample/bazel-BazelExample',
-                'examples/lombok/build/**'
             ]
             if (currentProj != project.rootProject) {
                 if (perProjectDoNotFormat.containsKey(currentProj.name)) {
@@ -334,22 +333,8 @@ allprojects { currentProj ->
             }
 
             java {
-                if (currentProj == currentProj.rootProject) {
-                    // format .java files outside of Gradle sub-projects
-                    def targets = [
-                        'docs/examples',
-                        'docs/tutorial',
-                    ]
-                    targets = targets.collectMany {
-                        [
-                            // must call toString() to convert GString to String
-                            "${it}/**/*.java".toString(),
-                            // Not .ajava files because formatting would remove import statements.
-                        ]
-                    }
-                    target targets
-                } else {
-                    // not the root project; format all .java files in the sub-project
+                if (currentProj != currentProj.rootProject) {
+                    // not the root project; format all .java and .ajava files in the sub-project
                     target '**/*.java', '**/*.ajava'
                 }
                 targetExclude doNotFormat
@@ -572,7 +557,7 @@ allprojects { currentProj ->
                 // Error Prone must be available in the annotation processor path
                 options.annotationProcessorPath = configurations.errorProneAnnotationProcessor
                 // Enable Error Prone
-                options.errorprone.enabled = (useJdkCompiler >= 17) && (useJdkCompiler <= 23)
+                options.errorprone.enabled = (currentRuntimeJavaVersion >= 17) && (currentRuntimeJavaVersion <= 24)
                 options.errorprone.disableWarningsInGeneratedCode = true
                 options.errorprone.errorproneArgs = [
                     // Many compiler classes are interned.
@@ -602,6 +587,14 @@ allprojects { currentProj ->
                     // https://github.com/google/error-prone/issues/436
                     '-Werror',
                 ]
+
+                if (compilationTask.name.equals('compileTestJava')) {
+                    options.errorprone.errorproneArgs.addAll([
+                        // Some Value Checker tests use int literals intentionally(?).
+                        '-Xep:IntLiteralCast:OFF'
+                    ])
+                }
+
                 if (!isJava8) {
                     // Options needed for Error Prone on Java 16+, but don't hurt on Java 9+
                     options.forkOptions.jvmArgs += [
