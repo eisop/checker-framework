@@ -392,13 +392,12 @@ allprojects { currentProj ->
         }
 
         boolean useToolchains = (currentRuntimeJavaVersion != useJdkVersionInt)
-        if (!isJava8 && useToolchains) {
+        if (useToolchains) {
             // This uses the requested Java toolchain.
             // On CI, gradle always runs with JDK 21 and different versions are selected as toolchains.
             // CI test test-cftests-junit-jdk21 runs the JUnit tests on the different JDK versions,
             // to ensure there is no version mismatch between compiled-against javac APIs and runtime APIs.
             //   https://docs.gradle.org/current/userguide/toolchains.html
-            // This property is final on Java 8, so don't set it then.
             java {
                 toolchain {
                     languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
