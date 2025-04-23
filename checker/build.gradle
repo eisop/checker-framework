@@ -94,7 +94,7 @@ dependencies {
     testImplementation 'org.apache.spark:spark-sql_2.12:3.3.2'
 
     // Required for checker/tests/index-initializedfields/RequireJavadoc.java
-    if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
+    if (isJava8) {
         testImplementation 'org.plumelib:options:1.0.6'
     } else {
         testImplementation 'org.plumelib:options:2.0.3'
