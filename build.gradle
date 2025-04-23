@@ -403,6 +403,13 @@ allprojects { currentProj ->
                     languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
                 }
             }
+
+            // JavaExec does not automatically inherit the toolchain JDK (!).
+            tasks.withType(JavaExec).configureEach {
+                javaLauncher = javaToolchains.launcherFor {
+                    languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
+                }
+            }
         }
 
         // Add the fat checker.jar to the classpath of every Javadoc task. This allows Javadoc in
