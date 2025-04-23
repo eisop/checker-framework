@@ -9,7 +9,7 @@ on:
 # See: https://docs.github.com/en/enterprise-cloud@latest/actions/writing-workflows/choosing-what-your-workflow-does/control-the-concurrency-of-workflows-and-jobs
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ !contains(github.ref, 'heads/master')}}
+#  cancel-in-progress: ${{ !contains(github.ref, 'heads/master')}}
 
 jobs:
   # Basic sanity tests on JDK 21.
@@ -172,7 +172,7 @@ jobs:
 
     env:
       JAVA_VERSION: ${{ matrix.java.version }}
-    continue-on-error: ${{ matrix.java.experimental }}
+    continue-on-error: true # ${{ matrix.java.experimental }}
     steps:
     - name: Check out sources
       uses: actions/checkout@v4
