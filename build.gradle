@@ -172,10 +172,6 @@ allprojects { currentProj ->
     // To make a snapshot release, version should end in "-SNAPSHOT", then: ./gradlew publish
     version = '3.49.1-eisop2-SNAPSHOT'
 
-    tasks.withType(JavaCompile).configureEach {
-        options.fork = true
-    }
-
     apply plugin: 'java'
     apply plugin: 'eclipse'
     apply plugin: 'com.gradleup.shadow'
@@ -407,6 +403,12 @@ allprojects { currentProj ->
             // JavaExec does not automatically inherit the toolchain JDK (!).
             tasks.withType(JavaExec).configureEach {
                 javaLauncher = javaToolchains.launcherFor {
+                    languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
+                }
+            }
+            // JavaCompile also seems to need an extra push...
+            tasks.withType(JavaCompile).configureEach {
+                javaCompiler = javaToolchains.compilerFor {
                     languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
                 }
             }
@@ -650,19 +652,6 @@ def createCheckTypeTask(projectName, taskName, checker, args = []) {
             '-AnoJreVersionCheck',
         ]
         options.compilerArgs += args
-        options.forkOptions.jvmArgs += ['-Xmx2g']
-
-        if (isJava8) {
-            options.compilerArgs += [
-                '-source',
-                '8',
-                '-target',
-                '8'
-            ]
-        } else {
-            options.fork = true
-            options.forkOptions.jvmArgs += compilerArgsForRunningCF
-        }
     }
 }
 
