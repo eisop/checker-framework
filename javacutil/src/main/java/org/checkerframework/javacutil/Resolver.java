@@ -209,6 +209,14 @@ public class Resolver {
         }
     }
 
+    /**
+     * Reflectively create a `Log.DiagnosticHandler`. Java 25 changed this class from a static
+     * member class to a non-static inner class. Reflectively creating an instance is easy, however,
+     * as both take the same arguments.
+     *
+     * @param log the (enclosing) Log instance
+     * @return a new Log.DiscardDiagnosticHandler
+     */
     protected static Log.DiagnosticHandler createDiscardDiagnosticHandler(Log log) {
         Constructor<Log.DiscardDiagnosticHandler> cons;
         try {
