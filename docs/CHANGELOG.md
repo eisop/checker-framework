@@ -3,10 +3,14 @@ Version 3.49.1-eisop2 (March ??, 2025)
 
 **User-visible changes:**
 
+The Checker Framework runs under JDK 25 -- that is, it runs on a version 25 JVM.
+
 **Implementation details:**
 
 **Closed issues:**
-eisop#1051
+
+eisop#1051, eisop#1180.
+
 
 Version 3.49.1-eisop1 (March 17, 2025)
 --------------------------------------
