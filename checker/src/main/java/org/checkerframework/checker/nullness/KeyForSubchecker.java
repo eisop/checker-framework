@@ -15,6 +15,9 @@ import javax.annotation.processing.SupportedOptions;
  */
 @SupportedOptions({"assumeKeyFor"})
 public class KeyForSubchecker extends BaseTypeChecker {
+    /** Default constructor for KeyForSubchecker. */
+    public KeyForSubchecker() {}
+
     @Override
     public NavigableSet<String> getSuppressWarningsPrefixes() {
         NavigableSet<String> result = super.getSuppressWarningsPrefixes();
