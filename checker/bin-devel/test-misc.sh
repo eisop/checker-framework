@@ -22,7 +22,7 @@ PLUME_SCRIPTS="$SCRIPTDIR/.plume-scripts"
 status=0
 
 ## Code style and formatting
-JAVA_VER=$(java -version 2>&1 | head -1 | cut -d'"' -f2 | sed '/^1\./s///' | cut -d'.' -f1 | sed 's/-ea//')
+JAVA_VER=$(java -version 2>&1 | head -1 | cut -d'"' -f2 | sed '/^1\./s///' | cut -d'.' -f1 | sed 's/-ea//' | sed 's/-beta//')
 if [ "${JAVA_VER}" != "8" ] ; then
   ./gradlew spotlessCheck --console=plain --warning-mode=all
 fi
