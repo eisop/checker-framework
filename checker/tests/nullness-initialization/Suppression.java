@@ -27,14 +27,16 @@ public class Suppression {
 
     @SuppressWarnings("nullnessnokeyfor")
     Suppression(int dummy, @Nullable Object o) {
-        f = o;
         o.toString();
+        String nonkey = "";
+        // :: error: (assignment.type.incompatible) :: error: (expression.unparsable.type.invalid)
+        @KeyFor("map") String key = nonkey;
     }
 
-    @SuppressWarnings("nullnessnokeyfor")
+    @SuppressWarnings("nullnessonly")
+    // :: error: (initialization.fields.uninitialized)
     Suppression(int dummy, @Nullable Object o, Object o2) {
-        f = o;
-        o2.toString();
+        o.toString();
         String nonkey = "";
         // :: error: (assignment.type.incompatible) :: error: (expression.unparsable.type.invalid)
         @KeyFor("map") String key = nonkey;

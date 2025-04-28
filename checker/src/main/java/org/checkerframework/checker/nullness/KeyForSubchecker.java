@@ -21,6 +21,7 @@ public class KeyForSubchecker extends BaseTypeChecker {
     @Override
     public NavigableSet<String> getSuppressWarningsPrefixes() {
         NavigableSet<String> result = super.getSuppressWarningsPrefixes();
+        result.add("nullnessnoinit");
         result.add("nullness");
         return result;
     }
