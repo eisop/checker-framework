@@ -128,8 +128,8 @@ jobs:
         java: [{version: '8', experimental: false},
           {version: '11', experimental: false},
           {version: '17', experimental: false},
-          {version: '23', experimental: false},
-          {version: '24-ea', experimental: true}]
+          {version: '24', experimental: false},
+          {version: '25-ea', experimental: true}]
         exclude:
           # JDK 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
           - script: 'cftests-junit-jdk21'
@@ -185,19 +185,20 @@ jobs:
       with:
         # CI diff needs more history - 0 fetches all history.
         fetch-depth: 0
+    - name: Set up JDK 21 for Gradle to run on
+      uses: actions/setup-java@v4
+      with:
+        # Install JDK 21 first, to make it available to Gradle using `gradle.properties` below.
+        java-version: 21
+        distribution: 'temurin'
     - name: Set up JDK ${{ matrix.java.version }}
       uses: actions/setup-java@v4
       with:
+        # Install the requested JDK second, to make it the default on which everything else runs.
         java-version: ${{ matrix.java.version }}
         distribution: 'temurin'
-    - name: Set up JDK 21 on an experimental platform
-      if: ${{ matrix.java.experimental }}
-      uses: actions/setup-java@v4
-      with:
-        # Install JDK 21 second, to make it the default on which gradle runs.
-        # This unfortunately also means that all tests run on JDK 21 instead of the newer version.
-        java-version: 21
-        distribution: 'temurin'
+    - name: Inject JAVA_HOME_21_64 into `gradle.properties` to always use JDK 21 for Gradle
+      run: mkdir ~/.gradle && echo "org.gradle.java.home=$JAVA_HOME_21_X64" >> ~/.gradle/gradle.properties
 
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
@@ -226,12 +227,15 @@ jobs:
         # Share repository cache between workflows.
         repository-cache: true
 
+    - name: Output version information to debug CI
+      run: which java && ./gradlew --version
+
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
       run: ./checker/bin-devel/test-${{ matrix.script }}.sh
-      # Set the compiler version to use, allowing us to e.g. run Java 23 while gradle does not work
-      # on Java 23 yet. This only tests the compiler, it does not use that version to run the tests.
+      # Set the JDK version to use, allowing us to e.g. run Java 25 while gradle does not work
+      # on Java 25 yet.
       env:
-        ORG_GRADLE_PROJECT_useJdkCompiler: ${{ matrix.java.version }}
+        ORG_GRADLE_PROJECT_useJdkVersion: ${{ matrix.java.version }}
 
   # Sanity tests on Windows and MacOS.
   otheros:
