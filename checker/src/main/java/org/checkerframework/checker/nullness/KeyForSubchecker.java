@@ -2,6 +2,8 @@ package org.checkerframework.checker.nullness;
 
 import org.checkerframework.common.basetype.BaseTypeChecker;
 
+import java.util.NavigableSet;
+
 import javax.annotation.processing.SupportedOptions;
 
 /**
@@ -12,4 +14,11 @@ import javax.annotation.processing.SupportedOptions;
  * @checker_framework.manual #nullness-checker Nullness Checker
  */
 @SupportedOptions({"assumeKeyFor"})
-public class KeyForSubchecker extends BaseTypeChecker {}
+public class KeyForSubchecker extends BaseTypeChecker {
+    @Override
+    public NavigableSet<String> getSuppressWarningsPrefixes() {
+        NavigableSet<String> result = super.getSuppressWarningsPrefixes();
+        result.add("nullness");
+        return result;
+    }
+}
