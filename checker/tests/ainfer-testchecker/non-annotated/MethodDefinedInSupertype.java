@@ -3,21 +3,21 @@ import org.checkerframework.checker.testchecker.ainfer.qual.AinferSibling1;
 
 abstract class MethodDefinedInSupertype {
 
-  void test() {
-    // :: warning: argument.type.incompatible
-    expectsAinferSibling1(shouldReturnAinferSibling1());
-  }
+    void test() {
+        // :: warning: argument.type.incompatible
+        expectsAinferSibling1(shouldReturnAinferSibling1());
+    }
 
-  public void expectsAinferSibling1(@AinferSibling1 int t) {}
+    public void expectsAinferSibling1(@AinferSibling1 int t) {}
 
-  public abstract int shouldReturnAinferSibling1();
+    public abstract int shouldReturnAinferSibling1();
 
-  void testMultipleOverrides() {
-    // :: warning: argument.type.incompatible
-    expectsParent(shouldReturnParent());
-  }
+    void testMultipleOverrides() {
+        // :: warning: argument.type.incompatible
+        expectsParent(shouldReturnParent());
+    }
 
-  public void expectsParent(@AinferParent int t1) {}
+    public void expectsParent(@AinferParent int t1) {}
 
-  public abstract int shouldReturnParent();
+    public abstract int shouldReturnParent();
 }

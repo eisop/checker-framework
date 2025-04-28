@@ -16,26 +16,26 @@ import java.util.stream.Stream;
 @SuppressWarnings("unchecked")
 abstract class Issue1809 {
 
-  abstract <T> Stream<T> concat(Stream<? extends T>... streams);
+    abstract <T> Stream<T> concat(Stream<? extends T>... streams);
 
-  abstract Optional<A> f();
+    abstract Optional<A> f();
 
-  private static class A {}
+    private static class A {}
 
-  interface B {
-    List<C> g();
-  }
+    interface B {
+        List<C> g();
+    }
 
-  interface C {
-    List<S> h();
-  }
+    interface C {
+        List<S> h();
+    }
 
-  interface S {}
+    interface S {}
 
-  @SuppressWarnings("nullness") // TODO: filter should change expression type.
-  private Stream<A> xrefsFor(B b) {
-    return concat(b.g().stream().flatMap(a -> a.h().stream().map(c -> f())))
-        .filter(Optional::isPresent)
-        .map(Optional::get);
-  }
+    @SuppressWarnings("nullness") // TODO: filter should change expression type.
+    private Stream<A> xrefsFor(B b) {
+        return concat(b.g().stream().flatMap(a -> a.h().stream().map(c -> f())))
+                .filter(Optional::isPresent)
+                .map(Optional::get);
+    }
 }
