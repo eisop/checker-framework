@@ -3,7 +3,7 @@
 import java.util.List;
 
 class Issue5245<E> {
-    final Issue5245<List<String>> repro = new Issue5245<>(List.of());
+  final Issue5245<List<String>> repro = new Issue5245<>(List.of());
 
-    <V extends E> Issue5245(V unknownObj) {}
+  <V extends E> Issue5245(V unknownObj) {}
 }
