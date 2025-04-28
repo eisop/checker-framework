@@ -61,37 +61,18 @@ public class Resolver {
     // Note that currently access(...) is defined in InvalidSymbolError, a superclass of AccessError
     private static final Method ACCESSERROR_ACCESS;
 
+    /** The latest source version supported by this compiler. */
+    private static final int sourceVersionNumber =
+            Integer.parseInt(SourceVersion.latest().toString().substring("RELEASE_".length()));
+
     /** Whether we are running on at least Java 13. */
-    private static final boolean atLeastJava13;
+    private static final boolean atLeastJava13 = sourceVersionNumber >= 13;
 
     /** Whether we are running on at least Java 23. */
-    private static final boolean atLeastJava23;
-
-    /**
-     * Determines whether the given {@link SourceVersion} release version string is supported.
-     *
-     * @param release the {@link SourceVersion} release version
-     * @return whether the given version is supported
-     */
-    private static boolean atLeastJava(String release) {
-        final SourceVersion latestSource = SourceVersion.latest();
-        SourceVersion javaVersion;
-        try {
-            javaVersion = SourceVersion.valueOf(release);
-        } catch (IllegalArgumentException e) {
-            javaVersion = null;
-        }
-        @SuppressWarnings("EnumOrdinal") // No better way to compare.
-        boolean atLeastJava =
-                javaVersion != null && latestSource.ordinal() >= javaVersion.ordinal();
-        return atLeastJava;
-    }
+    private static final boolean atLeastJava23 = sourceVersionNumber >= 23;
 
     static {
         try {
-            atLeastJava13 = atLeastJava("RELEASE_13");
-            atLeastJava23 = atLeastJava("RELEASE_23");
-
             FIND_METHOD =
                     Resolve.class.getDeclaredMethod(
                             "findMethod",
@@ -175,7 +156,7 @@ public class Resolver {
         } catch (Exception e) {
             Error err =
                     new AssertionError(
-                            "Compiler 'Resolve' class doesn't contain required 'find' method");
+                            "Compiler 'Resolve' class doesn't contain required 'find*' method");
             err.initCause(e);
             throw err;
         }
@@ -229,6 +210,31 @@ public class Resolver {
     }
 
     /**
+     * Reflectively create a `Log.DiagnosticHandler`. Java 25 changed this class from a static
+     * member class to a non-static inner class. Reflectively creating an instance is easy, however,
+     * as both take the same arguments.
+     *
+     * @param log the (enclosing) Log instance
+     * @return a new Log.DiscardDiagnosticHandler
+     */
+    protected static Log.DiagnosticHandler createDiscardDiagnosticHandler(Log log) {
+        Constructor<Log.DiscardDiagnosticHandler> cons;
+        try {
+            cons = Log.DiscardDiagnosticHandler.class.getConstructor(Log.class);
+        } catch (NoSuchMethodException nsme) {
+            throw new BugInCF("Could not find Log.DiscardDiagnosticHandler constructor");
+        }
+        Log.DiagnosticHandler res;
+        try {
+            res = cons.newInstance(log);
+        } catch (IllegalAccessException | InstantiationException | InvocationTargetException e) {
+            throw new BugInCF(
+                    "Exception when invoking Log.DiscardDiagnosticHandler constructor", e);
+        }
+        return res;
+    }
+
+    /**
      * Finds the package with name {@code name}.
      *
      * @param name the name of the package
@@ -236,7 +242,7 @@ public class Resolver {
      * @return the {@code PackageSymbol} for the package if it is found, {@code null} otherwise
      */
     public @Nullable PackageSymbol findPackage(String name, TreePath path) {
-        Log.DiagnosticHandler discardDiagnosticHandler = new Log.DiscardDiagnosticHandler(log);
+        Log.DiagnosticHandler discardDiagnosticHandler = createDiscardDiagnosticHandler(log);
         try {
             Env<AttrContext> env = getEnvForPath(path);
             final Element res;
@@ -281,7 +287,7 @@ public class Resolver {
      * @return the element for the field, {@code null} otherwise
      */
     public @Nullable VariableElement findField(String name, TypeMirror type, TreePath path) {
-        Log.DiagnosticHandler discardDiagnosticHandler = new Log.DiscardDiagnosticHandler(log);
+        Log.DiagnosticHandler discardDiagnosticHandler = createDiscardDiagnosticHandler(log);
         try {
             Env<AttrContext> env = getEnvForPath(path);
             final Element res;
@@ -327,7 +333,7 @@ public class Resolver {
      * @return the element for the local variable, {@code null} otherwise
      */
     public @Nullable VariableElement findLocalVariableOrParameter(String name, TreePath path) {
-        Log.DiagnosticHandler discardDiagnosticHandler = new Log.DiscardDiagnosticHandler(log);
+        Log.DiagnosticHandler discardDiagnosticHandler = createDiscardDiagnosticHandler(log);
         try {
             Env<AttrContext> env = getEnvForPath(path);
             // Either a VariableElement or a SymbolNotFoundError.
@@ -375,7 +381,7 @@ public class Resolver {
      * @return the element for the class
      */
     public Element findClass(String name, TreePath path) {
-        Log.DiagnosticHandler discardDiagnosticHandler = new Log.DiscardDiagnosticHandler(log);
+        Log.DiagnosticHandler discardDiagnosticHandler = createDiscardDiagnosticHandler(log);
         try {
             Env<AttrContext> env = getEnvForPath(path);
             return wrapInvocationOnResolveInstance(FIND_TYPE, env, names.fromString(name));
@@ -393,7 +399,7 @@ public class Resolver {
      * @return the {@code ClassSymbol} for the class if it is found, {@code null} otherwise
      */
     public @Nullable ClassSymbol findClassInPackage(String name, PackageSymbol pck, TreePath path) {
-        Log.DiagnosticHandler discardDiagnosticHandler = new Log.DiscardDiagnosticHandler(log);
+        Log.DiagnosticHandler discardDiagnosticHandler = createDiscardDiagnosticHandler(log);
         try {
             Env<AttrContext> env = getEnvForPath(path);
             final Element res;
@@ -447,7 +453,7 @@ public class Resolver {
             TypeMirror receiverType,
             TreePath path,
             java.util.List<TypeMirror> argumentTypes) {
-        Log.DiagnosticHandler discardDiagnosticHandler = new Log.DiscardDiagnosticHandler(log);
+        Log.DiagnosticHandler discardDiagnosticHandler = createDiscardDiagnosticHandler(log);
         try {
             Env<AttrContext> env = getEnvForPath(path);
 

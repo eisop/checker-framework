@@ -3,6 +3,7 @@ package org.checkerframework.checker.index.inequality;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.value.ValueChecker;
 import org.checkerframework.framework.qual.RelevantJavaTypes;
+import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.source.SuppressWarningsPrefix;
 
 import java.util.Set;
@@ -27,9 +28,13 @@ import java.util.Set;
     char.class,
 })
 public class LessThanChecker extends BaseTypeChecker {
+
+    /** Create a LessThanChecker. */
+    public LessThanChecker() {}
+
     @Override
-    protected Set<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
-        Set<Class<? extends BaseTypeChecker>> checkers = super.getImmediateSubcheckerClasses();
+    protected Set<Class<? extends SourceChecker>> getImmediateSubcheckerClasses() {
+        Set<Class<? extends SourceChecker>> checkers = super.getImmediateSubcheckerClasses();
         checkers.add(ValueChecker.class);
         return checkers;
     }

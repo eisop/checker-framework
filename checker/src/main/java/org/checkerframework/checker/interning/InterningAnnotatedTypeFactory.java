@@ -80,7 +80,7 @@ public class InterningAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     final AnnotationMirrorSet INTERNED_SET = AnnotationMirrorSet.singleton(INTERNED);
 
     /**
-     * Creates a new {@link InterningAnnotatedTypeFactory} that operates on a particular AST.
+     * Creates a new {@link InterningAnnotatedTypeFactory}.
      *
      * @param checker the checker to use
      */
@@ -225,6 +225,13 @@ public class InterningAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                 t.replaceAnnotation(INTERNED);
             }
             return super.visitDeclared(t, p);
+        }
+
+        @Override
+        public Void visitPrimitive(AnnotatedPrimitiveType t, Void p) {
+            // case 4: primitive types are interned
+            t.replaceAnnotation(INTERNED);
+            return super.visitPrimitive(t, p);
         }
     }
 

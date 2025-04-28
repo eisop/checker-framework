@@ -1,19 +1,38 @@
-buildscript {
-    dependencies {
-        if (JavaVersion.current() >= JavaVersion.VERSION_17) {
-            // bnd builder depends on Java 17.
-            // As EISOP releases are made on Java 21, this shouldn't impact releases.
-            classpath('biz.aQute.bnd:biz.aQute.bnd.gradle:7.1.0')
+plugins {
+    id 'java-library'
+    id 'biz.aQute.bnd.builder' version '7.1.0'
+}
+
+apply plugin: 'biz.aQute.bnd.builder'
+
+sourceSets {
+    main {
+        java {
+            exclude 'module-info.java'
+        }
+    }
+    module_info {
+        java {
+            srcDirs ('src/main')
         }
     }
 }
 
-plugins {
-    id 'java-library'
+task compileJava9(type: JavaCompile) {
+    source = sourceSets.module_info.java
+    destinationDirectory = sourceSets.main.output.classesDirs[0]
+    classpath = configurations.allProjects
+    options.release = 9
 }
 
-if (JavaVersion.current() >= JavaVersion.VERSION_17) {
-    apply plugin: 'biz.aQute.bnd.builder'
+compileJava {
+    if (!isJava8) {
+        dependsOn compileJava9
+    }
+}
+
+javadoc {
+    modularity.inferModulePath = false
 }
 
 jar {
@@ -30,8 +49,9 @@ final checkerQualPom(publication) {
     publication.from components.java
     publication.pom {
         name = 'Checker Qual'
-        description = 'checker-qual contains annotations (type qualifiers) that a programmer\n' +
-                'writes to specify Java code for type-checking by the Checker Framework.\n'
+        description = String.join(System.lineSeparator(),
+                'checker-qual contains annotations (type qualifiers) that a programmer' +
+                'writes to specify Java code for type-checking by the Checker Framework.')
         licenses {
             license {
                 name = 'The MIT License'

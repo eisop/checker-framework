@@ -20,7 +20,7 @@ public class ArrayRefs {
         takeNNList(Arrays.<Object>asList(new Object[] {a}));
         takeNNList(Arrays.asList(new Object[] {a}));
         takeNNList(Arrays.asList(a, a, a));
-        // :: error: (argument.type.incompatible)
+        // :: error: (type.arguments.not.inferred)
         takeNNList(Arrays.asList(a, a, null));
     }
 

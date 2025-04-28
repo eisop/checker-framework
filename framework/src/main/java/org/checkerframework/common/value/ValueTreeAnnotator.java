@@ -275,7 +275,8 @@ class ValueTreeAnnotator extends TreeAnnotator {
                 return null;
             }
 
-            // I would like to call ((AnnotatedTypeTree) castTree).hasAnnotation(Unsigned.class),
+            // I would like to call
+            //   ((AnnotatedTypeTree) castTree).hasAnnotation(Unsigned.class),
             // but `Unsigned` is in the checker package and this code is in the common package.
             List<? extends AnnotationTree> annoTrees =
                     TreeUtils.getExplicitAnnotationTrees(null, tree.getType());
@@ -292,7 +293,8 @@ class ValueTreeAnnotator extends TreeAnnotator {
                 // Strings and arrays do not allow conversions
                 newAnno = oldAnno;
             } else if (atypeFactory.isIntRange(oldAnno)
-                    && (range = atypeFactory.getRange(oldAnno))
+                    && atypeFactory
+                            .getRange(oldAnno)
                             .isWiderThan(ValueAnnotatedTypeFactory.MAX_VALUES)) {
                 Class<?> newClass = TypesUtils.getClassFromType(newType);
                 if (newClass == String.class) {
@@ -301,6 +303,9 @@ class ValueTreeAnnotator extends TreeAnnotator {
                     throw new UnsupportedOperationException(
                             "ValueAnnotatedTypeFactory: can't convert int to boolean");
                 } else {
+                    // This re-computes a value from the condition above, but the code is easier to
+                    // read like this.
+                    range = atypeFactory.getRange(oldAnno);
                     newAnno =
                             atypeFactory.createIntRangeAnnotation(
                                     NumberUtils.castRange(newType, range));

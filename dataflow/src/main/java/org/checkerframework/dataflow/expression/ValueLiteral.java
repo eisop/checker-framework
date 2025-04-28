@@ -101,9 +101,10 @@ public class ValueLiteral extends JavaExpression {
         return value;
     }
 
+    @SuppressWarnings("unchecked") // generic cast
     @Override
-    public boolean containsOfClass(Class<? extends JavaExpression> clazz) {
-        return getClass() == clazz;
+    public <T extends JavaExpression> @Nullable T containedOfClass(Class<T> clazz) {
+        return getClass() == clazz ? (T) this : null;
     }
 
     @Override
@@ -112,13 +113,13 @@ public class ValueLiteral extends JavaExpression {
     }
 
     @Override
-    public boolean isUnassignableByOtherCode() {
-        return true;
+    public boolean isAssignableByOtherCode() {
+        return false;
     }
 
     @Override
-    public boolean isUnmodifiableByOtherCode() {
-        return true;
+    public boolean isModifiableByOtherCode() {
+        return false;
     }
 
     @Override
@@ -136,7 +137,7 @@ public class ValueLiteral extends JavaExpression {
         return false; // not modifiable
     }
 
-    /// java.lang.Object methods
+    // java.lang.Object methods
 
     @Override
     public boolean equals(@Nullable Object obj) {

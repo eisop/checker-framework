@@ -423,7 +423,7 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          * </ul>
          *
          * @param argument the single argument in a call to {@code getMethod} or {@code
-         *     getConstrutor}
+         *     getConstructor}
          * @return a list, each of whose elementts is a possible the number of parameters; it is
          *     often, but not always, a singleton list
          */

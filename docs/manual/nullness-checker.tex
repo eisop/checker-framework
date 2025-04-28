@@ -320,6 +320,10 @@ apply to the method itself rather than to some particular type.
   field to be non-null.
 
 \item[\refqualclass{checker/nullness/qual}{EnsuresNonNull}]
+  indicates a method postcondition.
+  With \<EnsuresNonNull>, the successful return (i.e., a non-exceptional
+  return) of the annotated method results in the given expressions being
+  non-null. See the Javadoc for examples of its use.
 \item[\refqualclass{checker/nullness/qual}{EnsuresNonNullIf}]
   indicates a method postcondition.  With \<@EnsuresNonNull>, the given
   expressions are non-null after the method returns; this is useful for a
@@ -2299,7 +2303,7 @@ greater than the benefit from adopting the Freedom Before Commitment system.
 % LocalWords:  typeofthis nraB nrbB rO nroO nroB containsKey enum NullAway
 % LocalWords:  JUnit's field1 field2 superclasses Foo C1 C2 PolyRaw type''
 % LocalWords:  NullnessChecker redundantNullComparison instanceof runtime
-% LocalWords:  noInitForMonotonicNonNull UnknownInitialization isArray
+% LocalWords:  noInitForMonotonicNonNull UnknownInitialization isArray jdk
 % LocalWords:  UnderInitialization getComponentType AsuppressWarnings util
 % LocalWords:  isEmpty AssumeAssertion cleanroom varargs OtherClass Astubs
 % LocalWords:  mymap mykey KeyType ValueType lineSeparator receiver''
@@ -2307,6 +2311,7 @@ greater than the benefit from adopting the Freedom Before Commitment system.
 % LocalWords:  initHelper helperMethod NoSuchElementException classpath
 % LocalWords:  soundArrayCreationNullness lombok findbugs CurrentClass
 % LocalWords:  NotOnlyInitialized underinitialization Commitment'' toarray
-% LocalWords:  unclassified'' trustArrayLenZero ArrayLen toArray
+% LocalWords:  unclassified'' trustArrayLenZero ArrayLen toArray Java''
 % LocalWords:  ConcurrentHashMap permitClearProperty setProperties
-% LocalWords:  clearProperty AassumeKeyFor AassumeInitialized
+% LocalWords:  clearProperty AassumeKeyFor AassumeInitialized WeakReference checkers''
+% LocalWords:  AinvocationPreservesArgumentNullness SpotBugs's

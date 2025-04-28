@@ -26,6 +26,7 @@ import org.checkerframework.dataflow.cfg.node.LocalVariableNode;
 import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.framework.flow.CFStore;
+import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.util.Contract;
@@ -108,17 +109,6 @@ public class ResourceLeakAnnotatedTypeFactory extends CalledMethodsAnnotatedType
         this.postInit();
     }
 
-    /**
-     * Is the given element a candidate to be an owning field? A candidate owning field must have a
-     * non-empty must-call obligation.
-     *
-     * @param element a element
-     * @return true iff the given element is a field with non-empty @MustCall obligation
-     */
-    /*package-private*/ boolean isFieldWithNonemptyMustCallValue(Element element) {
-        return element.getKind().isField() && !hasEmptyMustCallValue(element);
-    }
-
     @Override
     protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
         return getBundledTypeQualifiers(
@@ -161,6 +151,31 @@ public class ResourceLeakAnnotatedTypeFactory extends CalledMethodsAnnotatedType
     }
 
     /**
+     * Retrieves the {@code @MustCall} annotation for the given object, which can be either an
+     * {@link Element} or a {@link Tree}. This method delegates to the {@code
+     * MustCallAnnotatedTypeFactory} to get the annotated type of the input object and then extracts
+     * the primary {@code @MustCall} annotation from it.
+     *
+     * @param obj the object for which to retrieve the {@code @MustCall} annotation. Must be either
+     *     an instance of {@link Element} or {@link Tree}.
+     * @return the {@code @MustCall} annotation if present, null otherwise
+     * @throws IllegalArgumentException if the input object type is not supported
+     */
+    public AnnotationMirror getMustCallAnnotation(Object obj) {
+        MustCallAnnotatedTypeFactory mustCallAnnotatedTypeFactory =
+                getTypeFactoryOfSubchecker(MustCallChecker.class);
+        AnnotatedTypeMirror mustCallAnnotatedType;
+        if (obj instanceof Element) {
+            mustCallAnnotatedType = mustCallAnnotatedTypeFactory.getAnnotatedType((Element) obj);
+        } else if (obj instanceof Tree) {
+            mustCallAnnotatedType = mustCallAnnotatedTypeFactory.getAnnotatedType((Tree) obj);
+        } else {
+            throw new IllegalArgumentException("Unsupported type: " + obj.getClass().getName());
+        }
+        return mustCallAnnotatedType.getAnnotation(MustCall.class);
+    }
+
+    /**
      * Returns whether the {@link MustCall#value} element/argument of the @MustCall annotation on
      * the type of {@code tree} is definitely empty.
      *
@@ -171,17 +186,12 @@ public class ResourceLeakAnnotatedTypeFactory extends CalledMethodsAnnotatedType
      * @return true if the Must Call type is non-empty or top
      */
     /*package-private*/ boolean hasEmptyMustCallValue(Tree tree) {
-        MustCallAnnotatedTypeFactory mustCallAnnotatedTypeFactory =
-                getTypeFactoryOfSubchecker(MustCallChecker.class);
-        AnnotatedTypeMirror mustCallAnnotatedType =
-                mustCallAnnotatedTypeFactory.getAnnotatedType(tree);
-        AnnotationMirror mustCallAnnotation = mustCallAnnotatedType.getAnnotation(MustCall.class);
+        AnnotationMirror mustCallAnnotation = getMustCallAnnotation(tree);
         if (mustCallAnnotation != null) {
             return getMustCallValues(mustCallAnnotation).isEmpty();
         } else {
             // Indicates @MustCallUnknown, which should be treated (conservatively) as if it
-            // contains
-            // some must call values.
+            // contains some must call values.
             return false;
         }
     }
@@ -197,17 +207,12 @@ public class ResourceLeakAnnotatedTypeFactory extends CalledMethodsAnnotatedType
      * @return true if the Must Call type is non-empty or top
      */
     /*package-private*/ boolean hasEmptyMustCallValue(Element element) {
-        MustCallAnnotatedTypeFactory mustCallAnnotatedTypeFactory =
-                getTypeFactoryOfSubchecker(MustCallChecker.class);
-        AnnotatedTypeMirror mustCallAnnotatedType =
-                mustCallAnnotatedTypeFactory.getAnnotatedType(element);
-        AnnotationMirror mustCallAnnotation = mustCallAnnotatedType.getAnnotation(MustCall.class);
+        AnnotationMirror mustCallAnnotation = getMustCallAnnotation(element);
         if (mustCallAnnotation != null) {
             return getMustCallValues(mustCallAnnotation).isEmpty();
         } else {
             // Indicates @MustCallUnknown, which should be treated (conservatively) as if it
-            // contains
-            // some must call values.
+            // contains some must call values.
             return false;
         }
     }
@@ -380,7 +385,7 @@ public class ResourceLeakAnnotatedTypeFactory extends CalledMethodsAnnotatedType
     @SuppressWarnings("TypeParameterUnusedInFormals") // Intentional abuse
     public <T extends GenericAnnotatedTypeFactory<?, ?, ?, ?>>
             @Nullable T getTypeFactoryOfSubcheckerOrNull(
-                    Class<? extends BaseTypeChecker> subCheckerClass) {
+                    Class<? extends SourceChecker> subCheckerClass) {
         if (subCheckerClass == MustCallChecker.class) {
             if (!canCreateObligations()) {
                 return super.getTypeFactoryOfSubcheckerOrNull(
@@ -504,18 +509,19 @@ public class ResourceLeakAnnotatedTypeFactory extends CalledMethodsAnnotatedType
      * @return whether that method is one of the must-call methods for its enclosing class
      */
     private boolean isMustCallMethod(ExecutableElement elt) {
-        TypeElement containingClass = ElementUtils.enclosingTypeElement(elt);
+        TypeElement enclosingClass = ElementUtils.enclosingTypeElement(elt);
         MustCallAnnotatedTypeFactory mustCallAnnotatedTypeFactory =
                 getTypeFactoryOfSubchecker(MustCallChecker.class);
         AnnotationMirror mcAnno =
                 mustCallAnnotatedTypeFactory
-                        .getAnnotatedType(containingClass)
+                        .getAnnotatedType(enclosingClass)
                         .getAnnotationInHierarchy(mustCallAnnotatedTypeFactory.TOP);
         List<String> mcValues =
                 AnnotationUtils.getElementValueArray(
                         mcAnno,
                         mustCallAnnotatedTypeFactory.getMustCallValueElement(),
-                        String.class);
+                        String.class,
+                        Collections.emptyList());
         String methodName = elt.getSimpleName().toString();
         return mcValues.contains(methodName);
     }
