@@ -6,6 +6,8 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.qual.StubFiles;
 import org.checkerframework.framework.source.SupportedLintOptions;
 
+import java.util.NavigableSet;
+
 import javax.annotation.processing.SupportedOptions;
 
 /**
@@ -21,6 +23,8 @@ import javax.annotation.processing.SupportedOptions;
  * <ul>
  *   <li>{@code @SuppressWarnings("nullness")} suppresses warnings for nullness, initialization and
  *       keyfor annotations
+ *   <li>{@code @SuppressWarnings("nullnessnokeyfor")} suppresses warnings for nullness and
+ *       initialization annotations only
  *   <li>{@code @SuppressWarnings("initialization")} suppresses warnings for initialization
  *       annotations only
  *   <li>{@code @SuppressWarnings("nullnessnoinit")} suppresses warnings for nullness annotations
@@ -96,6 +100,13 @@ public class NullnessChecker extends InitializationChecker {
     @Override
     public boolean checkPrimitives() {
         return false;
+    }
+
+    @Override
+    public NavigableSet<String> getSuppressWarningsPrefixes() {
+        NavigableSet<String> result = super.getSuppressWarningsPrefixes();
+        result.add("nullnessnokeyfor");
+        return result;
     }
 
     @Override
