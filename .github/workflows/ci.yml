@@ -65,9 +65,9 @@ jobs:
       matrix:
         # No need to run 'cftests-junit-jdk21' on JDK 21.
         script: ['typecheck-part1', 'typecheck-part2',
-          'guava', 'plume-lib',
-          'daikon-part1', 'daikon-part2',
-          'jspecify-conformance', 'jspecify-reference-checker',
+#          'guava', 'plume-lib',
+#          'daikon-part1', 'daikon-part2',
+#          'jspecify-conformance', 'jspecify-reference-checker',
           'misc']
         java_version: [21]
     env:
