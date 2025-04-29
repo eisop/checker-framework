@@ -237,9 +237,8 @@ public class RLCCalledMethodsAnnotatedTypeFactory extends CalledMethodsAnnotated
      * type of {@code element}. If there is no such annotation, returns the empty list.
      *
      * <p>Do not use this method to get the MustCall values of an {@link
-     * org.checkerframework.checker.resourceleak.MustCallConsistencyAnalyzer.Obligation}. Instead,
-     * use {@link
-     * org.checkerframework.checker.resourceleak.MustCallConsistencyAnalyzer.Obligation#getMustCallMethods(RLCCalledMethodsAnnotatedTypeFactory,
+     * MustCallConsistencyAnalyzer.Obligation}. Instead, use {@link
+     * MustCallConsistencyAnalyzer.Obligation#getMustCallMethods(RLCCalledMethodsAnnotatedTypeFactory,
      * CFStore)}.
      *
      * <p>Do not call {@link List#isEmpty()} on the result of this method: prefer to call {@link
@@ -323,10 +322,8 @@ public class RLCCalledMethodsAnnotatedTypeFactory extends CalledMethodsAnnotated
      * inferred, type of the tree.
      *
      * <p>Do not use this method if you are trying to get the must-call obligations of the resource
-     * aliases of an {@link
-     * org.checkerframework.checker.resourceleak.MustCallConsistencyAnalyzer.Obligation}. Instead,
-     * use {@link
-     * org.checkerframework.checker.resourceleak.MustCallConsistencyAnalyzer.Obligation#getMustCallMethods(ResourceLeakAnnotatedTypeFactory,
+     * aliases of an {@link MustCallConsistencyAnalyzer.Obligation}. Instead, use {@link
+     * MustCallConsistencyAnalyzer.Obligation#getMustCallMethods(RLCCalledMethodsAnnotatedTypeFactory,
      * CFStore)}.
      *
      * @param tree a tree
