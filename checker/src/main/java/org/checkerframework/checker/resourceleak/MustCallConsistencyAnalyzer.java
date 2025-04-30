@@ -226,7 +226,7 @@ public class MustCallConsistencyAnalyzer {
      * alias is certainly a null pointer, or if the must-call obligation is the empty set), the
      * analysis can discard the Obligation.
      */
-    public static class Obligation {
+    /*package-private*/ static class Obligation {
 
         /**
          * The set of resource aliases through which a must-call obligation can be satisfied.
