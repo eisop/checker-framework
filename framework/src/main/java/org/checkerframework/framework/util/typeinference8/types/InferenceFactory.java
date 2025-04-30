@@ -1073,6 +1073,7 @@ public class InferenceFactory {
                 for (UseOfVariable ei : es) {
                     constraintSet.add(
                             new Typing(
+                                    "Exception constraint for %s" + expression,
                                     new ProperType(iter2.next(), xi, context),
                                     ei,
                                     TypeConstraint.Kind.SUBTYPE));

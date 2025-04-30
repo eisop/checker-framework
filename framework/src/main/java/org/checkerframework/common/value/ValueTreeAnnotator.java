@@ -287,7 +287,6 @@ class ValueTreeAnnotator extends TreeAnnotator {
 
             TypeMirror newType = atm.getUnderlyingType();
             AnnotationMirror newAnno;
-            Range range;
 
             if (TypesUtils.isString(newType) || newType.getKind() == TypeKind.ARRAY) {
                 // Strings and arrays do not allow conversions
@@ -305,10 +304,9 @@ class ValueTreeAnnotator extends TreeAnnotator {
                 } else {
                     // This re-computes a value from the condition above, but the code is easier to
                     // read like this.
-                    range = atypeFactory.getRange(oldAnno);
                     newAnno =
                             atypeFactory.createIntRangeAnnotation(
-                                    NumberUtils.castRange(newType, range));
+                                    NumberUtils.castRange(newType, atypeFactory.getRange(oldAnno)));
                 }
             } else {
                 List<?> values =
