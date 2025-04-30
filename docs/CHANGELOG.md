@@ -1,5 +1,27 @@
-Version 3.49.0-eisop1 (February ??, 2025)
------------------------------------------
+Version 3.49.2 (April 1, 2025)
+------------------------------
+
+**Closed issues:**
+
+#6747, #6755, #6789, #6891, #6963, #6996, #7001, #7008, #7014.
+
+
+Version 3.49.1-eisop2 (March ??, 2025)
+--------------------------------------
+
+**User-visible changes:**
+
+The Checker Framework runs under JDK 25 -- that is, it runs on a version 25 JVM.
+
+**Implementation details:**
+
+**Closed issues:**
+
+eisop#1051, eisop#1115, eisop#1180.
+
+
+Version 3.49.1-eisop1 (March 17, 2025)
+--------------------------------------
 
 **User-visible changes:**
 
@@ -14,7 +36,15 @@ bounds are used.
 
 **Closed issues:**
 
-eisop#1003, eisop#1033, eisop#1058.
+eisop#1003, eisop#1022, eisop#1033, eisop#1058.
+
+
+Version 3.49.1 (March 3, 2025)
+------------------------------
+
+**Closed issues:**
+
+#6970, #6974.
 
 
 Version 3.49.0 (February 3, 2025)
@@ -35,6 +65,7 @@ The JavaStubifier implementation now appears in package
 `org.checkerframework.framework.stubifier.JavaStubifier`.
 
 **Closed issues:**
+
 #6935, #6936, #6939.
 
 

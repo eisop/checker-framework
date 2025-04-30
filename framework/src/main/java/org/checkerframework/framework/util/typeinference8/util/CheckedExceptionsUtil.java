@@ -73,7 +73,7 @@ public class CheckedExceptionsUtil {
             if (result == null) {
                 result = new ArrayList<>();
             }
-            TypeMirror type = TreeUtils.typeOf(node);
+            TypeMirror type = TreeUtils.typeOf(node.getExpression());
             if (isCheckedException(type, context)) {
                 result.add(type);
             }
@@ -162,7 +162,7 @@ public class CheckedExceptionsUtil {
      */
     private static boolean isCheckedException(TypeMirror type, Java8InferenceContext context) {
         TypeMirror runtimeEx = context.runtimeEx;
-        return context.env.getTypeUtils().isSubtype(type, runtimeEx);
+        return !context.env.getTypeUtils().isSubtype(type, runtimeEx);
     }
 
     /**
@@ -215,7 +215,7 @@ public class CheckedExceptionsUtil {
             if (result == null) {
                 result = new ArrayList<>();
             }
-            AnnotatedTypeMirror type = context.typeFactory.getAnnotatedType(node);
+            AnnotatedTypeMirror type = context.typeFactory.getAnnotatedType(node.getExpression());
             if (isCheckedException(type, context)) {
                 result.add(type);
             }
@@ -314,6 +314,6 @@ public class CheckedExceptionsUtil {
     private static boolean isCheckedException(
             AnnotatedTypeMirror type, Java8InferenceContext context) {
         TypeMirror runtimeEx = context.runtimeEx;
-        return context.env.getTypeUtils().isSubtype(type.getUnderlyingType(), runtimeEx);
+        return !context.env.getTypeUtils().isSubtype(type.getUnderlyingType(), runtimeEx);
     }
 }

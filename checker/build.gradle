@@ -3,7 +3,7 @@ plugins {
     id 'base'
     // https://github.com/n0mer/gradle-git-properties
     // Generates file build/resources/main/git.properties when the `classes` task runs.
-    id 'com.gorylenko.gradle-git-properties' version '2.4.2'
+    id 'com.gorylenko.gradle-git-properties' version '2.5.0'
 }
 
 sourceSets {
@@ -83,9 +83,9 @@ dependencies {
     // For the Resource Leak Checker's support for JavaEE.
     testImplementation 'javax.servlet:javax.servlet-api:4.0.1'
     // For the Resource Leak Checker's support for IOUtils.
-    testImplementation 'commons-io:commons-io:2.18.0'
+    testImplementation 'commons-io:commons-io:2.19.0'
     // For the Nullness Checker test of junit-assertions.astub in JUnitNull.java
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.12.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.12.2'
     testImplementation 'org.apiguardian:apiguardian-api:1.1.2'
     // For tests that use JSpecify annotations
     testImplementation 'org.jspecify:jspecify:1.0.0'
@@ -94,7 +94,7 @@ dependencies {
     testImplementation 'org.apache.spark:spark-sql_2.12:3.3.2'
 
     // Required for checker/tests/index-initializedfields/RequireJavadoc.java
-    if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
+    if (isJava8) {
         testImplementation 'org.plumelib:options:1.0.6'
     } else {
         testImplementation 'org.plumelib:options:2.0.3'
@@ -122,6 +122,9 @@ interface InjectedExecOps {
 //   https://docs.gradle.org/7.1/userguide/validation_problems.html#implicit_dependency for more
 //   details about this problem.
 generateGitProperties.dependsOn(':installGitHooks')
+gitProperties {
+    dotGitDirectory = project.rootProject.layout.projectDirectory.dir(".git")
+}
 
 jar {
     manifest {
@@ -330,72 +333,25 @@ task exampleTests(type: Exec, dependsOn: assembleForJavac, group: 'Verification'
     args = ['-C', '../docs/examples']
 }
 
-task demosTests(dependsOn: assembleForJavac, group: 'Verification') {
+task demosTests(dependsOn: [assembleForJavac, ':getDemos'], group: 'Verification') {
     description = 'Test that the demos are working as expected.'
 
-    def injected = project.objects.newInstance(InjectedExecOps)
-
     doLast {
-        File demosDir = new File(projectDir, '../../checker-framework.demos');
-        if (!demosDir.exists()) {
-            injected.execOps.exec {
-                workingDir file(demosDir.toString() + '/../')
-                executable 'git'
-                args = [
-                    'clone',
-                    '--depth',
-                    '1',
-                    'https://github.com/eisop/checker-framework.demos.git'
-                ]
-            }
-        } else {
-            injected.execOps.exec {
-                workingDir demosDir
-                executable 'git'
-                args = [
-                    'pull',
-                    'https://github.com/eisop/checker-framework.demos.git'
-                ]
-                ignoreExitValue = true
-            }
-        }
         ant.properties.put('checker.lib', file("${projectDir}/dist/checker.jar").absolutePath)
         ant.ant(dir: demosDir.toString())
     }
 }
 
-task templateTests(dependsOn: assembleForJavac, group: 'Verification') {
+task templateforaCheckerTests(dependsOn: [
+    assembleForJavac,
+    ':getTemplateforaChecker'
+], group: 'Verification') {
     description = 'Test that the templatefora-checker is working as expected.'
-
     def injected = project.objects.newInstance(InjectedExecOps)
 
     doLast {
-        File templateforCheckerDir = new File(projectDir, '../../templatefora-checker');
-        if (!templateforCheckerDir.exists()) {
-            injected.execOps.exec {
-                workingDir file(templateforCheckerDir.toString() + '/../')
-                executable 'git'
-                args = [
-                    'clone',
-                    '--depth',
-                    '1',
-                    'https://github.com/eisop/templatefora-checker.git'
-                ]
-            }
-        } else {
-            injected.execOps.exec {
-                workingDir templateforCheckerDir
-                executable 'git'
-                args = [
-                    'pull',
-                    'https://github.com/eisop/templatefora-checker.git'
-                ]
-                ignoreExitValue = true
-            }
-        }
-        println "Running Gradle build in $templateforCheckerDir"
         injected.execOps.exec {
-            workingDir = templateforCheckerDir
+            workingDir = templateforaCheckerDir
             commandLine "./gradlew", "build"
         }
     }

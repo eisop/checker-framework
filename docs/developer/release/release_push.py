@@ -613,6 +613,10 @@ def main(argv):
             + "Gradle Plugin in docs/examples/lombok and docs/examples/errorprone .\n"
             + "The pull request's tests will fail; you will merge it in a day."
         )
+        continue_or_exit(
+            "Make a pull request to the Checker Framework that\n"
+            + "updates the CF version number in the BazelExample, by re-pinning the versions."
+        )
 
     delete_if_exists(RELEASE_BUILD_COMPLETED_FLAG_FILE)
 
