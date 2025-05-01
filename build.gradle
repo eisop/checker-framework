@@ -55,8 +55,7 @@ ext {
   // On a Java 9+ JVM, use the host javac, default source/target, and required module flags.
   isJava8 = (useJdkVersionInt == 8)
 
-  // As of 2024-12-24, delombok doesn't yet support JDK 24; see https://projectlombok.org/changelog .
-  // Keep in sync with check in docs/examples/lombok/Makefile
+  // As of 2025-04-28 (Lombok 1.18.38), delombok supports JDK 24-ea but not JDK 24 proper; see https://projectlombok.org/changelog .
   skipDelombok = (useJdkVersionInt >= 24)
 
   // NO-AFU
