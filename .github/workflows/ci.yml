@@ -149,6 +149,8 @@ jobs:
           - script: 'guava'
             java: {version: '17'}
           - script: 'misc'
+            java: {version: '8'}
+          - script: 'misc'
             java: {version: '11'}
           - script: 'misc'
             java: {version: '17'}

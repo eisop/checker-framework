@@ -25,7 +25,6 @@ repositories {
     mavenCentral()
 }
 
-
 def majorVersionToInt(majorVersionString) {
     if (majorVersionString.endsWith("-ea")) {
         majorVersionString = majorVersionString.substring(0, majorVersionString.length() - 3)
@@ -170,7 +169,7 @@ allprojects { currentProj ->
     //   * any new checkers have been added, or
     //   * backward-incompatible changes have been made to APIs or elsewhere.
     // To make a snapshot release, version should end in "-SNAPSHOT", then: ./gradlew publish
-    version = '3.49.1-eisop2-SNAPSHOT'
+    version = '3.49.2'
 
     apply plugin: 'java'
     apply plugin: 'eclipse'
@@ -282,9 +281,7 @@ allprojects { currentProj ->
         // add them to spotlessPredeclare block.
 
         // Always skip formatting of files under build directory
-        def doNotFormat = [
-            'build/**',
-        ]
+        def doNotFormat = ['build/**',]
         if (currentProj != project.rootProject) {
             if (perProjectDoNotFormat.containsKey(currentProj.name)) {
                 doNotFormat += perProjectDoNotFormat[currentProj.name]
@@ -298,6 +295,10 @@ allprojects { currentProj ->
             doNotFormat += ['**/java17/']
             // if (currentRuntimeJavaVersion < 21) {
             doNotFormat += ['tests/**/java21/']
+            // TODO: run Gradle on a JDK between 21 and 24.
+            if (currentRuntimeJavaVersion < 22) {
+                doNotFormat += ['tests/**/java22/']
+            }
         }
 
         format 'misc', {
@@ -525,7 +526,7 @@ allprojects { currentProj ->
             String lint = '-Xlint:-options,-fallthrough,-classfile'
 
             if (useJdkVersionInt >= 21) {
-                // TODO: Ignore this-escape for now, we may want to review and suppress each one later.
+                // TODO: Ignore this-escape warnings for now; perhaps review and suppress each one later.
                 lint +=',-this-escape'
             }
 
