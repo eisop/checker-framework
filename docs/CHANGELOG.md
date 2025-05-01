@@ -1,5 +1,16 @@
 Version 3.49.2 (April 1, 2025)
 ------------------------------
+The Nullness checker now has more fine-grained prefix options to suppress warnings:
+
+`@SuppressWarnings("nullness")` is used to suppress warnings from the Nullness Checker, the KeyFor Checker and the
+Initialization Checker.
+`@SuppressWarnings("nullnessnoinit")` is used to suppress warnings from the Nullness Checker and the KeyFor Checker.
+`@SuppressWarnings("nullnessnokeyfor")` is used to suppress warnings from the Nullness Checker and the Initialization
+Checker.
+`@SuppressWarnings("nullnessonly")` is used to suppress warnings from the Nullness Checker only.
+`@SuppressWarnings("initialization")` is used to suppress warnings from the Initialization Checker only.
+`@SuppressWarnings("keyfor")` is used to suppress warnings from the KeyFor Checker only.
+
 
 **Closed issues:**
 

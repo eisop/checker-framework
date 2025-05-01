@@ -10,6 +10,16 @@ import javax.annotation.processing.SupportedOptions;
  * A type-checker for determining which values are keys for which maps. Typically used as part of
  * the compound checker for the nullness type system.
  *
+ * <p>You can use the following {@link SuppressWarnings} prefixes with this checker:
+ *
+ * <ul>
+ *   <li>{@code @SuppressWarnings("nullness")} suppresses warnings for nullness, initialization and
+ *       keyfor annotations
+ *   <li>{@code @SuppressWarnings("nullnessnoinit")} suppresses warnings for nullness and keyfor
+ *       annotations only
+ *   <li>{@code @SuppressWarnings("keyfor")} suppresses warnings for keyfor annotations only
+ * </ul>
+ *
  * @checker_framework.manual #map-key-checker Map Key Checker
  * @checker_framework.manual #nullness-checker Nullness Checker
  */
