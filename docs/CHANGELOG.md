@@ -1,3 +1,13 @@
+Version 3.49.4 (June 1, 2025)
+-----------------------------
+
+**User-visible changes:**
+
+**Implementation details:**
+
+**Closed issues:**
+
+
 Version 3.49.3-eisop2 (June ??, 2025)
 -------------------------------------
 
@@ -54,6 +64,11 @@ eisop#1051, eisop#1115, eisop#1180.
 
 Version 3.49.3 (May 2, 2025)
 ----------------------------
+=======
+
+Version 3.49.3 (May 2, 2025)
+-----------------------------
+>>>>>>> 2fc11d24c6 (Prep for next release.)
 
 **User-visible changes:**
 
