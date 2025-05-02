@@ -112,6 +112,8 @@ public abstract class InitializationChecker extends BaseTypeChecker {
         // The default prefix "initialization" must be added manually because this checker class
         // is abstract and its subclasses are not named "InitializationChecker".
         result.add("initialization");
+        // The prefix to suppress both nullness and initialization warnings.
+        result.add("nullnessinit");
         return result;
     }
 
