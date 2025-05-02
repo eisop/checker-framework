@@ -5,7 +5,7 @@ public class Suppression {
 
     Object f;
 
-    @SuppressWarnings("nullnessnoinit")
+    @SuppressWarnings("nullnesskeyfor")
     void test() {
         String a = null;
         a.toString();
@@ -21,11 +21,11 @@ public class Suppression {
     @SuppressWarnings("nullness")
     Suppression() {}
 
-    @SuppressWarnings("nullnessnoinit")
+    @SuppressWarnings("nullnesskeyfor")
     // :: error: (initialization.fields.uninitialized)
     Suppression(int dummy) {}
 
-    @SuppressWarnings("nullnessnokeyfor")
+    @SuppressWarnings("nullnessinit")
     Suppression(int dummy, @Nullable Object o) {
         o.toString();
         String nonkey = "";
