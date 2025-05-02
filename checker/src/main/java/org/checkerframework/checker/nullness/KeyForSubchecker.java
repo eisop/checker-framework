@@ -15,7 +15,7 @@ import javax.annotation.processing.SupportedOptions;
  * <ul>
  *   <li>{@code @SuppressWarnings("nullness")} suppresses warnings for nullness, initialization, and
  *       keyfor annotations
- *   <li>{@code @SuppressWarnings("nullnessnoinit")} suppresses warnings for nullness and keyfor
+ *   <li>{@code @SuppressWarnings("nullnesskeyfor")} suppresses warnings for nullness and keyfor
  *       annotations only
  *   <li>{@code @SuppressWarnings("keyfor")} suppresses warnings for keyfor annotations only
  * </ul>
@@ -31,7 +31,7 @@ public class KeyForSubchecker extends BaseTypeChecker {
     @Override
     public NavigableSet<String> getSuppressWarningsPrefixes() {
         NavigableSet<String> result = super.getSuppressWarningsPrefixes();
-        result.add("nullnessnoinit");
+        result.add("nullnesskeyfor");
         result.add("nullness");
         return result;
     }
