@@ -13,7 +13,7 @@ import javax.annotation.processing.SupportedOptions;
  * <p>You can use the following {@link SuppressWarnings} prefixes with this checker:
  *
  * <ul>
- *   <li>{@code @SuppressWarnings("nullness")} suppresses warnings for nullness, initialization and
+ *   <li>{@code @SuppressWarnings("nullness")} suppresses warnings for nullness, initialization, and
  *       keyfor annotations
  *   <li>{@code @SuppressWarnings("nullnessnoinit")} suppresses warnings for nullness and keyfor
  *       annotations only

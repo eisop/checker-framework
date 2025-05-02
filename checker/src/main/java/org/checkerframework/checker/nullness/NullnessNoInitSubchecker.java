@@ -24,7 +24,7 @@ import java.util.Set;
  * <p>You can use the following {@link SuppressWarnings} prefixes with this checker:
  *
  * <ul>
- *   <li>{@code @SuppressWarnings("nullness")} suppresses warnings for nullness, initialization and
+ *   <li>{@code @SuppressWarnings("nullness")} suppresses warnings for nullness, initialization, and
  *       keyfor annotations
  *   <li>{@code @SuppressWarnings("nullnessnokeyfor")} suppresses warnings for nullness and
  *       initialization annotations only
