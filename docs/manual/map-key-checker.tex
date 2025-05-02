@@ -22,6 +22,8 @@ You can unsoundly suppress warnings related to map keys with
 \<@SuppressWarnings("keyfor")>, or everywhere by using command-line option
 \<-AsuppressWarnings=keyfor>; see \chapterpageref{suppressing-warnings}.
 
+More suppress warnings prefixes combined with other checker are available at Section~\ref{suppressing-warnings-nullness}.
+
 The command-line argument \<-AassumeKeyFor> makes the Map Key Checker
 unsoundly assume that the argument to \<Map.get> is a key for the receiver
 map.  This is like declaring the \<Map.get> method as \<V get(Object key)>
