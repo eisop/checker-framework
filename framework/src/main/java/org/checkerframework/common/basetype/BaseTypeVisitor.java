@@ -2917,7 +2917,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     @Override
     public Void visitInstanceOf(InstanceOfTree tree, Void p) {
-        if (!checker.getLintOption("instanceof.unsafe", true)) {
+        if (!checker.getLintOption("instanceof", true)) {
             return super.visitInstanceOf(tree, p);
         }
         // The "reference type" is the type after "instanceof".

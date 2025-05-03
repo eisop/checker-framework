@@ -215,7 +215,7 @@ public abstract class BaseTypeChecker extends SourceChecker {
         lintSet.add("cast");
         lintSet.add("cast:redundant");
         lintSet.add("cast:unsafe");
-        lintSet.add("instanceof:unsafe");
+        lintSet.add("instanceof");
         return lintSet;
     }
 
