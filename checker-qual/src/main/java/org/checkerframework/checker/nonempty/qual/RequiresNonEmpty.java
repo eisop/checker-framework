@@ -1,12 +1,11 @@
 package org.checkerframework.checker.nonempty.qual;
 
-import org.checkerframework.framework.qual.PreconditionAnnotation;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import org.checkerframework.framework.qual.PreconditionAnnotation;
 
 /**
  * Indicates a method precondition: the specified expressions that may be a {@link
@@ -72,26 +71,26 @@ import java.lang.annotation.Target;
 @PreconditionAnnotation(qualifier = NonEmpty.class)
 public @interface RequiresNonEmpty {
 
-    /**
-     * The Java {@link java.util.Collection collection}, {@link java.util.Iterator iterator}, {@link
-     * java.lang.Iterable iterable}, or {@link java.util.Map map} that must be non-empty.
-     *
-     * @return the Java expression that must be non-empty
-     */
-    String[] value();
+  /**
+   * The Java {@link java.util.Collection collection}, {@link java.util.Iterator iterator}, {@link
+   * java.lang.Iterable iterable}, or {@link java.util.Map map} that must be non-empty.
+   *
+   * @return the Java expression that must be non-empty
+   */
+  String[] value();
 
+  /**
+   * A wrapper annotation that makes the {@link RequiresNonEmpty} annotation repeatable.
+   *
+   * <p>Programmers generally do not need to write this. It is created by Java when a programmer
+   * writes more than one {@link RequiresNonEmpty} annotation at the same location.
+   */
+  @interface List {
     /**
-     * A wrapper annotation that makes the {@link RequiresNonEmpty} annotation repeatable.
+     * Returns the repeatable annotations.
      *
-     * <p>Programmers generally do not need to write this. It is created by Java when a programmer
-     * writes more than one {@link RequiresNonEmpty} annotation at the same location.
+     * @return the repeatable annotations
      */
-    @interface List {
-        /**
-         * Returns the repeatable annotations.
-         *
-         * @return the repeatable annotations
-         */
-        RequiresNonEmpty[] value();
-    }
+    RequiresNonEmpty[] value();
+  }
 }
