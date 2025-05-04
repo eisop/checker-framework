@@ -1,10 +1,8 @@
 package com.example;
 
-import org.checkerframework.checker.nullness.qual.NonNull;
-
 public class Demo {
 
-    public String generateGreeting(@NonNull String name) {
+    public String generateGreeting(String name) {
         if (name.isEmpty()) {
             return "Hello, World!";
         }

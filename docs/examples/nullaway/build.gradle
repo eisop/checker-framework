@@ -1,17 +1,17 @@
 // ///////////////////////////////////////////////////////////////////////////
-// Checker Framework nullness-checking and Error Prone NullAway example
+// Checker Framework pluggable type-checking and NullAway example
 //
 
 plugins {
     id 'java'
-    id 'net.ltgt.errorprone' version '4.1.0'
-    // Checker Framework nullness checking
-    id 'org.checkerframework' version '0.6.52' apply false
+    id 'net.ltgt.errorprone' version '4.2.0'
+    // Checker Framework pluggable type-checking
+    id 'org.checkerframework' version '0.6.53' apply false
 }
 
 ext {
     versions = [
-        eisopVersion: '3.42.0-eisop5',
+        eisopVersion: '3.49.1-eisop1',
     ]
 }
 
@@ -33,15 +33,10 @@ if (false) {
 }
 
 dependencies {
-    // Must use at least version 2.4.0 of Error Prone.
-    if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
-        errorprone 'com.google.errorprone:error_prone_core:2.10.0'
-    } else if (JavaVersion.current() < JavaVersion.VERSION_17) {
-        errorprone 'com.google.errorprone:error_prone_core:2.31.0'
-    } else {
-        errorprone 'com.google.errorprone:error_prone_core:2.36.0'
+    if (JavaVersion.current() >= JavaVersion.VERSION_17) {
+        errorprone 'com.google.errorprone:error_prone_core:2.38.0'
     }
-    errorprone 'com.uber.nullaway:nullaway:0.12.3'
+    errorprone 'com.uber.nullaway:nullaway:0.12.7'
 }
 
 repositories {
@@ -65,8 +60,9 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 compileJava {
-    // Error Prone's checkers are only executed if no warnings are reported.
-    // Therefore, we downgrade the NullAway violations to warnings so that both
-    // Error Prone (with NullAway) and the Checker Framework nullness checker can run.
-    options.errorprone.warn("NullAway")
+    options.errorprone.enabled = (JavaVersion.current() >= JavaVersion.VERSION_17)
+    // A checker will only run if Error Prone does not issue any warnings.  So
+    // convert the expected error to a warning to test that both Error Prone with NullAway
+    // and the Nullness Checker run.
+    options.errorprone.warn('CollectionIncompatibleType')
 }
