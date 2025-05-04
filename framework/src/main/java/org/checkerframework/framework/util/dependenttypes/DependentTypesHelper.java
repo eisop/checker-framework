@@ -149,7 +149,7 @@ public class DependentTypesHelper {
    */
   public DependentTypesHelper(AnnotatedTypeFactory atypeFactory) {
     this.atypeFactory = atypeFactory;
-    this.errorAnnoReplacer = new ErrorAnnoReplacer(factory.getQualifierHierarchy());
+    this.errorAnnoReplacer = new ErrorAnnoReplacer(atypeFactory.getQualifierHierarchy());
     this.annoToElements = new HashMap<>();
     for (Class<? extends Annotation> expressionAnno : atypeFactory.getSupportedTypeQualifiers()) {
       List<ExecutableElement> elementList =
@@ -1252,7 +1252,7 @@ public class DependentTypesHelper {
       super(
           (AnnotatedTypeMirror type, Void aVoid) -> {
             AnnotationMirrorSet replacementAnnos = null;
-            for (AnnotationMirror am : type.getPrimaryAnnotations()) {
+            for (AnnotationMirror am : type.getAnnotations()) {
               if (isExpressionAnno(am) && !errorElements(am).isEmpty()) {
                 if (replacementAnnos == null) {
                   replacementAnnos = new AnnotationMirrorSet();

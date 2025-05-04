@@ -275,7 +275,7 @@ public class KeyForAnnotatedTypeFactory
 
       // The annotations on `declaredMethodType` will be copied to `methodType`.
       AnnotatedExecutableType declaredMethodType =
-          (AnnotatedExecutableType) factory.getAnnotatedType(methodElt);
+          (AnnotatedExecutableType) atypeFactory.getAnnotatedType(methodElt);
       if (!hasDependentType(declaredMethodType)) {
         return;
       }
@@ -285,7 +285,7 @@ public class KeyForAnnotatedTypeFactory
           stringExpr -> {
             JavaExpression result =
                 StringToJavaExpression.atMethodInvocation(
-                    stringExpr, methodInvocationTree, factory.getChecker());
+                    stringExpr, methodInvocationTree, atypeFactory.getChecker());
             Unknown unknown = result.containedOfClass(Unknown.class);
             if (unknown != null) {
               throw JavaExpressionParseUtil.constructJavaExpressionParseError(

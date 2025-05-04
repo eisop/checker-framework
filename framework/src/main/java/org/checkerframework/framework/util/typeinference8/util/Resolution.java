@@ -344,14 +344,13 @@ public class Resolution {
       if (lubProperType.getAnnotatedType().getKind() != TypeKind.TYPEVAR) {
         Set<? extends AnnotationMirror> newLubAnnos =
             qh.leastUpperBoundsQualifiersOnly(
-                lubAnnos, lubProperType.getAnnotatedType().getPrimaryAnnotations());
+                lubAnnos, lubProperType.getAnnotatedType().getAnnotations());
         lubProperType.getAnnotatedType().replaceAnnotations(newLubAnnos);
       } else {
 
         AnnotatedTypeVariable lubTV = (AnnotatedTypeVariable) lubProperType.getAnnotatedType();
         Set<? extends AnnotationMirror> newLubAnnos =
-            qh.leastUpperBoundsQualifiersOnly(
-                lubAnnos, lubTV.getLowerBound().getPrimaryAnnotations());
+            qh.leastUpperBoundsQualifiersOnly(lubAnnos, lubTV.getLowerBound().getAnnotations());
         lubTV.getLowerBound().replaceAnnotations(newLubAnnos);
       }
     }
