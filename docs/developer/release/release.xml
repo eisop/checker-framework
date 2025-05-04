@@ -142,12 +142,14 @@
                        match="eisopVersion: '${release.version.regexp}'"
                        replace="eisopVersion: '${release.ver}'"/>
 
+        <!-- Do not replace version in BazelExample, as the files also contain checksums. Instead, run `pin` again.
         <replaceregexp file="${cf.docs.examples}/BazelExample/maven_install.json" byline="true"
                        match="${old.release.ver}"
                        replace="${release.ver}"/>
         <replaceregexp file="${cf.docs.examples}/BazelExample/MODULE.bazel" byline="true"
                        match="${release.version.regexp}"
                        replace="${release.ver}"/>
+        -->
 
     </target>
 

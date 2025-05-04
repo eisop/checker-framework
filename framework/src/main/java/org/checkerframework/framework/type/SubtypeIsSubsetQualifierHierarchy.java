@@ -36,6 +36,10 @@ public class SubtypeIsSubsetQualifierHierarchy extends MostlyNoElementQualifierH
      * @param processingEnv processing environment
      * @param atypeFactory the associated type factory
      */
+    @SuppressWarnings({
+        "keyfor:argument.type.incompatible",
+        "nullness:argument.type.incompatible"
+    }) // TODO: EISOP Issue #1193
     public SubtypeIsSubsetQualifierHierarchy(
             Collection<Class<? extends Annotation>> qualifierClasses,
             ProcessingEnvironment processingEnv,
