@@ -10,13 +10,14 @@
 
 package annotatedfor;
 
-import annotatedforlib.Test;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
+import annotatedforlib.Test;
+
 public class UseTest {
-  void test(Test<String> test) {
-    test.method1(null);
-    test.method2(null);
-    @NonNull Object o = test.method3();
-  }
+    void test(Test<String> test) {
+        test.method1(null);
+        test.method2(null);
+        @NonNull Object o = test.method3();
+    }
 }

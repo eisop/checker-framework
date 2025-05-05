@@ -15,10 +15,10 @@ import java.lang.annotation.Target;
 @Target({ElementType.CONSTRUCTOR, ElementType.FIELD, ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.CLASS)
 public @interface CheckDiscard {
-  /**
-   * Describes why the element should be discarded.
-   *
-   * @return reason for discarding (crbug links are preferred unless reason is trivial).
-   */
-  String value();
+    /**
+     * Describes why the element should be discarded.
+     *
+     * @return reason for discarding (crbug links are preferred unless reason is trivial).
+     */
+    String value();
 }
