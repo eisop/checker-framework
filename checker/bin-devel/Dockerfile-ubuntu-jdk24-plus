@@ -96,6 +96,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
   pdf2svg \
   rsync \
   shellcheck \
+  shfmt \
   texlive-font-utils \
   texlive-fonts-recommended \
   texlive-latex-base \
@@ -116,6 +117,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 && PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install lithium-reducer \
 && PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install PyGithub \
 && PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install pyyaml
+&& PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install ruff
 
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt-get autoremove \
