@@ -8,11 +8,13 @@ import com.sun.source.tree.ThrowTree;
 import com.sun.source.tree.TryTree;
 import com.sun.source.util.TreeScanner;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import javax.lang.model.type.TypeKind;
@@ -34,14 +36,16 @@ public class CheckedExceptionsUtil {
      */
     public static List<TypeMirror> thrownCheckedExceptions(
             LambdaExpressionTree lambda, Java8InferenceContext context) {
-        return new CheckedExceptionVisitor(context).scan(lambda, null);
+        @Nullable List<TypeMirror> result = new CheckedExceptionVisitor(context).scan(lambda, null);
+        return result != null ? result : Collections.emptyList();
     }
 
     /**
      * Helper class for gathering the types of checked exceptions in a lambda. See
      * https://docs.oracle.com/javase/specs/jls/se9/html/jls-11.html#jls-11.2.2
      */
-    private static class CheckedExceptionVisitor extends TreeScanner<List<TypeMirror>, Void> {
+    private static class CheckedExceptionVisitor
+            extends TreeScanner<@Nullable List<TypeMirror>, Void> {
 
         /** the context. */
         private final Java8InferenceContext context;
@@ -174,7 +178,9 @@ public class CheckedExceptionsUtil {
      */
     public static List<AnnotatedTypeMirror> thrownCheckedExceptionsATM(
             LambdaExpressionTree lambda, Java8InferenceContext context) {
-        return new CheckedExceptionATMVisitor(context).scan(lambda, null);
+        @Nullable List<AnnotatedTypeMirror> result =
+                new CheckedExceptionATMVisitor(context).scan(lambda, null);
+        return result != null ? result : Collections.emptyList();
     }
 
     /**
@@ -182,7 +188,7 @@ public class CheckedExceptionsUtil {
      * https://docs.oracle.com/javase/specs/jls/se9/html/jls-11.html#jls-11.2.2
      */
     private static class CheckedExceptionATMVisitor
-            extends TreeScanner<List<AnnotatedTypeMirror>, Void> {
+            extends TreeScanner<@Nullable List<AnnotatedTypeMirror>, Void> {
 
         /** The context. */
         private final Java8InferenceContext context;

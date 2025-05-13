@@ -15,6 +15,7 @@ compile:
 	$(MAKE) -C errorprone
 	$(MAKE) -C BazelExample
 	$(MAKE) -C nullaway
+	$(MAKE) -C jspecify
 
 # TODO: type check the different files with the right checker;
 #   some tests expect errors, compare against expected errors.
@@ -29,3 +30,4 @@ clean:
 	$(MAKE) -C errorprone clean
 	$(MAKE) -C BazelExample clean
 	$(MAKE) -C nullaway clean
+	$(MAKE) -C jspecify clean

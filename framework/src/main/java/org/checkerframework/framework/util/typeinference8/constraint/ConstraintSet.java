@@ -213,7 +213,8 @@ public class ConstraintSet implements ReductionResult {
         // c.
         // (Influence means that neither variable can depend on the other.)
         // The JLS does not specify whether this subset should be as large as possible, but this
-        // implementation returns the largest subset possible.
+        // implementation returns only one constraint. This seems to match the javac implementation.
+        // Issue7019.java shows an example where returning the largest set fails.
         for (Constraint constraint : c.list) {
             if (constraint.getKind() == Kind.EXPRESSION
                     || constraint.getKind() == Kind.LAMBDA_EXCEPTION
@@ -242,7 +243,15 @@ public class ConstraintSet implements ReductionResult {
         }
 
         if (!subset.isEmpty()) {
-            return subset;
+            // Return the first expression constraint; if there are none, return the first
+            // constraint.
+            for (Constraint constraint : subset.list) {
+                if (constraint.getKind() == Kind.EXPRESSION) {
+                    return new ConstraintSet(constraint);
+                }
+            }
+
+            return new ConstraintSet(subset.list.get(0));
         }
 
         // TODO: double check that this code is correct.
