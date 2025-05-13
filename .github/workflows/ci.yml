@@ -198,7 +198,6 @@ jobs:
         # Install the requested JDK second, to make it the default on which everything else runs.
         java-version: ${{ matrix.java.version }}
         distribution: 'temurin'
-
     - name: Inject JAVA_HOME_21_64 into `gradle.properties` to always use JDK 21 for Gradle
       run: mkdir ~/.gradle && echo "org.gradle.java.home=$JAVA_HOME_21_X64" >> ~/.gradle/gradle.properties
 
