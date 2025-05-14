@@ -56,7 +56,7 @@ public abstract class MostlyNoElementQualifierHierarchy extends ElementQualifier
                             ? extends @Nullable @UnknownInitialization @UnknownKeyFor Object,
                             ? extends @Nullable @UnknownInitialization @UnknownKeyFor Object,
                             ? extends @Nullable @UnknownInitialization @UnknownKeyFor Object,
-                            ? extends @Nullable @UnknownInitialization @UnknownKeyFor Object>
+                            @UnknownKeyFor ? extends @Nullable @UnknownInitialization @UnknownKeyFor Object>
                     atypeFactory) {
         super(qualifierClasses, elements, atypeFactory);
     }
