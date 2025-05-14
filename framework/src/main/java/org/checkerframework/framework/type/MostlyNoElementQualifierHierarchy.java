@@ -1,6 +1,8 @@
 package org.checkerframework.framework.type;
 
+import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.util.QualifierKind;
 import org.checkerframework.framework.util.QualifierKindHierarchy;
@@ -51,10 +53,10 @@ public abstract class MostlyNoElementQualifierHierarchy extends ElementQualifier
             Collection<Class<? extends Annotation>> qualifierClasses,
             Elements elements,
             GenericAnnotatedTypeFactory<
-                            ? extends @Nullable Object,
-                            ? extends @Nullable Object,
-                            ? extends @Nullable Object,
-                            ? extends @Nullable Object>
+                            ? extends @Nullable @UnknownInitialization @UnknownKeyFor Object,
+                            ? extends @Nullable @UnknownInitialization @UnknownKeyFor Object,
+                            ? extends @Nullable @UnknownInitialization @UnknownKeyFor Object,
+                            ? extends @Nullable @UnknownInitialization @UnknownKeyFor Object>
                     atypeFactory) {
         super(qualifierClasses, elements, atypeFactory);
     }
