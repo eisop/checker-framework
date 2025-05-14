@@ -50,7 +50,12 @@ public abstract class MostlyNoElementQualifierHierarchy extends ElementQualifier
     protected MostlyNoElementQualifierHierarchy(
             Collection<Class<? extends Annotation>> qualifierClasses,
             Elements elements,
-            GenericAnnotatedTypeFactory<?, ?, ?, ?> atypeFactory) {
+            GenericAnnotatedTypeFactory<
+                            ? extends @Nullable Object,
+                            ? extends @Nullable Object,
+                            ? extends @Nullable Object,
+                            ? extends @Nullable Object>
+                    atypeFactory) {
         super(qualifierClasses, elements, atypeFactory);
     }
 
