@@ -1,5 +1,6 @@
 package org.checkerframework.framework.type;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.util.QualifierKind;
 import org.checkerframework.javacutil.AnnotationBuilder;
@@ -39,7 +40,12 @@ public class SubtypeIsSubsetQualifierHierarchy extends MostlyNoElementQualifierH
     public SubtypeIsSubsetQualifierHierarchy(
             Collection<Class<? extends Annotation>> qualifierClasses,
             ProcessingEnvironment processingEnv,
-            GenericAnnotatedTypeFactory<?, ?, ?, ?> atypeFactory) {
+            GenericAnnotatedTypeFactory<
+                            ? extends @Nullable Object,
+                            ? extends @Nullable Object,
+                            ? extends @Nullable Object,
+                            ? extends @Nullable Object>
+                    atypeFactory) {
         super(qualifierClasses, processingEnv.getElementUtils(), atypeFactory);
         this.processingEnv = processingEnv;
     }
