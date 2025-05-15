@@ -1030,7 +1030,7 @@ subprojects {
                         '-AskipUses=com\\.sun\\.*',
                         // If a file does not contain @AnnotatedFor("nullness"), all its routines are assumed to return @Nullable.
                         '-AuseConservativeDefaultsForUncheckedCode=source',
-                        '-AatfCacheSize=10000',
+                        '-AprintVerboseGenerics',
                         '-AconservativeArgumentNullnessAfterInvocation=true',
                     ])
         } else {
