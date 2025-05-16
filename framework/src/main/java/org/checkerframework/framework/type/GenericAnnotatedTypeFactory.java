@@ -16,9 +16,11 @@ import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.formatter.qual.FormatMethod;
+import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.dataflow.analysis.Analysis;
@@ -139,10 +141,14 @@ import javax.lang.model.util.Types;
  * AnnotatedTypeFactory}; it is not clear why they are defined in this class.
  */
 public abstract class GenericAnnotatedTypeFactory<
-                Value extends CFAbstractValue<Value>,
-                Store extends CFAbstractStore<Value, Store>,
-                TransferFunction extends CFAbstractTransfer<Value, Store, TransferFunction>,
-                FlowAnalysis extends CFAbstractAnalysis<Value, Store, TransferFunction>>
+                @UnknownKeyFor @Initialized Value extends @UnknownKeyFor @Initialized CFAbstractValue<Value>,
+                @UnknownKeyFor @Initialized Store extends @UnknownKeyFor @Initialized CFAbstractStore<Value, Store>,
+                @UnknownKeyFor @Initialized TransferFunction extends
+                        @UnknownKeyFor @Initialized CFAbstractTransfer<
+                                        Value, Store, TransferFunction>,
+                @UnknownKeyFor @Initialized FlowAnalysis extends
+                        @UnknownKeyFor @Initialized CFAbstractAnalysis<
+                                        Value, Store, TransferFunction>>
         extends AnnotatedTypeFactory {
 
     /**
