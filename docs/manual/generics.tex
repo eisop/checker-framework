@@ -306,14 +306,12 @@ before the \<?>.  For example:
 
 For an unbounded wildcard (\code{<?>}, with neither
 bound specified), the annotation in front of a wildcard applies
-to both bounds.  The following three declarations are equivalent (except
-that you cannot write the bottom type \<void>; note that
-\sunjavadoc{java.base/java/lang/Void.html}{Void} does not denote the bottom type):
+to both bounds.  The following three declarations are equivalent:
 
 \begin{Verbatim}
   List<@NonNull ?> lnn;
   List<@NonNull ? extends @NonNull Object> lnn;
-  List<@NonNull ? super @NonNull void> lnn;
+  List<@NonNull ? super @NonNull Void> lnn;
 \end{Verbatim}
 
 \noindent
