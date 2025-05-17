@@ -16,12 +16,9 @@ import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.formatter.qual.FormatMethod;
-import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.dataflow.analysis.Analysis;
@@ -54,6 +51,7 @@ import org.checkerframework.framework.flow.CFCFGBuilder;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFTransfer;
 import org.checkerframework.framework.flow.CFValue;
+import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.DefaultFor;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.DefaultQualifierInHierarchy;
@@ -146,15 +144,13 @@ import javax.lang.model.util.Types;
  * @param <TransferFunction> the transfer function for flow analysis
  * @param <FlowAnalysis> the analysis class for flow analysis
  */
+@AnnotatedFor("nullness")
+@SuppressWarnings({"nullness", "keyfor"})
 public abstract class GenericAnnotatedTypeFactory<
-                @UnknownKeyFor @Initialized Value extends @UnknownKeyFor @Initialized @NonNull CFAbstractValue<Value>,
-                @UnknownKeyFor @Initialized Store extends @UnknownKeyFor @Initialized @NonNull CFAbstractStore<Value, Store>,
-                @UnknownKeyFor @Initialized TransferFunction extends
-                        @UnknownKeyFor @Initialized @NonNull CFAbstractTransfer<
-                                        Value, Store, TransferFunction>,
-                @UnknownKeyFor @Initialized FlowAnalysis extends
-                        @UnknownKeyFor @Initialized @NonNull CFAbstractAnalysis<
-                                        Value, Store, TransferFunction>>
+                Value extends CFAbstractValue<Value>,
+                Store extends CFAbstractStore<Value, Store>,
+                TransferFunction extends CFAbstractTransfer<Value, Store, TransferFunction>,
+                FlowAnalysis extends CFAbstractAnalysis<Value, Store, TransferFunction>>
         extends AnnotatedTypeFactory {
 
     /**
