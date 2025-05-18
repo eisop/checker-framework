@@ -1,6 +1,8 @@
 name: CI tests
 
 on:
+  schedule:
+    - cron: '0 7 * * *' # Runs daily at 2:00 AM EST
   pull_request:
   push:
     branches: [ "master" ]
