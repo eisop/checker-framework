@@ -210,6 +210,31 @@ public class Resolver {
     }
 
     /**
+     * Reflectively create a `Log.DiagnosticHandler`. Java 25 changed this class from a static
+     * member class to a non-static inner class. Reflectively creating an instance is easy, however,
+     * as both take the same arguments.
+     *
+     * @param log the (enclosing) Log instance
+     * @return a new Log.DiscardDiagnosticHandler
+     */
+    protected static Log.DiagnosticHandler createDiscardDiagnosticHandler(Log log) {
+        Constructor<Log.DiscardDiagnosticHandler> cons;
+        try {
+            cons = Log.DiscardDiagnosticHandler.class.getConstructor(Log.class);
+        } catch (NoSuchMethodException nsme) {
+            throw new BugInCF("Could not find Log.DiscardDiagnosticHandler constructor");
+        }
+        Log.DiagnosticHandler res;
+        try {
+            res = cons.newInstance(log);
+        } catch (IllegalAccessException | InstantiationException | InvocationTargetException e) {
+            throw new BugInCF(
+                    "Exception when invoking Log.DiscardDiagnosticHandler constructor", e);
+        }
+        return res;
+    }
+
+    /**
      * Finds the package with name {@code name}.
      *
      * @param name the name of the package
@@ -217,7 +242,7 @@ public class Resolver {
      * @return the {@code PackageSymbol} for the package if it is found, {@code null} otherwise
      */
     public @Nullable PackageSymbol findPackage(String name, TreePath path) {
-        Log.DiagnosticHandler discardDiagnosticHandler = new Log.DiscardDiagnosticHandler(log);
+        Log.DiagnosticHandler discardDiagnosticHandler = createDiscardDiagnosticHandler(log);
         try {
             Env<AttrContext> env = getEnvForPath(path);
             final Element res;
@@ -262,7 +287,7 @@ public class Resolver {
      * @return the element for the field, {@code null} otherwise
      */
     public @Nullable VariableElement findField(String name, TypeMirror type, TreePath path) {
-        Log.DiagnosticHandler discardDiagnosticHandler = new Log.DiscardDiagnosticHandler(log);
+        Log.DiagnosticHandler discardDiagnosticHandler = createDiscardDiagnosticHandler(log);
         try {
             Env<AttrContext> env = getEnvForPath(path);
             final Element res;
@@ -308,7 +333,7 @@ public class Resolver {
      * @return the element for the local variable, {@code null} otherwise
      */
     public @Nullable VariableElement findLocalVariableOrParameter(String name, TreePath path) {
-        Log.DiagnosticHandler discardDiagnosticHandler = new Log.DiscardDiagnosticHandler(log);
+        Log.DiagnosticHandler discardDiagnosticHandler = createDiscardDiagnosticHandler(log);
         try {
             Env<AttrContext> env = getEnvForPath(path);
             // Either a VariableElement or a SymbolNotFoundError.
@@ -356,7 +381,7 @@ public class Resolver {
      * @return the element for the class
      */
     public Element findClass(String name, TreePath path) {
-        Log.DiagnosticHandler discardDiagnosticHandler = new Log.DiscardDiagnosticHandler(log);
+        Log.DiagnosticHandler discardDiagnosticHandler = createDiscardDiagnosticHandler(log);
         try {
             Env<AttrContext> env = getEnvForPath(path);
             return wrapInvocationOnResolveInstance(FIND_TYPE, env, names.fromString(name));
@@ -374,7 +399,7 @@ public class Resolver {
      * @return the {@code ClassSymbol} for the class if it is found, {@code null} otherwise
      */
     public @Nullable ClassSymbol findClassInPackage(String name, PackageSymbol pck, TreePath path) {
-        Log.DiagnosticHandler discardDiagnosticHandler = new Log.DiscardDiagnosticHandler(log);
+        Log.DiagnosticHandler discardDiagnosticHandler = createDiscardDiagnosticHandler(log);
         try {
             Env<AttrContext> env = getEnvForPath(path);
             final Element res;
@@ -428,7 +453,7 @@ public class Resolver {
             TypeMirror receiverType,
             TreePath path,
             java.util.List<TypeMirror> argumentTypes) {
-        Log.DiagnosticHandler discardDiagnosticHandler = new Log.DiscardDiagnosticHandler(log);
+        Log.DiagnosticHandler discardDiagnosticHandler = createDiscardDiagnosticHandler(log);
         try {
             Env<AttrContext> env = getEnvForPath(path);
 

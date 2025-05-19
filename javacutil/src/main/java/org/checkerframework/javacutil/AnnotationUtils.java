@@ -88,7 +88,7 @@ public class AnnotationUtils {
     /**
      * Returns the fully-qualified name of an annotation as a String.
      *
-     * <p>This is more efficient than calling {@link annotationName} and {@link
+     * <p>This is more efficient than calling {@link #annotationName} and {@link
      * java.lang.String#intern}.
      *
      * @param annotation the annotation whose name to return

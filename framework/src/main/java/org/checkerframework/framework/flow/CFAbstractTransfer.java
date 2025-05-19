@@ -24,6 +24,7 @@ import org.checkerframework.dataflow.cfg.UnderlyingAST;
 import org.checkerframework.dataflow.cfg.UnderlyingAST.CFGLambda;
 import org.checkerframework.dataflow.cfg.UnderlyingAST.CFGMethod;
 import org.checkerframework.dataflow.cfg.node.AbstractNodeVisitor;
+import org.checkerframework.dataflow.cfg.node.AnyPatternNode;
 import org.checkerframework.dataflow.cfg.node.ArrayAccessNode;
 import org.checkerframework.dataflow.cfg.node.AssignmentNode;
 import org.checkerframework.dataflow.cfg.node.CaseNode;
@@ -338,8 +339,12 @@ public abstract class CFAbstractTransfer<
             }
 
             for (LocalVariableNode p : parameters) {
-                AnnotatedTypeMirror anno = atypeFactory.getAnnotatedType(p.getElement());
-                store.initializeMethodParameter(p, analysis.createAbstractValue(anno));
+                try {
+                    AnnotatedTypeMirror anno = atypeFactory.getAnnotatedType(p.getElement());
+                    store.initializeMethodParameter(p, analysis.createAbstractValue(anno));
+                } catch (Exception e) {
+                    throw new BugInCF("Problem in parameter " + p + " of lambda " + lambda, e);
+                }
             }
 
             @SuppressWarnings("interning:assignment.type.incompatible") // used in == tests
@@ -1167,6 +1172,13 @@ public abstract class CFAbstractTransfer<
     public TransferResult<V, S> visitDeconstructorPattern(
             DeconstructorPatternNode n, TransferInput<V, S> in) {
         // TODO: Implement getting the type of a DeconstructorPatternTree.
+        V value = null;
+        return createTransferResult(value, in);
+    }
+
+    @Override
+    public TransferResult<V, S> visitAnyPattern(AnyPatternNode n, TransferInput<V, S> in) {
+        // This is an unnamed variable, so ignored it.
         V value = null;
         return createTransferResult(value, in);
     }
