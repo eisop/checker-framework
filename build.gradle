@@ -16,6 +16,7 @@ plugins {
     id 'groovy'
     // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
     // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
+    // Only works on JDK 11+ (even including the plugin crashes Gradle on JDK 8).
     id 'com.diffplug.spotless' version '7.0.3'
 }
 
@@ -54,8 +55,7 @@ ext {
     // On a Java 9+ JVM, use the host javac, default source/target, and required module flags.
     isJava8 = (useJdkVersionInt == 8)
 
-    // As of 2024-12-24, delombok doesn't yet support JDK 24; see https://projectlombok.org/changelog .
-    // Keep in sync with check in docs/examples/lombok/Makefile
+    // As of 2025-04-28 (Lombok 1.18.38), delombok supports JDK 24-ea but not JDK 24 proper; see https://projectlombok.org/changelog .
     skipDelombok = (useJdkVersionInt >= 24)
 
     // NO-AFU
@@ -169,7 +169,7 @@ allprojects { currentProj ->
     //   * any new checkers have been added, or
     //   * backward-incompatible changes have been made to APIs or elsewhere.
     // To make a snapshot release, version should end in "-SNAPSHOT", then: ./gradlew publish
-    version = '3.49.2'
+    version = '3.49.3-eisop1'
 
     apply plugin: 'java'
     apply plugin: 'eclipse'
@@ -953,7 +953,8 @@ subprojects {
     if (!project.name.startsWith('checker-qual-android')) {
         task tags(type: Exec) {
             description = 'Create Emacs TAGS table'
-            commandLine 'bash', '-c', "find . \\( -name build -o -name jtreg -o -name tests \\) -prune -o -name '*.java' -print | sort-directory-order | xargs ctags -e -f TAGS"
+            // `ctags -e -f TAGS` used to work in place of `etags`, but apparently no longer.
+            commandLine 'bash', '-c', "find . \\( -name build -o -name jtreg -o -name tests \\) -prune -o -name '*.java' -print | sort-directory-order | xargs etags"
         }
     }
 

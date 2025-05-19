@@ -1,34 +1,55 @@
-Version 3.49.2 (April 1, 2025)
+Version 3.49.3-eisop2 (May ??, 2025)
 ------------------------------
+**User-visible changes:**
+
 The Nullness checker now has more fine-grained prefix options to suppress warnings:
 
 - `@SuppressWarnings("nullness")` is used to suppress warnings from the Nullness Checker, the KeyFor Checker, and the
-Initialization Checker.
+  Initialization Checker.
 - `@SuppressWarnings("nullnesskeyfor")` is used to suppress warnings from the Nullness Checker and the KeyFor Checker.
 - `@SuppressWarnings("nullnessinit")` is used to suppress warnings from the Nullness Checker and the Initialization
-Checker.
+  Checker.
 - `@SuppressWarnings("nullnessonly")` is used to suppress warnings from the Nullness Checker only.
 - `@SuppressWarnings("initialization")` is used to suppress warnings from the Initialization Checker only.
 - `@SuppressWarnings("keyfor")` is used to suppress warnings from the KeyFor Checker only.
 
 
-**Closed issues:**
-
-#6747, #6755, #6789, #6891, #6963, #6996, #7001, #7008, #7014.
-
-
-Version 3.49.1-eisop2 (March ??, 2025)
---------------------------------------
-
+Version 3.49.3-eisop1 (May 6, 2025)
+-----------------------------------
 **User-visible changes:**
 
 The Checker Framework runs under JDK 25 -- that is, it runs on a version 25 JVM.
 
 **Implementation details:**
 
+Gradle should now be run with at least JDK 17.
+The `ORG_GRADLE_PROJECT_useJdkVersion` environment variable can be used to
+select a different JDK for the actual compilation and testing.
+
 **Closed issues:**
 
 eisop#1051, eisop#1115, eisop#1180.
+
+
+Version 3.49.3 (May 2, 2025)
+------------------------------
+
+**User-visible changes:**
+
+The Checker Framework runs under JDK 24 -- that is, it runs on a version 24 JVM.
+(EISOP note: this has been working for a while already.)
+
+**Closed issues:**
+
+#6520, #6671, #6750, #6762, #6887, #7001, #7019, #7024, #7029, #7053.
+
+
+Version 3.49.2 (April 1, 2025)
+------------------------------
+
+**Closed issues:**
+
+#6747, #6755, #6789, #6891, #6963, #6996, #7001, #7008, #7014.
 
 
 Version 3.49.1-eisop1 (March 17, 2025)
