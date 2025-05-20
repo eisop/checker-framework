@@ -1,8 +1,11 @@
+import org.checkerframework.checker.nullness.qual.KeyFor;
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 public class Suppression {
 
     Object f;
 
-    @SuppressWarnings("nullnessnoinit")
+    @SuppressWarnings("nullnesskeyfor")
     void test() {
         String a = null;
         a.toString();
@@ -16,9 +19,52 @@ public class Suppression {
     }
 
     @SuppressWarnings("nullness")
-    Suppression() {}
+    Suppression(@Nullable Object o) {
+        o.toString();
+        String nonkey = "";
+        @KeyFor("map") String key = nonkey;
+    }
 
-    @SuppressWarnings("nullnessnoinit")
+    @SuppressWarnings("nullnesskeyfor")
     // :: error: (initialization.fields.uninitialized)
-    Suppression(int dummy) {}
+    Suppression(@Nullable Object o, int dummy) {
+        o.toString();
+        String nonkey = "";
+        @KeyFor("map") String key = nonkey;
+    }
+
+    @SuppressWarnings("nullnessinit")
+    Suppression(@Nullable Object o, int dummy1, int dummy2) {
+        o.toString();
+        String nonkey = "";
+        // :: error: (assignment.type.incompatible) :: error: (expression.unparsable.type.invalid)
+        @KeyFor("map") String key = nonkey;
+    }
+
+    @SuppressWarnings("nullnessonly")
+    // :: error: (initialization.fields.uninitialized)
+    Suppression(@Nullable Object o, int dummy1, int dummy2, int dummy3) {
+        o.toString();
+        String nonkey = "";
+        // :: error: (assignment.type.incompatible) :: error: (expression.unparsable.type.invalid)
+        @KeyFor("map") String key = nonkey;
+    }
+
+    @SuppressWarnings("keyfor")
+    // :: error: (initialization.fields.uninitialized)
+    Suppression(@Nullable Object o, int dummy1, int dummy2, int dummy3, int dummy4) {
+        // :: error: (dereference.of.nullable)
+        o.toString();
+        String nonkey = "";
+        @KeyFor("map") String key = nonkey;
+    }
+
+    @SuppressWarnings("initialization")
+    Suppression(@Nullable Object o, int dummy1, int dummy2, int dummy3, int dummy4, int dummy5) {
+        // :: error: (dereference.of.nullable)
+        o.toString();
+        String nonkey = "";
+        // :: error: (assignment.type.incompatible) :: error: (expression.unparsable.type.invalid)
+        @KeyFor("map") String key = nonkey;
+    }
 }

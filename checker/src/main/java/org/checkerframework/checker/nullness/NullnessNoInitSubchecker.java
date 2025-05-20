@@ -20,6 +20,18 @@ import java.util.Set;
  *
  * <p>The {@link NullnessChecker} uses this checker as the target (see {@link
  * InitializationChecker#getTargetCheckerClass()}) for its initialization type system.
+ *
+ * <p>You can use the following {@link SuppressWarnings} prefixes with this checker:
+ *
+ * <ul>
+ *   <li>{@code @SuppressWarnings("nullness")} suppresses warnings for nullness, initialization, and
+ *       keyfor annotations
+ *   <li>{@code @SuppressWarnings("nullnesskeyfor")} suppresses warnings for nullness and keyfor
+ *       annotations only
+ *   <li>{@code @SuppressWarnings("nullnessinit")} suppresses warnings for nullness and
+ *       initialization annotations only
+ *   <li>{@code @SuppressWarnings("nullnessonly")} suppresses warnings for nullness annotations only
+ * </ul>
  */
 @StubFiles({"junit-assertions.astub"})
 public class NullnessNoInitSubchecker extends BaseTypeChecker {
@@ -45,6 +57,9 @@ public class NullnessNoInitSubchecker extends BaseTypeChecker {
     @Override
     public NavigableSet<String> getSuppressWarningsPrefixes() {
         NavigableSet<String> result = super.getSuppressWarningsPrefixes();
+        result.add("nullnessonly");
+        result.add("nullnesskeyfor");
+        result.add("nullnessinit");
         result.add("nullness");
         return result;
     }

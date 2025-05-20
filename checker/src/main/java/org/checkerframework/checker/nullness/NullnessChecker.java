@@ -19,12 +19,16 @@ import javax.annotation.processing.SupportedOptions;
  * <p>You can use the following {@link SuppressWarnings} prefixes with this checker:
  *
  * <ul>
- *   <li>{@code @SuppressWarnings("nullness")} suppresses warnings for both nullness and
- *       initialization annotations
+ *   <li>{@code @SuppressWarnings("nullness")} suppresses warnings for nullness, initialization, and
+ *       keyfor annotations
+ *   <li>{@code @SuppressWarnings("nullnessinit")} suppresses warnings for nullness and
+ *       initialization annotations only
+ *   <li>{@code @SuppressWarnings("nullnesskeyfor")} suppresses warnings for nullness and keyfor
+ *       annotations only
+ *   <li>{@code @SuppressWarnings("nullnessonly")} suppresses warnings for nullness annotations only
  *   <li>{@code @SuppressWarnings("initialization")} suppresses warnings for initialization
  *       annotations only
- *   <li>{@code @SuppressWarnings("nullnessnoinit")} suppresses warnings for nullness annotations
- *       only
+ *   <li>{@code @SuppressWarnings("keyfor")} suppresses warnings for keyfor annotations only
  * </ul>
  *
  * @see KeyForSubchecker
