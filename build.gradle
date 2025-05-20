@@ -1,30 +1,23 @@
 import de.undercouch.gradle.tasks.download.Download
 
-buildscript {
-    dependencies {
-        if (JavaVersion.current() >= JavaVersion.VERSION_11) {
-            // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
-            // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
-            // Only works on JDK 11+.
-            classpath 'com.diffplug.spotless:spotless-plugin-gradle:7.0.2'
-        }
-    }
-}
-
 plugins {
     // https://plugins.gradle.org/plugin/com.gradleup.shadow
-    id 'com.gradleup.shadow' version '8.3.1'
+    id 'com.gradleup.shadow' version '8.3.6'
     // https://plugins.gradle.org/plugin/de.undercouch.download
     id 'de.undercouch.download' version '5.6.0'
     id 'java'
     // https://github.com/tbroyer/gradle-errorprone-plugin
-    id 'net.ltgt.errorprone' version '4.1.0'
+    id 'net.ltgt.errorprone' version '4.2.0'
     // https://docs.gradle.org/current/userguide/eclipse_plugin.html
     id 'eclipse'
     // To show task list as a tree, run: ./gradlew <taskname> taskTree
     id 'com.dorongold.task-tree' version '4.0.1'
     // needed for formatting Gradle files
     id 'groovy'
+    // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
+    // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
+    // Only works on JDK 11+ (even including the plugin crashes Gradle on JDK 8).
+    id 'com.diffplug.spotless' version '7.0.3'
 }
 
 // There is another `repositories { ... }` block below; if you change this one, change that one as well.
@@ -32,7 +25,6 @@ repositories {
     maven { url = 'https://oss.sonatype.org/content/repositories/snapshots/'}
     mavenCentral()
 }
-
 
 def majorVersionToInt(majorVersionString) {
     if (majorVersionString.endsWith("-ea")) {
@@ -46,18 +38,25 @@ ext {
     // Can also be achieved by having a project property with the same name.
     eisopFormatting = true || project.hasProperty('eisopFormatting')
 
-    // On a Java 8 JVM, use error-prone javac and source/target 8.
-    // On a Java 9+ JVM, use the host javac, default source/target, and required module flags.
-    isJava8 = JavaVersion.current() == JavaVersion.VERSION_1_8
+    parentDir = file("${rootDir}/../").absolutePath
 
     // The int corresponding to the major version of the current JVM.
     currentRuntimeJavaVersion = majorVersionToInt(JavaVersion.current().getMajorVersion())
 
-    // As of 2024-12-24, delombok doesn't yet support JDK 24; see https://projectlombok.org/changelog .
-    // Keep in sync with check in docs/examples/lombok/Makefile
-    skipDelombok = currentRuntimeJavaVersion >= 24
+    String useJdkVersionProp = project.getProperties().get('useJdkVersion')
+    if (useJdkVersionProp == null) {
+        // If the property is not given, use the same version as the runtime.
+        useJdkVersionInt = currentRuntimeJavaVersion
+    } else {
+        useJdkVersionInt = majorVersionToInt(useJdkVersionProp)
+    }
 
-    parentDir = file("${rootDir}/../").absolutePath
+    // On a Java 8 JVM, use error-prone javac and source/target 8.
+    // On a Java 9+ JVM, use the host javac, default source/target, and required module flags.
+    isJava8 = (useJdkVersionInt == 8)
+
+    // As of 2025-04-28 (Lombok 1.18.38), delombok supports JDK 24-ea but not JDK 24 proper; see https://projectlombok.org/changelog .
+    skipDelombok = (useJdkVersionInt >= 24)
 
     // NO-AFU
     // annotationTools = "${parentDir}/annotation-tools"
@@ -84,14 +83,14 @@ ext {
         //  * Temporarily comment out "-Werror" elsewhere in this file
         //  * Repeatedly run `./gradlew clean compileJava` and fix all errors
         //  * Uncomment "-Werror"
-        errorprone      : '2.36.0',
+        errorprone      : '2.38.0',
         googleJavaFormat : '1.25.2',
         hashmapUtil     : '0.0.1',
         junit           : '4.13.2',
-        lombok          : '1.18.36',
+        lombok          : '1.18.38',
         // plume-util includes a version of reflection-util. When updating ensure the versions are consistent.
-        plumeUtil       : '1.9.3',
-        reflectionUtil  : '1.1.3',
+        plumeUtil       : '1.10.1',
+        reflectionUtil  : '1.1.5',
     ]
 }
 
@@ -132,37 +131,35 @@ task installGitHooks(type: Copy, dependsOn: 'setLocalRepo') {
     into localRepo + '/hooks'
 }
 
-if (currentRuntimeJavaVersion >= 11) {
-    apply plugin: 'com.diffplug.spotless'
-    spotless {
-        // Resolve the Spotless plugin dependencies from the buildscript repositories rather than the
-        // project repositories.  That way the spotless plugin does not use the locally built version of
-        // checker-qual as a dependency. Without this, errors like the follow are issued when running
-        // a spotless task without a locally-built version of checker-qual.jar:
-        // Could not determine the dependencies of task ':checker-qual:spotlessCheck'.
-        //  > Could not create task ':checker-qual:spotlessJavaCheck'.
-        //     > Could not create task ':checker-qual:spotlessJava'.
-        //        > File signature can only be created for existing regular files, given:
-        //          .../checker-framework/checker-qual/build/libs/checker-qual-3.25.1-SNAPSHOT.jar
-        predeclareDepsFromBuildscript()
-    }
+apply plugin: 'com.diffplug.spotless'
+spotless {
+    // Resolve the Spotless plugin dependencies from the buildscript repositories rather than the
+    // project repositories.  That way the spotless plugin does not use the locally built version of
+    // checker-qual as a dependency. Without this, errors like the follow are issued when running
+    // a spotless task without a locally-built version of checker-qual.jar:
+    // Could not determine the dependencies of task ':checker-qual:spotlessCheck'.
+    //  > Could not create task ':checker-qual:spotlessJavaCheck'.
+    //     > Could not create task ':checker-qual:spotlessJava'.
+    //        > File signature can only be created for existing regular files, given:
+    //          .../checker-framework/checker-qual/build/libs/checker-qual-3.25.1-SNAPSHOT.jar
+    predeclareDepsFromBuildscript()
+}
 
-    spotlessPredeclare {
-        // Put all the formatters that have dependencies here.  Without this, errors like the following
-        // will happen:
-        // Could not determine the dependencies of task ':spotlessCheck'.
-        //  > Could not create task ':spotlessJavaCheck'.
-        //     > Could not create task ':spotlessJava'.
-        //        > Add a step with [com.google.googlejavaformat:google-java-format:1.15.0] into the `spotlessPredeclare` block in the root project.
-        java {
-            googleJavaFormat(versions.googleJavaFormat)
-        }
-        groovyGradle {
-            greclipse()
-        }
-        groovy {
-            greclipse()
-        }
+spotlessPredeclare {
+    // Put all the formatters that have dependencies here.  Without this, errors like the following
+    // will happen:
+    // Could not determine the dependencies of task ':spotlessCheck'.
+    //  > Could not create task ':spotlessJavaCheck'.
+    //     > Could not create task ':spotlessJava'.
+    //        > Add a step with [com.google.googlejavaformat:google-java-format:1.15.0] into the `spotlessPredeclare` block in the root project.
+    java {
+        googleJavaFormat(versions.googleJavaFormat)
+    }
+    groovyGradle {
+        greclipse()
+    }
+    groovy {
+        greclipse()
     }
 }
 
@@ -172,11 +169,7 @@ allprojects { currentProj ->
     //   * any new checkers have been added, or
     //   * backward-incompatible changes have been made to APIs or elsewhere.
     // To make a snapshot release, version should end in "-SNAPSHOT", then: ./gradlew publish
-    version = '3.49.1-eisop2-SNAPSHOT'
-
-    tasks.withType(JavaCompile).configureEach {
-        options.fork = true
-    }
+    version = '3.49.3-eisop1'
 
     apply plugin: 'java'
     apply plugin: 'eclipse'
@@ -208,12 +201,8 @@ allprojects { currentProj ->
     }
 
     dependencies {
-        if (currentRuntimeJavaVersion >= 17) {
-            errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: versions.errorprone
-        } else {
-            // EP 2.31.0 is the last release that works on Java < 17.
-            errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: '2.31.0'
-        }
+        // Always include Error Prone, but it will not always be enabled.
+        errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: versions.errorprone
         // Always define javacJar, not just when `isJava8` is true, because we redistribute it in checker/build.gradle.
         javacJar group: 'com.google.errorprone', name: 'javac', version: "9+181-r4173-1"
 
@@ -265,130 +254,115 @@ allprojects { currentProj ->
         ]
     }
 
-    if (currentRuntimeJavaVersion >= 11) {
-        apply plugin: 'com.diffplug.spotless'
-        // patterns of files to skip for individual sub-projects
-        def perProjectDoNotFormat = [
-            'checker': [
-                'bin-devel/.git-scripts/**',
-                'bin-devel/.plume-scripts/**',
-                'dist/**',
-                'tests/ainfer-*/annotated/*',
-                'tests/build/**',
-                'tests/calledmethods-delomboked/*',
-                'tests/nullness-javac-errors/*',
-            ],
-            'dataflow': ['manual/examples/'],
-            'framework': [
-                'tests/build/**',
-                'tests/returnsreceiverdelomboked/*',
-            ],
-        ]
-        spotless {
-            // If you add any formatters to this block that require dependencies, then you must also
-            // add them to spotlessPredeclare block.
+    apply plugin: 'com.diffplug.spotless'
+    // patterns of files to skip for individual sub-projects
+    def perProjectDoNotFormat = [
+        'checker': [
+            'bin-devel/.git-scripts/**',
+            'bin-devel/.plume-scripts/**',
+            'dist/**',
+            'tests/ainfer-*/annotated/**',
+            'tests/build/**',
+            'tests/calledmethods-delomboked/**',
+            'tests/nullness-javac-errors/**',
+        ],
+        'dataflow': ['manual/examples/**'],
+        'docs': [
+            'examples/BazelExample/bazel-BazelExample/**',
+            'examples/lombok/build/**'
+        ],
+        'framework': [
+            'tests/build/**',
+            'tests/returnsreceiverdelomboked/**',
+        ],
+    ]
+    spotless {
+        // If you add any formatters to this block that require dependencies, then you must also
+        // add them to spotlessPredeclare block.
 
-            // Always skip formatting of files under build directory
-            def doNotFormat = [
-                'build/**',
-                'docs/examples/BazelExample/bazel-BazelExample',
-                'examples/lombok/build/**'
-            ]
-            if (currentProj != project.rootProject) {
-                if (perProjectDoNotFormat.containsKey(currentProj.name)) {
-                    doNotFormat += perProjectDoNotFormat[currentProj.name]
-                }
-                if (currentRuntimeJavaVersion < 14) {
-                    doNotFormat += ['**/*record*/']
-                }
-                if (currentRuntimeJavaVersion < 16) {
-                    // TODO: directories should be renamed `-switchexpr` or some such,
-                    // as they  only contain examples for switch expressions, which were
-                    // added in Java 14, not Java 17.
-                    doNotFormat += ['**/java17/']
-                }
-                if (currentRuntimeJavaVersion < 21) {
-                    doNotFormat += ['tests/**/java21/']
-                }
+        // Always skip formatting of files under build directory
+        def doNotFormat = ['build/**',]
+        if (currentProj != project.rootProject) {
+            if (perProjectDoNotFormat.containsKey(currentProj.name)) {
+                doNotFormat += perProjectDoNotFormat[currentProj.name]
             }
+            // if (currentRuntimeJavaVersion < 14) {
+            doNotFormat += ['**/*record*/']
+            // if (currentRuntimeJavaVersion < 16) {
+            // TODO: directories should be renamed `-switchexpr` or some such,
+            // as they  only contain examples for switch expressions, which were
+            // added in Java 14, not Java 17.
+            doNotFormat += ['**/java17/']
+            // if (currentRuntimeJavaVersion < 21) {
+            doNotFormat += ['tests/**/java21/']
+            // TODO: run Gradle on a JDK between 21 and 24.
+            if (currentRuntimeJavaVersion < 22) {
+                doNotFormat += ['tests/**/java22/']
+            }
+        }
 
-            format 'misc', {
-                // define the files to apply `misc` to
-                target '*.md', '*.tex', '.gitignore', 'Makefile'
+        format 'misc', {
+            // define the files to apply `misc` to
+            target '*.md', '*.tex', '.gitignore', 'Makefile'
+            targetExclude doNotFormat
+            // define the steps to apply to those files
+            leadingTabsToSpaces(2)
+            trimTrailingWhitespace()
+            // endWithNewline() // Don't want to end empty files with a newline
+        }
+
+        groovy {
+            target 'buildSrc/**/*.groovy'
+            importOrder()
+
+            // removes semicolons at the end of lines
+            removeSemicolons()
+            greclipse()
+            leadingTabsToSpaces(2)
+            trimTrailingWhitespace()
+        }
+
+        java {
+            if (currentProj != currentProj.rootProject) {
+                // not the root project; format all .java and .ajava files in the sub-project
+                target '**/*.java', '**/*.ajava'
+            }
+            targetExclude doNotFormat
+
+            if (eisopFormatting) {
+                googleJavaFormat(versions.googleJavaFormat).aosp()
+                importOrder('com', 'jdk', 'lib', 'lombok', 'org', 'java', 'javax')
+            } else {
+                googleJavaFormat(versions.googleJavaFormat) // the formatter to apply to Java files
+            }
+            formatAnnotations().addTypeAnnotation("PolyInitialized").addTypeAnnotation("PolyVP").addTypeAnnotation("ReceiverDependentQual")
+        }
+
+        // Only define a groovyGradle task on the root project, for simplicity in setting the target pattern
+        if (currentProj == currentProj.rootProject) {
+            groovyGradle {
+                target '**/*.gradle'
                 targetExclude doNotFormat
-                // define the steps to apply to those files
-                leadingTabsToSpaces(2)
+                greclipse()  // which formatter Spotless should use to format .gradle files.
+                if (eisopFormatting) {
+                    leadingTabsToSpaces(4)
+                } else {
+                    leadingTabsToSpaces(2)
+                }
                 trimTrailingWhitespace()
                 // endWithNewline() // Don't want to end empty files with a newline
             }
+        }
 
-            groovy {
-                target 'buildSrc/**/*.groovy'
-                importOrder()
+        // a useful task for debugging; prints exactly which files are getting formatted by spotless
+        tasks.register('printSpotlessTaskInputs') {
+            doLast {
+                project.tasks.forEach { task ->
+                    if (task.name.contains('spotless')) {
+                        println "Inputs for task '${task.name}':"
 
-                // removes semicolons at the end of lines
-                removeSemicolons()
-                greclipse()
-                leadingTabsToSpaces(2)
-                trimTrailingWhitespace()
-            }
-
-            java {
-                if (currentProj == currentProj.rootProject) {
-                    // format .java files outside of Gradle sub-projects
-                    def targets = [
-                        'docs/examples',
-                        'docs/tutorial',
-                    ]
-                    targets = targets.collectMany {
-                        [
-                            // must call toString() to convert GString to String
-                            "${it}/**/*.java".toString(),
-                            // Not .ajava files because formatting would remove import statements.
-                        ]
-                    }
-                    target targets
-                } else {
-                    // not the root project; format all .java files in the sub-project
-                    target '**/*.java', '**/*.ajava'
-                }
-                targetExclude doNotFormat
-
-                if (eisopFormatting) {
-                    googleJavaFormat(versions.googleJavaFormat).aosp()
-                    importOrder('com', 'jdk', 'lib', 'lombok', 'org', 'java', 'javax')
-                } else {
-                    googleJavaFormat(versions.googleJavaFormat) // the formatter to apply to Java files
-                }
-                formatAnnotations().addTypeAnnotation("PolyInitialized").addTypeAnnotation("PolyVP").addTypeAnnotation("ReceiverDependentQual")
-            }
-
-            // Only define a groovyGradle task on the root project, for simplicity in setting the target pattern
-            if (currentProj == currentProj.rootProject) {
-                groovyGradle {
-                    target '**/*.gradle'
-                    targetExclude doNotFormat
-                    greclipse()  // which formatter Spotless should use to format .gradle files.
-                    if (eisopFormatting) {
-                        leadingTabsToSpaces(4)
-                    } else {
-                        leadingTabsToSpaces(2)
-                    }
-                    trimTrailingWhitespace()
-                    // endWithNewline() // Don't want to end empty files with a newline
-                }
-            }
-
-            // a useful task for debugging; prints exactly which files are getting formatted by spotless
-            tasks.register('printSpotlessTaskInputs') {
-                doLast {
-                    project.tasks.forEach { task ->
-                        if (task.name.contains('spotless')) {
-                            println "Inputs for task '${task.name}':"
-
-                            task.inputs.files.each { inputFile ->
-                                println "  Input: $inputFile"
-                            }
+                        task.inputs.files.each { inputFile ->
+                            println "  Input: $inputFile"
                         }
                     }
                 }
@@ -412,6 +386,33 @@ allprojects { currentProj ->
 
         dependencies {
             checkerFatJar(project(path: ':checker', configuration: 'fatJar'))
+        }
+
+        boolean useToolchains = (currentRuntimeJavaVersion != useJdkVersionInt)
+        if (useToolchains) {
+            // This uses the requested Java toolchain.
+            // On CI, gradle always runs with JDK 21 and different versions are selected as toolchains.
+            // CI test test-cftests-junit-jdk21 runs the JUnit tests on the different JDK versions,
+            // to ensure there is no version mismatch between compiled-against javac APIs and runtime APIs.
+            //   https://docs.gradle.org/current/userguide/toolchains.html
+            java {
+                toolchain {
+                    languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
+                }
+            }
+
+            // JavaExec does not automatically inherit the toolchain JDK (!).
+            tasks.withType(JavaExec).configureEach {
+                javaLauncher = javaToolchains.launcherFor {
+                    languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
+                }
+            }
+            // JavaCompile also seems to need an extra push...
+            tasks.withType(JavaCompile).configureEach {
+                javaCompiler = javaToolchains.compilerFor {
+                    languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
+                }
+            }
         }
 
         // Add the fat checker.jar to the classpath of every Javadoc task. This allows Javadoc in
@@ -462,25 +463,6 @@ allprojects { currentProj ->
         // Add standard javac options
         tasks.withType(JavaCompile) { compilationTask ->
             dependsOn(':installGitHooks')
-            String useJdkCompilerProp = project.getProperties().get('useJdkCompiler')
-            int useJdkCompiler
-            if (useJdkCompilerProp == null) {
-                // If the property is not given, use the same version as the runtime.
-                useJdkCompiler = currentRuntimeJavaVersion
-            } else {
-                useJdkCompiler = majorVersionToInt(useJdkCompilerProp)
-                boolean useToolchains = (currentRuntimeJavaVersion != useJdkCompiler)
-                if (!isJava8 && useToolchains) {
-                    // This uses the requested Java compiler to compile all code.
-                    // CI test test-cftests-junit-jdk21 runs the JUnit tests on the different JDK versions,
-                    // to ensure there is no version mismatch between compiled-against javac APIs and runtime APIs.
-                    //   https://docs.gradle.org/current/userguide/toolchains.html
-                    // This property is final on Java 8, so don't set it then.
-                    javaCompiler = javaToolchains.compilerFor {
-                        languageVersion = JavaLanguageVersion.of(useJdkCompiler)
-                    }
-                }
-            }
 
             // Sorting is commented out because it disables incremental compilation.
             // Uncomment when needed.
@@ -542,13 +524,10 @@ allprojects { currentProj ->
             //   warnings are suppressible with a "// fall through" comment.
             // -classfile: classgraph jar file and https://bugs.openjdk.org/browse/JDK-8190452
             String lint = '-Xlint:-options,-fallthrough,-classfile'
-            // Java 8 uses the Error Prone javac, not what is requested with useJdkCompiler.
-            // So there is no need to set additional lint options.
-            if (!isJava8) {
-                if (useJdkCompiler >= 21) {
-                    // TODO: Ignore this-escape for now, we may want to review and suppress each one later.
-                    lint +=',-this-escape'
-                }
+
+            if (useJdkVersionInt >= 21) {
+                // TODO: Ignore this-escape warnings for now; perhaps review and suppress each one later.
+                lint +=',-this-escape'
             }
 
             options.compilerArgs += [
@@ -572,7 +551,7 @@ allprojects { currentProj ->
                 // Error Prone must be available in the annotation processor path
                 options.annotationProcessorPath = configurations.errorProneAnnotationProcessor
                 // Enable Error Prone
-                options.errorprone.enabled = (useJdkCompiler >= 17) && (useJdkCompiler <= 23)
+                options.errorprone.enabled = (useJdkVersionInt >= 17) && (useJdkVersionInt <= 24)
                 options.errorprone.disableWarningsInGeneratedCode = true
                 options.errorprone.errorproneArgs = [
                     // Many compiler classes are interned.
@@ -602,6 +581,14 @@ allprojects { currentProj ->
                     // https://github.com/google/error-prone/issues/436
                     '-Werror',
                 ]
+
+                if (compilationTask.name.equals('compileTestJava')) {
+                    options.errorprone.errorproneArgs.addAll([
+                        // Some Value Checker tests use int literals intentionally(?).
+                        '-Xep:IntLiteralCast:OFF'
+                    ])
+                }
+
                 if (!isJava8) {
                     // Options needed for Error Prone on Java 16+, but don't hurt on Java 9+
                     options.forkOptions.jvmArgs += [
@@ -666,8 +653,8 @@ def createCheckTypeTask(projectName, taskName, checker, args = []) {
             '-AnoJreVersionCheck',
         ]
         options.compilerArgs += args
-        options.forkOptions.jvmArgs += ['-Xmx2g']
 
+        // TODO: the options below should be inherited from JavaCompile. Why does this need to be repeated?
         if (isJava8) {
             options.compilerArgs += [
                 '-source',
@@ -966,7 +953,8 @@ subprojects {
     if (!project.name.startsWith('checker-qual-android')) {
         task tags(type: Exec) {
             description = 'Create Emacs TAGS table'
-            commandLine 'bash', '-c', "find . \\( -name build -o -name jtreg -o -name tests \\) -prune -o -name '*.java' -print | sort-directory-order | xargs ctags -e -f TAGS"
+            // `ctags -e -f TAGS` used to work in place of `etags`, but apparently no longer.
+            commandLine 'bash', '-c', "find . \\( -name build -o -name jtreg -o -name tests \\) -prune -o -name '*.java' -print | sort-directory-order | xargs etags"
         }
     }
 
@@ -1056,7 +1044,7 @@ subprojects {
 
         // Add jtregTests to framework and checker modules.
         // Jtreg only works on Java 11+.
-        if (currentRuntimeJavaVersion >= 11 && (isFramework || isChecker)) {
+        if (useJdkVersionInt >= 11 && (isFramework || isChecker)) {
             tasks.create(name: 'jtregTests', type: Exec, group: 'Verification') {
                 description = 'Run the jtreg tests. Requires jtreg to be installed.'
                 dependsOn(':downloadJtreg')
@@ -1200,7 +1188,7 @@ subprojects {
         // Create a nonJunitTests task per project
         tasks.create(name: 'nonJunitTests', group: 'Verification') {
             description = 'Run all Checker Framework tests except for the JUnit tests and inference tests.'
-            if (currentRuntimeJavaVersion >= 11 && (isFramework || isChecker)) {
+            if (useJdkVersionInt >= 11 && (isFramework || isChecker)) {
                 dependsOn('jtregTests')
             }
             if (isFramework) {
