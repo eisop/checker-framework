@@ -373,6 +373,7 @@ public class OptionalImplVisitor
             return;
         }
 
+        // `thenStmt` may be null because it may be swapped with `elseStmt`, just below.
         StatementTree thenStmt = skipBlocks(tree.getThenStatement());
         StatementTree elseStmt = skipBlocks(tree.getElseStatement());
         if (!isPresentCall.first) {
@@ -416,7 +417,7 @@ public class OptionalImplVisitor
             }
         }
 
-        if (thenStmt.getKind() != Tree.Kind.EXPRESSION_STATEMENT) {
+        if (thenStmt == null || thenStmt.getKind() != Tree.Kind.EXPRESSION_STATEMENT) {
             return;
         }
         ExpressionTree thenExpr = ((ExpressionStatementTree) thenStmt).getExpression();

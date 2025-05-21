@@ -1,20 +1,9 @@
-buildscript {
-    dependencies {
-        if (JavaVersion.current() >= JavaVersion.VERSION_17) {
-            // bnd builder depends on Java 17.
-            // As EISOP releases are made on Java 21, this shouldn't impact releases.
-            classpath('biz.aQute.bnd:biz.aQute.bnd.gradle:7.1.0')
-        }
-    }
-}
-
 plugins {
     id 'java-library'
+    id 'biz.aQute.bnd.builder' version '7.1.0'
 }
 
-if (JavaVersion.current() >= JavaVersion.VERSION_17) {
-    apply plugin: 'biz.aQute.bnd.builder'
-}
+apply plugin: 'biz.aQute.bnd.builder'
 
 sourceSets {
     main {
@@ -37,7 +26,7 @@ task compileJava9(type: JavaCompile) {
 }
 
 compileJava {
-    if (JavaVersion.current() >= JavaVersion.VERSION_1_9) {
+    if (!isJava8) {
         dependsOn compileJava9
     }
 }
