@@ -2191,7 +2191,7 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * Applies defaults for types in a class with an qualifier parameter.
+     * Applies defaults for types in a class with a qualifier parameter.
      *
      * <p>Within a class with {@code @HasQualifierParameter}, types with that class default to the
      * polymorphic qualifier rather than the typical default. Local variables with a type that has a
