@@ -3854,19 +3854,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         AnnotatedTypeMirror methodReceiver = method.getReceiverType();
-        //        AnnotatedTypeMirror treeReceiverCopy = methodReceiver.shallowCopy(false);
         AnnotatedTypeMirror treeReceiver = atypeFactory.getReceiverType(tree);
 
-        //        treeReceiverCopy.addAnnotations(treeReceiver.getEffectiveAnnotations());
-
         if (!skipReceiverSubtypeCheck(tree, methodReceiver, treeReceiver)) {
-            // The diagnostic can be a bit misleading because the check is of the receiver but
-            // `tree` is the entire method invocation (where the receiver might be implicit).
             commonAssignmentCheckStartDiagnostic(methodReceiver, treeReceiver, tree);
             boolean success = typeHierarchy.isSubtype(treeReceiver, methodReceiver);
             commonAssignmentCheckEndDiagnostic(success, null, methodReceiver, treeReceiver, tree);
             if (!success) {
-                // Don't report the erased types because they show up with '</*RAW*/>' as type args.
                 reportMethodInvocabilityError(tree, treeReceiver, methodReceiver);
             }
         }
