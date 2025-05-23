@@ -34,7 +34,7 @@ public class Driver {
             if (expected == null) continue;
 
             if (m.getReturnType() != String.class) {
-                throw new IllegalArgumentException("Test method must return String: " + m);
+                throw new IllegalArgumentException("Test method must return string: " + m);
             }
 
             try {
