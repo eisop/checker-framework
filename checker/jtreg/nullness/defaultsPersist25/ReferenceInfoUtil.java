@@ -19,10 +19,10 @@ public class ReferenceInfoUtil {
     }
 
     private void collect(ClassModel cm, List<TypeAnnotation> sink) {
-        addAnno(cm, sink); // class-level
-        cm.fields().forEach(f -> addAnno(f, sink)); // fields
+        addAnno(cm, sink);
+        cm.fields().forEach(f -> addAnno(f, sink));
 
-        for (MethodModel m : cm.methods()) { // methods + code blocks
+        for (MethodModel m : cm.methods()) {
             if (ignoreConstructors && m.methodName().stringValue().equals("<init>")) continue;
 
             addAnno(m, sink);
@@ -87,7 +87,7 @@ class ComparisonException extends RuntimeException {
 
 class AnnoPosPair {
     final String first;
-    final Object second; // Position removed in new API
+    final Object second;
 
     private AnnoPosPair(String f, Object s) {
         first = f;

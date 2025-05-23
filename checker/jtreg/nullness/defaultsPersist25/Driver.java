@@ -85,7 +85,6 @@ public class Driver {
         return AnnoTargetPair.of(d.annotation(), t, path);
     }
 
-    /* tiny record */
     static final class AnnoTargetPair {
         final String annoName;
         final TargetInfo target;
@@ -103,7 +102,6 @@ public class Driver {
     }
 }
 
-/* jtreg meta-annotations */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 @interface TADescription {
