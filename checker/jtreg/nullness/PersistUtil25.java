@@ -1,9 +1,3 @@
-// ---------------------------------------------------------------------------
-// PersistUtil25.java   –  helper for jtreg tests on JDK 25
-//
-// Replaces the old com.sun.tools.classfile-based PersistUtil.
-// ---------------------------------------------------------------------------
-
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -74,7 +68,6 @@ final class PersistUtil25 {
     static String wrap(String compact) {
         StringJoiner sj = new StringJoiner(System.lineSeparator());
 
-        // auto-imports
         sj.add("");
         sj.add("import java.util.*;");
         sj.add("import java.lang.annotation.*;");
