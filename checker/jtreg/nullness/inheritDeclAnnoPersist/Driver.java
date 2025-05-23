@@ -2,7 +2,6 @@
 // ../defaultsPersist/Driver.java and ../PersistUtil.
 
 import com.sun.tools.classfile.Annotation;
-import com.sun.tools.classfile.ClassFile;
 
 import java.io.PrintStream;
 import java.lang.annotation.ElementType;
@@ -27,12 +26,11 @@ public class Driver {
         new Driver().runDriver(clazz.newInstance());
     }
 
-    protected void runDriver(Object object) throws Exception {
+    private void runDriver(Object harness) throws Exception {
         int passed = 0, failed = 0;
-        Class<?> clazz = object.getClass();
+        Class<?> clazz = harness.getClass();
         out.println("Tests for " + clazz.getName());
 
-        // Find methods
         for (Method method : clazz.getMethods()) {
             List<String> expected = expectedOf(method);
             if (expected == null) {
@@ -42,13 +40,14 @@ public class Driver {
                 throw new IllegalArgumentException(
                         "Test method needs to return a string: " + method);
             }
-            String testClass = PersistUtil.testClassOf(method);
+            String testClass = PersistUtil25.testClassOf(method);
 
             try {
-                String compact = (String) method.invoke(object);
-                String fullFile = PersistUtil.wrap(compact);
-                ClassFile cf = PersistUtil.compileAndReturn(fullFile, testClass);
-                List<Annotation> actual = ReferenceInfoUtil.extendedAnnotationsOf(cf);
+                String compact = (String) method.invoke(harness);
+                String fullFile = PersistUtil25.wrap(compact);
+                ClassModel cm = PersistUtil25.compileAndReturn(fullFile, testClass);
+                List<Annotation> actual = ReferenceInfoUtil.extendedAnnotationsOf(cm);
+
                 String diagnostic =
                         String.join(
                                 "; ",
@@ -56,7 +55,9 @@ public class Driver {
                                 "compact=" + compact,
                                 "fullFile=" + fullFile,
                                 "testClass=" + testClass);
-                ReferenceInfoUtil.compare(expected, actual, cf, diagnostic);
+
+                ReferenceInfoUtil.compare(expected, actual, diagnostic);
+
                 out.println("PASSED:  " + method.getName());
                 ++passed;
             } catch (Throwable e) {

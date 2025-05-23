@@ -17,35 +17,59 @@ public class Driver {
         new Driver().runDriver(h);
     }
 
-    private void runDriver(Object h) throws Exception {
-        int ok = 0, bad = 0;
-        Class<?> C = h.getClass();
-        out.println("Tests for " + C.getName());
+    private void runDriver(Object harness) throws Exception {
+        int passed = 0, failed = 0;
+        Class<?> clazz = harness.getClass();
+        out.println("Tests for " + clazz.getName());
 
-        for (Method m : C.getMethods()) {
-            List<AnnoTargetPair> exp = expectedOf(m);
-            if (exp == null) continue;
-            if (m.getReturnType() != String.class)
-                throw new IllegalArgumentException("Method must return String: " + m);
+        for (Method method : clazz.getMethods()) {
+            List<AnnoTargetPair> expected = expectedOf(method);
+            if (expected == null) continue;
 
-            String compact = (String) m.invoke(h);
-            String src = PersistUtil25.wrap(compact);
-            ClassModel cm = PersistUtil25.compileAndReturn(src, PersistUtil25.testClassOf(m));
+            if (method.getReturnType() != String.class) {
+                throw new IllegalArgumentException(
+                        "Test method needs to return a string: " + method);
+            }
 
-            boolean ignoreCtors = false;
-            List<TypeAnnotation> act = ReferenceInfoUtil.extendedAnnotationsOf(cm, ignoreCtors);
+            String testClass = PersistUtil25.testClassOf(method);
 
             try {
-                ReferenceInfoUtil.compare(exp, act, "method=" + m.getName());
-                out.printf("PASSED:  %s%n", m.getName());
-                ++ok;
-            } catch (RuntimeException ex) {
-                out.printf("FAILED:  %s — %s%n", m.getName(), ex.getMessage());
-                ++bad;
+                String compact = (String) method.invoke(harness);
+                String fullFile = PersistUtil25.wrap(compact);
+                ClassModel cm = PersistUtil25.compileAndReturn(fullFile, testClass);
+
+                boolean ignoreConstructors = !clazz.getName().equals("Constructors25");
+                List<TypeAnnotation> actual =
+                        ReferenceInfoUtil.extendedAnnotationsOf(cm, ignoreConstructors);
+
+                String diagnostic =
+                        String.join(
+                                "; ",
+                                "Tests for " + clazz.getName(),
+                                "compact=" + compact,
+                                "fullFile=" + fullFile,
+                                "testClass=" + testClass);
+
+                ReferenceInfoUtil.compare(expected, actual, diagnostic);
+
+                out.println("PASSED:  " + method.getName());
+                ++passed;
+            } catch (Throwable e) {
+                out.println("FAILED:  " + method.getName());
+                out.println("    " + e);
+                ++failed;
             }
         }
-        out.printf("%n%d total: %d PASSED, %d FAILED%n", ok + bad, ok, bad);
-        if (bad != 0) throw new RuntimeException(bad + " tests failed");
+
+        out.println();
+        int total = passed + failed;
+        out.println(total + " total tests: " + passed + " PASSED, " + failed + " FAILED");
+
+        out.flush();
+
+        if (failed != 0) {
+            throw new RuntimeException(failed + " tests failed");
+        }
     }
 
     private List<AnnoTargetPair> expectedOf(Method m) {
