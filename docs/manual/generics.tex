@@ -74,7 +74,7 @@ arguments that replace \code{T} in \code{MyList<T>} must be subtypes of
 Conceptually, each generic type parameter has two bounds --- a lower bound
 and an upper bound --- and at instantiation, the type argument must be
 within the bounds.  Java only allows you to specify the upper bound; the
-lower bound is implicitly the bottom type \<NullType> (null type is a special unnamed type \jlsref{4.1}).
+lower bound is implicitly the bottom type \<null> (null type is a special unnamed type \jlsref{4.1}).
 The Checker Framework gives you more power:  you can specify both an upper and lower bound for type parameters.
 Write the upper bound on the \<extends> clause, and
 write the lower bound on the type variable.
@@ -95,7 +95,7 @@ Figure~\refwithpage{fig-regex-hierarchy}) in which
  \<@Regex(2)> :>
  \<@Regex(3)> :> \ldots.
 
-\begin{Verbatim}
+\begin{Verbatim}3
   class MyRegexes<@Regex(5) T extends @Regex(1) String> { ... }
 
   MyRegexes<@Regex(0) String> mu;   // error - @Regex(0) is not a subtype of @Regex(1)
@@ -306,14 +306,17 @@ before the \<?>.  For example:
 For an unbounded wildcard (\code{<?>}, with neither
 bound specified), the annotation in front of a wildcard applies
 to both bounds.  The following three declarations are equivalent (except
-that you cannot write the bottom type \<NullType>; note that
+that you cannot write the bottom type \<null>; note that
 \sunjavadoc{java.base/java/lang/Void.html}{Void} does not denote the bottom type):
 
 \begin{Verbatim}
   List<@NonNull ?> lnn;
   List<@NonNull ? extends @NonNull Object> lnn;
-  List<@NonNull ? super @NonNull NullType> lnn;
+  List<@NonNull ? super @NonNull null> lnn;
 \end{Verbatim}
+
+Note we output the lower bound as \<Void> rather than \<null> in the Checker Framework
+because \<null7> is not a valid Java type.
 
 \noindent
 Note that the annotation in front of a type parameter always applies to its
