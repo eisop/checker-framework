@@ -1,11 +1,16 @@
 import java.io.PrintStream;
-import java.lang.annotation.*;
-import java.lang.classfile.*;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import java.lang.classfile.ClassModel;
+import java.lang.classfile.TypeAnnotation;
 import java.lang.classfile.TypeAnnotation.TargetInfo;
 import java.lang.classfile.TypeAnnotation.TargetType;
 import java.lang.classfile.TypeAnnotation.TypePathComponent;
 import java.lang.reflect.Method;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Driver {
     public static final int NOT_SET = -888;
