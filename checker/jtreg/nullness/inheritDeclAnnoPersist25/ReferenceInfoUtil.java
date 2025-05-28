@@ -1,6 +1,3 @@
-// Keep somewhat in sync with
-// langtools/test/tools/javac/annotations/typeAnnotations/referenceinfos/ReferenceInfoUtil.java
-
 import java.lang.classfile.*;
 import java.lang.classfile.Annotation;
 import java.lang.classfile.ClassModel;
