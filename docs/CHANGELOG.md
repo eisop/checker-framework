@@ -7,15 +7,21 @@ The Nullness checker now has more fine-grained prefix options to suppress warnin
 - `@SuppressWarnings("nullness")` is used to suppress warnings from the Nullness Checker, the KeyFor Checker, and the
   Initialization Checker.
 - `@SuppressWarnings("nullnesskeyfor")` is used to suppress warnings from the Nullness Checker and the KeyFor Checker.
+  `@SuppressWarnings("nullnessnoinit")` has the same effect as `@SuppressWarnings("nullnesskeyfor")`.
 - `@SuppressWarnings("nullnessinit")` is used to suppress warnings from the Nullness Checker and the Initialization
   Checker.
 - `@SuppressWarnings("nullnessonly")` is used to suppress warnings from the Nullness Checker only.
 - `@SuppressWarnings("initialization")` is used to suppress warnings from the Initialization Checker only.
 - `@SuppressWarnings("keyfor")` is used to suppress warnings from the KeyFor Checker only.
 
+**Implementation details:**
+
+**Closed issues:**
+
 
 Version 3.49.3-eisop1 (May 6, 2025)
 -----------------------------------
+
 **User-visible changes:**
 
 The Checker Framework runs under JDK 25 -- that is, it runs on a version 25 JVM.

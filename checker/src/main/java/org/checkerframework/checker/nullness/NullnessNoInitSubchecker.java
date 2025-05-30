@@ -27,10 +27,13 @@ import java.util.Set;
  *   <li>{@code @SuppressWarnings("nullness")} suppresses warnings for nullness, initialization, and
  *       keyfor annotations
  *   <li>{@code @SuppressWarnings("nullnesskeyfor")} suppresses warnings for nullness and keyfor
- *       annotations only
- *   <li>{@code @SuppressWarnings("nullnessinit")} suppresses warnings for nullness and
- *       initialization annotations only
- *   <li>{@code @SuppressWarnings("nullnessonly")} suppresses warnings for nullness annotations only
+ *       annotations only, warnings for initialization annotations are not suppressed
+ *       {@code @SuppressWarnings("nullnessnoinit")} has the same effect as
+ *       {@code @SuppressWarnings("nullnesskeyfor")}
+ *   <li>{@code @SuppressWarnings("nullnessinitialization")} suppresses warnings for nullness and
+ *       initialization annotations only, warnings for keyfor annotations are not suppressed
+ *   <li>{@code @SuppressWarnings("nullnessonly")} suppresses warnings for nullness annotations
+ *       only, warnings for initialization and keyfor annotations are not suppressed
  * </ul>
  */
 @StubFiles({"junit-assertions.astub"})
@@ -59,7 +62,7 @@ public class NullnessNoInitSubchecker extends BaseTypeChecker {
         NavigableSet<String> result = super.getSuppressWarningsPrefixes();
         result.add("nullnessonly");
         result.add("nullnesskeyfor");
-        result.add("nullnessinit");
+        result.add("nullnessinitialization");
         result.add("nullness");
         return result;
     }

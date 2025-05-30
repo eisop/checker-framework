@@ -21,14 +21,18 @@ import javax.annotation.processing.SupportedOptions;
  * <ul>
  *   <li>{@code @SuppressWarnings("nullness")} suppresses warnings for nullness, initialization, and
  *       keyfor annotations
- *   <li>{@code @SuppressWarnings("nullnessinit")} suppresses warnings for nullness and
- *       initialization annotations only
+ *   <li>{@code @SuppressWarnings("nullnessinitialization")} suppresses warnings for nullness and
+ *       initialization annotations only, warnings for keyfor annotations are not suppressed
  *   <li>{@code @SuppressWarnings("nullnesskeyfor")} suppresses warnings for nullness and keyfor
- *       annotations only
- *   <li>{@code @SuppressWarnings("nullnessonly")} suppresses warnings for nullness annotations only
+ *       annotations only, warnings for initialization annotations are not suppressed
+ *       {@code @SuppressWarnings("nullnessnoinit")} has the same effect as
+ *       {@code @SuppressWarnings("nullnesskeyfor")}
+ *   <li>{@code @SuppressWarnings("nullnessonly")} suppresses warnings for nullness annotations
+ *       only, warnings for initialization and keyfor annotations are not suppressed
  *   <li>{@code @SuppressWarnings("initialization")} suppresses warnings for initialization
- *       annotations only
- *   <li>{@code @SuppressWarnings("keyfor")} suppresses warnings for keyfor annotations only
+ *       annotations only, warnings for nullness and keyfor annotations are not suppressed
+ *   <li>{@code @SuppressWarnings("keyfor")} suppresses warnings for keyfor annotations only,
+ *       warnings for nullness and initialization annotations are not suppressed
  * </ul>
  *
  * @see KeyForSubchecker

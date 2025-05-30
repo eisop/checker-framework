@@ -5,14 +5,20 @@ public class Suppression {
 
     Object f;
 
+    @SuppressWarnings("nullnessnoinit")
+    void test1() {
+        String a = null;
+        a.toString();
+    }
+
     @SuppressWarnings("nullnesskeyfor")
-    void test() {
+    void test2() {
         String a = null;
         a.toString();
     }
 
     @SuppressWarnings("initialization")
-    void test2() {
+    void test3() {
         String a = null;
         // :: error: (dereference.of.nullable)
         a.toString();
@@ -33,7 +39,7 @@ public class Suppression {
         @KeyFor("map") String key = nonkey;
     }
 
-    @SuppressWarnings("nullnessinit")
+    @SuppressWarnings("nullnessinitialization")
     Suppression(@Nullable Object o, int dummy1, int dummy2) {
         o.toString();
         String nonkey = "";
