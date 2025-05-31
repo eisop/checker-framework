@@ -289,6 +289,21 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /** True if "-AcheckEnclosingExpr" was passed on the command line. */
     private final boolean checkEnclosingExpr;
 
+    /** True if "-Alint=cast" was passed on the command line. */
+    private final boolean lintCastEnabled;
+
+    /** True if "-Alint=cast:redundant" was passed on the command line. */
+    private final boolean lintCastRedundantEnabled;
+
+    /** True unless "-Alint=-cast:unsafe" was passed on the command line. */
+    private final boolean lintCastUnsafeEnabled;
+
+    /** True if "-Alint=instanceof" was passed on the command line. */
+    private final boolean lintInstanceofEnabled;
+
+    /** True unless "-Alint=-instanceof:unsafe" was passed on the command line. */
+    private final boolean lintInstanceofUnsafeEnabled;
+
     /** The tree of the enclosing method that is currently being visited, if any. */
     protected @Nullable MethodTree methodTree = null;
 
@@ -348,6 +363,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 checker.hasOption("assumeDeterministic") || checker.hasOption("assumePure");
         assumePureGetters = checker.hasOption("assumePureGetters");
         checkCastElementType = checker.hasOption("checkCastElementType");
+        lintCastEnabled = checker.getLintOption("cast", false);
+        lintCastRedundantEnabled = checker.getLintOption("cast:redundant", false);
+        lintCastUnsafeEnabled = checker.getLintOption("cast:unsafe", true);
+        lintInstanceofEnabled = checker.getLintOption("instanceof", false);
+        lintInstanceofUnsafeEnabled = checker.getLintOption("instanceof:unsafe", true);
     }
 
     /** An array containing just {@code BaseTypeChecker.class}. */
@@ -2713,9 +2733,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /**
      * If the lint option "cast:redundant" is set, this method issues a warning if the cast is
      * redundant.
+     *
+     * @param typeCastTree the TypeCastTree to check
      */
     protected void checkTypecastRedundancy(TypeCastTree typeCastTree) {
-        if (!checker.getLintOption("cast:redundant", false)) {
+        if (!(lintCastRedundantEnabled || lintCastEnabled)) {
             return;
         }
 
@@ -2735,7 +2757,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param typeCastTree an explicitly-written typecast
      */
     protected void checkTypecastSafety(TypeCastTree typeCastTree) {
-        if (!checker.getLintOption("cast:unsafe", true)) {
+        if (!(lintCastUnsafeEnabled || lintCastEnabled)) {
             return;
         }
         AnnotatedTypeMirror castType = atypeFactory.getAnnotatedType(typeCastTree);
@@ -2917,6 +2939,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     @Override
     public Void visitInstanceOf(InstanceOfTree tree, Void p) {
+        if (!(lintInstanceofEnabled || lintInstanceofUnsafeEnabled)) {
+            return super.visitInstanceOf(tree, p);
+        }
         // The "reference type" is the type after "instanceof".
         Tree patternTree = InstanceOfUtils.getPattern(tree);
         if (patternTree != null) {
