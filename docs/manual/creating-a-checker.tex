@@ -818,8 +818,8 @@ Your qualifier hierarchy must have a bottom qualifier
 --- a qualifier that is a (direct or indirect) subtype of every other
 qualifier.
 
-\<null> has the bottom type. Because the only value with type \<Void> is
-\<null>, uses of the type \<Void> are also bottom.
+\<null> is the bottom type in the Java type hierarchy, and it is a special unnamed type.
+Because the only value with type \<Void> is \<null>, Checker Framework uses the type \<Void> to represent the bottom type.
 (The only exception
 is if the type system has special treatment for \<null> values, as the
 Nullness Checker does. In that case, add the meta-annotation
