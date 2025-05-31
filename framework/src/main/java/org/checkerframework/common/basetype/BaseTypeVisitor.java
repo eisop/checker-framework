@@ -298,8 +298,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /** True unless "-Alint=-cast:unsafe" was passed on the command line. */
     private final boolean lintCastUnsafeEnabled;
 
-    /** True unless "-Alint=instanceof" was passed on the command line. */
+    /** True if "-Alint=instanceof" was passed on the command line. */
     private final boolean lintInstanceofEnabled;
+
+    /** True if "-Alint=instanceof:redundant" was passed on the command line. */
+    private final boolean lintInstanceofRedundantEnabled;
+
+    /** True unless "-Alint=-instanceof:unsafe" was passed on the command line. */
+    private final boolean lintInstanceofUnsafeEnabled;
 
     /** The tree of the enclosing method that is currently being visited, if any. */
     protected @Nullable MethodTree methodTree = null;
@@ -363,7 +369,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         lintCastEnabled = checker.getLintOption("cast", false);
         lintCastRedundantEnabled = checker.getLintOption("cast:redundant", false);
         lintCastUnsafeEnabled = checker.getLintOption("cast:unsafe", true);
-        lintInstanceofEnabled = checker.getLintOption("instanceof", true);
+        lintInstanceofEnabled = checker.getLintOption("instanceof", false);
+        lintInstanceofRedundantEnabled = checker.getLintOption("instanceof:redundant", false);
+        lintInstanceofUnsafeEnabled = checker.getLintOption("instanceof:unsafe", true);
     }
 
     /** An array containing just {@code BaseTypeChecker.class}. */
@@ -2935,7 +2943,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     @Override
     public Void visitInstanceOf(InstanceOfTree tree, Void p) {
-        if (!lintInstanceofEnabled) {
+        if (!(lintInstanceofEnabled || lintCastUnsafeEnabled)) {
             return super.visitInstanceOf(tree, p);
         }
         // The "reference type" is the type after "instanceof".
