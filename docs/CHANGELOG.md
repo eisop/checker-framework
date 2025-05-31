@@ -1,5 +1,6 @@
-Version 3.49.3-eisop2 (May ??, 2025)
-------------------------------
+Version 3.49.3-eisop2 (June ??, 2025)
+-------------------------------------
+
 **User-visible changes:**
 
 The Nullness checker now has more fine-grained prefix options to suppress warnings:
@@ -38,7 +39,7 @@ eisop#1051, eisop#1115, eisop#1180.
 
 
 Version 3.49.3 (May 2, 2025)
-------------------------------
+----------------------------
 
 **User-visible changes:**
 
