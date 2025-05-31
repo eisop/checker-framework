@@ -301,9 +301,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /** True if "-Alint=instanceof" was passed on the command line. */
     private final boolean lintInstanceofEnabled;
 
-    /** True if "-Alint=instanceof:redundant" was passed on the command line. */
-    private final boolean lintInstanceofRedundantEnabled;
-
     /** True unless "-Alint=-instanceof:unsafe" was passed on the command line. */
     private final boolean lintInstanceofUnsafeEnabled;
 
@@ -370,7 +367,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         lintCastRedundantEnabled = checker.getLintOption("cast:redundant", false);
         lintCastUnsafeEnabled = checker.getLintOption("cast:unsafe", true);
         lintInstanceofEnabled = checker.getLintOption("instanceof", false);
-        lintInstanceofRedundantEnabled = checker.getLintOption("instanceof:redundant", false);
         lintInstanceofUnsafeEnabled = checker.getLintOption("instanceof:unsafe", true);
     }
 
@@ -2943,7 +2939,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     @Override
     public Void visitInstanceOf(InstanceOfTree tree, Void p) {
-        if (!(lintInstanceofEnabled || lintCastUnsafeEnabled)) {
+        if (!(lintInstanceofEnabled || lintInstanceofUnsafeEnabled)) {
             return super.visitInstanceOf(tree, p);
         }
         // The "reference type" is the type after "instanceof".
