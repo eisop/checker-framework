@@ -3,10 +3,15 @@ Version 3.49.3-eisop2 (June ??, 2025)
 
 **User-visible changes:**
 
+The Checker Framework issues `annotation.on.supertype` error if there is an annotation written on
+the super type in the class declaration. Checker supports annotation on the super type can override
+`BaseTypeVisitor#checkExtendsOrImplements(Tree, AnnotationMirrorSet, TypeMirror, Boolean)` to disable the check.
+
 **Implementation details:**
 
 **Closed issues:**
 
+eisop#1059
 
 Version 3.49.3-eisop1 (May 6, 2025)
 -----------------------------------
@@ -23,7 +28,7 @@ select a different JDK for the actual compilation and testing.
 
 **Closed issues:**
 
-eisop#1051, eisop#1059, eisop#1115, eisop#1180.
+eisop#1051, eisop#1115, eisop#1180.
 
 
 Version 3.49.3 (May 2, 2025)
@@ -51,10 +56,6 @@ Version 3.49.1-eisop1 (March 17, 2025)
 --------------------------------------
 
 **User-visible changes:**
-
-All checkers issue `annotation.on.supertype` error for annotation write on
-supertype in class declaration. Other support annotations on supertype can override
-`BaseTypeVisitor#checkSupertypeAnnotations(Tree)` to disable the check.
 
 The Nullness Checker now reports an error if any instanceof pattern variables
 are annotated with `@Nullable` and a redundant warning if they are annotated
