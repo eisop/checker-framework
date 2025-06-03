@@ -364,10 +364,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         assumePureGetters = checker.hasOption("assumePureGetters");
         checkCastElementType = checker.hasOption("checkCastElementType");
         lintCastEnabled = checker.getLintOption("cast", false);
-        lintCastRedundantEnabled = checker.getLintOption("cast:redundant", false);
-        lintCastUnsafeEnabled = checker.getLintOption("cast:unsafe", true);
+        lintCastRedundantEnabled =
+                checker.getLintOption("cast:redundant", false) || lintCastEnabled;
+        lintCastUnsafeEnabled = checker.getLintOption("cast:unsafe", true) || lintCastEnabled;
         lintInstanceofEnabled = checker.getLintOption("instanceof", false);
-        lintInstanceofUnsafeEnabled = checker.getLintOption("instanceof:unsafe", true);
+        lintInstanceofUnsafeEnabled =
+                checker.getLintOption("instanceof:unsafe", true) || lintInstanceofEnabled;
     }
 
     /** An array containing just {@code BaseTypeChecker.class}. */
@@ -2737,7 +2739,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param typeCastTree the TypeCastTree to check
      */
     protected void checkTypecastRedundancy(TypeCastTree typeCastTree) {
-        if (!(lintCastRedundantEnabled || lintCastEnabled)) {
+        if (!lintCastRedundantEnabled) {
             return;
         }
 
@@ -2751,13 +2753,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     /**
      * Issues a warning if the given explicitly-written typecast is unsafe. Does nothing if the lint
-     * option "cast:unsafe" is not set. Only primary qualifiers are checked unless the command line
+     * option "-cast:unsafe" is set. Only primary qualifiers are checked unless the command line
      * option "checkCastElementType" is supplied.
      *
      * @param typeCastTree an explicitly-written typecast
      */
     protected void checkTypecastSafety(TypeCastTree typeCastTree) {
-        if (!(lintCastUnsafeEnabled || lintCastEnabled)) {
+        if (!lintCastUnsafeEnabled) {
             return;
         }
         AnnotatedTypeMirror castType = atypeFactory.getAnnotatedType(typeCastTree);
@@ -2939,7 +2941,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     @Override
     public Void visitInstanceOf(InstanceOfTree tree, Void p) {
-        if (!(lintInstanceofEnabled || lintInstanceofUnsafeEnabled)) {
+        if (!lintInstanceofUnsafeEnabled) {
             return super.visitInstanceOf(tree, p);
         }
         // The "reference type" is the type after "instanceof".
