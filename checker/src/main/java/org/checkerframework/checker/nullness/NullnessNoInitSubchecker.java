@@ -24,16 +24,16 @@ import java.util.Set;
  * <p>You can use the following {@link SuppressWarnings} prefixes with this checker:
  *
  * <ul>
- *   <li>{@code @SuppressWarnings("nullness")} suppresses warnings for nullness, initialization, and
- *       keyfor annotations
- *   <li>{@code @SuppressWarnings("nullnesskeyfor")} suppresses warnings for nullness and keyfor
- *       annotations only, warnings for initialization annotations are not suppressed
+ *   <li>{@code @SuppressWarnings("nullness")} suppresses warnings from the Nullness,
+ *       Initialization, and KeyFor Checkers
+ *   <li>{@code @SuppressWarnings("nullnessinitialization")} suppresses warnings from the Nullness
+ *       and Initialization Checkers only, warnings from the KeyFor Checker are not suppressed
+ *   <li>{@code @SuppressWarnings("nullnesskeyfor")} suppresses warnings from the Nullness and
+ *       KeyFor Checkers only, warnings from the initialization Checker are not suppressed
  *       {@code @SuppressWarnings("nullnessnoinit")} has the same effect as
  *       {@code @SuppressWarnings("nullnesskeyfor")}
- *   <li>{@code @SuppressWarnings("nullnessinitialization")} suppresses warnings for nullness and
- *       initialization annotations only, warnings for keyfor annotations are not suppressed
- *   <li>{@code @SuppressWarnings("nullnessonly")} suppresses warnings for nullness annotations
- *       only, warnings for initialization and keyfor annotations are not suppressed
+ *   <li>{@code @SuppressWarnings("nullnessonly")} suppresses warnings from the Nullness Checker
+ *       only, warnings from the Initialization and KeyFor Checkers are not suppressed
  * </ul>
  */
 @StubFiles({"junit-assertions.astub"})

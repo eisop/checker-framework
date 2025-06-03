@@ -13,11 +13,14 @@ import javax.annotation.processing.SupportedOptions;
  * <p>You can use the following {@link SuppressWarnings} prefixes with this checker:
  *
  * <ul>
- *   <li>{@code @SuppressWarnings("nullness")} suppresses warnings for nullness, initialization, and
- *       keyfor annotations
- *   <li>{@code @SuppressWarnings("nullnesskeyfor")} suppresses warnings for nullness and keyfor
- *       annotations only
- *   <li>{@code @SuppressWarnings("keyfor")} suppresses warnings for keyfor annotations only
+ *   <li>{@code @SuppressWarnings("nullness")} suppresses warnings from the Nullness,
+ *       Initialization, and KeyFor Checkers
+ *   <li>{@code @SuppressWarnings("nullnesskeyfor")} suppresses warnings from the Nullness and
+ *       KeyFor Checkers only, warnings from the initialization Checker are not suppressed
+ *       {@code @SuppressWarnings("nullnessnoinit")} has the same effect as
+ *       {@code @SuppressWarnings("nullnesskeyfor")}
+ *   <li>{@code @SuppressWarnings("keyfor")} suppresses warnings from the KeyFor checker only,
+ *       warnings from the Nullness and Initialization Checkers are not suppressed
  * </ul>
  *
  * @checker_framework.manual #map-key-checker Map Key Checker
