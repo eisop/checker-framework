@@ -16,7 +16,7 @@ import javax.annotation.processing.SupportedOptions;
  *   <li>{@code @SuppressWarnings("nullness")} suppresses warnings from the Nullness,
  *       Initialization, and KeyFor Checkers
  *   <li>{@code @SuppressWarnings("nullnesskeyfor")} suppresses warnings from the Nullness and
- *       KeyFor Checkers only, warnings from the initialization Checker are not suppressed
+ *       KeyFor Checkers only, warnings from the Initialization Checker are not suppressed
  *       {@code @SuppressWarnings("nullnessnoinit")} has the same effect as
  *       {@code @SuppressWarnings("nullnesskeyfor")}
  *   <li>{@code @SuppressWarnings("keyfor")} suppresses warnings from the KeyFor checker only,

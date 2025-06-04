@@ -29,7 +29,7 @@ import java.util.Set;
  *   <li>{@code @SuppressWarnings("nullnessinitialization")} suppresses warnings from the Nullness
  *       and Initialization Checkers only, warnings from the KeyFor Checker are not suppressed
  *   <li>{@code @SuppressWarnings("nullnesskeyfor")} suppresses warnings from the Nullness and
- *       KeyFor Checkers only, warnings from the initialization Checker are not suppressed
+ *       KeyFor Checkers only, warnings from the Initialization Checker are not suppressed
  *       {@code @SuppressWarnings("nullnessnoinit")} has the same effect as
  *       {@code @SuppressWarnings("nullnesskeyfor")}
  *   <li>{@code @SuppressWarnings("nullnessonly")} suppresses warnings from the Nullness Checker
