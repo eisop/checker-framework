@@ -869,14 +869,16 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Helper for {@link #checkExtendsAndImplements} that checks one extends or implements clause.
+     * This method implements the two checks: (1) checking annotation on super type if
+     * checkSuperAnno is true. (2) checking the subtyping relationship of class declarations between
+     * the current class and extends/implements class/interface.
      *
      * @param boundClause an extends or implements clause
      * @param classBounds the type declarations bounds to check for consistency with {@code
      *     boundClause}
      * @param classType the type being declared
      * @param isExtends true for an extends clause, false for an implements clause
-     * @param checkSuperAnno true if the supertype annotations should be checked
+     * @param checkSuperAnno true if annotation on super type should be checked
      */
     protected void checkExtendsOrImplements(
             Tree boundClause,
