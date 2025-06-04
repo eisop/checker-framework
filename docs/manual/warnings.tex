@@ -725,9 +725,9 @@ options (and possibly more, see the checker's documentation):
   \code{cast} Enable or disable all cast-related warnings.
 
 \item
-  \code{instanceof:unsafe} (default: on) warn about unsafe instanceof pattern
+  \code{instanceof:unsafe} (default: on) warn about unsafe instanceof tests
   that are not checked at run time, as in \code{o instanceof @Untainted String}.
-  Such instanceof patterns are unsafe, and they can break the property of the type system.
+  Such instanceof tests are unsafe as the type qualifiers are ignored at run time.
 
 \item
   \code{instanceof} Enable or disable instanceof-related warnings.

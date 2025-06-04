@@ -365,7 +365,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         checkCastElementType = checker.hasOption("checkCastElementType");
         lintCastEnabled = checker.getLintOption("cast", false);
         lintCastRedundantEnabled =
-                checker.getLintOption("cast:redundant", false) || lintCastEnabled;
+                lintCastEnabled || checker.getLintOption("cast:redundant", false);
         lintCastUnsafeEnabled = checker.getLintOption("cast:unsafe", true) || lintCastEnabled;
         lintInstanceofEnabled = checker.getLintOption("instanceof", false);
         lintInstanceofUnsafeEnabled =

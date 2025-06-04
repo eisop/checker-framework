@@ -3,6 +3,7 @@
  * @summary Test case for instanceof lint option: -Alint=-instanceof
  * @requires jdk.version >= 17
  * @compile -processor org.checkerframework.checker.tainting.TaintingChecker InstanceofLintOptionEnabled.java -Alint=-instanceof
+  * @compile -processor org.checkerframework.checker.tainting.TaintingChecker InstanceofLintOptionEnabled.java -Alint=-instanceof:unsafe
  */
 
 import org.checkerframework.checker.tainting.qual.Untainted;
