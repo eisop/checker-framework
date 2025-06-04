@@ -9,12 +9,16 @@ public class Suppression {
     void test1() {
         String a = null;
         a.toString();
+        String nonkey = "";
+        @KeyFor("map") String key = nonkey;
     }
 
     @SuppressWarnings("nullnesskeyfor")
     void test2() {
         String a = null;
         a.toString();
+        String nonkey = "";
+        @KeyFor("map") String key = nonkey;
     }
 
     @SuppressWarnings("initialization")
