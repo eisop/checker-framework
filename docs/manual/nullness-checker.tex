@@ -718,7 +718,7 @@ use the \<@SuppressWarnings("nullnesskeyfor")> annotation.
 
 To suppress warnings by the Nullness Checker and the Initialization Checker without also suppressing warnings
 by the KeyFor Checker (see Section~\ref{map-key-checker}),
-use the \<@SuppressWarnings("nullnessinit")> annotation.
+use the \<@SuppressWarnings("nullnessinitialization")> annotation.
 
 To suppress warnings only by the Nullness Checker, use the \<@SuppressWarnings("nullnessonly")> annotation.
 
@@ -2263,7 +2263,7 @@ You will no longer get a guarantee
 of no null pointer exceptions, but you can still use the Nullness Checker
 to find most of the null-pointer problems in your code.
 
-More suppress warnings prefixes combined with other checker are available at Section~\ref{suppressing-warnings-nullness}.
+More SuppressWarnings strings combined with other checkers can be found in Section~\ref{suppressing-warnings-nullness}.
 
 This suppresses warnings that are specific to the Initialization Checker,
 but does not suppress warnings issued by the Checker Framework itself, such
