@@ -357,10 +357,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 checker.hasOption("assumeDeterministic") || checker.hasOption("assumePure");
         assumePureGetters = checker.hasOption("assumePureGetters");
         checkCastElementType = checker.hasOption("checkCastElementType");
-        lintCastEnabled = checker.getLintOption("cast", false);
         lintCastRedundantEnabled = checker.getLintOption("cast:redundant", false);
         lintCastUnsafeEnabled = checker.getLintOption("cast:unsafe", true);
-        lintInstanceofEnabled = checker.getLintOption("instanceof", false);
         lintInstanceofUnsafeEnabled = checker.getLintOption("instanceof:unsafe", true);
     }
 
