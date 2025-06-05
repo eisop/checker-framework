@@ -712,7 +712,7 @@ options (and possibly more, see the checker's documentation):
 \item
   \code{cast:unsafe} (default: on) warn about unsafe casts that are not
   checked at run time, as in \code{((@NonNull String) myref)}.
-  Such casts are unsafe, and they can break the property of the type system.
+  Such casts are unsafe as the type qualifiers are ignored at run time.
 
 \item
   \code{cast:redundant} (default: off) warn about redundant
