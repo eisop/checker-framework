@@ -289,17 +289,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /** True if "-AcheckEnclosingExpr" was passed on the command line. */
     private final boolean checkEnclosingExpr;
 
-    /** True if "-Alint=cast" was passed on the command line. */
-    private final boolean lintCastEnabled;
-
     /** True if "-Alint=cast:redundant" was passed on the command line. */
     private final boolean lintCastRedundantEnabled;
 
     /** True unless "-Alint=-cast:unsafe" was passed on the command line. */
     private final boolean lintCastUnsafeEnabled;
-
-    /** True if "-Alint=instanceof" was passed on the command line. */
-    private final boolean lintInstanceofEnabled;
 
     /** True unless "-Alint=-instanceof:unsafe" was passed on the command line. */
     private final boolean lintInstanceofUnsafeEnabled;
@@ -364,12 +358,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         assumePureGetters = checker.hasOption("assumePureGetters");
         checkCastElementType = checker.hasOption("checkCastElementType");
         lintCastEnabled = checker.getLintOption("cast", false);
-        lintCastRedundantEnabled =
-                lintCastEnabled || checker.getLintOption("cast:redundant", false);
-        lintCastUnsafeEnabled = lintCastEnabled || checker.getLintOption("cast:unsafe", true);
+        lintCastRedundantEnabled = checker.getLintOption("cast:redundant", false);
+        lintCastUnsafeEnabled = checker.getLintOption("cast:unsafe", true);
         lintInstanceofEnabled = checker.getLintOption("instanceof", false);
-        lintInstanceofUnsafeEnabled =
-                lintInstanceofEnabled || checker.getLintOption("instanceof:unsafe", true);
+        lintInstanceofUnsafeEnabled = checker.getLintOption("instanceof:unsafe", true);
     }
 
     /** An array containing just {@code BaseTypeChecker.class}. */
