@@ -3293,7 +3293,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         varType.getKind(),
                         varType.toString());
             }
-            return true;
+            return false;
         }
 
         return commonAssignmentCheck(varType, valueExpTree, errorKey, extraArgs);
