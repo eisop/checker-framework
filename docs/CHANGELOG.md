@@ -1,12 +1,51 @@
-Version 3.49.1-eisop2 (March ??, 2025)
---------------------------------------
+Version 3.49.3-eisop2 (June ??, 2025)
+-------------------------------------
 
 **User-visible changes:**
 
 **Implementation details:**
 
 **Closed issues:**
-eisop#1051
+
+
+Version 3.49.3-eisop1 (May 6, 2025)
+-----------------------------------
+
+**User-visible changes:**
+
+The Checker Framework runs under JDK 25 -- that is, it runs on a version 25 JVM.
+
+**Implementation details:**
+
+Gradle should now be run with at least JDK 17.
+The `ORG_GRADLE_PROJECT_useJdkVersion` environment variable can be used to
+select a different JDK for the actual compilation and testing.
+
+**Closed issues:**
+
+eisop#1051, eisop#1115, eisop#1180.
+
+
+Version 3.49.3 (May 2, 2025)
+----------------------------
+
+**User-visible changes:**
+
+The Checker Framework runs under JDK 24 -- that is, it runs on a version 24 JVM.
+(EISOP note: this has been working for a while already.)
+
+**Closed issues:**
+
+#6520, #6671, #6750, #6762, #6887, #7001, #7019, #7024, #7029, #7053.
+
+
+Version 3.49.2 (April 1, 2025)
+------------------------------
+
+**Closed issues:**
+
+#6747, #6755, #6789, #6891, #6963, #6996, #7001, #7008, #7014.
+
 
 Version 3.49.1-eisop1 (March 17, 2025)
 --------------------------------------
