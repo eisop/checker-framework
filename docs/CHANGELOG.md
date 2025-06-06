@@ -3,7 +3,7 @@ Version 3.49.3-eisop2 (June ??, 2025)
 
 **User-visible changes:**
 
-The Nullness checker now has more fine-grained prefix options to suppress warnings:
+The Nullness Checker now has more fine-grained prefix options to suppress warnings:
 - `@SuppressWarnings("nullness")` is used to suppress warnings from the Nullness, Initialization, and KeyFor Checkers.
 - `@SuppressWarnings("nullnesskeyfor")` is used to suppress warnings from the Nullness and KeyFor Checkers,
    warnings from the Initialization Checker are not suppressed.
