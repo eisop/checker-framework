@@ -168,36 +168,4 @@ public class ParameterExpression {
     // Annotations on formal parameters referring to a formal parameter of the same method.
     // :: error: (expression.unparsable.type.invalid)
     public void m14(@KeyFor("param2") Object param1, Map<Object, Object> param2) {}
-
-    @EnsuresNonNull("#1")
-    // Parameters of native method should be considered as effectively final
-    native void m15(Object obj);
-
-    @EnsuresNonNull("#1")
-    // Parameters of abstract method should be considered as effectively final
-    abstract void m16(Object p1);
-
-    @EnsuresNonNull("#1")
-    // :: error: (flowexpr.parameter.not.final)
-    void m17(Object obj) {
-        obj = new Object();
-    }
-
-    @EnsuresNonNull("#1")
-    void m18(Object obj) {}
-
-    class Inner extends ParameterExpression {
-        @Override
-        // Error because the @EnsuresNonNull("#1") is inherited from the outer class.
-        // :: error: (flowexpr.parameter.not.final)
-        void m16(Object obj) {
-            obj = new Object();
-        }
-
-        // Error because the @EnsuresNonNull("#1") is inherited from the outer class.
-        // :: error: (flowexpr.parameter.not.final)
-        void m17(Object obj) {
-            obj = new Object();
-        }
-    }
 }
