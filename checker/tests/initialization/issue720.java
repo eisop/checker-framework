@@ -10,18 +10,20 @@ class Issue720 {
     @NotOnlyInitialized @NonNull Issue720Field f = new Issue720Field();
 
     Issue720() {
-        // @NotOnlyInitialized should be correctly adapted to @UnknownInitialization
-        // by @Under/@UnknownInitialization.
         foo1();
         foo2();
     }
 
     void foo1(@UnderInitialization Issue720 this) {
+        // @NotOnlyInitialized should be correctly adapted to @UnknownInitialization
+        // by @UnderInitialization.
         // :: error: (dereference.of.nullable)
         f.FieldAccess1();
     }
 
     void foo2(@UnknownInitialization Issue720 this) {
+        // @NotOnlyInitialized should be correctly adapted to @UnknownInitialization
+        // by @UnknownInitialization.
         // :: error: (dereference.of.nullable)
         f.FieldAccess1();
     }
@@ -30,10 +32,6 @@ class Issue720 {
         // @NotOnlyInitialized should be correctly adapted to @Initialized by @Initialized.
         // This is the only way to enter then branch in the issue. The correct adaption ensures the
         // correct use of @NotOnlyInitialized.
-        foo4();
-    }
-
-    void foo4() {
         f.FieldAccess2();
     }
 }
