@@ -21,7 +21,7 @@ class NullnessEnclosingExprTest {
                 @UnknownInitialization NullnessEnclosingExprTest NullnessEnclosingExprTest.this) {
             // This should also never lead to an NPE, because that dereference should produce an
             // type error.
-            // :: error: (dereference.of.nullable)
+            // See Issue https://github.com/eisop/checker-framework/issues/412.
             NullnessEnclosingExprTest.this.f.hashCode();
         }
     }
