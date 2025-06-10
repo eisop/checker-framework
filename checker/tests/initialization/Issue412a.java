@@ -3,17 +3,17 @@
 
 import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 
-public class Issue412 {
+public class Issue412a {
     class InnerWithUnknownInitializationEnclosingExpression {
         InnerWithUnknownInitializationEnclosingExpression(
-                @UnknownInitialization Issue412 Issue412.this) {
+                @UnknownInitialization Issue412a Issue412a.this) {
             // @UnknownInitialization indicates that the field of the outer receiver might be null
             // :: error : (dereference.of.nullable)
-            Issue412.this.f.hashCode();
+            Issue412a.this.f.hashCode();
         }
     }
 
-    Issue412() {
+    Issue412a() {
         new InnerWithUnknownInitializationEnclosingExpression();
         f = "";
     }
