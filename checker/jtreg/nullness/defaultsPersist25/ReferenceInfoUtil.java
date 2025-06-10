@@ -1,6 +1,10 @@
-import java.lang.classfile.*;
-import java.lang.classfile.attribute.*;
-import java.util.*;
+import java.lang.classfile.Attributes;
+import java.lang.classfile.ClassModel;
+import java.lang.classfile.MethodModel;
+import java.lang.classfile.attribute.AttributedElement;
+import java.lang.classfile.attribute.TypeAnnotation;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ReferenceInfoUtil {
 
