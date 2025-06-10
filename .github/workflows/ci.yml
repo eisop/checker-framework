@@ -275,7 +275,7 @@ jobs:
     - name: Install wget on Windows
       if: ${{ matrix.os == 'windows-latest' }}
       run: |
-        choco install wget
+        choco install wget --no-progress
 
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
       shell: bash
