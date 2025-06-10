@@ -8,7 +8,7 @@ public class Issue412a {
         InnerWithUnknownInitializationEnclosingExpression(
                 @UnknownInitialization Issue412a Issue412a.this) {
             // @UnknownInitialization indicates that the field of the outer receiver might be null
-            // :: error : (dereference.of.nullable)
+            // :: error: (dereference.of.nullable)
             Issue412a.this.f.hashCode();
         }
     }
