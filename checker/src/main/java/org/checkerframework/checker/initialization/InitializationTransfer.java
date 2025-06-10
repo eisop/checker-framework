@@ -51,7 +51,7 @@ public class InitializationTransfer
     /**
      * Create a new InitializationTransfer for the given analysis.
      *
-     * @param analysis init analysi.s
+     * @param analysis init analysis
      */
     public InitializationTransfer(InitializationAnalysis analysis) {
         super(analysis);
