@@ -52,7 +52,6 @@ checkerFramework {
 
 tasks.withType(JavaCompile).configureEach {
     options.errorprone {
-        enable("NullAway")
         option("NullAway:AnnotatedPackages", "com.example")
     }
 }
