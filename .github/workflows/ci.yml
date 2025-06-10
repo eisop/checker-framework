@@ -245,7 +245,7 @@ jobs:
   otheros:
     name: ${{ matrix.script }} on JDK ${{ matrix.java_version }} on ${{ matrix.os }}
     runs-on: "${{ matrix.os }}"
-    needs: sanity
+#    needs: sanity
     permissions:
       contents: read
     strategy:
@@ -274,7 +274,9 @@ jobs:
 
     - name: Install wget on Windows
       if: ${{ matrix.os == 'windows-latest' }}
-      run: choco install wget
+      run: |
+        choco install wget
+        set GIT_TRACE=1
 
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
       shell: bash
