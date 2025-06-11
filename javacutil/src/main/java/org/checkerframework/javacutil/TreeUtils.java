@@ -140,6 +140,12 @@ public final class TreeUtils {
      */
     private static final @Nullable Method TREEMAKER_SELECT;
 
+    /**
+     * The {@code JCTree.JCVariableDecl.declaredUsingVar()} method. We should use this method to
+     * determine if a variable is declared using {@code var} in Java 11+.
+     */
+    private static final @Nullable Method JCVARDECL_DECLAREDUSINGVAR;
+
     /** The value of Flags.RECORD which does not exist in Java 9 or 11. */
     private static final long Flags_RECORD = 2305843009213693952L;
 
@@ -160,6 +166,14 @@ public final class TreeUtils {
         } catch (NoSuchMethodException e) {
             throw new AssertionError("Unexpected error in TreeUtils static initializer", e);
         }
+
+        Method jcvardeclDeclaredusingvar;
+        try {
+            jcvardeclDeclaredusingvar = JCTree.JCVariableDecl.class.getMethod("declaredUsingVar");
+        } catch (NoSuchMethodException e) {
+            jcvardeclDeclaredusingvar = null;
+        }
+        JCVARDECL_DECLAREDUSINGVAR = jcvardeclDeclaredusingvar;
     }
 
     /**
@@ -2633,17 +2647,21 @@ public final class TreeUtils {
      * @return true if the variableTree is declared using the {@code var} Java keyword
      */
     public static boolean isVariableTreeDeclaredUsingVar(VariableTree variableTree) {
-        try {
-            // Check if declaredUsingVar() exists and invoke it
-            Method declaredUsingVarMethod = variableTree.getClass().getMethod("declaredUsingVar");
-            Object result = declaredUsingVarMethod.invoke(variableTree);
-            return Boolean.TRUE.equals(result);
-        } catch (NoSuchMethodException e) {
-            // JDK < 17: fallback
+        // The JCVariableDecl class has a field called "declaredUsingVar" that is true if the
+        // variable was declared using the "var" keyword.
+        // https://github.com/openjdk/jdk/commit/e2f736658fbd03d2dc2186dbd9ba9b13b1f1a8ac
+        if (JCVARDECL_DECLAREDUSINGVAR != null) {
+            try {
+                Object result = JCVARDECL_DECLAREDUSINGVAR.invoke(variableTree);
+                return Boolean.TRUE.equals(result);
+            } catch (InvocationTargetException | IllegalAccessException e) {
+                throw new BugInCF(
+                        "TreeUtils.isVariableTreeDeclaredUsingVar: reflection failed for tree: %s",
+                        variableTree);
+            }
+        } else {
             JCExpression type = (JCExpression) variableTree.getType();
             return type != null && type.pos == Position.NOPOS;
-        } catch (ReflectiveOperationException e) {
-            throw new RuntimeException("Failed to invoke declaredUsingVar reflectively", e);
         }
     }
 
