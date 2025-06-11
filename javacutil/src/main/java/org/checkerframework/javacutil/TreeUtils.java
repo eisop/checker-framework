@@ -2633,8 +2633,17 @@ public final class TreeUtils {
      * @return true if the variableTree is declared using the {@code var} Java keyword
      */
     public static boolean isVariableTreeDeclaredUsingVar(VariableTree variableTree) {
-        JCExpression type = (JCExpression) variableTree.getType();
-        return type != null && type.pos == Position.NOPOS;
+        try {
+            // Check if declaredUsingVar() exists and invoke it
+            Method declaredUsingVarMethod = variableTree.getClass().getMethod("declaredUsingVar");
+            return (boolean) declaredUsingVarMethod.invoke(variableTree);
+        } catch (NoSuchMethodException e) {
+            // JDK < 17: fallback
+            JCExpression type = (JCExpression) variableTree.getType();
+            return type != null && type.pos == Position.NOPOS;
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException("Failed to invoke declaredUsingVar reflectively", e);
+        }
     }
 
     /**
