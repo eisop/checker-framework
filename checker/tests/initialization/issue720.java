@@ -31,7 +31,7 @@ class Issue720 {
 
     // False positive: The initializer should be consistent with constructor.
     // The LHS should be adapted to @UnknownInitialization instead of Initialized.
-    // :: error : (assignment.type.incompatible)
+    // :: error: (assignment.type.incompatible)
     @NotOnlyInitialized Object g = this;
     @NotOnlyInitialized Object h;
 
