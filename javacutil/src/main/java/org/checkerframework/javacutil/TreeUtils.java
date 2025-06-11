@@ -2636,7 +2636,8 @@ public final class TreeUtils {
         try {
             // Check if declaredUsingVar() exists and invoke it
             Method declaredUsingVarMethod = variableTree.getClass().getMethod("declaredUsingVar");
-            return (boolean) declaredUsingVarMethod.invoke(variableTree);
+            Object result = declaredUsingVarMethod.invoke(variableTree);
+            return Boolean.TRUE.equals(result);
         } catch (NoSuchMethodException e) {
             // JDK < 17: fallback
             JCExpression type = (JCExpression) variableTree.getType();
