@@ -131,7 +131,7 @@ jobs:
           {version: '11', experimental: false},
           {version: '17', experimental: false},
           {version: '24', experimental: false},
-          {version: '25.0.0+25.0.ea', experimental: true}]
+          {version: '25-ea', experimental: true}]
         exclude:
           # JDK 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
           - script: 'cftests-junit-jdk21'
@@ -201,6 +201,7 @@ jobs:
         # Install the requested JDK second, to make it the default on which everything else runs.
         java-version: ${{ matrix.java.version }}
         distribution: 'temurin'
+        check-latest: false
     - name: Inject JAVA_HOME_21_64 into `gradle.properties` to always use JDK 21 for Gradle
       run: mkdir ~/.gradle && echo "org.gradle.java.home=$JAVA_HOME_21_X64" >> ~/.gradle/gradle.properties
 
