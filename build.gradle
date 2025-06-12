@@ -27,8 +27,8 @@ repositories {
 }
 
 def majorVersionToInt(majorVersionString) {
+    // ^(\d+) matches the first digit(s) at the start of the string.
     def m = majorVersionString =~ /^(\d+)/
-    majorVersionString = m ? m[0][1] : majorVersionString
     return Integer.valueOf(majorVersionString)
 }
 
