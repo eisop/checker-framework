@@ -26,14 +26,9 @@ repositories {
     mavenCentral()
 }
 
-// This extracts the first number before any dot or dash
-def extractMajorVersion(String version) {
-    def m = version =~ /^(\d+)/
-    return m ? m[0][1] : version
-}
-
 def majorVersionToInt(majorVersionString) {
-    majorVersionString = extractMajorVersion(majorVersionString)
+    def m = majorVersionString =~ /^(\d+)/
+    majorVersionString = m ? m[0][1] : majorVersionString
     return Integer.valueOf(majorVersionString)
 }
 
