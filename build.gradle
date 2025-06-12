@@ -31,7 +31,7 @@ def majorVersionToInt(majorVersionString) {
     def m = majorVersionString =~ /^(\d+)/
     // If a match is found, use the whole match group [0][0] (the first digit(s)).
     // Otherwise, use the original string.
-    // It is the same as m[0][1] as there is only one match group.
+    // m[0][0] is the same as m[0][1] because there is only one match group.
     majorVersionString = m ? m[0][0] : majorVersionString
     return Integer.valueOf(majorVersionString)
 }
