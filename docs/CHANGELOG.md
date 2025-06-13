@@ -3,6 +3,10 @@ Version 3.49.3-eisop2 (June ??, 2025)
 
 **User-visible changes:**
 
+The Checker Framework now use `NullType` instead `Void` to denote the bottom type in the Java type hierarchy.
+It is visible when printing out the error message with type variable's or wildcard's lower bound.
+This change makes the Checker Framework consistent with the Java language specification.
+
 **Implementation details:**
 
 **Closed issues:**
