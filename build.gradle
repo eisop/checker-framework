@@ -61,9 +61,9 @@ ext {
     // As of 2025-04-28 (Lombok 1.18.38), delombok supports JDK 24-ea but not JDK 24 proper; see https://projectlombok.org/changelog .
     skipDelombok = (useJdkVersionInt >= 24)
 
-    // NO-AFU
-    // annotationTools = "${parentDir}/annotation-tools"
-    // afu = "${annotationTools}/annotation-file-utilities"
+    // NO-AFU - keep these variables live so tasks in checker/build.gradle configure without issue.
+    annotationTools = "${parentDir}/annotation-tools"
+    afu = "${annotationTools}/annotation-file-utilities"
 
     jtregHome = "${parentDir}/jtreg"
     gitScriptsHome = "${project(':checker').projectDir}/bin-devel/.git-scripts"
