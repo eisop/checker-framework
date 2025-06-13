@@ -17,7 +17,7 @@ plugins {
     // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
     // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
     // Only works on JDK 11+ (even including the plugin crashes Gradle on JDK 8).
-    id 'com.diffplug.spotless' version '7.0.3'
+    id 'com.diffplug.spotless' version '7.0.4'
 }
 
 // There is another `repositories { ... }` block below; if you change this one, change that one as well.
@@ -27,9 +27,12 @@ repositories {
 }
 
 def majorVersionToInt(majorVersionString) {
-    if (majorVersionString.endsWith("-ea")) {
-        majorVersionString = majorVersionString.substring(0, majorVersionString.length() - 3)
-    }
+    // ^(\d+) matches the first digit(s) at the start of the string.
+    def m = majorVersionString =~ /^(\d+)/
+    // If a match is found, use the whole match group [0][0] (the first digit(s)). Otherwise, use the original string.
+    // m[0] is the list of match groups and m[0][0] is the whole match.
+    // For example, for input "17", m[0] is ["17", "17"], and m[0][0] is "17".
+    majorVersionString = m ? m[0][0] : majorVersionString
     return Integer.valueOf(majorVersionString)
 }
 
@@ -169,7 +172,7 @@ allprojects { currentProj ->
     //   * any new checkers have been added, or
     //   * backward-incompatible changes have been made to APIs or elsewhere.
     // To make a snapshot release, version should end in "-SNAPSHOT", then: ./gradlew publish
-    version = '3.49.3-eisop1'
+    version = '3.49.3-eisop2-SNAPSHOT'
 
     apply plugin: 'java'
     apply plugin: 'eclipse'
