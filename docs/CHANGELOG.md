@@ -6,7 +6,9 @@ Version 3.49.3-eisop2 (June ??, 2025)
 **Implementation details:**
 
 **Closed issues:**
-typetools#7096.
+
+eisop#1247, typetools#7096.
+
 
 Version 3.49.3-eisop1 (May 6, 2025)
 -----------------------------------
