@@ -11,7 +11,8 @@ the super type in the class declaration. Checker supports annotation on the supe
 
 **Closed issues:**
 
-eisop#1059
+eisop#1059, eisop#1247.
+
 
 Version 3.49.3-eisop1 (May 6, 2025)
 -----------------------------------
