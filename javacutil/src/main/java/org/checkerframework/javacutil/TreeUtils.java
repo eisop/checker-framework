@@ -141,8 +141,8 @@ public final class TreeUtils {
     private static final @Nullable Method TREEMAKER_SELECT;
 
     /**
-     * The {@code JCTree.JCVariableDecl.declaredUsingVar()} method. We should use this method to
-     * determine if a variable is declared using {@code var} in Java 11+.
+     * The {@code JCTree.JCVariableDecl.declaredUsingVar()} method. This method
+     * determines if a variable is declared using {@code var} in Java 17+.
      */
     private static final @Nullable Method JCVARDECL_DECLAREDUSINGVAR;
 
