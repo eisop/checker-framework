@@ -2650,7 +2650,9 @@ public final class TreeUtils {
         // The JCVariableDecl class has a field called "declaredUsingVar" that is true if the
         // variable was declared using the "var" keyword.
         // https://github.com/openjdk/jdk/commit/e2f736658fbd03d2dc2186dbd9ba9b13b1f1a8ac
-        if (JCVARDECL_DECLAREDUSINGVAR != null && variableTree instanceof JCTree.JCVariableDecl) {
+        if (JCVARDECL_DECLAREDUSINGVAR != null
+                && !(((JCTree.JCVariableDecl) variableTree).vartype
+                        instanceof JCTree.JCErroneous)) {
             try {
                 Object result = JCVARDECL_DECLAREDUSINGVAR.invoke(variableTree);
                 return Boolean.TRUE.equals(result);
