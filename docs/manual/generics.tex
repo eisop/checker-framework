@@ -315,9 +315,6 @@ that you cannot write the bottom type \<NullType>; note that
   List<@NonNull ? super @NonNull NullType> lnn;
 \end{Verbatim}
 
-Note we output the lower bound as \<Void> rather than \<null> in the Checker Framework
-because \<null> is not a valid Java type.
-
 \noindent
 Note that the annotation in front of a type parameter always applies to its
 lower bound, because type parameters can only be written with \<extends>
