@@ -1,6 +1,6 @@
 Issue594.java:17: error: [return.type.incompatible] incompatible types in return.
         return result;
                ^
-  type of expression: T[ extends @Nullable Object super @Nullable Void]
-  method return type: T[ extends @Nullable Object super @NonNull Void]
+  type of expression: T[ extends @Nullable Object super @Nullable NullType]
+  method return type: T[ extends @Nullable Object super @NonNull NullType]
 1 error
