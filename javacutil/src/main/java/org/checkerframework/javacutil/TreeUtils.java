@@ -2654,7 +2654,9 @@ public final class TreeUtils {
         // Checking the pos is equal to Position.NOPOS will return the wrong result after above
         // Javac change.
         JCExpression type = (JCExpression) variableTree.getType();
-        if (JCVARDECL_DECLAREDUSINGVAR != null && !isErroneousTree(type)) {
+        if (type == null) {
+            return false;
+        } else if (JCVARDECL_DECLAREDUSINGVAR != null && !isErroneousTree(type)) {
             try {
                 Object result = JCVARDECL_DECLAREDUSINGVAR.invoke(variableTree);
                 return Boolean.TRUE.equals(result);
@@ -2664,7 +2666,7 @@ public final class TreeUtils {
                         variableTree);
             }
         } else {
-            return type != null && type.pos == Position.NOPOS;
+            return type.pos == Position.NOPOS;
         }
     }
 
