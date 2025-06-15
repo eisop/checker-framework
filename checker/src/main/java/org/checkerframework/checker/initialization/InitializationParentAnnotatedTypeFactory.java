@@ -752,6 +752,21 @@ public abstract class InitializationParentAnnotatedTypeFactory
                         (DeclaredType) exeType.getReturnType().getUnderlyingType();
                 AnnotationMirror a = getUnderInitializationAnnotationOfSuperType(underlyingType);
                 exeType.getReturnType().replaceAnnotation(a);
+
+                // If the receiver type exists (meaning there is an enclosing type) and is
+                // annotated, then annotate the enclosing type with the same annotation.
+                // TODO: look into why there is this inconsistency between receiver type and
+                // enclosing type of the return type.
+                if (exeType.getReceiverType() != null) {
+                    if (exeType.getReceiverType().hasAnnotationInHierarchy(a)) {
+                        AnnotationMirror enclAnno =
+                                exeType.getReceiverType().getAnnotationInHierarchy(a);
+                        AnnotatedDeclaredType ret = (AnnotatedDeclaredType) exeType.getReturnType();
+                        if (ret.getEnclosingType() != null) {
+                            ret.getEnclosingType().addAnnotation(enclAnno);
+                        }
+                    }
+                }
             }
             return result;
         }
