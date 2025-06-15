@@ -3,8 +3,8 @@ Version 3.49.3-eisop2 (June ??, 2025)
 
 **User-visible changes:**
 
-`instanceof.unsafe` and `instanceof.pattern.unsafe` warnings in the Checker Framework are now controlled by lint options.
-They are enabled by default and can be disabled using -Alint=-instanceof.unsafe or -Alint=-instanceof.
+The `instanceof.unsafe` and `instanceof.pattern.unsafe` warnings in the Checker Framework are now controlled by lint options.
+They are enabled by default and can be disabled using `-Alint=-instanceof.unsafe` or `-Alint=-instanceof`.
 
 **Implementation details:**
 
