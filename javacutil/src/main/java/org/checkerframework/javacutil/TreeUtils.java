@@ -2647,12 +2647,11 @@ public final class TreeUtils {
      * @return true if the variableTree is declared using the {@code var} Java keyword
      */
     public static boolean isVariableTreeDeclaredUsingVar(VariableTree variableTree) {
-        // The JCVariableDecl class has the method "declaredUsingVar()" returns true if the
-        // variable was declared using the "var" keyword.
-        // The start positions are set for types of variables declared using var in
-        // https://github.com/openjdk/jdk/commit/e2f736658fbd03d2dc2186dbd9ba9b13b1f1a8ac
-        // Checking the pos is equal to Position.NOPOS will return the wrong result after above
-        // Javac change.
+        // Method JCVariableDecl#declaredUsingVar() returns true if a variable was declared using the "var" keyword. This method was added in JDK 17.
+        // Before JDK 25, the start positions for types of variables declared using "var" were not set.
+        // JDK 25 changed this in https://github.com/openjdk/jdk/commit/e2f736658fbd03d2dc2186dbd9ba9b13b1f1a8ac
+        // Checking whether the position is equal to Position.NOPOS returns the wrong result after the above javac change.
+        // Checking for Position.NOPOS is only the fallback for JDKs that do not have method JCVariableDecl#declaredUsingVar().
         JCExpression type = (JCExpression) variableTree.getType();
         if (type == null) {
             return false;
@@ -2662,7 +2661,7 @@ public final class TreeUtils {
                 return Boolean.TRUE.equals(result);
             } catch (InvocationTargetException | IllegalAccessException e) {
                 throw new BugInCF(
-                        "TreeUtils.isVariableTreeDeclaredUsingVar: reflection failed for tree: %s",
+                        e, "TreeUtils.isVariableTreeDeclaredUsingVar: reflection failed for tree: %s",
                         variableTree);
             }
         } else {
