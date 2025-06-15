@@ -2660,7 +2660,7 @@ public final class TreeUtils {
         JCExpression type = (JCExpression) variableTree.getType();
         if (type == null) {
             return false;
-            // TODO: remove the check after EISOP#1262
+            // TODO: remove the ErroneousTree check after EISOP#1262
         } else if (JCVARDECL_DECLAREDUSINGVAR != null && !isErroneousTree(type)) {
             try {
                 Object result = JCVARDECL_DECLAREDUSINGVAR.invoke(variableTree);
