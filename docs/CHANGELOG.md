@@ -17,9 +17,15 @@ The Nullness Checker now has more fine-grained prefix options to suppress warnin
 - `@SuppressWarnings("keyfor")` is used to suppress warnings from the KeyFor Checker only,
    warnings from the Nullness and Initialization Checkers are not suppressed.
 
+The `instanceof.unsafe` and `instanceof.pattern.unsafe` warnings in the Checker Framework are now controlled by lint options.
+They are enabled by default and can be disabled using `-Alint=-instanceof.unsafe` or `-Alint=-instanceof`.
+
+
 **Implementation details:**
 
 **Closed issues:**
+
+eisop#1247.
 
 
 Version 3.49.3-eisop1 (May 6, 2025)
