@@ -10,7 +10,8 @@ They are enabled by default and can be disabled using `-Alint=-instanceof.unsafe
 
 **Closed issues:**
 
-eisop#1247
+eisop#1247, typetools#7096.
+
 
 Version 3.49.3-eisop1 (May 6, 2025)
 -----------------------------------
