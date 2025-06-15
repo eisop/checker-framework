@@ -3045,6 +3045,6 @@ public final class TreeUtils {
      * @return true if the given tree is an erroneous tree
      */
     public static boolean isErroneousTree(Tree tree) {
-        return tree instanceof JCTree.JCErroneous;
+        return tree.getKind() == Kind.ERRONEOUS;
     }
 }
