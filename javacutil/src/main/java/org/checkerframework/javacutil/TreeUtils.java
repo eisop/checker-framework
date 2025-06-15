@@ -167,13 +167,13 @@ public final class TreeUtils {
             throw new AssertionError("Unexpected error in TreeUtils static initializer", e);
         }
 
-        Method jcvardeclDeclaredusingvar;
+        Method m;
         try {
-            jcvardeclDeclaredusingvar = JCTree.JCVariableDecl.class.getMethod("declaredUsingVar");
+            m = JCTree.JCVariableDecl.class.getMethod("declaredUsingVar");
         } catch (NoSuchMethodException e) {
-            jcvardeclDeclaredusingvar = null;
+            m = null;
         }
-        JCVARDECL_DECLAREDUSINGVAR = jcvardeclDeclaredusingvar;
+        JCVARDECL_DECLAREDUSINGVAR = m;
     }
 
     /**
@@ -2647,12 +2647,14 @@ public final class TreeUtils {
      * @return true if the variableTree is declared using the {@code var} Java keyword
      */
     public static boolean isVariableTreeDeclaredUsingVar(VariableTree variableTree) {
-        // The JCVariableDecl class has a field called "declaredUsingVar" that is true if the
+        // The JCVariableDecl class has the method "declaredUsingVar()" returns true if the
         // variable was declared using the "var" keyword.
+        // The start positions are set for types of variables declared using var in
         // https://github.com/openjdk/jdk/commit/e2f736658fbd03d2dc2186dbd9ba9b13b1f1a8ac
-        if (JCVARDECL_DECLAREDUSINGVAR != null
-                && !(((JCTree.JCVariableDecl) variableTree).vartype
-                        instanceof JCTree.JCErroneous)) {
+        // Checking the pos is equal to Position.NOPOS will return the wrong result after above
+        // Javac change.
+        JCExpression type = (JCExpression) variableTree.getType();
+        if (JCVARDECL_DECLAREDUSINGVAR != null && !isErroneousTree(type)) {
             try {
                 Object result = JCVARDECL_DECLAREDUSINGVAR.invoke(variableTree);
                 return Boolean.TRUE.equals(result);
@@ -2662,7 +2664,6 @@ public final class TreeUtils {
                         variableTree);
             }
         } else {
-            JCExpression type = (JCExpression) variableTree.getType();
             return type != null && type.pos == Position.NOPOS;
         }
     }
@@ -3035,5 +3036,15 @@ public final class TreeUtils {
         return !element.getTypeParameters().isEmpty()
                 && (memberReferenceTree.getTypeArguments() == null
                         || memberReferenceTree.getTypeArguments().isEmpty());
+    }
+
+    /**
+     * Returns true if the given tree is an erroneous tree.
+     *
+     * @param tree a tree to check
+     * @return true if the given tree is an erroneous tree
+     */
+    public static boolean isErroneousTree(Tree tree) {
+        return tree instanceof JCTree.JCErroneous;
     }
 }
