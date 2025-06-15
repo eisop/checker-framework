@@ -7,11 +7,15 @@ The EISOP Checker Framework now use `NullType` instead `Void` to denote the bott
 It is visible when printing out the error message with type variable's or wildcard's lower bound.
 This change makes the Checker Framework consistent with the Java language specification.
 
+The `instanceof.unsafe` and `instanceof.pattern.unsafe` warnings in the Checker Framework are now controlled by lint options.
+They are enabled by default and can be disabled using `-Alint=-instanceof.unsafe` or `-Alint=-instanceof`.
+
 **Implementation details:**
 
 **Closed issues:**
 
-eisop#1247
+eisop#1247.
+
 
 Version 3.49.3-eisop1 (May 6, 2025)
 -----------------------------------
