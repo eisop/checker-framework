@@ -795,7 +795,7 @@ configurations {
 }
 
 dependencies {
-  requireJavadoc 'org.plumelib:require-javadoc:1.0.9'
+  requireJavadoc 'org.plumelib:require-javadoc:2.0.0'
 }
 
 task requireJavadoc(type: JavaExec, group: 'Documentation') {
@@ -804,6 +804,16 @@ task requireJavadoc(type: JavaExec, group: 'Documentation') {
   classpath = configurations.requireJavadoc
   // Convert each srcDir to its absolute path and flatten the list
   args requireJavadocDirs.collect { it.srcDirs*.absolutePath }.flatten()
+  jvmArgs += [
+    '--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
+    '--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
+    '--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
+    '--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED',
+    '--add-opens=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
+    '--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
+    '--add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
+    '--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED',
+  ]
 }
 
 
