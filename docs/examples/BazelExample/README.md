@@ -11,7 +11,7 @@ ERROR: docs/examples/BazelExample/BUILD:1:12: Building example.jar (1 source fil
 BazelExample.java:25: error: [assignment.type.incompatible] incompatible types in assignment.
         @NonNull Object nn = null; // error on this line
                              ^
-  found   : null (NullType)
+  found   : @Nullable NullType
   required: @NonNull Object
 Target //:example failed to build
 Use --verbose_failures to see the command lines of failed build steps.
