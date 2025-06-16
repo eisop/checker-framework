@@ -7,11 +7,14 @@ The Checker Framework issues `annotation.on.supertype` error if there is an anno
 the super type in the class declaration. Checker supports annotation on the super type can override
 `BaseTypeVisitor#checkExtendsOrImplements(Tree, AnnotationMirrorSet, TypeMirror, Boolean)` to disable the check.
 
+The `instanceof.unsafe` and `instanceof.pattern.unsafe` warnings in the Checker Framework are now controlled by lint options.
+They are enabled by default and can be disabled using `-Alint=-instanceof.unsafe` or `-Alint=-instanceof`.
+
 **Implementation details:**
 
 **Closed issues:**
 
-eisop#1059, eisop#1247.
+eisop#1059, eisop#1247, typetools#7096.
 
 
 Version 3.49.3-eisop1 (May 6, 2025)
