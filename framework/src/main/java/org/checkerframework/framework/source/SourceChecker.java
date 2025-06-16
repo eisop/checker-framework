@@ -1890,7 +1890,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     //
 
     /**
-     * Determine which lint options are artive.
+     * Determine which lint options are active.
      *
      * @param options the command-line options
      * @return the active lint options

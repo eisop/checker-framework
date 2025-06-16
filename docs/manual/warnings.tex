@@ -711,12 +711,11 @@ options (and possibly more, see the checker's documentation):
 
 \item
   \code{cast:unsafe} (default: on) warn about unsafe casts that are not
-  checked at run time, as in \code{((@NonNull String) myref)}.  Such casts
-  are generally not necessary because of type refinement
-  (Section~\ref{type-refinement}).
+  checked at run time, as in \code{((@NonNull String) myref)}.
+  Such casts are unsafe as the type qualifiers are ignored at run time.
 
 \item
-  \code{cast:redundant} (default: on) warn about redundant
+  \code{cast:redundant} (default: off) warn about redundant
   casts that are guaranteed to succeed at run time,
   as in \code{((@NonNull String) "m")}.  Such casts are not necessary,
   because the target expression of the cast already has the given type
@@ -724,6 +723,14 @@ options (and possibly more, see the checker's documentation):
 
 \item
   \code{cast} Enable or disable all cast-related warnings.
+
+\item
+  \code{instanceof:unsafe} (default: on) warn about unsafe instanceof tests
+  that are not checked at run time, as in \code{o instanceof @Untainted String}.
+  Such instanceof tests are unsafe as the type qualifiers are ignored at run time.
+
+\item
+  \code{instanceof} Enable or disable instanceof-related warnings.
 
 \item
 \begin{sloppypar}
