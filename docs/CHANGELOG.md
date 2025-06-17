@@ -7,6 +7,25 @@ The Checker Framework issues `annotation.on.supertype` error if there is an anno
 the super type in the class declaration. Checker supports annotation on the super type can override
 `BaseTypeVisitor#checkExtendsOrImplements(Tree, AnnotationMirrorSet, TypeMirror, Boolean)` to disable the check.
 
+The Nullness Checker now has more fine-grained prefix options to suppress warnings:
+- `@SuppressWarnings("nullness")` is used to suppress warnings from the Nullness, Initialization, and KeyFor Checkers.
+- `@SuppressWarnings("nullnesskeyfor")` is used to suppress warnings from the Nullness and KeyFor Checkers,
+   warnings from the Initialization Checker are not suppressed.
+  `@SuppressWarnings("nullnessnoinit")` has the same effect as `@SuppressWarnings("nullnesskeyfor")`.
+- `@SuppressWarnings("nullnessinitialization")` is used to suppress warnings from the Nullness and Initialization Checkers,
+   warnings from the KeyFor Checker are not suppressed.
+- `@SuppressWarnings("nullnessonly")` is used to suppress warnings from the Nullness Checker only,
+   warnings from the Initialization and KeyFor Checkers are not suppressed.
+- `@SuppressWarnings("initialization")` is used to suppress warnings from the Initialization Checker only,
+   warnings from the Nullness and KeyFor Checkers are not suppressed.
+- `@SuppressWarnings("keyfor")` is used to suppress warnings from the KeyFor Checker only,
+   warnings from the Nullness and Initialization Checkers are not suppressed.
+
+The EISOP Checker Framework now use `NullType` instead `Void` to denote the bottom type in the Java type hierarchy.
+It is visible in error messages with type variable's or wildcard's lower bounds.
+The type of the `null` literal in the Nullness Checker is now displayed as `@Nullable NullType` instead of the earlier `null (NullType)`.
+This change makes the Checker Framework consistent with the Java language specification.
+
 The `instanceof.unsafe` and `instanceof.pattern.unsafe` warnings in the Checker Framework are now controlled by lint options.
 They are enabled by default and can be disabled using `-Alint=-instanceof.unsafe` or `-Alint=-instanceof`.
 
