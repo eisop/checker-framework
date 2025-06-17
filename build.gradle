@@ -27,9 +27,12 @@ repositories {
 }
 
 def majorVersionToInt(majorVersionString) {
-    if (majorVersionString.endsWith("-ea")) {
-        majorVersionString = majorVersionString.substring(0, majorVersionString.length() - 3)
-    }
+    // ^(\d+) matches the first digit(s) at the start of the string.
+    def m = majorVersionString =~ /^(\d+)/
+    // If a match is found, use the whole match group [0][0] (the first digit(s)). Otherwise, use the original string.
+    // m[0] is the list of match groups and m[0][0] is the whole match.
+    // For example, for input "17", m[0] is ["17", "17"], and m[0][0] is "17".
+    majorVersionString = m ? m[0][0] : majorVersionString
     return Integer.valueOf(majorVersionString)
 }
 
@@ -58,9 +61,9 @@ ext {
     // As of 2025-04-28 (Lombok 1.18.38), delombok supports JDK 24-ea but not JDK 24 proper; see https://projectlombok.org/changelog .
     skipDelombok = (useJdkVersionInt >= 24)
 
-    // NO-AFU
-    // annotationTools = "${parentDir}/annotation-tools"
-    // afu = "${annotationTools}/annotation-file-utilities"
+    // NO-AFU - keep these variables live so tasks in checker/build.gradle configure without issue.
+    annotationTools = "${parentDir}/annotation-tools"
+    afu = "${annotationTools}/annotation-file-utilities"
 
     jtregHome = "${parentDir}/jtreg"
     gitScriptsHome = "${project(':checker').projectDir}/bin-devel/.git-scripts"

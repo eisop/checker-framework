@@ -99,6 +99,8 @@ docs/examples/MavenExample/Out.txt
 docs/examples/MavenExample-framework-all/Out.txt
 docs/examples/errorprone/.gradle/
 docs/examples/errorprone/Out.txt
+docs/examples/nullaway/.gradle/
+docs/examples/nullaway/Out.txt
 docs/examples/jspecify/.gradle/
 docs/examples/jspecify/Out.txt
 docs/examples/lombok/.gradle/
