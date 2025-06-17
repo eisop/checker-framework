@@ -191,7 +191,7 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
 
         /**
          * Print, to sb, {@code keyWord} followed by {@code field}. NULL types are substituted with
-         * their annotations followed by "NullType"
+         * their annotations followed by "NullType".
          */
         @SideEffectFree
         protected void printBound(

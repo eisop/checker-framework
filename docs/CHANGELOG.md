@@ -4,7 +4,8 @@ Version 3.49.3-eisop2 (June ??, 2025)
 **User-visible changes:**
 
 The EISOP Checker Framework now use `NullType` instead `Void` to denote the bottom type in the Java type hierarchy.
-It is visible when printing out the error message with type variable's or wildcard's lower bound.
+It is visible in error messages with type variable's or wildcard's lower bounds.
+The type of the `null` literal in the Nullness Checker is now displayed as `@Nullable NullType` instead of the earlier `null (NullType)`.
 This change makes the Checker Framework consistent with the Java language specification.
 
 The `instanceof.unsafe` and `instanceof.pattern.unsafe` warnings in the Checker Framework are now controlled by lint options.
