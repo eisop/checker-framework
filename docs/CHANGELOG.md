@@ -17,6 +17,11 @@ The Nullness Checker now has more fine-grained prefix options to suppress warnin
 - `@SuppressWarnings("keyfor")` is used to suppress warnings from the KeyFor Checker only,
    warnings from the Nullness and Initialization Checkers are not suppressed.
 
+The EISOP Checker Framework now use `NullType` instead `Void` to denote the bottom type in the Java type hierarchy.
+It is visible in error messages with type variable's or wildcard's lower bounds.
+The type of the `null` literal in the Nullness Checker is now displayed as `@Nullable NullType` instead of the earlier `null (NullType)`.
+This change makes the Checker Framework consistent with the Java language specification.
+
 The `instanceof.unsafe` and `instanceof.pattern.unsafe` warnings in the Checker Framework are now controlled by lint options.
 They are enabled by default and can be disabled using `-Alint=-instanceof.unsafe` or `-Alint=-instanceof`.
 

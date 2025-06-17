@@ -191,7 +191,7 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
 
         /**
          * Print, to sb, {@code keyWord} followed by {@code field}. NULL types are substituted with
-         * their annotations followed by " Void"
+         * their annotations followed by "NullType".
          */
         @SideEffectFree
         protected void printBound(
@@ -216,7 +216,7 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
                 sb.append(
                         annoFormatter.formatAnnotationString(
                                 field.getAnnotations(), currentPrintInvisibleSetting));
-                sb.append("Void");
+                sb.append("NullType");
             }
         }
 
