@@ -1517,7 +1517,7 @@ public final class TreeUtils {
      *   <em>obj</em> . <em>f</em>
      * </pre>
      *
-     * This method currently also returns true for class literals and qualified this.
+     * This method currently also returns true for qualified this.
      *
      * @param tree a tree that might be a field access
      * @return true iff if tree is a field access expression (implicit or explicit)
@@ -1534,16 +1534,19 @@ public final class TreeUtils {
      *   <em>obj</em> . <em>f</em>
      * </pre>
      *
-     * This method currently also returns a non-null value for class literals and qualified this.
+     * This method currently also returns a non-null value for qualified this.
      *
      * @param tree a tree that might be a field access
      * @return the element if tree is a field access expression (implicit or explicit); null
      *     otherwise
      */
-    // TODO: fix value for class literals and qualified this, which are not field accesses.
+    // TODO: fix value for qualified this, which is not field accesses.
     public static @Nullable VariableElement asFieldAccess(Tree tree) {
+        if (isClassLiteral(tree)) {
+            return null;
+        }
         if (tree.getKind() == Tree.Kind.MEMBER_SELECT) {
-            // explicit member access (or a class literal or a qualified this)
+            // explicit member access (or a qualified this)
             MemberSelectTree memberSelect = (MemberSelectTree) tree;
             assert isUseOfElement(memberSelect) : "@AssumeAssertion(nullness): tree kind";
             Element el = TreeUtils.elementFromUse(memberSelect);
@@ -1584,7 +1587,7 @@ public final class TreeUtils {
     /**
      * Compute the name of the field that the field access {@code tree} accesses. Requires {@code
      * tree} to be a field access, as determined by {@code isFieldAccess} (which currently also
-     * returns true for class literals and qualified this).
+     * returns true for qualified this).
      *
      * @param tree a field access tree
      * @return the name of the field accessed by {@code tree}
