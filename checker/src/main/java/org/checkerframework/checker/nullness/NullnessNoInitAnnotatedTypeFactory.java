@@ -35,7 +35,6 @@ import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
-import org.checkerframework.framework.type.AnnotatedTypeFormatter;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
@@ -493,20 +492,6 @@ public class NullnessNoInitAnnotatedTypeFactory
             CFAbstractAnalysis<NullnessNoInitValue, NullnessNoInitStore, NullnessNoInitTransfer>
                     analysis) {
         return new NullnessNoInitTransfer((NullnessNoInitAnalysis) analysis);
-    }
-
-    /**
-     * Returns an AnnotatedTypeFormatter that does not print the qualifiers on null literals.
-     *
-     * @return an AnnotatedTypeFormatter that does not print the qualifiers on null literals
-     */
-    @Override
-    protected AnnotatedTypeFormatter createAnnotatedTypeFormatter() {
-        boolean printVerboseGenerics = checker.hasOption("printVerboseGenerics");
-        return new NullnessNoInitAnnotatedTypeFormatter(
-                printVerboseGenerics,
-                // -AprintVerboseGenerics implies -AprintAllQualifiers
-                printVerboseGenerics || checker.hasOption("printAllQualifiers"));
     }
 
     @Override
