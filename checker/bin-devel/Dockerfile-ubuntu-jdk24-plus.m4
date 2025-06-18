@@ -4,48 +4,7 @@
 # "ubuntu" is the latest LTS release.  "ubuntu:rolling" is the latest release.
 # Both might lag behind; as of 2024-11-16, ubuntu:rolling was still 24.04 rather than 24.10.
 FROM ubuntu:rolling
-LABEL org.opencontainers.image.authors="Werner Dietl <wdietl@gmail.com>"
-
-# According to
-# https://docs.docker.com/engine/userguide/eng-image/dockerfile_best-practices/:
-#  * Put "apt update" and "apt install" and "apt cleanup" in the same RUN command.
-#  * Do not run "apt upgrade"; instead get upstream to update.
-
-RUN export DEBIAN_FRONTEND=noninteractive \
-&& apt -qqy update \
-&& apt install -y locales \
-&& rm -rf /var/lib/apt/lists/* \
-&& locale-gen "en_US.UTF-8"
-ENV LANG=en_US.UTF-8 \
-    LANGUAGE=en_US:en \
-    LC_ALL=en_US.UTF-8
-
-# Always install JDK 21 to compile the code, even if tests run under a different JDK.
-RUN export DEBIAN_FRONTEND=noninteractive \
-&& apt -qqy update \
-&& apt -y install \
-  openjdk-21-jdk
-
-# Known good combinations of JTReg and the JDK appear at https://builds.shipilev.net/jtreg/ .
-
-RUN export DEBIAN_FRONTEND=noninteractive \
-&& apt -qqy update \
-&& apt -y install \
-  ant \
-  binutils \
-  build-essential \
-  cpp \
-  git \
-  jq \
-  jtreg7 \
-  libcurl3-gnutls \
-  make \
-  maven \
-  python3-requests \
-  python3-setuptools \
-  unzip \
-  wget
-
+include(`Dockerfile-ubuntu-base-contents.txt')
 
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt -qqy update \
@@ -88,9 +47,6 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 && PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install black \
 && PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install flake8 \
 && PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install html5validator \
-&& PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install lithium-reducer \
-&& PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install PyGithub \
-&& PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install pyyaml
 && PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install ruff
 
 RUN export DEBIAN_FRONTEND=noninteractive \
