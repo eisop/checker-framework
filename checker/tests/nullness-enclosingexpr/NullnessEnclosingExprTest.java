@@ -19,9 +19,6 @@ class NullnessEnclosingExprTest {
     class InnerWithUnknownInitializationEnclosingExpression {
         InnerWithUnknownInitializationEnclosingExpression(
                 @UnknownInitialization NullnessEnclosingExprTest NullnessEnclosingExprTest.this) {
-            // This should also never lead to an NPE, because that dereference should produce an
-            // type error.
-            // Fixed by this PR: https://github.com/eisop/checker-framework/pull/1253
             // :: error: (dereference.of.nullable)
             NullnessEnclosingExprTest.this.f.hashCode();
         }
