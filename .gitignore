@@ -95,6 +95,7 @@ docs/examples/BazelExample/bazel-BazelExample
 docs/examples/BazelExample/bazel-bin
 docs/examples/BazelExample/bazel-out
 docs/examples/BazelExample/bazel-testlogs
+docs/examples/BazelExample/Out.txt
 docs/examples/MavenExample/Out.txt
 docs/examples/MavenExample-framework-all/Out.txt
 docs/examples/errorprone/.gradle/
