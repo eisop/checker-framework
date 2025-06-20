@@ -1,5 +1,5 @@
 // ///////////////////////////////////////////////////////////////////////////
-// Checker Framework pluggable type-checking and JSpecify example
+// Checker Framework pluggable type-checking and NullAway example
 //
 
 plugins {
@@ -33,10 +33,10 @@ if (false) {
 }
 
 dependencies {
-    compileOnly 'org.jspecify:jspecify:1.0.0'
     if (JavaVersion.current() >= JavaVersion.VERSION_17) {
         errorprone 'com.google.errorprone:error_prone_core:2.38.0'
     }
+    errorprone 'com.uber.nullaway:nullaway:0.12.7'
 }
 
 repositories {
@@ -48,4 +48,10 @@ checkerFramework {
         'org.checkerframework.checker.nullness.NullnessChecker',
     ]
     extraJavacArgs = ['-Aversion']
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.errorprone {
+        option("NullAway:AnnotatedPackages", "com.example")
+    }
 }
