@@ -708,15 +708,26 @@ arguments.  One use for this key is when a class is declared to take only
 \<@NonNull> type arguments, but you want to instantiate the class with a
 \<@Nullable> type argument, as in \code{List<@Nullable Object>}.
 
-To suppress warnings by the Nullness Checker without also suppressing warnings
-by the Initialization Checker (see Section~\ref{initialization-checker}),
-use the \<@SuppressWarnings("nullnessnoinit")> annotation.
+To suppress warnings from the Nullness, Initialization, and KeyFor Checkers,
+use the \<@SuppressWarnings("nullness")> annotation.
+
+To suppress warnings from the Nullness and Initialization Checkers without suppressing warnings
+from the KeyFor Checker (see Section~\ref{map-key-checker}),
+use the \<@SuppressWarnings("nullnessinitialization")> annotation.
+
+To suppress warnings from the Nullness and KeyFor Checkers without suppressing warnings
+from the Initialization Checker (see Section~\ref{initialization-checker}),
+use the \<@SuppressWarnings("nullnesskeyfor")> annotation.
+\<@SuppressWarnings("nullnessnoinit")> has the same effect as \<@SuppressWarnings("nullnesskeyfor")>.
+
+To suppress warnings only from the Nullness Checker, use the \<@SuppressWarnings("nullnessonly")> annotation.
+
+To suppress warnings only from the Initialization Checker, use the \<@SuppressWarnings("initialization")> annotation.
+
+To suppress warnings only from the KeyFor Checker, use the \<@SuppressWarnings("keyfor")> annotation.
 
 The Nullness Checker also permits you to use assertions or method calls to
 suppress warnings; see below.
-
-% TODO: check whether the SuppressWarnings strings are correct.
-
 
 \subsectionAndLabel{Suppressing warnings with assertions and method calls}{suppressing-warnings-with-assertions}
 

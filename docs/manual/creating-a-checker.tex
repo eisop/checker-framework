@@ -818,12 +818,13 @@ Your qualifier hierarchy must have a bottom qualifier
 --- a qualifier that is a (direct or indirect) subtype of every other
 qualifier.
 
-\<null> has the bottom type. Because the only value with type \<Void> is
-\<null>, uses of the type \<Void> are also bottom.
-(The only exception
-is if the type system has special treatment for \<null> values, as the
+\<NullType> is the bottom type in the Java type hierarchy, and it is a special unnamed type i.e. programmers cannot write
+\<NullType> explicitly in the source code.
+\<null> has the bottom type. Because the only value with type \<Void> is \<null>, uses of the type \<Void> are bottom.
+(The only exception is if the type system has special treatment for \<null> values, as the
 Nullness Checker does. In that case, add the meta-annotation
 \refqualclasswithparams{framework/qual}{QualifierForLiterals}{LiteralKind.NULL}
+and \refqualclasswithparams{framework/qual}{DefaultFor}{types = Void.class}
 to the correct qualifier.)
 This legal code
 will not type-check unless \<null> has the bottom type:
