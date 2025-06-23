@@ -63,6 +63,7 @@ import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
 import com.sun.tools.javac.tree.JCTree.JCNewArray;
 import com.sun.tools.javac.tree.JCTree.JCNewClass;
 import com.sun.tools.javac.tree.JCTree.JCTypeParameter;
+import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.Context;
@@ -103,6 +104,7 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.BindingPatternUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.CaseUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.InstanceOfUtils;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11.JCVariableDeclUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.SwitchExpressionUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.YieldUtils;
 import org.plumelib.util.CollectionsPlume;
@@ -2621,33 +2623,12 @@ public final class TreeUtils {
    * @return true if the variableTree is declared using the {@code var} Java keyword
    */
   public static boolean isVariableTreeDeclaredUsingVar(VariableTree variableTree) {
-    // Method JCVariableDecl#declaredUsingVar() returns true if a variable was declared using
-    // the "var" keyword. This method was added in JDK 17.
-    // Before JDK 25, the start positions for types of variables declared using "var" were not
-    // set.
-    // JDK 25 changed this in
-    // https://github.com/openjdk/jdk/commit/e2f736658fbd03d2dc2186dbd9ba9b13b1f1a8ac
-    // Checking whether the position is equal to Position.NOPOS returns the wrong result after
-    // the above javac change.
-    // Checking for Position.NOPOS is only the fallback for JDKs that do not have method
-    // JCVariableDecl#declaredUsingVar().
-    JCExpression type = (JCExpression) variableTree.getType();
-    if (type == null) {
-      return false;
-      // TODO: remove the ErroneousTree check after EISOP#1262
-    } else if (JCVARDECL_DECLAREDUSINGVAR != null && !isErroneousTree(type)) {
-      try {
-        Object result = JCVARDECL_DECLAREDUSINGVAR.invoke(variableTree);
-        return Boolean.TRUE.equals(result);
-      } catch (InvocationTargetException | IllegalAccessException e) {
-        throw new BugInCF(
-            e,
-            "TreeUtils.isVariableTreeDeclaredUsingVar: reflection failed for tree: %s",
-            variableTree);
-      }
-    } else {
-      return type.pos == Position.NOPOS;
+    JCVariableDecl variableDecl = (JCVariableDecl) variableTree;
+    if (JCVariableDeclUtils.declaredUsingVar(variableDecl)) {
+      return true;
     }
+    JCExpression type = variableDecl.vartype;
+    return type != null && type.pos == Position.NOPOS;
   }
 
   /**
