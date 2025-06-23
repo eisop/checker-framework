@@ -9,9 +9,9 @@ public class Figure3 {
 
         <B> A coerce(B b) {
             // type of expression: capture#703[ extends @Initialized @Nullable Object super B[
-            // extends @Initialized @Nullable Object super @Initialized @NonNull Void]]
+            // extends @Initialized @Nullable Object super @Initialized @NonNull NullType ] ]
             // method return type: A[ extends @Initialized @Nullable Object super @Initialized
-            // @NonNull Void]
+            // @NonNull NullType ]
             return pair(this.<B>bad(), b).value;
         }
     }

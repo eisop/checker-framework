@@ -442,7 +442,7 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
                     printBound("extends", type.getUpperBoundField(), visiting, sb);
                     printBound("super", type.getLowerBoundField(), visiting, sb);
                     if (currentPrintVerboseGenerics) {
-                        sb.append("]");
+                        sb.append(" ]");
                     }
 
                 } finally {
@@ -499,7 +499,7 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
                     printBound("extends", type.getExtendsBoundField(), visiting, sb);
                     printBound("super", type.getSuperBoundField(), visiting, sb);
                     if (currentPrintVerboseGenerics) {
-                        sb.append("]");
+                        sb.append(" ]");
                     }
 
                 } finally {
