@@ -560,7 +560,7 @@ public class ChapterExamples {
         }
         return true;
         //    found   : (@org.checkerframework.checker.lock.qual.GuardedBy({}) :: T)[ extends
-        // @GuardedByUnknown @LockPossiblyHeld Object super @GuardedBy({}) @LockHeld Void ]
+        // @GuardedByUnknown @LockPossiblyHeld Object super @GuardedBy({}) @LockHeld Void]
         //        required: @GuardedBy @LockPossiblyHeld Object
     }
 
