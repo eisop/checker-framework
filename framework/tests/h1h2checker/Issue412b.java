@@ -1,7 +1,5 @@
 import org.checkerframework.framework.testchecker.h1h2checker.quals.*;
 
-// @skip-test
-
 public class Issue412b {
 
     @H1Bot Issue412b() {
@@ -9,7 +7,7 @@ public class Issue412b {
     }
 
     class Inner {
-        /* The framework can correctly identify the outer class reciever type to be @H1Top.
+        /* The framework can correctly identify the outer class receiver type to be @H1Top.
         This rules out the case that this issue is caused by the general framework. */
         // :: warning: (inconsistent.constructor.type) :: error: (super.invocation.invalid)
         Inner(@H1Top Issue412b Issue412b.this) {

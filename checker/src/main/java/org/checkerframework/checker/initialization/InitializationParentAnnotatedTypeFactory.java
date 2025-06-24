@@ -753,18 +753,22 @@ public abstract class InitializationParentAnnotatedTypeFactory
                 AnnotationMirror a = getUnderInitializationAnnotationOfSuperType(underlyingType);
                 exeType.getReturnType().replaceAnnotation(a);
 
-                // If the receiver type exists (meaning there is an enclosing type) and is
-                // annotated, then annotate the enclosing type with the same annotation.
+                // If the receiver type exists (meaning the return type has an enclosing type) and
+                // is
+                // annotated, then annotate the enclosing type of the return type with the same
+                // annotation.
                 // TODO: look into why there is this inconsistency between receiver type and
                 // enclosing type of the return type.
-                if (exeType.getReceiverType() != null) {
-                    if (exeType.getReceiverType().hasAnnotationInHierarchy(a)) {
-                        AnnotationMirror enclAnno =
-                                exeType.getReceiverType().getAnnotationInHierarchy(a);
-                        AnnotatedDeclaredType ret = (AnnotatedDeclaredType) exeType.getReturnType();
-                        if (ret.getEnclosingType() != null) {
-                            ret.getEnclosingType().addAnnotation(enclAnno);
-                        }
+                if (exeType.getReceiverType() != null
+                        && exeType.getReceiverType().hasAnnotationInHierarchy(a)) {
+                    AnnotationMirror enclAnno =
+                            exeType.getReceiverType().getAnnotationInHierarchy(a);
+                    AnnotatedDeclaredType ret = (AnnotatedDeclaredType) exeType.getReturnType();
+                    if (ret.getEnclosingType() != null) {
+                        // The return type of constructor will never be explicitly written;
+                        // therefore the return type will always have no annotation; therefore using
+                        // `addAnnotation` here instead of `replaceAnnotation` is always correct.
+                        ret.getEnclosingType().addAnnotation(enclAnno);
                     }
                 }
             }

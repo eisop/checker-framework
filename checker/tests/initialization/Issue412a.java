@@ -13,8 +13,18 @@ public class Issue412a {
         }
     }
 
+    class InnerWithoutUnknownInitializationEnclosingExpression {
+        InnerWithoutUnknownInitializationEnclosingExpression() {
+            Issue412a.this.f.hashCode();
+        }
+    }
+
     Issue412a() {
         new InnerWithUnknownInitializationEnclosingExpression();
+        // We do get an error for illegle invocation if there is no annotation for enclosing
+        // receiver.
+        // :: error: (enclosingexpr.type.incompatible)
+        new InnerWithoutUnknownInitializationEnclosingExpression();
         f = "";
     }
 
