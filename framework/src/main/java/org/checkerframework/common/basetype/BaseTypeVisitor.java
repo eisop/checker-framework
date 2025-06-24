@@ -3803,7 +3803,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         paramName,
                         typeOrMethodName,
                         fr.found,
-                        paramName + fr.required);
+                        paramName + " " + fr.required);
             }
         }
     }
