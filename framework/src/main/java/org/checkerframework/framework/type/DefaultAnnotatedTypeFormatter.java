@@ -431,7 +431,7 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
 
             if (!visiting.contains(type)) {
                 if (type.isDeclaration() && currentPrintInvisibleSetting) {
-                    sb.append("/*DECL*/");
+                    sb.append("/*DECL*/ ");
                 }
 
                 try {
