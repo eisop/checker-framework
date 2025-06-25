@@ -484,6 +484,52 @@ allprojects { currentProj ->
     tasks.withType(JavaCompile) { compilationTask ->
       dependsOn(':installGitHooks')
 
+      // Ways to specifiy the JDK used by different tasks/Gradle:
+      //
+      // 1. Run Gradle using JDK 21:
+      // mkdir ~/.gradle && echo "org.gradle.java.home=/usr/lib/jvm/java-21-openjdk-amd64" >> ~/.gradle/gradle.properties
+      //
+      // 2. Use JDK 24 for all Java tasks: (24 could be replaced with any version.)
+      // export ORG_GRADLE_PROJECT_jdkTestVersion=24
+      // or
+      // ./gradlew sometask -PjdkTestVersion=24
+      //
+      // 3. Compile the Checker Framework using JDK 21: (Overrides the version specified in `jdkTestVersion` for compiling only.)
+      // export ORG_GRADLE_PROJECT_useJdk21Compiler=true
+      // or
+      //./gradlew sometask -PuseJdk21Compiler=true
+
+      int jdkTestVersion = Integer.valueOf(JavaVersion.current().getMajorVersion())
+      if(project.getProperties().containsKey('jdkTestVersion')) {
+        jdkTestVersion = Integer.valueOf(project.getProperties().get('jdkTestVersion'))
+        java {
+          toolchain {
+            languageVersion = JavaLanguageVersion.of(jdkTestVersion)
+          }
+        }
+
+        javaCompiler = javaToolchains.compilerFor {
+          languageVersion = JavaLanguageVersion.of(jdkTestVersion)
+        }
+
+        tasks.withType(JavaExec).configureEach {
+          javaLauncher = javaToolchains.launcherFor {
+            languageVersion = JavaLanguageVersion.of(jdkTestVersion)
+          }
+        }
+      }
+
+      // Use JDK 21 because that is what used in the release.  If you update this line, also update,
+      // JAVA_HOME in docs/developer/release/release_vars.py.
+      boolean jdk21Compiler = project.getProperties().getOrDefault('useJdk21Compiler', false)
+      if (jdk21Compiler) {
+        // This uses the Java 21 compiler to compile all code.
+        //  https://docs.gradle.org/current/userguide/toolchains.html
+        javaCompiler = javaToolchains.compilerFor {
+          languageVersion = JavaLanguageVersion.of(21)
+        }
+      }
+
       // Sorting is commented out because it disables incremental compilation.
       // Uncomment when needed.
       // // Put source files in deterministic order, for debugging.
@@ -544,8 +590,7 @@ allprojects { currentProj ->
       //   warnings are suppressible with a "// fall through" comment.
       // -classfile: classgraph jar file and https://bugs.openjdk.org/browse/JDK-8190452
       String lint = '-Xlint:-options,-fallthrough,-classfile'
-
-      if (useJdkVersionInt >= 21) {
+      if (useJdkVersionInt >= 21 || jdk21Compiler || jdkTestVersion > 20) {
         // TODO: Ignore this-escape warnings for now; perhaps review and suppress each one later.
         lint +=',-this-escape'
       }
@@ -1384,5 +1429,13 @@ final sharedPublicationConfiguration(publication) {
       connection = 'scm:git:https://github.com/eisop/checker-framework.git'
       developerConnection = 'scm:git:ssh://git@github.com/eisop/checker-framework.git'
     }
+  }
+}
+tasks.register('printJavaVersion') {
+  description = "Prints the Java version used to run Gradle."
+  doLast {
+    println "Java version used to run Gradle: ${System.getProperty('java.version')}"
+    def currentJvm = org.gradle.internal.jvm.Jvm.current()
+    println currentJvm
   }
 }
