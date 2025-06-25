@@ -6,9 +6,10 @@
 // guava/guava/src/com/google/common/reflect/TypeToken.java:[1228,29] error: [[value,
 // allcheckers]:return.type.incompatible] incompatible types in return.
 //   type of expression: @UnknownVal TypeToken<capture#07[ extends capture#08[ extends T[ extends
-// @UnknownVal Object super @UnknownVal Void] super @BottomVal Void] super @BottomVal Void]>
+// @UnknownVal Object super @UnknownVal NullType ] super @BottomVal NullType ] super @BottomVal
+// NullType ]>
 //   method return type: @UnknownVal TypeToken<?[ extends T[ extends @UnknownVal Object super
-// @BottomVal Void] super @BottomVal Void]>
+// @BottomVal NullType ] super @BottomVal NullType ]>
 
 abstract class WildcardInReturn<T> {
 
