@@ -13,7 +13,7 @@ import org.checkerframework.checker.calledmethods.qual.CalledMethodsBottom;
 import org.checkerframework.checker.calledmethods.qual.CalledMethodsPredicate;
 import org.checkerframework.checker.calledmethods.qual.EnsuresCalledMethods;
 import org.checkerframework.checker.calledmethods.qual.EnsuresCalledMethodsOnException;
-import org.checkerframework.checker.calledmethods.qual.EnsuresCalledMethodsVarArgs;
+import org.checkerframework.checker.calledmethods.qual.EnsuresCalledMethodsVarargs;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.accumulation.AccumulationAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
@@ -77,9 +77,9 @@ public class CalledMethodsAnnotatedTypeFactory extends AccumulationAnnotatedType
     /*package-private*/ final ExecutableElement calledMethodsValueElement =
             TreeUtils.getMethod(CalledMethods.class, "value", 0, processingEnv);
 
-    /** The {@link EnsuresCalledMethodsVarArgs#value} element/argument. */
-    /*package-private*/ final ExecutableElement ensuresCalledMethodsVarArgsValueElement =
-            TreeUtils.getMethod(EnsuresCalledMethodsVarArgs.class, "value", 0, processingEnv);
+    /** The {@link EnsuresCalledMethodsVarargs#value} element/argument. */
+    /*package-private*/ final ExecutableElement ensuresCalledMethodsVarargsValueElement =
+            TreeUtils.getMethod(EnsuresCalledMethodsVarargs.class, "value", 0, processingEnv);
 
     /** The {@link EnsuresCalledMethodsOnException#value} element/argument. */
     /*package-private*/ final ExecutableElement ensuresCalledMethodsOnExceptionValueElement =
@@ -308,7 +308,7 @@ public class CalledMethodsAnnotatedTypeFactory extends AccumulationAnnotatedType
      * At a fluent method call (which returns {@code this}), add the method to the type of the
      * return value.
      */
-    private class CalledMethodsTreeAnnotator extends AccumulationTreeAnnotator {
+    private class CalledMethodsTreeAnnotator extends TreeAnnotator {
         /**
          * Creates an instance of this tree annotator for the given type factory.
          *
@@ -474,7 +474,7 @@ public class CalledMethodsAnnotatedTypeFactory extends AccumulationAnnotatedType
         AnnotationBuilder builder =
                 new AnnotationBuilder(processingEnv, EnsuresCalledMethods.class);
         builder.setValue("value", expressions);
-        builder.setValue("methods", calledMethods.toArray(new String[calledMethods.size()]));
+        builder.setValue("methods", calledMethods.toArray(new String[0]));
         AnnotationMirror am = builder.build();
         return am;
     }

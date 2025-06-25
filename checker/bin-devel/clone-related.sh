@@ -37,8 +37,8 @@ if [ -d "$GIT_SCRIPTS" ] ; then
   (cd "$GIT_SCRIPTS" && (git pull -q || true))
 else
   (cd "$CHECKERFRAMEWORK/checker/bin-devel" && \
-      (git clone --filter=blob:none -q https://github.com/eisop-plume-lib/git-scripts.git .git-scripts || \
-       (sleep 60 && git clone --filter=blob:none -q https://github.com/eisop-plume-lib/git-scripts.git .git-scripts)))
+      (git clone --depth=1 -q https://github.com/eisop-plume-lib/git-scripts.git .git-scripts || \
+       (sleep 60 && git clone --depth=1 -q https://github.com/eisop-plume-lib/git-scripts.git .git-scripts)))
 fi
 
 # Clone the annotated JDK into ../jdk .
@@ -60,7 +60,13 @@ fi
 
 
 # Download dependencies, trying a second time if there is a failure.
-(TERM=dumb timeout 300 ./gradlew --write-verification-metadata sha256 help --dry-run || \
-     (sleep 1m && ./gradlew --write-verification-metadata sha256 help --dry-run))
+# echo "NO_WRITE_VERIFICATION_METADATA=$NO_WRITE_VERIFICATION_METADATA"
+if [ -z "${NO_WRITE_VERIFICATION_METADATA+x}" ]; then
+(TERM=dumb timeout 300 ./gradlew --write-verification-metadata sha256 help --dry-run --quiet || \
+     (echo "./gradlew --write-verification-metadata sha256 help --dry-run --quiet failed; sleeping before trying again." && \
+      sleep 1m && \
+      echo "Trying again: ./gradlew --write-verification-metadata sha256 help --dry-run --quiet" && \
+      TERM=dumb timeout 300 ./gradlew --write-verification-metadata sha256 help --dry-run --quiet))
+fi
 
 echo Exiting checker/bin-devel/clone-related.sh in "$(pwd)"

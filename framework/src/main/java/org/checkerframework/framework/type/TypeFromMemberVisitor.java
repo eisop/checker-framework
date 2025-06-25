@@ -141,6 +141,8 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
         AnnotatedExecutableType result =
                 (AnnotatedExecutableType) f.toAnnotatedType(elt.asType(), false);
         result.setElement(elt);
+        f.initializeAtm(result);
+
         // Make sure the return type field gets initialized... otherwise
         // some code throws NPE. This should be cleaned up.
         result.getReturnType();
@@ -177,15 +179,17 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
             int index = lambdaDecl.getParameters().indexOf(f.declarationFromElement(paramElement));
             AnnotatedExecutableType functionType = f.getFunctionTypeFromTree(lambdaDecl);
             AnnotatedTypeMirror funcTypeParam = functionType.getParameterTypes().get(index);
-            // The Java types should be exactly the same, but because invocation type
-            // inference (#979) isn't implement, check first. Use the erased types because the
-            // type arguments are not substituted when the annotated type arguments are.
+            // During type argument inference, the type of the parameters is assumed to be the
+            // same as the function parameter.
+            // (https://docs.oracle.com/javase/specs/jls/se11/html/jls-18.html#jls-18.2.1).  So if
+            // the underlying types are not the same type, then assume the lambda parameter is the
+            // same as the function type. (Use the erased types because the type arguments are not
+            // substituted when the annotated type arguments are.)
             if (TypesUtils.isErasedSubtype(
                     funcTypeParam.underlyingType, lambdaParam.underlyingType, f.types)) {
                 return AnnotatedTypes.asSuper(f, funcTypeParam, lambdaParam);
             }
-            lambdaParam.addMissingAnnotations(funcTypeParam.getAnnotations());
-            return lambdaParam;
+            return funcTypeParam;
         }
         return null;
     }

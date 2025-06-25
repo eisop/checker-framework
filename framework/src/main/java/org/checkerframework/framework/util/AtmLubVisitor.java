@@ -223,16 +223,16 @@ class AtmLubVisitor extends AbstractAtmComboVisitor<Void, AnnotatedTypeMirror> {
     private void lubTypeArgument(
             AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, AnnotatedTypeMirror lub) {
         if ((type1.getKind() == TypeKind.WILDCARD
-                        && ((AnnotatedWildcardType) type1).isUninferredTypeArgument())
+                        && ((AnnotatedWildcardType) type1).isTypeArgOfRawType())
                 || (type2.getKind() == TypeKind.WILDCARD
-                        && ((AnnotatedWildcardType) type2).isUninferredTypeArgument())) {
+                        && ((AnnotatedWildcardType) type2).isTypeArgOfRawType())) {
             // The asSuper calls below don't seem to retain if a type variable was uninferred.
             // There is a similar check in the wildcards branch below, not sure when that is
             // actually hit.
             // TODO: see whether anything else should be done. See typetools issue 6438 and eisop
             // issue 703.
             if (lub.getKind() == TypeKind.WILDCARD) {
-                ((AnnotatedWildcardType) lub).setUninferredTypeArgument();
+                ((AnnotatedWildcardType) lub).setTypeArgOfRawType();
             }
             return;
         }
@@ -257,9 +257,8 @@ class AtmLubVisitor extends AbstractAtmComboVisitor<Void, AnnotatedTypeMirror> {
             AnnotatedWildcardType type1Wildcard = (AnnotatedWildcardType) type1AsLub;
             AnnotatedWildcardType type2Wildcard = (AnnotatedWildcardType) type2AsLub;
             AnnotatedWildcardType lubWildcard = (AnnotatedWildcardType) lub;
-            if (type1Wildcard.isUninferredTypeArgument()
-                    || type2Wildcard.isUninferredTypeArgument()) {
-                lubWildcard.setUninferredTypeArgument();
+            if (type1Wildcard.isTypeArgOfRawType() || type2Wildcard.isTypeArgOfRawType()) {
+                lubWildcard.setTypeArgOfRawType();
             }
             lubWildcard(
                     type1Wildcard.getSuperBound(),

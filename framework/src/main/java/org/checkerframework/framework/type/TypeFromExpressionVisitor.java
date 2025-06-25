@@ -22,9 +22,11 @@ import com.sun.source.tree.ParameterizedTypeTree;
 import com.sun.source.tree.ParenthesizedTree;
 import com.sun.source.tree.PrimitiveTypeTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.WildcardTree;
+import com.sun.source.util.TreePath;
 
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
@@ -123,7 +125,6 @@ class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
 
     @Override
     public AnnotatedTypeMirror visitTypeCast(TypeCastTree tree, AnnotatedTypeFactory f) {
-
         // Use the annotated type of the type in the cast.
         return f.fromTypeTree(tree.getType());
     }
@@ -166,7 +167,6 @@ class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
 
     @Override
     public AnnotatedTypeMirror visitAssignment(AssignmentTree tree, AnnotatedTypeFactory f) {
-
         // Recurse on the type of the variable.
         return visit(tree.getVariable(), f);
     }
@@ -278,9 +278,9 @@ class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
             return AnnotatedTypes.asSuper(
                     f, thisType, AnnotatedTypeMirror.createType(superTypeMirror, f, false));
         } else {
-            // tree must be a field access, so get the type of the expression, and then call
-            // asMemberOf.
-            AnnotatedTypeMirror t;
+            // tree must be a field access or an enum constant, so get the type of the (receiver)
+            // expression, and then call asMemberOf.
+            AnnotatedTypeMirror typeOfReceiver;
             if (f instanceof GenericAnnotatedTypeFactory) {
                 // If calling GenericAnnotatedTypeFactory#getAnnotatedTypeLhs(Tree lhsTree) to
                 // get the type of this MemberSelectTree, flow refinement is disabled. However,
@@ -290,14 +290,27 @@ class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
                 // expression.
                 // See framework/tests/viewpointtest/TestGetAnnotatedLhs.java for a concrete
                 // example.
-                t =
+                typeOfReceiver =
                         ((GenericAnnotatedTypeFactory<?, ?, ?, ?>) f)
                                 .getAnnotatedTypeWithReceiverRefinement(tree.getExpression());
             } else {
-                t = f.getAnnotatedType(tree.getExpression());
+                typeOfReceiver = f.getAnnotatedType(tree.getExpression());
             }
-            t = f.applyCaptureConversion(t);
-            return AnnotatedTypes.asMemberOf(f.types, f, t, elt).asUse();
+            typeOfReceiver = f.applyCaptureConversion(typeOfReceiver);
+            AnnotatedTypeMirror typeOfFieldAccess =
+                    AnnotatedTypes.asMemberOf(f.types, f, typeOfReceiver, elt);
+            TreePath path = f.getPath(tree);
+
+            // Only capture the type if this is not the left hand side of an assignment.
+            if (path != null && path.getParentPath().getLeaf().getKind() == Kind.ASSIGNMENT) {
+                AssignmentTree assignmentTree = (AssignmentTree) path.getParentPath().getLeaf();
+                @SuppressWarnings("interning:not.interned") // Looking for exact object.
+                boolean leftHandSide = assignmentTree.getExpression() != tree;
+                if (leftHandSide) {
+                    return typeOfFieldAccess;
+                }
+            }
+            return f.applyCaptureConversion(typeOfFieldAccess);
         }
     }
 
@@ -305,21 +318,15 @@ class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
     public AnnotatedTypeMirror visitArrayAccess(ArrayAccessTree tree, AnnotatedTypeFactory f) {
         AnnotatedTypeMirror type = f.getAnnotatedType(tree.getExpression());
         if (type.getKind() == TypeKind.ARRAY) {
-            return ((AnnotatedArrayType) type).getComponentType();
-        } else if (type.getKind() == TypeKind.WILDCARD
-                && ((AnnotatedWildcardType) type).isUninferredTypeArgument()) {
-            // Clean-up after Issue #979.
-            AnnotatedTypeMirror wcbound = ((AnnotatedWildcardType) type).getExtendsBound();
-            if (wcbound instanceof AnnotatedArrayType) {
-                return ((AnnotatedArrayType) wcbound).getComponentType();
-            }
+            AnnotatedTypeMirror t = ((AnnotatedArrayType) type).getComponentType();
+            t = f.applyCaptureConversion(t);
+            return t;
         }
         throw new BugInCF("Unexpected type: " + type);
     }
 
     @Override
     public AnnotatedTypeMirror visitNewArray(NewArrayTree tree, AnnotatedTypeFactory f) {
-
         // Don't use fromTypeTree here, because tree.getType() is not an array type!
         AnnotatedArrayType result = (AnnotatedArrayType) f.type(tree);
 
@@ -419,19 +426,21 @@ class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
             // this case and match the annotated type to the Java type.
             returnT = ((AnnotatedTypeVariable) returnT).getUpperBound();
         }
+
+        if (TypesUtils.isRaw(TreeUtils.typeOf(tree))) {
+            return returnT.getErased();
+        }
         return f.applyCaptureConversion(returnT);
     }
 
     @Override
     public AnnotatedTypeMirror visitParenthesized(ParenthesizedTree tree, AnnotatedTypeFactory f) {
-
         // Recurse on the expression inside the parens.
         return visit(tree.getExpression(), f);
     }
 
     @Override
     public AnnotatedTypeMirror visitWildcard(WildcardTree tree, AnnotatedTypeFactory f) {
-
         AnnotatedTypeMirror bound = visit(tree.getBound(), f);
 
         AnnotatedTypeMirror result = f.type(tree);

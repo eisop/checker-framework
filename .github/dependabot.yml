@@ -1,7 +1,17 @@
 version: 2
 updates:
 - package-ecosystem: "gradle"
+  directory: "/"
+  schedule:
+    interval: "daily"
+
+- package-ecosystem: "gradle"
   directory: "/docs/examples/errorprone/"
+  schedule:
+    interval: "daily"
+
+- package-ecosystem: "gradle"
+  directory: "/docs/examples/jspecify/"
   schedule:
     interval: "daily"
 
@@ -12,6 +22,11 @@ updates:
 
 - package-ecosystem: "maven"
   directory: "/docs/examples/MavenExample/"
+  schedule:
+    interval: "daily"
+
+- package-ecosystem: "gradle"
+  directory: "/docs/examples/nullaway/"
   schedule:
     interval: "daily"
 

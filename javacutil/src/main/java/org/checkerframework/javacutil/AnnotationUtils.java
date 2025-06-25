@@ -67,6 +67,10 @@ public class AnnotationUtils {
     /**
      * Returns the fully-qualified name of an annotation as a String.
      *
+     * <p>This method is efficient for {@code AnnotationBuilder.CheckerFrameworkAnnotationMirror},
+     * for which it looks up the name. This method may be inefficient for other subclasses of {@code
+     * AnnotationMirror}, because it may compute a new string.
+     *
      * @param annotation the annotation whose name to return
      * @return the fully-qualified name of an annotation as a String
      */
@@ -79,6 +83,27 @@ public class AnnotationUtils {
         @SuppressWarnings("signature:assignment.type.incompatible") // JDK needs annotations
         @CanonicalName String name = elm.getQualifiedName().toString();
         return name;
+    }
+
+    /**
+     * Returns the fully-qualified name of an annotation as a String.
+     *
+     * <p>This is more efficient than calling {@link #annotationName} and {@link
+     * java.lang.String#intern}.
+     *
+     * @param annotation the annotation whose name to return
+     * @return the fully-qualified name of an annotation as a String
+     */
+    public static final @CanonicalName @Interned String annotationNameInterned(
+            AnnotationMirror annotation) {
+        if (annotation instanceof AnnotationBuilder.CheckerFrameworkAnnotationMirror) {
+            return ((AnnotationBuilder.CheckerFrameworkAnnotationMirror) annotation).annotationName;
+        }
+        DeclaredType annoType = annotation.getAnnotationType();
+        TypeElement elm = (TypeElement) annoType.asElement();
+        @SuppressWarnings("signature:assignment") // JDK needs annotations
+        @CanonicalName String name = elm.getQualifiedName().toString();
+        return name.intern();
     }
 
     /**
@@ -135,6 +160,8 @@ public class AnnotationUtils {
             throw new BugInCF("Unexpected null argument:  compareByName(%s, %s)", a1, a2);
         }
 
+        // This is largely duplicated code.  The point of this block is that
+        // the `if (name1 == name2)` test is very fast.
         if (a1 instanceof CheckerFrameworkAnnotationMirror
                 && a2 instanceof CheckerFrameworkAnnotationMirror) {
             @Interned @CanonicalName String name1 = ((CheckerFrameworkAnnotationMirror) a1).annotationName;
@@ -175,7 +202,7 @@ public class AnnotationUtils {
     }
 
     /**
-     * Checks that the annotation {@code am} has the name of {@code annoClass}. Values are ignored.
+     * Checks that the annotation {@code am} has class {@code annoClass}. Values are ignored.
      *
      * <p>This method is not very efficient. It is more efficient to use {@code
      * AnnotatedTypeFactory#areSameByClass} or {@link #areSameByName}.
@@ -374,7 +401,7 @@ public class AnnotationUtils {
             return nameComparison;
         }
 
-        // The annotations have the same name, but different values, so compare values.
+        // The annotations have the same name, but possibly different values, so compare values.
         Map<? extends ExecutableElement, ? extends AnnotationValue> vals1 = a1.getElementValues();
         Map<? extends ExecutableElement, ? extends AnnotationValue> vals2 = a2.getElementValues();
         Set<ExecutableElement> sortedElements =
@@ -401,11 +428,11 @@ public class AnnotationUtils {
     }
 
     /**
-     * Return 0 iff the two AnnotationValue objects are the same.
+     * Compare the two AnnotationValue objects for order.
      *
      * @param av1 the first AnnotationValue to compare
      * @param av2 the second AnnotationValue to compare
-     * @return 0 if the two annotation values are the same
+     * @return -1 if the first is lesser, 0 if they are the same, or 1 if the first is greater
      */
     @CompareToMethod
     private static int compareAnnotationValue(AnnotationValue av1, AnnotationValue av2) {
@@ -448,7 +475,7 @@ public class AnnotationUtils {
             // Don't compare setwise, because order can matter. These mean different things:
             //   @LTLengthOf(value={"a1","a2"}, offest={"0", "1"})
             //   @LTLengthOf(value={"a2","a1"}, offest={"0", "1"})
-            for (int i = 0; i < list1.size(); i++) {
+            for (int i = 0; i < list1.size(); ++i) {
                 Object v1 = list1.get(i);
                 Object v2 = list2.get(i);
                 int result = compareAnnotationValueValue(v1, v2);
@@ -1147,7 +1174,7 @@ public class AnnotationUtils {
         int size = la.size();
         @SuppressWarnings("unchecked")
         T[] result = (T[]) Array.newInstance(expectedType, size);
-        for (int i = 0; i < size; i++) {
+        for (int i = 0; i < size; ++i) {
             AnnotationValue a = la.get(i);
             T value = Enum.valueOf(expectedType, a.getValue().toString());
             result[i] = value;
@@ -1401,7 +1428,6 @@ public class AnnotationUtils {
      */
     public static <T extends @NonNull Object> void updateMappingToImmutableSet(
             Map<T, AnnotationMirrorSet> map, T key, AnnotationMirrorSet newQual) {
-
         AnnotationMirrorSet result = new AnnotationMirrorSet();
         // TODO: if T is also an AnnotationMirror, should we use areSame?
         if (!map.containsKey(key)) {

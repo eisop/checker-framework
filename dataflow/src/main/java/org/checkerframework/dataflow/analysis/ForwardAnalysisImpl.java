@@ -37,7 +37,7 @@ import javax.lang.model.type.TypeMirror;
  *
  * @param <V> the abstract value type to be tracked by the analysis
  * @param <S> the store type used in the analysis
- * @param <T> the transfer function type that is used to approximate runtime behavior
+ * @param <T> the transfer function type that is used to approximate run-time behavior
  */
 public class ForwardAnalysisImpl<
                 V extends AbstractValue<V>,
@@ -360,7 +360,16 @@ public class ForwardAnalysisImpl<
         UnderlyingAST underlyingAST = cfg.getUnderlyingAST();
         List<LocalVariableNode> parameters = getParameters(underlyingAST);
         assert transferFunction != null : "@AssumeAssertion(nullness): invariant";
-        S initialStore = transferFunction.initialStore(underlyingAST, parameters);
+        S initialStore;
+        try {
+            initialStore = transferFunction.initialStore(underlyingAST, parameters);
+        } catch (Exception e) {
+            throw new BugInCF(
+                    "Problem with initial store for "
+                            + underlyingAST
+                            + ", parameters="
+                            + parameters);
+        }
         thenStores.put(entry, initialStore);
         elseStores.put(entry, initialStore);
         inputs.put(entry, new TransferInput<>(null, this, initialStore));
@@ -581,9 +590,9 @@ public class ForwardAnalysisImpl<
     protected @Nullable S getStoreBefore(Block b, Store.Kind kind) {
         switch (kind) {
             case THEN:
-                return readFromStore(thenStores, b);
+                return thenStores.get(b);
             case ELSE:
-                return readFromStore(elseStores, b);
+                return elseStores.get(b);
             default:
                 throw new BugInCF("Unexpected Store.Kind: " + kind);
         }

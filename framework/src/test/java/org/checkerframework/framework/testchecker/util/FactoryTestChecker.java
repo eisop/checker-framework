@@ -15,10 +15,11 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.LineNumberReader;
 import java.lang.reflect.Constructor;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -56,15 +57,15 @@ import javax.tools.JavaFileObject;
  * <pre>
  *  void test() {
  *      // Comments in the same line
- *      Collections.<@NonNull String>emptyList();  /// List<@NonNull String>
- *      List<@NonNull String> l = Collections.emptyList(); /// Collections.emptyList() -:- List<@NonNull String>
+ *      Collections.&lt;@NonNull String&gt;emptyList();  /// List&lt;@NonNull String&gt;
+ *      List&lt;@NonNull String&gt; l = Collections.emptyList(); /// Collections.emptyList() -:- List&lt;@NonNull String&gt;
  *
  *      // Comments in the previous lines
- *      /// List<@NonNull String>
- *      Collections.<@NonNull String>emptyList();
+ *      /// List&lt;@NonNull String&gt;
+ *      Collections.&lt;@NonNull String&gt;emptyList();
  *
- *      /// Collections.emptyList() -:- List<@NonNull String>
- *      List<@NonNull String> l = Collections.emptyList();
+ *      /// Collections.emptyList() -:- List&lt;@NonNull String&gt;
+ *      List&lt;@NonNull String&gt; l = Collections.emptyList();
  *  }
  * </pre>
  *
@@ -129,7 +130,9 @@ public class FactoryTestChecker extends BaseTypeChecker {
         try {
             JavaFileObject o = tree.getSourceFile();
             File sourceFile = new File(o.toUri());
-            LineNumberReader reader = new LineNumberReader(new FileReader(sourceFile));
+            LineNumberReader reader =
+                    new LineNumberReader(
+                            Files.newBufferedReader(sourceFile.toPath(), StandardCharsets.UTF_8));
             String line = reader.readLine();
             Pattern prevsubtreePattern = Pattern.compile("\\s*///(.*)-:-(.*)");
             Pattern prevfulltreePattern = Pattern.compile("\\s*///(.*)");

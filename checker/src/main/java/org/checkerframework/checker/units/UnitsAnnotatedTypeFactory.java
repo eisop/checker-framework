@@ -412,8 +412,8 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     @Override
     public TreeAnnotator createTreeAnnotator() {
-        // Don't call super.createTreeAnnotator because it includes PropagationTreeAnnotator which
-        // is incorrect.
+        // Don't call super.createTreeAnnotator() because it includes PropagationTreeAnnotator,
+        // but we want to use UnitsPropagationTreeAnnotator instead.
         return new ListTreeAnnotator(
                 new UnitsPropagationTreeAnnotator(this),
                 new LiteralTreeAnnotator(this).addStandardLiteralQualifiers(),
@@ -442,6 +442,11 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     /** A class for adding annotations based on tree. */
     private class UnitsTreeAnnotator extends TreeAnnotator {
 
+        /**
+         * Creates a new UnitsTreeAnnotator.
+         *
+         * @param atypeFactory the type factory
+         */
         UnitsTreeAnnotator(UnitsAnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
@@ -503,13 +508,11 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                         } else if (UnitsRelationsTools.hasNoUnits(rht)) {
                             // any unit divided by a scalar keeps that unit
                             type.replaceAnnotations(lht.getAnnotations());
-                        } else if (UnitsRelationsTools.hasNoUnits(lht)) {
-                            // scalar divided by any unit returns mixed
-                            type.replaceAnnotation(mixedUnits);
                         } else {
-                            // else it is a division of two units that have no defined relations
-                            // from a relations class
-                            // return mixed
+                            // Either UnitsRelationsTools.hasNoUnits(lht), which is a scalar divided
+                            // by any unit returns mixed.
+                            // Or else it is a division of two units that have no defined relations
+                            // from a relations class return mixed.
                             type.replaceAnnotation(mixedUnits);
                         }
                         break;
@@ -522,8 +525,7 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                             type.replaceAnnotations(lht.getAnnotations());
                         } else {
                             // else it is a multiplication of two units that have no defined
-                            // relations from a relations class
-                            // return mixed
+                            // relations from a relations class return mixed.
                             type.replaceAnnotation(mixedUnits);
                         }
                         break;

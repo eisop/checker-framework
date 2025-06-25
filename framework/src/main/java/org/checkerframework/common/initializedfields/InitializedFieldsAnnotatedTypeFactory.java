@@ -11,11 +11,11 @@ import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.common.initializedfields.qual.EnsuresInitializedFields;
 import org.checkerframework.common.initializedfields.qual.InitializedFields;
 import org.checkerframework.common.initializedfields.qual.InitializedFieldsBottom;
-import org.checkerframework.framework.type.AnnotatedTypeFactory;
+import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.util.Contract;
-import org.checkerframework.framework.util.ContractsFromMethod;
+import org.checkerframework.framework.util.DefaultContractsFromMethod;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.UserError;
@@ -62,8 +62,11 @@ public class InitializedFieldsAnnotatedTypeFactory extends AccumulationAnnotated
                     createTypeFactoryForProcessor(checkerName);
             if (atf != null) {
                 // Add all the subcheckers so that default values are checked for the subcheckers.
-                for (BaseTypeChecker subchecker : atf.getChecker().getSubcheckers()) {
-                    defaultValueAtypeFactories.add(subchecker.getTypeFactory());
+                for (SourceChecker subchecker : atf.getChecker().getSubcheckers()) {
+                    if (subchecker instanceof BaseTypeChecker) {
+                        defaultValueAtypeFactories.add(
+                                ((BaseTypeChecker) subchecker).getTypeFactory());
+                    }
                 }
                 defaultValueAtypeFactories.add(atf);
             }
@@ -121,7 +124,7 @@ public class InitializedFieldsAnnotatedTypeFactory extends AccumulationAnnotated
      * A subclass of ContractsFromMethod that adds a postcondition contract to each constructor,
      * requiring that it initializes all fields.
      */
-    private class InitializedFieldsContractsFromMethod extends ContractsFromMethod {
+    private class InitializedFieldsContractsFromMethod extends DefaultContractsFromMethod {
         /**
          * Creates an InitializedFieldsContractsFromMethod for the given factory.
          *
@@ -136,39 +139,31 @@ public class InitializedFieldsAnnotatedTypeFactory extends AccumulationAnnotated
         public Set<Contract.Postcondition> getPostconditions(ExecutableElement executableElement) {
             Set<Contract.Postcondition> result = super.getPostconditions(executableElement);
 
-            // Only process methods defined in source code being type-checked.
-            if (declarationFromElement(executableElement) != null) {
-
-                if (executableElement.getKind() == ElementKind.CONSTRUCTOR) {
-                    // It's a constructor
-
-                    String[] fieldsToInitialize =
-                            fieldsToInitialize(
-                                    (TypeElement) executableElement.getEnclosingElement());
-                    if (fieldsToInitialize.length != 0) {
-
-                        AnnotationMirror initializedFieldsAnno;
-                        {
-                            AnnotationBuilder builder =
-                                    new AnnotationBuilder(processingEnv, InitializedFields.class);
-                            builder.setValue("value", fieldsToInitialize);
-                            initializedFieldsAnno = builder.build();
-                        }
-                        AnnotationMirror ensuresAnno;
-                        {
-                            AnnotationBuilder builder =
-                                    new AnnotationBuilder(
-                                            processingEnv, EnsuresInitializedFields.class);
-                            builder.setValue("value", thisStringArray);
-                            builder.setValue("fields", fieldsToInitialize);
-                            ensuresAnno = builder.build();
-                        }
-                        Contract.Postcondition ensuresContract =
-                                new Contract.Postcondition(
-                                        "this", initializedFieldsAnno, ensuresAnno);
-
-                        result.add(ensuresContract);
+            // Only process constructors defined in source code being type-checked.
+            if (declarationFromElement(executableElement) != null
+                    && executableElement.getKind() == ElementKind.CONSTRUCTOR) {
+                String[] fieldsToInitialize =
+                        fieldsToInitialize((TypeElement) executableElement.getEnclosingElement());
+                if (fieldsToInitialize.length != 0) {
+                    AnnotationMirror initializedFieldsAnno;
+                    {
+                        AnnotationBuilder builder =
+                                new AnnotationBuilder(processingEnv, InitializedFields.class);
+                        builder.setValue("value", fieldsToInitialize);
+                        initializedFieldsAnno = builder.build();
                     }
+                    AnnotationMirror ensuresAnno;
+                    {
+                        AnnotationBuilder builder =
+                                new AnnotationBuilder(
+                                        processingEnv, EnsuresInitializedFields.class);
+                        builder.setValue("value", thisStringArray);
+                        builder.setValue("fields", fieldsToInitialize);
+                        ensuresAnno = builder.build();
+                    }
+                    Contract.Postcondition ensuresContract =
+                            new Contract.Postcondition("this", initializedFieldsAnno, ensuresAnno);
+                    result.add(ensuresContract);
                 }
             }
 
@@ -218,7 +213,7 @@ public class InitializedFieldsAnnotatedTypeFactory extends AccumulationAnnotated
             }
         }
 
-        return result.toArray(new String[result.size()]);
+        return result.toArray(new String[0]);
     }
 
     /**
@@ -235,13 +230,11 @@ public class InitializedFieldsAnnotatedTypeFactory extends AccumulationAnnotated
 
         for (GenericAnnotatedTypeFactory<?, ?, ?, ?> defaultValueAtypeFactory :
                 defaultValueAtypeFactories) {
+            // Set the root for all type factories before asking any factory for the type.
             defaultValueAtypeFactory.setRoot(this.getRoot());
-            // Set the root on all the subcheckers, too.
-            for (BaseTypeChecker subchecker :
-                    defaultValueAtypeFactory.getChecker().getSubcheckers()) {
-                AnnotatedTypeFactory subATF = subchecker.getTypeFactory();
-                subATF.setRoot(this.getRoot());
-            }
+        }
+        for (GenericAnnotatedTypeFactory<?, ?, ?, ?> defaultValueAtypeFactory :
+                defaultValueAtypeFactories) {
             AnnotatedTypeMirror fieldType = defaultValueAtypeFactory.getAnnotatedType(field);
             AnnotatedTypeMirror defaultValueType =
                     defaultValueAtypeFactory.getDefaultValueAnnotatedType(

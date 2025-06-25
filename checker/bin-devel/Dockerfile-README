@@ -1,7 +1,7 @@
 This directory contains Dockerfiles to create new Docker images for
 running Checker Framework tests reproducibly.
 
-The rest of this file explains how to build new Docker images:
+The rest of this file explains how to build new Docker images.
 
 
 Preliminaries:
@@ -14,22 +14,33 @@ Preliminaries:
   # (This is only necessary once per machine; credentials are cached.)
   docker login
 
+After running any of the below, consider deleting the docker containers,
+which can take up a lot of disk space.
+To stop and remove/delete all docker containers:
+  docker stop $(docker ps -a -q)
+  docker rm $(docker ps -a -q)
+or you can just remove some of them.
 
 Create the Docker image:
 
 # Alias to create the Docker image, in an empty directory, and upload to Docker Hub.
+# Run from a terminal, NOT from Emacs, because it produces vast amounts of output.
 # Takes about 12 minutes for jdk*, about 1 hour for jdk*-plus.
 DOCKERTESTING=""
+# When DOCKERTESTING is enabled, also edit `.azure/defs.m4` and `.travis.yml`.
 # DOCKERTESTING="-testing"
 alias create_upload_docker_image=' \
-  rm -rf dockerdir && \
+  ( [ -z "$INSIDE_EMACS" ] || (echo "Do not run within Emacs" && false) ) && \
+  (rm -rf dockerdir && \
   mkdir -p dockerdir && \
-  (cd dockerdir && \
+  cd dockerdir && \
   \cp -pf ../Dockerfile-$OS-$JDKVER Dockerfile && \
-  DOCKERIMAGE="wmdietl/$PROJECT-$OS-$JDKVER$DOCKERTESTING"
+  DOCKERIMAGE="wmdietl/$DPROJECT-$OS-$JDKVER$DOCKERTESTING" && \
   docker build -t $DOCKERIMAGE . && \
-  docker push $DOCKERIMAGE) && \
-  rm -rf dockerdir'
+  docker push $DOCKERIMAGE && \
+  rm -rf dockerdir) || \
+  (echo "*****"; echo "*****"; echo "FAILURE in $DOCKERIMAGE"; echo "*****"; echo "*****"; false) \
+'
 
 export OS=ubuntu
 export JDKVER=jdk8
@@ -43,32 +54,42 @@ create_upload_docker_image
 
 export OS=ubuntu
 export JDKVER=jdk11
-export PROJECT=cf
+export DPROJECT=cf
 create_upload_docker_image
 
 export OS=ubuntu
 export JDKVER=jdk11-plus
-export PROJECT=cf
+export DPROJECT=cf
 create_upload_docker_image
 
 export OS=ubuntu
 export JDKVER=jdk17
-export PROJECT=cf
+export DPROJECT=cf
 create_upload_docker_image
 
 export OS=ubuntu
 export JDKVER=jdk17-plus
-export PROJECT=cf
+export DPROJECT=cf
 create_upload_docker_image
 
 export OS=ubuntu
 export JDKVER=jdk21
-export PROJECT=cf
+export DPROJECT=cf
 create_upload_docker_image
 
 export OS=ubuntu
 export JDKVER=jdk21-plus
-export PROJECT=cf
+export DPROJECT=cf
+create_upload_docker_image
+
+export OS=ubuntu
+export JDKVER=jdk24
+export DPROJECT=cf
+create_upload_docker_image
+
+export OS=ubuntu
+export JDKVER=jdk24-plus
+export DPROJECT=cf
 create_upload_docker_image
 
 export OS=ubuntu
@@ -95,6 +116,9 @@ Use numbered JDK releases for versions that should be supported longer term.
 jdk-latest is for the latest release and jdk-next is for pre-releases of
 the upcoming release.
 
+Note: when updating to a newer version of the JDK, it is necessary to
+update the Gradle version to one that supports that JDK, in projects
+such as wpi-many-tests-bcel-util.
 
 Cleanup:
 

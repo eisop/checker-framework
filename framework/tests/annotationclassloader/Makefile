@@ -21,6 +21,7 @@ JAVACUTILBUILD := $(PROJECTDIR)/../../../javacutil/build/classes/java/main
 FRAMEWORKBUILD := $(PROJECTDIR)/../../build/classes/java/main:$(PROJECTDIR)/../../build/resources/main/
 CHECKERQUALBUILD := $(PROJECTDIR)/../../../checker-qual/build/classes/java/main
 
+.PHONY: all clean demo1 demo2
 
 all: load-from-dir-test load-from-jar-test
 
@@ -63,7 +64,6 @@ load-from-dir-test:
 	  -AnoJreVersionCheck \
 	  LoaderTest.java > Out.txt 2>&1
 	diff -u Expected.txt Out.txt
-	rm -f Out.txt
 
 # loads from framework.jar
 load-from-jar-test:
@@ -76,4 +76,7 @@ load-from-jar-test:
 	  -AnoJreVersionCheck \
 	  LoaderTest.java > Out.txt 2>&1
 	diff -u Expected.txt Out.txt
+
+clean:
 	rm -f Out.txt
+

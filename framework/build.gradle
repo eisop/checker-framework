@@ -28,7 +28,12 @@ sourceSets {
             exclude '**/org/checkerframework/framework/stub/ToIndexFileConverter.java'
         }
     }
-    testannotations
+    testannotations {
+        java {
+            srcDirs = ['src/testannotations/java']
+        }
+    }
+    stubifier
 }
 
 sourcesJar {
@@ -42,6 +47,7 @@ jar {
 }
 
 configurations {
+    implementation.extendsFrom(stubifierImplementation)
     implementation.extendsFrom(annotatedGuava)
 }
 
@@ -49,10 +55,11 @@ dependencies {
     api project(':javacutil')
     api project(':dataflow')
     // At the moement, there are no differences between eisop and typetools stubparsers.
-    api 'org.checkerframework:stubparser:3.25.10'
+    api 'org.checkerframework:stubparser:3.26.4'
+    stubifierImplementation 'org.checkerframework:stubparser:3.26.4'
+    implementation sourceSets.stubifier.output
 
-    // NO-AFU
-    /*
+    /* NO-AFU
      // AFU is an "includedBuild" imported in checker-framework/settings.gradle, so the version number doesn't matter.
      // https://docs.gradle.org/current/userguide/composite_builds.html#settings_defined_composite
      api('org.checkerframework:annotation-file-utilities:*') {
@@ -69,7 +76,7 @@ dependencies {
     implementation "org.plumelib:plume-util:${versions.plumeUtil}"
     implementation "org.plumelib:reflection-util:${versions.reflectionUtil}"
     // Add this dependency if needed to debug classpath issues.
-    // implementation 'io.github.classgraph:classgraph:4.8.165'
+    // implementation 'io.github.classgraph:classgraph:4.8.179'
 
     testImplementation "junit:junit:${versions.junit}"
     testImplementation project(':framework-test')
@@ -83,47 +90,38 @@ dependencies {
     testImplementation "org.projectlombok:lombok:${versions.lombok}"
 }
 
-task cloneAnnotatedJdk() {
-    description 'Obtain or update the annotated JDK.'
-    doLast {
-        if (file(annotatedJdkHome).exists()) {
-            exec {
-                workingDir annotatedJdkHome
-                executable 'git'
-                args = ['pull', '-q']
-                ignoreExitValue = true
-            }
-        } else {
-            println 'Cloning annotated JDK repository.'
-            exec {
-                workingDir "${annotatedJdkHome}/../"
-                executable 'git'
-                args = [
-                    'clone',
-                    '-q',
-                    '--filter=blob:none',
-                    'https://github.com/eisop/jdk.git',
-                    'jdk'
-                ]
-            }
-        }
-    }
+tasks.register('cloneAnnotatedJdk', CloneTask) {
+    description = 'Obtain or update the annotated JDK.'
+    url.set('https://github.com/eisop/jdk.git')
+    directory.set(file(annotatedJdkHome))
+    outputs.upToDateWhen { false }
 }
 
-
-task copyAndMinimizeAnnotatedJdkFiles(dependsOn: cloneAnnotatedJdk, group: 'Build') {
-    dependsOn ':framework:compileJava', project(':javacutil').tasks.jar
+task copyAndMinimizeAnnotatedJdkFiles(type: JavaExec, dependsOn: cloneAnnotatedJdk, group: 'Build') {
+    dependsOn ':framework:compileStubifierJava'
+    // we need the next two dependencies because we run JavaStubifier using this project's runtimeClasspath,
+    // which refers to the jars for these other projects
+    dependsOn ':javacutil:jar'
+    dependsOn ':dataflow:jar'
     def inputDir = "${annotatedJdkHome}/src"
     def outputDir = "${buildDir}/generated/resources/annotated-jdk/"
 
-    description "Copy annotated JDK files to ${outputDir}. Removes private and package-private methods, method bodies, comments, etc. from the annotated JDK"
+    description = "Copy annotated JDK files to ${outputDir}. Removes private and package-private methods, method bodies, comments, etc. from the annotated JDK"
 
     inputs.dir file(inputDir)
     outputs.dir file(outputDir)
 
-    doLast {
+    classpath = sourceSets.stubifier.runtimeClasspath
+    standardOutput = System.out
+    errorOutput = System.err
+
+    mainClass = 'org.checkerframework.framework.stubifier.JavaStubifier'
+    args outputDir
+
+    doFirst {
         FileTree tree = fileTree(dir: inputDir)
         NavigableSet<String> annotatedForFiles = new TreeSet<>();
+        // Populate `annotatedForFiles`.
         tree.visit { FileVisitDetails fvd ->
             if (!fvd.file.isDirectory() && fvd.file.name.matches('.*\\.java')
                     && !fvd.file.path.contains('org/checkerframework')) {
@@ -144,23 +142,14 @@ task copyAndMinimizeAnnotatedJdkFiles(dependsOn: cloneAnnotatedJdk, group: 'Buil
                 include filename.substring(jdkDirStringSize)
             }
         }
-        javaexec {
-            classpath = sourceSets.main.runtimeClasspath
-            standardOutput = System.out
-            errorOutput = System.err
-
-            mainClass = 'org.checkerframework.framework.stub.JavaStubifier'
-            args outputDir
-        }
     }
 }
 
 sourcesJar.dependsOn(copyAndMinimizeAnnotatedJdkFiles)
-
 processResources.dependsOn(copyAndMinimizeAnnotatedJdkFiles)
 
 task allSourcesJar(type: Jar, group: 'Build') {
-    description 'Creates a sources jar that includes sources for all Checker Framework classes in framework.jar'
+    description = 'Creates a sources jar that includes sources for all Checker Framework classes in framework.jar'
     destinationDirectory = file("${projectDir}/dist")
     archiveFileName = 'framework-source.jar'
     from (project(':framework').sourceSets.main.java,
@@ -169,7 +158,7 @@ task allSourcesJar(type: Jar, group: 'Build') {
 }
 
 task allJavadocJar(type: Jar, group: 'Build') {
-    description 'Creates javadoc jar include Javadoc for all of the framework'
+    description = 'Creates javadoc jar include Javadoc for all of the framework'
     dependsOn (project(':framework').tasks.javadoc,
             project(':dataflow').tasks.javadoc,
             project(':javacutil').tasks.javadoc)
@@ -183,7 +172,7 @@ task allJavadocJar(type: Jar, group: 'Build') {
 }
 
 shadowJar {
-    description 'Creates the "fat" framework.jar in dist'
+    description = 'Creates the "fat" framework.jar in dist'
     destinationDirectory = file("${projectDir}/dist")
     archiveFileName = 'framework.jar'
     manifest {
@@ -201,59 +190,57 @@ checkCompilerMessages {
     ]
 }
 
-task loaderTests(dependsOn: 'shadowJar', group: 'Verification') {
-    description 'Run tests for the annotation class loader'
+task loaderTests(type: Exec, dependsOn: 'shadowJar', group: 'Verification') {
+    description = 'Run tests for the annotation class loader'
     dependsOn(compileTestJava)
+
     // TODO: this dependency on checker is a bit ugly.
     dependsOn project(':checker-qual').tasks.jar
     dependsOn project(':checker').tasks.assemble
-    doLast {
-        exec {
-            executable 'make'
-            args = [
-                '-C',
-                'tests/annotationclassloader/',
-                'all'
-            ]
-        }
-    }
+    commandLine 'make', '-C', 'tests/annotationclassloader/', 'all'
+}
+
+task cleanLoaderTests(type: Exec) {
+    description = 'Clean up after the annotation class loader tests'
+    commandLine 'make', '-C', 'tests/annotationclassloader/', 'clean'
 }
 
 clean {
+    dependsOn(cleanLoaderTests)
+
     delete('tests/returnsreceiverdelomboked')
     delete('dist')
+    delete('tests/build')
 }
 
-
-task delombok {
-    description 'Delomboks the source code tree in tests/returnsreceiverlombok'
-
-    def srcDelomboked = 'tests/returnsreceiverdelomboked'
-    def srcJava = 'tests/returnsreceiverlombok'
-
-    inputs.files file(srcJava)
-    outputs.dir file(srcDelomboked)
-
-    // This dependency is required to ensure the checker-qual jar exists,
-    // to prevent lombok from emitting "cannot find symbol" errors for @This
-    // annotations in the test input code.
-    dependsOn project(':checker-qual').tasks.jar
-
-    doLast {
-        if(!skipDelombok) {
-            def collection = files(configurations.testCompileClasspath)
-            ant.taskdef(name: 'delombok', classname: 'lombok.delombok.ant.Tasks$Delombok',
-            classpath: collection.asPath)
-            ant.delombok(from: srcJava, to: srcDelomboked, classpath: collection.asPath)
-        }
-    }
-}
 
 if (skipDelombok) {
-    delombok.enabled = false
     test {
         exclude '**/ReturnsReceiverLombokTest.java'
     }
 } else {
+    task delombok {
+        description = 'Delomboks the source code tree in tests/returnsreceiverlombok'
+
+        def srcDelomboked = 'tests/returnsreceiverdelomboked'
+        def srcJava = 'tests/returnsreceiverlombok'
+
+        inputs.files file(srcJava)
+        outputs.dir file(srcDelomboked)
+
+        // This dependency is required to ensure the checker-qual jar exists,
+        // to prevent lombok from emitting "cannot find symbol" errors for @This
+        // annotations in the test input code.
+        dependsOn project(':checker-qual').tasks.jar
+
+        doLast {
+            if (!skipDelombok) {
+                def collection = files(configurations.testCompileClasspath)
+                ant.taskdef(name: 'delombok', classname: 'lombok.delombok.ant.Tasks$Delombok',
+                classpath: collection.asPath)
+                ant.delombok(from: srcJava, to: srcDelomboked, classpath: collection.asPath)
+            }
+        }
+    }
     tasks.test.dependsOn('delombok')
 }

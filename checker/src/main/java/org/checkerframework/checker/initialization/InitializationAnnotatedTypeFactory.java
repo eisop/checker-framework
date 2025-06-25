@@ -119,7 +119,7 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
     /**
      * {@inheritDoc}
      *
-     * <p>This implementaiton also takes the target checker into account.
+     * <p>This implementation also takes the target checker into account.
      *
      * @see #getUninitializedFields(InitializationStore, CFAbstractStore, TreePath, boolean,
      *     Collection)

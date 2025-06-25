@@ -52,7 +52,15 @@ import javax.lang.model.type.TypeVariable;
  */
 class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
 
-    private final Map<Tree, AnnotatedTypeMirror> visitedBounds = new HashMap<>();
+    /** Creates a TypeFromTypeTreeVisitor. */
+    public TypeFromTypeTreeVisitor() {}
+
+    /**
+     * A mapping from TypeParameterTree to its type. This is used to correctly initialize recursive
+     * type variables.
+     */
+    private final Map<TypeParameterTree, AnnotatedTypeVariable> visitedTypeParameter =
+            new HashMap<>();
 
     @Override
     public AnnotatedTypeMirror visitAnnotatedType(AnnotatedTypeTree tree, AnnotatedTypeFactory f) {
@@ -115,7 +123,6 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
     @Override
     public AnnotatedTypeMirror visitParameterizedType(
             ParameterizedTypeTree tree, AnnotatedTypeFactory f) {
-
         ClassSymbol baseType = (ClassSymbol) TreeUtils.elementFromTree(tree.getType());
         updateWildcardBounds(tree.getTypeArguments(), baseType.getTypeParameters());
 
@@ -193,21 +200,21 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
     @Override
     public AnnotatedTypeVariable visitTypeParameter(
             TypeParameterTree tree, @FindDistinct AnnotatedTypeFactory f) {
-
-        List<AnnotatedTypeMirror> bounds = new ArrayList<>(tree.getBounds().size());
-        for (Tree t : tree.getBounds()) {
-            AnnotatedTypeMirror bound;
-            if (visitedBounds.containsKey(t) && f == visitedBounds.get(t).atypeFactory) {
-                bound = visitedBounds.get(t);
-            } else {
-                visitedBounds.put(t, f.type(t));
-                bound = visit(t, f);
-                visitedBounds.remove(t);
-            }
-            bounds.add(bound);
+        if (visitedTypeParameter.containsKey(tree)) {
+            return visitedTypeParameter.get(tree);
         }
 
         AnnotatedTypeVariable result = (AnnotatedTypeVariable) f.type(tree);
+        // If this type parameter is recursive and it is found again while visiting the bounds, then
+        // use the same AnnotateTypeVariable object.
+        visitedTypeParameter.put(tree, result);
+
+        List<AnnotatedTypeMirror> bounds = new ArrayList<>(tree.getBounds().size());
+        for (Tree t : tree.getBounds()) {
+            bounds.add(visit(t, f));
+        }
+        visitedTypeParameter.remove(tree);
+
         List<? extends AnnotationMirror> annotations = TreeUtils.annotationsFromTree(tree);
         result.getLowerBound().addAnnotations(annotations);
 
@@ -229,11 +236,10 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
 
     @Override
     public AnnotatedTypeMirror visitWildcard(WildcardTree tree, AnnotatedTypeFactory f) {
-
         AnnotatedTypeMirror bound = visit(tree.getBound(), f);
-
         AnnotatedTypeMirror result = f.type(tree);
         assert result instanceof AnnotatedWildcardType;
+        f.initializeAtm(result);
 
         // for wildcards unlike type variables there are bounds that differ in type from
         // result.  These occur for RAW types.  In this case, use the newly created bound
@@ -318,7 +324,6 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
      */
     private int findIndex(
             List<? extends TypeParameterElement> typeParameters, TypeParameterElement type) {
-
         TypeVariable typeVariable = (TypeVariable) type.asType();
 
         for (int i = 0; i < typeParameters.size(); i++) {
@@ -332,7 +337,6 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
 
     @Override
     public AnnotatedTypeMirror visitIdentifier(IdentifierTree tree, AnnotatedTypeFactory f) {
-
         AnnotatedTypeMirror type = f.type(tree);
 
         if (type.getKind() == TypeKind.TYPEVAR) {
@@ -344,7 +348,6 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
 
     @Override
     public AnnotatedTypeMirror visitMemberSelect(MemberSelectTree tree, AnnotatedTypeFactory f) {
-
         AnnotatedTypeMirror type = f.type(tree);
 
         if (type.getKind() == TypeKind.TYPEVAR) {

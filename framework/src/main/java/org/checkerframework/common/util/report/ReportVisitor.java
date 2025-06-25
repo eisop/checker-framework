@@ -73,6 +73,7 @@ public class ReportVisitor extends BaseTypeVisitor<BaseAnnotatedTypeFactory> {
     @Override
     public Void scan(Tree tree, Void p) {
         if ((tree != null) && (treeKinds != null) && treeKinds.contains(tree.getKind())) {
+            // TODO: Also output the tree itself: TreeUtils.toStringTruncated(tree, 60)
             checker.reportError(tree, "Tree.Kind." + tree.getKind());
         }
         return super.scan(tree, p);
@@ -137,7 +138,7 @@ public class ReportVisitor extends BaseTypeVisitor<BaseAnnotatedTypeFactory> {
     }
 
     @Override
-    public Void visitMethod(MethodTree tree, Void p) {
+    public void processMethodTree(String className, MethodTree tree) {
         ExecutableElement method = TreeUtils.elementFromDeclaration(tree);
         boolean report = false;
 
@@ -159,7 +160,7 @@ public class ReportVisitor extends BaseTypeVisitor<BaseAnnotatedTypeFactory> {
         if (report) {
             checker.reportError(tree, "override", tree, ElementUtils.getQualifiedName(method));
         }
-        return super.visitMethod(tree, p);
+        super.processMethodTree(className, tree);
     }
 
     @Override

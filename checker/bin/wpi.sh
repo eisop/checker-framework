@@ -68,18 +68,18 @@ else
   has_java17="yes"
 fi
 
-# shellcheck disable=SC2153 # testing for JAVA20_HOME, not a typo of JAVA_HOME
-if [ "${JAVA20_HOME}" = "" ]; then
-  has_java20="no"
-else
-  has_java20="yes"
-fi
-
 # shellcheck disable=SC2153 # testing for JAVA21_HOME, not a typo of JAVA_HOME
 if [ "${JAVA21_HOME}" = "" ]; then
   has_java21="no"
 else
   has_java21="yes"
+fi
+
+# shellcheck disable=SC2153 # testing for JAVA24_HOME, not a typo of JAVA_HOME
+if [ "${JAVA24_HOME}" = "" ]; then
+  has_java24="no"
+else
+  has_java24="yes"
 fi
 
 if [ "${has_java_home}" = "yes" ] && [ ! -d "${JAVA_HOME}" ]; then
@@ -101,13 +101,13 @@ if [ "${has_java_home}" = "yes" ]; then
       export JAVA17_HOME="${JAVA_HOME}"
       has_java17="yes"
     fi
-    if [ "${has_java20}" = "no" ] && [ "${java_version}" = 20 ]; then
-      export JAVA20_HOME="${JAVA_HOME}"
-      has_java20="yes"
-    fi
     if [ "${has_java21}" = "no" ] && [ "${java_version}" = 21 ]; then
       export JAVA21_HOME="${JAVA_HOME}"
       has_java21="yes"
+    fi
+    if [ "${has_java24}" = "no" ] && [ "${java_version}" = 24 ]; then
+      export JAVA24_HOME="${JAVA_HOME}"
+      has_java24="yes"
     fi
 fi
 
@@ -123,37 +123,38 @@ fi
 
 if [ "${has_java17}" = "yes" ] && [ ! -d "${JAVA17_HOME}" ]; then
     echo "JAVA17_HOME is set to a non-existent directory ${JAVA17_HOME}"
-    exit 7
-fi
-
-if [ "${has_java20}" = "yes" ] && [ ! -d "${JAVA20_HOME}" ]; then
-    echo "JAVA20_HOME is set to a non-existent directory ${JAVA20_HOME}"
-    exit 7
+    exit 8
 fi
 
 if [ "${has_java21}" = "yes" ] && [ ! -d "${JAVA21_HOME}" ]; then
     echo "JAVA21_HOME is set to a non-existent directory ${JAVA21_HOME}"
-    exit 7
+    exit 9
 fi
 
-if [ "${has_java8}" = "no" ] && [ "${has_java11}" = "no" ] && [ "${has_java17}" = "no" ] && [ "${has_java20}" = "no" ] && [ "${has_java21}" = "no" ]; then
+if [ "${has_java24}" = "yes" ] && [ ! -d "${JAVA24_HOME}" ]; then
+    echo "JAVA24_HOME is set to a non-existent directory ${JAVA24_HOME}"
+    exit 10
+fi
+
+if [ "${has_java8}" = "no" ] && [ "${has_java11}" = "no" ] && [ "${has_java17}" = "no" ] && [ "${has_java21}" = "no" ] && [ "${has_java24}" = "no" ]; then
     if [ "${has_java_home}" = "yes" ]; then
       echo "Cannot determine Java version from JAVA_HOME"
     else
-      echo "No Java 8, 11, 17, 20, or 21 JDKs found. At least one of JAVA_HOME, JAVA8_HOME, JAVA11_HOME, JAVA17_HOME, or JAVA21_HOME must be set."
+      echo "No Java 8, 11, 17, 21, or 24 JDKs found. At least one of JAVA_HOME, JAVA8_HOME, JAVA11_HOME, JAVA17_HOME, JAVA21_HOME, or JAVA24_HOME must be set."
     fi
     echo "JAVA_HOME = ${JAVA_HOME}"
     echo "JAVA8_HOME = ${JAVA8_HOME}"
     echo "JAVA11_HOME = ${JAVA11_HOME}"
     echo "JAVA17_HOME = ${JAVA17_HOME}"
     echo "JAVA21_HOME = ${JAVA21_HOME}"
+    echo "JAVA24_HOME = ${JAVA24_HOME}"
     command -v java
     java -version
-    exit 8
+    exit 11
 fi
 
-if [ "${CHECKERFRAMEWORK}" = "" ]; then
-    echo "CHECKERFRAMEWORK is not set; it must be set to a locally-built Checker Framework. Please clone and build github.com/typetools/checker-framework"
+if [ -z "${CHECKERFRAMEWORK}" ]; then
+    echo "CHECKERFRAMEWORK is not set; it must be set to a locally-built Checker Framework. Please clone and build https://github.com/typetools/checker-framework"
     exit 2
 fi
 
@@ -259,16 +260,16 @@ function configure_and_exec_dljc {
 
   # Ensure the project is clean before invoking DLJC.
   DLJC_CLEAN_STATUS=0
-  eval "${CLEAN_CMD}" < /dev/null > /dev/null 2>&1 || DLJC_CLEAN_STATUS=$?
+  CLEAN_OUTPUT_FILE=${DIR}/dljc-out/clean-output
+  ## TODO: Why is this `eval` rather than just running the command?
+  eval "${CLEAN_CMD} < /dev/null > ${CLEAN_OUTPUT_FILE}" 2>&1 || DLJC_CLEAN_STATUS=$?
   if [[ $DLJC_CLEAN_STATUS -ne 0 ]] ; then
-    WPI_RESULTS_AVAILABLE="dljc failed to clean with ${JDK_VERSION_ARG}: ${CLEAN_CMD}"
-    echo "${WPI_RESULTS_AVAILABLE}"
-    echo "Re-running clean command."
-    # Cleaning failed.  Re-run without piping output to /dev/null.
-    echo "${CLEAN_CMD}" > "${DIR}/dljc-out/clean-output"
-    (eval "${CLEAN_CMD}" < /dev/null | tee -a "${DIR}/dljc-out/clean-output") || true
+    WPI_RESULTS_AVAILABLE="dljc failed to clean with ${JDK_VERSION_ARG}"
+    echo "${WPI_RESULTS_AVAILABLE}; see ${CLEAN_OUTPUT_FILE}"
+    echo "Contents of ${DIR}/dljc-out:"
     ls -al "${DIR}/dljc-out"
-    WPI_RESULTS_AVAILABLE="${WPI_RESULTS_AVAILABLE}"$'\n'"$(cat "${DIR}/dljc-out/clean-output")"
+    echo "End of contents of ${DIR}/dljc-out:"
+    WPI_RESULTS_AVAILABLE="${WPI_RESULTS_AVAILABLE}"$'\n'"${CLEAN_CMD}"$'\n'"$(cat "${CLEAN_OUTPUT_FILE}")"
     return
   fi
 
@@ -288,9 +289,9 @@ function configure_and_exec_dljc {
 
   export PATH="${PATH_BACKUP}"
 
-  echo "=== DLJC standard out/err (${dljc_stdout}) follows: ==="
+  echo "=== Start of DLJC standard out/err (${dljc_stdout}) ==="
   cat "${dljc_stdout}"
-  echo "=== End of DLJC standard out/err.  ==="
+  echo "=== End of DLJC standard out/err (${dljc_stdout}) ==="
 
   # The wpi.py script in do-like-javac outputs the following text if no build/whole-program-inference directory
   # exists, which means that WPI produced no output. When that happens, the reason is usually that the Checker
@@ -330,12 +331,18 @@ stdout is in      $dljc_stdout"
 if [ "${DLJC}" = "" ]; then
   # The user did not set the DLJC environment variable.
   DLJC="${SCRIPTDIR}/.do-like-javac/dljc"
+  if [ ! -f "${DLJC}" ]; then
+    (cd "$SCRIPTDIR"/../.. && ./gradlew getDoLikeJavac)
+  fi
 else
   # The user did set the DLJC environment variable.
   if [ ! -f "${DLJC}" ]; then
     echo "Failure: DLJC is set to ${DLJC} which is not a file or does not exist."
     exit 1
   fi
+fi
+if [ ! -f "$SCRIPTDIR/../dist/checker.jar" ] ; then
+  (cd "$SCRIPTDIR"/../.. && ./gradlew assembleForJavac)
 fi
 
 #### Main script
