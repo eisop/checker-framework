@@ -580,7 +580,7 @@ public class LockAnnotatedTypeFactory
     ParameterizedExecutableType mType =
         super.methodFromUse(tree, methodElt, receiverType, inferTypeArgs);
 
-    if (tree.getKind() != Tree.Kind.METHOD_INVOCATION) {
+    if (!(tree instanceof MethodInvocationTree)) {
       return mType;
     }
 
@@ -691,7 +691,7 @@ public class LockAnnotatedTypeFactory
 
   @Override
   protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type) {
-    if (tree.getKind() == Tree.Kind.VARIABLE) {
+    if (tree instanceof VariableTree) {
       translateJcipAndJavaxAnnotations(TreeUtils.elementFromDeclaration((VariableTree) tree), type);
     }
 

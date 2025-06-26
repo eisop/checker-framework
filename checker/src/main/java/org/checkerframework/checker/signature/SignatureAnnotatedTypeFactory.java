@@ -296,7 +296,7 @@ public class SignatureAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
           ExpressionTree receiver = TreeUtils.getReceiverTree(tree);
           if (TreeUtils.isClassLiteral(receiver)) {
             ExpressionTree classExpr = ((MemberSelectTree) receiver).getExpression();
-            if (classExpr.getKind() == Tree.Kind.PRIMITIVE_TYPE) {
+            if (classExpr instanceof PrimitiveTypeTree) {
               if (((PrimitiveTypeTree) classExpr).getPrimitiveTypeKind() == TypeKind.VOID) {
                 // do nothing
               } else {
