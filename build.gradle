@@ -86,7 +86,7 @@ ext {
         //  * Temporarily comment out "-Werror" elsewhere in this file
         //  * Repeatedly run `./gradlew clean compileJava` and fix all errors
         //  * Uncomment "-Werror"
-        errorprone      : '2.38.0',
+        errorprone      : '2.39.0',
         googleJavaFormat : '1.25.2',
         hashmapUtil     : '0.0.1',
         junit           : '4.13.2',
@@ -578,6 +578,8 @@ allprojects { currentProj ->
                     '-Xep:ExtendsObject:OFF',
                     // For Visitors it is convenient to just pass a Void parameter.
                     '-Xep:VoidUsed:OFF',
+                    // For the compiler, particularly for Trees, the recommendation is to use Kind checks.
+                    '-Xep:PreferInstanceofOverGetKind:OFF',
                     // -Werror halts the build if Error Prone issues a warning, which ensures that
                     // the errors get fixed.  On the downside, Error Prone (or maybe the compiler?)
                     // stops as soon as it issues one warning, rather than outputting them all.

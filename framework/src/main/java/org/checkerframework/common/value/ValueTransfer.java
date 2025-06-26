@@ -1563,6 +1563,7 @@ public class ValueTransfer extends CFTransfer {
         AND;
     }
 
+    @SuppressWarnings("BooleanLiteral") // TODO: is there a performance difference?
     private static final List<Boolean> ALL_BOOLEANS =
             Arrays.asList(new Boolean[] {Boolean.TRUE, Boolean.FALSE});
 
