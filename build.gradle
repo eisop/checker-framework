@@ -578,7 +578,7 @@ allprojects { currentProj ->
                     '-Xep:ExtendsObject:OFF',
                     // For Visitors it is convenient to just pass a Void parameter.
                     '-Xep:VoidUsed:OFF',
-                    // For the compiler, particularly for Trees, the recommendation is to use Kind checks.
+                    // TODO: hold off on large refactoring.
                     '-Xep:PreferInstanceofOverGetKind:OFF',
                     // -Werror halts the build if Error Prone issues a warning, which ensures that
                     // the errors get fixed.  On the downside, Error Prone (or maybe the compiler?)
