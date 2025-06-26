@@ -6,13 +6,17 @@ import com.sun.source.tree.MethodTree;
 import org.checkerframework.checker.initialization.InitializationChecker;
 import org.checkerframework.checker.initialization.InitializationFieldAccessSubchecker;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.qual.StubFiles;
 import org.checkerframework.framework.source.SourceChecker;
+import org.jspecify.annotations.NullMarked;
 
 import java.util.NavigableSet;
 import java.util.Set;
+
+import javax.lang.model.element.Element;
 
 /**
  * The subchecker of the {@link NullnessChecker} which actually checks {@link NonNull} and related
@@ -87,5 +91,11 @@ public class NullnessNoInitSubchecker extends BaseTypeChecker {
     @Override
     public boolean shouldSkipDefs(MethodTree tree) {
         return super.shouldSkipDefs(tree) || parentChecker.shouldSkipDefs(tree);
+    }
+
+    @Override
+    protected boolean isAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
+        NullMarked nullmarked = elt.getAnnotation(NullMarked.class);
+        return nullmarked != null || super.isAnnotatedForThisCheckerOrUpstreamChecker(elt);
     }
 }

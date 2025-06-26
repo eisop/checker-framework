@@ -201,6 +201,10 @@ import javax.tools.Diagnostic;
     // org.checkerframework.framework.source.SourceChecker.useConservativeDefault
     "useConservativeDefaultsForUncheckedCode",
 
+    // Whether to suppress the warnings for code that is not in annotatedfor scope.
+    // If the flag is true, warnings for code that is not in annotatedfor scope will be suppressed.
+    "onlyAnnotatedFor",
+
     // Whether to assume sound concurrent semantics or
     // simplified sequential semantics
     // org.checkerframework.framework.flow.CFAbstractTransfer.sequentialSemantics
@@ -2778,7 +2782,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             }
         }
 
-        if (useConservativeDefault("source")) {
+        if (useConservativeDefault("source") || this.getBooleanOption("onlyAnnotatedFor", false)) {
             // If we got this far without hitting an @AnnotatedFor and returning
             // false, we DO suppress the warning.
             return true;
@@ -2983,8 +2987,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @param elt the source code element to check, or null
      * @return true if the element is annotated for this checker or an upstream checker
      */
-    private boolean isAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
-        if (elt == null || !useConservativeDefault("source")) {
+    protected boolean isAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
+        if (elt == null) {
             return false;
         }
 
