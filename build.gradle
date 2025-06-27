@@ -7,7 +7,7 @@ plugins {
     id 'de.undercouch.download' version '5.6.0'
     id 'java'
     // https://github.com/tbroyer/gradle-errorprone-plugin
-    id 'net.ltgt.errorprone' version '4.2.0'
+    id 'net.ltgt.errorprone' version '4.3.0'
     // https://docs.gradle.org/current/userguide/eclipse_plugin.html
     id 'eclipse'
     // To show task list as a tree, run: ./gradlew <taskname> taskTree
@@ -86,13 +86,13 @@ ext {
         //  * Temporarily comment out "-Werror" elsewhere in this file
         //  * Repeatedly run `./gradlew clean compileJava` and fix all errors
         //  * Uncomment "-Werror"
-        errorprone      : '2.38.0',
+        errorprone      : '2.39.0',
         googleJavaFormat : '1.25.2',
         hashmapUtil     : '0.0.1',
         junit           : '4.13.2',
         lombok          : '1.18.38',
         // plume-util includes a version of reflection-util. When updating ensure the versions are consistent.
-        plumeUtil       : '1.10.1',
+        plumeUtil       : '1.11.0',
         reflectionUtil  : '1.1.5',
     ]
 }
@@ -578,6 +578,8 @@ allprojects { currentProj ->
                     '-Xep:ExtendsObject:OFF',
                     // For Visitors it is convenient to just pass a Void parameter.
                     '-Xep:VoidUsed:OFF',
+                    // TODO: hold off on large refactoring.
+                    '-Xep:PreferInstanceofOverGetKind:OFF',
                     // -Werror halts the build if Error Prone issues a warning, which ensures that
                     // the errors get fixed.  On the downside, Error Prone (or maybe the compiler?)
                     // stops as soon as it issues one warning, rather than outputting them all.
