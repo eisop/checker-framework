@@ -62,7 +62,6 @@ dependencies {
 
     implementation ("org.plumelib:reflection-util:${versions.reflectionUtil}")
     implementation "org.plumelib:plume-util:${versions.plumeUtil}"
-    implementation 'org.jspecify:jspecify:1.0.0'
 
     // Dependencies added to "shadow" appear as dependencies in Maven Central.
     shadow project(':checker-qual')

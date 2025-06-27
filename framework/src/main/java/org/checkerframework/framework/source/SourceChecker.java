@@ -201,8 +201,9 @@ import javax.tools.Diagnostic;
     // org.checkerframework.framework.source.SourceChecker.useConservativeDefault
     "useConservativeDefaultsForUncheckedCode",
 
-    // Whether to suppress the warnings for code that is not in annotatedfor scope.
-    // If the flag is true, warnings for code that is not in annotatedfor scope will be suppressed.
+    // Whether to suppress the warnings for code that is outside the scope of any relevant
+    // annotatedfor scope. If the flag is true, warnings are suppressed for code outside the scope
+    // of any relevant annotatedfor scope.
     "onlyAnnotatedFor",
 
     // Whether to assume sound concurrent semantics or
@@ -2988,7 +2989,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @param elt the source code element to check, or null
      * @return true if the element is annotated for this checker or an upstream checker
      */
-    protected boolean isAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
+    private boolean isAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
         if (elt == null) {
             return false;
         }
