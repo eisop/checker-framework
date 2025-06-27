@@ -201,6 +201,11 @@ import javax.tools.Diagnostic;
     // org.checkerframework.framework.source.SourceChecker.useConservativeDefault
     "useConservativeDefaultsForUncheckedCode",
 
+    // Whether to suppress the warnings for code that is outside the scope of any relevant
+    // annotatedfor scope. If the flag is true, warnings are suppressed for code outside the scope
+    // of any relevant annotatedfor scope.
+    "onlyAnnotatedFor",
+
     // Whether to assume sound concurrent semantics or
     // simplified sequential semantics
     // org.checkerframework.framework.flow.CFAbstractTransfer.sequentialSemantics
@@ -1459,7 +1464,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /**
      * Reports a diagnostic message. By default, prints it to the screen via the compiler's internal
-     * messager.
+     * messenger.
      *
      * <p>It is rare to use this method. Most clients should use {@link #reportError} or {@link
      * #reportWarning}.
@@ -1473,7 +1478,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /**
      * Reports a diagnostic message. By default, it prints it to the screen via the compiler's
-     * internal messager; however, it might also store it for later output.
+     * internal messenger; however, it might also store it for later output.
      *
      * @param source the source position information; may be an Element or a Tree
      * @param kind the type of message
@@ -2779,7 +2784,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             }
         }
 
-        if (useConservativeDefault("source")) {
+        if (useConservativeDefault("source") || this.getBooleanOption("onlyAnnotatedFor", false)) {
             // If we got this far without hitting an @AnnotatedFor and returning
             // false, we DO suppress the warning.
             return true;
@@ -2985,7 +2990,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return true if the element is annotated for this checker or an upstream checker
      */
     private boolean isAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
-        if (elt == null || !useConservativeDefault("source")) {
+        if (elt == null) {
             return false;
         }
 

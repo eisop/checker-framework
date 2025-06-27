@@ -3,6 +3,9 @@ Version 3.49.3-eisop2 (June ??, 2025)
 
 **User-visible changes:**
 
+The new command-line argument `-AonlyAnnotatedFor=true` suppress all type-checking warnings outside the scope of any
+relevant @AnnotatedFor annotation.
+
 The Nullness Checker now has more fine-grained prefix options to suppress warnings:
 - `@SuppressWarnings("nullness")` is used to suppress warnings from the Nullness, Initialization, and KeyFor Checkers.
 - `@SuppressWarnings("nullnesskeyfor")` is used to suppress warnings from the Nullness and KeyFor Checkers,
