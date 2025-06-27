@@ -13,9 +13,9 @@ interface FunctionRT<T extends @Nullable Object, R> {
 
 class ReceiverTest {
 
-    // :: error: (method.invocation.invalid)
+    // :: error: (initialization.method.invocation.invalid)
     FunctionRT<String, String> f1 = s -> this.toString();
-    // :: error: (method.invocation.invalid)
+    // :: error: (initialization.method.invocation.invalid)
     FunctionRT<String, String> f2 = s -> super.toString();
 
     // :: error: (nullness.on.receiver)
