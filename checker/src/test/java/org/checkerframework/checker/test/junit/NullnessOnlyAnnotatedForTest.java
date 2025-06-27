@@ -22,6 +22,11 @@ public class NullnessOnlyAnnotatedForTest extends CheckerFrameworkPerDirectoryTe
                 "-AonlyAnnotatedFor=true");
     }
 
+    /**
+     * This method returns the directory containing test code.
+     *
+     * @return the directories containing test code
+     */
     @Parameters
     public static String[] getTestDirs() {
         return new String[] {"nullness-onlyannotatedfor"};
