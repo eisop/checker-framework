@@ -757,8 +757,10 @@ public abstract class InitializationParentAnnotatedTypeFactory
                 // is
                 // annotated, then annotate the enclosing type of the return type with the same
                 // annotation.
-                // TODO: look into why there is this inconsistency between receiver type and
-                // enclosing type of the return type.
+                // TODO: The annotation actually has already been captured by `getReceiverType()`.
+                // But it's not shown in the return type. This indicates that this annotation could
+                // be done in the general framework before reaching to this point. Look into this to
+                // see the underlying logic.
                 if (exeType.getReceiverType() != null
                         && exeType.getReceiverType().hasAnnotationInHierarchy(a)) {
                     AnnotationMirror enclAnno =
