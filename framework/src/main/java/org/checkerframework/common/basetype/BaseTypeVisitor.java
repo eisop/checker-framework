@@ -877,6 +877,38 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             AnnotationMirrorSet classBounds,
             TypeMirror classType,
             boolean isExtends) {
+        checkExtendsOrImplements(boundClause, classBounds, classType, isExtends, true);
+    }
+
+    /**
+     * This method implements the two checks: (1) checking annotation on super type if
+     * checkSuperAnno is true. (2) checking the subtyping relationship of class declarations between
+     * the current class and extends/implements class/interface.
+     *
+     * @param boundClause an extends or implements clause
+     * @param classBounds the type declarations bounds to check for consistency with {@code
+     *     boundClause}
+     * @param classType the type being declared
+     * @param isExtends true for an extends clause, false for an implements clause
+     * @param checkSuperAnno true if annotation on super type should be checked
+     */
+    protected void checkExtendsOrImplements(
+            Tree boundClause,
+            AnnotationMirrorSet classBounds,
+            TypeMirror classType,
+            boolean isExtends,
+            boolean checkSuperAnno) {
+        // Check if super type has annotation
+        if (checkSuperAnno && boundClause.getKind() == Tree.Kind.ANNOTATED_TYPE) {
+            List<? extends AnnotationTree> annoTrees =
+                    ((AnnotatedTypeTree) boundClause).getAnnotations();
+            for (AnnotationTree annoTree : annoTrees) {
+                AnnotationMirror am = TreeUtils.annotationFromAnnotationTree(annoTree);
+                if (atypeFactory.isSupportedQualifier(am)) {
+                    checker.reportError(boundClause, "annotation.on.supertype");
+                }
+            }
+        }
         AnnotatedTypeMirror boundType = atypeFactory.getTypeOfExtendsImplements(boundClause);
         TypeMirror boundTM = boundType.getUnderlyingType();
         for (AnnotationMirror classAnno : classBounds) {

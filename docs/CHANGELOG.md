@@ -3,6 +3,10 @@ Version 3.49.3-eisop2 (June ??, 2025)
 
 **User-visible changes:**
 
+The Checker Framework issues `annotation.on.supertype` error if there is an annotation written on
+the super type in the class declaration. Checker supports annotation on the super type can override
+`BaseTypeVisitor#checkExtendsOrImplements(Tree, AnnotationMirrorSet, TypeMirror, Boolean)` to disable the check.
+
 The Nullness Checker now has more fine-grained prefix options to suppress warnings:
 - `@SuppressWarnings("nullness")` is used to suppress warnings from the Nullness, Initialization, and KeyFor Checkers.
 - `@SuppressWarnings("nullnesskeyfor")` is used to suppress warnings from the Nullness and KeyFor Checkers,
@@ -31,7 +35,7 @@ They are enabled by default and can be disabled using `-Alint=-instanceof.unsafe
 
 **Closed issues:**
 
-eisop#1247, eisop#1263, typetools#7096.
+eisop#1059, eisop#1247, eisop#1263, typetools#7096.
 
 
 Version 3.49.3-eisop1 (May 6, 2025)
