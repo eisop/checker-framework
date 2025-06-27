@@ -590,16 +590,10 @@ allprojects { currentProj ->
       // -fallthrough: Don't check fallthroughs.  Instead, use Error Prone.  Its
       //   warnings are suppressible with a "// fall through" comment.
       // -classfile: classgraph jar file and https://bugs.openjdk.org/browse/JDK-8190452
-      String lint = '-Xlint:-options,-fallthrough,-classfile'
-      if (useJdkVersionInt >= 21 || jdk21Compiler || jdkTestVersion > 20) {
-        // TODO: Ignore this-escape warnings for now; perhaps review and suppress each one later.
-        lint +=',-this-escape'
-      }
-
       options.compilerArgs += [
         '-g',
         '-Werror',
-        lint,
+        '-Xlint:-options,-fallthrough,-classfile',
         '-Xlint',
       ]
 

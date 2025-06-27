@@ -98,6 +98,7 @@ public class LockAnnotatedTypeFactory
       AnnotationBuilder.fromClass(elements, GuardedByUnknown.class);
 
   /** The @{@link GuardedBy} annotation. */
+  @SuppressWarnings("this-escape")
   protected final AnnotationMirror GUARDEDBY =
       createGuardedByAnnotationMirror(new ArrayList<String>());
 
@@ -136,6 +137,7 @@ public class LockAnnotatedTypeFactory
   protected final @Nullable Class<? extends Annotation> javaxGuardedBy;
 
   /** Create a new LockAnnotatedTypeFactory. */
+  @SuppressWarnings("this-escape")
   public LockAnnotatedTypeFactory(BaseTypeChecker checker) {
     super(checker, true);
 
