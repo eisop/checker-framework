@@ -32,10 +32,8 @@ import org.checkerframework.dataflow.expression.LocalVariable;
 import org.checkerframework.dataflow.expression.ThisReference;
 import org.checkerframework.dataflow.util.NodeUtils;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
-import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.TypeUseLocation;
-import org.checkerframework.framework.qual.UnannotatedFor;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
@@ -408,26 +406,10 @@ public class NullnessNoInitAnnotatedTypeFactory
                                     new TypeUseLocation[] {TypeUseLocation.UPPER_BOUND})
                             .setValue("applyToSubpackages", false)
                             .build();
-            AnnotationMirror annotatedForNullness =
-                    new AnnotationBuilder(processingEnv, AnnotatedFor.class)
-                            .setValue("value", new String[] {"nullness"})
-                            .build();
-            AnnotationMirror unannotatedForNullness =
-                    new AnnotationBuilder(processingEnv, UnannotatedFor.class)
-                            .setValue("value", new String[] {"nullness"})
-                            .build();
             addAliasedDeclAnnotation(
                     "org.jspecify.annotations.NullMarked",
                     DefaultQualifier.class.getCanonicalName(),
                     nullMarkedDefaultQual);
-            addAliasedDeclAnnotation(
-                    "org.jspecify.annotations.NullMarked",
-                    AnnotatedFor.class.getCanonicalName(),
-                    annotatedForNullness);
-            addAliasedDeclAnnotation(
-                    "org.jspecify.annotations.NullUnmarked",
-                    UnannotatedFor.class.getCanonicalName(),
-                    unannotatedForNullness);
 
             // 2022-11-17: Deprecated old package location, remove after some grace period
             addAliasedDeclAnnotation(
