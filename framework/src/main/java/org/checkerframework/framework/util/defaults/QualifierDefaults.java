@@ -16,7 +16,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.TypeUseLocation;
-import org.checkerframework.framework.qual.UnannotatedFor;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
@@ -63,7 +62,7 @@ import javax.lang.model.util.Elements;
  *
  * <p>Type variable uses have two possible defaults. If flow sensitive type refinement is enabled,
  * unannotated top-level type variable uses receive the same default as local variables. All other
- * type variable uses are defaulted using the {@code TYPE_VARIABLE_USE} default.
+ * type variable uses are defaulted using the {@code TYPE_VARIABLE_USE} defaul1t.
  *
  * <pre>{@code
  * <T> void method(USE T tIn) {
@@ -650,6 +649,7 @@ public class QualifierDefaults {
 
     private boolean isElementAnnotatedForThisChecker(Element elt) {
         boolean elementAnnotatedForThisChecker = false;
+        boolean elementUnAnnotatedForThisChecker = false;
 
         if (elt == null) {
             throw new BugInCF(
@@ -661,14 +661,21 @@ public class QualifierDefaults {
         }
 
         AnnotationMirror annotatedFor = atypeFactory.getDeclAnnotation(elt, AnnotatedFor.class);
+        AnnotationMirror unannotatedFor =
+                atypeFactory.getDeclAnnotation(
+                        elt, org.checkerframework.framework.qual.UnannotatedFor.class);
 
         if (annotatedFor != null) {
             elementAnnotatedForThisChecker =
                     atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor);
         }
 
-        // If the element is not Annotatedfor this checker, check if the parent is.
-        if (!elementAnnotatedForThisChecker) {
+        if (unannotatedFor != null) {
+            elementUnAnnotatedForThisChecker =
+                    atypeFactory.doesUnannotatedForApplyToThisChecker(unannotatedFor);
+        }
+
+        if (!elementAnnotatedForThisChecker && !elementUnAnnotatedForThisChecker) {
             Element parent;
             if (elt.getKind() == ElementKind.PACKAGE) {
                 // TODO: should AnnotatedFor apply to subpackages??
@@ -685,54 +692,56 @@ public class QualifierDefaults {
         }
 
         elementAnnotatedFors.put(elt, elementAnnotatedForThisChecker);
+        elementUnannotatedFors.put(elt, elementUnAnnotatedForThisChecker);
 
         return elementAnnotatedForThisChecker;
     }
 
-    /**
-     * Returns whether the element is UnannotatedFor this checker.
-     *
-     * @param elt the element
-     * @return whether the element is UnannotatedFor this checker
-     */
-    private boolean isElementUnannotatedForThisChecker(Element elt) {
-        boolean elementUnannotatedForThisChecker = false;
-
-        if (elt == null) {
-            throw new BugInCF(
-                    "Call of QualifierDefaults.isElementUnannotatedForThisChecker with null");
-        }
-
-        if (elementUnannotatedFors.containsKey(elt)) {
-            return elementUnannotatedFors.get(elt);
-        }
-
-        AnnotationMirror UnannotatedFor = atypeFactory.getDeclAnnotation(elt, UnannotatedFor.class);
-
-        if (UnannotatedFor != null) {
-            elementUnannotatedForThisChecker =
-                    atypeFactory.doesUnannotatedForApplyToThisChecker(UnannotatedFor);
-        }
-
-        if (!elementUnannotatedForThisChecker) {
-            Element parent;
-            if (elt.getKind() == ElementKind.PACKAGE) {
-                // elt.getEnclosingElement() on a package is null if module does not exist;
-                // therefore, use the dedicated method.
-                parent = ElementUtils.parentPackage((PackageElement) elt, elements);
-            } else {
-                parent = elt.getEnclosingElement();
-            }
-
-            if (parent != null && isElementUnannotatedForThisChecker(parent)) {
-                elementUnannotatedForThisChecker = true;
-            }
-        }
-
-        elementUnannotatedFors.put(elt, elementUnannotatedForThisChecker);
-
-        return elementUnannotatedForThisChecker;
-    }
+    //    /**
+    //     * Returns whether the element is UnannotatedFor this checker.
+    //     *
+    //     * @param elt the element
+    //     * @return whether the element is UnannotatedFor this checker
+    //     */
+    //    private boolean isElementUnannotatedForThisChecker(Element elt) {
+    //        boolean elementUnannotatedForThisChecker = false;
+    //
+    //        if (elt == null) {
+    //            throw new BugInCF(
+    //                    "Call of QualifierDefaults.isElementUnannotatedForThisChecker with null");
+    //        }
+    //
+    //        if (elementUnannotatedFors.containsKey(elt)) {
+    //            return elementUnannotatedFors.get(elt);
+    //        }
+    //
+    //        AnnotationMirror UnannotatedFor = atypeFactory.getDeclAnnotation(elt,
+    // UnannotatedFor.class);
+    //
+    //        if (UnannotatedFor != null) {
+    //            elementUnannotatedForThisChecker =
+    //                    atypeFactory.doesUnannotatedForApplyToThisChecker(UnannotatedFor);
+    //        }
+    //
+    //        if (!elementUnannotatedForThisChecker) {
+    //            Element parent;
+    //            if (elt.getKind() == ElementKind.PACKAGE) {
+    //                // elt.getEnclosingElement() on a package is null if module does not exist;
+    //                // therefore, use the dedicated method.
+    //                parent = ElementUtils.parentPackage((PackageElement) elt, elements);
+    //            } else {
+    //                parent = elt.getEnclosingElement();
+    //            }
+    //
+    //            if (parent != null && isElementUnannotatedForThisChecker(parent)) {
+    //                elementUnannotatedForThisChecker = true;
+    //            }
+    //        }
+    //
+    //        elementUnannotatedFors.put(elt, elementUnannotatedForThisChecker);
+    //
+    //        return elementUnannotatedForThisChecker;
+    //    }
 
     /**
      * Returns the defaults that apply to the given Element, considering defaults from enclosing
@@ -862,8 +871,7 @@ public class QualifierDefaults {
                         && !isFromStubFile;
         if (isBytecode) {
             return useConservativeDefaultsBytecode
-                    && (!isElementAnnotatedForThisChecker(annotationScope)
-                            || isElementUnannotatedForThisChecker(annotationScope));
+                    && !isElementAnnotatedForThisChecker(annotationScope);
         } else if (isFromStubFile) {
             // TODO: Types in stub files not annotated for a particular checker should be
             // treated as unchecked bytecode.  For now, all types in stub files are treated as
@@ -872,8 +880,7 @@ public class QualifierDefaults {
             // be treated like unchecked code except for methods in the scope of an @AnnotatedFor.
             return false;
         } else if (useConservativeDefaultsSource) {
-            return !isElementAnnotatedForThisChecker(annotationScope)
-                    || isElementUnannotatedForThisChecker(annotationScope);
+            return !isElementAnnotatedForThisChecker(annotationScope);
         }
         return false;
     }
