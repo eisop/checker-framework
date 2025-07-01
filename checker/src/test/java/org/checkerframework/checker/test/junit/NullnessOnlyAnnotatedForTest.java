@@ -6,7 +6,7 @@ import org.junit.runners.Parameterized.Parameters;
 import java.io.File;
 import java.util.List;
 
-/** JUnit tests for the Nullness checker. */
+/** JUnit tests for the Nullness Checker. */
 public class NullnessOnlyAnnotatedForTest extends CheckerFrameworkPerDirectoryTest {
 
     /**
