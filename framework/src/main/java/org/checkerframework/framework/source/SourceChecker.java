@@ -3002,8 +3002,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      */
     private boolean isAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
         if (elt == null
-                || !useConservativeDefault("source")
-                || !issueErrorsForOnlyAnnotatedForScope) {
+                || (!useConservativeDefault("source") && !issueErrorsForOnlyAnnotatedForScope)) {
             return false;
         }
 
