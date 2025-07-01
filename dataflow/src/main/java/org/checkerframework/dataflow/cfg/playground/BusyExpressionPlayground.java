@@ -14,25 +14,25 @@ import org.checkerframework.dataflow.cfg.visualize.CFGVisualizeOptions;
  */
 public class BusyExpressionPlayground {
 
-    /** Class cannot be instantiated. */
-    private BusyExpressionPlayground() {
-        throw new AssertionError("Class BusyExpressionPlayground cannot be instantiated.");
-    }
+  /** Class cannot be instantiated. */
+  private BusyExpressionPlayground() {
+    throw new AssertionError("Class BusyExpressionPlayground cannot be instantiated.");
+  }
 
-    /**
-     * Run busy expression analysis on a file.
-     *
-     * @param args command-line arguments
-     */
-    public static void main(String[] args) {
+  /**
+   * Run busy expression analysis on a file.
+   *
+   * @param args command-line arguments
+   */
+  public static void main(String[] args) {
 
-        // Parse the arguments.
-        CFGVisualizeOptions config = CFGVisualizeOptions.parseArgs(args);
+    // Parse the arguments.
+    CFGVisualizeOptions config = CFGVisualizeOptions.parseArgs(args);
 
-        // Run the analysis and create a PDF file
-        BusyExprTransfer transfer = new BusyExprTransfer();
-        BackwardAnalysis<UnusedAbstractValue, BusyExprStore, BusyExprTransfer> backwardAnalysis =
-                new BackwardAnalysisImpl<>(transfer);
-        CFGVisualizeLauncher.performAnalysis(config, backwardAnalysis);
-    }
+    // Run the analysis and create a PDF file
+    BusyExprTransfer transfer = new BusyExprTransfer();
+    BackwardAnalysis<UnusedAbstractValue, BusyExprStore, BusyExprTransfer> backwardAnalysis =
+        new BackwardAnalysisImpl<>(transfer);
+    CFGVisualizeLauncher.performAnalysis(config, backwardAnalysis);
+  }
 }

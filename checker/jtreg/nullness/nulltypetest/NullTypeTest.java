@@ -9,9 +9,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @compile/fail/ref=NullTypeTest.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker NullTypeTest.java -AprintVerboseGenerics
  */
 public class NullTypeTest {
-    Object nn = null;
+  Object nn = null;
 
-    @Nullable A<A<Object>> a;
+  @Nullable A<A<Object>> a;
 
-    class A<@Nullable T> {}
+  class A<@Nullable T> {}
 }
