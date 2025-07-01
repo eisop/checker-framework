@@ -1487,7 +1487,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /**
      * Reports a diagnostic message. By default, it prints it to the screen via the compiler's
-     * internal messenger; however, it might also store it for later output.
+     * internal messager; however, it might also store it for later output.
      *
      * @param source the source position information; may be an Element or a Tree
      * @param kind the type of message
