@@ -6,11 +6,14 @@ import org.junit.runners.Parameterized.Parameters;
 import java.io.File;
 import java.util.List;
 
-/** JUnit tests for the Nullness Checker. */
+/**
+ * JUnit tests for the Nullness checker. This test suite tests -AonlyAnnotatedFor suppresses errors
+ * and warnings from the Nullness Checker for code outside the scope of @AnnotatedFor annotation.
+ */
 public class NullnessOnlyAnnotatedForTest extends CheckerFrameworkPerDirectoryTest {
 
     /**
-     * Create a NullnessNullMarkedTest.
+     * Create a NullnessOnlyAnnotatedForTest.
      *
      * @param testFiles the files containing test code, which will be type-checked
      */
@@ -19,7 +22,7 @@ public class NullnessOnlyAnnotatedForTest extends CheckerFrameworkPerDirectoryTe
                 testFiles,
                 org.checkerframework.checker.nullness.NullnessChecker.class,
                 "nullness",
-                "-AonlyAnnotatedFor=true");
+                "-AonlyAnnotatedFor");
     }
 
     /**

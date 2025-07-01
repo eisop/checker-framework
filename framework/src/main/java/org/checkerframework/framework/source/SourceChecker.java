@@ -141,6 +141,16 @@ import javax.tools.Diagnostic;
     "onlyFiles",
     "skipDirs", // Obsolete as of 2024-03-15, replaced by "skipFiles".
 
+    // Suppress all errors and warnings for code outside the scope of @AnnotatedFor annotation.
+    // This flag only suppresses warnings compared to
+    // `-AuseConservativeDefaultsForUncheckedCode=source`, which also applies conservative defaults
+    // for code outside the scope of @AnnotatedFor annotation.
+    // NullAway has a similar flag `-XepOpt:NullAway:OnlyNullMarked=true` configures NullAway to
+    // only issue errors for code inside the scope of @NullMarked annotation.
+    // See
+    // https://github.com/uber/NullAway/wiki/Configuration#only-nullmarked-version-0123-and-after.
+    "onlyAnnotatedFor",
+
     // Unsoundly assume all methods have no side effects, are deterministic, or both.
     "assumeSideEffectFree",
     "assumeDeterministic",
@@ -200,11 +210,6 @@ import javax.tools.Diagnostic;
     // sections in the manual for more details
     // org.checkerframework.framework.source.SourceChecker.useConservativeDefault
     "useConservativeDefaultsForUncheckedCode",
-
-    // Whether to suppress the warnings for code that is outside the scope of any relevant
-    // annotatedfor scope. If the flag is true, warnings are suppressed for code outside the scope
-    // of any relevant annotatedfor scope.
-    "onlyAnnotatedFor",
 
     // Whether to assume sound concurrent semantics or
     // simplified sequential semantics
@@ -676,6 +681,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /** True if the -AwarnUnneededSuppressions command-line argument was passed. */
     private boolean warnUnneededSuppressions;
+
+    /** True if the -AonlyAnnotatedFor command-line argument was passed. */
+    private boolean issueErrorsForOnlyAnnotatedForScope;
 
     /**
      * The full list of subcheckers that need to be run prior to this one, in the order they need to
@@ -1166,6 +1174,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         requirePrefixInWarningSuppressions = hasOption("requirePrefixInWarningSuppressions");
         showPrefixInWarningMessages = hasOption("showPrefixInWarningMessages");
         warnUnneededSuppressions = hasOption("warnUnneededSuppressions");
+        issueErrorsForOnlyAnnotatedForScope = hasOption("onlyAnnotatedFor");
     }
 
     /** Output the warning about source level at most once. */
@@ -1464,7 +1473,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /**
      * Reports a diagnostic message. By default, prints it to the screen via the compiler's internal
-     * messenger.
+     * messager.
      *
      * <p>It is rare to use this method. Most clients should use {@link #reportError} or {@link
      * #reportWarning}.
@@ -2784,7 +2793,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             }
         }
 
-        if (useConservativeDefault("source") || this.getBooleanOption("onlyAnnotatedFor", false)) {
+        if (useConservativeDefault("source") || issueErrorsForOnlyAnnotatedForScope) {
             // If we got this far without hitting an @AnnotatedFor and returning
             // false, we DO suppress the warning.
             return true;
@@ -2986,11 +2995,15 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * Return true if the element has an {@code @AnnotatedFor} annotation, for this checker or an
      * upstream checker that called this one.
      *
+     * <p>If the element is null or the errors should not be suppressed, directly returns false.
+     *
      * @param elt the source code element to check, or null
      * @return true if the element is annotated for this checker or an upstream checker
      */
     private boolean isAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
-        if (elt == null) {
+        if (elt == null
+                || !useConservativeDefault("source")
+                || !issueErrorsForOnlyAnnotatedForScope) {
             return false;
         }
 
