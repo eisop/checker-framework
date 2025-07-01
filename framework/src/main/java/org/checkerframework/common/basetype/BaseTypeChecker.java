@@ -14,7 +14,6 @@ import org.checkerframework.framework.type.TypeHierarchy;
 import org.checkerframework.javacutil.AbstractTypeProcessor;
 import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.BugInCF;
-import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.CollectionsPlume;
@@ -28,8 +27,6 @@ import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.PackageElement;
 
 /**
  * An abstract {@link SourceChecker} that provides a simple {@link
@@ -320,10 +317,11 @@ public abstract class BaseTypeChecker extends SourceChecker {
     }
 
     /**
-     * This method is almost identical to {@link
+     * This method is almost similar to {@link
      * org.checkerframework.framework.util.defaults.QualifierDefaults#isElementAnnotatedForThisChecker(Element)}.
-     * except for early return if element is null and the conservative default for "source" is not
-     * used.
+     * except for early return if element is null, the conservative default for "source" is not used
+     * and do not recursively check enclosing elements because the logic is implemented at call
+     * sites.
      *
      * @param elt the source code element to check, or null
      * @return true if the element is annotated for this checker or an upstream checker
@@ -340,22 +338,6 @@ public abstract class BaseTypeChecker extends SourceChecker {
         if (annotatedFor != null) {
             elementAnnotatedForThisChecker =
                     getTypeFactory().doesAnnotatedForApplyToThisChecker(annotatedFor);
-        }
-
-        if (!elementAnnotatedForThisChecker) {
-            Element parent;
-            if (elt.getKind() == ElementKind.PACKAGE) {
-                // TODO: should AnnotatedFor apply to subpackages??
-                // elt.getEnclosingElement() on a package is null; therefore,
-                // use the dedicated method.
-                parent = ElementUtils.parentPackage((PackageElement) elt, elements);
-            } else {
-                parent = elt.getEnclosingElement();
-            }
-
-            if (parent != null && isAnnotatedForThisCheckerOrUpstreamChecker(parent)) {
-                elementAnnotatedForThisChecker = true;
-            }
         }
 
         return elementAnnotatedForThisChecker;
