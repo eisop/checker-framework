@@ -936,9 +936,9 @@ public class InferenceFactory {
     AnnotatedTypeMirror glbATM = AnnotatedTypes.annotatedGLB(typeFactory, aAtm, bAtm);
     if (a.ignoreAnnotations != b.ignoreAnnotations) {
       if (a.ignoreAnnotations) {
-        glbATM.replaceAnnotations(bAtm.getPrimaryAnnotations());
+        glbATM.replaceAnnotations(bAtm.getAnnotations());
       } else {
-        glbATM.replaceAnnotations(aAtm.getPrimaryAnnotations());
+        glbATM.replaceAnnotations(aAtm.getAnnotations());
       }
     }
     if (context.types.isSameType(aJavaType, (Type) glb)) {
