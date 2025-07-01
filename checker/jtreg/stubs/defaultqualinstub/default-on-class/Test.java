@@ -10,13 +10,13 @@ import org.checkerframework.checker.nullness.qual.*;
  */
 
 public class Test {
-  // l1 has type List<? extends @NonNull Object>
-  // mutableList has type MutableList<? extends @Nullable Object>
-  void foo(List<?> l1, MutableList<?> mutableList) {
-    // retainAll only accepts List with non-null elements
-    l1.retainAll(mutableList);
+    // l1 has type List<? extends @NonNull Object>
+    // mutableList has type MutableList<? extends @Nullable Object>
+    void foo(List<?> l1, MutableList<?> mutableList) {
+        // retainAll only accepts List with non-null elements
+        l1.retainAll(mutableList);
 
-    // l2 has type List<? extends @NonNull Object>
-    List<?> l2 = mutableList;
-  }
+        // l2 has type List<? extends @NonNull Object>
+        List<?> l2 = mutableList;
+    }
 }

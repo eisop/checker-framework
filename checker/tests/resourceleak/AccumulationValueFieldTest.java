@@ -5,36 +5,36 @@ import org.checkerframework.checker.mustcall.qual.*;
 
 public class AccumulationValueFieldTest {
 
-  @InheritableMustCall({"a"})
-  class MCAB {
-    void a() {}
+    @InheritableMustCall({"a"})
+    class MCAB {
+        void a() {}
 
-    void b() {}
-  }
-
-  @InheritableMustCall({"a"})
-  class FieldTest<T extends MCAB> {
-
-    @Owning
-    @MustCall({"a"}) T m = null;
-
-    FieldTest(@Owning @MustCall({"a"}) T mcab) {
-      m = mcab;
+        void b() {}
     }
 
-    @RequiresCalledMethods(
-        value = {"this.m"},
-        methods = {"a"})
-    @CreatesMustCallFor("this")
-    void overwriteMCorrect(@Owning @MustCall({"a"}) T mcab) {
-      this.m = mcab;
-    }
+    @InheritableMustCall({"a"})
+    class FieldTest<T extends MCAB> {
 
-    @EnsuresCalledMethods(
-        value = {"this.m"},
-        methods = {"a"})
-    void a() {
-      m.a();
+        @Owning
+        @MustCall({"a"}) T m = null;
+
+        FieldTest(@Owning @MustCall({"a"}) T mcab) {
+            m = mcab;
+        }
+
+        @RequiresCalledMethods(
+                value = {"this.m"},
+                methods = {"a"})
+        @CreatesMustCallFor("this")
+        void overwriteMCorrect(@Owning @MustCall({"a"}) T mcab) {
+            this.m = mcab;
+        }
+
+        @EnsuresCalledMethods(
+                value = {"this.m"},
+                methods = {"a"})
+        void a() {
+            m.a();
+        }
     }
-  }
 }

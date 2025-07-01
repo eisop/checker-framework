@@ -13,14 +13,14 @@
 
 abstract class WildcardInReturn<T> {
 
-  abstract WildcardInReturn<?> of(String key);
+    abstract WildcardInReturn<?> of(String key);
 
-  abstract WildcardInReturn<? extends T> getSubtype(Class<?> subclass);
+    abstract WildcardInReturn<? extends T> getSubtype(Class<?> subclass);
 
-  WildcardInReturn<? extends T> getSubtypeFromLowerBounds(Class<?> subclass, String key) {
-    @SuppressWarnings("unchecked") // T's lower bound is <? extends T>
-    WildcardInReturn<? extends T> bound = (WildcardInReturn<? extends T>) of(key);
-    // Java supports only one lowerbound anyway.
-    return bound.getSubtype(subclass);
-  }
+    WildcardInReturn<? extends T> getSubtypeFromLowerBounds(Class<?> subclass, String key) {
+        @SuppressWarnings("unchecked") // T's lower bound is <? extends T>
+        WildcardInReturn<? extends T> bound = (WildcardInReturn<? extends T>) of(key);
+        // Java supports only one lowerbound anyway.
+        return bound.getSubtype(subclass);
+    }
 }

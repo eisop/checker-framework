@@ -1,12 +1,13 @@
-import java.util.Date;
-import java.util.List;
 import org.checkerframework.framework.testchecker.util.*;
 
-public class Wildcards {
-  void process(List<? extends Date> arg) {}
+import java.util.Date;
+import java.util.List;
 
-  void test() {
-    List<? extends @Odd Date> myList = null;
-    process(myList);
-  }
+public class Wildcards {
+    void process(List<? extends Date> arg) {}
+
+    void test() {
+        List<? extends @Odd Date> myList = null;
+        process(myList);
+    }
 }
