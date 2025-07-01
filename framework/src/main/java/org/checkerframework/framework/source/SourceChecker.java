@@ -235,6 +235,10 @@ import javax.tools.Diagnostic;
     // org.checkerframework.framework.source.SourceChecker.useConservativeDefault
     "useConservativeDefaultsForUncheckedCode",
 
+    // Whether to store defaulted annotations in bytecode.
+    // org.checkerframework.framework.type.AnnotatedTypeFactory.postProcessClassTree
+    "noBytecodeStorage",
+
     // Whether to use permissive defaults for bytecode and/or source code.
     // This option takes the same arguments as "useConservativeDefaultsForUncheckedCode", and like
     // it, applies only outside the scope of an @AnnotatedFor and suppresses warnings in unannotated
