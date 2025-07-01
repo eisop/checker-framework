@@ -188,9 +188,9 @@ public class QualifierDefaults {
         this.elements = elements;
         this.atypeFactory = atypeFactory;
         this.useConservativeDefaultsBytecode =
-                atypeFactory.getChecker().useConservativeDefaultsBytecode;
+                atypeFactory.getChecker().useConservativeDefault("bytecode");
         this.useConservativeDefaultsSource =
-                atypeFactory.getChecker().useConservativeDefaultsSource;
+                atypeFactory.getChecker().useConservativeDefault("source");
         ProcessingEnvironment processingEnv = atypeFactory.getProcessingEnv();
         this.defaultQualifierValueElement =
                 TreeUtils.getMethod(DefaultQualifier.class, "value", 0, processingEnv);
