@@ -673,6 +673,12 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     private boolean warnUnneededSuppressions;
 
     /**
+     * True if the -AuseConservativeDefaultsForUncheckedCode=source command-line argument was
+     * passed.
+     */
+    private boolean useConservativeDefaultsSource;
+
+    /**
      * The full list of subcheckers that need to be run prior to this one, in the order they need to
      * be run. This list will only be non-empty for the one checker that runs all other subcheckers.
      * Do not read this field directly. Instead, retrieve it via {@link #getSubcheckers}.
@@ -1161,6 +1167,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         requirePrefixInWarningSuppressions = hasOption("requirePrefixInWarningSuppressions");
         showPrefixInWarningMessages = hasOption("showPrefixInWarningMessages");
         warnUnneededSuppressions = hasOption("warnUnneededSuppressions");
+        useConservativeDefaultsSource = useConservativeDefault("source");
     }
 
     /** Output the warning about source level at most once. */
@@ -2779,7 +2786,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             }
         }
 
-        if (useConservativeDefault("source")) {
+        if (useConservativeDefaultsSource) {
             // If we got this far without hitting an @AnnotatedFor and returning
             // false, we DO suppress the warning.
             return true;
@@ -2985,7 +2992,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return true if the element is annotated for this checker or an upstream checker
      */
     private boolean isAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
-        if (elt == null || !useConservativeDefault("source")) {
+        if (elt == null || !useConservativeDefaultsSource) {
             return false;
         }
 
