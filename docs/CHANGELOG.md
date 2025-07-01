@@ -62,11 +62,6 @@ eisop#1051, eisop#1115, eisop#1180.
 
 Version 3.49.3 (May 2, 2025)
 ----------------------------
-=======
-
-Version 3.49.3 (May 2, 2025)
------------------------------
->>>>>>> 2fc11d24c6 (Prep for next release.)
 
 **User-visible changes:**
 
