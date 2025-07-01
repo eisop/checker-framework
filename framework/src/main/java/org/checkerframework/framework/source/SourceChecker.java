@@ -676,7 +676,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * True if the -AuseConservativeDefaultsForUncheckedCode=source command-line argument was
      * passed.
      */
-    private boolean useConservativeDefaultsSource;
+    public boolean useConservativeDefaultsSource;
+
+    /**
+     * True if the -AuseConservativeDefaultsForUncheckedCode=bytecode command-line argument was
+     * passed.
+     */
+    public boolean useConservativeDefaultsBytecode;
 
     /**
      * The full list of subcheckers that need to be run prior to this one, in the order they need to
@@ -1168,6 +1174,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         showPrefixInWarningMessages = hasOption("showPrefixInWarningMessages");
         warnUnneededSuppressions = hasOption("warnUnneededSuppressions");
         useConservativeDefaultsSource = useConservativeDefault("source");
+        useConservativeDefaultsBytecode = useConservativeDefault("bytecode");
     }
 
     /** Output the warning about source level at most once. */
