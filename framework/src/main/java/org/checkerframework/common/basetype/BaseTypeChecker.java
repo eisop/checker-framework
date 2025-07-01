@@ -4,6 +4,7 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.ClassGetName;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizer;
+import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.SubtypeOf;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
@@ -13,6 +14,7 @@ import org.checkerframework.framework.type.TypeHierarchy;
 import org.checkerframework.javacutil.AbstractTypeProcessor;
 import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.CollectionsPlume;
@@ -25,6 +27,9 @@ import java.util.Collection;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.PackageElement;
 
 /**
  * An abstract {@link SourceChecker} that provides a simple {@link
@@ -312,5 +317,47 @@ public abstract class BaseTypeChecker extends SourceChecker {
                     Arrays.toString(args),
                     causeMessage);
         }
+    }
+
+    /**
+     * This method is almost identical to {@link
+     * org.checkerframework.framework.util.defaults.QualifierDefaults#isElementAnnotatedForThisChecker(Element)}.
+     * except for early return if element is null and the conservative default for "source" is not
+     * used.
+     *
+     * @param elt the source code element to check, or null
+     * @return true if the element is annotated for this checker or an upstream checker
+     */
+    @Override
+    protected boolean isAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
+        if (elt == null || !useConservativeDefault("source")) {
+            return false;
+        }
+
+        boolean elementAnnotatedForThisChecker = false;
+        AnnotationMirror annotatedFor = getTypeFactory().getDeclAnnotation(elt, AnnotatedFor.class);
+
+        if (annotatedFor != null) {
+            elementAnnotatedForThisChecker =
+                    getTypeFactory().doesAnnotatedForApplyToThisChecker(annotatedFor);
+        }
+
+        if (!elementAnnotatedForThisChecker) {
+            Element parent;
+            if (elt.getKind() == ElementKind.PACKAGE) {
+                // TODO: should AnnotatedFor apply to subpackages??
+                // elt.getEnclosingElement() on a package is null; therefore,
+                // use the dedicated method.
+                parent = ElementUtils.parentPackage((PackageElement) elt, elements);
+            } else {
+                parent = elt.getEnclosingElement();
+            }
+
+            if (parent != null && isAnnotatedForThisCheckerOrUpstreamChecker(parent)) {
+                elementAnnotatedForThisChecker = true;
+            }
+        }
+
+        return elementAnnotatedForThisChecker;
     }
 }
