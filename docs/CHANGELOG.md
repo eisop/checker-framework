@@ -22,6 +22,8 @@ It is visible in error messages with type variable's or wildcard's lower bounds.
 The type of the `null` literal in the Nullness Checker is now displayed as `@Nullable NullType` instead of the earlier `null (NullType)`.
 This change makes the Checker Framework consistent with the Java language specification.
 
+The format of error messages for type variables and wildcards has been improved to be consistent when printing both bounds.
+
 The `instanceof.unsafe` and `instanceof.pattern.unsafe` warnings in the Checker Framework are now controlled by lint options.
 They are enabled by default and can be disabled using `-Alint=-instanceof.unsafe` or `-Alint=-instanceof`.
 
@@ -29,7 +31,7 @@ They are enabled by default and can be disabled using `-Alint=-instanceof.unsafe
 
 **Closed issues:**
 
-eisop#1247, typetools#7096.
+eisop#1247, eisop#1263, typetools#7096.
 
 
 Version 3.49.3-eisop1 (May 6, 2025)

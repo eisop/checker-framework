@@ -40,6 +40,7 @@ import javax.lang.model.type.TypeMirror;
  * store, which the consistency checker can use), and (2) to reset refined information when a method
  * annotated with @CreatesMustCallFor is called.
  */
+@SuppressWarnings("AlmostJavadoc") // NO-AFU blocks
 public class MustCallTransfer extends CFTransfer {
 
     /** For building new AST nodes. */
