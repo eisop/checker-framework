@@ -24,7 +24,7 @@ public class AnnotatedTypeParameterBounds {
 
     @Override
     public String toString() {
-        return "[extends " + upper + " super " + lower + "]";
+        return "[ extends " + upper + " super " + lower + " ]";
     }
 
     /**
@@ -34,7 +34,7 @@ public class AnnotatedTypeParameterBounds {
      * @return a possibly-verbose string representation of this
      */
     public String toString(boolean verbose) {
-        return "[extends " + upper.toString(verbose) + " super " + lower.toString(verbose) + "]";
+        return "[ extends " + upper.toString(verbose) + " super " + lower.toString(verbose) + " ]";
     }
 
     @Override
