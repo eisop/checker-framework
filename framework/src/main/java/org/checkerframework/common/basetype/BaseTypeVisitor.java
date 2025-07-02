@@ -3785,12 +3785,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
 
             checkHasQualifierParameterAsTypeArgument(typeArg, paramUpperBound, toptree);
+            Object paramName = paramNames.get(i);
+
             commonAssignmentCheck(
                     paramUpperBound,
                     typeArg,
                     reportErrorToTree,
                     "type.argument.type.incompatible",
-                    paramNames.get(i),
+                    paramName,
                     typeOrMethodName);
 
             if (!typeHierarchy.isSubtype(bounds.getLowerBound(), typeArg)) {
@@ -3798,10 +3800,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 checker.reportError(
                         reportErrorToTree,
                         "type.argument.type.incompatible",
-                        paramNames.get(i),
+                        paramName,
                         typeOrMethodName,
                         fr.found,
-                        fr.required);
+                        paramName + " " + fr.required);
             }
         }
     }
