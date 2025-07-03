@@ -1,11 +1,12 @@
 package org.checkerframework.common.accumulation;
 
-import java.util.EnumSet;
-import java.util.Set;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.returnsreceiver.ReturnsReceiverChecker;
 import org.checkerframework.framework.source.SourceChecker;
+
+import java.util.EnumSet;
+import java.util.Set;
 
 /**
  * An accumulation checker is one that accumulates some property: method calls, map keys, etc.
@@ -24,55 +25,55 @@ import org.checkerframework.framework.source.SourceChecker;
  */
 public abstract class AccumulationChecker extends BaseTypeChecker {
 
-  /** Set of alias analyses that are enabled in this particular accumulation checker. */
-  private final EnumSet<AliasAnalysis> aliasAnalyses;
+    /** Set of alias analyses that are enabled in this particular accumulation checker. */
+    private final EnumSet<AliasAnalysis> aliasAnalyses;
 
-  /** Constructs a new AccumulationChecker. */
-  @SuppressWarnings("this-escape")
-  protected AccumulationChecker() {
-    super();
-    this.aliasAnalyses = createAliasAnalyses();
-  }
-
-  @Override
-  protected Set<Class<? extends SourceChecker>> getImmediateSubcheckerClasses() {
-    Set<Class<? extends SourceChecker>> checkers = super.getImmediateSubcheckerClasses();
-    if (isEnabled(AliasAnalysis.RETURNS_RECEIVER)) {
-      checkers.add(ReturnsReceiverChecker.class);
+    /** Constructs a new AccumulationChecker. */
+    @SuppressWarnings("this-escape")
+    protected AccumulationChecker() {
+        super();
+        this.aliasAnalyses = createAliasAnalyses();
     }
-    return checkers;
-  }
 
-  /**
-   * The alias analyses that an accumulation checker can support. To add support for a new alias
-   * analysis, add a new item to this enum and then implement any functionality of the checker
-   * behind a call to {@link #isEnabled(AliasAnalysis)}.
-   */
-  public enum AliasAnalysis {
+    @Override
+    protected Set<Class<? extends SourceChecker>> getImmediateSubcheckerClasses() {
+        Set<Class<? extends SourceChecker>> checkers = super.getImmediateSubcheckerClasses();
+        if (isEnabled(AliasAnalysis.RETURNS_RECEIVER)) {
+            checkers.add(ReturnsReceiverChecker.class);
+        }
+        return checkers;
+    }
+
     /**
-     * An alias analysis that detects methods that always return their own receiver (i.e. whose
-     * return value and receiver are aliases).
+     * The alias analyses that an accumulation checker can support. To add support for a new alias
+     * analysis, add a new item to this enum and then implement any functionality of the checker
+     * behind a call to {@link #isEnabled(AliasAnalysis)}.
      */
-    RETURNS_RECEIVER
-  }
+    public enum AliasAnalysis {
+        /**
+         * An alias analysis that detects methods that always return their own receiver (i.e. whose
+         * return value and receiver are aliases).
+         */
+        RETURNS_RECEIVER
+    }
 
-  /**
-   * Get the alias analyses that this checker should employ.
-   *
-   * @return the alias analyses
-   */
-  protected EnumSet<AliasAnalysis> createAliasAnalyses(
-      @UnderInitialization AccumulationChecker this) {
-    return EnumSet.of(AliasAnalysis.RETURNS_RECEIVER);
-  }
+    /**
+     * Get the alias analyses that this checker should employ.
+     *
+     * @return the alias analyses
+     */
+    protected EnumSet<AliasAnalysis> createAliasAnalyses(
+            @UnderInitialization AccumulationChecker this) {
+        return EnumSet.of(AliasAnalysis.RETURNS_RECEIVER);
+    }
 
-  /**
-   * Check whether the given alias analysis is enabled by this particular accumulation checker.
-   *
-   * @param aliasAnalysis the analysis to check
-   * @return true iff the analysis is enabled
-   */
-  public boolean isEnabled(AliasAnalysis aliasAnalysis) {
-    return aliasAnalyses.contains(aliasAnalysis);
-  }
+    /**
+     * Check whether the given alias analysis is enabled by this particular accumulation checker.
+     *
+     * @param aliasAnalysis the analysis to check
+     * @return true iff the analysis is enabled
+     */
+    public boolean isEnabled(AliasAnalysis aliasAnalysis) {
+        return aliasAnalyses.contains(aliasAnalysis);
+    }
 }
