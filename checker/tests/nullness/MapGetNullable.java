@@ -147,7 +147,7 @@ public class MapGetNullable {
 
   public @Nullable Date getNullableKey1(Map<@Nullable Object, Date> dates, @Nullable Object scope) {
     // This error is mandated because *some* maps prohibit null keys.
-    // :: error: (argument)
+    // :: error: (argument.type.incompatible)
     return dates.get(scope);
   }
 
