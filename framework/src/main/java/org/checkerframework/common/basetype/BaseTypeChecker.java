@@ -1,5 +1,11 @@
 package org.checkerframework.common.basetype;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Set;
+import javax.lang.model.element.AnnotationMirror;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.ClassGetName;
@@ -17,14 +23,6 @@ import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.StringsPlume;
-
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Set;
-
-import javax.lang.model.element.AnnotationMirror;
 
 /**
  * An abstract {@link SourceChecker} that provides a simple {@link
@@ -68,249 +66,246 @@ import javax.lang.model.element.AnnotationMirror;
  */
 public abstract class BaseTypeChecker extends SourceChecker {
 
-    /** An array containing just {@code BaseTypeChecker.class}. */
-    protected static Class<?>[] baseTypeCheckerClassArray = new Class<?>[] {BaseTypeChecker.class};
+  /** An array containing just {@code BaseTypeChecker.class}. */
+  protected static Class<?>[] baseTypeCheckerClassArray = new Class<?>[] {BaseTypeChecker.class};
 
-    /** Create a new BaseTypeChecker. */
-    protected BaseTypeChecker() {}
+  /** Create a new BaseTypeChecker. */
+  protected BaseTypeChecker() {}
 
-    /**
-     * Returns the appropriate visitor that type-checks the compilation unit according to the type
-     * system rules.
-     *
-     * <p>This implementation uses the checker naming convention to create the appropriate visitor.
-     * If no visitor is found, it returns an instance of {@link BaseTypeVisitor}. It reflectively
-     * invokes the constructor that accepts this checker and the compilation unit tree (in that
-     * order) as arguments.
-     *
-     * <p>Subclasses have to override this method to create the appropriate visitor if they do not
-     * follow the checker naming convention.
-     *
-     * @return the type-checking visitor
-     */
-    @Override
-    protected BaseTypeVisitor<?> createSourceVisitor() {
-        // Try to reflectively load the visitor.
-        Class<?> checkerClass = this.getClass();
-        Object[] thisArray = new Object[] {this};
-        while (checkerClass != BaseTypeChecker.class) {
-            BaseTypeVisitor<?> result =
-                    invokeConstructorFor(
-                            BaseTypeChecker.getRelatedClassName(checkerClass, "Visitor"),
-                            baseTypeCheckerClassArray,
-                            thisArray);
-            if (result != null) {
-                return result;
-            }
-            checkerClass = checkerClass.getSuperclass();
-        }
-
-        // If a visitor couldn't be loaded reflectively, return the default.
-        return new BaseTypeVisitor<BaseAnnotatedTypeFactory>(this);
+  /**
+   * Returns the appropriate visitor that type-checks the compilation unit according to the type
+   * system rules.
+   *
+   * <p>This implementation uses the checker naming convention to create the appropriate visitor. If
+   * no visitor is found, it returns an instance of {@link BaseTypeVisitor}. It reflectively invokes
+   * the constructor that accepts this checker and the compilation unit tree (in that order) as
+   * arguments.
+   *
+   * <p>Subclasses have to override this method to create the appropriate visitor if they do not
+   * follow the checker naming convention.
+   *
+   * @return the type-checking visitor
+   */
+  @Override
+  protected BaseTypeVisitor<?> createSourceVisitor() {
+    // Try to reflectively load the visitor.
+    Class<?> checkerClass = this.getClass();
+    Object[] thisArray = new Object[] {this};
+    while (checkerClass != BaseTypeChecker.class) {
+      BaseTypeVisitor<?> result =
+          invokeConstructorFor(
+              BaseTypeChecker.getRelatedClassName(checkerClass, "Visitor"),
+              baseTypeCheckerClassArray,
+              thisArray);
+      if (result != null) {
+        return result;
+      }
+      checkerClass = checkerClass.getSuperclass();
     }
 
-    /**
-     * A public variant of {@link #createSourceVisitor}. Only use this if you know what you are
-     * doing.
-     *
-     * @return the type-checking visitor
-     */
-    public BaseTypeVisitor<?> createSourceVisitorPublic() {
-        return createSourceVisitor();
+    // If a visitor couldn't be loaded reflectively, return the default.
+    return new BaseTypeVisitor<BaseAnnotatedTypeFactory>(this);
+  }
+
+  /**
+   * A public variant of {@link #createSourceVisitor}. Only use this if you know what you are doing.
+   *
+   * @return the type-checking visitor
+   */
+  public BaseTypeVisitor<?> createSourceVisitorPublic() {
+    return createSourceVisitor();
+  }
+
+  @Override
+  public BaseTypeVisitor<?> getVisitor() {
+    return (BaseTypeVisitor<?>) super.getVisitor();
+  }
+
+  /**
+   * Return the type factory associated with this checker.
+   *
+   * @return the type factory associated with this checker
+   */
+  public GenericAnnotatedTypeFactory<?, ?, ?, ?> getTypeFactory() {
+    BaseTypeVisitor<?> visitor = getVisitor();
+    // Avoid NPE if this method is called during initialization.
+    if (visitor == null) {
+      throw new TypeSystemError("Called getTypeFactory() before initialization was complete");
+    }
+    return visitor.getTypeFactory();
+  }
+
+  @Override
+  public AnnotationProvider getAnnotationProvider() {
+    return getTypeFactory();
+  }
+
+  /**
+   * Returns the type factory used by a subchecker. Returns null if no matching subchecker was found
+   * or if the type factory is null. The caller must know the exact checker class to request.
+   *
+   * <p>Because the visitor state is copied, call this method each time a subfactory is needed
+   * rather than store the returned subfactory in a field.
+   *
+   * @param subCheckerClass the class of the subchecker
+   * @param <T> the type of {@code subCheckerClass}'s {@link AnnotatedTypeFactory}
+   * @return the type factory of the requested subchecker or null if not found
+   */
+  @SuppressWarnings("TypeParameterUnusedInFormals") // Intentional abuse
+  public <T extends GenericAnnotatedTypeFactory<?, ?, ?, ?>>
+      @Nullable T getTypeFactoryOfSubcheckerOrNull(
+          Class<? extends BaseTypeChecker> subCheckerClass) {
+    return getTypeFactory().getTypeFactoryOfSubcheckerOrNull(subCheckerClass);
+  }
+
+  @Override
+  protected Object processErrorMessageArg(Object arg) {
+    if (arg instanceof Collection) {
+      Collection<?> carg = (Collection<?>) arg;
+      return CollectionsPlume.mapList(this::processErrorMessageArg, carg);
+    } else if (arg instanceof AnnotationMirror && getTypeFactory() != null) {
+      return getTypeFactory()
+          .getAnnotationFormatter()
+          .formatAnnotationMirror((AnnotationMirror) arg);
+    } else {
+      return super.processErrorMessageArg(arg);
+    }
+  }
+
+  @Override
+  protected boolean shouldAddShutdownHook() {
+    if (super.shouldAddShutdownHook() || getTypeFactory().getCFGVisualizer() != null) {
+      return true;
+    }
+    for (SourceChecker checker : getSubcheckers()) {
+      if ((checker instanceof BaseTypeChecker)
+          && ((BaseTypeChecker) checker).getTypeFactory().getCFGVisualizer() != null) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @Override
+  protected void shutdownHook() {
+    super.shutdownHook();
+
+    CFGVisualizer<?, ?, ?> viz = getTypeFactory().getCFGVisualizer();
+    if (viz != null) {
+      viz.shutdown();
     }
 
-    @Override
-    public BaseTypeVisitor<?> getVisitor() {
-        return (BaseTypeVisitor<?>) super.getVisitor();
-    }
-
-    /**
-     * Return the type factory associated with this checker.
-     *
-     * @return the type factory associated with this checker
-     */
-    public GenericAnnotatedTypeFactory<?, ?, ?, ?> getTypeFactory() {
-        BaseTypeVisitor<?> visitor = getVisitor();
-        // Avoid NPE if this method is called during initialization.
-        if (visitor == null) {
-            throw new TypeSystemError("Called getTypeFactory() before initialization was complete");
-        }
-        return visitor.getTypeFactory();
-    }
-
-    @Override
-    public AnnotationProvider getAnnotationProvider() {
-        return getTypeFactory();
-    }
-
-    /**
-     * Returns the type factory used by a subchecker. Returns null if no matching subchecker was
-     * found or if the type factory is null. The caller must know the exact checker class to
-     * request.
-     *
-     * <p>Because the visitor state is copied, call this method each time a subfactory is needed
-     * rather than store the returned subfactory in a field.
-     *
-     * @param subCheckerClass the class of the subchecker
-     * @param <T> the type of {@code subCheckerClass}'s {@link AnnotatedTypeFactory}
-     * @return the type factory of the requested subchecker or null if not found
-     */
-    @SuppressWarnings("TypeParameterUnusedInFormals") // Intentional abuse
-    public <T extends GenericAnnotatedTypeFactory<?, ?, ?, ?>>
-            @Nullable T getTypeFactoryOfSubcheckerOrNull(
-                    Class<? extends BaseTypeChecker> subCheckerClass) {
-        return getTypeFactory().getTypeFactoryOfSubcheckerOrNull(subCheckerClass);
-    }
-
-    @Override
-    protected Object processErrorMessageArg(Object arg) {
-        if (arg instanceof Collection) {
-            Collection<?> carg = (Collection<?>) arg;
-            return CollectionsPlume.mapList(this::processErrorMessageArg, carg);
-        } else if (arg instanceof AnnotationMirror && getTypeFactory() != null) {
-            return getTypeFactory()
-                    .getAnnotationFormatter()
-                    .formatAnnotationMirror((AnnotationMirror) arg);
-        } else {
-            return super.processErrorMessageArg(arg);
-        }
-    }
-
-    @Override
-    protected boolean shouldAddShutdownHook() {
-        if (super.shouldAddShutdownHook() || getTypeFactory().getCFGVisualizer() != null) {
-            return true;
-        }
-        for (SourceChecker checker : getSubcheckers()) {
-            if ((checker instanceof BaseTypeChecker)
-                    && ((BaseTypeChecker) checker).getTypeFactory().getCFGVisualizer() != null) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    @Override
-    protected void shutdownHook() {
-        super.shutdownHook();
-
-        CFGVisualizer<?, ?, ?> viz = getTypeFactory().getCFGVisualizer();
+    for (SourceChecker checker : getSubcheckers()) {
+      if (checker instanceof BaseTypeChecker) {
+        viz = ((BaseTypeChecker) checker).getTypeFactory().getCFGVisualizer();
         if (viz != null) {
-            viz.shutdown();
+          viz.shutdown();
         }
+      }
+    }
+  }
 
-        for (SourceChecker checker : getSubcheckers()) {
-            if (checker instanceof BaseTypeChecker) {
-                viz = ((BaseTypeChecker) checker).getTypeFactory().getCFGVisualizer();
-                if (viz != null) {
-                    viz.shutdown();
-                }
-            }
-        }
+  @Override
+  protected Set<String> createSupportedLintOptions() {
+    Set<String> lintSet = super.createSupportedLintOptions();
+    lintSet.add("cast");
+    lintSet.add("cast:redundant");
+    lintSet.add("cast:unsafe");
+    lintSet.add("instanceof");
+    lintSet.add("instanceof:unsafe");
+    return lintSet;
+  }
+
+  /** A cache for {@link #getUltimateParentChecker}. */
+  protected @MonotonicNonNull BaseTypeChecker ultimateParentChecker;
+
+  /**
+   * Finds the ultimate parent checker of this checker. The ultimate parent checker is the checker
+   * that the user actually requested, i.e. the one with no parent. The ultimate parent might be
+   * this checker itself.
+   *
+   * @return the first checker in the parent checker chain with no parent checker of its own, i.e.,
+   *     the ultimate parent checker
+   */
+  public BaseTypeChecker getUltimateParentChecker() {
+    if (ultimateParentChecker == null) {
+      ultimateParentChecker = this;
+      while (ultimateParentChecker.getParentChecker() instanceof BaseTypeChecker) {
+        ultimateParentChecker = (BaseTypeChecker) ultimateParentChecker.getParentChecker();
+      }
     }
 
-    @Override
-    protected Set<String> createSupportedLintOptions() {
-        Set<String> lintSet = super.createSupportedLintOptions();
-        lintSet.add("cast");
-        lintSet.add("cast:redundant");
-        lintSet.add("cast:unsafe");
-        lintSet.add("instanceof");
-        lintSet.add("instanceof:unsafe");
-        return lintSet;
+    return ultimateParentChecker;
+  }
+
+  /**
+   * Invokes the constructor belonging to the class named by {@code name} having the given parameter
+   * types on the given arguments. Returns {@code null} if the class cannot be found. Otherwise,
+   * throws an exception if there is trouble with the constructor invocation.
+   *
+   * @param <T> the type to which the constructor belongs
+   * @param className the name of the class to which the constructor belongs
+   * @param paramTypes the types of the constructor's parameters
+   * @param args the arguments on which to invoke the constructor
+   * @return the result of the constructor invocation on {@code args}, or null if the class does not
+   *     exist
+   */
+  @SuppressWarnings({"unchecked", "TypeParameterUnusedInFormals"}) // Intentional abuse
+  public static <T> @Nullable T invokeConstructorFor(
+      @ClassGetName String className, Class<?>[] paramTypes, Object[] args) {
+
+    // Load the class.
+    Class<T> cls;
+    try {
+      cls = (Class<T>) Class.forName(className);
+    } catch (Exception e) {
+      // no class is found, simply return null
+      return null;
     }
 
-    /** A cache for {@link #getUltimateParentChecker}. */
-    protected @MonotonicNonNull BaseTypeChecker ultimateParentChecker;
+    assert cls != null : "reflectively loading " + className + " failed";
 
-    /**
-     * Finds the ultimate parent checker of this checker. The ultimate parent checker is the checker
-     * that the user actually requested, i.e. the one with no parent. The ultimate parent might be
-     * this checker itself.
-     *
-     * @return the first checker in the parent checker chain with no parent checker of its own,
-     *     i.e., the ultimate parent checker
-     */
-    public BaseTypeChecker getUltimateParentChecker() {
-        if (ultimateParentChecker == null) {
-            ultimateParentChecker = this;
-            while (ultimateParentChecker.getParentChecker() instanceof BaseTypeChecker) {
-                ultimateParentChecker = (BaseTypeChecker) ultimateParentChecker.getParentChecker();
-            }
+    // Invoke the constructor.
+    try {
+      Constructor<T> ctor = cls.getConstructor(paramTypes);
+      return ctor.newInstance(args);
+    } catch (Throwable t) {
+      if (t instanceof InvocationTargetException) {
+        Throwable err = t.getCause();
+        if (err instanceof UserError || err instanceof TypeSystemError) {
+          // Don't add more information about the constructor invocation.
+          throw (RuntimeException) err;
         }
+      } else if (t instanceof NoSuchMethodException) {
+        // Note: it's possible that NoSuchMethodException was caused by
+        // `ctor.newInstance(args)`, if the constructor itself uses reflection.
+        // But this case is unlikely.
+        throw new TypeSystemError(
+            "Could not find constructor %s(%s)", className, StringsPlume.join(", ", paramTypes));
+      }
 
-        return ultimateParentChecker;
+      Throwable cause;
+      String causeMessage;
+      if (t instanceof InvocationTargetException) {
+        cause = t.getCause();
+        if (cause == null || cause.getMessage() == null) {
+          causeMessage = t.getMessage();
+        } else if (t.getMessage() == null) {
+          causeMessage = cause.getMessage();
+        } else {
+          causeMessage = t.getMessage() + ": " + cause.getMessage();
+        }
+      } else {
+        cause = t;
+        causeMessage = (cause == null) ? "null" : cause.getMessage();
+      }
+      throw new BugInCF(
+          cause,
+          "Error when invoking constructor %s(%s) on args %s; cause: %s",
+          className,
+          StringsPlume.join(", ", paramTypes),
+          Arrays.toString(args),
+          causeMessage);
     }
-
-    /**
-     * Invokes the constructor belonging to the class named by {@code name} having the given
-     * parameter types on the given arguments. Returns {@code null} if the class cannot be found.
-     * Otherwise, throws an exception if there is trouble with the constructor invocation.
-     *
-     * @param <T> the type to which the constructor belongs
-     * @param className the name of the class to which the constructor belongs
-     * @param paramTypes the types of the constructor's parameters
-     * @param args the arguments on which to invoke the constructor
-     * @return the result of the constructor invocation on {@code args}, or null if the class does
-     *     not exist
-     */
-    @SuppressWarnings({"unchecked", "TypeParameterUnusedInFormals"}) // Intentional abuse
-    public static <T> @Nullable T invokeConstructorFor(
-            @ClassGetName String className, Class<?>[] paramTypes, Object[] args) {
-
-        // Load the class.
-        Class<T> cls;
-        try {
-            cls = (Class<T>) Class.forName(className);
-        } catch (Exception e) {
-            // no class is found, simply return null
-            return null;
-        }
-
-        assert cls != null : "reflectively loading " + className + " failed";
-
-        // Invoke the constructor.
-        try {
-            Constructor<T> ctor = cls.getConstructor(paramTypes);
-            return ctor.newInstance(args);
-        } catch (Throwable t) {
-            if (t instanceof InvocationTargetException) {
-                Throwable err = t.getCause();
-                if (err instanceof UserError || err instanceof TypeSystemError) {
-                    // Don't add more information about the constructor invocation.
-                    throw (RuntimeException) err;
-                }
-            } else if (t instanceof NoSuchMethodException) {
-                // Note: it's possible that NoSuchMethodException was caused by
-                // `ctor.newInstance(args)`, if the constructor itself uses reflection.
-                // But this case is unlikely.
-                throw new TypeSystemError(
-                        "Could not find constructor %s(%s)",
-                        className, StringsPlume.join(", ", paramTypes));
-            }
-
-            Throwable cause;
-            String causeMessage;
-            if (t instanceof InvocationTargetException) {
-                cause = t.getCause();
-                if (cause == null || cause.getMessage() == null) {
-                    causeMessage = t.getMessage();
-                } else if (t.getMessage() == null) {
-                    causeMessage = cause.getMessage();
-                } else {
-                    causeMessage = t.getMessage() + ": " + cause.getMessage();
-                }
-            } else {
-                cause = t;
-                causeMessage = (cause == null) ? "null" : cause.getMessage();
-            }
-            throw new BugInCF(
-                    cause,
-                    "Error when invoking constructor %s(%s) on args %s; cause: %s",
-                    className,
-                    StringsPlume.join(", ", paramTypes),
-                    Arrays.toString(args),
-                    causeMessage);
-        }
-    }
+  }
 }

@@ -1,12 +1,11 @@
 package org.checkerframework.common.value.qual;
 
-import org.checkerframework.framework.qual.SubtypeOf;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import org.checkerframework.framework.qual.SubtypeOf;
 
 /**
  * An annotation indicating the possible values for a String type. The annotation's arguments are
@@ -24,10 +23,10 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE_PARAMETER, ElementType.TYPE_USE})
 @SubtypeOf({UnknownVal.class})
 public @interface MatchesRegex {
-    /**
-     * A set of Java regular expressions.
-     *
-     * @return the regular expressions
-     */
-    String[] value();
+  /**
+   * A set of Java regular expressions.
+   *
+   * @return the regular expressions
+   */
+  String[] value();
 }
