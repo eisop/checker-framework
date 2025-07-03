@@ -1832,8 +1832,7 @@ public abstract class GenericAnnotatedTypeFactory<
         Element elt = TreeUtils.elementFromTree(lhsTree);
         if (elt != null) {
           Tree decl = declarationFromElement(elt);
-          if (decl != null
-              && decl.getKind() == Tree.Kind.VARIABLE
+          if (decl instanceof VariableTree
               && TreeUtils.isVariableTreeDeclaredUsingVar((VariableTree) decl)) {
             // If this identifier accesses a variable that was declared using `var`,
             // re-enable caching to avoid re-computing the initializer expression type.
