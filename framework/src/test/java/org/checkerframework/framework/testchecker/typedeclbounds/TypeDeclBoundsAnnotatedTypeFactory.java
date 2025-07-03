@@ -13,6 +13,7 @@ import org.checkerframework.framework.testchecker.typedeclbounds.quals.Top;
 
 public class TypeDeclBoundsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
+  @SuppressWarnings("this-escape")
   public TypeDeclBoundsAnnotatedTypeFactory(BaseTypeChecker checker) {
     super(checker);
     postInit();

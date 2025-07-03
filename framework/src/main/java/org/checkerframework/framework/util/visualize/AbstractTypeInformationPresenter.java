@@ -63,6 +63,7 @@ public abstract class AbstractTypeInformationPresenter implements TypeInformatio
    *
    * @param atypeFactory the {@link AnnotatedTypeFactory} for the current analysis
    */
+  @SuppressWarnings("this-escape")
   public AbstractTypeInformationPresenter(AnnotatedTypeFactory atypeFactory) {
     this.atypeFactory = atypeFactory;
     if (atypeFactory instanceof GenericAnnotatedTypeFactory<?, ?, ?, ?>) {
@@ -314,7 +315,7 @@ public abstract class AbstractTypeInformationPresenter implements TypeInformatio
       Tree enclosing = TreePathUtil.enclosingOfKind(getCurrentPath(), methodAndLambdaExpression);
 
       AnnotatedTypeMirror ret = null;
-      if (enclosing.getKind() == Tree.Kind.METHOD) {
+      if (enclosing instanceof MethodTree) {
         MethodTree enclosingMethod = TreePathUtil.enclosingMethod(getCurrentPath());
         ret = atypeFactory.getMethodReturnType(enclosingMethod, tree);
       } else {

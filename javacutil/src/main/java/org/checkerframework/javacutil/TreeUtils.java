@@ -140,12 +140,6 @@ public final class TreeUtils {
    */
   private static final @Nullable Method TREEMAKER_SELECT;
 
-  /**
-   * The {@code JCTree.JCVariableDecl.declaredUsingVar()} method. This method determines if a
-   * variable is declared using {@code var} in Java 17+.
-   */
-  private static final @Nullable Method JCVARDECL_DECLAREDUSINGVAR;
-
   /** The value of Flags.RECORD which does not exist in Java 9 or 11. */
   private static final long Flags_RECORD = 2305843009213693952L;
 
@@ -172,7 +166,6 @@ public final class TreeUtils {
     } catch (NoSuchMethodException e) {
       m = null;
     }
-    JCVARDECL_DECLAREDUSINGVAR = m;
   }
 
   /**
