@@ -159,13 +159,6 @@ public final class TreeUtils {
     } catch (NoSuchMethodException e) {
       throw new AssertionError("Unexpected error in TreeUtils static initializer", e);
     }
-
-    Method m;
-    try {
-      m = JCTree.JCVariableDecl.class.getMethod("declaredUsingVar");
-    } catch (NoSuchMethodException e) {
-      m = null;
-    }
   }
 
   /**
