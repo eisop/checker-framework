@@ -83,6 +83,7 @@ public class LiteralTreeAnnotator extends TreeAnnotator {
      *
      * @param atypeFactory the type factory to make an annotator for
      */
+    @SuppressWarnings("this-escape")
     public LiteralTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
         super(atypeFactory);
         this.treeKinds = new EnumMap<>(Tree.Kind.class);

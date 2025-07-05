@@ -15,6 +15,7 @@ compile:
 	$(MAKE) -C errorprone
 	$(MAKE) -C Wrong-Checker-Qual
 	$(MAKE) -C BazelExample
+	$(MAKE) -C nullaway
 	$(MAKE) -C jspecify
 
 
@@ -31,4 +32,5 @@ clean:
 	$(MAKE) -C errorprone clean
 	$(MAKE) -C Wrong-Checker-Qual clean
 	$(MAKE) -C BazelExample clean
+	$(MAKE) -C nullaway clean
 	$(MAKE) -C jspecify clean

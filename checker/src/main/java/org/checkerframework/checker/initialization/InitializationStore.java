@@ -21,6 +21,7 @@ import javax.lang.model.element.VariableElement;
  *
  * @see InitializationTransfer
  */
+@SuppressWarnings("AlmostJavadoc") // Commented-out code.
 public class InitializationStore extends CFAbstractStore<CFValue, InitializationStore> {
 
     /** The set of fields that are initialized. */

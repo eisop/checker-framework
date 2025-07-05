@@ -2,12 +2,12 @@ import de.undercouch.gradle.tasks.download.Download
 
 plugins {
     // https://plugins.gradle.org/plugin/com.gradleup.shadow
-    id 'com.gradleup.shadow' version '8.3.6'
+    id 'com.gradleup.shadow' version '8.3.8'
     // https://plugins.gradle.org/plugin/de.undercouch.download
     id 'de.undercouch.download' version '5.6.0'
     id 'java'
     // https://github.com/tbroyer/gradle-errorprone-plugin
-    id 'net.ltgt.errorprone' version '4.2.0'
+    id 'net.ltgt.errorprone' version '4.3.0'
     // https://docs.gradle.org/current/userguide/eclipse_plugin.html
     id 'eclipse'
     // To show task list as a tree, run: ./gradlew <taskname> taskTree
@@ -17,7 +17,7 @@ plugins {
     // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
     // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
     // Only works on JDK 11+ (even including the plugin crashes Gradle on JDK 8).
-    id 'com.diffplug.spotless' version '7.0.3'
+    id 'com.diffplug.spotless' version '7.0.4'
 }
 
 // There is another `repositories { ... }` block below; if you change this one, change that one as well.
@@ -27,9 +27,12 @@ repositories {
 }
 
 def majorVersionToInt(majorVersionString) {
-    if (majorVersionString.endsWith("-ea")) {
-        majorVersionString = majorVersionString.substring(0, majorVersionString.length() - 3)
-    }
+    // ^(\d+) matches the first digit(s) at the start of the string.
+    def m = majorVersionString =~ /^(\d+)/
+    // If a match is found, use the whole match group [0][0] (the first digit(s)). Otherwise, use the original string.
+    // m[0] is the list of match groups and m[0][0] is the whole match.
+    // For example, for input "17", m[0] is ["17", "17"], and m[0][0] is "17".
+    majorVersionString = m ? m[0][0] : majorVersionString
     return Integer.valueOf(majorVersionString)
 }
 
@@ -58,9 +61,9 @@ ext {
     // As of 2025-04-28 (Lombok 1.18.38), delombok supports JDK 24-ea but not JDK 24 proper; see https://projectlombok.org/changelog .
     skipDelombok = (useJdkVersionInt >= 24)
 
-    // NO-AFU
-    // annotationTools = "${parentDir}/annotation-tools"
-    // afu = "${annotationTools}/annotation-file-utilities"
+    // NO-AFU - keep these variables live so tasks in checker/build.gradle configure without issue.
+    annotationTools = "${parentDir}/annotation-tools"
+    afu = "${annotationTools}/annotation-file-utilities"
 
     jtregHome = "${parentDir}/jtreg"
     gitScriptsHome = "${project(':checker').projectDir}/bin-devel/.git-scripts"
@@ -83,13 +86,14 @@ ext {
         //  * Temporarily comment out "-Werror" elsewhere in this file
         //  * Repeatedly run `./gradlew clean compileJava` and fix all errors
         //  * Uncomment "-Werror"
-        errorprone      : '2.38.0',
+        errorprone      : '2.39.0',
+        // NOTE: Google Java Format requires JDK 17 or higher as of version 1.25.0.
         googleJavaFormat : '1.25.2',
         hashmapUtil     : '0.0.1',
         junit           : '4.13.2',
         lombok          : '1.18.38',
         // plume-util includes a version of reflection-util. When updating ensure the versions are consistent.
-        plumeUtil       : '1.10.1',
+        plumeUtil       : '1.11.0',
         reflectionUtil  : '1.1.5',
     ]
 }
@@ -169,7 +173,7 @@ allprojects { currentProj ->
     //   * any new checkers have been added, or
     //   * backward-incompatible changes have been made to APIs or elsewhere.
     // To make a snapshot release, version should end in "-SNAPSHOT", then: ./gradlew publish
-    version = '3.49.3-eisop1'
+    version = '3.49.5-eisop1-SNAPSHOT'
 
     apply plugin: 'java'
     apply plugin: 'eclipse'
@@ -258,7 +262,9 @@ allprojects { currentProj ->
     // patterns of files to skip for individual sub-projects
     def perProjectDoNotFormat = [
         'checker': [
+            'bin/.do-like-javac/**',
             'bin-devel/.git-scripts/**',
+            'bin-devel/.html-tools/**',
             'bin-devel/.plume-scripts/**',
             'dist/**',
             'tests/ainfer-*/annotated/**',
@@ -280,8 +286,8 @@ allprojects { currentProj ->
         // If you add any formatters to this block that require dependencies, then you must also
         // add them to spotlessPredeclare block.
 
-        // Always skip formatting of files under build directory
-        def doNotFormat = ['build/**',]
+        // Never format files under build/ directory.
+        def doNotFormat = ['build/**']
         if (currentProj != project.rootProject) {
             if (perProjectDoNotFormat.containsKey(currentProj.name)) {
                 doNotFormat += perProjectDoNotFormat[currentProj.name]
@@ -303,23 +309,12 @@ allprojects { currentProj ->
 
         format 'misc', {
             // define the files to apply `misc` to
-            target '*.md', '*.tex', '.gitignore', 'Makefile'
+            target '*.md', '*.tex', '.gitignore'
             targetExclude doNotFormat
             // define the steps to apply to those files
             leadingTabsToSpaces(2)
             trimTrailingWhitespace()
             // endWithNewline() // Don't want to end empty files with a newline
-        }
-
-        groovy {
-            target 'buildSrc/**/*.groovy'
-            importOrder()
-
-            // removes semicolons at the end of lines
-            removeSemicolons()
-            greclipse()
-            leadingTabsToSpaces(2)
-            trimTrailingWhitespace()
         }
 
         java {
@@ -352,6 +347,32 @@ allprojects { currentProj ->
                 trimTrailingWhitespace()
                 // endWithNewline() // Don't want to end empty files with a newline
             }
+
+            groovy {
+                target 'buildSrc/**/*.groovy'
+                importOrder()
+
+                // removes semicolons at the end of lines
+                removeSemicolons()
+                greclipse()
+                leadingTabsToSpaces(2)
+                trimTrailingWhitespace()
+            }
+
+            format 'make', {
+                // define the files to apply `make` to
+                target 'Makefile'
+                targetExclude doNotFormat
+                // define the steps to apply to those files
+                trimTrailingWhitespace()
+                endWithNewline()
+            }
+
+            // Don't do this, because it does not respect "ignore=true" in .editorconfig nor `doNotFormat` here.
+            // shell {
+            //   targetExclude doNotFormat
+            //   shfmt() // configuration is in .editorconfig
+            // }
         }
 
         // a useful task for debugging; prints exactly which files are getting formatted by spotless
@@ -523,17 +544,10 @@ allprojects { currentProj ->
             // -fallthrough: Don't check fallthroughs.  Instead, use Error Prone.  Its
             //   warnings are suppressible with a "// fall through" comment.
             // -classfile: classgraph jar file and https://bugs.openjdk.org/browse/JDK-8190452
-            String lint = '-Xlint:-options,-fallthrough,-classfile'
-
-            if (useJdkVersionInt >= 21) {
-                // TODO: Ignore this-escape warnings for now; perhaps review and suppress each one later.
-                lint +=',-this-escape'
-            }
-
             options.compilerArgs += [
                 '-g',
                 '-Werror',
-                lint,
+                '-Xlint:-options,-fallthrough,-classfile',
                 '-Xlint',
             ]
 
@@ -671,6 +685,7 @@ def createCheckTypeTask(projectName, taskName, checker, args = []) {
 
 task htmlValidate(type: Exec, group: 'Format') {
     description = 'Validate that HTML files are well-formed'
+    // This is the Nu Html Checker (v.Nu): https://github.com/validator/validator
     executable 'html5validator'
     args = [
         '--ignore',
@@ -772,7 +787,7 @@ configurations {
 }
 
 dependencies {
-    requireJavadoc 'org.plumelib:require-javadoc:1.0.9'
+    requireJavadoc 'org.plumelib:require-javadoc:2.0.0'
 }
 
 task requireJavadoc(type: JavaExec, group: 'Documentation') {
@@ -781,6 +796,16 @@ task requireJavadoc(type: JavaExec, group: 'Documentation') {
     classpath = configurations.requireJavadoc
     // Convert each srcDir to its absolute path and flatten the list
     args requireJavadocDirs.collect { it.srcDirs*.absolutePath }.flatten()
+    jvmArgs += [
+        '--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
+        '--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
+        '--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
+        '--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED',
+        '--add-opens=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
+        '--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
+        '--add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
+        '--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED',
+    ]
 }
 
 
@@ -1351,5 +1376,13 @@ final sharedPublicationConfiguration(publication) {
             connection = 'scm:git:https://github.com/eisop/checker-framework.git'
             developerConnection = 'scm:git:ssh://git@github.com/eisop/checker-framework.git'
         }
+    }
+}
+tasks.register('printJavaVersion') {
+    description = "Prints the Java version used to run Gradle."
+    doLast {
+        println "Java version used to run Gradle: ${System.getProperty('java.version')}"
+        def currentJvm = org.gradle.internal.jvm.Jvm.current()
+        println currentJvm
     }
 }

@@ -8,6 +8,7 @@ import java.util.Set;
 
 public class NTDAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
+    @SuppressWarnings("this-escape")
     public NTDAnnotatedTypeFactory(BaseTypeChecker checker) {
         // use flow inference
         super(checker, true);

@@ -24,6 +24,7 @@ import javax.lang.model.element.AnnotationMirror;
 
 public class I18nAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
+    @SuppressWarnings("this-escape")
     public I18nAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         this.postInit();

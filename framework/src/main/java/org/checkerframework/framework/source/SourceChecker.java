@@ -326,6 +326,10 @@ import javax.tools.Diagnostic;
 
     // Amount of detail in messages
 
+    // Warn about trees that take a long time to typecheck
+    // org.checkerframework.common.basetype.BaseTypeVisitor.checkSlowTypechecking
+    "slowTypecheckingSeconds",
+
     // Print the version of the Checker Framework
     "version",
 
@@ -339,7 +343,8 @@ import javax.tools.Diagnostic;
     // Whether to print [] around a set of type parameters in order to clearly see where they end
     // e.g.  <E extends F, F extends Object>
     // without this option E is printed: E extends F extends Object
-    // with this option:                 E [ extends F [ extends Object super Void ] super Void ]
+    // with this option:                 E [ extends F [ extends Object super NullType ] super
+    // NullType ]
     // when multiple type variables are used this becomes useful very quickly
     "printVerboseGenerics",
 
@@ -1282,7 +1287,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /**
      * Get the shared TreePathCacher instance.
      *
-     * @return the shared TreePathCacher instance.
+     * @return the shared TreePathCacher instance
      */
     public TreePathCacher getTreePathCacher() {
         if (treePathCacher == null) {
@@ -1890,7 +1895,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     //
 
     /**
-     * Determine which lint options are artive.
+     * Determine which lint options are active.
      *
      * @param options the command-line options
      * @return the active lint options
@@ -2638,7 +2643,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         List<? extends AnnotationTree> annotations;
         if (TreeUtils.isClassTree(tree)) {
             annotations = ((ClassTree) tree).getModifiers().getAnnotations();
-        } else if (tree.getKind() == Tree.Kind.METHOD) {
+        } else if (tree instanceof MethodTree) {
             annotations = ((MethodTree) tree).getModifiers().getAnnotations();
         } else {
             annotations = ((VariableTree) tree).getModifiers().getAnnotations();
@@ -2734,12 +2739,12 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
             Tree decl = declPath.getLeaf();
 
-            if (decl.getKind() == Tree.Kind.VARIABLE) {
+            if (decl instanceof VariableTree) {
                 Element elt = TreeUtils.elementFromDeclaration((VariableTree) decl);
                 if (shouldSuppressWarnings(elt, errKey)) {
                     return true;
                 }
-            } else if (decl.getKind() == Tree.Kind.METHOD) {
+            } else if (decl instanceof MethodTree) {
                 Element elt = TreeUtils.elementFromDeclaration((MethodTree) decl);
                 if (shouldSuppressWarnings(elt, errKey)) {
                     return true;

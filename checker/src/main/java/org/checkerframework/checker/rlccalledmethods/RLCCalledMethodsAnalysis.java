@@ -2,6 +2,7 @@ package org.checkerframework.checker.rlccalledmethods;
 
 import org.checkerframework.checker.calledmethods.CalledMethodsAnalysis;
 import org.checkerframework.checker.calledmethods.CalledMethodsAnnotatedTypeFactory;
+import org.checkerframework.checker.resourceleak.ResourceLeakChecker;
 import org.checkerframework.checker.resourceleak.SetOfTypes;
 
 import javax.lang.model.type.TypeMirror;
