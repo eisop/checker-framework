@@ -13,9 +13,11 @@ compile:
 	$(MAKE) -C MavenExample || (sleep 60 && echo "Trying again:" && $(MAKE) -C MavenExample)
 	$(MAKE) -C lombok
 	$(MAKE) -C errorprone
+	$(MAKE) -C Wrong-Checker-Qual
 	$(MAKE) -C BazelExample
 	$(MAKE) -C nullaway
 	$(MAKE) -C jspecify
+
 
 # TODO: type check the different files with the right checker;
 #   some tests expect errors, compare against expected errors.
@@ -28,6 +30,7 @@ clean:
 	$(MAKE) -C MavenExample clean
 	$(MAKE) -C lombok clean
 	$(MAKE) -C errorprone clean
+	$(MAKE) -C Wrong-Checker-Qual clean
 	$(MAKE) -C BazelExample clean
 	$(MAKE) -C nullaway clean
 	$(MAKE) -C jspecify clean
