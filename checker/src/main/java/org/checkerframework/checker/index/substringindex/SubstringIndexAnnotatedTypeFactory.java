@@ -42,6 +42,7 @@ public class SubstringIndexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
      *
      * @param checker the associated checker
      */
+    @SuppressWarnings("this-escape")
     public SubstringIndexAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
 

@@ -87,6 +87,7 @@ ext {
         //  * Repeatedly run `./gradlew clean compileJava` and fix all errors
         //  * Uncomment "-Werror"
         errorprone      : '2.39.0',
+        // NOTE: Google Java Format requires JDK 17 or higher as of version 1.25.0.
         googleJavaFormat : '1.25.2',
         hashmapUtil     : '0.0.1',
         junit           : '4.13.2',
@@ -172,7 +173,7 @@ allprojects { currentProj ->
     //   * any new checkers have been added, or
     //   * backward-incompatible changes have been made to APIs or elsewhere.
     // To make a snapshot release, version should end in "-SNAPSHOT", then: ./gradlew publish
-    version = '3.49.3-eisop2-SNAPSHOT'
+    version = '3.49.5-eisop1-SNAPSHOT'
 
     apply plugin: 'java'
     apply plugin: 'eclipse'
@@ -261,7 +262,9 @@ allprojects { currentProj ->
     // patterns of files to skip for individual sub-projects
     def perProjectDoNotFormat = [
         'checker': [
+            'bin/.do-like-javac/**',
             'bin-devel/.git-scripts/**',
+            'bin-devel/.html-tools/**',
             'bin-devel/.plume-scripts/**',
             'dist/**',
             'tests/ainfer-*/annotated/**',
@@ -283,8 +286,8 @@ allprojects { currentProj ->
         // If you add any formatters to this block that require dependencies, then you must also
         // add them to spotlessPredeclare block.
 
-        // Always skip formatting of files under build directory
-        def doNotFormat = ['build/**',]
+        // Never format files under build/ directory.
+        def doNotFormat = ['build/**']
         if (currentProj != project.rootProject) {
             if (perProjectDoNotFormat.containsKey(currentProj.name)) {
                 doNotFormat += perProjectDoNotFormat[currentProj.name]
@@ -306,23 +309,12 @@ allprojects { currentProj ->
 
         format 'misc', {
             // define the files to apply `misc` to
-            target '*.md', '*.tex', '.gitignore', 'Makefile'
+            target '*.md', '*.tex', '.gitignore'
             targetExclude doNotFormat
             // define the steps to apply to those files
             leadingTabsToSpaces(2)
             trimTrailingWhitespace()
             // endWithNewline() // Don't want to end empty files with a newline
-        }
-
-        groovy {
-            target 'buildSrc/**/*.groovy'
-            importOrder()
-
-            // removes semicolons at the end of lines
-            removeSemicolons()
-            greclipse()
-            leadingTabsToSpaces(2)
-            trimTrailingWhitespace()
         }
 
         java {
@@ -355,6 +347,32 @@ allprojects { currentProj ->
                 trimTrailingWhitespace()
                 // endWithNewline() // Don't want to end empty files with a newline
             }
+
+            groovy {
+                target 'buildSrc/**/*.groovy'
+                importOrder()
+
+                // removes semicolons at the end of lines
+                removeSemicolons()
+                greclipse()
+                leadingTabsToSpaces(2)
+                trimTrailingWhitespace()
+            }
+
+            format 'make', {
+                // define the files to apply `make` to
+                target 'Makefile'
+                targetExclude doNotFormat
+                // define the steps to apply to those files
+                trimTrailingWhitespace()
+                endWithNewline()
+            }
+
+            // Don't do this, because it does not respect "ignore=true" in .editorconfig nor `doNotFormat` here.
+            // shell {
+            //   targetExclude doNotFormat
+            //   shfmt() // configuration is in .editorconfig
+            // }
         }
 
         // a useful task for debugging; prints exactly which files are getting formatted by spotless
@@ -526,17 +544,10 @@ allprojects { currentProj ->
             // -fallthrough: Don't check fallthroughs.  Instead, use Error Prone.  Its
             //   warnings are suppressible with a "// fall through" comment.
             // -classfile: classgraph jar file and https://bugs.openjdk.org/browse/JDK-8190452
-            String lint = '-Xlint:-options,-fallthrough,-classfile'
-
-            if (useJdkVersionInt >= 21) {
-                // TODO: Ignore this-escape warnings for now; perhaps review and suppress each one later.
-                lint +=',-this-escape'
-            }
-
             options.compilerArgs += [
                 '-g',
                 '-Werror',
-                lint,
+                '-Xlint:-options,-fallthrough,-classfile',
                 '-Xlint',
             ]
 
@@ -578,8 +589,6 @@ allprojects { currentProj ->
                     '-Xep:ExtendsObject:OFF',
                     // For Visitors it is convenient to just pass a Void parameter.
                     '-Xep:VoidUsed:OFF',
-                    // TODO: hold off on large refactoring.
-                    '-Xep:PreferInstanceofOverGetKind:OFF',
                     // -Werror halts the build if Error Prone issues a warning, which ensures that
                     // the errors get fixed.  On the downside, Error Prone (or maybe the compiler?)
                     // stops as soon as it issues one warning, rather than outputting them all.
@@ -676,6 +685,7 @@ def createCheckTypeTask(projectName, taskName, checker, args = []) {
 
 task htmlValidate(type: Exec, group: 'Format') {
     description = 'Validate that HTML files are well-formed'
+    // This is the Nu Html Checker (v.Nu): https://github.com/validator/validator
     executable 'html5validator'
     args = [
         '--ignore',
@@ -777,7 +787,7 @@ configurations {
 }
 
 dependencies {
-    requireJavadoc 'org.plumelib:require-javadoc:1.0.9'
+    requireJavadoc 'org.plumelib:require-javadoc:2.0.0'
 }
 
 task requireJavadoc(type: JavaExec, group: 'Documentation') {
@@ -786,6 +796,16 @@ task requireJavadoc(type: JavaExec, group: 'Documentation') {
     classpath = configurations.requireJavadoc
     // Convert each srcDir to its absolute path and flatten the list
     args requireJavadocDirs.collect { it.srcDirs*.absolutePath }.flatten()
+    jvmArgs += [
+        '--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
+        '--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
+        '--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
+        '--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED',
+        '--add-opens=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
+        '--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
+        '--add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
+        '--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED',
+    ]
 }
 
 
@@ -1356,5 +1376,13 @@ final sharedPublicationConfiguration(publication) {
             connection = 'scm:git:https://github.com/eisop/checker-framework.git'
             developerConnection = 'scm:git:ssh://git@github.com/eisop/checker-framework.git'
         }
+    }
+}
+tasks.register('printJavaVersion') {
+    description = "Prints the Java version used to run Gradle."
+    doLast {
+        println "Java version used to run Gradle: ${System.getProperty('java.version')}"
+        def currentJvm = org.gradle.internal.jvm.Jvm.current()
+        println currentJvm
     }
 }
