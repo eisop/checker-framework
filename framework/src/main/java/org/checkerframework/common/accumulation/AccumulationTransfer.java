@@ -89,7 +89,7 @@ public class AccumulationTransfer
         }
 
         Tree tree = node.getTree();
-        if (tree != null && tree.getKind() == Tree.Kind.METHOD_INVOCATION) {
+        if (tree instanceof MethodInvocationTree) {
             Node receiver = ((MethodInvocationNode) node).getTarget().getReceiver();
             if (receiver != null && atypeFactory.returnsThis((MethodInvocationTree) tree)) {
                 accumulate(receiver, result, values);
