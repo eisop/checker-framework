@@ -17,7 +17,12 @@ public class NullnessNullMarkedTest extends CheckerFrameworkPerDirectoryTest {
      * @param testFiles the files containing test code, which will be type-checked
      */
     public NullnessNullMarkedTest(List<File> testFiles) {
-        super(testFiles, org.checkerframework.checker.nullness.NullnessChecker.class, "nullness");
+        super(
+                testFiles,
+                org.checkerframework.checker.nullness.NullnessChecker.class,
+                "nullness",
+                // TODO: Replace this `-AonlyAnnotatedFor` flag after EISOP#1290 is merged.
+                "-AuseConservativeDefaultsForUncheckedCode=source");
     }
 
     @Parameters
