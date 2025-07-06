@@ -690,6 +690,12 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     private boolean issueErrorsForOnlyAnnotatedForScope;
 
     /**
+     * True if the -AuseConservativeDefaultsForUncheckedCode=source command-line argument was
+     * passed.
+     */
+    private boolean useConservativeDefaultsSource;
+
+    /**
      * The full list of subcheckers that need to be run prior to this one, in the order they need to
      * be run. This list will only be non-empty for the one checker that runs all other subcheckers.
      * Do not read this field directly. Instead, retrieve it via {@link #getSubcheckers}.
@@ -1178,6 +1184,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         requirePrefixInWarningSuppressions = hasOption("requirePrefixInWarningSuppressions");
         showPrefixInWarningMessages = hasOption("showPrefixInWarningMessages");
         warnUnneededSuppressions = hasOption("warnUnneededSuppressions");
+        useConservativeDefaultsSource = useConservativeDefault("source");
         issueErrorsForOnlyAnnotatedForScope = hasOption("onlyAnnotatedFor");
     }
 
