@@ -1,6 +1,7 @@
 package org.checkerframework.checker.nullness;
 
 import com.sun.source.tree.ExpressionTree;
+import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
@@ -183,7 +184,7 @@ public class CollectionToArrayHeuristics {
      */
     private boolean isZeroLengthPrivateFinalFieldArray(ExpressionTree arg) {
 
-        if (arg.getKind() != Tree.Kind.IDENTIFIER && arg.getKind() != Tree.Kind.MEMBER_SELECT) {
+        if (!(arg instanceof IdentifierTree) && !(arg instanceof MemberSelectTree)) {
             return false;
         }
 
