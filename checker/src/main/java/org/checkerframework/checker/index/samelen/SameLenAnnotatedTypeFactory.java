@@ -89,9 +89,11 @@ public class SameLenAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             TreeUtils.getMethod(SameLen.class, "value", 0, processingEnv);
 
     /** Predicates about method calls. */
+    @SuppressWarnings("this-escape")
     private final IndexMethodIdentifier imf = new IndexMethodIdentifier(this);
 
     /** Create a new SameLenAnnotatedTypeFactory. */
+    @SuppressWarnings("this-escape")
     public SameLenAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
 
@@ -126,7 +128,7 @@ public class SameLenAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     public AnnotatedTypeMirror getAnnotatedTypeLhs(Tree tree) {
         AnnotatedTypeMirror atm = super.getAnnotatedTypeLhs(tree);
 
-        if (tree.getKind() == Tree.Kind.VARIABLE) {
+        if (tree instanceof VariableTree) {
             AnnotationMirror sameLenAnno = atm.getAnnotation(SameLen.class);
             if (sameLenAnno != null) {
                 JavaExpression je = JavaExpression.fromVariableTree((VariableTree) tree);

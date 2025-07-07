@@ -46,6 +46,7 @@ public class SqlQuotesAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      *
      * @param checker the SQL tainting checker
      */
+    @SuppressWarnings("this-escape")
     public SqlQuotesAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         this.SQL_EVEN_QUOTES = AnnotationBuilder.fromClass(getElementUtils(), SqlEvenQuotes.class);

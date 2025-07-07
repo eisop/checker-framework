@@ -11,8 +11,10 @@ import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.CompoundAssignmentTree;
 import com.sun.source.tree.ConditionalExpressionTree;
 import com.sun.source.tree.ExpressionTree;
+import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.LambdaExpressionTree;
 import com.sun.source.tree.MemberReferenceTree;
+import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewArrayTree;
@@ -21,6 +23,7 @@ import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TypeCastTree;
+import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.Trees;
@@ -564,6 +567,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *
      * @param checker the {@link SourceChecker} to which this factory belongs
      */
+    @SuppressWarnings("this-escape")
     public AnnotatedTypeFactory(BaseTypeChecker checker) {
         uid = ++uidCounter;
         this.processingEnv = checker.getProcessingEnvironment();
@@ -1487,7 +1491,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotatedTypeMirror type;
         if (TreeUtils.isClassTree(tree)) {
             type = fromClass((ClassTree) tree);
-        } else if (tree.getKind() == Tree.Kind.METHOD || tree.getKind() == Tree.Kind.VARIABLE) {
+        } else if (tree instanceof MethodTree || tree instanceof VariableTree) {
             type = fromMember(tree);
         } else if (TreeUtils.isExpressionTree(tree)) {
             tree = TreeUtils.withoutParens((ExpressionTree) tree);
@@ -1499,11 +1503,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         addComputedTypeAnnotations(tree, type);
-        if (tree.getKind() == Kind.TYPE_CAST) {
+        if (tree instanceof TypeCastTree) {
             type = applyCaptureConversion(type);
         }
 
-        if (shouldCache && (TreeUtils.isClassTree(tree) || tree.getKind() == Tree.Kind.METHOD)) {
+        if (shouldCache && (TreeUtils.isClassTree(tree) || tree instanceof MethodTree)) {
             // Don't cache VARIABLE
             classAndMethodTreeCache.put(tree, type.deepCopy());
         } else {
@@ -1688,7 +1692,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             type = fromMember(decl);
         } else if (decl instanceof MethodTree) {
             type = fromMember(decl);
-        } else if (decl.getKind() == Tree.Kind.TYPE_PARAMETER) {
+        } else if (decl instanceof TypeParameterTree) {
             type = fromTypeTree(decl);
         } else {
             throw new BugInCF(
@@ -1856,9 +1860,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (shouldCache
                 // Don't cache the type of some expressions, because incorrect annotations would be
                 // cached during dataflow analysis. See Issue #602.
-                && tree.getKind() != Tree.Kind.NEW_CLASS
-                && tree.getKind() != Tree.Kind.NEW_ARRAY
-                && tree.getKind() != Tree.Kind.CONDITIONAL_EXPRESSION) {
+                && !(tree instanceof NewClassTree)
+                && !(tree instanceof NewArrayTree)
+                && !(tree instanceof ConditionalExpressionTree)) {
             fromExpressionTreeCache.put(tree, result.deepCopy());
         }
         return result;
@@ -2219,10 +2223,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *     receiver or doesn't have a receiver.
      */
     protected @Nullable AnnotatedDeclaredType getImplicitReceiverType(ExpressionTree tree) {
-        assert (tree.getKind() == Tree.Kind.IDENTIFIER
-                        || tree.getKind() == Tree.Kind.MEMBER_SELECT
-                        || tree.getKind() == Tree.Kind.METHOD_INVOCATION
-                        || tree.getKind() == Tree.Kind.NEW_CLASS)
+        assert (tree instanceof IdentifierTree
+                        || tree instanceof MemberSelectTree
+                        || tree instanceof MethodInvocationTree
+                        || tree instanceof NewClassTree)
                 : "Unexpected tree kind: " + tree.getKind();
 
         // Return null if the element kind has no receiver.
@@ -2238,7 +2242,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         TypeElement elementOfImplicitReceiver = ElementUtils.enclosingTypeElement(element);
-        if (tree.getKind() == Tree.Kind.NEW_CLASS) {
+        if (tree instanceof NewClassTree) {
             if (elementOfImplicitReceiver.getEnclosingElement() != null) {
                 elementOfImplicitReceiver =
                         ElementUtils.enclosingTypeElement(
@@ -2287,7 +2291,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (enclosingTree == null) {
             // tree is inside an annotation, where "this" is not allowed. So, no self type exists.
             return null;
-        } else if (enclosingTree.getKind() == Tree.Kind.METHOD) {
+        } else if (enclosingTree instanceof MethodTree) {
             MethodTree enclosingMethod = (MethodTree) enclosingTree;
             if (TreeUtils.isConstructor(enclosingMethod)) {
                 return (AnnotatedDeclaredType) getAnnotatedType(enclosingMethod).getReturnType();
@@ -2661,7 +2665,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             methodType.setReturnType(methodType.getReturnType().getErased());
         }
 
-        if (tree.getKind() == Tree.Kind.METHOD_INVOCATION
+        if (tree instanceof MethodInvocationTree
                 && TreeUtils.isMethodInvocation(tree, objectGetClass, processingEnv)) {
             adaptGetClassReturnTypeToReceiver(methodType, receiverType, tree);
         }
@@ -4915,7 +4919,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                                         Arrays.asList(
                                                 Tree.Kind.METHOD, Tree.Kind.LAMBDA_EXPRESSION)));
 
-                if (enclosing.getKind() == Tree.Kind.METHOD) {
+                if (enclosing instanceof MethodTree) {
                     MethodTree enclosingMethod = (MethodTree) enclosing;
                     return getAnnotatedType(enclosingMethod.getReturnType());
                 } else {
