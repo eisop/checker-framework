@@ -279,16 +279,21 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         updateFieldValuesForMethodCall(atypeFactory);
       }
 
-      // update array values
+      // Update array values.
       arrayValues.clear();
 
-      // update method values
-      removeModifiableByOtherCode(methodCallExpressions);
+      // Update information about method calls.
+      updateMethodCallValues();
     }
 
-    // store information about method call if possible
+    // Store information about method calls if possible.
     JavaExpression methodCall = JavaExpression.fromNode(methodInvocationNode);
     replaceValue(methodCall, val);
+  }
+
+  /** Update information about method calls. */
+  private void updateMethodCallValues() {
+    removeModifiableByOtherCode(methodCallExpressions);
   }
 
   /**
@@ -379,9 +384,9 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
     Map<FieldAccess, V> newFieldValues = new HashMap<>(CollectionsPlume.mapCapacity(fieldValues));
     for (Map.Entry<FieldAccess, V> e : fieldValues.entrySet()) {
       FieldAccess fieldAccess = e.getKey();
-      V value = e.getValue();
+      V previousValue = e.getValue();
 
-      V newValue = newFieldValueAfterMethodCall(fieldAccess, atypeFactory, value);
+      V newValue = newFieldValueAfterMethodCall(fieldAccess, atypeFactory, previousValue);
       if (newValue != null) {
         // Keep information for all hierarchies where we had a monotonic annotation.
         newFieldValues.put(fieldAccess, newValue);
