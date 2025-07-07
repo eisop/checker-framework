@@ -121,6 +121,8 @@ target/
 *.ipr
 *.iws
 *.iml
+
+# Gradle files
 .gradle/
 
 ## Tests
