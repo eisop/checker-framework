@@ -5,6 +5,7 @@ import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.InstanceOfTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
+import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.ClassGetName;
@@ -19,7 +20,7 @@ import java.util.List;
 import javax.lang.model.SourceVersion;
 
 /**
- * This class contains util methods for reflective accessing Tree classes and methods that were
+ * This class contains utility methods for reflectively accessing Tree classes and methods that were
  * added after Java 11.
  */
 public class TreeUtilsAfterJava11 {
@@ -477,6 +478,43 @@ public class TreeUtilsAfterJava11 {
                 GET_VALUE = getMethod(yieldTreeClass, "getValue");
             }
             return (ExpressionTree) invokeNonNullResult(GET_VALUE, yieldTree);
+        }
+    }
+
+    /** Utility methods for accessing {@code JCVariableDecl} methods. */
+    public static class JCVariableDeclUtils {
+
+        /** Don't use. */
+        private JCVariableDeclUtils() {
+            throw new AssertionError("Cannot be instantiated.");
+        }
+
+        /**
+         * The {@code JCVariableDecl.declaredUsingVar} method for Java 17 and higher; null
+         * otherwise.
+         */
+        private static @Nullable Method DECLARED_USING_VAR = null;
+
+        /**
+         * For Java 17+, returns true if {@code variableTree} was declared using {@code var}.
+         * Otherwise, returns false.
+         *
+         * <p>Use {@link TreeUtils#isVariableTreeDeclaredUsingVar(VariableTree)} for a method that
+         * works on all versions of java.
+         *
+         * @param variableTree a variable tree.
+         * @return true if {@code variableTree} was declared using {@code var} and using Java 17+
+         */
+        @Pure
+        public static boolean declaredUsingVar(JCVariableDecl variableTree) {
+            if (sourceVersionNumber < 16) {
+                return false;
+            }
+            if (DECLARED_USING_VAR == null) {
+                DECLARED_USING_VAR = getMethod(JCVariableDecl.class, "declaredUsingVar");
+            }
+            Boolean result = (Boolean) invoke(DECLARED_USING_VAR, variableTree);
+            return result != null ? result : false;
         }
     }
 

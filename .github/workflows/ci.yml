@@ -98,9 +98,9 @@ jobs:
     - name: Install misc dependencies
       if: ${{ matrix.script == 'misc' }}
       run: |
-        sudo apt-get update
-        sudo apt-get install -y --fix-missing \
-          shellcheck devscripts python3-pip \
+        sudo apt update
+        sudo apt install -y --fix-missing \
+          asciidoctor shellcheck shfmt devscripts python3-pip \
           texlive-latex-base texlive-latex-extra latexmk librsvg2-bin \
           autoconf dia hevea latexmk libasound2-dev rsync pdf2svg \
           libcups2-dev libfontconfig1-dev libx11-dev libxext-dev \
@@ -211,9 +211,9 @@ jobs:
     - name: Install misc dependencies
       if: ${{ matrix.script == 'misc' }}
       run: |
-        sudo apt-get update
-        sudo apt-get install -y --fix-missing \
-          shellcheck devscripts python3-pip \
+        sudo apt update
+        sudo apt install -y --fix-missing \
+          asciidoctor shellcheck shfmt devscripts python3-pip \
           texlive-latex-base texlive-latex-extra latexmk librsvg2-bin \
           autoconf dia hevea latexmk libasound2-dev rsync pdf2svg \
           libcups2-dev libfontconfig1-dev libx11-dev libxext-dev \
