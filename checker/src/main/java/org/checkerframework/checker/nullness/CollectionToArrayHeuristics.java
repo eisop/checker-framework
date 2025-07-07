@@ -182,6 +182,11 @@ public class CollectionToArrayHeuristics {
      * initializer is `new T[0]`, `new T[] {}`, or `{}`.
      */
     private boolean isZeroLengthPrivateFinalFieldArray(ExpressionTree arg) {
+
+        if (arg.getKind() != Tree.Kind.IDENTIFIER && arg.getKind() != Tree.Kind.MEMBER_SELECT) {
+            return false;
+        }
+
         Element el = TreeUtils.elementFromUse(arg);
         if (el == null || !el.getKind().isField()) {
             return false;
