@@ -244,41 +244,6 @@ public class CollectionToArrayHeuristics {
                 }
             }
         }
-
-        // TypeMirror type = ElementUtils.getType(el);
-        // VariableElement var = (VariableElement) el;
-
-        // if (var.getModifiers().containsAll(EnumSet.of(Modifier.STATIC, Modifier.FINAL))
-        //     && type.getKind() == TypeKind.ARRAY) {          // ‘t’ is the TypeMirror defined
-        // above
-
-        //     // Obtain the Trees utility and fetch the field’s declaration path.
-        //     Trees trees = Trees.instance(atypeFactory.getProcessingEnv());
-        //     TreePath path = trees.getPath(var);
-
-        //     if (path != null && path.getLeaf() instanceof VariableTree) {
-        // 	VariableTree vt = (VariableTree) path.getLeaf();
-        // 	ExpressionTree init = vt.getInitializer();
-
-        // 	if (init instanceof NewArrayTree) {
-        // 	    NewArrayTree nat = (NewArrayTree) init;
-
-        // 	    boolean isZeroLen =
-        // 		/* case: new T[0] */
-        // 		(nat.getDimensions().size() == 1
-        // 		 && isLiteralZero(nat.getDimensions().get(0)))
-
-        // 		||  /* case: {},   new T[] {} */
-        // 		(nat.getDimensions().isEmpty()
-        // 		 && (nat.getInitializers() == null
-        // 		     || nat.getInitializers().isEmpty()));
-
-        // 	    if (isZeroLen) {
-        // 		return true;
-        // 	    }
-        // 	}
-        //     }
-        // }
         return false;
     }
 
