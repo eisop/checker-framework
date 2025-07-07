@@ -1,10 +1,14 @@
 package org.checkerframework.checker.nullness;
 
 import com.sun.source.tree.ExpressionTree;
+import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.VariableTree;
+import com.sun.source.util.TreePath;
+import com.sun.source.util.Trees;
 
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.value.qual.ArrayLen;
@@ -18,12 +22,15 @@ import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.Collection;
+import java.util.EnumSet;
 import java.util.List;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 
@@ -99,6 +106,7 @@ public class CollectionToArrayHeuristics {
             boolean receiverIsNonNull = receiverIsCollectionOfNonNullElements(tree);
             boolean argIsHandled =
                     isHandledArrayCreation(argument, receiverName(tree.getMethodSelect()))
+                            || isZeroLengthPrivateFinalFieldArray(argument)
                             || (trustArrayLenZero && isArrayLenZeroFieldAccess(argument));
             setComponentNullness(receiverIsNonNull && argIsHandled, method.getReturnType());
 
@@ -170,6 +178,42 @@ public class CollectionToArrayHeuristics {
     }
 
     /**
+     * Returns true iff {@code arg} is a reference to a {@code private final} array field whose
+     * initializer is `new T[0]`, `new T[] {}`, or `{}`.
+     */
+    private boolean isZeroLengthPrivateFinalFieldArray(ExpressionTree arg) {
+        Element el = TreeUtils.elementFromUse(arg);
+        if (el == null || !el.getKind().isField()) {
+            return false;
+        }
+        VariableElement var = (VariableElement) el;
+        if (!(var.getModifiers().containsAll(EnumSet.of(Modifier.PRIVATE, Modifier.FINAL))
+                && ElementUtils.getType(var).getKind() == TypeKind.ARRAY)) {
+            return false;
+        }
+
+        Trees trees = Trees.instance(atypeFactory.getProcessingEnv());
+        TreePath path = trees.getPath(var);
+        if (path == null) {
+            return false;
+        }
+        ExpressionTree init = ((VariableTree) path.getLeaf()).getInitializer();
+        if (!(init instanceof NewArrayTree)) {
+            return false;
+        }
+        NewArrayTree nat = (NewArrayTree) init;
+
+        boolean zeroDim =
+                nat.getDimensions().size() == 1 && isLiteralZero(nat.getDimensions().get(0));
+
+        boolean emptyBraces =
+                nat.getDimensions().isEmpty()
+                        && (nat.getInitializers() == null || nat.getInitializers().isEmpty());
+
+        return zeroDim || emptyBraces;
+    }
+
+    /**
      * Returns true if the argument is a field access expression, where the field has declared type
      * {@code @ArrayLen(0)}.
      *
@@ -194,6 +238,49 @@ public class CollectionToArrayHeuristics {
                     }
                 }
             }
+        }
+
+        // TypeMirror type = ElementUtils.getType(el);
+        // VariableElement var = (VariableElement) el;
+
+        // if (var.getModifiers().containsAll(EnumSet.of(Modifier.STATIC, Modifier.FINAL))
+        //     && type.getKind() == TypeKind.ARRAY) {          // ‘t’ is the TypeMirror defined
+        // above
+
+        //     // Obtain the Trees utility and fetch the field’s declaration path.
+        //     Trees trees = Trees.instance(atypeFactory.getProcessingEnv());
+        //     TreePath path = trees.getPath(var);
+
+        //     if (path != null && path.getLeaf() instanceof VariableTree) {
+        // 	VariableTree vt = (VariableTree) path.getLeaf();
+        // 	ExpressionTree init = vt.getInitializer();
+
+        // 	if (init instanceof NewArrayTree) {
+        // 	    NewArrayTree nat = (NewArrayTree) init;
+
+        // 	    boolean isZeroLen =
+        // 		/* case: new T[0] */
+        // 		(nat.getDimensions().size() == 1
+        // 		 && isLiteralZero(nat.getDimensions().get(0)))
+
+        // 		||  /* case: {},   new T[] {} */
+        // 		(nat.getDimensions().isEmpty()
+        // 		 && (nat.getInitializers() == null
+        // 		     || nat.getInitializers().isEmpty()));
+
+        // 	    if (isZeroLen) {
+        // 		return true;
+        // 	    }
+        // 	}
+        //     }
+        // }
+        return false;
+    }
+
+    private static boolean isLiteralZero(ExpressionTree tree) {
+        if (tree instanceof LiteralTree) {
+            Object v = ((LiteralTree) tree).getValue();
+            return v instanceof Integer && ((Integer) v) == 0;
         }
         return false;
     }
