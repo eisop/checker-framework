@@ -8,6 +8,7 @@ all:
 else
 all:
 	- ../../../gradlew build > Out.txt 2>&1
+	# Check for crash due to mismatched Checker Qualifiers
 	grep -qF "Exception: org.checkerframework.javacutil.BugInCF:" Out.txt
 endif
 

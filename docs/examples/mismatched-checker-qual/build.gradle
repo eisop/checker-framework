@@ -1,0 +1,38 @@
+// ///////////////////////////////////////////////////////////////////////////
+// Checker Framework pluggable type-checking and Error Prone example
+//
+
+plugins {
+    id 'java'
+    // Checker Framework pluggable type-checking
+    id 'org.checkerframework' version '0.6.53' apply false
+}
+
+ext {
+    versions = [
+        eisopVersion: '3.49.3-eisop1',
+        eisopQualVersion: '3.42.0-eisop1',
+    ]
+}
+
+apply plugin: 'org.checkerframework'
+
+dependencies {
+    // Without the proper checker qualifiers, Nullness Checker should gracefully issue warnings
+    compileOnly "io.github.eisop:checker-qual:${versions.eisopQualVersion}"
+    testCompileOnly "io.github.eisop:checker-qual:${versions.eisopQualVersion}"
+    checkerFramework "io.github.eisop:checker-qual:${versions.eisopVersion}"
+    checkerFramework "io.github.eisop:checker:${versions.eisopVersion}"
+}
+
+repositories {
+    // mavenLocal() // Use local Maven repository first for testing
+    mavenCentral()
+}
+
+checkerFramework {
+    checkers = [
+        'org.checkerframework.checker.nullness.NullnessChecker',
+    ]
+    extraJavacArgs = ['-Aversion']
+}
