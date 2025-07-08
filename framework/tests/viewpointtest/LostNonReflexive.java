@@ -2,12 +2,17 @@ import viewpointtest.quals.*;
 
 public class LostNonReflexive {
     @ReceiverDependentQual Object f;
+    @ReceiverDependentQual LostNonReflexive f2;
 
     @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
     @ReceiverDependentQual LostNonReflexive(@ReceiverDependentQual Object args) {}
 
     @ReceiverDependentQual Object get() {
         return null;
+    }
+
+    @PolyVP LostNonReflexive identity(@PolyVP LostNonReflexive this) {
+        return this;
     }
 
     void set(@ReceiverDependentQual Object o) {}
@@ -32,5 +37,7 @@ public class LostNonReflexive {
         // :: error: (argument.type.incompatible)
         this.set(obj.f);
         this.set(bottomObj);
+
+        obj.f2.identity();
     }
 }
