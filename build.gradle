@@ -333,6 +333,19 @@ allprojects { currentProj ->
             formatAnnotations().addTypeAnnotation("PolyInitialized").addTypeAnnotation("PolyVP").addTypeAnnotation("ReceiverDependentQual")
         }
 
+        java {
+            if (currentProj != currentProj.rootProject) {
+                // not the root project; format all .java files in the sub-project src folders
+                target 'src/**/*.java'
+            }
+            targetExclude doNotFormat
+
+            // This really just removes the wildcard imports - they are not expanded.
+            // That is fine for src files, which should then be manually fixed.
+            // There are currently many tests with wildcard imports, so do not enable this for tests.
+            removeWildcardImports()
+        }
+
         // Only define a groovyGradle task on the root project, for simplicity in setting the target pattern
         if (currentProj == currentProj.rootProject) {
             groovyGradle {
