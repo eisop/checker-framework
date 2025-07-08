@@ -2804,7 +2804,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             }
         }
 
-        if (useConservativeDefault("source") || issueErrorsForOnlyAnnotatedForScope) {
+        if (useConservativeDefaultsSource || issueErrorsForOnlyAnnotatedForScope) {
             // If we got this far without hitting an @AnnotatedFor and returning
             // false, we DO suppress the warning.
             return true;
@@ -3006,14 +3006,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * Return true if the element has an {@code @AnnotatedFor} annotation, for this checker or an
      * upstream checker that called this one.
      *
-     * <p>If the element is null or the errors should not be suppressed, directly returns false.
-     *
      * @param elt the source code element to check, or null
      * @return true if the element is annotated for this checker or an upstream checker
      */
     private boolean isAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
-        if (elt == null
-                || (!useConservativeDefault("source") && !issueErrorsForOnlyAnnotatedForScope)) {
+        if (elt == null) {
             return false;
         }
 
