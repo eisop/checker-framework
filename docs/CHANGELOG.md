@@ -31,7 +31,7 @@ They are enabled by default and can be disabled using `-Alint=-instanceof.unsafe
 
 **Closed issues:**
 
-eisop#1247, eisop#1263, typetools#7096.
+eisop#412, eisop#1247, eisop#1263, typetools#7096.
 
 
 Version 3.49.5 (June 30, 2025)
