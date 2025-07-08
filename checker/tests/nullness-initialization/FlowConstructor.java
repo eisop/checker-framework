@@ -21,7 +21,7 @@ public class FlowConstructor {
 
     public FlowConstructor(double p) {
         a = "m";
-        // :: error: (method.invocation.invalid)
+        // :: error: (initialization.method.invocation.invalid)
         nonRawMethod(); // error
         b = "n";
     }
