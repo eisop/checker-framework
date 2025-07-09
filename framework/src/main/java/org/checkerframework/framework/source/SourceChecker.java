@@ -209,6 +209,8 @@ import javax.tools.Diagnostic;
     // "Default qualifiers for \<.class> files (conservative library defaults)"
     // sections in the manual for more details
     // org.checkerframework.framework.source.SourceChecker.useConservativeDefault
+    // -AonlyAnnotatedFor suppresses warnings for code outside the scope of @AnnotatedFor,
+    // but does not change the default qualifier for source code.
     "useConservativeDefaultsForUncheckedCode",
 
     // Whether to assume sound concurrent semantics or
@@ -3010,7 +3012,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return true if the element is annotated for this checker or an upstream checker
      */
     private boolean isAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
-        if (elt == null) {
+        // Return false if elt is null, or if neither useConservativeDefaultsSource nor
+        // issueErrorsForOnlyAnnotatedForScope is set, since the @AnnotatedFor status is irrelevant
+        // in that case.
+        // TODO: Refactor SourceChecker and QualifierDefaults to use a cache for determining if an
+        // element is annotated for.
+        if (elt == null
+                || (!useConservativeDefaultsSource && !issueErrorsForOnlyAnnotatedForScope)) {
             return false;
         }
 
