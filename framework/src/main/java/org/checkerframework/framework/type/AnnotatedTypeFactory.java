@@ -534,6 +534,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /** Mapping from an Element to the source Tree of the declaration. */
     private final Map<Element, Tree> elementToTreeCache;
 
+    /** A mapping of Element &rarr; Whether or not that element is AnnotatedFor this type system. */
+    private final IdentityHashMap<Element, Boolean> elementAnnotatedFors = new IdentityHashMap<>();
+
     /** Mapping from a Tree to its TreePath. Shared between all instances. */
     private final TreePathCacher treePathCache;
 
@@ -6020,7 +6023,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param annotatedForAnno an {@link AnnotatedFor} annotation
      * @return whether {@code annotatedForAnno} applies to this checker
      */
-    public boolean doesAnnotatedForApplyToThisChecker(AnnotationMirror annotatedForAnno) {
+    public boolean isAnnotatedForThisCheckerOrUpstreamChecker(AnnotationMirror annotatedForAnno) {
         List<String> annotatedForCheckers =
                 AnnotationUtils.getElementValueArray(
                         annotatedForAnno, annotatedForValueElement, String.class);
@@ -6033,6 +6036,53 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             }
         }
         return false;
+    }
+
+    /**
+     * Return true if the element has an {@code @AnnotatedFor} annotation, for this checker or an
+     * upstream checker that called this one.
+     *
+     * @param elt the source code element to check, or null
+     * @return true if the element is annotated for this checker or an upstream checker
+     */
+    public boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(Element elt) {
+        boolean elementAnnotatedForThisChecker = false;
+
+        if (elt == null) {
+            throw new BugInCF(
+                    "Call of QualifierDefaults.isElementAnnotatedForThisChecker with null");
+        }
+
+        if (elementAnnotatedFors.containsKey(elt)) {
+            return elementAnnotatedFors.get(elt);
+        }
+
+        AnnotationMirror annotatedFor = getDeclAnnotation(elt, AnnotatedFor.class);
+
+        if (annotatedFor != null) {
+            elementAnnotatedForThisChecker =
+                    isAnnotatedForThisCheckerOrUpstreamChecker(annotatedFor);
+        }
+
+        if (!elementAnnotatedForThisChecker) {
+            Element parent;
+            if (elt.getKind() == ElementKind.PACKAGE) {
+                // TODO: should AnnotatedFor apply to subpackages??
+                // elt.getEnclosingElement() on a package is null; therefore,
+                // use the dedicated method.
+                parent = ElementUtils.parentPackage((PackageElement) elt, elements);
+            } else {
+                parent = elt.getEnclosingElement();
+            }
+
+            if (parent != null && isElementAnnotatedForThisCheckerOrUpstreamChecker(parent)) {
+                elementAnnotatedForThisChecker = true;
+            }
+        }
+
+        elementAnnotatedFors.put(elt, elementAnnotatedForThisChecker);
+
+        return elementAnnotatedForThisChecker;
     }
 
     /**
