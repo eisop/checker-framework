@@ -18,6 +18,7 @@ plugins {
     // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
     // Only works on JDK 11+ (even including the plugin crashes Gradle on JDK 8).
     id 'com.diffplug.spotless' version '7.1.0'
+    id 'com.github.andygoossens.modernizer' version '1.11.0'
 }
 
 // There is another `repositories { ... }` block below; if you change this one, change that one as well.
@@ -174,14 +175,14 @@ allprojects { currentProj ->
     //   * backward-incompatible changes have been made to APIs or elsewhere.
     // To make a snapshot release, version should end in "-SNAPSHOT", then: ./gradlew publish
     version = '3.49.5-eisop1-SNAPSHOT'
+    group = 'io.github.eisop'
 
     apply plugin: 'java'
     apply plugin: 'eclipse'
     apply plugin: 'com.gradleup.shadow'
     apply plugin: 'de.undercouch.download'
     apply plugin: 'net.ltgt.errorprone'
-
-    group = 'io.github.eisop'
+    apply plugin: 'com.github.andygoossens.modernizer'
 
     // Keep in sync with "repositories { ... }" block above.
     repositories {
@@ -447,6 +448,12 @@ allprojects { currentProj ->
                     languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
                 }
             }
+        }
+
+        modernizer {
+            failOnViolations = true
+            includeTestClasses = true
+            javaVersion = 8
         }
 
         // Add the fat checker.jar to the classpath of every Javadoc task. This allows Javadoc in
