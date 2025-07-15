@@ -208,7 +208,7 @@ allprojects { currentProj ->
         // Always include Error Prone, but it will not always be enabled.
         errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: versions.errorprone
         // Always define javacJar, not just when `isJava8` is true, because we redistribute it in checker/build.gradle.
-        javacJar group: 'com.google.errorprone', name: 'javac', version: "9+181-r4173-1"
+        javacJar group: 'com.google.errorprone', name: 'javac', version: "1+"
 
         allProjects subprojects
     }
