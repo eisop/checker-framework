@@ -5,6 +5,7 @@ import org.junit.runners.Suite;
 import org.junit.runners.model.InitializationError;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.List;
 
 /**
@@ -33,8 +34,8 @@ abstract class RootedSuite extends Suite {
     protected final File resolveTestDirectory() {
         TestRootDirectory annotation = getTestClass().getAnnotation(TestRootDirectory.class);
         if (annotation != null) {
-            return new File(annotation.value());
+            return Path.of(annotation.value()).toFile();
         }
-        return new File("tests");
+        return Path.of("tests").toFile();
     }
 }
