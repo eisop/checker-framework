@@ -18,6 +18,12 @@ package org.checkerframework.framework.qual;
  */
 public enum TypeUseLocation {
 
+    /**
+     * Apply default annotations to unannotated top-level types of class, interfaces, enums and
+     * record *
+     */
+    TYPE,
+
     /** Apply default annotations to unannotated top-level types of fields. */
     FIELD,
 
