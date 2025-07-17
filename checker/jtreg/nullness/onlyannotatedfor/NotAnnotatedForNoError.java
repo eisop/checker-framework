@@ -15,10 +15,11 @@ public class NotAnnotatedForNoError {
         Object o = null;
     }
 
-    @AnnotatedFor("regex") class B
-    { // No expected error, because code is not annotated for nullness.
+    @AnnotatedFor("regex")
+    class B {
+        // No expected error, because code is not annotated for nullness.
         Object o = null;
-         }
+    }
 
     class C {
         // No expected error, because code is not annotated for nullness.
