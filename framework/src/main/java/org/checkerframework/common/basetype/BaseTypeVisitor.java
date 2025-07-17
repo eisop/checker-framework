@@ -2100,7 +2100,24 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         ExecutableElement invokedMethodElement = invokedMethod.getElement();
         if (!ElementUtils.isStatic(invokedMethodElement)
                 && !TreeUtils.isSuperConstructorCall(tree)) {
-            checkMethodInvocability(invokedMethod, tree);
+            List<AnnotatedTypeMirror> typeArgs = preInference.typeArgs;
+            // Avoid check method receiver's type arguments has poly arguments.
+            // See checker/tests/nullness-genericwildcard/PolyQualifierOnTypeArgument.java
+            boolean outerLoopBroken = false;
+            outerloop:
+            for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
+                AnnotationMirror poly = qualHierarchy.getPolymorphicAnnotation(top);
+                for (AnnotatedTypeMirror atm : typeArgs) {
+                    if (atm.hasAnnotation(poly)) {
+                        outerLoopBroken = true;
+                        break outerloop;
+                    }
+                }
+            }
+
+            if (outerLoopBroken) {
+                checkMethodInvocability(invokedMethod, tree);
+            }
         }
 
         // check precondition annotations
@@ -3841,6 +3858,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             MethodInvocationTree tree,
             AnnotatedTypeMirror methodDefinitionReceiver,
             AnnotatedTypeMirror methodCallReceiver) {
+
         return false;
     }
 
