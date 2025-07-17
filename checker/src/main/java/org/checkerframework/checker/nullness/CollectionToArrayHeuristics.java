@@ -167,16 +167,16 @@ public class CollectionToArrayHeuristics {
                 return false;
             }
             TreePath path = atypeFactory.getPath(declTree);
-	    Tree leaf = path.getLeaf();
-	    if (!(leaf instanceof VariableTree)) {
-		return false;
-	    }
-	    VariableTree vt = (VariableTree) leaf;
-	    ExpressionTree init = vt.getInitializer();
-	    if (!(init instanceof NewArrayTree)) {
-		return false;
-	    }
-	    newArr = (NewArrayTree) init;
+            Tree leaf = path.getLeaf();
+            if (!(leaf instanceof VariableTree)) {
+                return false;
+            }
+            VariableTree vt = (VariableTree) leaf;
+            ExpressionTree init = vt.getInitializer();
+            if (!(init instanceof NewArrayTree)) {
+                return false;
+            }
+            newArr = (NewArrayTree) init;
         } else {
             return false;
         }
