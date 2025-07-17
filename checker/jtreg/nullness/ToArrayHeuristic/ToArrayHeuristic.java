@@ -1,0 +1,48 @@
+/*
+ * @test
+ * @summary Test case for CollectionToArrayHeuristics.java
+ *
+ * @compile/fail/ref=ToArrayHeuristic-notrust.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker ToArrayHeuristic.java
+ * @compile/fail/ref=ToArrayHeuristic-trust.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Alint=trustArrayLenZero ToArrayHeuristic.java
+ */
+
+import org.checkerframework.common.value.qual.ArrayLen;
+import java.util.Collection;
+
+public class ToArrayHeuristic {
+
+    private final String[] EMPTY_STRING_ARRAY_LITERAL = new String[0];
+    private final String[] EMPTY_STRING_ARRAY_BRACES = {};
+    private final String[] EMPTY_STRING_ARRAY_NON_ZERO = new String[1];
+    String @ArrayLen(0) [] EMPTY_STRING_ARRAY_UNSAFE = {};
+
+    String[] literalZero(Collection<String> c) {
+        return c.toArray(new String[0]);
+    }
+
+    String[] literalBraces(Collection<String> c) {
+        return c.toArray(new String[] {});
+    }
+
+    String[] literalReceiverSize(Collection<String> c) {
+        return c.toArray(new String[c.size()]);
+    }
+
+    String[] fieldZero(Collection<String> c) {
+        return c.toArray(EMPTY_STRING_ARRAY_LITERAL);
+    }
+
+    String[] fieldBraces(Collection<String> c) {
+        return c.toArray(EMPTY_STRING_ARRAY_BRACES);
+    }
+
+    String[] fieldNonZero(Collection<String> c) {
+        return c.toArray(EMPTY_STRING_ARRAY_NON_ZERO);
+    }
+
+    String[] fieldUnsafe(Collection<String> c) {
+        return c.toArray(EMPTY_STRING_ARRAY_UNSAFE);
+    }
+
+}
+
