@@ -27,6 +27,7 @@ import javax.lang.model.util.Elements;
 public class FlowTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     protected final AnnotationMirror VALUE, BOTTOM, TOP;
 
+    @SuppressWarnings("this-escape")
     public FlowTestAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker, true);
         VALUE = AnnotationBuilder.fromClass(elements, ValueTypeAnno.class);
