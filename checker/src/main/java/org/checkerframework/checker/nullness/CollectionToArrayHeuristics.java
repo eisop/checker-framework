@@ -9,7 +9,6 @@ import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
-import com.sun.source.util.Trees;
 
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.value.qual.ArrayLen;
@@ -107,7 +106,6 @@ public class CollectionToArrayHeuristics {
             boolean receiverIsNonNull = receiverIsCollectionOfNonNullElements(tree);
             boolean argIsHandled =
                     isHandledArrayCreation(argument, receiverName(tree.getMethodSelect()))
-                            || isZeroLengthPrivateFinalFieldArray(argument)
                             || (trustArrayLenZero && isArrayLenZeroFieldAccess(argument));
             setComponentNullness(receiverIsNonNull && argIsHandled, method.getReturnType());
 
@@ -149,74 +147,61 @@ public class CollectionToArrayHeuristics {
      * @param receiver the expression for the receiver collection
      * @return true if the argument is handled and assume to return nonnull elements
      */
-    private boolean isHandledArrayCreation(Tree argument, String receiver) {
-        if (!(argument instanceof NewArrayTree)) {
+    private boolean isHandledArrayCreation(ExpressionTree argument, String receiver) {
+        final NewArrayTree newArr;
+
+        if (argument instanceof NewArrayTree) {
+            newArr = (NewArrayTree) argument;
+        } else if ((argument instanceof IdentifierTree) || (argument instanceof MemberSelectTree)) {
+            Element el = TreeUtils.elementFromUse(argument);
+            if (el == null || !el.getKind().isField()) {
+                return false;
+            }
+            VariableElement var = (VariableElement) el;
+            if (!(var.getModifiers().containsAll(EnumSet.of(Modifier.PRIVATE, Modifier.FINAL))
+                    && ElementUtils.getType(var).getKind() == TypeKind.ARRAY)) {
+                return false;
+            }
+            Tree declTree = atypeFactory.declarationFromElement(var);
+            if (declTree == null) {
+                return false;
+            }
+            TreePath path = atypeFactory.getPath(declTree);
+	    Tree leaf = path.getLeaf();
+	    if (!(leaf instanceof VariableTree)) {
+		return false;
+	    }
+	    VariableTree vt = (VariableTree) leaf;
+	    ExpressionTree init = vt.getInitializer();
+	    if (!(init instanceof NewArrayTree)) {
+		return false;
+	    }
+	    newArr = (NewArrayTree) init;
+        } else {
             return false;
         }
-        NewArrayTree newArr = (NewArrayTree) argument;
 
         // empty array initializer
         if (newArr.getInitializers() != null) {
             return newArr.getInitializers().isEmpty();
         }
 
-        assert !newArr.getDimensions().isEmpty();
-        Tree dimension = newArr.getDimensions().get(newArr.getDimensions().size() - 1);
+        if (newArr.getDimensions().isEmpty()) {
+            return false;
+        }
 
-        // 0-length array creation
-        if (dimension.toString().equals("0")) {
+        ExpressionTree dimension = newArr.getDimensions().get(newArr.getDimensions().size() - 1);
+        if (isLiteralZero(dimension)) {
             return true;
         }
 
         // size()-length array creation
         if (TreeUtils.isMethodInvocation(dimension, size, processingEnv)) {
             MethodInvocationTree invok = (MethodInvocationTree) dimension;
-            String invokReceiver = receiverName(invok.getMethodSelect());
-            return invokReceiver.equals(receiver);
+            return receiverName(invok.getMethodSelect()).equals(receiver);
         }
 
         return false;
-    }
-
-    /**
-     * Returns true iff {@code arg} is a reference to a {@code private final} array field whose
-     * initializer is `new T[0]`, `new T[] {}`, or `{}`.
-     */
-    private boolean isZeroLengthPrivateFinalFieldArray(ExpressionTree arg) {
-
-        if (!(arg instanceof IdentifierTree) && !(arg instanceof MemberSelectTree)) {
-            return false;
-        }
-
-        Element el = TreeUtils.elementFromUse(arg);
-        if (el == null || !el.getKind().isField()) {
-            return false;
-        }
-        VariableElement var = (VariableElement) el;
-        if (!(var.getModifiers().containsAll(EnumSet.of(Modifier.PRIVATE, Modifier.FINAL))
-                && ElementUtils.getType(var).getKind() == TypeKind.ARRAY)) {
-            return false;
-        }
-
-        Trees trees = Trees.instance(atypeFactory.getProcessingEnv());
-        TreePath path = trees.getPath(var);
-        if (path == null) {
-            return false;
-        }
-        ExpressionTree init = ((VariableTree) path.getLeaf()).getInitializer();
-        if (!(init instanceof NewArrayTree)) {
-            return false;
-        }
-        NewArrayTree nat = (NewArrayTree) init;
-
-        boolean zeroDim =
-                nat.getDimensions().size() == 1 && isLiteralZero(nat.getDimensions().get(0));
-
-        boolean emptyBraces =
-                nat.getDimensions().isEmpty()
-                        && (nat.getInitializers() == null || nat.getInitializers().isEmpty());
-
-        return zeroDim || emptyBraces;
     }
 
     /**
