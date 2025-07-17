@@ -12,8 +12,8 @@ import org.plumelib.util.CollectionsPlume;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
@@ -22,6 +22,7 @@ import java.net.URLDecoder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -65,7 +66,7 @@ public class CheckerMain {
      * @param args command-line arguments
      */
     public static void main(String[] args) {
-        File pathToThisJar = new File(findPathTo(CheckerMain.class, false));
+        File pathToThisJar = Paths.get(findPathTo(CheckerMain.class, false)).toFile();
         ArrayList<String> alargs = new ArrayList<>(Arrays.asList(args));
         CheckerMain program = new CheckerMain(pathToThisJar, alargs);
         int exitStatus = program.invokeCompiler();
@@ -139,20 +140,25 @@ public class CheckerMain {
     public CheckerMain(File checkerJar, List<String> args) {
 
         this.checkerJar = checkerJar;
-        File searchPath = checkerJar.getParentFile();
+        Path searchPath = checkerJar.getParentFile().toPath();
 
         replaceShorthandProcessor(args);
         argListFiles = collectArgFiles(args);
 
         this.checkerQualJar =
                 extractFileArg(
-                        CHECKER_QUAL_PATH_OPT, new File(searchPath, "checker-qual.jar"), args);
+                        CHECKER_QUAL_PATH_OPT,
+                        searchPath.resolve("checker-qual.jar").toFile(),
+                        args);
 
         this.checkerUtilJar =
                 extractFileArg(
-                        CHECKER_UTIL_PATH_OPT, new File(searchPath, "checker-util.jar"), args);
+                        CHECKER_UTIL_PATH_OPT,
+                        searchPath.resolve("checker-util.jar").toFile(),
+                        args);
 
-        this.javacJar = extractFileArg(JAVAC_PATH_OPT, new File(searchPath, "javac.jar"), args);
+        this.javacJar =
+                extractFileArg(JAVAC_PATH_OPT, searchPath.resolve("javac.jar").toFile(), args);
 
         this.compilationBootclasspath = createCompilationBootclasspath(args);
         this.runtimeClasspath = createRuntimeClasspath(args);
@@ -240,7 +246,7 @@ public class CheckerMain {
         List<File> argListFiles = new ArrayList<>();
         for (String arg : args) {
             if (arg.startsWith("@")) {
-                argListFiles.add(new File(arg.substring(1)));
+                argListFiles.add(Paths.get(arg.substring(1)).toFile());
             }
         }
 
@@ -286,7 +292,7 @@ public class CheckerMain {
         if (filePath == null) {
             return alternative;
         } else {
-            return new File(filePath);
+            return Paths.get(filePath).toFile();
         }
     }
 
@@ -554,7 +560,7 @@ public class CheckerMain {
      * @return all the .jar and .JAR files in the given directory
      */
     private List<String> jarFiles(String directory) {
-        File dir = new File(directory);
+        File dir = Paths.get(directory).toFile();
         String[] jarFiles = dir.list((d, name) -> name.endsWith(".jar") || name.endsWith(".JAR"));
         if (jarFiles == null) {
             return Collections.emptyList();
@@ -748,7 +754,7 @@ public class CheckerMain {
                     URLDecoder.decode(
                             uri.substring("jar:file:".length(), idx),
                             Charset.defaultCharset().name());
-            return new File(fileName).getAbsolutePath();
+            return Paths.get(fileName).toFile().getAbsolutePath();
         } catch (UnsupportedEncodingException e) {
             throw new BugInCF("Default charset doesn't exist. Your VM is borked.");
         }
@@ -862,7 +868,7 @@ public class CheckerMain {
      */
     private List<@FullyQualifiedName String> getAllCheckerClassNames() {
         ArrayList<@FullyQualifiedName String> checkerClassNames = new ArrayList<>();
-        try (FileInputStream fis = new FileInputStream(checkerJar);
+        try (InputStream fis = Files.newInputStream(checkerJar.toPath());
                 JarInputStream checkerJarIs = new JarInputStream(fis)) {
             ZipEntry entry;
             while ((entry = checkerJarIs.getNextEntry()) != null) {

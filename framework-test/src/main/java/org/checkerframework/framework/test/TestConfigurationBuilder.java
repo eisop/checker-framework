@@ -8,6 +8,7 @@ import org.checkerframework.javacutil.BugInCF;
 import org.plumelib.util.StringsPlume;
 
 import java.io.File;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -597,10 +598,15 @@ public class TestConfigurationBuilder {
      * @return the output directory
      */
     public static File getOutputDirFromProperty() {
-        return new File(
-                System.getProperty(
-                        "tests.outputDir",
-                        "tests" + File.separator + "build" + File.separator + "testclasses"));
+        return Paths.get(
+                        System.getProperty(
+                                "tests.outputDir",
+                                "tests"
+                                        + File.separator
+                                        + "build"
+                                        + File.separator
+                                        + "testclasses"))
+                .toFile();
     }
 
     /**
