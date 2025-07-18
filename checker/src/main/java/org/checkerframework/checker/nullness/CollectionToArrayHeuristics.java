@@ -233,6 +233,13 @@ public class CollectionToArrayHeuristics {
         return false;
     }
 
+    /**
+     * Returns {@code true} when the supplied tree represents the integer literal {@code 0}.
+     *
+     * @param tree the expression to examine
+     * @return {@code true} if {@code tree} is a {@link com.sun.source.tree.LiteralTree} containing
+     *     integer {@code 0}
+     */
     private static boolean isLiteralZero(ExpressionTree tree) {
         if (tree instanceof LiteralTree) {
             Object v = ((LiteralTree) tree).getValue();
