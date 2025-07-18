@@ -384,7 +384,7 @@ annotation.  For classes without \<@AnnotatedFor>, the checker uses
 conservative defaults
 (see Section~\ref{defaults-classfile}) for any type use with no explicit
 user-written annotation, \emph{and} the checker issues no warnings.
-\code{-AonlyAnnotatedFor} is an option that only suppresses warnings outside of the \<@AnnotatedFor> annotation,
+The command-line argument \code{-AonlyAnnotatedFor} can be used to  suppress warnings and errors outside of the scope of an \<@AnnotatedFor> annotation,
 but does not change the default qualifier for source code (See Section~\ref{aonlyAnnotatedFor}).
 \end{sloppypar}
 
