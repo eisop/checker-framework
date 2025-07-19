@@ -2181,23 +2181,25 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         ExecutableElement invokedMethodElement = invokedMethod.getElement();
         if (!ElementUtils.isStatic(invokedMethodElement)
                 && !TreeUtils.isSuperConstructorCall(tree)) {
-            List<AnnotatedTypeMirror> typeArgs = preInference.typeArgs;
-            // Avoid check method receiver's type arguments has poly arguments.
-            // See checker/tests/nullness-genericwildcard/PolyQualifierOnTypeArgument.java
-            boolean outerLoopBroken = false;
-            outerloop:
-            for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
-                AnnotationMirror poly = qualHierarchy.getPolymorphicAnnotation(top);
-                for (AnnotatedTypeMirror atm : typeArgs) {
-                    if (atm.hasAnnotation(poly)) {
-                        outerLoopBroken = true;
-                        break outerloop;
+            AnnotatedDeclaredType adt = preInference.executableType.getReceiverType();
+            if (adt != null) {
+                List<AnnotatedTypeMirror> rcrTypeArgs = adt.getTypeArguments();
+                // Avoid check method receiver's type arguments has poly arguments.
+                // See checker/tests/nullness-genericwildcard/PolyQualifierOnTypeArgument.java
+                boolean outerLoopBroken = false;
+                outerloop:
+                for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
+                    AnnotationMirror poly = qualHierarchy.getPolymorphicAnnotation(top);
+                    for (AnnotatedTypeMirror typearg : rcrTypeArgs) {
+                        if (typearg.hasEffectiveAnnotation(poly)) {
+                            outerLoopBroken = true;
+                            break outerloop;
+                        }
                     }
                 }
-            }
-
-            if (outerLoopBroken) {
-                checkMethodInvocability(invokedMethod, tree);
+                if (!outerLoopBroken) {
+                    checkMethodInvocability(invokedMethod, tree);
+                }
             }
         }
 
