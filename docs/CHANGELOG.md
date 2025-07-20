@@ -3,6 +3,9 @@ Version 3.49.5-eisop1 (July ??, 2025)
 
 **User-visible changes:**
 
+The EISOP Checker Framework now checks the subtyping of method receiver's type arguments.
+The annotations on type arguments of a method receiver (e.g., `void test(Box<@NonNull T> this)`) were previously ignored during type-checking.
+
 The Nullness Checker now has more fine-grained prefix options to suppress warnings:
 - `@SuppressWarnings("nullness")` is used to suppress warnings from the Nullness, Initialization, and KeyFor Checkers.
 - `@SuppressWarnings("nullnesskeyfor")` is used to suppress warnings from the Nullness and KeyFor Checkers,
@@ -31,7 +34,7 @@ They are enabled by default and can be disabled using `-Alint=-instanceof.unsafe
 
 **Closed issues:**
 
-eisop#1247, eisop#1263, typetools#7096.
+eisop#104, eisop#1247, eisop#1263, typetools#7096.
 
 
 Version 3.49.5 (June 30, 2025)
