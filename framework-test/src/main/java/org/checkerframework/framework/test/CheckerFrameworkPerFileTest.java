@@ -94,7 +94,7 @@ public abstract class CheckerFrameworkPerFileTest extends CheckerFrameworkRooted
                 customizeOptions(Collections.unmodifiableList(checkerOptions));
         TestConfiguration config =
                 TestConfigurationBuilder.buildDefaultConfiguration(
-                        new File(resolveTestDirectory(), testDir).getPath(),
+                        resolveTestDirectory().toPath().resolve(testDir).toString(),
                         testFile,
                         checker,
                         customizedOptions,

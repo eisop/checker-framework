@@ -155,7 +155,7 @@ public abstract class CheckerFrameworkPerDirectoryTest extends CheckerFrameworkR
                 customizeOptions(Collections.unmodifiableList(checkerOptions));
         TestConfiguration config =
                 TestConfigurationBuilder.buildDefaultConfiguration(
-                        new File(resolveTestDirectory(), testDir).getPath(),
+                        resolveTestDirectory().toPath().resolve(testDir).toString(),
                         testFiles,
                         classpathExtra,
                         checkerNames,

@@ -85,7 +85,7 @@ public class TestUtilities {
      * @return found files
      */
     public static List<File> findNestedJavaTestFiles(String... dirNames) {
-        return findRelativeNestedJavaFiles(new File("tests"), dirNames);
+        return findRelativeNestedJavaFiles(Paths.get("tests").toFile(), dirNames);
     }
 
     /**
@@ -96,7 +96,7 @@ public class TestUtilities {
      * @return found files
      */
     public static List<File> findRelativeNestedJavaFiles(String parent, String... dirNames) {
-        return findRelativeNestedJavaFiles(new File(parent), dirNames);
+        return findRelativeNestedJavaFiles(Paths.get(parent).toFile(), dirNames);
     }
 
     /**
@@ -111,7 +111,7 @@ public class TestUtilities {
 
         int i = 0;
         for (String dirName : dirNames) {
-            dirs[i] = new File(parent, dirName);
+            dirs[i] = parent.toPath().resolve(dirName).toFile();
             ++i;
         }
 
@@ -140,7 +140,7 @@ public class TestUtilities {
         List<List<File>> filesPerDirectory = new ArrayList<>();
 
         for (String dirName : dirNames) {
-            File dir = new File(parent, dirName).toPath().toAbsolutePath().normalize().toFile();
+            File dir = parent.toPath().resolve(dirName).toAbsolutePath().normalize().toFile();
             if (dir.isDirectory()) {
                 filesPerDirectory.addAll(findJavaTestFilesInDirectory(dir));
             } else {
@@ -168,8 +168,8 @@ public class TestUtilities {
                             throw new BugInCF("test directory does not exist: %s", dir);
                         }
                         p =
-                                new File(parent, allSystemPath.replace("/", File.separator))
-                                        .toPath()
+                                parent.toPath()
+                                        .resolve(allSystemPath.replace("/", File.separator))
                                         .toAbsolutePath()
                                         .normalize()
                                         .toFile();
@@ -206,7 +206,7 @@ public class TestUtilities {
         }
         Arrays.sort(dirContents);
         for (String fileName : dirContents) {
-            File file = new File(dir, fileName);
+            File file = dir.toPath().resolve(fileName).toFile();
             if (file.isDirectory()) {
                 fileGroupedByDirectory.addAll(findJavaTestFilesInDirectory(file));
             } else if (isJavaTestFile(file)) {
@@ -228,7 +228,7 @@ public class TestUtilities {
      */
     public static List<Object[]> findFilesInParent(File parent, String... fileNames) {
         return CollectionsPlume.mapList(
-                (String fileName) -> new Object[] {new File(parent, fileName)}, fileNames);
+                (String fileName) -> new Object[] {parent.toPath().resolve(fileName)}, fileNames);
     }
 
     /**
@@ -385,12 +385,13 @@ public class TestUtilities {
     }
 
     public static File getTestFile(String fileRelativeToTestsDir) {
-        return new File("tests", fileRelativeToTestsDir);
+        return Paths.get("tests", fileRelativeToTestsDir).toFile();
     }
 
     public static File findComparisonFile(File testFile) {
         File comparisonFile =
-                new File(testFile.getParent(), testFile.getName().replace(".java", ".out"));
+                Paths.get(testFile.getParent(), testFile.getName().replace(".java", ".out"))
+                        .toFile();
         return comparisonFile;
     }
 
