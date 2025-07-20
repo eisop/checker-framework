@@ -2191,7 +2191,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
                     AnnotationMirror poly = qualHierarchy.getPolymorphicAnnotation(top);
                     for (AnnotatedTypeMirror typearg : rcrTypeArgs) {
-                        if (typearg.hasEffectiveAnnotation(poly)) {
+                        if (poly != null && typearg.hasAnnotation(poly)) {
                             outerLoopBroken = true;
                             break outerloop;
                         }
