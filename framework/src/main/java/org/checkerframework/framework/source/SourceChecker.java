@@ -1191,7 +1191,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         showPrefixInWarningMessages = hasOption("showPrefixInWarningMessages");
         warnUnneededSuppressions = hasOption("warnUnneededSuppressions");
         useConservativeDefaultsSource = useConservativeDefault("source");
-        issueErrorsForOnlyAnnotatedForScope = hasOption("onlyAnnotatedFor");
+        onlyAnnotatedFor = hasOption("onlyAnnotatedFor");
     }
 
     /** Output the warning about source level at most once. */
@@ -2810,7 +2810,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             }
         }
 
-        if (useConservativeDefaultsSource || issueErrorsForOnlyAnnotatedForScope) {
+        if (useConservativeDefaultsSource || onlyAnnotatedFor) {
             // If we got this far without hitting an @AnnotatedFor and returning
             // false, we DO suppress the warning.
             return true;
@@ -3021,8 +3021,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         // in that case.
         // TODO: Refactor SourceChecker and QualifierDefaults to use a cache for determining if an
         // element is annotated for.
-        if (elt == null
-                || (!useConservativeDefaultsSource && !issueErrorsForOnlyAnnotatedForScope)) {
+        if (elt == null || (!useConservativeDefaultsSource && !onlyAnnotatedFor)) {
             return false;
         }
 
