@@ -1,7 +1,7 @@
 /*
  * @test
  *
- * @summary Test for command-line option -AonlyAnnotatedFor suppresses warnings for code is not annotated for the corresponding checker.
+ * @summary Test that command-line option -AonlyAnnotatedFor suppresses warnings for code that is not annotated for the corresponding checker.
  * @compile/fail/ref=NotAnnotatedForNoError.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -AonlyAnnotatedFor NotAnnotatedForNoError.java
  *
  */

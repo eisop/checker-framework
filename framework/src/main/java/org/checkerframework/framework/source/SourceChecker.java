@@ -143,15 +143,16 @@ import javax.tools.Diagnostic;
 
     // Suppress all errors and warnings for code outside the scope of @AnnotatedFor annotation.
     // Note that the `@AnnotatedFor` annotation must include the checker's name to enable warnings
-    // from the checker.
-    // For example, `@AnnotatedFor("nullness")` for the Nullness Checker.
+    // from that checker.
+    // For example, use `@AnnotatedFor("nullness")` for the Nullness Checker.
     // This flag only suppresses warnings compared to
     // `-AuseConservativeDefaultsForUncheckedCode=source`, which also applies conservative defaults
-    // for code outside the scope of @AnnotatedFor annotation.
-    // NullAway has a similar flag `-XepOpt:NullAway:OnlyNullMarked=true` configures NullAway to
-    // only issue errors for code inside the scope of @NullMarked annotation.
+    // for code outside the scope of an `@AnnotatedFor` annotation.
+    // NullAway has a similar flag: `-XepOpt:NullAway:OnlyNullMarked=true` configures NullAway to
+    // only issue errors for code inside the scope of `@NullMarked` annotations.
     // See
     // https://github.com/uber/NullAway/wiki/Configuration#only-nullmarked-version-0123-and-after.
+    // org.checkerframework.framework.source.SourceChecker.isAnnotatedForThisCheckerOrUpstreamChecker
     "onlyAnnotatedFor",
 
     // Unsoundly assume all methods have no side effects, are deterministic, or both.
@@ -210,10 +211,10 @@ import javax.tools.Diagnostic;
     // applied to code in the scope of an @AnnotatedFor.
     // See the "Compiling partially-annotated libraries" and
     // "Default qualifiers for \<.class> files (conservative library defaults)"
-    // sections in the manual for more details
-    // org.checkerframework.framework.source.SourceChecker.useConservativeDefault
+    // sections in the manual for more details.
     // -AonlyAnnotatedFor suppresses warnings for code outside the scope of @AnnotatedFor,
     // but does not change the default qualifier for source code.
+    // org.checkerframework.framework.source.SourceChecker.useConservativeDefault
     "useConservativeDefaultsForUncheckedCode",
 
     // Whether to assume sound concurrent semantics or
@@ -692,7 +693,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     private boolean warnUnneededSuppressions;
 
     /** True if the -AonlyAnnotatedFor command-line argument was passed. */
-    private boolean issueErrorsForOnlyAnnotatedForScope;
+    private boolean onlyAnnotatedFor;
 
     /**
      * True if the -AuseConservativeDefaultsForUncheckedCode=source command-line argument was

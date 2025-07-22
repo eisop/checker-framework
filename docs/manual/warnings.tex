@@ -695,12 +695,12 @@ one of which has a name that corresponds to the file name.
 \sectionAndLabel{\code{-AonlyAnnotatedFor} command-line option}{aonlyAnnotatedFor}
 
 You can suppress all errors and warnings for code outside of \code{@AnnotatedFor} by applying this command-line option.
-Note that the \code{@AnnotatedFor} annotation must include the checker's name to enable warnings from the checker.
-For example, \code{@AnnotatedFor("nullness")} for the Nullness Checker.
+Note that the \code{@AnnotatedFor} annotation must include the checker's name to enable warnings from that checker.
+For example, use \code{@AnnotatedFor("nullness")} for the Nullness Checker.
 This flag only suppresses warnings compared to \code{-AuseConservativeDefaultsForUncheckedCode=source},
-which also applies conservative defaults for code outside the scope of \code{@AnnotatedFor} annotation.
-\href{https://github.com/uber/NullAway}{NullAway} has a similar flag \code{-XepOpt:NullAway:OnlyNullMarked=true}
-configures NullAway to only issue errors for code inside the scope of \code{@NullMarked} annotation.
+which also applies conservative defaults for code outside the scope of an \code{@AnnotatedFor} annotation.
+\href{https://github.com/uber/NullAway}{NullAway} has a similar flag: \code{-XepOpt:NullAway:OnlyNullMarked=true}
+configures NullAway to only issue errors for code inside the scope of \code{@NullMarked} annotations.
 
 \sectionAndLabel{\code{-Alint} command-line option\label{lint-options}}{alint}
 
