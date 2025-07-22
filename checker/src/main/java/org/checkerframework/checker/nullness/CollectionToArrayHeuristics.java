@@ -1,10 +1,14 @@
 package org.checkerframework.checker.nullness;
 
 import com.sun.source.tree.ExpressionTree;
+import com.sun.source.tree.IdentifierTree;
+import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.VariableTree;
+import com.sun.source.util.TreePath;
 
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.value.qual.ArrayLen;
@@ -18,12 +22,15 @@ import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.Collection;
+import java.util.EnumSet;
 import java.util.List;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 
@@ -140,30 +147,58 @@ public class CollectionToArrayHeuristics {
      * @param receiver the expression for the receiver collection
      * @return true if the argument is handled and assume to return nonnull elements
      */
-    private boolean isHandledArrayCreation(Tree argument, String receiver) {
-        if (!(argument instanceof NewArrayTree)) {
+    private boolean isHandledArrayCreation(ExpressionTree argument, String receiver) {
+        final NewArrayTree newArr;
+
+        if (argument instanceof NewArrayTree) {
+            newArr = (NewArrayTree) argument;
+        } else if ((argument instanceof IdentifierTree) || (argument instanceof MemberSelectTree)) {
+            Element el = TreeUtils.elementFromUse(argument);
+            if (el == null || !el.getKind().isField()) {
+                return false;
+            }
+            VariableElement var = (VariableElement) el;
+            if (!(var.getModifiers().containsAll(EnumSet.of(Modifier.PRIVATE, Modifier.FINAL))
+                    && ElementUtils.getType(var).getKind() == TypeKind.ARRAY)) {
+                return false;
+            }
+            Tree declTree = atypeFactory.declarationFromElement(var);
+            if (declTree == null) {
+                return false;
+            }
+            TreePath path = atypeFactory.getPath(declTree);
+            Tree leaf = path.getLeaf();
+            if (!(leaf instanceof VariableTree)) {
+                return false;
+            }
+            VariableTree vt = (VariableTree) leaf;
+            ExpressionTree init = vt.getInitializer();
+            if (!(init instanceof NewArrayTree)) {
+                return false;
+            }
+            newArr = (NewArrayTree) init;
+        } else {
             return false;
         }
-        NewArrayTree newArr = (NewArrayTree) argument;
 
         // empty array initializer
         if (newArr.getInitializers() != null) {
             return newArr.getInitializers().isEmpty();
         }
 
-        assert !newArr.getDimensions().isEmpty();
-        Tree dimension = newArr.getDimensions().get(newArr.getDimensions().size() - 1);
+        if (newArr.getDimensions().isEmpty()) {
+            return false;
+        }
 
-        // 0-length array creation
-        if (dimension.toString().equals("0")) {
+        ExpressionTree dimension = newArr.getDimensions().get(newArr.getDimensions().size() - 1);
+        if (isLiteralZero(dimension)) {
             return true;
         }
 
         // size()-length array creation
         if (TreeUtils.isMethodInvocation(dimension, size, processingEnv)) {
             MethodInvocationTree invok = (MethodInvocationTree) dimension;
-            String invokReceiver = receiverName(invok.getMethodSelect());
-            return invokReceiver.equals(receiver);
+            return receiverName(invok.getMethodSelect()).equals(receiver);
         }
 
         return false;
@@ -194,6 +229,21 @@ public class CollectionToArrayHeuristics {
                     }
                 }
             }
+        }
+        return false;
+    }
+
+    /**
+     * Returns {@code true} when the supplied tree represents the integer literal {@code 0}.
+     *
+     * @param tree the expression to examine
+     * @return {@code true} if {@code tree} is a {@link com.sun.source.tree.LiteralTree} containing
+     *     integer {@code 0}
+     */
+    private static boolean isLiteralZero(ExpressionTree tree) {
+        if (tree instanceof LiteralTree) {
+            Object v = ((LiteralTree) tree).getValue();
+            return v instanceof Integer && ((Integer) v) == 0;
         }
         return false;
     }
