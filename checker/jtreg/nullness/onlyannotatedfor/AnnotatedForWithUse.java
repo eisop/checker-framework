@@ -1,7 +1,7 @@
 /*
  * @test
  *
- * @summary Test that command-line option -AonlyAnnotatedFor suppresses warnings for code that is not annotated for the corresponding checker.
+ * @summary Test that difference default applies to unannotated code.
  * @compile/fail/ref=OnlyAnnotatedForWithUse.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -AonlyAnnotatedFor AnnotatedForWithUse.java
  * @compile/fail/ref=ConservativeDefaultWithUse.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -AuseConservativeDefaultsForUncheckedCode=source AnnotatedForWithUse.java
  */
