@@ -125,7 +125,7 @@ public class TypeVariableSubstitutor {
      */
     private final List<TypeMirror> typeMirrors;
 
-    /** Whether or not a copy of type argument should be substituted. */
+    /** True if a copy of type argument should be substituted. */
     private final boolean copyArgument;
 
     /**

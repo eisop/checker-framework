@@ -449,7 +449,7 @@ public class AnnotatedTypes {
    * @param receiver type of the receiver of the call
    * @param method the element of a method or constructor
    * @param types type utilities
-   * @return whether the call to {@code method} with {@code receiver} raw
+   * @return true if the call to {@code method} with {@code receiver} raw
    */
   private static boolean isRawCall(AnnotatedDeclaredType receiver, Element method, Types types) {
     // Section 4.8, "Raw Types".
@@ -715,7 +715,7 @@ public class AnnotatedTypes {
    * @param elt the element corresponding to the tree
    * @param preType the (partially annotated) type corresponding to the tree - the result of
    *     AnnotatedTypes.asMemberOf with the receiver and elt
-   * @param inferTypeArgs whether the type argument should be inferred
+   * @param inferTypeArgs true if the type argument should be inferred
    * @return the mapping of type variables to type arguments for this method or constructor
    *     invocation, and whether unchecked conversion was required to infer the type arguments, and
    *     whether type argument inference needs a defaulted return type
@@ -805,7 +805,7 @@ public class AnnotatedTypes {
     /** A mapping from {@link TypeVariable} to its annotated type argument. */
     public final Map<TypeVariable, AnnotatedTypeMirror> typeArguments;
 
-    /** Whether unchecked conversion was needed for inference. */
+    /** True if unchecked conversion was needed for inference. */
     public final boolean uncheckedConversion;
 
     /** Whether type argument inference needs a defaulted return type. */
@@ -1237,7 +1237,7 @@ public class AnnotatedTypes {
    *
    * @param type the type to search
    * @param modifier the modifier to search for
-   * @return whether the type contains the modifier
+   * @return true if the type contains the modifier
    */
   public static boolean containsModifier(AnnotatedTypeMirror type, AnnotationMirror modifier) {
     return containsModifierImpl(type, modifier, Collections.newSetFromMap(new IdentityHashMap<>()));
@@ -1438,9 +1438,9 @@ public class AnnotatedTypes {
    * it finds a concrete type from which it can pull an annotation.
    *
    * @param top the top of the hierarchy for which you are searching
-   * @param canBeEmpty whether or not the effective type can have NO annotation in the hierarchy
-   *     specified by top. If this param is false, an exception will be thrown if no annotation is
-   *     found. Otherwise the result is null.
+   * @param canBeEmpty true if the effective type can have NO annotation in the hierarchy specified
+   *     by top. If this param is false, an exception will be thrown if no annotation is found.
+   *     Otherwise the result is null.
    * @return the AnnotationMirror that represents the type of {@code toSearch} in the hierarchy of
    *     {@code top}
    */
@@ -1784,12 +1784,12 @@ public class AnnotatedTypes {
   }
 
   /**
-   * Returns whether {@code type} is a type argument to a type whose {@code #underlyingType} is raw.
+   * Returns true if {@code type} is a type argument to a type whose {@code #underlyingType} is raw.
    * The Checker Framework gives raw types wildcard type arguments so that the annotated type can be
    * used as if the annotated type was not raw.
    *
    * @param type an annotated type
-   * @return whether this is a type argument to a type whose {@code #underlyingType} is raw
+   * @return true if this is a type argument to a type whose {@code #underlyingType} is raw
    */
   public static boolean isTypeArgOfRawType(AnnotatedTypeMirror type) {
     return type.getKind() == TypeKind.WILDCARD

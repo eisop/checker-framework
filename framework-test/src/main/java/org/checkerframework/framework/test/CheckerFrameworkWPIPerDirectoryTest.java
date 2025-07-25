@@ -98,11 +98,11 @@ public abstract class CheckerFrameworkWPIPerDirectoryTest extends CheckerFramewo
   }
 
   /**
-   * Whether {@code file} contains {@code skipComment}.
+   * Returns true if {@code file} contains {@code skipComment}.
    *
    * @param file a java test file
    * @param skipComment a comment that indicates that a test should be skipped
-   * @return whether {@code file} contains {@code skipComment}
+   * @return true if {@code file} contains {@code skipComment}
    */
   public static boolean hasSkipComment(File file, String skipComment) {
     try (BufferedReader br = Files.newBufferedReader(file.toPath(), StandardCharsets.UTF_8)) {

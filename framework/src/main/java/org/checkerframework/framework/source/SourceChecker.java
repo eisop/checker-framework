@@ -3659,7 +3659,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
    * by the command line arguments.
    *
    * @param kindOfCode source or bytecode
-   * @return whether conservative defaults should be used
+   * @return true if conservative defaults should be used
    */
   public boolean useConservativeDefault(String kindOfCode) {
     return useUncheckedDefault("useConservativeDefaultsForUncheckedCode", kindOfCode);
@@ -4139,7 +4139,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
   }
 
   /**
-   * Tests whether the class owner of the passed type matches the pattern specified in the {@code
+   * Returns true if the class owner of the passed type matches the pattern specified in the {@code
    * checker.skipUses} property. In contrast to {@link #shouldSkipUses(Element)} this version can
    * also be used from primitive types, which don't have an element.
    *
@@ -4173,7 +4173,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
   }
 
   /**
-   * Tests whether the class definition should not be checked because it matches the {@code
+   * Returns true if the class definition should not be checked because it matches the {@code
    * checker.skipDefs} property.
    *
    * @param tree class to potentially skip
@@ -4200,7 +4200,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
   }
 
   /**
-   * Tests whether the method definition should not be checked because it matches the {@code
+   * Returns true if the method definition should not be checked because it matches the {@code
    * checker.skipDefs} property.
    *
    * @param tree method to potentially skip
@@ -4211,7 +4211,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
   }
 
   /**
-   * Tests whether the method definition should not be checked because it matches the {@code
+   * Returns true if the method definition should not be checked because it matches the {@code
    * checker.skipDefs} property.
    *
    * @param cls class to potentially skip
@@ -4227,7 +4227,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
   //
 
   /**
-   * Tests whether the enclosing file path of the passed tree matches the pattern specified in the
+   * Returns true if the enclosing file path of the passed tree matches the pattern specified in the
    * {@code checker.skipFiles} property.
    *
    * @param tree a tree
@@ -4246,8 +4246,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
   }
 
   /**
-   * Tests whether the file at the file path should be not be checked because it matches the {@code
-   * checker.skipFiles} property.
+   * Returns true if the file at the file path should be not be checked because it matches the
+   * {@code checker.skipFiles} property.
    *
    * @param path the path to the file to potentially skip
    * @return true iff the checker should not check the file at {@code path}

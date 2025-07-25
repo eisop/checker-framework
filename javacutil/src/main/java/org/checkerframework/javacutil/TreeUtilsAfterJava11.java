@@ -384,7 +384,7 @@ public class TreeUtilsAfterJava11 {
     }
 
     /**
-     * Returns whether {@code tree} is a {@code PatternCaseLabelTree}.
+     * Returns true if {@code tree} is a {@code PatternCaseLabelTree}.
      *
      * @param tree a tree to check
      * @return true if {@code tree} is a {@code PatternCaseLabelTree}

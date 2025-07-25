@@ -368,7 +368,7 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
   }
 
   /**
-   * Returns whether a javac statement represents a method call {@code super()}.
+   * Returns true if a javac statement represents a method call {@code super()}.
    *
    * @param statement the javac statement to check
    * @return true if statement is a method invocation named "super" with no arguments, false
@@ -397,7 +397,7 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
   }
 
   /**
-   * Returns whether a JavaParser statement represents a method call {@code super()}.
+   * Returns true if a JavaParser statement represents a method call {@code super()}.
    *
    * @param statement the JavaParser statement to check
    * @return true if statement is an explicit super constructor invocation with no arguments
@@ -646,7 +646,7 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
   }
 
   /**
-   * Returns whether {@code member} is a javac constructor declaration that takes no arguments.
+   * Returns true if {@code member} is a javac constructor declaration that takes no arguments.
    *
    * @param member the javac tree to check
    * @return true if {@code member} is a method declaration with name {@code <init>} that takes no
@@ -662,7 +662,7 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
   }
 
   /**
-   * Returns whether {@code member} is a JavaParser constructor declaration that takes no arguments.
+   * Returns true if {@code member} is a JavaParser constructor declaration that takes no arguments.
    *
    * @param member the JavaParser body declaration to check
    * @return true if {@code member} is a constructor declaration that takes no arguments

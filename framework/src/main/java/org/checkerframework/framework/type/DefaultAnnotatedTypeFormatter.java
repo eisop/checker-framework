@@ -52,8 +52,8 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
   /**
    * @param printVerboseGenerics for type parameters, their uses, and wildcards, print more
    *     information
-   * @param defaultPrintInvisibleAnnos whether or not this AnnotatedTypeFormatter should print
-   *     invisible annotations
+   * @param defaultPrintInvisibleAnnos true if this AnnotatedTypeFormatter should print invisible
+   *     annotations
    */
   public DefaultAnnotatedTypeFormatter(
       boolean printVerboseGenerics, boolean defaultPrintInvisibleAnnos) {
@@ -64,8 +64,8 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
    * @param formatter an object that converts annotation mirrors to strings
    * @param printVerboseGenerics for type parameters, their uses, and wildcards, print more
    *     information
-   * @param defaultPrintInvisibleAnnos whether or not this AnnotatedTypeFormatter should print
-   *     invisible annotations
+   * @param defaultPrintInvisibleAnnos true if this AnnotatedTypeFormatter should print invisible
+   *     annotations
    */
   public DefaultAnnotatedTypeFormatter(
       AnnotationFormatter formatter,
@@ -132,8 +132,8 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
     protected final AnnotationFormatter annoFormatter;
 
     /**
-     * Represents whether or not invisible annotations should be printed if the client of this class
-     * does not use the printInvisibleAnnos parameter.
+     * True if invisible annotations should be printed if the client of this class does not use the
+     * printInvisibleAnnos parameter.
      */
     protected final boolean defaultInvisiblesSetting;
 
@@ -153,15 +153,15 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
      */
     protected boolean currentPrintVerboseGenerics;
 
-    /** Whether the visitor is currently printing a raw type. */
+    /** True if the visitor is currently printing a raw type. */
     protected boolean currentlyPrintingRaw;
 
     /**
      * Creates the visitor.
      *
      * @param annoFormatter formatter used for {@code AnnotationMirror}s
-     * @param printVerboseGenerics whether to verbosely print type variables and wildcards
-     * @param defaultInvisiblesSetting whether to print invisible qualifiers
+     * @param printVerboseGenerics if true, verbosely print type variables and wildcards
+     * @param defaultInvisiblesSetting if true, print invisible qualifiers
      */
     public FormattingVisitor(
         AnnotationFormatter annoFormatter,

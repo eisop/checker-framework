@@ -93,7 +93,7 @@ public class VariableBounds {
   /** Constraints implied by complementary pairs of bounds found during incorporation. */
   public final ConstraintSet constraints = new ConstraintSet();
 
-  /** Whether this variable has a throws bounds. */
+  /** True if this variable has a throws bounds. */
   public boolean hasThrowsBound = false;
 
   /** Saved bounds used in the event the first attempt at resolution fails. */
@@ -459,9 +459,9 @@ public class VariableBounds {
   }
 
   /**
-   * Returns whether this variable only has bounds against proper types.
+   * Returns true if this variable only has bounds against proper types.
    *
-   * @return whether this variable only has bounds against proper types
+   * @return true if this variable only has bounds against proper types
    */
   public boolean onlyProperBounds() {
     for (BoundKind k : BoundKind.values()) {
@@ -522,7 +522,7 @@ public class VariableBounds {
   /**
    * Apply instantiations to all bounds and constraints of this variable.
    *
-   * @return whether any of the bounds changed
+   * @return true if any of the bounds changed
    */
   public boolean applyInstantiationsToBounds() {
     // Incorporation worklist: a clean variable's bounds and constraints cannot have changed
@@ -728,7 +728,7 @@ public class VariableBounds {
    * where S1 and S2 have supertypes that are two different parameterizations of the same generic
    * class or interface?
    *
-   * @return whether this bound set contain two bounds of the forms {@code S1 <: var} and {@code S2
+   * @return true if this bound set contain two bounds of the forms {@code S1 <: var} and {@code S2
    *     <: var}, where S1 and S2 have supertypes that are two different parameterizations of the
    *     same generic class or interface
    */

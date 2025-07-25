@@ -476,7 +476,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
    *
    * @param expr an expression
    * @param newAnno the expression's annotation
-   * @param permitNondeterministic whether nondeterministic expressions may be inserted into the
+   * @param permitNondeterministic true if nondeterministic expressions may be inserted into the
    *     store
    */
   protected void insertOrRefine(
