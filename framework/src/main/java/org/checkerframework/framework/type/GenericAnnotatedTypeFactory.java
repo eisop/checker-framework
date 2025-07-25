@@ -1358,7 +1358,7 @@ public abstract class GenericAnnotatedTypeFactory<
   }
 
   /**
-   * Return the first {@link Node} for a given {@link Tree} that has class {@code kind}.
+   * Returns the first {@link Node} for a given {@link Tree} that has class {@code kind}.
    *
    * <p>You probably don't want to use this function: iterate over the result of {@link
    * #getNodesForTree(Tree)} yourself or ask for a conservative approximation of the store using
@@ -2956,7 +2956,8 @@ public abstract class GenericAnnotatedTypeFactory<
   }
 
   /**
-   * Return the type of the default value of the given type. The default value is 0, false, or null.
+   * Returns the type of the default value of the given type. The default value is 0, false, or
+   * null.
    *
    * @param typeMirror a type
    * @return the annotated type of {@code type}'s default value
@@ -3355,9 +3356,9 @@ public abstract class GenericAnnotatedTypeFactory<
   }
 
   /**
-   * Get the shared control flow graph used for {@code tree} by this checker's topmost superchecker.
-   * Returns null if no information is available about the given tree, or if this checker has a
-   * parent checker that does not have a GenericAnnotatedTypeFactory.
+   * Returns the shared control flow graph used for {@code tree} by this checker's topmost
+   * superchecker. Returns null if no information is available about the given tree, or if this
+   * checker has a parent checker that does not have a GenericAnnotatedTypeFactory.
    *
    * <p>Calls to this method should be guarded by checking {@link #hasOrIsSubchecker}; it is
    * nonsensical to have a shared CFG when a checker is running alone.

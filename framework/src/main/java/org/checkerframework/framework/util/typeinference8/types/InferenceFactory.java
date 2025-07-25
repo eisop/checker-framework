@@ -81,7 +81,7 @@ public class InferenceFactory {
   private final Java8InferenceContext context;
 
   /**
-   * Creates an inference factory
+   * Creates an inference factory.
    *
    * @param context the context
    */
@@ -245,7 +245,7 @@ public class InferenceFactory {
   }
 
   /**
-   * Return the rhs of the assignment of an argument and its formal parameter.
+   * Returns the rhs of the assignment of an argument and its formal parameter.
    *
    * @param path path to the argument
    * @param invocation a method or constructor invocation
@@ -279,7 +279,7 @@ public class InferenceFactory {
   }
 
   /**
-   * Return the rhs of the assignment of an argument and its formal parameter.
+   * Returns the rhs of the assignment of an argument and its formal parameter.
    *
    * @param path path to the argument
    * @param invocation a method or constructor invocation
@@ -374,7 +374,7 @@ public class InferenceFactory {
   }
 
   /**
-   * Return ExecutableType of the method invocation or new class tree adapted to the call site.
+   * Returns ExecutableType of the method invocation or new class tree adapted to the call site.
    *
    * @param expressionTree a method invocation or new class tree
    * @param context the context
@@ -993,7 +993,7 @@ public class InferenceFactory {
   }
 
   /**
-   * Return the proper type for object.
+   * Returns the proper type for object.
    *
    * @return the proper type for object
    */
@@ -1007,7 +1007,7 @@ public class InferenceFactory {
   }
 
   /**
-   * Return the least upper bounds of {@code properTypes}.
+   * Returns the least upper bounds of {@code properTypes}.
    *
    * @param properTypes types to lub
    * @return the least upper bounds of {@code properTypes}
@@ -1105,7 +1105,7 @@ public class InferenceFactory {
   }
 
   /**
-   * Return the proper type for RuntimeException.
+   * Returns the proper type for RuntimeException.
    *
    * @return the proper type for RuntimeException
    */

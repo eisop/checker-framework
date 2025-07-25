@@ -125,7 +125,7 @@ public class Java8InferenceContext {
   private int incorporationWork = 0;
 
   /**
-   * Creates a context
+   * Creates a context.
    *
    * @param factory type factory
    * @param pathToExpression path to the expression whose type arguments are inferred
@@ -231,8 +231,8 @@ public class Java8InferenceContext {
   }
 
   /**
-   * Return the next number to use as the id for a capture variable. This id is only unique for this
-   * inference problem.
+   * Returns the next number to use as the id for a capture variable. This id is only unique for
+   * this inference problem.
    *
    * @return the next number to use as the id for a capture variable
    */

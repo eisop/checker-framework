@@ -27,7 +27,7 @@ public class Qualifier extends AbstractQualifier {
   }
 
   /**
-   * Returns the annotation
+   * Returns the annotation.
    *
    * @return the annotation
    */

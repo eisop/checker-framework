@@ -493,7 +493,7 @@ public class DefaultReflectionResolver implements ReflectionResolver {
   }
 
   /**
-   * Get set of MethodSymbols based on class name, method name, and parameter length.
+   * Returns set of MethodSymbols based on class name, method name, and parameter length.
    *
    * @param className the class that contains the method
    * @param methodName the method's name
@@ -543,7 +543,7 @@ public class DefaultReflectionResolver implements ReflectionResolver {
   }
 
   /**
-   * Get set of Symbols for constructors based on class name and parameter length.
+   * Returns set of Symbols for constructors based on class name and parameter length.
    *
    * @return the (potentially empty) set of corresponding constructor Symbol(s)
    */

@@ -575,7 +575,7 @@ public class ElementUtils {
    * @param names simple names of fields that might be declared in {@code type} or a supertype.
    *     Names that are found are removed from this list.
    * @return the {@code VariableElement}s for non-private fields that are declared in {@code type}
-   *     whose simple names were in {@code names} when the method was called.
+   *     whose simple names were in {@code names} when the method was called
    */
   public static Set<VariableElement> findFieldsInTypeOrSuperType(
       TypeMirror type, Collection<String> names) {
@@ -764,7 +764,7 @@ public class ElementUtils {
   }
 
   /**
-   * Return all fields declared in the given type or any superclass/interface.
+   * Returns all fields declared in the given type or any superclass/interface.
    *
    * <p>TODO: should this use javax.lang.model.util.Elements.getAllMembers(TypeElement) instead of
    * our own getSuperTypes?
@@ -801,7 +801,7 @@ public class ElementUtils {
   }
 
   /**
-   * Return all methods declared in the given type or any superclass/interface. Note that no
+   * Returns all methods declared in the given type or any superclass/interface. Note that no
    * constructors will be returned.
    *
    * <p>TODO: should this use javax.lang.model.util.Elements.getAllMembers(TypeElement) instead of
@@ -823,7 +823,7 @@ public class ElementUtils {
   }
 
   /**
-   * Return all nested/inner classes/interfaces declared in the given type.
+   * Returns all nested/inner classes/interfaces declared in the given type.
    *
    * @param type a type
    * @return all nested/inner classes/interfaces declared in {@code type}
@@ -845,7 +845,7 @@ public class ElementUtils {
   }
 
   /**
-   * Return the set of kinds that represent classes.
+   * Returns the set of kinds that represent classes.
    *
    * @return the set of kinds that represent classes
    */
@@ -938,7 +938,7 @@ public class ElementUtils {
           ElementKind.EXCEPTION_PARAMETER);
 
   /**
-   * Return true if the element is a local variable.
+   * Returns true if the element is a local variable.
    *
    * @param elt the element to test
    * @return true if the argument is a local variable
@@ -948,7 +948,7 @@ public class ElementUtils {
   }
 
   /**
-   * Return true if the element is a binding variable.
+   * Returns true if the element is a binding variable.
    *
    * <p>This implementation compiles and runs under JDK 8 and 11 as well as versions that contain
    * {@code ElementKind.BINDING_VARIABLE}.
@@ -1098,7 +1098,7 @@ public class ElementUtils {
   }
 
   /**
-   * Get all the supertypes of a given type, including the type itself. The result includes both
+   * Returns all the supertypes of a given type, including the type itself. The result includes both
    * superclasses and implemented interfaces.
    *
    * @param type a type

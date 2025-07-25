@@ -157,7 +157,7 @@ public abstract class BaseTypeChecker extends SourceChecker {
   }
 
   /**
-   * Return the type factory associated with this checker.
+   * Returns the type factory associated with this checker.
    *
    * @return the type factory associated with this checker
    */

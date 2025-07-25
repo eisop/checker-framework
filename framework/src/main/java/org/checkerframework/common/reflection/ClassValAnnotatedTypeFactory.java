@@ -285,7 +285,7 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     /**
-     * Return true if this is an invocation of a method annotated with @ForName. An example of such
+     * Returns true if this is an invocation of a method annotated with @ForName. An example of such
      * a method is {@link Class#forName}.
      *
      * @param tree a method invocation
@@ -296,8 +296,8 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     /**
-     * Return true if this is an invocation of a method annotated with @GetClass. An example of such
-     * a method is {@link Object#getClass}.
+     * Returns true if this is an invocation of a method annotated with @GetClass. An example of
+     * such a method is {@link Object#getClass}.
      *
      * @param tree a method invocation
      * @return true if this is an invocation of a method annotated with @GetClass

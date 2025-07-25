@@ -113,7 +113,7 @@ public abstract class QualifierHierarchy {
   public abstract AnnotationMirrorSet getBottomAnnotations();
 
   /**
-   * Return the bottom for the given qualifier, that is, the qualifier that is a subtype of {@code
+   * Returns the bottom for the given qualifier, that is, the qualifier that is a subtype of {@code
    * qualifier} but no further subtypes exist.
    *
    * @param qualifier any qualifier from one of the qualifier hierarchies represented by this

@@ -159,7 +159,7 @@ public class DefaultQualifierForUseTypeAnnotator extends TypeAnnotator {
   }
 
   /**
-   * Return the annotations explicitly written on the element.
+   * Returns the annotations explicitly written on the element.
    *
    * @param element an element
    * @return the annotations explicitly written on the element
@@ -172,7 +172,7 @@ public class DefaultQualifierForUseTypeAnnotator extends TypeAnnotator {
   }
 
   /**
-   * Return the default qualifiers for uses of {@code element} as specified by a {@link
+   * Returns the default qualifiers for uses of {@code element} as specified by a {@link
    * DefaultQualifierForUse} annotation.
    *
    * <p>Subclasses may override to use an annotation other than {@link DefaultQualifierForUse}.

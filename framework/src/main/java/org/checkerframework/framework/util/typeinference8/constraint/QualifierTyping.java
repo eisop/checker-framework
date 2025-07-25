@@ -93,7 +93,7 @@ public class QualifierTyping implements Constraint {
   }
 
   /**
-   * Reduce this constraint
+   * Reduce this constraint.
    *
    * @param context the context
    * @return the result of reducing this constraint
@@ -123,7 +123,7 @@ public class QualifierTyping implements Constraint {
   }
 
   /**
-   * Reduce this constraint
+   * Reduce this constraint.
    *
    * @param context the context
    * @return the result of reducing this constraint

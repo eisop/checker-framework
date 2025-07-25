@@ -621,7 +621,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
   }
 
   /**
-   * Visit a SwitchExpressionTree
+   * Visit a SwitchExpressionTree.
    *
    * @param switchExpressionTree a SwitchExpressionTree, typed as Tree to be backward-compatible
    * @param p parameter
@@ -636,7 +636,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
   }
 
   /**
-   * Visit a BindingPatternTree
+   * Visit a BindingPatternTree.
    *
    * @param bindingPatternTree a BindingPatternTree, typed as Tree to be backward-compatible
    * @param p parameter
@@ -3703,7 +3703,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
   }
 
   /**
-   * Return the first argument if it is non-null, otherwise return the second argument. Throws an
+   * Returns the first argument if it is non-null, otherwise return the second argument. Throws an
    * exception if both arguments are null.
    *
    * @param <A> the type of the arguments

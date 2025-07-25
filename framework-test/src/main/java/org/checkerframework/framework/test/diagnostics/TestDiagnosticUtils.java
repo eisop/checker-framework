@@ -312,7 +312,7 @@ public class TestDiagnosticUtils {
   }
 
   /**
-   * Return true if this line in a Java file indicates an expected diagnostic that might be
+   * Returns true if this line in a Java file indicates an expected diagnostic that might be
    * continued on the next line.
    *
    * @param originalLine the input line
@@ -360,7 +360,7 @@ public class TestDiagnosticUtils {
   }
 
   /**
-   * Return the continuation part. The argument is such that {@link
+   * Returns the continuation part. The argument is such that {@link
    * #isJavaDiagnosticLineContinuation} returns true.
    */
   public static String continuationPart(String originalLine) {

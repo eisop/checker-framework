@@ -1228,7 +1228,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
   }
 
   /**
-   * Return {@link QualifierUpperBounds} for this type factory.
+   * Returns {@link QualifierUpperBounds} for this type factory.
    *
    * @return {@link QualifierUpperBounds} for this type factory
    */
@@ -1673,7 +1673,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
   }
 
   /**
-   * Return the current {@link AnnotatedTypeFormatter}.
+   * Returns the current {@link AnnotatedTypeFormatter}.
    *
    * @return the current {@link AnnotatedTypeFormatter}
    */
@@ -1691,7 +1691,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
   }
 
   /**
-   * Return the current {@link AnnotationFormatter}.
+   * Returns the current {@link AnnotationFormatter}.
    *
    * @return the current {@link AnnotationFormatter}
    */
@@ -2850,7 +2850,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
   // **********************************************************************
 
   /**
-   * Return the implicit receiver type of an expression tree.
+   * Returns the implicit receiver type of an expression tree.
    *
    * <p>The result is null for expressions that don't have a receiver, e.g. for a local variable or
    * method parameter access. The result is also null for expressions that have an explicit
@@ -3716,27 +3716,27 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
   }
 
   /**
-   * Return the element type of {@code expression}. This is usually the type of {@code
+   * Returns the element type of {@code expression}. This is usually the type of {@code
    * expression.itertor().next()}. If {@code expression} is an array, it is the component type of
    * the array.
    *
    * @param expression an expression whose type is an array or implements {@link Iterable}
    * @return the type of {@code expression.itertor().next()} or if {@code expression} is an array,
-   *     the component type of the array.
+   *     the component type of the array
    */
   public AnnotatedTypeMirror getIterableElementType(ExpressionTree expression) {
     return getIterableElementType(expression, getAnnotatedType(expression));
   }
 
   /**
-   * Return the element type of {@code iterableType}. This is usually the type of {@code
+   * Returns the element type of {@code iterableType}. This is usually the type of {@code
    * expression.itertor().next()}. If {@code expression} is an array, it is the component type of
    * the array.
    *
    * @param expression an expression whose type is an array or implements {@link Iterable}
    * @param iterableType the type of the expression
    * @return the type of {@code expression.itertor().next()} or if {@code expression} is an array,
-   *     the component type of the array.
+   *     the component type of the array
    */
   protected AnnotatedTypeMirror getIterableElementType(
       ExpressionTree expression, AnnotatedTypeMirror iterableType) {
@@ -4152,7 +4152,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
   }
 
   /**
-   * Return a primitive type: either the argument, or the result of unboxing it (which might affect
+   * Returns a primitive type: either the argument, or the result of unboxing it (which might affect
    * its annotations).
    *
    * <p>Subclasses should override {@link #getUnboxedType} rather than this method.
@@ -4297,7 +4297,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
    * @param annos annotations to narrow, from a primitive or boxed primitive
    * @param typeKind primitive type to narrow
    * @param narrowedTypeKind target for the returned annotations; a primitive type that is narrower
-   *     than {@code typeKind} (in the sense of JLS 5.1.3).
+   *     than {@code typeKind} (in the sense of JLS 5.1.3)
    * @return result of converting {@code annos} from {@code typeKind} to {@code narrowedTypeKind}
    */
   public AnnotationMirrorSet getNarrowedAnnotations(
@@ -6034,8 +6034,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
   }
 
   /**
-   * Get the AnnotatedDeclaredType for the FunctionalInterface from assignment context of the method
-   * reference or lambda expression which may be a variable assignment, a method call, or a cast.
+   * Returns the AnnotatedDeclaredType for the FunctionalInterface from assignment context of the
+   * method reference or lambda expression which may be a variable assignment, a method call, or a
+   * cast.
    *
    * <p>The assignment context is not always correct, so we must search up the AST. It will
    * recursively search for lambdas nested in lambdas.
@@ -6302,7 +6303,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
   }
 
   /**
-   * Return true if {@code type} should be captured.
+   * Returns true if {@code type} should be captured.
    *
    * <p>{@code type} should be captured if all of the following are true:
    *
@@ -7571,7 +7572,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
   }
 
   /**
-   * Get the {@code expression} field/element of the given contract annotation.
+   * Returns the {@code expression} field/element of the given contract annotation.
    *
    * @param contractAnno a {@link RequiresQualifier}, {@link EnsuresQualifier}, or {@link
    *     EnsuresQualifier}
@@ -7594,7 +7595,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
   }
 
   /**
-   * Get the {@code value} field/element of the given contract list annotation.
+   * Returns the {@code value} field/element of the given contract list annotation.
    *
    * @param contractListAnno a {@link org.checkerframework.framework.qual.RequiresQualifier.List
    *     RequiresQualifier.List}, {@link org.checkerframework.framework.qual.EnsuresQualifier.List

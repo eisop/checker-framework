@@ -109,7 +109,7 @@ public final class Opt {
   // flatMap would have the same signature and implementation as map
 
   /**
-   * Return primary if it is non-null. If primary is null, return other.
+   * Returns primary if it is non-null. If primary is null, return other.
    *
    * @see java.util.Optional#orElse(Object)
    */
@@ -118,7 +118,7 @@ public final class Opt {
   }
 
   /**
-   * Return {@code primary} if it is non-null. If {@code primary} is null, invoke {@code other} and
+   * Returns {@code primary} if it is non-null. If {@code primary} is null, invoke {@code other} and
    * return the result of that invocation.
    *
    * @see java.util.Optional#orElseGet(Supplier)
@@ -128,7 +128,7 @@ public final class Opt {
   }
 
   /**
-   * Return primary if it is non-null. If primary is null, throw an exception to be created by the
+   * Returns primary if it is non-null. If primary is null, throw an exception to be created by the
    * provided supplier.
    *
    * @see java.util.Optional#orElseThrow(Supplier)

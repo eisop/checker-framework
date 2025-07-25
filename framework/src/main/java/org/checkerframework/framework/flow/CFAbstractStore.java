@@ -695,7 +695,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
   }
 
   /**
-   * Return true if fieldAcc is an update of a monotonic qualifier to its target qualifier.
+   * Returns true if fieldAcc is an update of a monotonic qualifier to its target qualifier.
    * (e.g. @MonotonicNonNull to @NonNull). Always returns false if {@code sequentialSemantics} is
    * true.
    *
@@ -910,7 +910,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
    * where the right hand side has the abstract value {@code val}.
    *
    * @param val the abstract value of the value assigned to {@code n} (or {@code null} if the
-   *     abstract value is not known).
+   *     abstract value is not known)
    */
   protected void updateForFieldAccessAssignment(FieldAccess fieldAccess, @Nullable V val) {
     removeConflicting(fieldAccess, val);
@@ -948,7 +948,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
    * been available previously.
    *
    * @param val the abstract value of the value assigned to {@code n} (or {@code null} if the
-   *     abstract value is not known).
+   *     abstract value is not known)
    */
   protected void updateForLocalVariableAssignment(LocalVariable receiver, @Nullable V val) {
     removeConflicting(receiver);
@@ -978,7 +978,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
    *
    * @param fieldAccess the field access that was modified
    * @param val the abstract value of the value assigned to {@code n} (or {@code null} if the
-   *     abstract value is not known).
+   *     abstract value is not known)
    */
   protected void removeConflicting(FieldAccess fieldAccess, @Nullable V val) {
     List<FieldAccess> fieldsToRemove = new ArrayList<>();
@@ -1040,7 +1040,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
    *
    * @param arrayAccess the array access that was modified
    * @param val the abstract value of the value assigned to {@code n} (or {@code null} if the
-   *     abstract value is not known).
+   *     abstract value is not known)
    */
   protected void removeConflicting(ArrayAccess arrayAccess, @Nullable V val) {
     List<ArrayAccess> arraysToRemove = new ArrayList<>();

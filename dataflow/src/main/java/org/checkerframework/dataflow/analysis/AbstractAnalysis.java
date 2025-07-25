@@ -308,7 +308,7 @@ public abstract class AbstractAnalysis<
   }
 
   /**
-   * Get the set of {@link Node}s for a given {@link Tree}. Returns null for trees that don't
+   * Returns the set of {@link Node}s for a given {@link Tree}. Returns null for trees that don't
    * produce a value.
    *
    * @param t the given tree
@@ -379,7 +379,7 @@ public abstract class AbstractAnalysis<
   }
 
   /**
-   * Get the {@link MethodTree} of the current CFG if the argument {@link Tree} maps to a {@link
+   * Returns the {@link MethodTree} of the current CFG if the argument {@link Tree} maps to a {@link
    * Node} in the CFG or {@code null} otherwise.
    *
    * @param t the given tree
@@ -392,7 +392,7 @@ public abstract class AbstractAnalysis<
   }
 
   /**
-   * Get the {@link MethodTree} of the current CFG if the argument {@link Tree} maps to a {@link
+   * Returns the {@link MethodTree} of the current CFG if the argument {@link Tree} maps to a {@link
    * Node} in the CFG or {@code null} otherwise.
    *
    * @param t the given tree
@@ -406,7 +406,7 @@ public abstract class AbstractAnalysis<
   }
 
   /**
-   * Get the {@link ClassTree} of the current CFG if the argument {@link Tree} maps to a {@link
+   * Returns the {@link ClassTree} of the current CFG if the argument {@link Tree} maps to a {@link
    * Node} in the CFG or {@code null} otherwise.
    *
    * @param t the given tree
@@ -419,7 +419,7 @@ public abstract class AbstractAnalysis<
   }
 
   /**
-   * Get the {@link ClassTree} of the current CFG if the argument {@link Tree} maps to a {@link
+   * Returns the {@link ClassTree} of the current CFG if the argument {@link Tree} maps to a {@link
    * Node} in the CFG or {@code null} otherwise.
    *
    * @param t the given tree

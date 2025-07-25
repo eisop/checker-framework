@@ -329,7 +329,7 @@ public class ConstraintSet implements ReductionResult {
   }
 
   /**
-   * Return all variables mentioned by any constraint in this set.
+   * Returns all variables mentioned by any constraint in this set.
    *
    * @return all variables mentioned by any constraint in this set
    */
@@ -345,7 +345,7 @@ public class ConstraintSet implements ReductionResult {
   }
 
   /**
-   * Return all input variables for all constraints in this set.
+   * Returns all input variables for all constraints in this set.
    *
    * @return all input variables for all constraints in this set
    */
