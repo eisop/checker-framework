@@ -113,6 +113,9 @@ public class NullnessNoInitAnnotatedTypeFactory
     private final ExecutableElement mapGet =
             TreeUtils.getMethod("java.util.Map", "get", 1, processingEnv);
 
+    // High-level optimization: cache entire addComputedTypeAnnotations processing flow
+    private final java.util.Set<String> fullyProcessedTrees = new java.util.HashSet<>();
+
     // List is in alphabetical order.  If you update it, also update
     // ../../../../../../../../docs/manual/nullness-checker.tex
     // and make a pull request for variables NONNULL_ANNOTATIONS and BASE_COPYABLE_ANNOTATIONS in
@@ -481,6 +484,19 @@ public class NullnessNoInitAnnotatedTypeFactory
                 }
             }
         }
+    }
+
+    @Override
+    protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type) {
+        if (tree != null && tree instanceof NewClassTree) {
+            String treeKey = tree.toString();
+            if (fullyProcessedTrees.contains(treeKey)) {
+                return;
+            }
+            fullyProcessedTrees.add(treeKey);
+        }
+
+        super.addComputedTypeAnnotations(tree, type);
     }
 
     @Override
