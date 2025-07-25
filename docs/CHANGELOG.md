@@ -7,6 +7,8 @@ The new command-line option `-AonlyAnnotatedFor` suppresses all type-checking er
 a corresponding `@AnnotatedFor` annotation.
 Note that the `@AnnotatedFor` annotation must include the checker's name to enable warnings from that checker.
 For example, use `@AnnotatedFor("nullness")` for the Nullness Checker.
+This option unsoundly use CLIMB default and suppresses the warnings outside the scope of a corresponding `@AnnotatedFor` annotation.
+Use -AuseConservativeDefaultsForUncheckedCode=source if you want conservative default for source code outside the scope of a corresponding `@AnnotatedFor` annotation.
 
 The Nullness Checker now has more fine-grained prefix options to suppress warnings:
 - `@SuppressWarnings("nullness")` is used to suppress warnings from the Nullness, Initialization, and KeyFor Checkers.
