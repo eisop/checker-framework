@@ -435,15 +435,15 @@ public abstract class CFAbstractTransfer<
    *
    * <p>For example, given the following code:
    *
-   * <pre><code>
+   * <pre>{@code
    *   void operateOver(Container container) {
-   *      container.forEach(item -&gt; {...});
+   *    container.forEach(item -> {...});
    *   }
    *
    *   class Container {
-   *     void forEach(@NonLeaked Consumer&lt;T&gt;)
+   *   void forEach(@NonLeaked Consumer<T>)
    *   }
-   * </code></pre>
+   * }</pre>
    *
    * The lambda passed to {@code Container.forEach} is not leaked, as the parameter is annotated
    * with @{@link NonLeaked}.
