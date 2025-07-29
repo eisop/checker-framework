@@ -158,12 +158,14 @@ public class CollectionToArrayHeuristics {
             if (el == null || !el.getKind().isField()) {
                 return false;
             }
-            VariableElement var = (VariableElement) el;
-            if (!(var.getModifiers().containsAll(EnumSet.of(Modifier.PRIVATE, Modifier.FINAL))
-                    && ElementUtils.getType(var).getKind() == TypeKind.ARRAY)) {
+            VariableElement fieldElement = (VariableElement) el;
+            if (!(fieldElement
+                            .getModifiers()
+                            .containsAll(EnumSet.of(Modifier.PRIVATE, Modifier.FINAL))
+                    && ElementUtils.getType(fieldElement).getKind() == TypeKind.ARRAY)) {
                 return false;
             }
-            Tree declTree = atypeFactory.declarationFromElement(var);
+            Tree declTree = atypeFactory.declarationFromElement(fieldElement);
             if (declTree == null) {
                 return false;
             }
@@ -172,8 +174,8 @@ public class CollectionToArrayHeuristics {
             if (!(leaf instanceof VariableTree)) {
                 return false;
             }
-            VariableTree vt = (VariableTree) leaf;
-            ExpressionTree init = vt.getInitializer();
+            VariableTree fieldDecl = (VariableTree) leaf;
+            ExpressionTree init = fieldDecl.getInitializer();
             if (!(init instanceof NewArrayTree)) {
                 return false;
             }
