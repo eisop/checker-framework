@@ -32,6 +32,10 @@ public class ToArrayHeuristic {
         return c.toArray(EMPTY_STRING_ARRAY_LITERAL);
     }
 
+    String[] withParens(Collection<String> c) {
+        return c.toArray((EMPTY_STRING_ARRAY_LITERAL));
+    }
+
     String[] fieldBraces(Collection<String> c) {
         return c.toArray(EMPTY_STRING_ARRAY_BRACES);
     }

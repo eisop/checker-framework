@@ -149,6 +149,7 @@ public class CollectionToArrayHeuristics {
      */
     private boolean isHandledArrayCreation(ExpressionTree argument, String receiver) {
         final NewArrayTree newArr;
+        argument = TreeUtils.withoutParens(argument);
 
         if (argument instanceof NewArrayTree) {
             newArr = (NewArrayTree) argument;
