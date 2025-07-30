@@ -10,7 +10,6 @@ import org.checkerframework.common.value.qual.ArrayLen;
 import java.util.Collection;
 
 public class ToArrayHeuristic {
-
     private final String[] EMPTY_STRING_ARRAY_LITERAL = new String[0];
     private final String[] EMPTY_STRING_ARRAY_BRACES = {};
     private final String[] EMPTY_STRING_ARRAY_NON_ZERO = new String[1];
@@ -32,7 +31,7 @@ public class ToArrayHeuristic {
         return c.toArray(EMPTY_STRING_ARRAY_LITERAL);
     }
 
-    String[] withParens(Collection<String> c) {
+    String[] fieldWithParens(Collection<String> c) {
         return c.toArray((EMPTY_STRING_ARRAY_LITERAL));
     }
 
@@ -48,5 +47,7 @@ public class ToArrayHeuristic {
         return c.toArray(EMPTY_STRING_ARRAY_UNSAFE);
     }
 
+    String[] argWithParens(Collection<String> c) {
+        return c.toArray(new String[(0)]);
+    }
 }
-
