@@ -8,7 +8,6 @@ import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
-import com.sun.source.util.TreePath;
 
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.value.qual.ArrayLen;
@@ -166,15 +165,10 @@ public class CollectionToArrayHeuristics {
                 return false;
             }
             Tree declTree = atypeFactory.declarationFromElement(fieldElement);
-            if (declTree == null) {
+            if (declTree == null || !(declTree instanceof VariableTree)) {
                 return false;
             }
-            TreePath path = atypeFactory.getPath(declTree);
-            Tree leaf = path.getLeaf();
-            if (!(leaf instanceof VariableTree)) {
-                return false;
-            }
-            VariableTree fieldDecl = (VariableTree) leaf;
+            VariableTree fieldDecl = (VariableTree) declTree;
             ExpressionTree init = fieldDecl.getInitializer();
             if (!(init instanceof NewArrayTree)) {
                 return false;
