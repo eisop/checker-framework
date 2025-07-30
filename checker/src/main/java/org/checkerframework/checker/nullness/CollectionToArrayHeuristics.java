@@ -105,7 +105,7 @@ public class CollectionToArrayHeuristics {
             ExpressionTree argument = tree.getArguments().get(0);
             boolean receiverIsNonNull = receiverIsCollectionOfNonNullElements(tree);
             boolean argIsHandled =
-                    isHandledArrayCreation(argument, receiverName(tree.getMethodSelect()))
+                    isRecognizedToArrayArg(argument, receiverName(tree.getMethodSelect()))
                             || (trustArrayLenZero && isArrayLenZeroFieldAccess(argument));
             setComponentNullness(receiverIsNonNull && argIsHandled, method.getReturnType());
 
@@ -147,7 +147,7 @@ public class CollectionToArrayHeuristics {
      * @param receiver the expression for the receiver collection
      * @return true if the argument is handled and assume to return nonnull elements
      */
-    private boolean isHandledArrayCreation(ExpressionTree argument, String receiver) {
+    private boolean isRecognizedToArrayArg(ExpressionTree argument, String receiver) {
         final NewArrayTree newArr;
         argument = TreeUtils.withoutParens(argument);
 
