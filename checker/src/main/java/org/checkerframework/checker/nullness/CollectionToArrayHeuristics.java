@@ -138,13 +138,25 @@ public class CollectionToArrayHeuristics {
     }
 
     /**
-     * Returns true if {@code argument} is one of the array creation trees that the heuristic
-     * handles.
+     * Returns {@code true} if {@code argument} is an array argument to {@link
+     * Collection#toArray(Object[]) toArray(T[])} that this heuristic recognizes as producing a
+     * non-null array of the element type.
      *
-     * @param argument the tree passed to {@link Collection#toArray(Object[])
-     *     Collection.toArray(T[])}
-     * @param receiver the expression for the receiver collection
-     * @return true if the argument is handled and assume to return nonnull elements
+     * <p>Recognized forms include:
+     *
+     * <ul>
+     *   <li>{@code new T[] { }} (empty array literal)
+     *   <li>{@code new T[0]} (zero-length allocation)
+     *   <li>{@code new T[receiver.size()]} where {@code receiver} is the {@code Collection} on
+     *       which {@code toArray} is invoked
+     *   <li>an identifier or member select denoting a {@code private final} array field whose
+     *       initializer is an empty array (e.g., {@code private final T[] EMPTY = new T[0];})
+     * </ul>
+     *
+     * @param argument the expression passed as the {@code T[]} parameter to {@code toArray}
+     * @param receiver the simple name of the {@code Collection} receiver used to match {@code new
+     *     T[receiver.size()]}}
+     * @return {@code true} if {@code argument} matches one of the recognized forms
      */
     private boolean isRecognizedToArrayArg(ExpressionTree argument, String receiver) {
         final NewArrayTree newArr;
