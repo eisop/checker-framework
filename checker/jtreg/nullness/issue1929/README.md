@@ -1,1 +1,1 @@
-The heuristics created by this issue have been improved by [Issue#1310](https://github.com/eisop/checker-framework/issues/1310). See ../ToArrayHeuristic for updated test case. 
+The heuristics initially created for this issue have been improved, see discussion in [Issue#1310](https://github.com/eisop/checker-framework/issues/1310). Since the implementation of [PR#1319](https://github.com/eisop/checker-framework/pull/1319), this test case provides no errors or warnings. See ../ToArrayHeuristic/ for updated test case.
