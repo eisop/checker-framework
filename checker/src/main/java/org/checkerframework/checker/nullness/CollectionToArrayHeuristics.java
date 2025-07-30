@@ -188,6 +188,7 @@ public class CollectionToArrayHeuristics {
         }
 
         ExpressionTree dimension = newArr.getDimensions().get(newArr.getDimensions().size() - 1);
+        dimension = TreeUtils.withoutParens(dimension);
         if (isLiteralZero(dimension)) {
             return true;
         }
