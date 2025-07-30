@@ -50,4 +50,8 @@ public class ToArrayHeuristic {
     String[] argWithParens(Collection<String> c) {
         return c.toArray(new String[(0)]);
     }
+
+    String [] receiverSize(Collection<String> c) {
+        return c.toArray(new String[c.size()]);
+    }
 }
