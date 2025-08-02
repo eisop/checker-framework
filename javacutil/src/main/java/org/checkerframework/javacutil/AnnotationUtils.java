@@ -175,7 +175,10 @@ public class AnnotationUtils {
   }
 
   /**
-   * Returns true iff a1 and a2 have the same annotation type.
+   * Returns true iff a1 and a2 have the same annotation type. Does not check annotation
+   * element/field values. One reason to that clients may call this is that it is slightly faster
+   * than {@link #areSame} when the annotation is known to have no elements/fields. (TODO: Is that
+   * considered to be good style?)
    *
    * @param a1 the first AnnotationMirror to compare
    * @param a2 the second AnnotationMirror to compare
@@ -210,7 +213,7 @@ public class AnnotationUtils {
 
   /**
    * Checks that the annotation {@code am} has the name {@code aname} (a fully-qualified type name).
-   * Values are ignored.
+   * Does not check annotation element/field values.
    *
    * @param am the AnnotationMirror whose name to compare
    * @param aname the string to compare
@@ -1227,14 +1230,12 @@ public class AnnotationUtils {
    * and {@code am2} must be the same type of annotation.
    *
    * @param am1 the first AnnotationMirror to compare
-   * @param am2 the second AnnotationMirror to compare
+   * @param am2 the second AnnotationMirror to compare; the same type of annotation as {@code am1}
    * @return true if the two annotations have the same elements (fields)
    */
   @EqualsMethod
-  public static boolean sameElementValues(AnnotationMirror am1, AnnotationMirror am2) {
-    if (am1 == am2) {
-      return true;
-    }
+  private static boolean sameElementValues(AnnotationMirror am1, AnnotationMirror am2) {
+    // This method might return true even if these maps differ, because of default values.
     Map<? extends ExecutableElement, ? extends AnnotationValue> vals1 = am1.getElementValues();
     Map<? extends ExecutableElement, ? extends AnnotationValue> vals2 = am2.getElementValues();
     if (vals1.isEmpty() && vals2.isEmpty()) {
