@@ -21,7 +21,9 @@ import org.checkerframework.framework.qual.QualifierArgument;
  * {@code @EnsuresLTLengthOf(value = "end", targetValue = "array", offset = "#1 - 1")
  *  public void shiftIndex(@NonNegative int x) {
  *      int newEnd = end - x;
- *      if (newEnd < 0) throw new RuntimeException();
+ *    if (newEnd < 0) {
+ *      throw new RuntimeException();
+ *    }
  *      end = newEnd;
  *  }
  * }
