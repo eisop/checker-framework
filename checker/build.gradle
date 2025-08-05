@@ -257,8 +257,12 @@ artifacts {
 
 clean {
     def injected = project.objects.newInstance(InjectedExecOps)
+    def bldDir = buildDir
+    def distDir = "${projectDir}/dist"
+    def cmdlineDir = file('tests/command-line')
+    def nullnessextraDir = file('tests/nullness-extra')
 
-    delete("${projectDir}/dist")
+    delete(distDir)
     delete('tests/calledmethods-delomboked')
     delete('tests/ainfer-testchecker/annotated')
     delete('tests/ainfer-testchecker/inference-output')
@@ -271,20 +275,18 @@ clean {
     delete('tests/build')
     doLast {
         injected.execOps.exec {
-            workingDir = file('tests/command-line')
+            workingDir = cmdlineDir
             commandLine 'make', 'clean'
         }
         injected.execOps.exec {
-            workingDir = file('tests/nullness-extra')
+            workingDir = nullnessextraDir
             commandLine 'make', 'clean'
         }
-    }
-}
 
-clean.doLast {
-    while (buildDir.exists()) {
-        sleep(10000)                // wait 10 seconds
-        buildDir.deleteDir()
+        while(bldDir.exists()) {
+            sleep(10000)                // wait 10 seconds
+            bldDir.deleteDir()
+        }
     }
 }
 
