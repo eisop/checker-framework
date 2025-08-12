@@ -728,9 +728,17 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
     }
 
     /**
-     * Validate if qualifiers on wildcard are permitted by {@link
-     * org.checkerframework.framework.qual.TargetLocations}. Report an error if the actual use of
-     * this annotation is not listed in the declared TypeUseLocations in this meta-annotation.
+     * Validate if the qualifiers on the tree are at the right type-use locations, which is
+     * specified by the meta-annotation {@link org.checkerframework.framework.qual.TargetLocations}.
+     *
+     * <p>More specifically, this method only checks qualifiers on the WildcardTree and thus checks
+     * for these following type-use locations: (EXPLICIT/IMPLICIT) LOWER_BOUND and
+     * (EXPLICIT/IMPLICIT) UPPER_BOUND.
+     *
+     * <p>The other two validate methods achieve the same goal but perform checks on different trees
+     * and different type-use locations. See {@link
+     * BaseTypeVisitor#validateVariablesTargetLocation(VariableTree, AnnotatedTypeMirror)} and
+     * {@link BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)}.
      *
      * @param type the type to check
      * @param tree the tree of this type

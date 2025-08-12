@@ -1799,87 +1799,108 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Validate if the annotations on the VariableTree are at the right locations, which is
-     * specified by the meta-annotation @TargetLocations. The difference of this method between
-     * {@link BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)} is
-     * that this one is only used in {@link BaseTypeVisitor#visitVariable(VariableTree, Void)}
+     * Validate if the qualifiers on the tree are at the right type-use locations, which is
+     * specified by the meta-annotation {@link org.checkerframework.framework.qual.TargetLocations}.
      *
-     * @param tree annotations on this VariableTree will be validated
+     * <p>More specifically, this method only checks qualifiers on the VariableTree and thus checks
+     * for these following type-use locations: FIELD, LOCAL_VARIABLE, RESOURCE_VARIABLE,
+     * EXCEPTION_PARAMETER, PARAMETER, RECEIVER and CONSTRUCTOR_RESULT.
+     *
+     * <p>The other two validate methods achieve the same goal but perform checks on different trees
+     * and different type-use locations. See {@link BaseTypeVisitor#validateTargetLocation(Tree,
+     * AnnotatedTypeMirror, TypeUseLocation)} and {@link
+     * BaseTypeValidator#validateWildCardTargetLocation(AnnotatedTypeMirror.AnnotatedWildcardType,
+     * Tree)}.
+     *
+     * @param tree qualifiers on this VariableTree will be validated
      * @param type the type of the tree
      */
-    protected void validateVariablesTargetLocation(Tree tree, AnnotatedTypeMirror type) {
+    protected void validateVariablesTargetLocation(VariableTree tree, AnnotatedTypeMirror type) {
         if (ignoreTargetLocations) {
             return;
         }
-        Element element = TreeUtils.elementFromTree(tree);
+        Element element = TreeUtils.elementFromDeclaration(tree);
 
-        if (element != null) {
-            ElementKind elemKind = element.getKind();
-            // TypeUseLocation.java doesn't have ENUM type use location right now.
-            for (AnnotationMirror am : type.getAnnotations()) {
-                List<TypeUseLocation> locations =
-                        qualAllowedLocations.get(AnnotationUtils.annotationName(am));
-                if (locations == null || locations.contains(TypeUseLocation.ALL)) {
-                    continue;
-                }
-                boolean issueError = true;
-                switch (elemKind) {
-                    case LOCAL_VARIABLE:
-                        if (locations.contains(TypeUseLocation.LOCAL_VARIABLE)) issueError = false;
-                        break;
-                    case EXCEPTION_PARAMETER:
-                        if (locations.contains(TypeUseLocation.EXCEPTION_PARAMETER))
-                            issueError = false;
-                        break;
-                    case PARAMETER:
-                        if (((VariableTree) tree).getName().contentEquals("this")) {
-                            if (locations.contains(TypeUseLocation.RECEIVER)) {
-                                issueError = false;
-                            }
-                        } else {
-                            if (locations.contains(TypeUseLocation.PARAMETER)) {
-                                issueError = false;
-                            }
-                        }
-                        break;
-                    case RESOURCE_VARIABLE:
-                        if (locations.contains(TypeUseLocation.RESOURCE_VARIABLE)) {
+        ElementKind elemKind = element.getKind();
+        // TypeUseLocation.java doesn't have ENUM type use location right now.
+        for (AnnotationMirror am : type.getAnnotations()) {
+            List<TypeUseLocation> locations =
+                    qualAllowedLocations.get(AnnotationUtils.annotationName(am));
+            if (locations == null || locations.contains(TypeUseLocation.ALL)) {
+                continue;
+            }
+            boolean issueError = true;
+            switch (elemKind) {
+                case LOCAL_VARIABLE:
+                    if (locations.contains(TypeUseLocation.LOCAL_VARIABLE)) {
+                        issueError = false;
+                    }
+                    break;
+                case EXCEPTION_PARAMETER:
+                    if (locations.contains(TypeUseLocation.EXCEPTION_PARAMETER)) {
+                        issueError = false;
+                    }
+                    break;
+                case PARAMETER:
+                    if (tree.getName().contentEquals("this")) {
+                        if (locations.contains(TypeUseLocation.RECEIVER)) {
                             issueError = false;
                         }
-                        break;
-                    case FIELD:
-                        if (locations.contains(TypeUseLocation.FIELD)) {
+                    } else {
+                        if (locations.contains(TypeUseLocation.PARAMETER)) {
                             issueError = false;
                         }
-                        break;
-                    case ENUM_CONSTANT:
-                        if (locations.contains(TypeUseLocation.FIELD)
-                                || locations.contains(TypeUseLocation.CONSTRUCTOR_RESULT)) {
-                            issueError = false;
-                        }
-                        break;
-                    default:
-                        throw new BugInCF("Location not matched");
-                }
-                if (issueError) {
-                    checker.reportError(
-                            tree,
-                            "type.invalid.annotations.on.location",
-                            am.toString(),
-                            element.getKind().name());
-                }
+                    }
+                    break;
+                case RESOURCE_VARIABLE:
+                    if (locations.contains(TypeUseLocation.RESOURCE_VARIABLE)) {
+                        issueError = false;
+                    }
+                    break;
+                case FIELD:
+                    if (locations.contains(TypeUseLocation.FIELD)) {
+                        issueError = false;
+                    }
+                    break;
+                case ENUM_CONSTANT:
+                    if (locations.contains(TypeUseLocation.FIELD)
+                            || locations.contains(TypeUseLocation.CONSTRUCTOR_RESULT)) {
+                        issueError = false;
+                    }
+                    break;
+                default:
+                    throw new BugInCF("Location not matched");
+            }
+            if (issueError) {
+                checker.reportError(
+                        tree,
+                        "type.invalid.annotations.on.location",
+                        am.toString(),
+                        element.getKind().name());
             }
         }
     }
 
     /**
-     * Validate if the annotations on the tree are at the right locations, which are specified by
-     * the meta-annotation @TargetLocations.
+     * Validate if the qualifiers on the tree are at the right type-use locations, which is
+     * specified by the meta-annotation {@link org.checkerframework.framework.qual.TargetLocations}.
      *
-     * @param tree annotations on this VariableTree will be validated
+     * <p>More specifically, this method only checks qualifiers on the TypeParameter and Method tree
+     * and thus checks for these following type-use locations: LOWER_BOUND, UPPER_BOUND,
+     * CONSTRUCTOR_RESULT and RETURN.
+     *
+     * <p>The other two validate methods achieve the same goal but perform checks on different trees
+     * and different type-use locations. See {@link
+     * BaseTypeVisitor#validateVariablesTargetLocation(VariableTree, AnnotatedTypeMirror)} and
+     * {@link
+     * BaseTypeValidator#validateWildCardTargetLocation(AnnotatedTypeMirror.AnnotatedWildcardType,
+     * Tree)}.
+     *
+     * @param tree qualifiers on the tree will be validated
      * @param type the type of the tree
-     * @param required if all of the TypeUseLocations in {@code required} are not present in the
-     *     specification of the annotation (@TargetLocations), issue an error.
+     * @param required if all the TypeUseLocations in {@code required} are not present in the
+     *     specification of the meta-annotation ({@link
+     *     org.checkerframework.framework.qual.TargetLocations}), issue an error.
      */
     protected void validateTargetLocation(
             Tree tree, AnnotatedTypeMirror type, TypeUseLocation required) {
