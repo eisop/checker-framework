@@ -1,6 +1,6 @@
 /*
  * @test
- * @summary Test case for CollectionToArrayHeuristics.java
+ * @summary Test case for CollectionToArrayHeuristics.java. Replaces test cases from Issue 1929: https://github.com/typetools/checker-framework/issues/1929
  *
  * @compile/fail/ref=ToArrayHeuristic-notrust.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker ToArrayHeuristic.java
  * @compile/fail/ref=ToArrayHeuristic-trust.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Alint=trustArrayLenZero ToArrayHeuristic.java
