@@ -290,7 +290,9 @@ public class CollectionToArrayHeuristics {
     // This method is quite sloppy, but works most of the time
     private String receiverName(Tree tree) {
         if (tree instanceof MemberSelectTree) {
-            return ((MemberSelectTree) tree).getExpression().toString();
+            ExpressionTree expr = ((MemberSelectTree) tree).getExpression();
+            expr = TreeUtils.withoutParens(expr);
+            return expr.toString();
         } else {
             return "this";
         }
