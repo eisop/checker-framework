@@ -1,10 +1,10 @@
-ToArrayHeuristic.java:43:25: compiler.err.proc.messager: [return.type.incompatible] incompatible types in return.
+ToArrayHeuristic.java:44:25: compiler.err.proc.messager: [return.type.incompatible] incompatible types in return.
 type of expression: @Nullable String @NonNull []
 method return type: @NonNull String @NonNull []
-ToArrayHeuristic.java:43:25: compiler.warn.proc.messager: [toarray.nullable.elements.not.newarray] call of toArray on collection of non-null elements yields an array of possibly-null elements; omit the argument to toArray or make it an explicit array constructor
-ToArrayHeuristic.java:47:25: compiler.err.proc.messager: [return.type.incompatible] incompatible types in return.
+ToArrayHeuristic.java:44:25: compiler.warn.proc.messager: [toarray.nullable.elements.not.newarray] call of toArray on collection of non-null elements yields an array of possibly-null elements; omit the argument to toArray or make it an explicit array constructor
+ToArrayHeuristic.java:48:25: compiler.err.proc.messager: [return.type.incompatible] incompatible types in return.
 type of expression: @Nullable String @NonNull []
 method return type: @NonNull String @NonNull []
-ToArrayHeuristic.java:47:25: compiler.warn.proc.messager: [toarray.nullable.elements.not.newarray] call of toArray on collection of non-null elements yields an array of possibly-null elements; omit the argument to toArray or make it an explicit array constructor
+ToArrayHeuristic.java:48:25: compiler.warn.proc.messager: [toarray.nullable.elements.not.newarray] call of toArray on collection of non-null elements yields an array of possibly-null elements; omit the argument to toArray or make it an explicit array constructor
 2 errors
 2 warnings

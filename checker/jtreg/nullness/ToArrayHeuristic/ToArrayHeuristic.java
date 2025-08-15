@@ -12,8 +12,9 @@ import java.util.Collection;
 public class ToArrayHeuristic {
     private final String[] EMPTY_STRING_ARRAY_LITERAL = new String[0];
     private final String[] EMPTY_STRING_ARRAY_BRACES = {};
-    private final String[] EMPTY_STRING_ARRAY_NON_ZERO = new String[1];
-    String @ArrayLen(0) [] EMPTY_STRING_ARRAY_UNSAFE = {};
+    private final String[] NON_EMPTY_STRING_ARRAY = new String[1];
+    String @ArrayLen(0) [] EMPTY_STRING_ARRAY_TRUSTED = {};
+    String [] EMPTY_STRING_ARRAY_MISSING_MODIFIERS = {};
 
     String[] literalZero(Collection<String> c) {
         return c.toArray(new String[0]);
@@ -40,18 +41,18 @@ public class ToArrayHeuristic {
     }
 
     String[] fieldNonZero(Collection<String> c) {
-        return c.toArray(EMPTY_STRING_ARRAY_NON_ZERO);
+        return c.toArray(NON_EMPTY_STRING_ARRAY);
     }
 
     String[] fieldUnsafe(Collection<String> c) {
-        return c.toArray(EMPTY_STRING_ARRAY_UNSAFE);
+        return c.toArray(EMPTY_STRING_ARRAY_TRUSTED);
     }
 
     String[] argWithParens(Collection<String> c) {
         return c.toArray(new String[(0)]);
     }
 
-    String [] receiverSize(Collection<String> c) {
-        return c.toArray(new String[c.size()]);
+    String[] receiverSizeWithParens(Collection<String> c) {
+	return (c).toArray(new String[((c)).size()]);
     }
 }
