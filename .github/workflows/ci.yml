@@ -27,7 +27,7 @@ jobs:
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Set up JDK ${{ matrix.java_version }}
       uses: actions/setup-java@v4
       with:
@@ -75,11 +75,11 @@ jobs:
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       if: ${{ matrix.script != 'misc' }}
       with:
         fetch-depth: 1
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       if: ${{ matrix.script == 'misc' }}
       with:
         # CI diff needs more history - 0 fetches all history.
@@ -179,12 +179,12 @@ jobs:
     continue-on-error: ${{ matrix.java.experimental }}
     steps:
     - name: Check out sources
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       if: ${{ matrix.script != 'misc' }}
       with:
         fetch-depth: 1
     - name: Check out sources with all history
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       if: ${{ matrix.script == 'misc' }}
       with:
         # CI diff needs more history - 0 fetches all history.
@@ -256,7 +256,7 @@ jobs:
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Set up JDK ${{ matrix.java_version }}
       uses: actions/setup-java@v4
       with:
