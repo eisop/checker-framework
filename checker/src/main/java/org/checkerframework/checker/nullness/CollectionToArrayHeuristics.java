@@ -177,7 +177,7 @@ public class CollectionToArrayHeuristics {
                 return false;
             }
             Tree declTree = atypeFactory.declarationFromElement(fieldElement);
-            if (declTree == null || !(declTree instanceof VariableTree)) {
+            if (!(declTree instanceof VariableTree)) {
                 return false;
             }
             VariableTree fieldDecl = (VariableTree) declTree;
