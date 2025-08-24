@@ -35,7 +35,7 @@ if (false) {
 dependencies {
     compileOnly 'org.jspecify:jspecify:1.0.0'
     if (JavaVersion.current() >= JavaVersion.VERSION_17) {
-        errorprone 'com.google.errorprone:error_prone_core:2.39.0'
+        errorprone 'com.google.errorprone:error_prone_core:2.41.0'
     }
 }
 
