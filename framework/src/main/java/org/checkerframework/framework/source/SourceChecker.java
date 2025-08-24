@@ -141,7 +141,8 @@ import javax.tools.Diagnostic;
     "onlyFiles",
     "skipDirs", // Obsolete as of 2024-03-15, replaced by "skipFiles".
 
-    // Suppress all errors and warnings for code outside the scope of a corresponding `@AnnotatedFor` annotation.
+    // Suppress all errors and warnings for code outside the scope of a corresponding
+    // `@AnnotatedFor` annotation.
     // Note that the `@AnnotatedFor` annotation must include the checker's name to enable warnings
     // from that checker.
     // For example, use `@AnnotatedFor("nullness")` for the Nullness Checker.
