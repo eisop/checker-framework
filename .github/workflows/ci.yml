@@ -29,7 +29,7 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     - name: Set up JDK ${{ matrix.java_version }}
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: ${{ matrix.java_version }}
         distribution: 'temurin'
@@ -85,7 +85,7 @@ jobs:
         # CI diff needs more history - 0 fetches all history.
         fetch-depth: 0
     - name: Set up JDK ${{ matrix.java_version }}
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: ${{ matrix.java_version }}
         distribution: 'temurin'
@@ -131,7 +131,7 @@ jobs:
           {version: '11', experimental: false},
           {version: '17', experimental: false},
           {version: '24', experimental: false},
-          {version: '25.0.0-ea.27.0.ea', experimental: true}]
+          {version: '25.0.0-ea.36.0.ea', experimental: true}]
         exclude:
           # JDK 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
           - script: 'cftests-junit-jdk21'
@@ -190,13 +190,13 @@ jobs:
         # CI diff needs more history - 0 fetches all history.
         fetch-depth: 0
     - name: Set up JDK 21 for Gradle to run on
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         # Install JDK 21 first, to make it available to Gradle using `gradle.properties` below.
         java-version: 21
         distribution: 'temurin'
     - name: Set up JDK ${{ matrix.java.version }}
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         # Install the requested JDK second, to make it the default on which everything else runs.
         java-version: ${{ matrix.java.version }}
@@ -258,7 +258,7 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     - name: Set up JDK ${{ matrix.java_version }}
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: ${{ matrix.java_version }}
         distribution: 'temurin'
