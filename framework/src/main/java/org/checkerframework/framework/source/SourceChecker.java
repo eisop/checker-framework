@@ -141,11 +141,11 @@ import javax.tools.Diagnostic;
     "onlyFiles",
     "skipDirs", // Obsolete as of 2024-03-15, replaced by "skipFiles".
 
-    // Suppress all errors and warnings for code outside the scope of @AnnotatedFor annotation.
+    // Suppress all errors and warnings for code outside the scope of a corresponding `@AnnotatedFor` annotation.
     // Note that the `@AnnotatedFor` annotation must include the checker's name to enable warnings
     // from that checker.
     // For example, use `@AnnotatedFor("nullness")` for the Nullness Checker.
-    // This flag only suppresses warnings compared to
+    // This flag only suppresses warnings, compared to
     // `-AuseConservativeDefaultsForUncheckedCode=source`, which also applies conservative defaults
     // for code outside the scope of an `@AnnotatedFor` annotation.
     // NullAway has a similar flag: `-XepOpt:NullAway:OnlyNullMarked=true` configures NullAway to
@@ -213,7 +213,7 @@ import javax.tools.Diagnostic;
     // "Default qualifiers for \<.class> files (conservative library defaults)"
     // sections in the manual for more details.
     // -AonlyAnnotatedFor suppresses warnings for code outside the scope of @AnnotatedFor,
-    // but does not change the default qualifier for source code.
+    // but does not change the default qualifiers for source code.
     // org.checkerframework.framework.source.SourceChecker.useConservativeDefault
     "useConservativeDefaultsForUncheckedCode",
 

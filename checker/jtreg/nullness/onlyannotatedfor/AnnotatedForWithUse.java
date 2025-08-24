@@ -1,7 +1,7 @@
 /*
  * @test
  *
- * @summary Test that difference default applies to unannotated code.
+ * @summary Test different defaults applied to unannotated code.
  * @compile/fail/ref=AnnotatedForWithUseNoFlag.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker AnnotatedForWithUse.java
  * @compile/fail/ref=AnnotatedForWithUseOnlyAnnotatedFor.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -AonlyAnnotatedFor AnnotatedForWithUse.java
  * @compile/fail/ref=AnnotatedForWithUseConservativeDefault.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -AuseConservativeDefaultsForUncheckedCode=source AnnotatedForWithUse.java
