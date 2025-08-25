@@ -6,6 +6,7 @@ public class NullMarkedSuppressError {
     }
 
     class B {
+        // No expected error, because code is not annotated for nullness.
         Object o = null;
     }
 }
