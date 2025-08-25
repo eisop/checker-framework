@@ -4,6 +4,7 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.ClassGetName;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizer;
+import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.SubtypeOf;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
@@ -25,6 +26,7 @@ import java.util.Collection;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
 
 /**
  * An abstract {@link SourceChecker} that provides a simple {@link
@@ -312,5 +314,32 @@ public abstract class BaseTypeChecker extends SourceChecker {
                     Arrays.toString(args),
                     causeMessage);
         }
+    }
+
+    /**
+     * This method is almost similar to {@link
+     * org.checkerframework.framework.util.defaults.QualifierDefaults#isElementAnnotatedForThisChecker(Element)}.
+     * except for early return if element is null, the conservative default for "source" is not used
+     * and do not recursively check enclosing elements because the logic is implemented at call
+     * sites.
+     *
+     * @param elt the source code element to check, or null
+     * @return true if the element is annotated for this checker or an upstream checker
+     */
+    @Override
+    protected boolean isAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
+        if (elt == null || (!useConservativeDefaultsSource && !onlyAnnotatedFor)) {
+            return false;
+        }
+
+        boolean elementAnnotatedForThisChecker = false;
+        AnnotationMirror annotatedFor = getTypeFactory().getDeclAnnotation(elt, AnnotatedFor.class);
+
+        if (annotatedFor != null) {
+            elementAnnotatedForThisChecker =
+                    getTypeFactory().doesAnnotatedForApplyToThisChecker(annotatedFor);
+        }
+
+        return elementAnnotatedForThisChecker;
     }
 }
