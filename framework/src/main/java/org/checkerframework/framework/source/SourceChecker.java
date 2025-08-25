@@ -694,13 +694,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     private boolean warnUnneededSuppressions;
 
     /** True if the -AonlyAnnotatedFor command-line argument was passed. */
-    private boolean onlyAnnotatedFor;
+    protected boolean onlyAnnotatedFor;
 
     /**
      * True if the -AuseConservativeDefaultsForUncheckedCode=source command-line argument was
      * passed.
      */
-    private boolean useConservativeDefaultsSource;
+    protected boolean useConservativeDefaultsSource;
 
     /**
      * The full list of subcheckers that need to be run prior to this one, in the order they need to

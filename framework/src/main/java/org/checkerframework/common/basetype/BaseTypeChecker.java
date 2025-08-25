@@ -328,7 +328,7 @@ public abstract class BaseTypeChecker extends SourceChecker {
      */
     @Override
     protected boolean isAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
-        if (elt == null || !useConservativeDefault("source")) {
+        if (elt == null || (!useConservativeDefaultsSource && !onlyAnnotatedFor)) {
             return false;
         }
 

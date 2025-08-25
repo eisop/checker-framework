@@ -1,5 +1,7 @@
+import org.jspecify.annotations.NullMarked;
+
 public class NullMarkedSuppressError {
-    @org.jspecify.annotations.NullMarked
+    @NullMarked
     class A {
         // :: error: (assignment.type.incompatible)
         Object o = null;
