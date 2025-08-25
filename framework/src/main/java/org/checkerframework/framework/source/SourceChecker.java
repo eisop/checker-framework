@@ -3016,7 +3016,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @param elt the source code element to check, or null
      * @return true if the element is annotated for this checker or an upstream checker
      */
-    private boolean isAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
+    protected boolean isAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
         // Return false if elt is null, or if neither useConservativeDefaultsSource nor
         // issueErrorsForOnlyAnnotatedForScope is set, since the @AnnotatedFor status is irrelevant
         // in that case.
