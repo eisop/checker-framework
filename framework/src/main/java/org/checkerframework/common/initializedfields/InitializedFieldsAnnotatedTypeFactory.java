@@ -46,6 +46,7 @@ public class InitializedFieldsAnnotatedTypeFactory extends AccumulationAnnotated
      *
      * @param checker the checker
      */
+    @SuppressWarnings("this-escape")
     public InitializedFieldsAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker, InitializedFields.class, InitializedFieldsBottom.class);
 

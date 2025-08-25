@@ -41,6 +41,8 @@ import javax.lang.model.util.ElementFilter;
  *   <li>After the call to a super constructor ("super()" call), all fields of the super class can
  *       safely be considered initialized.
  * </ol>
+ *
+ * @see InitializationStore
  */
 public class InitializationTransfer
         extends CFAbstractTransfer<CFValue, InitializationStore, InitializationTransfer> {

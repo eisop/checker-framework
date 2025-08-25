@@ -1,7 +1,14 @@
-Version 3.49.3-eisop2 (June ??, 2025)
+Version 3.49.5-eisop1 (July ??, 2025)
 -------------------------------------
 
 **User-visible changes:**
+
+The new command-line option `-AonlyAnnotatedFor` suppresses all type-checking errors and warnings outside the scope of
+a corresponding `@AnnotatedFor` annotation.
+Note that the `@AnnotatedFor` annotation must include the checker's name to enable warnings from that checker.
+For example, use `@AnnotatedFor("nullness")` for the Nullness Checker.
+This option unsoundly uses source defaults and suppresses the warnings outside the scope of a corresponding `@AnnotatedFor` annotation.
+Use `-AuseConservativeDefaultsForUncheckedCode=source` if you want conservative defaults for source code outside the scope of a corresponding `@AnnotatedFor` annotation.
 
 The Nullness Checker now has more fine-grained prefix options to suppress warnings:
 - `@SuppressWarnings("nullness")` is used to suppress warnings from the Nullness, Initialization, and KeyFor Checkers.
@@ -32,6 +39,27 @@ They are enabled by default and can be disabled using `-Alint=-instanceof.unsafe
 **Closed issues:**
 
 eisop#1247, eisop#1263, typetools#7096.
+
+
+Version 3.49.5 (June 30, 2025)
+-----------------------------
+
+**User-visible changes:**
+
+The Checker Framework runs under JDK 25 -- that is, it runs on a version 25 JVM.
+(EISOP note: this already worked in Version 3.49.3-eisop1.)
+
+**Closed issues:**
+
+#7093.
+
+
+Version 3.49.4 (June 2, 2025)
+-----------------------------
+
+**Closed issues:**
+
+#6740, #7013, #7038, #7070, #7082.
 
 
 Version 3.49.3-eisop1 (May 6, 2025)
@@ -165,11 +193,11 @@ Version 3.48.0 (October 2, 2024)
 
 **User-visible changes:**
 
-The new SqlQuotesChecker prevents errors in quoting in SQL queries.  It prevents
-injection attacks that exploit quoting errors.
+The new SQL Quotes Checker prevents errors in quoting in SQL queries.  It
+prevents injection attacks that exploit quoting errors.
 
-Aggregate Checkers now interleave error messages so that all errors about a line of code
-appear together.
+Aggregate Checkers now interleave error messages so that all errors about a line
+of code appear together.
 (EISOP note: some signatures changed from `BaseTypeChecker` to `SourceChecker`,
 which might require adaptation in checkers.)
 
