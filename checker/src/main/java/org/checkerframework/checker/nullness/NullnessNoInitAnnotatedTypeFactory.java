@@ -734,8 +734,9 @@ public class NullnessNoInitAnnotatedTypeFactory
         // explicit nullable annotations are left intact for the visitor to inspect.
         @Override
         public Void visitNewClass(NewClassTree tree, AnnotatedTypeMirror type) {
-            // The constructor return type should already be NONNULL, so in most cases this will do
-            // nothing.
+            if (type.hasEffectiveAnnotation(NONNULL)) {
+                return null;
+            }
             type.addMissingAnnotation(NONNULL);
             return null;
         }
@@ -745,7 +746,9 @@ public class NullnessNoInitAnnotatedTypeFactory
         @Override
         public Void visitNewArray(NewArrayTree tree, AnnotatedTypeMirror type) {
             super.visitNewArray(tree, type);
-            type.addMissingAnnotation(NONNULL);
+            if (!type.hasEffectiveAnnotation(NONNULL)) {
+                type.addMissingAnnotation(NONNULL);
+            }
             return null;
         }
 
