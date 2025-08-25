@@ -21,8 +21,7 @@ public class NullnessNullMarkedTest extends CheckerFrameworkPerDirectoryTest {
                 testFiles,
                 org.checkerframework.checker.nullness.NullnessChecker.class,
                 "nullness",
-                // TODO: Replace this `-AonlyAnnotatedFor` flag after EISOP#1290 is merged.
-                "-AuseConservativeDefaultsForUncheckedCode=source");
+                "-AonlyAnnotatedFor");
     }
 
     @Parameters
