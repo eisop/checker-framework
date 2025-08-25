@@ -3,6 +3,13 @@ Version 3.49.5-eisop1 (July ??, 2025)
 
 **User-visible changes:**
 
+The new command-line option `-AonlyAnnotatedFor` suppresses all type-checking errors and warnings outside the scope of
+a corresponding `@AnnotatedFor` annotation.
+Note that the `@AnnotatedFor` annotation must include the checker's name to enable warnings from that checker.
+For example, use `@AnnotatedFor("nullness")` for the Nullness Checker.
+This option unsoundly uses source defaults and suppresses the warnings outside the scope of a corresponding `@AnnotatedFor` annotation.
+Use `-AuseConservativeDefaultsForUncheckedCode=source` if you want conservative defaults for source code outside the scope of a corresponding `@AnnotatedFor` annotation.
+
 The Nullness Checker now has more fine-grained prefix options to suppress warnings:
 - `@SuppressWarnings("nullness")` is used to suppress warnings from the Nullness, Initialization, and KeyFor Checkers.
 - `@SuppressWarnings("nullnesskeyfor")` is used to suppress warnings from the Nullness and KeyFor Checkers,
