@@ -2880,11 +2880,6 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                     return true;
                 }
             }
-            if (isAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
-                // Return false immediately. Do NOT check for AnnotatedFor in the
-                // enclosing elements, because they may not have an @AnnotatedFor.
-                return false;
-            }
         }
         return false;
     }
@@ -3017,15 +3012,6 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return true if the element is annotated for this checker or an upstream checker
      */
     protected boolean isAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
-        // Return false if elt is null, or if neither useConservativeDefaultsSource nor
-        // issueErrorsForOnlyAnnotatedForScope is set, since the @AnnotatedFor status is irrelevant
-        // in that case.
-        // TODO: Refactor SourceChecker and QualifierDefaults to use a cache for determining if an
-        // element is annotated for.
-        if (elt == null || (!useConservativeDefaultsSource && !onlyAnnotatedFor)) {
-            return false;
-        }
-
         AnnotatedFor anno = elt.getAnnotation(AnnotatedFor.class);
 
         String[] userAnnotatedFors = (anno == null ? null : anno.value());
