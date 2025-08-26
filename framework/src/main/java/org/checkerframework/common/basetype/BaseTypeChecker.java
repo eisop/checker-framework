@@ -316,7 +316,7 @@ public abstract class BaseTypeChecker extends SourceChecker {
     }
 
     @Override
-    protected boolean isAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
+    protected boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
         return getTypeFactory().isElementAnnotatedForThisCheckerOrUpstreamChecker(elt);
     }
 }

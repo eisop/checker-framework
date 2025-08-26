@@ -6045,7 +6045,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param elt the source code element to check, or null
      * @return true if the element is annotated for this checker or an upstream checker
      */
-    public boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(Element elt) {
+    public boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
         boolean elementAnnotatedForThisChecker = false;
 
         if (elt == null) {
