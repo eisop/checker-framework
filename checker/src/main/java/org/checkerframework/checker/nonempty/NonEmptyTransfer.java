@@ -394,6 +394,13 @@ public class NonEmptyTransfer extends CFTransfer {
         }
     }
 
+    /**
+     * If the transfer result given is regular result, then turn it into a conditional result while
+     * preserving the store. Otherwise, do nothing.
+     *
+     * @param result an input transfer result for regularity check
+     * @return a conditional transfer result
+     */
     private TransferResult<CFValue, CFStore> regularCheck(TransferResult<CFValue, CFStore> result) {
         if (!result.containsTwoStores()) {
             CFStore thenStore = result.getThenStore();
