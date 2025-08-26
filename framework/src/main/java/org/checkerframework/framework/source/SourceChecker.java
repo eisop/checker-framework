@@ -2777,8 +2777,6 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 }
 
                 if (isElementAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
-                    // Return false immediately. Do NOT check for AnnotatedFor in the enclosing
-                    // elements as the closest AnnotatedFor is already found.
                     return false;
                 }
             } else if (TreeUtils.classTreeKinds().contains(decl.getKind())) {
@@ -2789,8 +2787,6 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 }
 
                 if (isElementAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
-                    // Return false immediately. Do NOT check for AnnotatedFor in the enclosing
-                    // elements as the closest AnnotatedFor is already found.
                     return false;
                 }
                 Element packageElement = elt.getEnclosingElement();
@@ -2798,9 +2794,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                     if (shouldSuppressWarnings(packageElement, errKey)) {
                         return true;
                     }
+
                     if (isElementAnnotatedForThisCheckerOrUpstreamChecker(packageElement)) {
-                        // Return false immediately. Do NOT check for AnnotatedFor in the enclosing
-                        // elements as the closest AnnotatedFor is already found.
                         return false;
                     }
                 }
