@@ -24,7 +24,6 @@ from release_utils import (
 )
 from release_vars import (
     CHECKER_FRAMEWORK,
-    CHECKER_FRAMEWORK_RELEASE,
     SANITY_DIR,
     execute,
 )
@@ -118,6 +117,7 @@ def javac_sanity_check(checker_framework_website, release_version):
     )
 
 
+<<<<<<< HEAD
 def maven_sanity_check(sub_sanity_dir_name, release_version):
     """
     Run the Maven sanity check against the artifacts that release_build.py
@@ -127,16 +127,44 @@ def maven_sanity_check(sub_sanity_dir_name, release_version):
     maven_sanity_dir = os.path.join(SANITY_DIR, sub_sanity_dir_name)
     if os.path.isdir(maven_sanity_dir):
         delete_path(maven_sanity_dir)
+=======
+def maven_sanity_check(sub_sanity_dir_name: str, repo_url: str) -> None:
+    """Run the Maven sanity check with the local artifacts or from the repo at repo_url."""
+    maven_sanity_dir = Path(SANITY_DIR) / sub_sanity_dir_name
+    if pathlib.Path(maven_sanity_dir).is_dir():
+        delete_directory(maven_sanity_dir)
+>>>>>>> 52711fcea5 (Change release process to account for putting AFU in CF repo. (#7185))
 
     execute("mkdir -p " + maven_sanity_dir)
 
     maven_example_dir = os.path.join(maven_sanity_dir, "MavenExample")
     output_log = os.path.join(maven_example_dir, "output.log")
 
+<<<<<<< HEAD
     ant_release_script = os.path.join(CHECKER_FRAMEWORK_RELEASE, "release.xml")
     get_example_dir_cmd = f"ant -f {ant_release_script} update-and-copy-maven-example -Dchecker={checker_dir} -Dversion={release_version} -Ddest.dir={maven_sanity_dir}"
 
     execute(get_example_dir_cmd)
+=======
+    get_example_dir_cmd = f"./gradlew updateCopyMavenExample -PdestDir={maven_sanity_dir}"
+
+    execute(get_example_dir_cmd, CHECKER_FRAMEWORK)
+    path_to_artifacts = (
+        pathlib.Path("~").expanduser() / ".m2" / "repository" / "org" / "checkerframework"
+    )
+    if repo_url != "":
+        print(
+            "This script will now delete your Maven Checker Framework artifacts.\n"
+            "See README-release-process.html#Maven-Plugin dependencies.  These artifacts "
+            "will need to be re-downloaded the next time you need them.  This will be "
+            "done automatically by Maven next time you use the plugin."
+        )
+
+        if pathlib.Path(path_to_artifacts).is_dir():
+            delete_directory(path_to_artifacts)
+        maven_example_pom = Path(maven_example_dir) / "pom.xml"
+        add_repo_information(maven_example_pom, repo_url)
+>>>>>>> 52711fcea5 (Change release process to account for putting AFU in CF repo. (#7185))
 
     os.environ["JAVA_HOME"] = os.environ["JAVA_21_HOME"]
     execute_write_to_file("mvn compile", output_log, False, maven_example_dir)

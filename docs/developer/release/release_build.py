@@ -14,7 +14,7 @@ import sys
 from distutils.dir_util import copy_tree
 
 from release_utils import (
-    check_repos,
+    check_repo,
     check_tools,
     clone_from_scratch_or_update,
     commit_tag_and_push,
@@ -34,16 +34,12 @@ from release_utils import (
     set_umask,
 )
 from release_vars import (
-    ANNO_FILE_UTILITIES,
-    ANNO_TOOLS,
-    BUILD_REPOS,
     CF_VERSION,
     CHECKER_FRAMEWORK,
-    CHECKER_FRAMEWORK_RELEASE,
     CHECKLINK,
     CHECKLINK_REPO,
     DEV_SITE_DIR,
-    INTERM_REPOS,
+    INTERM_CHECKER_REPO,
     INTERM_TO_BUILD_REPOS,
     LIVE_SITE_URL,
     LIVE_TO_INTERM_REPOS,
@@ -113,6 +109,7 @@ The following repositories will be cloned or updated from their origins:
     )
     clone_from_scratch_or_update(CHECKLINK_REPO, CHECKLINK, clone_from_scratch, False)
     clone_from_scratch_or_update(PLUME_BIB_REPO, PLUME_BIB, clone_from_scratch, False)
+<<<<<<< HEAD
     # clone_from_scratch_or_update(LIVE_ANNO_REPO, ANNO_TOOLS, clone_from_scratch, False)
 
 
@@ -120,6 +117,8 @@ def get_afu_date():
     """If the AFU is being built, return the current date, otherwise return the
     date of the last AFU release as indicated in the AFU home page."""
     return get_current_date()
+=======
+>>>>>>> 52711fcea5 (Change release process to account for putting AFU in CF repo. (#7185))
 
 
 def get_new_version(project_name, curr_version):
@@ -143,6 +142,7 @@ def get_new_version(project_name, curr_version):
     return (curr_version, new_version)
 
 
+<<<<<<< HEAD
 def create_dev_website_release_version_dir(project_name, version):
     """Create the directory for the given version of the given project under
     the releases directory of the dev web site."""
@@ -167,8 +167,22 @@ def create_dirs_for_dev_website_release_versions(cf_version):
     checker_framework_interm_dir = create_dev_website_release_version_dir(
         None, cf_version
     )
+=======
+def create_dir_for_dev_website_release_version(version: str) -> Path:
+    """Create directory for CF project under the releases directory of the dev website.
 
-    return (afu_interm_dir, checker_framework_interm_dir)
+    For example,
+    /cse/www2/types/dev/checker-framework/checker-framework/releases/<version> .
+
+    Returns:
+        the dev web site directory for the CF.
+    """
+    interm_dir = Path(DEV_SITE_DIR) / "releases" / version
+    delete_directory_if_exists(interm_dir)
+>>>>>>> 52711fcea5 (Change release process to account for putting AFU in CF repo. (#7185))
+
+    execute(f"mkdir -p {interm_dir}")
+    return interm_dir
 
 
 # def update_project_dev_website_symlink(project_name, release_version):
@@ -183,6 +197,7 @@ def create_dirs_for_dev_website_release_versions(cf_version):
 #     force_symlink(dev_website_relative_dir, link_path)
 
 
+<<<<<<< HEAD
 def update_project_dev_website(project_name, release_version):
     """Update the dev web site for the given project
     according to the given release of the project on the dev web site."""
@@ -254,12 +269,38 @@ def build_checker_framework_release(
     execute("./gradlew assemble", working_dir=CHECKER_FRAMEWORK)
     execute("./gradlew allJavadoc", working_dir=CHECKER_FRAMEWORK)
     execute("./gradlew manual", working_dir=CHECKER_FRAMEWORK)
+=======
+def get_current_date() -> str:
+    """Return today's date in the ISO format "2016-05-02".
+
+    Returns:
+        today's date.
+    """
+    return datetime.datetime.now().date().isoformat()  # noqa: DTZ005
+
+
+def build_and_locally_deploy_maven() -> None:
+    """Run `./gradlew publishToMavenLocal`."""
+    execute("./gradlew publishToMavenLocal", working_dir=CHECKER_FRAMEWORK)
+
+
+def build_checker_framework_release(version: str, old_cf_version: str) -> None:
+    """Build the release files for the Checker Framework project and run tests.
+
+    The release files include the manual and the zip file.
+    """
+    execute("./gradlew clean", working_dir=CHECKER_FRAMEWORK)
+
+    # update versions
+    execute("./gradlew updateVersionNumbers", working_dir=CHECKER_FRAMEWORK)
+>>>>>>> 52711fcea5 (Change release process to account for putting AFU in CF repo. (#7185))
 
     # Check that updating versions didn't overlook anything.
     print("Here are occurrences of the old version number, " + old_cf_version + ":")
     grep_cmd = f"grep -n -r --exclude-dir=build --exclude-dir=.git -F {old_cf_version}"
     execute(grep_cmd, False, False, CHECKER_FRAMEWORK)
     continue_or_exit(
+<<<<<<< HEAD
         'If any occurrence is not acceptable, then stop the release, update target "update-checker-framework-versions" in file release.xml, and start over.'
     )
 
@@ -275,6 +316,16 @@ def build_checker_framework_release(
     dataflow_manual_dir = os.path.join(CHECKER_FRAMEWORK, "dataflow", "manual")
     execute("make", True, False, dataflow_manual_dir)
 
+=======
+        "If any occurrence is not acceptable, then stop the release, update target"
+        ' "updateVersionNumbers" in file release.gradle, and start over.'
+    )
+
+    # Build the Checker Framework binaries and documents.  Tests are run by release_push.py.
+    gradle_cmd = "./gradlew buildAll"
+    execute(gradle_cmd, CHECKER_FRAMEWORK)
+
+>>>>>>> 52711fcea5 (Change release process to account for putting AFU in CF repo. (#7185))
     # make the checker framework tutorial
     checker_tutorial_dir = os.path.join(CHECKER_FRAMEWORK, "docs", "tutorial")
     execute("make", True, False, checker_tutorial_dir)
@@ -282,6 +333,7 @@ def build_checker_framework_release(
     cfZipName = f"checker-framework-{version}.zip"
 
     # Create checker-framework-X.Y.Z.zip and put it in checker_framework_interm_dir
+<<<<<<< HEAD
     ant_props = f"-Dchecker={checker_dir} -Ddest.dir={checker_framework_interm_dir} -Dfile.name={cfZipName} -Dversion={version}"
     # IMPORTANT: The release.xml in the directory where the Checker Framework
     # is being built is used. Not the release.xml in the directory you ran
@@ -316,6 +368,12 @@ def build_checker_framework_release(
         f"ant {ant_debug} -f release.xml {ant_props} checker-framework-website-docs "
     )
     execute(ant_cmd, True, False, CHECKER_FRAMEWORK_RELEASE)
+=======
+    # copy the remaining checker-framework website files to checker_framework_interm_dir
+    # This also makes the manuals.
+    gradle_cmd = "./gradlew copyToWebsite  -PcfWebsite={checker_framework_interm_dir}"
+    execute(gradle_cmd, CHECKER_FRAMEWORK)
+>>>>>>> 52711fcea5 (Change release process to account for putting AFU in CF repo. (#7185))
 
     # clean no longer necessary files left over from building the checker framework tutorial
     checker_tutorial_dir = os.path.join(CHECKER_FRAMEWORK, "docs", "tutorial")
@@ -323,8 +381,14 @@ def build_checker_framework_release(
 
     build_and_locally_deploy_maven(version)
 
+<<<<<<< HEAD
     update_project_dev_website("checker-framework", version)
 
+=======
+    dev_website_relative_dir = Path(DEV_SITE_DIR) / "releases" / version
+    print(f"Copying from: {dev_website_relative_dir}\n  to: {DEV_SITE_DIR}")
+    copy_tree(dev_website_relative_dir, DEV_SITE_DIR)
+>>>>>>> 52711fcea5 (Change release process to account for putting AFU in CF repo. (#7185))
 
 def commit_to_interm_projects(cf_version):
     """Commit the changes for each project from its build repo to its
@@ -332,16 +396,23 @@ def commit_to_interm_projects(cf_version):
     script, which does not read the build repos."""
     # Use project definition instead, see find project location find_project_locations
 
-    commit_tag_and_push(cf_version, ANNO_TOOLS, "")
-
     commit_tag_and_push(cf_version, CHECKER_FRAMEWORK, "checker-framework-")
 
 
+<<<<<<< HEAD
 def main(argv):
     """The release_build script is responsible for building the release
     artifacts for the AFU and the Checker Framework projects
     and placing them in the development web site. It can also be used to review
     the documentation and changelogs for the three projects."""
+=======
+def main(argv: list[str]) -> None:
+    """Build the release artifacts for the Checker Framework project.
+
+    Also place them in the development web site. It can also be used to review
+    the documentation and changelogs for the three projects.
+    """
+>>>>>>> 52711fcea5 (Change release process to account for putting AFU in CF repo. (#7185))
     # MANUAL Indicates a manual step
     # AUTO Indicates the step is fully automated.
 
@@ -355,11 +426,9 @@ def main(argv):
     if debug:
         ant_debug = "-debug"
 
-    afu_date = get_afu_date()
-
     # For each project, build what is necessary but don't push
 
-    print("Building a new release of Annotation Tools and the Checker Framework!")
+    print("Building a new release of the Checker Framework!")
 
     print("\nPATH:\n" + os.environ["PATH"] + "\n")
 
@@ -385,8 +454,8 @@ def main(argv):
     # or outgoing changesets. If so, it fails.
 
     print_step("Step 1b: Verify repositories.")  # MANUAL
-    check_repos(INTERM_REPOS, True, True)
-    check_repos(BUILD_REPOS, True, False)
+    check_repo(CHECKER_FRAMEWORK, True, True)
+    check_repo(INTERM_CHECKER_REPO, True, False)
 
     # The release script requires a number of common tools (Ant, Maven, make, etc...). This step checks
     # to make sure all tools are available on the command line in order to avoid wasting time in the
@@ -395,10 +464,17 @@ def main(argv):
     print_step("Build Step 2: Check tools.")  # AUTO
     check_tools(TOOLS)
 
+<<<<<<< HEAD
     # Usually we increment the release by 0.0.1 per release unless there is a major change.
     # The release script will read the current version of the Checker Framework/Annotation File Utilities
     # from the release website and then suggest the next release version 0.0.1 higher than the current
     # version. You can also manually specify a version higher than the current version. Lower or equivalent
+=======
+    # Usually we increment the release by 0.0.1 per release unless there is a major change.  The
+    # release script will read the current version of the Checker Framework from the release
+    # website and then suggest the next release version 0.0.1 higher than the current version. You
+    # can also manually specify a version higher than the current version. Lower or equivalent
+>>>>>>> 52711fcea5 (Change release process to account for putting AFU in CF repo. (#7185))
     # versions are not possible and will be rejected when you try to push the release.
 
     print_step("Build Step 3: Determine release versions.")  # MANUAL
@@ -419,30 +495,11 @@ def main(argv):
         "Build Step 4: Create directories for the current release on the dev site."
     )  # AUTO
 
-    (
-        afu_interm_dir,
-        checker_framework_interm_dir,
-    ) = create_dirs_for_dev_website_release_versions(cf_version)
+    checker_framework_interm_dir = create_dir_for_dev_website_release_version(cf_version)
 
-    # The projects are built in the following order:
-    # Annotation File Utilities and Checker Framework. Furthermore, their
-    # manuals and websites are also built and placed in their relevant locations
-    # at https://checkerframework.org/dev/ .  This is the most time-consuming
-    # piece of the release. There are no prompts from this step forward; you
-    # might want to get a cup of coffee and do something else until it is done.
-
+    # The Checker Framework jar files and documentation are built and the website is updated.
     print_step("Build Step 5: Build projects and websites.")  # AUTO
-
-    print_step("Step 5a: Build Annotation File Utilities.")
-    build_annotation_tools_release(cf_version, afu_interm_dir)
-
-    print_step("Step 5b: Build Checker Framework.")
-    build_checker_framework_release(
-        cf_version,
-        old_cf_version,
-        afu_date,
-        checker_framework_interm_dir,
-    )
+    build_checker_framework_release(cf_version, old_cf_version)
 
     print_step("Build Step 6: Overwrite .htaccess and CFLogo.png .")  # AUTO
 
@@ -463,11 +520,8 @@ def main(argv):
     # permissions in order for them to be served.
 
     print_step("\n\nBuild Step 8: Add group permissions to repos.")
-    for build in BUILD_REPOS:
-        ensure_group_access(build)
-
-    for interm in INTERM_REPOS:
-        ensure_group_access(interm)
+    ensure_group_access(CHECKER_FRAMEWORK)
+    ensure_group_access(INTERM_CHECKER_REPO)
 
     # At the moment, this will lead to output error messages because some metadata in some of the
     # dirs I think is owned by Mike or Werner.  We should identify these and have them fix it.

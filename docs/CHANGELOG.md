@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 Version 3.49.5-eisop2 (June ?, 2026)
 -----------------------------------
+=======
+Version 3.49.6 (2025-08-??)
+-----------------------------
+>>>>>>> 52711fcea5 (Change release process to account for putting AFU in CF repo. (#7185))
 
 **User-visible changes:**
 

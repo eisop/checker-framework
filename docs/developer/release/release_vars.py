@@ -80,6 +80,7 @@ SANITY_DIR = TMP_DIR + "/sanity"
 # end of a release_push run.
 RELEASE_BUILD_COMPLETED_FLAG_FILE = TMP_DIR + "/release-build-completed"
 
+<<<<<<< HEAD
 # Every time a release is built the changes/tags are pushed here
 INTERM_REPO_ROOT = TMP_DIR + "/interm"
 INTERM_CHECKER_REPO = os.path.join(INTERM_REPO_ROOT, "checker-framework")
@@ -92,6 +93,18 @@ GIT_SCRIPTS_REPO = "https://github.com/eisop-plume-lib/git-scripts"
 PLUME_SCRIPTS_REPO = "https://github.com/eisop-plume-lib/plume-scripts"
 CHECKLINK_REPO = "https://github.com/eisop-plume-lib/checklink"
 PLUME_BIB_REPO = "https://github.com/eisop-plume-lib/plume-bib"
+=======
+# Every time a release is built the changes/tags are pushed here.
+INTERM_REPO_ROOT = TMP_DIR / "interm"
+INTERM_CHECKER_REPO = INTERM_REPO_ROOT / "checker-framework"
+
+# The central repositories for Checker Framework related projects.
+LIVE_CHECKER_REPO = "git@github.com:typetools/checker-framework.git"
+GIT_SCRIPTS_REPO = "https://github.com/plume-lib/git-scripts"
+PLUME_SCRIPTS_REPO = "https://github.com/plume-lib/plume-scripts"
+CHECKLINK_REPO = "https://github.com/plume-lib/checklink"
+PLUME_BIB_REPO = "https://github.com/mernst/plume-bib"
+>>>>>>> 52711fcea5 (Change release process to account for putting AFU in CF repo. (#7185))
 
 # Location of the project directories in which we will build the actual projects.
 # When we build these projects are pushed to the INTERM repositories.
@@ -109,14 +122,19 @@ CF_VERSION = (
     .decode("utf-8")
 )
 
+<<<<<<< HEAD
 ANNO_TOOLS = os.path.join(BUILD_DIR, "annotation-tools")
 ANNO_FILE_UTILITIES = os.path.join(ANNO_TOOLS, "annotation-file-utilities")
+=======
+ANNO_FILE_UTILITIES = CHECKER_FRAMEWORK / "annotation-file-utilities"
+>>>>>>> 52711fcea5 (Change release process to account for putting AFU in CF repo. (#7185))
 
 GIT_SCRIPTS = os.path.join(BUILD_DIR, "git-scripts")
 PLUME_SCRIPTS = os.path.join(BUILD_DIR, "plume-scripts")
 CHECKLINK = os.path.join(BUILD_DIR, "checklink")
 PLUME_BIB = os.path.join(BUILD_DIR, "plume-bib")
 
+<<<<<<< HEAD
 BUILD_REPOS = (CHECKER_FRAMEWORK, ANNO_TOOLS)
 INTERM_REPOS = (INTERM_CHECKER_REPO, INTERM_ANNO_REPO)
 
@@ -131,6 +149,11 @@ LIVE_TO_INTERM_REPOS = (
 )
 
 # TODO: publish to GitHub
+=======
+INTERM_TO_BUILD_REPOS = ((INTERM_CHECKER_REPO, CHECKER_FRAMEWORK),)
+
+LIVE_TO_INTERM_REPOS = ((LIVE_CHECKER_REPO, INTERM_CHECKER_REPO),)
+>>>>>>> 52711fcea5 (Change release process to account for putting AFU in CF repo. (#7185))
 
 # The location the test site is built in
 DEV_SITE_URL = "https://eisop.github.io/cf/dev"
