@@ -34,11 +34,13 @@ The format of error messages for type variables and wildcards has been improved 
 The `instanceof.unsafe` and `instanceof.pattern.unsafe` warnings in the Checker Framework are now controlled by lint options.
 They are enabled by default and can be disabled using `-Alint=-instanceof.unsafe` or `-Alint=-instanceof`.
 
+The Nullness Checker now recognizes references to private, final fields with zero-length arrays as initializers in calls to `Collection.toArray(T[])`, allowing the returned component type to be refined to `@NonNull`.
+
 **Implementation details:**
 
 **Closed issues:**
 
-eisop#1247, eisop#1263, typetools#7096.
+eisop#1247, eisop#1263, eisop#1310, typetools#7096.
 
 
 Version 3.49.5 (June 30, 2025)
