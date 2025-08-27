@@ -424,14 +424,14 @@ one of them.  However, if you are using the Windows command shell, you must
 use the last one.
 % Is the last one required for Cygwin, as well as for the Windows command shell?
 Adjust the pathnames if you have installed the Checker Framework somewhere
-other than \<\${HOME}/checker-framework-\ReleaseVersion/>.
+other than \<\${HOME}/checker-framework-\ReleaseVersion{}/>.
 
 
 \begin{itemize}
   \item
     Option 1:
     Add directory
-    \code{.../checker-framework-\ReleaseVersion/checker/bin} to your path, \emph{before} any other
+    \code{.../checker-framework-\ReleaseVersion{}/checker/bin} to your path, \emph{before} any other
     directory that contains a \<javac> executable.
 
     If you are
@@ -564,9 +564,9 @@ Alternately, you can get all of the jars mentioned in this section from Maven Ce
 
 \begin{itemize}
 \item \<javac.jar>: \url{https://central.sonatype.com/artifact/com.google.errorprone/javac/9%2B181-r4173-1}
-\item \<checker-qual.jar>: \url{https://repo1.maven.org/maven2/io/github/eisop/checker-qual/\ReleaseVersion/checker-qual-\ReleaseVersion.jar}
-\item \<checker-util.jar>: \url{https://repo1.maven.org/maven2/io/github/eisop/checker-util/\ReleaseVersion/checker-util-\ReleaseVersion.jar}
-\item \<checker.jar>: \url{https://repo1.maven.org/maven2/io/github/eisop/checker/\ReleaseVersion/checker-\ReleaseVersion-all.jar}
+\item \<checker-qual.jar>: \url{https://repo1.maven.org/maven2/io/github/eisop/checker-qual/\ReleaseVersion{}/checker-qual-\ReleaseVersion{}.jar}
+\item \<checker-util.jar>: \url{https://repo1.maven.org/maven2/io/github/eisop/checker-util/\ReleaseVersion{}/checker-util-\ReleaseVersion{}.jar}
+\item \<checker.jar>: \url{https://repo1.maven.org/maven2/io/github/eisop/checker/\ReleaseVersion{}/checker-\ReleaseVersion{}-all.jar}
 \end{itemize}
 
 Note the \<-all> classifier on that last URL.  On Maven Central,
