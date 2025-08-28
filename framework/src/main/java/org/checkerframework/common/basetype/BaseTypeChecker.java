@@ -316,30 +316,9 @@ public abstract class BaseTypeChecker extends SourceChecker {
         }
     }
 
-    /**
-     * This method is almost similar to {@link
-     * org.checkerframework.framework.util.defaults.QualifierDefaults#isElementAnnotatedForThisChecker(Element)}.
-     * except for early return if element is null, the conservative default for "source" is not used
-     * and do not recursively check enclosing elements because the logic is implemented at call
-     * sites.
-     *
-     * @param elt the source code element to check, or null
-     * @return true if the element is annotated for this checker or an upstream checker
-     */
+
     @Override
-    protected boolean isAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
-        if (elt == null || (!useConservativeDefaultsSource && !onlyAnnotatedFor)) {
-            return false;
-        }
-
-        boolean elementAnnotatedForThisChecker = false;
-        AnnotationMirror annotatedFor = getTypeFactory().getDeclAnnotation(elt, AnnotatedFor.class);
-
-        if (annotatedFor != null) {
-            elementAnnotatedForThisChecker =
-                    getTypeFactory().doesAnnotatedForApplyToThisChecker(annotatedFor);
-        }
-
-        return elementAnnotatedForThisChecker;
+    protected boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
+        return getTypeFactory().isElementAnnotatedForThisCheckerOrUpstreamChecker(elt);
     }
 }
