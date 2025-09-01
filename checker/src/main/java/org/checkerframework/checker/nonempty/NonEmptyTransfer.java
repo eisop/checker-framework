@@ -1,7 +1,6 @@
 package org.checkerframework.checker.nonempty;
 
 import org.checkerframework.checker.nonempty.qual.NonEmpty;
-import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
 import org.checkerframework.dataflow.cfg.node.CaseNode;
@@ -70,7 +69,7 @@ public class NonEmptyTransfer extends CFTransfer {
         TransferResult<CFValue, CFStore> result = super.visitEqualTo(n, in);
 
         // Expand the input store into a conditional store if it is a regular store.
-        result = ensureConditionalTransferResult(result);
+        result = ensureConditionalTransferResult(n, result);
 
         // The equality holds.
         strengthenAnnotationSizeEquals(
@@ -91,7 +90,7 @@ public class NonEmptyTransfer extends CFTransfer {
         TransferResult<CFValue, CFStore> result = super.visitNotEqual(n, in);
 
         // Expand the input store into conditional store if it's regular store
-        result = ensureConditionalTransferResult(result);
+        result = ensureConditionalTransferResult(n, result);
 
         refineNotEqual(n.getLeftOperand(), n.getRightOperand(), result.getThenStore());
         refineNotEqual(n.getRightOperand(), n.getLeftOperand(), result.getThenStore());
@@ -108,7 +107,7 @@ public class NonEmptyTransfer extends CFTransfer {
         TransferResult<CFValue, CFStore> result = super.visitLessThan(n, in);
 
         // Expand the input store into conditional store if it's regular store
-        result = ensureConditionalTransferResult(result);
+        result = ensureConditionalTransferResult(n, result);
 
         // A < B is equivalent to B > A.
         refineGT(n.getRightOperand(), n.getLeftOperand(), result.getThenStore());
@@ -125,7 +124,7 @@ public class NonEmptyTransfer extends CFTransfer {
         TransferResult<CFValue, CFStore> result = super.visitLessThanOrEqual(n, in);
 
         // Expand the input store into conditional store if it's regular store
-        result = ensureConditionalTransferResult(result);
+        result = ensureConditionalTransferResult(n, result);
 
         // A <= B is equivalent to B >= A.
         // This handles the case where n <= container.size()
@@ -142,7 +141,7 @@ public class NonEmptyTransfer extends CFTransfer {
         TransferResult<CFValue, CFStore> result = super.visitGreaterThan(n, in);
 
         // Expand the input store into conditional store if it's regular store
-        result = ensureConditionalTransferResult(result);
+        result = ensureConditionalTransferResult(n, result);
 
         refineGT(n.getLeftOperand(), n.getRightOperand(), result.getThenStore());
 
@@ -155,7 +154,7 @@ public class NonEmptyTransfer extends CFTransfer {
         TransferResult<CFValue, CFStore> result = super.visitGreaterThanOrEqual(n, in);
 
         // Expand the input store into conditional store if it's regular store
-        result = ensureConditionalTransferResult(result);
+        result = ensureConditionalTransferResult(n, result);
 
         refineGTE(n.getLeftOperand(), n.getRightOperand(), result.getThenStore());
 
@@ -168,7 +167,7 @@ public class NonEmptyTransfer extends CFTransfer {
         TransferResult<CFValue, CFStore> result = super.visitCase(n, in);
 
         // Expand the input store into conditional store if it's regular store
-        result = ensureConditionalTransferResult(result);
+        result = ensureConditionalTransferResult(n, result);
 
         List<Node> caseOperands = n.getCaseOperands();
         Node switchOpNode = n.getSwitchOperand().getExpression();
@@ -394,22 +393,14 @@ public class NonEmptyTransfer extends CFTransfer {
         }
     }
 
-    /**
-     * Ensure the transfer result is conditional with then and else branches so that the refinement
-     * can be done differently to different branches. If the transfer result given is regular
-     * result, then turn it into a conditional result while preserving the store. Otherwise, do
-     * nothing.
-     *
-     * @param result an input transfer result for regularity check
-     * @return a conditional transfer result
-     */
-    private TransferResult<CFValue, CFStore> ensureConditionalTransferResult(
-            TransferResult<CFValue, CFStore> result) {
-        if (!result.containsTwoStores()) {
-            CFStore thenStore = result.getRegularStore();
-            CFStore elseStore = thenStore.copy();
-            return new ConditionalTransferResult<>(result.getResultValue(), thenStore, elseStore);
-        }
-        return result;
+    @Override
+    public Boolean shouldSplitTransferResult(Node n) {
+        return n instanceof EqualToNode
+                || n instanceof NotEqualNode
+                || n instanceof LessThanNode
+                || n instanceof LessThanOrEqualNode
+                || n instanceof GreaterThanNode
+                || n instanceof GreaterThanOrEqualNode
+                || n instanceof CaseNode;
     }
 }

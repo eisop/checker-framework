@@ -1611,4 +1611,38 @@ public abstract class CFAbstractTransfer<
             result.getRegularStore().insertValuePermitNondeterministic(target, newAnno);
         }
     }
+
+    /**
+     * Ensure the transfer result is conditional with then and else branches so that the refinement
+     * can be done differently to different branches. If the transfer result given is regular
+     * result, and the node requires the split, then turn it into a conditional result while
+     * preserving the store. Otherwise, do nothing. By default, it doesn't split on any node.
+     *
+     * @param n current node to decide whether to split
+     * @param result an input transfer result for regularity check
+     * @return a conditional transfer result
+     */
+    protected TransferResult<V, S> ensureConditionalTransferResult(
+            Node n, TransferResult<V, S> result) {
+        if (!result.containsTwoStores() && shouldSplitTransferResult(n)) {
+            S thenStore = result.getRegularStore();
+            S elseStore = thenStore.copy();
+            return new ConditionalTransferResult<>(result.getResultValue(), thenStore, elseStore);
+        }
+        return result;
+    }
+
+    /**
+     * Returns a boolean value to decide whether to split the transfer result passed to the current
+     * node should be split into conditional transfer result. Some checker-specific refinement can
+     * therefore be applied to different branches, e.g. comparing to `0` in Nonempty Checker and
+     * comparing to `null` in Nullness Checker. By default, it doesn't split on any node, i.e.
+     * returns false.
+     *
+     * @param n current node to decide whether to split
+     * @return the boolean value for split. True indicates need split.
+     */
+    protected Boolean shouldSplitTransferResult(Node n) {
+        return true;
+    }
 }
