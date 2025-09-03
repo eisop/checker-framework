@@ -347,6 +347,12 @@ typetools#8055.
 Version 3.50.0 (August 28, 2025)
 -----------------------------
 
+**User-visible changes:**
+
+If you supply `--add-exports` flags when you run the Checker Framework,
+you need to add:
+`--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED`.
+
 **Implementation details:**
 
 Moved the Annotation File Utilities code into the Checker Framework repository as a subproject.
