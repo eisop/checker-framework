@@ -257,6 +257,9 @@ Other improvements and bug fixes:
 - No longer crashes on method references with raw receivers or supertypes
   with missing type-argument classes.
 
+Dataflow Framework:
+ * In `playground` package, renamed `*Playground.java` to `*Pdf.java`
+
 **Closed issues:**
 
 eisop#104,
