@@ -789,7 +789,7 @@ public abstract class GenericAnnotatedTypeFactory<
         QualifierDefaults defs = createQualifierDefaults();
         addCheckedCodeDefaults(defs);
         addCheckedStandardDefaults(defs);
-        addUncheckedStandardDefaults(defs);
+        addUncheckedDefaults(defs);
         checkForDefaultQualifierInHierarchy(defs);
 
         return defs;
@@ -868,12 +868,13 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * Adds standard unchecked defaults that do not conflict with previously added defaults.
+     * Adds both optimistic and conservative unchecked defaults that do not conflict with previously
+     * added defaults.
      *
      * @param defs {@link QualifierDefaults} object to which defaults are added
      */
-    protected void addUncheckedStandardDefaults(QualifierDefaults defs) {
-        defs.addUncheckedStandardDefaults();
+    protected void addUncheckedDefaults(QualifierDefaults defs) {
+        defs.addUncheckedDefaults();
     }
 
     /**
