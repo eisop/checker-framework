@@ -2828,6 +2828,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         return false;
     }
 
+    /**
+     * Determine whether optimistic defaults should be used for the kind of unchecked code indicated
+     * by the command line arguments.
+     *
+     * @param kindOfCode source or bytecode
+     * @return whether optimistic defaults should be used
+     */
     public boolean useOptimisticDefault(String kindOfCode) {
         boolean useUncheckedDefaultsForSource = false;
         boolean useUncheckedDefaultsForByteCode = false;
@@ -2849,8 +2856,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Should conservative defaults be used for the kind of unchecked code indicated by the
-     * parameter?
+     * Determine whether conservative defaults should be used for the kind of unchecked code
+     * indicated by the command line arguments.
      *
      * @param kindOfCode source or bytecode
      * @return whether conservative defaults should be used
