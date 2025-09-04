@@ -3,6 +3,10 @@ Version 3.49.5-eisop1 (July ??, 2025)
 
 **User-visible changes:**
 
+The new command-line option `-AuseOptimisticDefaultsForUncheckedCode` takes `source` and `bytecode` argument, similar to
+`-AuseConservativeDefaultsForUnCheckedCode` but apply to optimistic default, that is, Top for method parameter type and
+Bottom for method return and field type.
+
 The new command-line option `-AonlyAnnotatedFor` suppresses all type-checking errors and warnings outside the scope of
 a corresponding `@AnnotatedFor` annotation.
 Note that the `@AnnotatedFor` annotation must include the checker's name to enable warnings from that checker.
