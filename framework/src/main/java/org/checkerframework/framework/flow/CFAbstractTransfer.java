@@ -1616,7 +1616,7 @@ public abstract class CFAbstractTransfer<
      * Ensure the transfer result is conditional with then and else branches so that the refinement
      * can be done differently to different branches. If the transfer result given is regular
      * result, and the node requires the split, then turn it into a conditional result while
-     * preserving the store. Otherwise, do nothing. By default, it doesn't split on any node.
+     * preserving the store. Otherwise, do nothing.
      *
      * @param n current node to decide whether to split
      * @param result an input transfer result for regularity check
