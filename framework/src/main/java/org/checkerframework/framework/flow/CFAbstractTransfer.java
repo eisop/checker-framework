@@ -1633,7 +1633,7 @@ public abstract class CFAbstractTransfer<
     }
 
     /**
-     * Returns a boolean value to decide whether to split the transfer result passed to the current
+     * Returns whether to split the transfer result passed to the current
      * node should be split into conditional transfer result. Some checker-specific refinement can
      * therefore be applied to different branches, e.g. comparing to `0` in Nonempty Checker and
      * comparing to `null` in Nullness Checker. By default, it does not split on any node, i.e.
