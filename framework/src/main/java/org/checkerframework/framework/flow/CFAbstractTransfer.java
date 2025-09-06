@@ -1642,7 +1642,7 @@ public abstract class CFAbstractTransfer<
      * @param n current node to decide whether to split
      * @return the boolean value for split. True indicates need split.
      */
-    protected Boolean shouldSplitTransferResult(Node n) {
+    protected boolean shouldSplitTransferResult(Node n) {
         return true;
     }
 }
