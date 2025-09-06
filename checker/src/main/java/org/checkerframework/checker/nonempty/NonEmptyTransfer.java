@@ -394,7 +394,7 @@ public class NonEmptyTransfer extends CFTransfer {
     }
 
     @Override
-    public Boolean shouldSplitTransferResult(Node n) {
+    public boolean shouldSplitTransferResult(Node n) {
         return n instanceof EqualToNode
                 || n instanceof NotEqualNode
                 || n instanceof LessThanNode
