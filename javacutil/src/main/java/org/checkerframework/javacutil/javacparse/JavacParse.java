@@ -20,6 +20,7 @@ import java.util.List;
 import javax.tools.DiagnosticCollector;
 import javax.tools.DiagnosticListener;
 import javax.tools.JavaFileObject;
+import org.checkerframework.javacutil.UserError;
 
 /**
  * This class contains static methods that parse Java code.
@@ -211,7 +212,14 @@ public final class JavacParse {
             new JavacFileManager(context, true, StandardCharsets.UTF_8)) {
 
       Log.instance(context).useSource(source);
-      ParserFactory parserFactory = ParserFactory.instance(context);
+      ParserFactory parserFactory;
+      try {
+        parserFactory = ParserFactory.instance(context);
+      } catch (IllegalAccessError e) {
+        throw new UserError(
+            "Provide `--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED` along with"
+                + " any other `--add-exports` in the Checker Framework invocation.");
+      }
       JavacParser parser = parserFactory.newParser(source.getCharContent(false), true, true, true);
       CompilationUnitTree cu = parser.parseCompilationUnit();
       ((JCCompilationUnit) cu).sourcefile = source;
@@ -245,7 +253,14 @@ public final class JavacParse {
             new JavacFileManager(context, true, StandardCharsets.UTF_8)) {
 
       Log.instance(context).useSource(source);
-      ParserFactory parserFactory = ParserFactory.instance(context);
+      ParserFactory parserFactory;
+      try {
+        parserFactory = ParserFactory.instance(context);
+      } catch (IllegalAccessError e) {
+        throw new UserError(
+            "Provide `--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED` along with"
+                + " any other `--add-exports` in the Checker Framework invocation.");
+      }
       JavacParser parser = parserFactory.newParser(source.getCharContent(false), true, true, true);
       ExpressionTree eTree = parser.parseExpression();
       return new JavacParseResult<ExpressionTree>(eTree, diagnostics.getDiagnostics());
@@ -271,7 +286,14 @@ public final class JavacParse {
             new JavacFileManager(context, true, StandardCharsets.UTF_8)) {
 
       Log.instance(context).useSource(source);
-      ParserFactory parserFactory = ParserFactory.instance(context);
+      ParserFactory parserFactory;
+      try {
+        parserFactory = ParserFactory.instance(context);
+      } catch (IllegalAccessError e) {
+        throw new UserError(
+            "Provide `--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED` along with"
+                + " any other `--add-exports` in the Checker Framework invocation.");
+      }
       JavacParser parser = parserFactory.newParser(source.getCharContent(false), true, true, true);
       ExpressionTree eTree = parser.parseType();
       return new JavacParseResult<ExpressionTree>(eTree, diagnostics.getDiagnostics());
