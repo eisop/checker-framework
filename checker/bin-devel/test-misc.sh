@@ -50,8 +50,9 @@ git diff --exit-code docs/manual/contributors.tex \
 # Check the definition of qualifiers in Checker Framework against the JDK
 ./checker/bin-devel/check-jdk-consistency.sh
 
-# Check gradle tasks are configured properly
-./gradlew tasks
+# Check gradle tasks are configured properly; listing all tasks also helps ensure that importing the
+# Checker Framework into IDEs like IntelliJ works.
+./gradlew tasks --all --console=plain --warning-mode=all
 
 # Check Eclipse and IDE project configuration generation
 ./gradlew cleanEclipse eclipse --console=plain --warning-mode=all
