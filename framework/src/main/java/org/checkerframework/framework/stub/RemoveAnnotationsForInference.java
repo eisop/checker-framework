@@ -606,7 +606,7 @@ public class RemoveAnnotationsForInference {
    * @return the part of s before the colon, or the whole thing if it contains no colon
    */
   private static String checkerName(String s) {
-    int colonPos = s.indexOf(":");
+    int colonPos = s.indexOf(':');
     if (colonPos == -1) {
       return s;
     } else {

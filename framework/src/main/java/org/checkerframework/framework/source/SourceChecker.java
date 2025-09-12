@@ -3873,7 +3873,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     for (String currentSuppressWarningsInEffect : suppressWarningsInEffect) {
-      int colonPos = currentSuppressWarningsInEffect.indexOf(":");
+      int colonPos = currentSuppressWarningsInEffect.indexOf(':');
       String messageKeyInSuppressWarningsString;
       if (colonPos == -1) {
         // The SuppressWarnings string has no colon, so it is not of the form
