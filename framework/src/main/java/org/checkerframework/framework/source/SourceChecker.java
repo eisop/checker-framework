@@ -205,6 +205,14 @@ import javax.tools.Diagnostic;
     // Whether to type check the enclosing expression of an inner class instantiation.
     "checkEnclosingExpr",
 
+    // Whether to use optimistic defaults for bytecode and/or source code.
+    // The option takes same arguments as  "useConservativeDefaultsForUncheckedCode".
+    // Optimistic default will only apply the code is not in the scope of an @AnnotatedFor.
+    // Note using this option will not suppress the warning for source code not in the scope of an
+    // @AnnotatedFor, user can use -AonlyAnnotatedFor together with this option.
+    // Optimistic and conservative defaults should apply to source or/and bytecode at the same time.
+    "useOptimisticDefaultsForUncheckedCode",
+
     // Whether to use conservative defaults for bytecode and/or source code.
     // This option takes arguments "source" and/or "bytecode".
     // The default is "-source,-bytecode" (eventually this will be changed to "-source,bytecode").
@@ -2821,8 +2829,35 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Should conservative defaults be used for the kind of unchecked code indicated by the
-     * parameter?
+     * Determine whether optimistic defaults should be used for the kind of unchecked code indicated
+     * by the command line arguments.
+     *
+     * @param kindOfCode source or bytecode
+     * @return whether optimistic defaults should be used
+     */
+    public boolean useOptimisticDefault(String kindOfCode) {
+        boolean useUncheckedDefaultsForSource = false;
+        boolean useUncheckedDefaultsForByteCode = false;
+        for (String arg : this.getStringsOption("useOptimisticDefaultsForUncheckedCode", ',')) {
+            boolean value = arg.indexOf("-") != 0;
+            arg = value ? arg : arg.substring(1);
+            if (arg.equals(kindOfCode)) {
+                return value;
+            }
+        }
+        if (kindOfCode.equals("source")) {
+            return useUncheckedDefaultsForSource;
+        } else if (kindOfCode.equals("bytecode")) {
+            return useUncheckedDefaultsForByteCode;
+        } else {
+            throw new UserError(
+                    "SourceChecker: unexpected argument to useOptimisticDefault: " + kindOfCode);
+        }
+    }
+
+    /**
+     * Determine whether conservative defaults should be used for the kind of unchecked code
+     * indicated by the command line arguments.
      *
      * @param kindOfCode source or bytecode
      * @return whether conservative defaults should be used

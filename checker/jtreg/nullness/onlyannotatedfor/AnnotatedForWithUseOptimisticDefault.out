@@ -1,0 +1,18 @@
+AnnotatedForWithUse.java:16:16: compiler.err.proc.messager: [type.invalid.annotations.on.location] annotation @org.checkerframework.checker.nullness.qual.KeyForBottom used on prohibited locations FIELD
+AnnotatedForWithUse.java:16:16: compiler.err.proc.messager: [initialization.field.uninitialized] the default constructor does not initialize field o
+AnnotatedForWithUse.java:16:16: compiler.err.proc.messager: [type.invalid.annotations.on.location] annotation @org.checkerframework.checker.initialization.qual.FBCBottom used on prohibited locations FIELD
+AnnotatedForWithUse.java:17:16: compiler.err.proc.messager: [type.invalid.annotations.on.location] annotation @org.checkerframework.checker.nullness.qual.KeyForBottom used on prohibited locations RETURN
+AnnotatedForWithUse.java:17:16: compiler.err.proc.messager: [type.invalid.annotations.on.location] annotation @org.checkerframework.checker.initialization.qual.FBCBottom used on prohibited locations RETURN
+AnnotatedForWithUse.java:17:31: compiler.err.proc.messager: [return.type.incompatible] incompatible types in return.
+type of expression: @UnknownKeyFor NullType
+method return type: @KeyForBottom Object
+AnnotatedForWithUse.java:17:31: compiler.err.proc.messager: [return.type.incompatible] incompatible types in return.
+type of expression: @Nullable NullType
+method return type: @NonNull Object
+AnnotatedForWithUse.java:27:19: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
+found   : @UnknownKeyFor NullType
+required: @KeyForBottom Object
+AnnotatedForWithUse.java:27:19: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
+found   : @Nullable NullType
+required: @NonNull Object
+9 errors
