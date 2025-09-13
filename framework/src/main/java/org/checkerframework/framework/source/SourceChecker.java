@@ -32,9 +32,7 @@ import org.checkerframework.checker.signature.qual.ClassGetName;
 import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.reflection.MethodValChecker;
-import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
-import org.checkerframework.framework.util.CheckerMain;
 import org.checkerframework.framework.util.OptionConfiguration;
 import org.checkerframework.framework.util.TreePathCacher;
 import org.checkerframework.javacutil.AbstractTypeProcessor;
@@ -153,7 +151,7 @@ import javax.tools.Diagnostic;
     // only issue errors for code inside the scope of `@NullMarked` annotations.
     // See
     // https://github.com/uber/NullAway/wiki/Configuration#only-nullmarked-version-0123-and-after.
-    // org.checkerframework.framework.source.SourceChecker.isAnnotatedForThisCheckerOrUpstreamChecker
+    // org.checkerframework.framework.source.SourceChecker.isElementAnnotatedForThisCheckerOrUpstreamChecker
     "onlyAnnotatedFor",
 
     // Unsoundly assume all methods have no side effects, are deterministic, or both.
@@ -2778,9 +2776,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                     return true;
                 }
 
-                if (isAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
-                    // Return false immediately. Do NOT check for AnnotatedFor in the enclosing
-                    // elements as the closest AnnotatedFor is already found.
+                if (isElementAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
                     return false;
                 }
             } else if (TreeUtils.classTreeKinds().contains(decl.getKind())) {
@@ -2790,9 +2786,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                     return true;
                 }
 
-                if (isAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
-                    // Return false immediately. Do NOT check for AnnotatedFor in the enclosing
-                    // elements as the closest AnnotatedFor is already found.
+                if (isElementAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
                     return false;
                 }
                 Element packageElement = elt.getEnclosingElement();
@@ -2800,9 +2794,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                     if (shouldSuppressWarnings(packageElement, errKey)) {
                         return true;
                     }
-                    if (isAnnotatedForThisCheckerOrUpstreamChecker(packageElement)) {
-                        // Return false immediately. Do NOT check for AnnotatedFor in the enclosing
-                        // elements as the closest AnnotatedFor is already found.
+
+                    if (isElementAnnotatedForThisCheckerOrUpstreamChecker(packageElement)) {
                         return false;
                     }
                 }
@@ -2879,11 +2872,6 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                     }
                     return true;
                 }
-            }
-            if (isAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
-                // Return false immediately. Do NOT check for AnnotatedFor in the
-                // enclosing elements, because they may not have an @AnnotatedFor.
-                return false;
             }
         }
         return false;
@@ -3016,33 +3004,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @param elt the source code element to check, or null
      * @return true if the element is annotated for this checker or an upstream checker
      */
-    private boolean isAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
-        // Return false if elt is null, or if neither useConservativeDefaultsSource nor
-        // issueErrorsForOnlyAnnotatedForScope is set, since the @AnnotatedFor status is irrelevant
-        // in that case.
-        // TODO: Refactor SourceChecker and QualifierDefaults to use a cache for determining if an
-        // element is annotated for.
-        if (elt == null || (!useConservativeDefaultsSource && !onlyAnnotatedFor)) {
-            return false;
-        }
-
-        AnnotatedFor anno = elt.getAnnotation(AnnotatedFor.class);
-
-        String[] userAnnotatedFors = (anno == null ? null : anno.value());
-
-        if (userAnnotatedFors != null) {
-            List<@FullyQualifiedName String> upstreamCheckerNames = getUpstreamCheckerNames();
-
-            for (String userAnnotatedFor : userAnnotatedFors) {
-                if (CheckerMain.matchesCheckerOrSubcheckerFromList(
-                        userAnnotatedFor, upstreamCheckerNames)) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
+    protected abstract boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(Element elt);
 
     /**
      * Returns a modifiable set of lower-case strings that are prefixes for SuppressWarnings
