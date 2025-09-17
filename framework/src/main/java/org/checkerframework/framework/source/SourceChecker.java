@@ -141,6 +141,21 @@ import javax.tools.Diagnostic;
     "onlyFiles",
     "skipDirs", // Obsolete as of 2024-03-15, replaced by "skipFiles".
 
+    // Suppress all errors and warnings for code outside the scope of a corresponding
+    // `@AnnotatedFor` annotation.
+    // Note that the `@AnnotatedFor` annotation must include the checker's name to enable warnings
+    // from that checker.
+    // For example, use `@AnnotatedFor("nullness")` for the Nullness Checker.
+    // This flag only suppresses warnings, compared to
+    // `-AuseConservativeDefaultsForUncheckedCode=source`, which also applies conservative defaults
+    // for code outside the scope of an `@AnnotatedFor` annotation.
+    // NullAway has a similar flag: `-XepOpt:NullAway:OnlyNullMarked=true` configures NullAway to
+    // only issue errors for code inside the scope of `@NullMarked` annotations.
+    // See
+    // https://github.com/uber/NullAway/wiki/Configuration#only-nullmarked-version-0123-and-after.
+    // org.checkerframework.framework.source.SourceChecker.isAnnotatedForThisCheckerOrUpstreamChecker
+    "onlyAnnotatedFor",
+
     // Unsoundly assume all methods have no side effects, are deterministic, or both.
     "assumeSideEffectFree",
     "assumeDeterministic",
@@ -197,7 +212,9 @@ import javax.tools.Diagnostic;
     // applied to code in the scope of an @AnnotatedFor.
     // See the "Compiling partially-annotated libraries" and
     // "Default qualifiers for \<.class> files (conservative library defaults)"
-    // sections in the manual for more details
+    // sections in the manual for more details.
+    // -AonlyAnnotatedFor suppresses warnings for code outside the scope of @AnnotatedFor,
+    // but does not change the default qualifiers for source code.
     // org.checkerframework.framework.source.SourceChecker.useConservativeDefault
     "useConservativeDefaultsForUncheckedCode",
 
@@ -675,6 +692,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /** True if the -AwarnUnneededSuppressions command-line argument was passed. */
     private boolean warnUnneededSuppressions;
+
+    /** True if the -AonlyAnnotatedFor command-line argument was passed. */
+    private boolean onlyAnnotatedFor;
 
     /**
      * True if the -AuseConservativeDefaultsForUncheckedCode=source command-line argument was
@@ -1172,6 +1192,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         showPrefixInWarningMessages = hasOption("showPrefixInWarningMessages");
         warnUnneededSuppressions = hasOption("warnUnneededSuppressions");
         useConservativeDefaultsSource = useConservativeDefault("source");
+        onlyAnnotatedFor = hasOption("onlyAnnotatedFor");
     }
 
     /** Output the warning about source level at most once. */
@@ -2790,7 +2811,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             }
         }
 
-        if (useConservativeDefaultsSource) {
+        if (useConservativeDefaultsSource || onlyAnnotatedFor) {
             // If we got this far without hitting an @AnnotatedFor and returning
             // false, we DO suppress the warning.
             return true;
@@ -2996,7 +3017,12 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return true if the element is annotated for this checker or an upstream checker
      */
     private boolean isAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
-        if (elt == null || !useConservativeDefaultsSource) {
+        // Return false if elt is null, or if neither useConservativeDefaultsSource nor
+        // issueErrorsForOnlyAnnotatedForScope is set, since the @AnnotatedFor status is irrelevant
+        // in that case.
+        // TODO: Refactor SourceChecker and QualifierDefaults to use a cache for determining if an
+        // element is annotated for.
+        if (elt == null || (!useConservativeDefaultsSource && !onlyAnnotatedFor)) {
             return false;
         }
 
