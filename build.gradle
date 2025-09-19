@@ -118,12 +118,19 @@ switch (JavaVersion.current()) {
         break;
 }
 
-task setLocalRepo(type:Exec) {
-    commandLine 'git', 'worktree', 'list'
-    standardOutput = new ByteArrayOutputStream()
+task setLocalRepo(type: Exec) {
+    def outputFile = layout.buildDirectory.file("setLocalRepo-output.txt")
+    outputs.file(outputFile)
+
+    commandLine = [
+        'bash',
+        '-c',
+        "git worktree list > ${outputFile.get().asFile.absolutePath}"
+    ]
+
     doLast {
-        String worktreeList = standardOutput.toString()
-        localRepo = worktreeList.substring(0, worktreeList.indexOf(' ')) + '/.git'
+        String worktreeList = outputFile.get().asFile.text
+        ext.localRepo = worktreeList.substring(0, worktreeList.indexOf(' ')) + '/.git'
     }
 }
 
@@ -1001,31 +1008,40 @@ subprojects {
         withSourcesJar()
     }
 
+    // Capture project references early.
+    def projectVersion = project.version
+    def projectName = project.name.replaceAll('-', '.')
+
     // Things in this block reference definitions in the subproject that do not exist,
     // until the project is evaluated.
     afterEvaluate {
         // Adds manifest to all Jar files
         tasks.withType(Jar) {
             includeEmptyDirs = false
-            if (archiveFileName.get().startsWith('checker-qual') || archiveFileName.get().startsWith('checker-util')) {
-                metaInf {
-                    from './LICENSE.txt'
-                }
-            } else {
-                metaInf {
-                    from "${rootDir}/LICENSE.txt"
+
+            archiveFileName.map { fileName ->
+                if (fileName.startsWith('checker-qual') || fileName.startsWith('checker-util')) {
+                    metaInf {
+                        from './LICENSE.txt'
+                    }
+                } else {
+                    metaInf {
+                        from "${rootDir}/LICENSE.txt"
+                    }
                 }
             }
             manifest {
-                attributes('Implementation-Version': "${project.version}")
+                attributes('Implementation-Version': "${projectVersion}")
                 attributes('Implementation-URL': 'https://eisop.github.io/')
-                if (! archiveFileName.get().endsWith('source.jar') && ! archiveFileName.get().startsWith('checker-qual')) {
-                    attributes('Automatic-Module-Name': 'org.checkerframework.' + project.name.replaceAll('-', '.'))
-                }
-                if (archiveFileName.get().startsWith('checker-qual') || archiveFileName.get().startsWith('checker-util')) {
-                    attributes('Bundle-License': 'MIT')
-                } else {
-                    attributes('Bundle-License': '(GPL-2.0-only WITH Classpath-exception-2.0)')
+                archiveFileName.map { fileName ->
+                    if (! fileName.endsWith('source.jar') && ! fileName.startsWith('checker-qual')) {
+                        attributes('Automatic-Module-Name': 'org.checkerframework.' + projectName)
+                    }
+                    if (fileName.startsWith('checker-qual') || fileName.startsWith('checker-util')) {
+                        attributes('Bundle-License': 'MIT')
+                    } else {
+                        attributes('Bundle-License': '(GPL-2.0-only WITH Classpath-exception-2.0)')
+                    }
                 }
             }
         }
