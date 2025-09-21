@@ -1710,7 +1710,7 @@ subprojects {
             description = 'Run inference tests.'
             if (isChecker) {
                 // NO-AFU: Needs to depend on future AFU version of CF
-                // dependsOn('inferenceTests-part1', 'inferenceTests-part1')
+                // dependsOn('inferenceTests-part1', 'inferenceTests-part2')
             }
         }
         tasks.register('inferenceTests-part1') {
