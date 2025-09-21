@@ -1,7 +1,7 @@
 #!/bin/bash
 
-echo Deprecated: use ./gradlew assemble instead.
 echo Entering checker/bin-devel/build.sh in "$(pwd)"
+echo checker/bin-devel/build.sh is deprecated: use ./gradlew assemble instead.
 
 # Fail the whole script if any command fails
 set -e
