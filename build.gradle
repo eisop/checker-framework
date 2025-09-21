@@ -1718,7 +1718,7 @@ subprojects {
             description = 'Run inference tests (part 1).'
             if (isChecker) {
                 // NO-AFU: Needs to depend on future AFU version of CF
-                // dependsOn('ainferTest', 'wpiManyTest')
+                // dependsOn('wpiManyTest')
             }
         }
         tasks.register('inferenceTests-part2') {
@@ -1726,7 +1726,7 @@ subprojects {
             description = 'Run inference tests (part 2).'
             if (isChecker) {
                 // NO-AFU: Needs to depend on future AFU version of CF
-                // dependsOn('wpiPlumeLibTest')
+                // dependsOn('ainferTest', 'wpiPlumeLibTest')
             }
         }
 
