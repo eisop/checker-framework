@@ -887,6 +887,9 @@ public abstract class CFAbstractTransfer<
         V leftV = p.getValueOfSubNode(leftN);
         V rightV = p.getValueOfSubNode(rightN);
 
+        // if one side of equality is false and the result is already forked by the other side,
+        // then them being equal means the result passed in should be flipped.
+        // e.g. (a == b) == false <==> a != b
         if (res.containsTwoStores()
                 && (NodeUtils.isConstantBoolean(leftN, false)
                         || NodeUtils.isConstantBoolean(rightN, false))) {
@@ -911,6 +914,9 @@ public abstract class CFAbstractTransfer<
         V leftV = p.getValueOfSubNode(leftN);
         V rightV = p.getValueOfSubNode(rightN);
 
+        // if one side of inequality is true and the result is already forked by the other side,
+        // then them being not equal means the result passed in should be flipped.
+        // e.g. (a == b) != true <==> a != b
         if (res.containsTwoStores()
                 && (NodeUtils.isConstantBoolean(leftN, true)
                         || NodeUtils.isConstantBoolean(rightN, true))) {
