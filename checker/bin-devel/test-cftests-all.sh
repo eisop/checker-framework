@@ -12,7 +12,7 @@ echo "SHELLOPTS=${SHELLOPTS}"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 source "$SCRIPT_DIR"/clone-related.sh
 
-./gradlew allTests --console=plain --warning-mode=all
+./gradlew allTests --warning-mode=all
 # Moved example-tests out of all tests because it fails in
 # the release script because the newest Maven artifacts are not published yet.
-./gradlew :checker:exampleTests --console=plain --warning-mode=all
+./gradlew :checker:exampleTests --warning-mode=all

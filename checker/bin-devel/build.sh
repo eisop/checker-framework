@@ -15,6 +15,6 @@ if [ -z "${NO_WRITE_VERIFICATION_METADATA+x}" ]; then
     || (sleep 1m && date && TERM=dumb timeout 300 ./gradlew --write-verification-metadata sha256 help --dry-run)
 fi
 echo "running \"./gradlew assembleForJavac\" for checker-framework"
-./gradlew assembleForJavac --console=plain -Dorg.gradle.internal.http.socketTimeout=60000 -Dorg.gradle.internal.http.connectionTimeout=60000
+./gradlew assembleForJavac -Dorg.gradle.internal.http.socketTimeout=60000 -Dorg.gradle.internal.http.connectionTimeout=60000
 
 echo Exiting checker/bin-devel/build.sh in "$(pwd)"
