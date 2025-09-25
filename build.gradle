@@ -17,12 +17,12 @@ plugins {
     // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
     // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
     // Only works on JDK 11+ (even including the plugin crashes Gradle on JDK 8).
-    id 'com.diffplug.spotless' version '7.1.0'
+    id 'com.diffplug.spotless' version '7.2.1'
 }
 
 // There is another `repositories { ... }` block below; if you change this one, change that one as well.
 repositories {
-    maven { url = 'https://oss.sonatype.org/content/repositories/snapshots/'}
+    maven { url = 'https://central.sonatype.com/repository/maven-snapshots/'}
     mavenCentral()
 }
 
@@ -86,12 +86,12 @@ ext {
         //  * Temporarily comment out "-Werror" elsewhere in this file
         //  * Repeatedly run `./gradlew clean compileJava` and fix all errors
         //  * Uncomment "-Werror"
-        errorprone      : '2.39.0',
+        errorprone      : '2.40.0',
         // NOTE: Google Java Format requires JDK 17 or higher as of version 1.25.0.
         googleJavaFormat : '1.25.2',
         hashmapUtil     : '0.0.1',
         junit           : '4.13.2',
-        lombok          : '1.18.38',
+        lombok          : '1.18.40',
         // plume-util includes a version of reflection-util. When updating ensure the versions are consistent.
         plumeUtil       : '1.11.0',
         reflectionUtil  : '1.1.5',
@@ -185,7 +185,7 @@ allprojects { currentProj ->
 
     // Keep in sync with "repositories { ... }" block above.
     repositories {
-        maven { url = 'https://oss.sonatype.org/content/repositories/snapshots/'}
+        maven { url = 'https://central.sonatype.com/repository/maven-snapshots/'}
         mavenCentral()
     }
 
