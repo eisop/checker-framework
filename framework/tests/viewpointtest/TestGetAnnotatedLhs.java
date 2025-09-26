@@ -6,18 +6,30 @@ import viewpointtest.quals.Top;
 @ReceiverDependentQual class TestGetAnnotatedLhs {
     @ReceiverDependentQual Object f;
 
-    @SuppressWarnings({
-        "inconsistent.constructor.type",
-        "super.invocation.invalid",
-        "cast.unsafe.constructor.invocation"
-    })
     @ReceiverDependentQual TestGetAnnotatedLhs() {
         this.f = new @ReceiverDependentQual Object();
     }
 
-    @SuppressWarnings({"cast.unsafe.constructor.invocation"})
+    // This method could be called by both @A and @B instances.
+    void recieverDependentMethod(@ReceiverDependentQual TestGetAnnotatedLhs this) {}
+
+    // This method could only be called by @A instances.
+    void aMethod(@A TestGetAnnotatedLhs this) {}
+
+    // This method could only be called by @B instances.
+    void bMethod(@B TestGetAnnotatedLhs this) {}
+
     void topWithRefinement() {
         TestGetAnnotatedLhs a = new @A TestGetAnnotatedLhs();
+        TestGetAnnotatedLhs b = new @B TestGetAnnotatedLhs();
+        a.recieverDependentMethod();
+        b.recieverDependentMethod();
+        a.aMethod();
+        // :: error: (method.invocation.invalid)
+        a.bMethod();
+        // :: error: (method.invocation.invalid)
+        b.aMethod();
+        b.bMethod();
         // :: error: (new.class.type.invalid)
         TestGetAnnotatedLhs top = new @Top TestGetAnnotatedLhs();
         top = a;
@@ -32,7 +44,6 @@ import viewpointtest.quals.Top;
         top.f = new @A Object(); // no error here
     }
 
-    @SuppressWarnings({"cast.unsafe.constructor.invocation"})
     void topWithoutRefinement() {
         // :: error: (new.class.type.invalid)
         TestGetAnnotatedLhs top = new @Top TestGetAnnotatedLhs();
