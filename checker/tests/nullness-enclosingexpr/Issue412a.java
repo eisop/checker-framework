@@ -7,7 +7,8 @@ public class Issue412a {
     class InnerWithUnknownInitializationEnclosingExpression {
         InnerWithUnknownInitializationEnclosingExpression(
                 @UnknownInitialization Issue412a Issue412a.this) {
-            // @UnknownInitialization indicates that the field of the outer receiver might be null
+            // The explicit annotation in signature should be captured, hence raise an error during
+            // the check of method body
             // :: error: (dereference.of.nullable)
             Issue412a.this.f.hashCode();
         }
@@ -21,8 +22,7 @@ public class Issue412a {
 
     Issue412a() {
         new InnerWithUnknownInitializationEnclosingExpression();
-        // We do get an error for illegle invocation if there is no annotation for enclosing
-        // receiver.
+        // If not explicit specified, the error should be raised at call site
         // :: error: (enclosingexpr.type.incompatible)
         new InnerWithoutUnknownInitializationEnclosingExpression();
         f = "";
