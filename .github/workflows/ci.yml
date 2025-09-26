@@ -132,7 +132,7 @@ jobs:
           {version: '17', experimental: false},
           {version: '24', experimental: false},
           {version: '25', experimental: false},
-          {version: '26.0.0-beta+16-ea', experimental: true}]
+          {version: '26.0.0+16.0.ea', experimental: true}]
         exclude:
           # JDK 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
           - script: 'cftests-junit-jdk21'
