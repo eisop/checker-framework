@@ -10,6 +10,8 @@ public class Issue6078 {
         methodHandle.invoke("");
         methodHandle.invoke(array);
         methodHandle.invoke(null);
+        methodHandle.invoke(1);
+        methodHandle.invokeExact(true);
     }
 
     void use() {
