@@ -148,10 +148,15 @@ tasks.register('updateVersionNumbersInDocs', Copy) {
     }
 }
 
+// The directory that receives the web site files.  It defaults to a directory below build/, so that
+// the tasks that use it can be configured and listed without the property.
+def webSiteDir = providers.gradleProperty('cfWebsite')
+        .orElse(layout.buildDirectory.dir('cfWebsite').map { it.asFile.absolutePath })
+
 tasks.register('zipMavenExamples', Zip) {
     description = 'Creates a zip archive for the Maven examples.'
     archiveFileName = 'mvn-examples.zip'
-    destinationDirectory = layout.projectDirectory.dir(providers.gradleProperty('cfWebsite'))
+    destinationDirectory = layout.dir(webSiteDir.map { file(it) })
     from('docs/examples/MavenExample')
 }
 
@@ -159,7 +164,7 @@ tasks.register('copyToWebsite', Copy) {
     description = 'Copy files to location set in the property cfWebsite.'
     dependsOn(':allJavadoc', ':manual', ':dataflow:manual', ':zip', 'zipMavenExamples')
 
-    def website = providers.gradleProperty('cfWebsite')
+    def website = webSiteDir
     into website // affects all `into` clauses
 
     from tasks.named('zip')
