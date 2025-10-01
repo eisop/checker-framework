@@ -1,11 +1,11 @@
-AnnotatedForWithUse.java:14:16: compiler.err.proc.messager: [initialization.field.uninitialized] the default constructor does not initialize field o
-AnnotatedForWithUse.java:15:31: compiler.err.proc.messager: [return.type.incompatible] incompatible types in return.
+AnnotatedForWithUse.java:16:16: compiler.err.proc.messager: [initialization.field.uninitialized] the default constructor does not initialize field o
+AnnotatedForWithUse.java:17:31: compiler.err.proc.messager: [return.type.incompatible] incompatible types in return.
 type of expression: @Nullable NullType
 method return type: @NonNull Object
-AnnotatedForWithUse.java:25:19: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
+AnnotatedForWithUse.java:27:19: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
 found   : @Nullable NullType
 required: @NonNull Object
-AnnotatedForWithUse.java:29:19: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter of of Unannotated.set.
+AnnotatedForWithUse.java:31:19: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter of of Unannotated.set.
 found   : @Nullable NullType
 required: @NonNull Object
 4 errors

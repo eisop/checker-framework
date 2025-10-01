@@ -1,14 +1,14 @@
-AnnotatedForWithUse.java:23:37: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
+AnnotatedForWithUse.java:25:37: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
 found   : @Nullable Object
 required: @NonNull Object
-AnnotatedForWithUse.java:27:18: compiler.err.proc.messager: [dereference.of.nullable] dereference of possibly-null reference u.get()
-AnnotatedForWithUse.java:27:29: compiler.err.proc.messager: [method.invocation.invalid] call to toString() not allowed on the given receiver.
+AnnotatedForWithUse.java:29:18: compiler.err.proc.messager: [dereference.of.nullable] dereference of possibly-null reference u.get()
+AnnotatedForWithUse.java:29:29: compiler.err.proc.messager: [method.invocation.invalid] call to toString() not allowed on the given receiver.
 found   : @UnknownInitialization Object
 required: @Initialized Object
-AnnotatedForWithUse.java:29:19: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter of of Unannotated.set.
+AnnotatedForWithUse.java:31:19: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter of of Unannotated.set.
 found   : @UnknownKeyFor NullType
 required: @KeyForBottom Object
-AnnotatedForWithUse.java:29:19: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter of of Unannotated.set.
+AnnotatedForWithUse.java:31:19: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter of of Unannotated.set.
 found   : @Nullable NullType
 required: @NonNull Object
 5 errors
