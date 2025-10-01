@@ -37,7 +37,7 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4.4.3
+      uses: gradle/actions/setup-gradle@v4.4.4
 
     - name: Setup Bazel
       uses: bazel-contrib/setup-bazel@0.15.0
@@ -93,7 +93,7 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4.4.3
+      uses: gradle/actions/setup-gradle@v4.4.4
       # Setup for misc tests
     - name: Install misc dependencies
       if: ${{ matrix.script == 'misc' }}
@@ -131,7 +131,8 @@ jobs:
           {version: '11', experimental: false},
           {version: '17', experimental: false},
           {version: '24', experimental: false},
-          {version: '25.0.0-ea.36.0.ea', experimental: true}]
+          {version: '25', experimental: false},
+          {version: '26.0.0-ea.16.0.ea', experimental: true}]
         exclude:
           # JDK 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
           - script: 'cftests-junit-jdk21'
@@ -207,7 +208,7 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4.4.3
+      uses: gradle/actions/setup-gradle@v4.4.4
     - name: Install misc dependencies
       if: ${{ matrix.script == 'misc' }}
       run: |
@@ -266,7 +267,7 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4.4.3
+      uses: gradle/actions/setup-gradle@v4.4.4
 
     - name: Install coreutils on MacOS
       if: ${{ matrix.os == 'macos-latest' }}
