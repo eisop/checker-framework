@@ -2307,7 +2307,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
         if (tree instanceof MethodInvocationTree
                 && TreeUtils.isSignaturePolymorphic((MethodInvocationTree) tree)) {
-            // Signature-polymorphic methods are type-checked at runtime.
+            // Signature polymorphic methods are type-checked at runtime.
             return;
         }
 
