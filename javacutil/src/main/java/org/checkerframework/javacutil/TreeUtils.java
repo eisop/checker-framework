@@ -2705,10 +2705,12 @@ public final class TreeUtils {
     }
 
     /**
-     * Returns true if the given method invocation targets a signature-polymorphic method.
+     * Returns true if the given method invocation targets a signature polymorphic method. See <a
+     * href="https://docs.oracle.com/javase/specs/jls/se11/html/jls-15.html#jls-15.12.3">JLS chapter
+     * 15</a>.
      *
      * @param invok the method invocation
-     * @return true if the given method invocation targets a signature-polymorphic method
+     * @return true if the given method invocation targets a signature polymorphic method
      */
     public static boolean isSignaturePolymorphic(final MethodInvocationTree invok) {
         final MethodSymbol symbol = (MethodSymbol) elementFromUse(invok);
