@@ -2,8 +2,8 @@ import java.lang.invoke.MethodHandle;
 
 /**
  * For signature polymorphic methods, javac sometimes does not include the corresponding vararg
- * parameter in the method type. This seems to happen for no-arg invocations and invocations with
- * a single argument of a primitive type.
+ * parameter in the method type. This seems to happen for no-arg invocations and invocations with a
+ * single argument of a primitive type.
  *
  * <p>We work around this issue in TreeUtils.isVarargsCall() and TreeUtils.isSignaturePolymorphic.
  */
