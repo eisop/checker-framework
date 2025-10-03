@@ -34,9 +34,9 @@ if (false) {
 
 dependencies {
     if (JavaVersion.current() >= JavaVersion.VERSION_17) {
-        errorprone 'com.google.errorprone:error_prone_core:2.41.0'
+        errorprone 'com.google.errorprone:error_prone_core:2.42.0'
     }
-    errorprone 'com.uber.nullaway:nullaway:0.12.9'
+    errorprone 'com.uber.nullaway:nullaway:0.12.10'
 }
 
 repositories {

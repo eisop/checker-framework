@@ -1,14 +1,26 @@
 import java.lang.invoke.MethodHandle;
 
+/**
+ * For signature polymorphic methods, javac sometimes does not include the corresponding vararg
+ * parameter in the method type. This seems to happen for no-arg invocations and invocations with a
+ * single argument of a primitive type.
+ *
+ * <p>We work around this issue in TreeUtils.isVarargsCall() and TreeUtils.isSignaturePolymorphic.
+ */
 public class Issue6078 {
-    @SuppressWarnings("nullness:argument") // true positive.
-    static void call(MethodHandle methodHandle, Object[] array) throws Throwable {
-        // The vararg parameter disappears for the below method. It's some sort of bug in javac.
-        // It is worked around in TreeUtils.isVarargsCall().
+    static void call(MethodHandle methodHandle) throws Throwable {
         methodHandle.invoke();
-        // The vararg parameter does not disappaer for these method calls.
         methodHandle.invoke("");
+        methodHandle.invoke(1);
+        methodHandle.invokeExact(true);
+    }
+
+    static void call(MethodHandle methodHandle, Object[] array) throws Throwable {
         methodHandle.invoke(array);
+    }
+
+    @SuppressWarnings("nullness:argument") // invoke is annotated conservatively.
+    static void callNull(MethodHandle methodHandle) throws Throwable {
         methodHandle.invoke(null);
     }
 
