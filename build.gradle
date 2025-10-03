@@ -17,7 +17,7 @@ plugins {
     // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
     // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
     // Only works on JDK 11+ (even including the plugin crashes Gradle on JDK 8).
-    id 'com.diffplug.spotless' version '7.2.1'
+    id 'com.diffplug.spotless' version '8.0.0'
 }
 
 // There is another `repositories { ... }` block below; if you change this one, change that one as well.
@@ -331,19 +331,10 @@ allprojects { currentProj ->
                 googleJavaFormat(versions.googleJavaFormat) // the formatter to apply to Java files
             }
             formatAnnotations().addTypeAnnotation("PolyInitialized").addTypeAnnotation("PolyVP").addTypeAnnotation("ReceiverDependentQual")
-        }
 
-        java {
-            if (currentProj != currentProj.rootProject) {
-                // not the root project; format all .java files in the sub-project src folders
-                target 'src/**/*.java'
-            }
-            targetExclude doNotFormat
-
-            // This really just removes the wildcard imports - they are not expanded.
-            // That is fine for src files, which should then be manually fixed.
             // There are currently many tests with wildcard imports, so do not enable this for tests.
-            removeWildcardImports()
+            // TODO: Spotless has no easy way to only enable this for a subset of the target.
+            // forbidWildcardImports()
         }
 
         // Only define a groovyGradle task on the root project, for simplicity in setting the target pattern
