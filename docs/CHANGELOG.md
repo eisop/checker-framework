@@ -1,12 +1,107 @@
-Version 3.49.1-eisop2 (March ??, 2025)
---------------------------------------
+Version 3.49.5-eisop1 (July ??, 2025)
+-------------------------------------
 
 **User-visible changes:**
+
+The new command-line option `-AonlyAnnotatedFor` suppresses all type-checking errors and warnings outside the scope of
+a corresponding `@AnnotatedFor` annotation.
+Note that the `@AnnotatedFor` annotation must include the checker's name to enable warnings from that checker.
+For example, use `@AnnotatedFor("nullness")` for the Nullness Checker.
+This option unsoundly uses source defaults and suppresses the warnings outside the scope of a corresponding `@AnnotatedFor` annotation.
+Use `-AuseConservativeDefaultsForUncheckedCode=source` if you want conservative defaults for source code outside the scope of a corresponding `@AnnotatedFor` annotation.
+
+The Nullness Checker now has more fine-grained prefix options to suppress warnings:
+- `@SuppressWarnings("nullness")` is used to suppress warnings from the Nullness, Initialization, and KeyFor Checkers.
+- `@SuppressWarnings("nullnesskeyfor")` is used to suppress warnings from the Nullness and KeyFor Checkers,
+   warnings from the Initialization Checker are not suppressed.
+  `@SuppressWarnings("nullnessnoinit")` has the same effect as `@SuppressWarnings("nullnesskeyfor")`.
+- `@SuppressWarnings("nullnessinitialization")` is used to suppress warnings from the Nullness and Initialization Checkers,
+   warnings from the KeyFor Checker are not suppressed.
+- `@SuppressWarnings("nullnessonly")` is used to suppress warnings from the Nullness Checker only,
+   warnings from the Initialization and KeyFor Checkers are not suppressed.
+- `@SuppressWarnings("initialization")` is used to suppress warnings from the Initialization Checker only,
+   warnings from the Nullness and KeyFor Checkers are not suppressed.
+- `@SuppressWarnings("keyfor")` is used to suppress warnings from the KeyFor Checker only,
+   warnings from the Nullness and Initialization Checkers are not suppressed.
+
+The EISOP Checker Framework now use `NullType` instead `Void` to denote the bottom type in the Java type hierarchy.
+It is visible in error messages with type variable's or wildcard's lower bounds.
+The type of the `null` literal in the Nullness Checker is now displayed as `@Nullable NullType` instead of the earlier `null (NullType)`.
+This change makes the Checker Framework consistent with the Java language specification.
+
+The format of error messages for type variables and wildcards has been improved to be consistent when printing both bounds.
+
+The `instanceof.unsafe` and `instanceof.pattern.unsafe` warnings in the Checker Framework are now controlled by lint options.
+They are enabled by default and can be disabled using `-Alint=-instanceof.unsafe` or `-Alint=-instanceof`.
+
+The Nullness Checker now recognizes references to private, final fields with zero-length arrays as initializers in calls to `Collection.toArray(T[])`, allowing the returned component type to be refined to `@NonNull`.
 
 **Implementation details:**
 
 **Closed issues:**
-eisop#1051
+
+eisop#1247, eisop#1263, eisop#1310, typetools#7096.
+
+
+Version 3.49.5 (June 30, 2025)
+-----------------------------
+
+**User-visible changes:**
+
+The Checker Framework runs under JDK 25 -- that is, it runs on a version 25 JVM.
+(EISOP note: this already worked in Version 3.49.3-eisop1.)
+
+**Closed issues:**
+
+#7093.
+
+
+Version 3.49.4 (June 2, 2025)
+-----------------------------
+
+**Closed issues:**
+
+#6740, #7013, #7038, #7070, #7082.
+
+
+Version 3.49.3-eisop1 (May 6, 2025)
+-----------------------------------
+
+**User-visible changes:**
+
+The Checker Framework runs under JDK 25 -- that is, it runs on a version 25 JVM.
+
+**Implementation details:**
+
+Gradle should now be run with at least JDK 17.
+The `ORG_GRADLE_PROJECT_useJdkVersion` environment variable can be used to
+select a different JDK for the actual compilation and testing.
+
+**Closed issues:**
+
+eisop#1051, eisop#1115, eisop#1180.
+
+
+Version 3.49.3 (May 2, 2025)
+----------------------------
+
+**User-visible changes:**
+
+The Checker Framework runs under JDK 24 -- that is, it runs on a version 24 JVM.
+(EISOP note: this has been working for a while already.)
+
+**Closed issues:**
+
+#6520, #6671, #6750, #6762, #6887, #7001, #7019, #7024, #7029, #7053.
+
+
+Version 3.49.2 (April 1, 2025)
+------------------------------
+
+**Closed issues:**
+
+#6747, #6755, #6789, #6891, #6963, #6996, #7001, #7008, #7014.
+
 
 Version 3.49.1-eisop1 (March 17, 2025)
 --------------------------------------
@@ -100,11 +195,11 @@ Version 3.48.0 (October 2, 2024)
 
 **User-visible changes:**
 
-The new SqlQuotesChecker prevents errors in quoting in SQL queries.  It prevents
-injection attacks that exploit quoting errors.
+The new SQL Quotes Checker prevents errors in quoting in SQL queries.  It
+prevents injection attacks that exploit quoting errors.
 
-Aggregate Checkers now interleave error messages so that all errors about a line of code
-appear together.
+Aggregate Checkers now interleave error messages so that all errors about a line
+of code appear together.
 (EISOP note: some signatures changed from `BaseTypeChecker` to `SourceChecker`,
 which might require adaptation in checkers.)
 

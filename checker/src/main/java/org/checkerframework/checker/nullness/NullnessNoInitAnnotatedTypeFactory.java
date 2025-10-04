@@ -35,7 +35,6 @@ import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
-import org.checkerframework.framework.type.AnnotatedTypeFormatter;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
@@ -189,6 +188,8 @@ public class NullnessNoInitAnnotatedTypeFactory
                     // https://search.maven.org/artifact/org.checkerframework/checker-compat-qual/2.5.5/jar
                     "org.checkerframework.checker.nullness.compatqual.NonNullDecl",
                     "org.checkerframework.checker.nullness.compatqual.NonNullType",
+                    // https://source.chromium.org/chromium/chromium/src/+/main:build/android/java/src/org/chromium/build/annotations/OptimizeAsNonNull.java
+                    "org.chromium.build.annotations.OptimizeAsNonNull",
                     // https://janino-compiler.github.io/janino/apidocs/org/codehaus/commons/nullanalysis/NotNull.html
                     "org.codehaus.commons.nullanalysis.NotNull",
                     // https://help.eclipse.org/neon/index.jsp?topic=/org.eclipse.jdt.doc.isv/reference/api/org/eclipse/jdt/annotation/NonNull.html
@@ -319,6 +320,8 @@ public class NullnessNoInitAnnotatedTypeFactory
                     // https://search.maven.org/search?q=a:checker-compat-qual
                     "org.checkerframework.checker.nullness.compatqual.NullableDecl",
                     "org.checkerframework.checker.nullness.compatqual.NullableType",
+                    // https://source.chromium.org/chromium/chromium/src/+/main:build/android/java/src/org/chromium/build/annotations/Nullable.java
+                    "org.chromium.build.annotations.Nullable",
                     // https://janino-compiler.github.io/janino/apidocs/org/codehaus/commons/nullanalysis/Nullable.html
                     "org.codehaus.commons.nullanalysis.Nullable",
                     // https://help.eclipse.org/neon/index.jsp?topic=/org.eclipse.jdt.doc.isv/reference/api/org/eclipse/jdt/annotation/Nullable.html
@@ -368,6 +371,7 @@ public class NullnessNoInitAnnotatedTypeFactory
      *
      * @param checker the associated {@link NullnessNoInitSubchecker}
      */
+    @SuppressWarnings("this-escape")
     public NullnessNoInitAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
 
@@ -489,20 +493,6 @@ public class NullnessNoInitAnnotatedTypeFactory
             CFAbstractAnalysis<NullnessNoInitValue, NullnessNoInitStore, NullnessNoInitTransfer>
                     analysis) {
         return new NullnessNoInitTransfer((NullnessNoInitAnalysis) analysis);
-    }
-
-    /**
-     * Returns an AnnotatedTypeFormatter that does not print the qualifiers on null literals.
-     *
-     * @return an AnnotatedTypeFormatter that does not print the qualifiers on null literals
-     */
-    @Override
-    protected AnnotatedTypeFormatter createAnnotatedTypeFormatter() {
-        boolean printVerboseGenerics = checker.hasOption("printVerboseGenerics");
-        return new NullnessNoInitAnnotatedTypeFormatter(
-                printVerboseGenerics,
-                // -AprintVerboseGenerics implies -AprintAllQualifiers
-                printVerboseGenerics || checker.hasOption("printAllQualifiers"));
     }
 
     @Override

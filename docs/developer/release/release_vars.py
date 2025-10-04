@@ -153,8 +153,8 @@ os.environ["PLUME_SCRIPTS"] = PLUME_SCRIPTS
 os.environ["CHECKLINK"] = CHECKLINK
 os.environ["BIBINPUTS"] = ".:" + PLUME_BIB
 os.environ["TEXINPUTS"] = ".:..:"
-os.environ["JAVA_17_HOME"] = "/usr/lib/jvm/java-17-openjdk-amd64/"
-os.environ["JAVA_HOME"] = os.environ["JAVA_17_HOME"]
+os.environ["JAVA_21_HOME"] = "/usr/lib/jvm/java-21-openjdk/"
+os.environ["JAVA_HOME"] = os.environ["JAVA_21_HOME"]
 
 EDITOR = os.getenv("EDITOR")
 if EDITOR is None:

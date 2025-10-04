@@ -138,6 +138,7 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
      *
      * @param checker the checker associated with this type factory
      */
+    @SuppressWarnings("this-escape")
     public MustCallAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         TOP = AnnotationBuilder.fromClass(elements, MustCallUnknown.class);
@@ -353,6 +354,15 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
      */
     public ExecutableElement getMustCallValueElement() {
         return mustCallValueElement;
+    }
+
+    /**
+     * Returns the {@link InheritableMustCall#value} element.
+     *
+     * @return the {@link InheritableMustCall#value} element
+     */
+    public ExecutableElement getInheritableMustCallValueElement() {
+        return inheritableMustCallValueElement;
     }
 
     /** Support @InheritableMustCall meaning @MustCall on all subtype elements. */

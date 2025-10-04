@@ -12,8 +12,16 @@ dependencies {
 
     implementation "org.plumelib:plume-util:${versions.plumeUtil}"
 
-    if (Jvm.current().toolsJar) {
-        tagletJdk8Implementation files(Jvm.current().toolsJar)
+    if (isJava8) {
+        def launcherProvider = javaToolchains.launcherFor {
+            languageVersion = JavaLanguageVersion.of(8)
+        }
+        def toolsJar = launcherProvider.map { launcher ->
+            def jdkHome = launcher.metadata.installationPath.asFile
+            new File(jdkHome, "lib/tools.jar")
+        }
+
+        tagletJdk8Implementation files(toolsJar)
     }
 
     testImplementation project(':framework')
