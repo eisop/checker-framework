@@ -106,7 +106,6 @@ import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
@@ -2702,23 +2701,20 @@ public final class TreeUtils {
             return true;
         }
 
-        // For some calls the varargsElement element disappears when it should not. This seems to
-        // only be a problem with MethodHandle#invoke and only with no arguments.  See
-        // framework/tests/all-systems/Issue6078.java.
-        // So also check for a mismatch between parameter and argument size.
-        // Such a mismatch occurs for every enum constructor: no args, two params (String name, int
-        // ordinal).
+        return isSignaturePolymorphic(invok);
+    }
 
-        List<? extends VariableElement> parameters = elementFromUse(invok).getParameters();
-        int numParameters = parameters.size();
-        if (numParameters != invok.getArguments().size()) {
-            if (numParameters > 0
-                    && parameters.get(numParameters - 1).asType() instanceof ArrayType) {
-                return true;
-            }
-        }
-
-        return false;
+    /**
+     * Returns true if the given method invocation targets a signature polymorphic method. See <a
+     * href="https://docs.oracle.com/javase/specs/jls/se11/html/jls-15.html#jls-15.12.3">JLS chapter
+     * 15</a>.
+     *
+     * @param invok the method invocation
+     * @return true if the given method invocation targets a signature polymorphic method
+     */
+    public static boolean isSignaturePolymorphic(final MethodInvocationTree invok) {
+        final MethodSymbol symbol = (MethodSymbol) elementFromUse(invok);
+        return (symbol.flags() & Flags.SIGNATURE_POLYMORPHIC) != 0;
     }
 
     /**
