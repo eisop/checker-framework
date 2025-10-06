@@ -890,6 +890,8 @@ public abstract class CFAbstractTransfer<
         // if one side of equality is false and the result is already forked by the other side,
         // then them being equal means the result passed in should be flipped.
         // e.g. (a == b) == false <==> a != b
+        // TODO: consider about a smarter way to handel this optimization, maybe include more
+        // boolean axioms like absorption rule?
         if (res.containsTwoStores()
                 && (NodeUtils.isConstantBoolean(leftN, false)
                         || NodeUtils.isConstantBoolean(rightN, false))) {
