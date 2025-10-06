@@ -148,6 +148,15 @@ task copyAndMinimizeAnnotatedJdkFiles(type: JavaExec, dependsOn: cloneAnnotatedJ
 sourcesJar.dependsOn(copyAndMinimizeAnnotatedJdkFiles)
 processResources.dependsOn(copyAndMinimizeAnnotatedJdkFiles)
 
+task annotatedJdkJar(type: Jar, group: 'Build') {
+    description = 'Creates a separate JAR file containing only the annotated JDK stub files'
+    dependsOn(copyAndMinimizeAnnotatedJdkFiles)
+    destinationDirectory = file("/Users/yutongzhu/dev/URA/checker-framework/checker/dist")
+    archiveFileName = 'annotated-jdk.jar'
+    from "${buildDir}/generated/resources"
+    include 'annotated-jdk/**'
+}
+
 task allSourcesJar(type: Jar, group: 'Build') {
     description = 'Creates a sources jar that includes sources for all Checker Framework classes in framework.jar'
     destinationDirectory = file("${projectDir}/dist")
