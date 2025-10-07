@@ -14,6 +14,7 @@ public class JtregPerfHarness {
         Path srcDir =
                 Paths.get(System.getProperty("harness.srcdir", ".")).toAbsolutePath().normalize();
         boolean skipFastPath = Boolean.getBoolean("cf.skipNonnullFastPath");
+        int runs = Integer.parseInt(System.getProperty("perf.runs", "1"));
 
         List<Path> sources = new ArrayList<>();
         Files.walk(srcDir)
@@ -24,10 +25,14 @@ public class JtregPerfHarness {
         if (sources.isEmpty())
             throw new IllegalStateException("No .java files found in harness.srcdir: " + srcDir);
 
-        long one = runOnce(sources, skipFastPath);
-        // Emit a single-sample HARNESS_RESULT for the driver to parse
-        System.out.println(
-                "HARNESS_RESULT: median=" + one + ", average=" + one + ", samples=[" + one + "]");
+        List<Long> timings = new ArrayList<>();
+        for (int i = 0; i < runs; i++) {
+            long time = runOnce(sources, skipFastPath);
+            timings.add(time);
+        }
+
+        Result result = new Result(timings);
+        result.printReport();
     }
 
     // Execute one compile and return wall time (ms).

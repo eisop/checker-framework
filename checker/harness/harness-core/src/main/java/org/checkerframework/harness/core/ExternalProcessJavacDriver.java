@@ -88,20 +88,20 @@ public final class ExternalProcessJavacDriver implements Driver {
         // Processor path
         if (spec.compiler().processorPath() != null && !spec.compiler().processorPath().isEmpty()) {
             args.add("-processorpath");
-            args.add(joinPaths(spec.compiler().processorPath()));
+            args.add(joinPathsResolved(spec.compiler().processorPath()));
         }
 
         // Classpath
         if (spec.compiler().classpath() != null && !spec.compiler().classpath().isEmpty()) {
             args.add("-classpath");
-            args.add(joinPaths(spec.compiler().classpath()));
+            args.add(joinPathsResolved(spec.compiler().classpath()));
         } else if (spec.compiler().processorPath() != null
                 && !spec.compiler().processorPath().isEmpty()) {
             // Parity with InProcessJavacDriver: if no explicit classpath is given, fall back to
             // using the processorPath so that processor dependencies (e.g., annotation types in
             // checker-qual.jar) are visible to the compiler and processors at runtime.
             args.add("-classpath");
-            args.add(joinPaths(spec.compiler().processorPath()));
+            args.add(joinPathsResolved(spec.compiler().processorPath()));
         }
 
         if (spec.compiler().processors() != null && !spec.compiler().processors().isEmpty()) {
@@ -322,6 +322,31 @@ public final class ExternalProcessJavacDriver implements Driver {
         for (int i = 0; i < paths.size(); i++) {
             if (i > 0) sb.append(sep);
             sb.append(paths.get(i).toString());
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Joins paths while resolving relative paths to absolute paths based on current working
+     * directory. This ensures paths work correctly even when the javac process changes its working
+     * directory.
+     */
+    private static String joinPathsResolved(List<Path> paths) {
+        String sep = File.pathSeparator;
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < paths.size(); i++) {
+            if (i > 0) sb.append(sep);
+            Path p = paths.get(i);
+            // Convert relative paths to absolute paths based on current working directory
+            // This prevents issues when ProcessBuilder changes the working directory
+            if (!p.isAbsolute()) {
+                try {
+                    p = p.toAbsolutePath().normalize();
+                } catch (Throwable ignore) {
+                    // Fallback to original path if resolution fails
+                }
+            }
+            sb.append(p.toString());
         }
         return sb.toString();
     }

@@ -28,18 +28,18 @@ public final class Main {
         }
 
         String generatorName = opts.getOrDefault("--generator", "NewAndArray");
-        int sampleCount = Integer.parseInt(opts.getOrDefault("--sampleCount", "100"));
-        long seed = Long.parseLong(opts.getOrDefault("--seed", "1"));
+        int sampleCount = Integer.parseInt(opts.getOrDefault("--sampleCount", "100").trim());
+        long seed = Long.parseLong(opts.getOrDefault("--seed", "1").trim());
         String baselineFlags = opts.getOrDefault("--baseline-flags", "").trim();
         String updateFlags = opts.getOrDefault("--update-flags", "").trim();
         String processor =
                 opts.getOrDefault(
                         "--processor", "org.checkerframework.checker.nullness.NullnessChecker");
         String processorPath = opts.getOrDefault("--processor-path", "");
-        String release = opts.getOrDefault("--release", "17");
+        String release = opts.getOrDefault("--release", "17").trim();
         String protocol =
                 opts.getOrDefault("--protocol", "SINGLE").toUpperCase(Locale.ROOT); // SINGLE|CROSS
-        int runs = Integer.parseInt(opts.getOrDefault("--runs", "5"));
+        int runs = Integer.parseInt(opts.getOrDefault("--runs", "5").trim());
         if (runs < 1) {
             System.err.println("WARNING: --runs < 1; falling back to 1.");
             runs = 1;
@@ -72,10 +72,16 @@ public final class Main {
         // -Dharness.release=<ver>
         // via flags so the test-side harness can translate it to --release.
         List<String> processors = java.util.Arrays.asList(processor);
-        List<Path> pp =
-                processorPath.isEmpty()
-                        ? new ArrayList<Path>()
-                        : java.util.Arrays.asList(Paths.get(processorPath));
+        List<Path> pp = new ArrayList<Path>();
+        if (!processorPath.isEmpty()) {
+            // Split by platform-specific path separator (: on Unix, ; on Windows)
+            String[] pathParts = processorPath.split(java.io.File.pathSeparator);
+            for (String part : pathParts) {
+                if (!part.trim().isEmpty()) {
+                    pp.add(Paths.get(part.trim()));
+                }
+            }
+        }
         List<String> sourceOpts =
                 java.util.Arrays.asList("--release", release, "-proc:only", "-Xlint:-options");
 
@@ -180,7 +186,7 @@ public final class Main {
 
             if (lastA != null && lastB != null) {
                 Map<String, String> ctx = new HashMap<String, String>();
-                ctx.put("protocol", protocol + " (jtreg-internal)");
+                ctx.put("protocol", protocol); // Keep original protocol for reproduction
                 ctx.put("runs", String.valueOf(runs));
                 ctx.put("engine", engine);
                 ctx.put("sampleCount", String.valueOf(sampleCount));
@@ -189,6 +195,13 @@ public final class Main {
                 if (!gpf.isEmpty()) ctx.put("groupsPerFile", gpf);
                 ctx.put("baselineFlags", String.join(" ", baselineFlagList));
                 ctx.put("updateFlags", String.join(" ", updateFlagList));
+                ctx.put("processor", processor);
+                if (!processorPath.isEmpty()) ctx.put("processorPath", processorPath);
+                if (!release.isEmpty()) ctx.put("release", release);
+                if ("jtreg".equalsIgnoreCase(engine)) {
+                    ctx.put("jtreg", jtregBin);
+                    ctx.put("jtregTest", jtregTest);
+                }
                 HarnessIO.writeUnifiedReport(
                         resultDir.resolve("report.md"),
                         lastA,
@@ -333,6 +346,13 @@ public final class Main {
                 if (!gpf.isEmpty()) ctx.put("groupsPerFile", gpf);
                 ctx.put("baselineFlags", String.join(" ", baselineFlagList));
                 ctx.put("updateFlags", String.join(" ", updateFlagList));
+                ctx.put("processor", processor);
+                if (!processorPath.isEmpty()) ctx.put("processorPath", processorPath);
+                if (!release.isEmpty()) ctx.put("release", release);
+                if ("jtreg".equalsIgnoreCase(engine)) {
+                    ctx.put("jtreg", jtregBin);
+                    ctx.put("jtregTest", jtregTest);
+                }
                 HarnessIO.writeUnifiedReport(
                         resultDir.resolve("report.md"),
                         reprA,
@@ -401,18 +421,48 @@ public final class Main {
     private static void printHelp() {
         System.out.println("Usage: --generator <NewAndArray> --sampleCount <N> --seed <S> ");
         System.out.println("       --baseline-flags <flags> --update-flags <flags>");
-        System.out.println(
-                "       --processor <FQN> --processor-path <path-to-checker-jar-or-dir> --release <ver>");
+        System.out.println("       --processor <FQN> --processor-path <paths> --release <ver>");
         System.out.println(
                 "       --protocol <SINGLE|CROSS> --runs <N> [--engine <inproc|external|jtreg>]");
+        System.out.println("       [--jtreg <path-to-jtreg-bin>] [--jtreg-test <test-file>]");
+        System.out.println("       [--extra.<key> <value>]");
+        System.out.println();
+        System.out.println("Engines:");
+        System.out.println(
+                "  inproc  : Fast, in-process javac via ToolProvider (development/debugging)");
+        System.out.println("  external: Separate javac process, better isolation (CI/testing)");
+        System.out.println("  jtreg   : Full jtreg test suite, most comprehensive (benchmarking)");
         System.out.println();
         System.out.println("Examples:");
-        System.out.println("  --generator NewAndArray --sampleCount 200 --seed 42 \\");
-        System.out.println(
-                "    --baseline-flags -AfastNewClass=false --update-flags -AfastNewClass=true \\");
+        System.out.println("  # Basic nullness checker performance test:");
+        System.out.println("  --generator NewAndArray --sampleCount 10 --seed 42 \\");
         System.out.println(
                 "    --processor org.checkerframework.checker.nullness.NullnessChecker \\");
-        System.out.println("    --processor-path <path-to-checker-jar> --release 17");
+        System.out.println(
+                "    --processor-path ../../../checker/dist/checker.jar:../../../checker-qual/build/libs/checker-qual-*.jar \\");
+        System.out.println("    --release 17 --protocol SINGLE --runs 5 --engine external \\");
+        System.out.println("    --baseline-flags -J-Dcf.skipNonnullFastPath=false \\");
+        System.out.println("    --update-flags -J-Dcf.skipNonnullFastPath=true");
+        System.out.println();
+        System.out.println("  # JTReg comprehensive test:");
+        System.out.println("  --generator NewAndArray --sampleCount 3 --seed 42 \\");
+        System.out.println(
+                "    --processor org.checkerframework.checker.nullness.NullnessChecker \\");
+        System.out.println(
+                "    --processor-path ../../../checker/dist/checker.jar:../../../checker-qual/build/libs/checker-qual-*.jar \\");
+        System.out.println("    --release 17 --protocol SINGLE --runs 3 --engine jtreg \\");
+        System.out.println(
+                "    --jtreg ../../jtreg/bin --jtreg-test checker/harness/jtreg/JtregPerfHarness.java \\");
+        System.out.println(
+                "    --baseline-flags -Dharness.release=17 -Dcf.skipNonnullFastPath=false \\");
+        System.out.println("    --update-flags -Dharness.release=17 -Dcf.skipNonnullFastPath=true");
+        System.out.println();
+        System.out.println("Processor Path:");
+        System.out.println(
+                "  Supports both relative and absolute paths. Multiple paths separated by ':'.");
+        System.out.println("  Relative paths are resolved from current working directory.");
+        System.out.println(
+                "  Example: ../../../checker/dist/checker.jar:../../../checker-qual/build/libs/checker-qual-*.jar");
         System.out.println();
         System.out.println("Protocols:");
         System.out.println(
@@ -421,6 +471,16 @@ public final class Main {
                 "  CROSS : per iteration run AB then BA; compute pairwise A_i=(T_AB^A+T_BA^A)/2, B_i=(T_AB^B+T_BA^B)/2, then summarize across i.");
         System.out.println(
                 "          Each variant is warmed once on its first appearance (not timed).");
+        System.out.println();
+        System.out.println("Flags:");
+        System.out.println("  Use -J prefix for JVM flags: -J-Dcf.skipNonnullFastPath=false");
+        System.out.println(
+                "  Use -D prefix for system properties (jtreg engine): -Dharness.release=17");
+        System.out.println("  Engine-specific behavior handled automatically.");
+        System.out.println();
+        System.out.println("Output:");
+        System.out.println(
+                "  Generates unified report.md with performance comparison, diagnostics, and reproduction commands.");
         System.out.println();
     }
 

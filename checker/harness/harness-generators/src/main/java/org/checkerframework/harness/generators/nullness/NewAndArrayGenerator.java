@@ -22,10 +22,10 @@ import java.util.Random;
  *
  * <p>Behavior: - Emits one public class per file; file count equals {@code max(1,
  * req.sampleCount())}. - Per-file work is controlled by {@code extra["groupsPerFile"]} (default
- * 400); each group emits six allocation expressions. - Output is deterministic for the same seed,
+ * 20); each group emits six allocation expressions. - Output is deterministic for the same seed,
  * sample count, and extras.
  *
- * <p>Optional extras: - groupsPerFile: int, default 400
+ * <p>Optional extras: - groupsPerFile: int, default 20
  */
 public final class NewAndArrayGenerator implements CodeGenerator {
 
@@ -42,8 +42,7 @@ public final class NewAndArrayGenerator implements CodeGenerator {
         final String packageName = DEFAULT_PACKAGE;
         final String classPrefix = DEFAULT_CLASS_PREFIX;
         final int groupsPerFile =
-                parsePositiveInt(
-                        req.extra() == null ? null : req.extra().get("groupsPerFile"), 400);
+                parsePositiveInt(req.extra() == null ? null : req.extra().get("groupsPerFile"), 20);
 
         final Path sourcesDir = req.outputDir().resolve(name() + "-sources");
         Files.createDirectories(sourcesDir);

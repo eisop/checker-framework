@@ -83,9 +83,9 @@ public final class JtregDriver implements Driver {
             vmOpts.append("-Dharness.srcdir=").append(absSrcDir.toString());
         }
 
-        // Inject processorpath for JtregPerfHarness
+        // Inject processorpath for JtregPerfHarness (resolve relative paths to absolute)
         if (spec.compiler().processorPath() != null && !spec.compiler().processorPath().isEmpty()) {
-            String cp = joinPaths(spec.compiler().processorPath());
+            String cp = joinPathsResolved(spec.compiler().processorPath());
             if (vmOpts.length() > 0) vmOpts.append(' ');
             vmOpts.append("-Dharness.processorpath=").append(cp);
         }
@@ -356,6 +356,30 @@ public final class JtregDriver implements Driver {
         for (int i = 0; i < paths.size(); i++) {
             if (i > 0) sb.append(sep);
             sb.append(paths.get(i).toString());
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Joins paths while resolving relative paths to absolute paths based on current working
+     * directory. This ensures paths work correctly even when jtreg changes its working directory.
+     */
+    private static String joinPathsResolved(List<Path> paths) {
+        String sep = File.pathSeparator;
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < paths.size(); i++) {
+            if (i > 0) sb.append(sep);
+            Path p = paths.get(i);
+            // Convert relative paths to absolute paths based on current working directory
+            // This prevents issues when jtreg changes the working directory
+            if (!p.isAbsolute()) {
+                try {
+                    p = p.toAbsolutePath().normalize();
+                } catch (Throwable ignore) {
+                    // Fallback to original path if resolution fails
+                }
+            }
+            sb.append(p.toString());
         }
         return sb.toString();
     }

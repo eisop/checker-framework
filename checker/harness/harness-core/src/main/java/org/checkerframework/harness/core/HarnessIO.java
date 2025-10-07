@@ -234,14 +234,21 @@ public final class HarnessIO {
         String gpf = (context == null) ? "" : context.getOrDefault("groupsPerFile", "");
         String baselineFlags = (context == null) ? "" : context.getOrDefault("baselineFlags", "");
         String updateFlags = (context == null) ? "" : context.getOrDefault("updateFlags", "");
-        String proc = getStringMeta(baseline, "processor");
-        String ppath = extractPathFromFlags(getStringMeta(baseline, "flags"), "-processorpath");
-        if (ppath.isEmpty())
-            ppath = extractPathFromFlags(getStringMeta(baseline, "flags"), "-processorPath");
+        String proc = (context == null) ? "" : context.getOrDefault("processor", "");
+        String ppath = (context == null) ? "" : context.getOrDefault("processorPath", "");
+        String release = (context == null) ? "" : context.getOrDefault("release", "");
+        String jtreg = (context == null) ? "" : context.getOrDefault("jtreg", "");
+        String jtregTest = (context == null) ? "" : context.getOrDefault("jtregTest", "");
+        if (proc.isEmpty()) proc = getStringMeta(baseline, "processor");
+        if (ppath.isEmpty()) {
+            ppath = extractPathFromFlags(getStringMeta(baseline, "flags"), "-processorpath");
+            if (ppath.isEmpty())
+                ppath = extractPathFromFlags(getStringMeta(baseline, "flags"), "-processorPath");
+        }
         if (proc.isEmpty()) proc = extractProcessorFromFlags(getStringMeta(baseline, "flags"));
-        String release = extractReleaseFromFlags(getStringMeta(baseline, "flags"));
-        String baseCmd =
-                buildReproCommand(
+        if (release.isEmpty()) release = extractReleaseFromFlags(getStringMeta(baseline, "flags"));
+        String unifiedCmd =
+                buildUnifiedReproCommand(
                         proto,
                         runs,
                         engine,
@@ -251,28 +258,12 @@ public final class HarnessIO {
                         proc,
                         ppath,
                         release,
+                        jtreg,
+                        jtregTest,
                         baselineFlags,
-                        false);
-        String upCmd =
-                buildReproCommand(
-                        proto,
-                        runs,
-                        engine,
-                        sampleCount,
-                        seed,
-                        gpf,
-                        proc,
-                        ppath,
-                        release,
-                        updateFlags,
-                        true);
-        out.add("- Baseline:");
+                        updateFlags);
         out.add("\n```bash");
-        out.add(baseCmd);
-        out.add("```\n");
-        out.add("- Update:");
-        out.add("\n```bash");
-        out.add(upCmd);
+        out.add(unifiedCmd);
         out.add("```\n");
         out.add("");
 
@@ -515,6 +506,8 @@ public final class HarnessIO {
             String processor,
             String processorPath,
             String release,
+            String jtreg,
+            String jtregTest,
             String variantFlags,
             boolean isUpdate) {
         StringBuilder sb = new StringBuilder();
@@ -528,10 +521,51 @@ public final class HarnessIO {
         if (!protocol.isEmpty()) sb.append(" --protocol ").append(protocol);
         if (!runs.isEmpty()) sb.append(" --runs ").append(runs);
         if (!engine.isEmpty()) sb.append(" --engine ").append(engine);
+        if (!jtreg.isEmpty()) sb.append(" --jtreg ").append(jtreg);
+        if (!jtregTest.isEmpty()) sb.append(" --jtreg-test ").append(jtregTest);
         if (!groupsPerFile.isEmpty()) sb.append(" --extra.groupsPerFile ").append(groupsPerFile);
         if (variantFlags != null && !variantFlags.isEmpty()) {
             sb.append(isUpdate ? " --update-flags " : " --baseline-flags ");
             sb.append(variantFlags);
+        }
+        sb.append("\"");
+        return sb.toString();
+    }
+
+    /** Build a unified reproduction command that includes both baseline and update flags. */
+    private static String buildUnifiedReproCommand(
+            String protocol,
+            String runs,
+            String engine,
+            String sampleCount,
+            String seed,
+            String groupsPerFile,
+            String processor,
+            String processorPath,
+            String release,
+            String jtreg,
+            String jtregTest,
+            String baselineFlags,
+            String updateFlags) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("../../gradlew :harness-driver-cli:run --no-daemon --console=plain --args=\"");
+        sb.append("--generator NewAndArray");
+        if (!sampleCount.isEmpty()) sb.append(" --sampleCount ").append(sampleCount);
+        if (!seed.isEmpty()) sb.append(" --seed ").append(seed);
+        if (!processor.isEmpty()) sb.append(" --processor ").append(processor);
+        if (!processorPath.isEmpty()) sb.append(" --processor-path ").append(processorPath);
+        if (!release.isEmpty()) sb.append(" --release ").append(release);
+        if (!protocol.isEmpty()) sb.append(" --protocol ").append(protocol);
+        if (!runs.isEmpty()) sb.append(" --runs ").append(runs);
+        if (!engine.isEmpty()) sb.append(" --engine ").append(engine);
+        if (!jtreg.isEmpty()) sb.append(" --jtreg ").append(jtreg);
+        if (!jtregTest.isEmpty()) sb.append(" --jtreg-test ").append(jtregTest);
+        if (!groupsPerFile.isEmpty()) sb.append(" --extra.groupsPerFile ").append(groupsPerFile);
+        if (baselineFlags != null && !baselineFlags.isEmpty()) {
+            sb.append(" --baseline-flags ").append(baselineFlags);
+        }
+        if (updateFlags != null && !updateFlags.isEmpty()) {
+            sb.append(" --update-flags ").append(updateFlags);
         }
         sb.append("\"");
         return sb.toString();
