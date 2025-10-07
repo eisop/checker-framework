@@ -15,6 +15,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.javacutil.AbstractTypeProcessor;
 import org.checkerframework.javacutil.AnnotationProvider;
+import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.reflection.Signatures;
@@ -99,6 +100,13 @@ public class SignaturePrinter extends AbstractTypeProcessor {
         } else {
             checker =
                     new SourceChecker() {
+
+                        @Override
+                        protected boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(
+                                Element elt) {
+                            throw new BugInCF(
+                                    "Unexpected call to determine whether this checker is annotated");
+                        }
 
                         @Override
                         protected SourceVisitor<?, ?> createSourceVisitor() {
