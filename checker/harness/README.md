@@ -179,15 +179,6 @@ If JTReg is **not installed**, install it using one of the following methods (ru
 bash setup-jtreg.sh
 ```
 
-**Manual (Fallback)**
-
-```bash
-cd ../../..
-curl -L -o jtreg.tar.gz https://builds.shipilev.net/jtreg/jtreg-7.5+b01.tar.gz
-tar -xzf jtreg.tar.gz && mv jtreg-* jtreg && rm jtreg.tar.gz
-chmod +x jtreg/bin/jtreg jtreg/bin/jtdiff
-```
-
 **Verification Steps (run from `checker/harness`)**
 
 ```bash
@@ -293,5 +284,3 @@ For jtreg engine, samples count always equals to 1 is correct because Main.java 
 - Expand test signals: capture GC events, heap usage, and compare across multiple JDKs.
 - Broaden coverage: add more generators to exercise diverse code shapes and workloads.
 - Improve UX: detect malformed CLI inputs and surface actionable warnings/errors.
-
-Fixes #1411
