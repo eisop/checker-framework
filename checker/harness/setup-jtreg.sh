@@ -7,7 +7,7 @@
 # Notes:
 # - Installs JTReg alongside checker-framework at ../jtreg so that
 #   relative paths like ../../../jtreg/bin/jtreg work in scripts/docs.
-# - Downloads the official GitHub release (the tag’s “+” must be URL-encoded).
+# - Downloads prebuilt archives from Shipilev builds.
 # - Override defaults via environment variables: JTREG_VERSION, JTREG_BUILD
 #   e.g., JTREG_VERSION=7.4 JTREG_BUILD=1 bash setup-jtreg.sh
 
@@ -17,13 +17,11 @@ set -euo pipefail
 JTREG_VERSION="${JTREG_VERSION:-7.4}"
 JTREG_BUILD="${JTREG_BUILD:-1}"
 
-# GitHub release tags are like jtreg-7.4+1 (the + must be %2B in URLs).
-JTREG_TAG_ENC="jtreg-${JTREG_VERSION}%2B${JTREG_BUILD}"
-JTREG_ARCHIVE="jtreg-${JTREG_VERSION}+${JTREG_BUILD}.tar.gz"
-JTREG_URL_GH="https://github.com/openjdk/jtreg/releases/download/${JTREG_TAG_ENC}/${JTREG_ARCHIVE}"
-
-# Optional alternate source (may not exist for all versions; keep for manual use)
-# JTREG_URL_ALT="https://builds.shipilev.net/jtreg/jtreg-${JTREG_VERSION}+b${JTREG_BUILD}.tar.gz"
+# Shipilev provides versioned zips like jtreg-7.4+1.zip
+JTREG_ARCHIVE="jtreg-${JTREG_VERSION}+${JTREG_BUILD}.zip"
+JTREG_URL_PRIMARY="https://builds.shipilev.net/jtreg/${JTREG_ARCHIVE}"
+# Fallback (rolling zip; may change over time—use only if primary fails)
+JTREG_URL_FALLBACK="https://builds.shipilev.net/jtreg/jtreg.zip"
 
 # -------- Path resolution (run from checker/harness) --------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -61,48 +59,62 @@ if [[ -x "${JTREG_INSTALL_PATH}/bin/jtreg" ]]; then
   exit 0
 fi
 
+# -------- Tooling checks --------
+need_cmd() {
+  command -v "$1" >/dev/null 2>&1
+}
+if ! need_cmd unzip; then
+  echo "ERROR: unzip is required but not found on PATH."
+  echo "Install unzip and retry."
+  exit 1
+fi
+if ! need_cmd curl && ! need_cmd wget; then
+  echo "ERROR: Neither curl nor wget is available."
+  echo "Manual steps:"
+  echo "  1) Download: ${JTREG_URL_PRIMARY} (or ${JTREG_URL_FALLBACK})"
+  echo "  2) Extract to: ${JTREG_INSTALL_PATH}"
+  exit 1
+fi
+
 # -------- Temp workspace --------
 TMP_WORKSPACE="$(mktemp -d)"
 trap 'rm -rf "${TMP_WORKSPACE}"' EXIT
 
 echo "→ Downloading JTReg ${JTREG_VERSION}+${JTREG_BUILD} ..."
-echo "  URL: ${JTREG_URL_GH}"
+echo "  URL: ${JTREG_URL_PRIMARY}"
 cd "${TMP_WORKSPACE}"
 
 download_ok=false
-if command -v curl >/dev/null 2>&1; then
-  # -L follow redirects; --fail causes 4xx/5xx to return nonzero exit
-  if curl -L --fail -o jtreg.tar.gz "${JTREG_URL_GH}"; then
-    download_ok=true
+outfile="jtreg.zip"
+
+fetch() {
+  local url="$1"
+  if need_cmd curl; then
+    curl -L --fail -o "${outfile}" "${url}"
+  else
+    wget -O "${outfile}" "${url}"
   fi
-elif command -v wget >/dev/null 2>&1; then
-  if wget -O jtreg.tar.gz "${JTREG_URL_GH}"; then
-    download_ok=true
-  fi
+}
+
+if fetch "${JTREG_URL_PRIMARY}"; then
+  download_ok=true
 else
-  echo "ERROR: Neither curl nor wget is available."
+  echo "WARN: Primary download failed; trying fallback ..."
+  if fetch "${JTREG_URL_FALLBACK}"; then
+    download_ok=true
+  fi
+fi
+
+if [[ "${download_ok}" != true ]]; then
+  echo "ERROR: Could not download JTReg (all URLs failed)."
   echo "Manual steps:"
-  echo "  1) Download: ${JTREG_URL_GH}"
+  echo "  1) Download: ${JTREG_URL_PRIMARY} (or ${JTREG_URL_FALLBACK})"
   echo "  2) Extract to: ${JTREG_INSTALL_PATH}"
   exit 1
 fi
 
-if [[ "${download_ok}" != true ]]; then
-  echo "ERROR: Download from GitHub failed."
-  # To enable the alternate source, uncomment below and set JTREG_URL_ALT as needed.
-  # echo "Trying alternate URL: ${JTREG_URL_ALT}"
-  # if curl -L --fail -o jtreg.tar.gz "${JTREG_URL_ALT}"; then
-  #   download_ok=true
-  # fi
-  # if [[ "${download_ok}" != true ]]; then
-  #   echo "ERROR: Alternate download also failed."
-  #   exit 1
-  # fi
-  exit 1
-fi
-
 echo "→ Extracting archive ..."
-tar -xzf jtreg.tar.gz
+unzip -q "${outfile}"
 
 # Robust directory match (exclude .)
 EXTRACTED_JTREG="$(find . -mindepth 1 -maxdepth 1 -type d -name "jtreg*" | head -1 || true)"
