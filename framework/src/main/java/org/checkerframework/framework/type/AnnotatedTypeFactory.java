@@ -1448,6 +1448,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         checker.hasOption("invariantArrays"));
   }
 
+  /**
+   * Returns the type hierarchy.
+   *
+   * @return the type hierarchy
+   */
   public final TypeHierarchy getTypeHierarchy() {
     return typeHierarchy;
   }
