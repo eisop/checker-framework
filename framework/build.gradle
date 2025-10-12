@@ -125,7 +125,7 @@ dependencies {
     // runtimeClasspath, which is what frameworkAllJar is built from.
     implementation "com.google.guava:guava:${versions.guava}"
     // Add this dependency if needed to debug classpath issues.
-    // implementation 'io.github.classgraph:classgraph:4.8.180'
+    // implementation 'io.github.classgraph:classgraph:4.8.184'
 
     testImplementation "junit:junit:${versions.junit}"
     testImplementation project(':framework-test')
