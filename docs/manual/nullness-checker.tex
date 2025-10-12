@@ -591,7 +591,9 @@ hold:
       \begin{itemize}
         \item an empty array initializer, e.g. \<c.toArray(new String[] \{\})>, or
 
-        \item array creation tree of size 0, e.g. \<c.toArray(new String[0])>.
+        \item an array creation tree of size 0, e.g. \<c.toArray(new String[0])>.
+
+        \item a reference to a private, final field with a zero-length array as initializer, e.g. \<c.toArray(EMPTY\_STRING\_ARRAY)>, where \<EMPTY\_STRING\_ARRAY> is initialized to \<new String[0]> (or an equivalent zero-length array expression).
       \end{itemize}
 
     \item array creation tree with a collection \<size()> method invocation as argument
