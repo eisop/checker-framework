@@ -1579,7 +1579,7 @@ public abstract class GenericAnnotatedTypeFactory<
         }
 
         while (!lambdaQueue.isEmpty()) {
-          Pair<LambdaExpressionTree, @Nullable Store> lambdaPair = lambdaQueue.poll();
+          Pair<LambdaExpressionTree, @Nullable Store> lambdaPair = lambdaQueue.remove();
           MethodTree mt =
               (MethodTree)
                   TreePathUtil.enclosingOfKind(getPath(lambdaPair.first), Tree.Kind.METHOD);
