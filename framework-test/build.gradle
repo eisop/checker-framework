@@ -1,7 +1,7 @@
 plugins {
     // For the `api` configuration used below: framework-test is a published library whose
     // public signatures expose framework types.
-    id 'java-library'
+    id "java-library"
 }
 
 sourceSets {
@@ -11,8 +11,8 @@ sourceSets {
 
 dependencies {
     implementation "junit:junit:${versions.junit}"
-    implementation project(':javacutil')
-    implementation project(':checker-qual')
+    implementation project(":javacutil")
+    implementation project(":checker-qual")
 
     implementation "org.plumelib:plume-util:${versions.plumeUtil}"
 
@@ -35,38 +35,38 @@ dependencies {
     // framework reaches consumers at compile scope: with `implementation` the POM would declare
     // it at runtime scope, off a Maven consumer's compile classpath and absent from the
     // apiElements variant a Gradle consumer resolves.
-    api project(':framework')
+    api project(":framework")
 }
 
 // Shadow 9.4.2 eagerly triggers compile tasks for all source sets.
 // Only enable Java 8 specific compilation when actually on Java 8.
-tasks.named('compileTagletJdk8Java') {
+tasks.named("compileTagletJdk8Java") {
     enabled = isJava8
 }
-tasks.named('compileTagletJava') {
+tasks.named("compileTagletJava") {
     enabled = !isJava8
 }
 
-tasks.named('jar') {
-    archiveBaseName = 'framework-test'
+tasks.named("jar") {
+    archiveBaseName = "framework-test"
 }
 
-apply from: rootProject.file('gradle-mvn-push.gradle')
+apply from: rootProject.file("gradle-mvn-push.gradle")
 
 /** Adds information to the publication for uploading to Maven repositories. */
 final frameworkTest(publication) {
     rootProject.sharedPublicationConfiguration(publication)
     publication.from components.java
     publication.pom {
-        name = 'Checker Framework Testing Library'
+        name = "Checker Framework Testing Library"
         description = String.join(System.lineSeparator(),
-                'framework-test contains utility classes for testing type-checkers',
-                'that are built on the Checker Framework.')
+                "framework-test contains utility classes for testing type-checkers",
+                "that are built on the Checker Framework.")
         licenses {
             license {
-                name = 'GNU General Public License, version 2 (GPL2), with the classpath exception'
-                url = 'http://www.gnu.org/software/classpath/license.html'
-                distribution = 'repo'
+                name = "GNU General Public License, version 2 (GPL2), with the classpath exception"
+                url = "http://www.gnu.org/software/classpath/license.html"
+                distribution = "repo"
             }
         }
     }
