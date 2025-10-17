@@ -863,7 +863,6 @@ public class AnnotationFileElementTypes {
      * @return a JarURLConnection to "/jdk*"
      */
     private JarURLConnection getJarURLConnectionToJdk() {
-        // System.out.println("getJarURLConnectionToJdk()");
         URL resourceURL = null;
 
         // First, try to use the external annotated-jdk.jar file if specified
@@ -871,7 +870,6 @@ public class AnnotationFileElementTypes {
         try {
             File externalJdkFile = new File(externalJdkPath);
             if (externalJdkFile.exists()) {
-                // Create a jar URL pointing to the annotated-jdk directory within the external JAR
                 resourceURL =
                         new URL(
                                 "jar:file:"
@@ -879,7 +877,6 @@ public class AnnotationFileElementTypes {
                                         + "!/annotated-jdk");
             }
         } catch (Exception e) {
-            // Fall back to classpath resource if external JAR fails
             if (stubDebug) {
                 System.out.printf(
                         "Failed to load external annotated JDK from %s: %s%n",
@@ -887,7 +884,6 @@ public class AnnotationFileElementTypes {
             }
         }
 
-        // // Fallback to classpath resource if external JAR not found or failed
         if (resourceURL == null) {
             resourceURL = atypeFactory.getClass().getResource("/annotated-jdk");
         }
