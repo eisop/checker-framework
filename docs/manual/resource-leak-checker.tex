@@ -51,7 +51,7 @@ javac -processor org.checkerframework.checker.resourceleak.ResourceLeakChecker M
 
 The Resource Leak Checker supports all the command-line arguments
 listed in Section~\ref{called-methods-run-checker} for
-the Called Methods Checker, plus three others:
+the Called Methods Checker, plus four others:
 
 \begin{description}
 \item[\<-ApermitStaticOwning>]
@@ -60,6 +60,12 @@ the Called Methods Checker, plus three others:
   See Section~\ref{resource-leak-ignored-exceptions}.
 \item[\<-ApermitInitializationLeak>]
   See Section~\ref{resource-leak-field-initialization}.
+\item[\<-AenableReturnsReceiverForRlc>]
+  Enables the Returns Receiver Checker (Section~\ref{returns-reciever-checker})
+  when running this checker. By default, the Returns Receiver checker is
+  disabled when running the Called Methods Checker as part of the RLC,
+  because it has a significant runtime cost but provides little benefit in the common case,
+  since resources are rarely combined with fluent builders.
 %% TODO: Uncomment when the feature is ready to be publicized.
 % \item[\<-AenableWpiForRlc>]
 %   See Section~\ref{resource-leak-checker-inference-algo}.
@@ -366,6 +372,36 @@ and its parameter \<p>, the Resource Leak Checker requires one of the following:
   \<@Owning> field cannot have a resource alias relationship).
 \end{enumerate}
 
+\subsectionAndLabel{A complete wrapper type example}{resource-leak-wrapper-type-example}
+
+Here is a complete example of a type \<InputStreamWrapper> that wraps an \<InputStream> as a resource alias.  Defining a wrapper type typically involves combined usage of \<@InheritableMustCall>, \<@EnsuresCalledMethods>, an \<@Owning> field, and \<@MustCallAlias>.  The \<test> method shows that the checker is able to verify code that releases an \<InputStream> using either the \<InputStream> directly or a wrapping \<InputStreamWrapper>.
+
+\begin{verbatim}
+@InheritableMustCall("dispose")
+class InputStreamWrapper {
+  private final @Owning InputStream stream;
+
+  @MustCallAlias InputStreamWrapper(@MustCallAlias InputStream stream) {
+    this.stream = stream;
+  }
+
+  @EnsuresCalledMethods(value = "this.stream", methods = "close")
+  public void dispose() throws IOException {
+    this.stream.close();
+  }
+
+  /** Shows that either the stream or the wrapper can be closed. */
+  static void test(@Owning InputStream stream, boolean b) throws IOException {
+    InputStreamWrapper wrapper = new InputStreamWrapper(stream);
+    if (b) {
+      stream.close();
+    } else {
+      wrapper.dispose();
+    }
+  }
+}
+\end{verbatim}
+
 
 \sectionAndLabel{Creating obligations (how to re-assign a non-final owning field)}{resource-leak-createsmustcallfor}
 
@@ -632,16 +668,13 @@ not possible, the programmer will probably need to suppress a warning and
 then verify the code using a method other than the Resource Leak Checker.
 
 
-%% TODO: Uncomment when the feature is ready to be publicized.
-% \sectionAndLabel{Resource Leak Checker Annotation Inference Algorithm}{resource-leak-checker-inference-algo}
-%
-% We are developing a special inference mechanism to infer annotations for
-% the Resource Leak Checker. By default, this mechanism operates when the
-% -Ainfer flag is enabled. To utilize the whole-program inference mechanism outlined in
-% section \ref{whole-program-inference} in addition to this mechanism for the Resource
-% Leak Checker and its sub-checkers, you should provide the \<-AenableWpiForRlc> flag.
-%
-% The paper \href={https://arxiv.org/pdf/2306.11953.pdf}{Automatic Inference of Resource Leak Specifications}, published at OOPSLA 2023, gives more details on the inference algorithm. Currently, only the first phase of the algorithm described in the paper is available, and the complete implementation will be available soon.
+\sectionAndLabel{Resource Leak Checker annotation inference algorithm}{resource-leak-checker-inference-algo}
+
+The Resource Leak Checker uses a specialized algorithm to infer annotations
+when whole program inference (WPI, Section~\ref{whole-program-inference})
+is enabled.  The algorithm is described in the paper ``Inference of
+Resource Management Specifications''~\cite{ShadabGTEKLLS2023} (OOPSLA 2023,
+\myurl{https://homes.cs.washington.edu/~mernst/pubs/resource-inference-oopsla2023-abstract.html}).
 
 
 % LocalWords:  de subchecker OutputStream MustCall MustCallUnknown RAII Un

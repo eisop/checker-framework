@@ -82,7 +82,7 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
      */
     @Override
     public Set<Contract.Precondition> getPreconditions(ExecutableElement executableElement) {
-        return getContracts(
+        return getContractsOfKind(
                 executableElement, Contract.Kind.PRECONDITION, Contract.Precondition.class);
     }
 
@@ -94,7 +94,7 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
      */
     @Override
     public Set<Contract.Postcondition> getPostconditions(ExecutableElement executableElement) {
-        return getContracts(
+        return getContractsOfKind(
                 executableElement, Contract.Kind.POSTCONDITION, Contract.Postcondition.class);
     }
 
@@ -107,13 +107,13 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
     @Override
     public Set<Contract.ConditionalPostcondition> getConditionalPostconditions(
             ExecutableElement methodElement) {
-        return getContracts(
+        return getContractsOfKind(
                 methodElement,
                 Contract.Kind.CONDITIONALPOSTCONDITION,
                 Contract.ConditionalPostcondition.class);
     }
 
-    /// Helper methods
+    // Helper methods
 
     /**
      * Returns the contracts (of a particular kind) on method or constructor {@code
@@ -125,16 +125,20 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
      * @param clazz the class to determine the return type
      * @return the contracts on {@code executableElement}
      */
-    private <T extends Contract> Set<T> getContracts(
+    private <T extends Contract> Set<T> getContractsOfKind(
             ExecutableElement executableElement, Contract.Kind kind, Class<T> clazz) {
         Set<T> result = new LinkedHashSet<>();
         // Check for a single framework-defined contract annotation.
+        // The result is RequiresQualifier, EnsuresQualifier, EnsuresQualifierIf, or null.
         AnnotationMirror frameworkContractAnno =
                 atypeFactory.getDeclAnnotation(executableElement, kind.frameworkContractClass);
-        result.addAll(getContract(kind, frameworkContractAnno, clazz));
+        if (frameworkContractAnno != null) {
+            result.addAll(getContract(kind, frameworkContractAnno, clazz));
+        }
 
         // Check for a framework-defined wrapper around contract annotations.
         // The result is RequiresQualifier.List, EnsuresQualifier.List, or EnsuresQualifierIf.List.
+        // Add its elements to `result`.
         AnnotationMirror frameworkContractListAnno =
                 atypeFactory.getDeclAnnotation(executableElement, kind.frameworkContractListClass);
         if (frameworkContractListAnno != null) {
@@ -145,13 +149,16 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
             }
         }
 
-        // Check for type-system specific annotations.
+        // Check for type-system specific annotations.  These are the annotations that are
+        // meta-annotated by `kind.metaAnnotation`, which is PreconditionAnnotation,
+        // PostconditionAnnotation, or ConditionalPostconditionAnnotation.
         List<IPair<AnnotationMirror, AnnotationMirror>> declAnnotations =
                 atypeFactory.getDeclAnnotationWithMetaAnnotation(
                         executableElement, kind.metaAnnotation);
         for (IPair<AnnotationMirror, AnnotationMirror> r : declAnnotations) {
             AnnotationMirror anno = r.first;
-            // contractAnno is the meta-annotation on anno.
+            // contractAnno is the meta-annotation on anno, such as PreconditionAnnotation,
+            // PostconditionAnnotation, or ConditionalPostconditionAnnotation.
             AnnotationMirror contractAnno = r.second;
             AnnotationMirror enforcedQualifier =
                     getQualifierEnforcedByContractAnnotation(contractAnno, anno);
@@ -182,14 +189,14 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
      *
      * @param <T> the type of {@link Contract} to return
      * @param kind the kind of {@code contractAnnotation}
-     * @param contractAnnotation a {@link RequiresQualifier}, {@link EnsuresQualifier}, {@link
-     *     EnsuresQualifierIf}, or null
+     * @param contractAnnotation a {@link RequiresQualifier}, {@link EnsuresQualifier}, or {@link
+     *     EnsuresQualifierIf}
      * @param clazz the class to determine the return type
      * @return the contracts expressed by the given annotation, or the empty set if the argument is
      *     null
      */
     private <T extends Contract> Set<T> getContract(
-            Contract.Kind kind, @Nullable AnnotationMirror contractAnnotation, Class<T> clazz) {
+            Contract.Kind kind, AnnotationMirror contractAnnotation, Class<T> clazz) {
         if (contractAnnotation == null) {
             return Collections.emptySet();
         }
@@ -264,8 +271,8 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
      * @param argumentAnno annotation containing the element {@code values}, or {@code null}
      * @param argumentRenaming renaming of argument names, which maps from names in {@code
      *     argumentAnno} to names used in the returned annotation, or {@code null}
-     * @return a qualifier whose type is that of {@code contract.qualifier}, or an alias for it, or
-     *     null if it is not a supported qualifier of the type system
+     * @return a qualifier whose type is that of {@code contractAnno.qualifier}, or an alias for it,
+     *     or null if it is not a supported qualifier of the type system
      */
     private @Nullable AnnotationMirror getQualifierEnforcedByContractAnnotation(
             AnnotationMirror contractAnno,

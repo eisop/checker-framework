@@ -241,13 +241,13 @@ public class NullnessNoInitTransfer
                 }
             }
 
-            AnnotationMirrorSet secondAnnos =
-                    secondValue != null ? secondValue.getAnnotations() : new AnnotationMirrorSet();
-            if (nullnessTypeFactory.containsSameByClass(secondAnnos, PolyNull.class)) {
+            if (secondValue != null
+                    && nullnessTypeFactory.containsSameByClass(
+                            secondValue.getAnnotations(), PolyNull.class)) {
                 thenStore = thenStore == null ? res.getThenStore() : thenStore;
                 elseStore = elseStore == null ? res.getElseStore() : elseStore;
                 // TODO: methodTree is null for lambdas.  Handle that case.  See Issue3850.java.
-                MethodTree methodTree = analysis.getContainingMethod(secondNode.getTree());
+                MethodTree methodTree = analysis.getEnclosingMethod(secondNode.getTree());
                 ExecutableElement methodElem =
                         methodTree == null ? null : TreeUtils.elementFromDeclaration(methodTree);
                 if (notEqualTo) {
@@ -423,7 +423,7 @@ public class NullnessNoInitTransfer
         Node receiver = n.getTarget().getReceiver();
         if (nonNullAssumptionAfterInvocation
                 || isMethodSideEffectFree
-                || JavaExpression.fromNode(receiver).isUnassignableByOtherCode()) {
+                || !JavaExpression.fromNode(receiver).isAssignableByOtherCode()) {
             // Make receiver non-null.
             makeNonNull(result, receiver);
         }
@@ -439,8 +439,8 @@ public class NullnessNoInitTransfer
             if (methodParams.get(i).hasAnnotation(NONNULL)
                     && (nonNullAssumptionAfterInvocation
                             || isMethodSideEffectFree
-                            || JavaExpression.fromTree(methodArgs.get(i))
-                                    .isUnassignableByOtherCode())) {
+                            || !JavaExpression.fromTree(methodArgs.get(i))
+                                    .isAssignableByOtherCode())) {
                 makeNonNull(result, n.getArgument(i));
             }
         }
@@ -457,7 +457,7 @@ public class NullnessNoInitTransfer
             }
             if (isKeyFor) {
                 AnnotatedTypeMirror receiverType = nullnessTypeFactory.getReceiverType(n.getTree());
-                if (!hasNullableValueType(receiverType)) {
+                if (!isValueTypeNullable(receiverType)) {
                     makeNonNull(result, n);
                     refineToNonNull(result);
                 }
@@ -473,7 +473,7 @@ public class NullnessNoInitTransfer
      * @param mapOrSubtype the Map type, or a subtype
      * @return true if mapType's value type is @Nullable
      */
-    private boolean hasNullableValueType(AnnotatedTypeMirror mapOrSubtype) {
+    private boolean isValueTypeNullable(AnnotatedTypeMirror mapOrSubtype) {
         AnnotatedDeclaredType mapType =
                 AnnotatedTypes.asSuper(nullnessTypeFactory, mapOrSubtype, MAP_TYPE);
         int numTypeArguments = mapType.getTypeArguments().size();

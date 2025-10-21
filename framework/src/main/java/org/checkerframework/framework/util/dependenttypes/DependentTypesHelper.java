@@ -20,6 +20,7 @@ import org.checkerframework.dataflow.expression.FormalParameter;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.expression.JavaExpressionConverter;
 import org.checkerframework.dataflow.expression.LocalVariable;
+import org.checkerframework.dataflow.expression.SuperReference;
 import org.checkerframework.dataflow.expression.ThisReference;
 import org.checkerframework.dataflow.expression.Unknown;
 import org.checkerframework.framework.source.SourceChecker;
@@ -28,6 +29,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeParameterBounds;
+import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
 import org.checkerframework.framework.type.visitor.DoubleAnnotatedTypeScanner;
@@ -124,6 +126,12 @@ public class DependentTypesHelper {
             new ExpressionErrorCollector();
 
     /**
+     * This scans the annotated type and replaces any dependent type annotation that has a parse
+     * error with the top annotation in the hierarchy.
+     */
+    protected final ErrorAnnoReplacer errorAnnoReplacer;
+
+    /**
      * A scanner that applies a function to each {@link AnnotationMirror} and replaces it in the
      * given {@code AnnotatedTypeMirror}. (This side-effects the {@code AnnotatedTypeMirror}.)
      */
@@ -133,7 +141,7 @@ public class DependentTypesHelper {
      * Copies annotations that might have been viewpoint adapted from the visited type (the first
      * formal parameter of {@code ViewpointAdaptedCopier#visit}) to the second formal parameter.
      */
-    private final ViewpointAdaptedCopier viewpointAdaptedCopier = new ViewpointAdaptedCopier();
+    protected final ViewpointAdaptedCopier viewpointAdaptedCopier = new ViewpointAdaptedCopier();
 
     /** The type mirror for java.lang.Object. */
     protected final TypeMirror objectTM;
@@ -145,7 +153,7 @@ public class DependentTypesHelper {
      */
     public DependentTypesHelper(AnnotatedTypeFactory atypeFactory) {
         this.atypeFactory = atypeFactory;
-
+        this.errorAnnoReplacer = new ErrorAnnoReplacer(atypeFactory.getQualifierHierarchy());
         this.annoToElements = new HashMap<>();
         for (Class<? extends Annotation> expressionAnno :
                 atypeFactory.getSupportedTypeQualifiers()) {
@@ -219,9 +227,9 @@ public class DependentTypesHelper {
         return new DependentTypesTreeAnnotator(atypeFactory, this);
     }
 
-    ///
-    /// Methods that convert annotations
-    ///
+    //
+    // Methods that convert annotations
+    //
 
     /** If true, log information about where lambdas are created. */
     // This variable is only set here; edit the source code to modify it.
@@ -489,7 +497,7 @@ public class DependentTypesHelper {
                 }
                 Tree enclTree = pathTillEnclTree.getLeaf();
 
-                if (enclTree.getKind() == Tree.Kind.METHOD) {
+                if (enclTree instanceof MethodTree) {
                     MethodTree methodDeclTree = (MethodTree) enclTree;
                     StringToJavaExpression stringToJavaExpr =
                             stringExpr ->
@@ -648,7 +656,10 @@ public class DependentTypesHelper {
 
     /** Thrown when a non-parameter local variable is found. */
     @SuppressWarnings("serial")
-    private static class FoundLocalException extends RuntimeException {}
+    private static class FoundLocalVarException extends RuntimeException {
+        /** Creates a FoundLocalVarException. */
+        public FoundLocalVarException() {}
+    }
 
     /**
      * Viewpoint-adapt all dependent type annotations to the method declaration, {@code
@@ -692,14 +703,14 @@ public class DependentTypesHelper {
                                         LocalVariable localVarExpr, Void unused) {
                                     int index = paramsAsLocals.indexOf(localVarExpr);
                                     if (index == -1) {
-                                        throw new FoundLocalException();
+                                        throw new FoundLocalVarException();
                                     }
                                     return parameters.get(index);
                                 }
                             };
                     try {
                         return jec.convert(javaExpr);
-                    } catch (FoundLocalException ex) {
+                    } catch (FoundLocalVarException ex) {
                         return null;
                     }
                 };
@@ -776,19 +787,25 @@ public class DependentTypesHelper {
                                 @Override
                                 public JavaExpression visitLocalVariable(
                                         LocalVariable local, Void unused) {
-                                    throw new FoundLocalException();
+                                    throw new FoundLocalVarException();
                                 }
 
                                 @Override
                                 public JavaExpression visitThisReference(
                                         ThisReference thisRef, Void unused) {
-                                    throw new FoundLocalException();
+                                    throw new FoundLocalVarException();
+                                }
+
+                                @Override
+                                public JavaExpression visitSuperReference(
+                                        SuperReference superRef, Void unused) {
+                                    throw new FoundLocalVarException();
                                 }
                             };
 
                     try {
                         return jec.convert(expr);
-                    } catch (FoundLocalException ex) {
+                    } catch (FoundLocalVarException ex) {
                         return null;
                     }
                 };
@@ -1022,6 +1039,9 @@ public class DependentTypesHelper {
         @Override
         protected Void scan(
                 AnnotatedTypeMirror type, Function<AnnotationMirror, AnnotationMirror> func) {
+            if (visitedNodes.containsKey(type)) {
+                return null;
+            }
             for (AnnotationMirror anno : new AnnotationMirrorSet(type.getAnnotations())) {
                 AnnotationMirror newAnno = func.apply(anno);
                 if (newAnno != null) {
@@ -1039,9 +1059,9 @@ public class DependentTypesHelper {
         }
     }
 
-    ///
-    /// Methods that check and report errors
-    ///
+    //
+    // Methods that check and report errors
+    //
 
     /**
      * Reports an expression.unparsable.type.invalid error for each Java expression in the given
@@ -1061,7 +1081,7 @@ public class DependentTypesHelper {
         }
 
         // Report the error at the type rather than at the variable.
-        if (errorTree.getKind() == Tree.Kind.VARIABLE) {
+        if (errorTree instanceof VariableTree) {
             Tree typeTree = ((VariableTree) errorTree).getType();
             // Don't report the error at the type if the type is not present in source code.
             if (((JCTree) typeTree).getPreferredPosition() != -1) {
@@ -1257,6 +1277,38 @@ public class DependentTypesHelper {
     }
 
     /**
+     * Replaces a dependent type annotation with a parser error with the top qualifier in the
+     * hierarchy.
+     */
+    protected class ErrorAnnoReplacer extends SimpleAnnotatedTypeScanner<Void, Void> {
+
+        /**
+         * Create an ErrorAnnoReplacer.
+         *
+         * @param qh the qualifier hierarchy
+         */
+        private ErrorAnnoReplacer(QualifierHierarchy qh) {
+            super(
+                    (AnnotatedTypeMirror type, Void aVoid) -> {
+                        AnnotationMirrorSet replacementAnnos = null;
+                        for (AnnotationMirror am : type.getAnnotations()) {
+                            if (isExpressionAnno(am) && !errorElements(am).isEmpty()) {
+                                if (replacementAnnos == null) {
+                                    replacementAnnos = new AnnotationMirrorSet();
+                                }
+                                replacementAnnos.add(qh.getTopAnnotation(am));
+                            }
+                        }
+
+                        if (replacementAnnos != null) {
+                            type.replaceAnnotations(replacementAnnos);
+                        }
+                        return null;
+                    });
+        }
+    }
+
+    /**
      * Appends list2 to list1 in a new list. If either list is empty, returns the other. Thus, the
      * result may be aliased to one of the arguments and the client should only read, not write
      * into, the result.
@@ -1284,7 +1336,11 @@ public class DependentTypesHelper {
      * the visited type to the second formal parameter except for annotations on types that have
      * been substituted.
      */
-    private class ViewpointAdaptedCopier extends DoubleAnnotatedTypeScanner<Void> {
+    protected class ViewpointAdaptedCopier extends DoubleAnnotatedTypeScanner<Void> {
+
+        /** Create a ViewpointAdaptedCopier. */
+        private ViewpointAdaptedCopier() {}
+
         @Override
         protected Void scan(AnnotatedTypeMirror from, AnnotatedTypeMirror to) {
             if (from == null || to == null) {
@@ -1299,6 +1355,7 @@ public class DependentTypesHelper {
                 }
             }
             to.replaceAnnotations(replacements);
+
             if (from.getKind() != to.getKind()
                     || (from.getKind() == TypeKind.TYPEVAR
                             && TypesUtils.isCapturedTypeVariable(to.getUnderlyingType()))) {
@@ -1335,7 +1392,7 @@ public class DependentTypesHelper {
      * @param atm a type
      * @return true if {@code atm} has any dependent type annotations
      */
-    private boolean hasDependentType(AnnotatedTypeMirror atm) {
+    protected boolean hasDependentType(AnnotatedTypeMirror atm) {
         if (atm == null) {
             return false;
         }
@@ -1348,6 +1405,7 @@ public class DependentTypesHelper {
     }
 
     /** Returns true if the passed AnnotatedTypeMirror has any dependent type annotations. */
+    @SuppressWarnings("this-escape")
     private final AnnotatedTypeScanner<Boolean, Void> hasDependentTypeScanner =
             new SimpleAnnotatedTypeScanner<>(
                     (type, __) -> {

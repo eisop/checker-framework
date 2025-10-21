@@ -74,9 +74,13 @@ import javax.lang.model.util.AbstractElementVisitor8;
 @SupportedOptions("checker")
 public class SignaturePrinter extends AbstractTypeProcessor {
 
+    /** The checker associated with this printer. */
     private SourceChecker checker;
 
-    ///////// Initialization /////////////
+    /** Creates a SignaturePrinter. */
+    public SignaturePrinter() {}
+
+    // ///////// Initialization /////////////
     /**
      * Initialization.
      *
@@ -130,7 +134,7 @@ public class SignaturePrinter extends AbstractTypeProcessor {
         // printer.visit(element);
     }
 
-    ////////// Printer //////////
+    // ////////// Printer //////////
     /** Element printer. */
     static class ElementPrinter extends AbstractElementVisitor8<Void, Void> {
         /** String used for indentation. */
@@ -194,9 +198,16 @@ public class SignaturePrinter extends AbstractTypeProcessor {
             }
         }
 
-        public void printVariable(AnnotatedTypeMirror type, Name name, boolean isVarArg) {
+        /**
+         * Prints a variable declaration.
+         *
+         * @param type the type of the variable
+         * @param name the name of the variable
+         * @param isVarargs true if the variable is a varargs formal parameter
+         */
+        public void printVariable(AnnotatedTypeMirror type, Name name, boolean isVarargs) {
             out.print(type);
-            if (isVarArg) {
+            if (isVarargs) {
                 out.println("...");
             }
             out.print(' ');

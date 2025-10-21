@@ -302,13 +302,6 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         }
 
         boolean skipChecks = checker.shouldSkipUses(type.getUnderlyingType().asElement());
-        if (type.containsUninferredTypeArguments()) {
-            if (!atypeFactory.ignoreUninferredTypeArguments) {
-                // TODO: document the logic here.
-                isValid = true;
-            }
-            return null;
-        }
 
         if (checkTopLevelDeclaredOrPrimitiveType && !skipChecks) {
             // Ensure that type use is a subtype of the element type
@@ -458,7 +451,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
             case NEW_CLASS:
                 NewClassTree nct = (NewClassTree) tree;
                 ExpressionTree nctid = nct.getIdentifier();
-                if (nctid.getKind() == Tree.Kind.PARAMETERIZED_TYPE) {
+                if (nctid instanceof ParameterizedTypeTree) {
                     typeargtree = (ParameterizedTypeTree) nctid;
                     /*
                      * This is quite tricky... for anonymous class instantiations,
@@ -628,6 +621,13 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                 if (!atypeFactory
                         .getTypeHierarchy()
                         .isSubtype(captureTypeVarUB, wildcard.getExtendsBound())) {
+                    // For most captured type variables, this will trivially hold, as capturing
+                    // incorporated the extends bound of the wildcard into the upper bound of the
+                    // type variable.
+                    // This will fail if the bound and the wildcard have generic types and there is
+                    // no appropriate GLB.
+                    // This issues an error for types that cannot be satisfied, because the two
+                    // bounds have contradictory requirements.
                     checker.reportError(
                             tree.getTypeArguments().get(i),
                             "type.argument.type.incompatible",
@@ -722,8 +722,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         } else {
             // When upperBoundAnnos.size() != lowerBoundAnnos.size() one of the two bound types will
             // be reported as invalid.  Therefore, we do not do any other comparisons nor do we
-            // report
-            // a bound.
+            // report a bound.
             return true;
         }
     }

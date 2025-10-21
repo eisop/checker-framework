@@ -65,6 +65,8 @@ import java.util.regex.Pattern;
  * at <a
  * href="https://github.com/plume-lib/require-javadoc#readme">https://github.com/plume-lib/require-javadoc#readme</a>.
  */
+@SuppressWarnings("all") // many-initializedfields runs checkers that raise errors.
+// Remove once that test minimized this file.
 public class RequireJavadoc {
 
     /** Matches name of file or directory where no problems should be reported. */

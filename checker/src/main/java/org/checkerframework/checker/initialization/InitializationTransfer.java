@@ -41,6 +41,8 @@ import javax.lang.model.util.ElementFilter;
  *   <li>After the call to a super constructor ("super()" call), all fields of the super class can
  *       safely be considered initialized.
  * </ol>
+ *
+ * @see InitializationStore
  */
 public class InitializationTransfer
         extends CFAbstractTransfer<CFValue, InitializationStore, InitializationTransfer> {
@@ -51,7 +53,7 @@ public class InitializationTransfer
     /**
      * Create a new InitializationTransfer for the given analysis.
      *
-     * @param analysis init analysi.s
+     * @param analysis init analysis
      */
     public InitializationTransfer(InitializationAnalysis analysis) {
         super(analysis);
@@ -139,6 +141,11 @@ public class InitializationTransfer
         return result;
     }
 
+    /**
+     * If an invariant field is initialized and has the invariant annotation, then it has at least
+     * the invariant annotation. Note that only fields of the 'this' receiver are tracked for
+     * initialization.
+     */
     @Override
     public TransferResult<CFValue, InitializationStore> visitMethodInvocation(
             MethodInvocationNode n, TransferInput<CFValue, InitializationStore> in) {

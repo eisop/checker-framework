@@ -1,5 +1,6 @@
 package org.checkerframework.checker.formatter;
 
+import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.Tree;
 
@@ -10,6 +11,7 @@ import org.checkerframework.checker.formatter.qual.FormatMethod;
 import org.checkerframework.checker.formatter.qual.InvalidFormat;
 import org.checkerframework.checker.formatter.qual.UnknownFormat;
 import org.checkerframework.checker.formatter.util.FormatUtil;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.CanonicalName;
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
@@ -22,12 +24,15 @@ import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.framework.util.QualifierKind;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 
 import java.lang.annotation.Annotation;
 import java.util.IllegalFormatException;
 
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 
 /**
  * Adds {@link Format} to the type of tree, if it is a {@code String} or {@code char} literal that
@@ -61,6 +66,7 @@ public class FormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     protected final FormatterTreeUtil treeUtil = new FormatterTreeUtil(checker);
 
     /** Creates a FormatterAnnotatedTypeFactory. */
+    @SuppressWarnings("this-escape")
     public FormatterAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
 
@@ -103,8 +109,8 @@ public class FormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      */
     /* NO-AFU
     @Override
-    public void wpiPrepareMethodForWriting(AMethod method) {
-      super.wpiPrepareMethodForWriting(method);
+    public void wpiPrepareMethodForWriting(String className, AMethod method) {
+      super.wpiPrepareMethodForWriting(className, method);
       if (hasFormatMethodAnno(method)) {
         AField param = method.parameters.get(0);
         if (param != null) {
@@ -162,10 +168,11 @@ public class FormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     private boolean hasFormatMethodAnno(
         WholeProgramInferenceJavaParserStorage.CallableDeclarationAnnos methodAnnos) {
       AnnotationMirrorSet declarationAnnos = methodAnnos.getDeclarationAnnotations();
-      return AnnotationUtils.containsSameByClass(
-              declarationAnnos, org.checkerframework.checker.formatter.qual.FormatMethod.class)
-          || AnnotationUtils.containsSameByName(
-              declarationAnnos, "com.google.errorprone.annotations.FormatMethod");
+      return !declarationAnnos.isEmpty()
+          && (containsSameByClass(
+                  declarationAnnos, org.checkerframework.checker.formatter.qual.FormatMethod.class)
+              || AnnotationUtils.containsSameByName(
+                  declarationAnnos, "com.google.errorprone.annotations.FormatMethod"));
     }
     */
 
@@ -381,5 +388,20 @@ public class FormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
             return FORMATBOTTOM;
         }
+    }
+
+    /**
+     * Returns the annotation type mirror for the type of {@code expressionTree} with default
+     * annotations applied.
+     */
+    @Override
+    public @Nullable AnnotatedTypeMirror getDummyAssignedTo(ExpressionTree expressionTree) {
+        TypeMirror type = TreeUtils.typeOf(expressionTree);
+        if (type.getKind() != TypeKind.VOID) {
+            AnnotatedTypeMirror atm = type(expressionTree);
+            addDefaultAnnotations(atm);
+            return atm;
+        }
+        return null;
     }
 }

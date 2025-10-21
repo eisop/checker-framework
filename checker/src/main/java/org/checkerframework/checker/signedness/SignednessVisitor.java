@@ -172,8 +172,8 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
                     }
                     break;
                 }
-                // Other plus binary trees should be handled in the default case.
-                // fall through
+            // Other plus binary trees should be handled in the default case.
+            // fall through
             default:
                 if (leftOpType.hasEffectiveAnnotation(Unsigned.class)
                         && rightOpType.hasEffectiveAnnotation(Signed.class)) {
@@ -192,7 +192,7 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
     // Ensure that method annotations are not written on methods they don't apply to.
     // Copied from InterningVisitor
     @Override
-    public Void visitMethod(MethodTree tree, Void p) {
+    public void processMethodTree(String className, MethodTree tree) {
         ExecutableElement methElt = TreeUtils.elementFromDeclaration(tree);
         boolean hasEqualsMethodAnno =
                 atypeFactory.getDeclAnnotation(methElt, EqualsMethod.class) != null;
@@ -202,7 +202,7 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
                     tree, "invalid.method.annotation", "@EqualsMethod", "1 or 2", methElt, params);
         }
 
-        return super.visitMethod(tree, p);
+        super.processMethodTree(className, tree);
     }
 
     @Override
@@ -354,8 +354,8 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
                     }
                     break;
                 }
-                // Other plus binary trees should be handled in the default case.
-                // fall through
+            // Other plus binary trees should be handled in the default case.
+            // fall through
             default:
                 if (varType.hasAnnotation(Unsigned.class) && exprType.hasAnnotation(Signed.class)) {
                     checker.reportError(

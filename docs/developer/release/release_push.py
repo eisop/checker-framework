@@ -87,7 +87,7 @@ def copy_release_dir(path_to_dev_releases, path_to_live_releases, release_versio
     # The / at the end of the source location is necessary so that
     # rsync copies the files in the source directory to the destination directory
     # rather than a subdirectory of the destination directory.
-    cmd = "rsync --omit-dir-times --recursive --links --quiet %s/ %s" % (
+    cmd = "rsync --no-group --omit-dir-times --recursive --links --quiet %s/ %s" % (
         source_location,
         dest_location,
     )
@@ -103,7 +103,7 @@ def promote_release(path_to_releases, release_version):
     from_dir = os.path.join(path_to_releases, release_version)
     to_dir = os.path.join(path_to_releases, "..")
     # Trailing slash is crucial.
-    cmd = "rsync -aJ --omit-dir-times %s/ %s" % (from_dir, to_dir)
+    cmd = "rsync -aJ --no-group --omit-dir-times %s/ %s" % (from_dir, to_dir)
     execute(cmd)
 
 
@@ -415,7 +415,7 @@ def main(argv):
         print_step("Step 5b: Close staged artifacts at Maven central.")
         continue_or_exit(
             "Maven artifacts have been staged!  Please 'close' (but don't release) the artifacts.\n"
-            + " * Browse to https://oss.sonatype.org/#stagingRepositories\n"
+            + " * Browse to https://central.sonatype.com/publishing/deployments\n"
             + " * Log in using your Sonatype credentials\n"
             + ' * In the search box at upper right, type "checker"\n'
             + " * In the top pane, click on iogithubeisop-XXXX\n"
@@ -516,14 +516,14 @@ def main(argv):
     if test_mode:
         msg = (
             "Test Mode: You are in test_mode.  Please 'DROP' the artifacts. "
-            + "To drop, log into https://oss.sonatype.org using your "
+            + "To drop, log into https://central.sonatype.com/publishing/deployments using your "
             + "Sonatype credentials and follow the 'DROP' instructions at: "
             + "http://central.sonatype.org/pages/releasing-the-deployment.html"
         )
     else:
         msg = (
             "Please 'release' the artifacts.\n"
-            + "First log into https://oss.sonatype.org using your Sonatype credentials. Go to Staging Repositories and "
+            + "First log into https://central.sonatype.com/publishing/deployments using your Sonatype credentials. Go to Staging Repositories and "
             + "locate the iogithubeisop-XXXX repository and click on it.\n"
             + "If you have a permissions problem, try logging out and back in.\n"
             + "Finally, click on the Release button at the top of the page. In the dialog box that pops up, "
@@ -612,6 +612,10 @@ def main(argv):
             + "updates the version number of the Checker Framework\n"
             + "Gradle Plugin in docs/examples/lombok and docs/examples/errorprone .\n"
             + "The pull request's tests will fail; you will merge it in a day."
+        )
+        continue_or_exit(
+            "Make a pull request to the Checker Framework that\n"
+            + "updates the CF version number in the BazelExample, by re-pinning the versions."
         )
 
     delete_if_exists(RELEASE_BUILD_COMPLETED_FLAG_FILE)

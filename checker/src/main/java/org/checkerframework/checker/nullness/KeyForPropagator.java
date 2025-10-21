@@ -169,7 +169,7 @@ public class KeyForPropagator {
         if (path == null) {
             return;
         }
-        Tree assignmentContext = TreePathUtil.getAssignmentContext(path);
+        Tree assignmentContext = TreePathUtil.getContextForPolyExpression(path);
         AnnotatedTypeMirror assignedTo;
         if (assignmentContext instanceof VariableTree) {
             if (TreeUtils.isVariableTreeDeclaredUsingVar((VariableTree) assignmentContext)) {

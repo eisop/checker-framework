@@ -54,6 +54,7 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
      *
      * @param checker the checker to which the new type factory belongs
      */
+    @SuppressWarnings("this-escape")
     public InitializationAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         postInit();
@@ -119,7 +120,7 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
     /**
      * {@inheritDoc}
      *
-     * <p>This implementaiton also takes the target checker into account.
+     * <p>This implementation also takes the target checker into account.
      *
      * @see #getUninitializedFields(InitializationStore, CFAbstractStore, TreePath, boolean,
      *     Collection)

@@ -43,7 +43,11 @@ public class ReturnNode extends Node {
         this.returnTree = returnTree;
     }
 
-    /** The result of the return node, {@code null} otherwise. */
+    /**
+     * The result of the return node, {@code null} otherwise.
+     *
+     * @return the result of the return node, {@code null} otherwise
+     */
     public @Nullable Node getResult() {
         return result;
     }

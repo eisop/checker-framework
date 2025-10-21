@@ -1,10 +1,9 @@
 plugins {
     id 'java-library'
     id 'base'
-
     // https://github.com/n0mer/gradle-git-properties
     // Generates file build/resources/main/git.properties when the `classes` task runs.
-    id 'com.gorylenko.gradle-git-properties' version '2.4.2'
+    id 'com.gorylenko.gradle-git-properties' version '2.5.3'
 }
 
 sourceSets {
@@ -61,10 +60,7 @@ dependencies {
     // If you add an external dependency, you must shadow its packages.
     // See the comment in ../build.gradle in the shadowJar block.
 
-    // As of 2019-12-16, the version of reflection-util in the Annotation
-    // File Utilities takes priority over this version, in the fat jar
-    // file. :-( So update it and re-build it locally when updating this.
-    implementation "org.plumelib:reflection-util:${versions.reflectionUtil}"
+    implementation ("org.plumelib:reflection-util:${versions.reflectionUtil}")
     implementation "org.plumelib:plume-util:${versions.plumeUtil}"
 
     // Dependencies added to "shadow" appear as dependencies in Maven Central.
@@ -76,23 +72,27 @@ dependencies {
     testImplementation "com.google.auto.value:auto-value:${versions.autoValue}"
     testImplementation 'com.ryanharter.auto.value:auto-value-parcel:0.2.9'
     testImplementation "org.projectlombok:lombok:${versions.lombok}"
+
     // Called Methods Checker support for detecting misuses of AWS APIs
     testImplementation 'com.amazonaws:aws-java-sdk-ec2'
     testImplementation 'com.amazonaws:aws-java-sdk-kms'
     // The AWS SDK is used for testing the Called Methods Checker.
-    testImplementation platform('com.amazonaws:aws-java-sdk-bom:1.12.780')
+    testImplementation platform('com.amazonaws:aws-java-sdk-bom:1.12.783')
     // For the Resource Leak Checker's support for JavaEE.
     testImplementation 'javax.servlet:javax.servlet-api:4.0.1'
     // For the Resource Leak Checker's support for IOUtils.
-    testImplementation 'commons-io:commons-io:2.18.0'
+    testImplementation 'commons-io:commons-io:2.20.0'
     // For the Nullness Checker test of junit-assertions.astub in JUnitNull.java
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.11.4'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.14.0'
     testImplementation 'org.apiguardian:apiguardian-api:1.1.2'
     // For tests that use JSpecify annotations
     testImplementation 'org.jspecify:jspecify:1.0.0'
+    // To test for an obscure crash in CFG construction for try-with-resources;
+    // see https://github.com/typetools/checker-framework/issues/6396
+    testImplementation 'org.apache.spark:spark-sql_2.12:3.3.2'
 
     // Required for checker/tests/index-initializedfields/RequireJavadoc.java
-    if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
+    if (isJava8) {
         testImplementation 'org.plumelib:options:1.0.6'
     } else {
         testImplementation 'org.plumelib:options:2.0.3'
@@ -120,6 +120,9 @@ interface InjectedExecOps {
 //   https://docs.gradle.org/7.1/userguide/validation_problems.html#implicit_dependency for more
 //   details about this problem.
 generateGitProperties.dependsOn(':installGitHooks')
+gitProperties {
+    dotGitDirectory = project.rootProject.layout.projectDirectory.dir(".git")
+}
 
 jar {
     manifest {
@@ -187,6 +190,10 @@ task allSourcesJar(type: Jar, group: 'Build') {
 task allJavadocJar(type: Jar, group: 'Build') {
     description = 'Creates javadoc jar including Javadoc for all of the Checker Framework'
     dependsOn rootProject.tasks.allJavadoc
+    // TODO: This should not be required, but without it the addFavicon task is sometimes not run
+    // before this one.
+    dependsOn rootProject.tasks.addFavicon
+
     destinationDirectory = file("${projectDir}/dist")
     archiveFileName = 'checker-javadoc.jar'
     archiveClassifier = 'javadoc'
@@ -199,6 +206,9 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 task checkerJar(type: ShadowJar, dependsOn: compileJava, group: 'Build') {
     description = "Builds checker-${project.version}.jar with all dependencies except checker-qual and checker-util."
     includeEmptyDirs = false
+    base {
+        archivesName = 'checker'
+    }
 
     from shadowJar.source
     configurations = shadowJar.configurations
@@ -321,37 +331,27 @@ task exampleTests(type: Exec, dependsOn: assembleForJavac, group: 'Verification'
     args = ['-C', '../docs/examples']
 }
 
-task demosTests(dependsOn: assembleForJavac, group: 'Verification') {
+task demosTests(dependsOn: [assembleForJavac, ':getDemos'], group: 'Verification') {
     description = 'Test that the demos are working as expected.'
 
+    doLast {
+        ant.properties.put('checker.lib', file("${projectDir}/dist/checker.jar").absolutePath)
+        ant.ant(dir: demosDir.toString())
+    }
+}
+
+task templateforaCheckerTests(dependsOn: [
+    assembleForJavac,
+    ':getTemplateforaChecker'
+], group: 'Verification') {
+    description = 'Test that the templatefora-checker is working as expected.'
     def injected = project.objects.newInstance(InjectedExecOps)
 
     doLast {
-        File demosDir = new File(projectDir, '../../checker-framework.demos');
-        if (!demosDir.exists()) {
-            injected.execOps.exec {
-                workingDir file(demosDir.toString() + '/../')
-                executable 'git'
-                args = [
-                    'clone',
-                    '--depth',
-                    '1',
-                    'https://github.com/eisop/checker-framework.demos.git'
-                ]
-            }
-        } else {
-            injected.execOps.exec {
-                workingDir demosDir
-                executable 'git'
-                args = [
-                    'pull',
-                    'https://github.com/eisop/checker-framework.demos.git'
-                ]
-                ignoreExitValue = true
-            }
+        injected.execOps.exec {
+            workingDir = templateforaCheckerDir
+            commandLine "./gradlew", "build"
         }
-        ant.properties.put('checker.lib', file("${projectDir}/dist/checker.jar").absolutePath)
-        ant.ant(dir: demosDir.toString())
     }
 }
 
@@ -375,81 +375,78 @@ task allResourceLeakTests(type: Test, group: 'Verification') {
 }
 
 // These are tests that should only be run with JDK 11+.
-task jtregJdk11Tests(dependsOn: ':downloadJtreg', group: 'Verification') {
+// TODO: jtreg only runs on JDK 11+, so merge these into the other jtreg tests and avoid the duplication.
+task jtregJdk11Tests(type: Exec, group: 'Verification') {
     description = 'Run the jtreg tests made for JDK 11+.'
+
+    dependsOn(':downloadJtreg')
     dependsOn('compileJava')
     dependsOn('compileTestJava')
     dependsOn('shadowJar')
 
-    def injected = project.objects.newInstance(InjectedExecOps)
-
     String jtregOutput = "${buildDir}/jtregJdk11"
     String name = 'all'
-    doLast {
-        if (isJava8) {
-            println 'This test is only run with JDK 11+.'
-            return;
-        }
-        injected.execOps.exec {
-            executable "${jtregHome}/bin/jtreg"
-            args = [
-                "-dir:${projectDir}/jtregJdk11",
-                "-workDir:${jtregOutput}/${name}/work",
-                "-reportDir:${jtregOutput}/${name}/report",
-                '-verbose:summary',
-                '-javacoptions:-g',
-                '-keywords:!ignore',
-                '-samevm',
-                "-javacoptions:-classpath ${tasks.shadowJar.archiveFile.get()}:${sourceSets.test.output.asPath}",
-                "-vmoptions:-classpath ${tasks.shadowJar.archiveFile.get()}:${sourceSets.test.output.asPath}",
-                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
-                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED',
-                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED',
-                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
-                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED',
-                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
-                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED',
-                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
-                '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED',
-                "-javacoptions:-classpath ${sourceSets.testannotations.output.asPath}",
-                // Location of jtreg tests
-                '.'
-            ]
-        }
+
+    executable "${jtregHome}/bin/jtreg"
+    args = [
+        "-dir:${projectDir}/jtregJdk11",
+        "-workDir:${jtregOutput}/${name}/work",
+        "-reportDir:${jtregOutput}/${name}/report",
+        '-verbose:summary',
+        '-javacoptions:-g',
+        '-keywords:!ignore',
+        '-samevm',
+        "-javacoptions:-classpath ${tasks.shadowJar.archiveFile.get()}:${sourceSets.test.output.asPath}",
+        "-vmoptions:-classpath ${tasks.shadowJar.archiveFile.get()}:${sourceSets.test.output.asPath}",
+        '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
+        '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED',
+        '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED',
+        '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
+        '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED',
+        '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
+        '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED',
+        '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
+        '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED',
+        "-javacoptions:-classpath ${sourceSets.testannotations.output.asPath}",
+        // Location of jtreg tests
+        '.'
+    ]
+}
+
+test {
+    if (skipDelombok) {
+        exclude '**/org/checkerframework/checker/test/junit/CalledMethodsNoDelombokTest.class'
+        exclude '**/org/checkerframework/checker/test/junit/CalledMethodsDisableReturnsReceiverTest.class'
+        exclude '**/org/checkerframework/checker/test/junit/NullnessNoDelombokTest.class'
     }
 }
 
-task delombok {
-    description = 'Delomboks the source code tree in tests/calledmethods-lombok'
+if (!skipDelombok) {
+    task delombok {
+        description = 'Delomboks the source code tree in tests/calledmethods-lombok'
 
-    def srcDelomboked = 'tests/calledmethods-delomboked'
-    def srcJava = 'tests/calledmethods-lombok'
+        def srcDelomboked = 'tests/calledmethods-delomboked'
+        def srcJava = 'tests/calledmethods-lombok'
 
-    inputs.files file(srcJava)
-    outputs.dir file(srcDelomboked)
+        inputs.files file(srcJava)
+        outputs.dir file(srcDelomboked)
 
-    // Because there are Checker Framework annotations in the test source.
-    dependsOn project(':checker-qual').tasks.jar
+        // Because there are Checker Framework annotations in the test source.
+        dependsOn project(':checker-qual').tasks.jar
 
-    doLast {
-        if(!skipDelombok) {
+        doLast {
             def collection = files(configurations.testCompileClasspath)
             ant.taskdef(name: 'delombok', classname: 'lombok.delombok.ant.Tasks$Delombok',
             classpath: collection.asPath)
             ant.delombok(from: srcJava, to: srcDelomboked, classpath: collection.asPath)
         }
     }
-}
-
-if (skipDelombok) {
-    delombok.enabled = false
-} else {
     tasks.test.dependsOn('delombok')
 }
 
-///
-/// Tests of the -Ainfer command-line argument.  These are not whole-program inference tests.
-///
+//
+// Tests of the -Ainfer command-line argument.  These are not whole-program inference tests.
+//
 
 test {
     useJUnit {
@@ -669,42 +666,17 @@ task ainferTestCheckerGenerateJaifs(type: Test) {
         // JAIF-based WPI fails this test, too, because the insertion of a declaration annotation
         // onto a field with a multi-part type (e.g. Outer.Inner) doesn't appear to be supported by the AFU.
         delete('tests/ainfer-testchecker/annotated/InnerClassFieldDeclAnno.java')
-
-        // Inserting annotations from .jaif files in-place.
-        String jaifsDir = 'tests/ainfer-testchecker/inference-output';
-        List<File> jaifs = fileTree(jaifsDir).matching {
-            include '*.jaif'
-        }.asList()
-        if (jaifs.isEmpty()) {
-            throw new GradleException("no .jaif files found in ${jaifsDir}")
-        }
-        String javasDir = 'tests/ainfer-testchecker/annotated/';
-        List<File> javas = fileTree(javasDir).matching {
-            include '*.java'
-        }.asList()
-        if (javas.isEmpty()) {
-            throw new GradleException("no .java files found in ${javasDir}")
-        }
-
-        def checkerQualJarFile = file(project(':checker-qual').tasks.getByName('jar').archiveFile)
-        injected.execOps.exec {
-            executable "${afu}/scripts/insert-annotations-to-source"
-            // Script argument -cp must precede Java program argument -i.
-            // checker-qual is needed for Constant Value Checker annotations.
-            // Note that "/" works on Windows as well as on Linux.
-            args = [
-                '-cp',
-                "${sourceSets.test.output.asPath}:${checkerQualJarFile}:" + file('tests/build/testclasses')
-            ]
-            args += ['-i']
-            for (File jaif : jaifs) {
-                args += [jaif.toString()]
-            }
-            for (File javaFile : javas) {
-                args += [javaFile.toString()]
-            }
-        }
     }
+    finalizedBy 'ainferTestCheckerGenerateJaifsInsertAnnotations'
+}
+
+tasks.register('ainferTestCheckerGenerateJaifsInsertAnnotations', InsertAnnotationsToSource) {
+    dependsOn ainferTestCheckerGenerateJaifs
+
+    afuDir = afu
+    testDir = 'tests/ainfer-testchecker'
+    def checkerQualJarFile = file(project(':checker-qual').tasks.getByName('jar').archiveFile)
+    classpath = "${sourceSets.test.output.asPath}:${checkerQualJarFile}:"
 }
 
 task ainferTestCheckerValidateJaifs(type: Test) {
@@ -893,40 +865,16 @@ task ainferNullnessGenerateJaifs(type: Test) {
         // JAIF-based WPI does not infer annotations on uses of type variables correctly.
         delete('tests/ainfer-nullness/annotated/TwoCtorGenericAbstract.java')
         delete('tests/ainfer-nullness/annotated/TypeVarReturnAnnotated.java')
-
-        // Inserting annotations from .jaif files in-place.
-        String jaifsDir = 'tests/ainfer-nullness/inference-output';
-        List<File> jaifs = fileTree(jaifsDir).matching {
-            include '*.jaif'
-        }.asList()
-        if (jaifs.isEmpty()) {
-            throw new GradleException("no .jaif files found in ${jaifsDir}")
-        }
-        String javasDir = 'tests/ainfer-nullness/annotated/';
-        List<File> javas = fileTree(javasDir).matching {
-            include '*.java'
-        }.asList()
-        if (javas.isEmpty()) {
-            throw new GradleException("no .java files found in ${javasDir}")
-        }
-        def checkerQualJarFile = file(project(':checker-qual').tasks.getByName('jar').archiveFile)
-        injected.execOps.exec {
-            executable "${afu}/scripts/insert-annotations-to-source"
-            // Script argument -cp must precede Java program argument -i.
-            // Note that "/" works on Windows as well as on Linux.
-            args = [
-                '-cp',
-                "${sourceSets.test.output.asPath}:${checkerQualJarFile}:" + file('tests/build/testclasses')
-            ]
-            args += ['-i']
-            for (File jaif : jaifs) {
-                args += [jaif.toString()]
-            }
-            for (File javaFile : javas) {
-                args += [javaFile.toString()]
-            }
-        }
     }
+    finalizedBy 'ainferNullnessGenerateJaifsInsertAnnotations'
+}
+tasks.register('ainferNullnessGenerateJaifsInsertAnnotations', InsertAnnotationsToSource) {
+    dependsOn ainferNullnessGenerateJaifs
+
+    afuDir = afu
+    testDir = 'tests/ainfer-nullness/'
+    def checkerQualJarFile = file(project(':checker-qual').tasks.getByName('jar').archiveFile)
+    classpath = "${sourceSets.test.output.asPath}:${checkerQualJarFile}:"
 }
 
 task ainferNullnessValidateJaifs(type: Test) {
@@ -965,89 +913,81 @@ task ainferTest(group: 'Verification') {
     dependsOn('ainferResourceLeakAjavaTest')
 }
 
-///
-/// Whole-program inference tests
-///
+//
+// Whole-program inference tests
+//
 
 // This is run as part of the inferenceTests task.
-task wpiManyTest(group: 'Verification') {
+// File checker/tests/wpi-many/testin.txt lists the tests that are run.  To
+// debug one WPI test, comment out all but one line of that file.
+task wpiManyTest(type: Exec, group: 'Verification') {
     description = 'Tests the wpi-many.sh script (and indirectly the wpi.sh script). Requires an Internet connection.'
     dependsOn(assembleForJavac)
     dependsOn(':getDoLikeJavac')
     // This test must always be re-run when requested.
     outputs.upToDateWhen { false }
 
+    def projectDir = project.projectDir
+
     doFirst {
-        delete("${project.projectDir}/build/wpi-many-tests-results/")
+        delete("${projectDir}/build/wpi-many-tests-results/")
         // wpi-many.sh is run in skip mode so that logs are preserved, but
         // we don't actually want to skip previously-failing tests when we
         // re-run the tests locally.
-        delete fileTree("${project.projectDir}/build/wpi-many-tests") {
+        delete fileTree("${projectDir}/build/wpi-many-tests") {
             include '**/.cannot-run-wpi'
         }
     }
 
-    def injected = project.objects.newInstance(InjectedExecOps)
+    environment CHECKERFRAMEWORK: "${projectDir}/.."
+    commandLine 'bin/wpi-many.sh',
+            '-i', "${projectDir}/tests/wpi-many/testin.txt",
+            '-o', "${projectDir}/build/wpi-many-tests",
+            '-s',
+            '--', '--checker', 'nullness,interning,lock,regex,signature,calledmethods,resourceleak',
+            '--extraJavacArgs=-AenableWpiForRlc'
 
+    ignoreExitValue = true
+
+    def typecheckFilesDir = "${projectDir}/build/wpi-many-tests-results"
     doLast {
-        // Run wpi-many.sh
-        def typecheckFilesDir = "${project.projectDir}/build/wpi-many-tests-results/"
-        try {
-            injected.execOps.exec {
-                environment CHECKERFRAMEWORK: "${projectDir}/.."
-                commandLine 'bin/wpi-many.sh',
-                        '-i', "${project.projectDir}/tests/wpi-many/testin.txt",
-                        '-o', "${project.projectDir}/build/wpi-many-tests",
-                        '-s',
-                        '--',
-                        '--checker', 'nullness,interning,lock,regex,signature,calledmethods,resourceleak',
-                        '--extraJavacArgs=-AenableWpiForRlc'
-            }
-        } catch (Exception e) {
+        if (executionResult.get().exitValue != 0) {
             println('Failure: Running wpi-many.sh failed with a non-zero exit code.')
             File wpiOut = new File("${typecheckFilesDir}/wpi-out")
             if (wpiOut.exists()) {
                 println("========= Start of output from last run of wpi.sh (${typecheckFilesDir}/wpi-out): ========")
-                injected.execOps.exec {
-                    commandLine 'cat', "${typecheckFilesDir}/wpi-out"
-                }
+                println wpiOut.text
                 println("========= End of output from last run of wpi.sh (${typecheckFilesDir}/wpi-out): ========")
             } else {
                 println("========= File ${typecheckFilesDir}/wpi-out does not exist. ========")
             }
-            throw e
+            executionResult.get().rethrowFailure()
         }
 
         // collect the logs from running WPI
         def typecheckFiles = fileTree(typecheckFilesDir).matching {
             include '**/*-typecheck.out'
         }
-        def testinLines = file("${project.projectDir}/tests/wpi-many/testin.txt").text.readLines()
+        def testinLines = file("${projectDir}/tests/wpi-many/testin.txt").text.readLines()
         testinLines.removeIf { it.startsWith('#') }
         def expectedTypecheckFileCount = testinLines.size()
         def actualTypecheckFileCount = typecheckFiles.size()
         if (actualTypecheckFileCount != expectedTypecheckFileCount) {
             println("Failure: Too few *-typecheck.out files in ${typecheckFilesDir}: " +
                     "found ${actualTypecheckFileCount} but expected ${expectedTypecheckFileCount}.")
-            println("========= Found in ${typecheckFilesDir} ========")
-            injected.execOps.exec {
-                commandLine 'ls', '-al', "${typecheckFilesDir}"
-            }
-            println("========= Expected in ${typecheckFilesDir} ========")
-            injected.execOps.exec {
-                commandLine 'cat', "${project.projectDir}/tests/wpi-many/testin.txt"
-            }
+            println("========= Found ${actualTypecheckFileCount} *-typecheck.out files in ${typecheckFilesDir} ========")
+            new File(typecheckFilesDir).list().each { println it }
+            println("========= The ${expectedTypecheckFileCount} expected files are in ${typecheckFilesDir}/tests/wpi-many/testin.txt ========")
+
             println("========= Start of output from last run of wpi.sh (${typecheckFilesDir}/wpi-out): ========")
-            injected.execOps.exec {
-                commandLine 'cat', "${typecheckFilesDir}/wpi-out"
-            }
+            new File("${projectDir}/wpi-out").list().each { println it }
             println("========= End of output from last run of wpi.sh (${typecheckFilesDir}/wpi-out): ========")
             def logFiles = fileTree(typecheckFilesDir).matching {
                 include '**/*.log'
             }
             logFiles.visit { FileVisitDetails details ->
-                def filename = "${typecheckFilesDir}" + details.getName()
-                println("======== start of contents of ${filename} ========")
+                def filename = "${typecheckFilesDir}/" + details.getName()
+                println("======== start of contents of ${filename}, which is TYPECHECKING output, not WPI output ========")
                 details.getFile().eachLine { line -> println(line) }
                 println("======== end of contents of ${filename} ========")
             }
@@ -1058,7 +998,7 @@ task wpiManyTest(group: 'Verification') {
                 include '**/.cannot-run-wpi'
             }
             cannotRunWpiFiles.visit { FileVisitDetails details ->
-                def filename = "${typecheckFilesDir}" + details.getName()
+                def filename = "${typecheckFilesDir}/" + details.getName()
                 println("======== start of contents of ${filename} ========")
                 details.getFile().eachLine { line -> println(line) }
                 println("======== end of contents of ${filename} ========")
@@ -1069,7 +1009,7 @@ task wpiManyTest(group: 'Verification') {
 
         // check that WPI causes the expected builds to succeed
         typecheckFiles.visit { FileVisitDetails details ->
-            def filename = "${project.projectDir}/build/wpi-many-tests-results/" + details.getName()
+            def filename = "${projectDir}/build/wpi-many-tests-results/" + details.getName()
             def file = details.getFile()
             if (file.length() == 0) {
                 throw new GradleException('Failure: WPI produced empty typecheck file ' + filename)
@@ -1084,14 +1024,20 @@ task wpiManyTest(group: 'Verification') {
                         || line.startsWith('warning: [options] bootstrap')
                         // Ignore the warnings about --add-opens arguments to the JVM
                         || line.contains('warning: [options] --add-opens has no effect at compile time')
+                        // Ignore warning about using -source; should use --release instead.
+                        || line.equals("warning: [options] system modules path not set in conjunction with -source 11")
                         // Ignore the summary line that reports the total number of warnings (which can be single or plural).
                         || line.endsWith(' warning')
                         || line.endsWith(' warnings')
-                        || line.startsWith('warning: No processor claimed any of these annotations: ')) {
+                        || line.startsWith('warning: No processor claimed any of these annotations: ')
+                        // Ignore debugging output with the prefix "DEBUG: ".
+                        || line.startsWith('DEBUG: ')
+                        || line.startsWith('warning: DEBUG: ')
+                        || line.contains('warning: [DEBUG: ')) {
                     return;
                 }
                 if (!line.trim().equals('')) {
-                    println("======== start of contents of ${filename} ========")
+                    println("======== start of contents of ${filename}, which is TYPECHECKING output, not WPI output ========")
                     details.getFile().eachLine { l -> println(l) }
                     println("======== end of contents of ${filename} ========")
                     throw new GradleException('Failure: WPI scripts produced an unexpected output in ' + filename + '. ' +
@@ -1103,7 +1049,7 @@ task wpiManyTest(group: 'Verification') {
 }
 
 // This is run as part of the inferenceTests task.
-task wpiPlumeLibTest(group: 'Verification') {
+task wpiPlumeLibTest(type: Exec, group: 'Verification') {
     description = 'Tests whole-program inference on the plume-lib projects. Requires an Internet connection.'
     dependsOn(assembleForJavac)
     dependsOn(':getDoLikeJavac')
@@ -1111,14 +1057,8 @@ task wpiPlumeLibTest(group: 'Verification') {
     // This test must always be re-run when requested.
     outputs.upToDateWhen { false }
 
-    def injected = project.objects.newInstance(InjectedExecOps)
-
-    doLast {
-        injected.execOps.exec {
-            commandLine 'bin-devel/wpi-plumelib/test-wpi-plumelib.sh'
-            ignoreExitValue = false
-        }
-    }
+    commandLine 'bin-devel/wpi-plumelib/test-wpi-plumelib.sh'
+    ignoreExitValue = false
 }
 
 apply from: rootProject.file('gradle-mvn-push.gradle')
@@ -1129,12 +1069,14 @@ final checkerPom(publication) {
     // Don't use publication.from components.java which would publish the skinny jar as checker.jar.
     publication.pom {
         name = 'Checker Framework'
-        description = 'The Checker Framework enhances Java\'s type system to\n' +
-                'make it more powerful and useful. This lets software developers\n' +
-                'detect and prevent errors in their Java programs.\n' +
-                'The Checker Framework includes compiler plug-ins ("checkers")\n' +
-                'that find bugs or verify their absence. It also permits you to\n' +
-                'write your own compiler plug-ins.'
+        description =
+                String.join(System.lineSeparator(),
+                'The Checker Framework enhances Java\'s type system to',
+                'make it more powerful and useful. This lets software developers',
+                'detect and prevent errors in their Java programs.',
+                'The Checker Framework includes compiler plug-ins ("checkers")',
+                'that find bugs or verify their absence. It also permits you to',
+                'write your own compiler plug-ins.')
         licenses {
             license {
                 name = 'GNU General Public License, version 2 (GPL2), with the classpath exception'
@@ -1149,10 +1091,6 @@ publishing {
     publications {
         checker(MavenPublication) {
             project.shadow.component it
-            // reset the artifacts because of project.shadow.component changes
-            // the classifier from 'all' to '' because of
-            // https://github.com/johnrengelman/shadow/issues/860
-            artifacts = [shadowJar]
             checkerPom it
             artifact checkerJar
             artifact allSourcesJar

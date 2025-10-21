@@ -17,7 +17,7 @@ class PolyMustCallDifferentNames {
 
         public @PolyMustCall Wrapper1(@PolyMustCall Wrapped w) {
             // we get this error since we only have a field-assignment special case for
-            // @MustCallAlias, not @PolyMustCall
+            // @MustCallAlias, not @PolyMustCall.
             // :: error: (assignment.type.incompatible)
             this.field = w;
         }

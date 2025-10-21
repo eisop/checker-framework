@@ -299,7 +299,7 @@ public class AnnotationFileParser {
          * files than in the real files. So, map keys are the verbose element name, as returned by
          * ElementUtils.getQualifiedName.
          */
-        public final Map<String, AnnotationMirrorSet> declAnnos = new HashMap<>(1);
+        public final Map<String, AnnotationMirrorSet> declAnnos = new HashMap<>(4);
 
         /**
          * Map from a method element to all the fake overrides of it. Given a key {@code ee}, the
@@ -307,7 +307,7 @@ public class AnnotationFileParser {
          * same as {@code ee.getReceiverType()}.
          */
         public final Map<ExecutableElement, List<IPair<TypeMirror, AnnotatedTypeMirror>>>
-                fakeOverrides = new HashMap<>(1);
+                fakeOverrides = new HashMap<>(4);
 
         /** Maps fully qualified record name to information in the stub file. */
         public final Map<String, RecordStub> records = new HashMap<>();
@@ -583,15 +583,14 @@ public class AnnotationFileParser {
                             // Find compile time constant fields, or values of an enum
                             putAllNew(result, annosInType(element));
                             importedConstants.addAll(getImportableMembers(element));
-                            addEnclosingTypesToImportedTypes(element);
+                            addEnclosedTypesToImportedTypes(element);
                         }
-
                     } else {
                         // Wildcard import of members of a package
                         PackageElement element = findPackage(imported, importDecl);
                         if (element != null) {
                             putAllNew(result, annosInPackage(element));
-                            addEnclosingTypesToImportedTypes(element);
+                            addEnclosedTypesToImportedTypes(element);
                         }
                     }
                 } else {
@@ -603,12 +602,10 @@ public class AnnotationFileParser {
 
                     TypeElement importType = elements.getTypeElement(imported);
                     if (importType == null && !importDecl.isStatic()) {
-                        // Class or nested class (according to JSL), but we can't resolve
-
+                        // Class or nested class (according to JLS), but we can't resolve
                         stubWarnNotFound(importDecl, "imported type not found: " + imported);
                     } else if (importType == null) {
-                        // static import of field or method.
-
+                        // Static import of field or method.
                         IPair<@FullyQualifiedName String, String> typeParts =
                                 AnnotationFileUtil.partitionQualifiedName(imported);
                         String type = typeParts.first;
@@ -632,9 +629,8 @@ public class AnnotationFileParser {
                                 }
                             }
                         }
-
                     } else if (importType.getKind() == ElementKind.ANNOTATION_TYPE) {
-                        // Single annotation or nested annotation
+                        // Single annotation or nested annotation.
                         TypeElement annoElt = elements.getTypeElement(imported);
                         if (annoElt != null) {
                             putIfAbsent(result, annoElt.getSimpleName().toString(), annoElt);
@@ -643,7 +639,7 @@ public class AnnotationFileParser {
                             stubWarnNotFound(importDecl, "could not load import: " + imported);
                         }
                     } else {
-                        // Class or nested class
+                        // Class or nested class.
                         // TODO: Is this needed?
                         importedConstants.add(imported);
                         TypeElement element =
@@ -658,10 +654,14 @@ public class AnnotationFileParser {
         return result;
     }
 
-    // If a member is imported, then consider every containing class to also be imported.
-    private void addEnclosingTypesToImportedTypes(Element element) {
+    /**
+     * Handle wildcard imports by adding, to {@link #importedTypes}, every enclosed type.
+     *
+     * @param element an element for a type or package
+     */
+    private void addEnclosedTypesToImportedTypes(Element element) {
         for (Element enclosedEle : element.getEnclosedElements()) {
-            if (enclosedEle.getKind().isClass()) {
+            if (enclosedEle.getKind().isClass() || enclosedEle.getKind().isInterface()) {
                 importedTypes.put(
                         enclosedEle.getSimpleName().toString(), (TypeElement) enclosedEle);
             }
@@ -823,7 +823,8 @@ public class AnnotationFileParser {
 
     /**
      * Process {@link #stubUnit}, which is the AST produced by {@link #parseStubUnit}. Processing
-     * means copying annotations from Stub Parser data structures to {@code #annotationFileAnnos}.
+     * means copying annotations from Stub Parser data structures to argument {@code
+     * annotationFileAnnos}.
      *
      * @param annotationFileAnnos annotations from the file; side-effected by this method
      */
@@ -834,7 +835,7 @@ public class AnnotationFileParser {
     }
 
     /**
-     * Process the given StubUnit: copy its annotations to {@code #annotationFileAnnos}.
+     * Process the given StubUnit: copy its annotations to {@code this.annotationFileAnnos}.
      *
      * @param su the StubUnit to process
      */
@@ -972,7 +973,7 @@ public class AnnotationFileParser {
      * be removed after processing the type's members. Otherwise, this method removes them.
      *
      * @param typeDecl the type declaration to process
-     * @param outerTypeName the name of the containing class, when processing a nested class;
+     * @param outerTypeName the name of the enclosing class, when processing a nested class;
      *     otherwise null
      * @param classTree the tree corresponding to typeDecl if processing an ajava file, null
      *     otherwise
@@ -1178,7 +1179,6 @@ public class AnnotationFileParser {
      * @return the type's type parameter declarations
      */
     private List<AnnotatedTypeVariable> processType(TypeDeclaration<?> decl, TypeElement elt) {
-
         recordDeclAnnotation(elt, decl.getAnnotations(), decl);
         AnnotatedDeclaredType type = atypeFactory.fromElement(elt);
         annotate(type, decl.getAnnotations(), decl);
@@ -1249,7 +1249,6 @@ public class AnnotationFileParser {
      * @return the enum's type parameter declarations
      */
     private List<AnnotatedTypeVariable> processEnum(EnumDeclaration decl, TypeElement elt) {
-
         recordDeclAnnotation(elt, decl.getAnnotations(), decl);
         AnnotatedDeclaredType type = atypeFactory.fromElement(elt);
         annotate(type, decl.getAnnotations(), decl);
@@ -1486,7 +1485,7 @@ public class AnnotationFileParser {
                         param.getType(),
                         param.getAnnotations(),
                         param);
-                // The "VarArgsAnnotations" are those just before "...".
+                // The "VarargsAnnotations" are those just before "...".
                 annotate(paramType, param.getVarArgsAnnotations(), param);
             } else {
                 annotate(paramType, param.getType(), param.getAnnotations(), param);
@@ -1720,6 +1719,8 @@ public class AnnotationFileParser {
                                 typePar.getLowerBound(), typeVarUse.getLowerBound());
                     }
                 }
+                // Add back the primary annotations.
+                annotate(atype, primaryAnnotations, astNode);
                 break;
             default:
                 // No additional annotations to add.
@@ -1857,7 +1858,7 @@ public class AnnotationFileParser {
      * {@code elt} is a field declaration, the type annotation will be ignored.
      *
      * @param elt the element to be annotated
-     * @param annotations set of annotations that may be applicable to elt
+     * @param annotations the set of annotations that may be applicable to elt
      * @param astNode where to report errors
      */
     private void recordDeclAnnotation(
@@ -2070,7 +2071,7 @@ public class AnnotationFileParser {
      * zero or more mappings. Each mapping is from an element that {@code member} would override to
      * {@code member}.
      *
-     * <p>This method does not read or write field {@link annotationFileAnnos}.
+     * <p>This method does not read or write field {@link #annotationFileAnnos}.
      *
      * @param elementsToDecl the mapping that is side-effected by this method
      * @param fakeOverrideDecls fake overrides, also side-effected by this method
@@ -2220,7 +2221,6 @@ public class AnnotationFileParser {
      * @return true if the two types are the same
      */
     private boolean sameType(TypeMirror javacType, Type javaParserType) {
-
         switch (javacType.getKind()) {
             case BOOLEAN:
                 return javaParserType.equals(PrimitiveType.booleanType());
@@ -2633,7 +2633,6 @@ public class AnnotationFileParser {
      */
     private @Nullable AnnotationMirror getAnnotation(
             AnnotationExpr annotation, Map<String, TypeElement> allAnnotations) {
-
         @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
         @FullyQualifiedName String annoNameFq = annotation.getNameAsString();
         TypeElement annoTypeElt = allAnnotations.get(annoNameFq);
@@ -2745,9 +2744,9 @@ public class AnnotationFileParser {
             return convert(((LongLiteralExpr) expr).asNumber(), valueKind);
         } else if (expr instanceof UnaryExpr) {
             switch (expr.toString()) {
-                    // Special-case the minimum values.  Separately parsing a "-" and a value
-                    // doesn't correctly handle the minimum values, because the absolute value of
-                    // the smallest member of an integral type is larger than the largest value.
+                // Special-case the minimum values.  Separately parsing a "-" and a value
+                // doesn't correctly handle the minimum values, because the absolute value of
+                // the smallest member of an integral type is larger than the largest value.
                 case "-9223372036854775808L":
                 case "-9223372036854775808l":
                     return convert(Long.MIN_VALUE, valueKind, false);
@@ -3061,9 +3060,9 @@ public class AnnotationFileParser {
         return res;
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    /// Map utilities
-    ///
+    // ///////////////////////////////////////////////////////////////////////////
+    // Map utilities
+    //
 
     /**
      * Just like Map.put, but does not override any existing value in the map.
@@ -3160,9 +3159,9 @@ public class AnnotationFileParser {
         }
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    /// Issue warnings
-    ///
+    // ///////////////////////////////////////////////////////////////////////////
+    // Issue warnings
+    //
 
     /** The warnings that have been issued so far. */
     private static final Set<String> warnings = new HashSet<>();
@@ -3419,9 +3418,9 @@ public class AnnotationFileParser {
         }
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    /// Parse state
-    ///
+    // ///////////////////////////////////////////////////////////////////////////
+    // Parse state
+    //
 
     /** Represents a class: its package name and name (including outer class names if any). */
     private static class FqName {

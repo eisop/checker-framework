@@ -236,7 +236,7 @@ public class TestDiagnostic {
     /**
      * Returns a representation of this diagnostic as if it appeared in a diagnostics file. This
      * uses only the base file name, not the full path, and only the message key, not the full
-     * message. Field {@link messageKeyParens} influences whether the message key is output in
+     * message. Field {@link #messageKeyParens} influences whether the message key is output in
      * parentheses.
      *
      * @return a representation of this diagnostic as if it appeared in a diagnostics file

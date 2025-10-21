@@ -1,0 +1,4 @@
+InstanceofLintOptionEnabled.java:15:15: compiler.warn.proc.messager: [instanceof.pattern.unsafe] instanceof pattern binding '@Tainted Object' to '@Untainted
+String s' cannot be statically verified.
+InstanceofLintOptionEnabled.java:16:15: compiler.warn.proc.messager: [instanceof.unsafe] '@Tainted Object' instanceof '@Untainted String' cannot be statically verified.
+2 warnings

@@ -89,9 +89,11 @@ public class SameLenAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             TreeUtils.getMethod(SameLen.class, "value", 0, processingEnv);
 
     /** Predicates about method calls. */
+    @SuppressWarnings("this-escape")
     private final IndexMethodIdentifier imf = new IndexMethodIdentifier(this);
 
     /** Create a new SameLenAnnotatedTypeFactory. */
+    @SuppressWarnings("this-escape")
     public SameLenAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
 
@@ -126,7 +128,7 @@ public class SameLenAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     public AnnotatedTypeMirror getAnnotatedTypeLhs(Tree tree) {
         AnnotatedTypeMirror atm = super.getAnnotatedTypeLhs(tree);
 
-        if (tree.getKind() == Tree.Kind.VARIABLE) {
+        if (tree instanceof VariableTree) {
             AnnotationMirror sameLenAnno = atm.getAnnotation(SameLen.class);
             if (sameLenAnno != null) {
                 JavaExpression je = JavaExpression.fromVariableTree((VariableTree) tree);
@@ -375,9 +377,9 @@ public class SameLenAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         return AnnotationUtils.getElementValueArray(sameLenAnno, sameLenValueElement, String.class);
     }
 
-    ///
-    /// Creating @SameLen annotations
-    ///
+    //
+    // Creating @SameLen annotations
+    //
 
     /**
      * Creates a @SameLen annotation whose values are the given strings.
@@ -388,7 +390,7 @@ public class SameLenAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      */
     public AnnotationMirror createSameLen(Collection<String> exprs) {
         AnnotationBuilder builder = new AnnotationBuilder(processingEnv, SameLen.class);
-        String[] exprArray = exprs.toArray(new String[exprs.size()]);
+        String[] exprArray = exprs.toArray(new String[0]);
         builder.setValue("value", exprArray);
         return builder.build();
     }

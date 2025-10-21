@@ -1,15 +1,13 @@
 #!/bin/bash
 
 set -e
-set -o verbose
+# set -o verbose
 set -o xtrace
 export SHELLOPTS
 echo "SHELLOPTS=${SHELLOPTS}"
 
-SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-# shellcheck disable=SC1090 # In newer shellcheck than 0.6.0, pass: "-P SCRIPTDIR" (literally)
-source "$SCRIPTDIR"/clone-related.sh
-
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+source "$SCRIPT_DIR"/clone-related.sh
 
 ## downstream tests:  projects that depend on the Checker Framework.
 ## (There are none currently in this file.)
@@ -21,5 +19,5 @@ source "$SCRIPTDIR"/clone-related.sh
 
 ## This is moved to misc, because otherwise it would be the only work done by this script.
 # # Checker Framework demos
-# "$SCRIPTDIR/.git-scripts/git-clone-related" eisop checker-framework.demos
+# "$SCRIPT_DIR/.git-scripts/git-clone-related" eisop checker-framework.demos
 # ./gradlew :checker:demosTests --console=plain --warning-mode=all

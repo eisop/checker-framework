@@ -11,7 +11,7 @@ import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.common.initializedfields.qual.EnsuresInitializedFields;
 import org.checkerframework.common.initializedfields.qual.InitializedFields;
 import org.checkerframework.common.initializedfields.qual.InitializedFieldsBottom;
-import org.checkerframework.framework.type.AnnotatedTypeFactory;
+import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.util.Contract;
@@ -46,6 +46,7 @@ public class InitializedFieldsAnnotatedTypeFactory extends AccumulationAnnotated
      *
      * @param checker the checker
      */
+    @SuppressWarnings("this-escape")
     public InitializedFieldsAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker, InitializedFields.class, InitializedFieldsBottom.class);
 
@@ -62,8 +63,11 @@ public class InitializedFieldsAnnotatedTypeFactory extends AccumulationAnnotated
                     createTypeFactoryForProcessor(checkerName);
             if (atf != null) {
                 // Add all the subcheckers so that default values are checked for the subcheckers.
-                for (BaseTypeChecker subchecker : atf.getChecker().getSubcheckers()) {
-                    defaultValueAtypeFactories.add(subchecker.getTypeFactory());
+                for (SourceChecker subchecker : atf.getChecker().getSubcheckers()) {
+                    if (subchecker instanceof BaseTypeChecker) {
+                        defaultValueAtypeFactories.add(
+                                ((BaseTypeChecker) subchecker).getTypeFactory());
+                    }
                 }
                 defaultValueAtypeFactories.add(atf);
             }
@@ -210,7 +214,7 @@ public class InitializedFieldsAnnotatedTypeFactory extends AccumulationAnnotated
             }
         }
 
-        return result.toArray(new String[result.size()]);
+        return result.toArray(new String[0]);
     }
 
     /**
@@ -227,13 +231,11 @@ public class InitializedFieldsAnnotatedTypeFactory extends AccumulationAnnotated
 
         for (GenericAnnotatedTypeFactory<?, ?, ?, ?> defaultValueAtypeFactory :
                 defaultValueAtypeFactories) {
+            // Set the root for all type factories before asking any factory for the type.
             defaultValueAtypeFactory.setRoot(this.getRoot());
-            // Set the root on all the subcheckers, too.
-            for (BaseTypeChecker subchecker :
-                    defaultValueAtypeFactory.getChecker().getSubcheckers()) {
-                AnnotatedTypeFactory subATF = subchecker.getTypeFactory();
-                subATF.setRoot(this.getRoot());
-            }
+        }
+        for (GenericAnnotatedTypeFactory<?, ?, ?, ?> defaultValueAtypeFactory :
+                defaultValueAtypeFactories) {
             AnnotatedTypeMirror fieldType = defaultValueAtypeFactory.getAnnotatedType(field);
             AnnotatedTypeMirror defaultValueType =
                     defaultValueAtypeFactory.getDefaultValueAnnotatedType(

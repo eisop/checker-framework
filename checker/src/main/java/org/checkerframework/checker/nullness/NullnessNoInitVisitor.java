@@ -25,6 +25,7 @@ import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.ParameterizedTypeTree;
+import com.sun.source.tree.PrimitiveTypeTree;
 import com.sun.source.tree.SwitchTree;
 import com.sun.source.tree.SynchronizedTree;
 import com.sun.source.tree.ThrowTree;
@@ -55,6 +56,7 @@ import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11.BindingPatternUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.SwitchExpressionUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
@@ -229,11 +231,11 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 // constructor.
                 // Note that this method should return non-null only for fields of this class, not
                 // fields of any other class, including outer classes.
-                if (receiver.getKind() != Tree.Kind.IDENTIFIER
+                if (!(receiver instanceof IdentifierTree)
                         || !((IdentifierTree) receiver).getName().contentEquals("this")) {
                     return null;
                 }
-                // fallthrough
+            // fallthrough
             case IDENTIFIER:
                 TreePath path = getCurrentPath();
                 if (TreePathUtil.inConstructor(path)) {
@@ -295,7 +297,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 checker.reportError(tree, "nullness.on.outer");
             }
         } else if (!(TreeUtils.isSelfAccess(tree)
-                || tree.getExpression().getKind() == Tree.Kind.PARAMETERIZED_TYPE
+                || tree.getExpression() instanceof ParameterizedTypeTree
                 // case 8. static member access
                 || ElementUtils.isStatic(e))) {
             checkForNullability(tree.getExpression(), DEREFERENCE_OF_NULLABLE);
@@ -315,6 +317,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     @Override
     public Void visitArrayAccess(ArrayAccessTree tree, Void p) {
         checkForNullability(tree.getExpression(), ACCESSING_NULLABLE);
+        checkForNullability(tree.getIndex(), UNBOXING_OF_NULLABLE);
         return super.visitArrayAccess(tree, p);
     }
 
@@ -340,6 +343,9 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 || type.hasEffectiveAnnotation(MONOTONIC_NONNULL)
                 || type.hasEffectiveAnnotation(POLYNULL)) {
             checker.reportError(tree, "nullness.on.new.array");
+        }
+        for (ExpressionTree dimension : tree.getDimensions()) {
+            checkForNullability(dimension, UNBOXING_OF_NULLABLE);
         }
 
         return super.visitNewArray(tree, p);
@@ -471,9 +477,23 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             // Handle them properly.
             return null;
         }
-        if (refTypeTree.getKind() == Tree.Kind.ANNOTATED_TYPE) {
-            List<? extends AnnotationMirror> annotations =
-                    TreeUtils.annotationsFromTree((AnnotatedTypeTree) refTypeTree);
+
+        List<? extends AnnotationMirror> annotations = null;
+        if (refTypeTree instanceof AnnotatedTypeTree) {
+            annotations = TreeUtils.annotationsFromTree((AnnotatedTypeTree) refTypeTree);
+        } else {
+            Tree patternTree = TreeUtilsAfterJava11.InstanceOfUtils.getPattern(tree);
+            if (patternTree != null && TreeUtils.isBindingPatternTree(patternTree)) {
+                VariableTree variableTree = BindingPatternUtils.getVariable(patternTree);
+                if (variableTree.getModifiers() != null) {
+                    List<? extends AnnotationTree> annotationTree =
+                            variableTree.getModifiers().getAnnotations();
+                    annotations = TreeUtils.annotationsFromTypeAnnotationTrees(annotationTree);
+                }
+            }
+        }
+
+        if (annotations != null) {
             if (AnnotationUtils.containsSame(annotations, NULLABLE)) {
                 checker.reportError(tree, "instanceof.nullable");
             }
@@ -481,6 +501,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 checker.reportWarning(tree, "instanceof.nonnull.redundant");
             }
         }
+
         // Don't call super because it will issue an incorrect instanceof.unsafe warning.
         return null;
     }
@@ -561,9 +582,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     }
 
     @Override
-    public Void visitMethod(MethodTree tree, Void p) {
-        VariableTree receiver = tree.getReceiverParameter();
-
+    public void processMethodTree(String className, MethodTree tree) {
         if (TreeUtils.isConstructor(tree)) {
             // Constructor results are always @NonNull. Any annotations are forbidden.
             List<? extends AnnotationTree> annoTrees = tree.getModifiers().getAnnotations();
@@ -572,6 +591,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             }
         }
 
+        VariableTree receiver = tree.getReceiverParameter();
         if (receiver != null) {
             List<? extends AnnotationTree> annoTrees = receiver.getModifiers().getAnnotations();
             Tree type = receiver.getType();
@@ -580,7 +600,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             }
         }
 
-        return super.visitMethod(tree, p);
+        super.processMethodTree(className, tree);
     }
 
     @Override
@@ -630,7 +650,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
 
         if (classTree.getKind() == Tree.Kind.ENUM) {
             for (Tree member : classTree.getMembers()) {
-                if (member.getKind() == Tree.Kind.VARIABLE
+                if (member instanceof VariableTree
                         && TreeUtils.elementFromDeclaration((VariableTree) member).getKind()
                                 == ElementKind.ENUM_CONSTANT) {
                     VariableTree varDecl = (VariableTree) member;
@@ -653,7 +673,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
      * @param typeTree a supertype tree, from an {@code extends} or {@code implements} clause
      */
     private void reportErrorIfSupertypeContainsNullnessAnnotation(Tree typeTree) {
-        if (typeTree.getKind() == Tree.Kind.ANNOTATED_TYPE) {
+        if (typeTree instanceof AnnotatedTypeTree) {
             List<? extends AnnotationTree> annoTrees =
                     ((AnnotatedTypeTree) typeTree).getAnnotations();
             if (atypeFactory.containsNullnessAnnotation(annoTrees)) {
@@ -919,7 +939,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 case ANNOTATED_TYPE:
                     AnnotatedTypeTree at = ((AnnotatedTypeTree) t);
                     Tree underlying = at.getUnderlyingType();
-                    if (underlying.getKind() == Tree.Kind.PRIMITIVE_TYPE) {
+                    if (underlying instanceof PrimitiveTypeTree) {
                         if (atypeFactory.containsNullnessAnnotation(null, at)) {
                             checker.reportError(t, "nullness.on.primitive");
                         }

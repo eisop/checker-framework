@@ -86,6 +86,7 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      *
      * @param checker the type-checker associated with this factory
      */
+    @SuppressWarnings("this-escape")
     public MethodValAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         if (this.getClass() == MethodValAnnotatedTypeFactory.class) {
@@ -423,7 +424,7 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          * </ul>
          *
          * @param argument the single argument in a call to {@code getMethod} or {@code
-         *     getConstrutor}
+         *     getConstructor}
          * @return a list, each of whose elementts is a possible the number of parameters; it is
          *     often, but not always, a singleton list
          */

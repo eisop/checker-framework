@@ -42,6 +42,7 @@ public class SubstringIndexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
      *
      * @param checker the associated checker
      */
+    @SuppressWarnings("this-escape")
     public SubstringIndexAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
 
@@ -80,8 +81,8 @@ public class SubstringIndexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
 
     /**
      * The Substring Index qualifier hierarchy. The hierarchy consists of a top element {@link
-     * UNKNOWN} of type {@link SubstringIndexUnknown}, bottom element {@link BOTTOM} of type {@link
-     * SubstringIndexBottom}, and elements of type {@link SubstringIndexFor} that follow the
+     * #UNKNOWN} of type {@link SubstringIndexUnknown}, bottom element {@link #BOTTOM} of type
+     * {@link SubstringIndexBottom}, and elements of type {@link SubstringIndexFor} that follow the
      * subtyping relation of {@link UBQualifier}.
      */
     private final class SubstringIndexQualifierHierarchy extends ElementQualifierHierarchy {

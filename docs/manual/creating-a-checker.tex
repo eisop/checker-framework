@@ -818,12 +818,13 @@ Your qualifier hierarchy must have a bottom qualifier
 --- a qualifier that is a (direct or indirect) subtype of every other
 qualifier.
 
-\<null> has the bottom type. Because the only value with type \<Void> is
-\<null>, uses of the type \<Void> are also bottom.
-(The only exception
-is if the type system has special treatment for \<null> values, as the
+\<NullType> is the bottom type in the Java type hierarchy, and it is a special unnamed type i.e. programmers cannot write
+\<NullType> explicitly in the source code.
+\<null> has the bottom type. Because the only value with type \<Void> is \<null>, uses of the type \<Void> are bottom.
+(The only exception is if the type system has special treatment for \<null> values, as the
 Nullness Checker does. In that case, add the meta-annotation
 \refqualclasswithparams{framework/qual}{QualifierForLiterals}{LiteralKind.NULL}
+and \refqualclasswithparams{framework/qual}{DefaultFor}{types = Void.class}
 to the correct qualifier.)
 This legal code
 will not type-check unless \<null> has the bottom type:
@@ -924,10 +925,8 @@ it, or to compare to the string expression of an existing expression
 annotation.
 To obtain the string, first create a
 \refclass{dataflow/expression}{JavaExpression} object by calling
-\refmethodanchortext{dataflow/expression}{JavaExpression}{fromTree}{(com.sun.source.tree.ExpressionTree)}{fromTree(
-ExpressionTree)} or
-\refmethodanchortext{dataflow/expression}{JavaExpression}{fromNode}{(org.checkerframework.dataflow.cfg.node.Node)}{fromNode(
-Node)}.
+\refmethodanchortext{dataflow/expression}{JavaExpression}{fromTree}{(com.sun.source.tree.ExpressionTree)}{fromTree(ExpressionTree)} or
+\refmethodanchortext{dataflow/expression}{JavaExpression}{fromNode}{(org.checkerframework.dataflow.cfg.node.Node)}{fromNode(Node)}.
 Then, call \<toString()> on the \<JavaExpression> object.
 
 
@@ -1054,7 +1053,9 @@ An aggregate checker runs multiple independent, unrelated checkers.  There
 is no communication or cooperation among them.
 
 The effect is the same as if a user passes
-multiple processors to the \<-processor> command-line option.
+multiple processors to the \<-processor> command-line option,
+except the error messages are interleaved
+such that all errors about a line of code appear together.
 
 For example, instead of a user having to run
 
@@ -1071,14 +1072,17 @@ the user can write
 
 \noindent
 if you define an aggregate checker class.  Extend \refclass{framework/source}{AggregateChecker} and override
-the \<getSupportedTypeCheckers> method, like the following:
+the \<getSupportedCheckers> method, like the following:
 
 \begin{Verbatim}
   public class MyUnitCheckers extends AggregateChecker {
+    @Override
     protected Collection<Class<? extends SourceChecker>> getSupportedCheckers() {
-      return Arrays.asList(DistanceUnitChecker.class,
-                           VelocityUnitChecker.class,
-                           MassUnitChecker.class);
+      Collection<Class<? extends SourceChecker>> checkers = new ArrayList<>(3);
+      Collections.addAll(
+        checkers,
+        DistanceUnitChecker.class, VelocityUnitChecker.class, MassUnitChecker.class);
+      return checkers;
     }
   }
 \end{Verbatim}
@@ -1096,7 +1100,7 @@ that might be the case if MyHelperChecker computes some information that
 MyChecker needs to use.
 
 Override
-\<MyChecker.\refmethodterse{common/basetype}{BaseTypeChecker}{getImmediateSubcheckerClasses}{()}>
+\<MyChecker.\refmethodterse{framework/source}{SourceChecker}{getImmediateSubcheckerClasses}{()}>
 to return a list of the checkers that MyChecker depends on.  Every one of
 them will be run before MyChecker is run.  One of MyChecker's subcheckers
 may itself be a compound checker, and multiple checkers may declare a
@@ -1109,6 +1113,10 @@ determine the types of variables.  Obtain the \<AnnotatedTypeFactory> by
 calling
 \refmethodterse{common/basetype}{BaseTypeChecker}{getTypeFactoryOfSubcheckerOrNull}{(java.lang.Class)}.
 
+An example of a compound checker is
+\refclass{checker/signedness}{SignednessChecker}
+(see \chapterpageref{signedness-checker}) for which \refclass{common/value}{ValueChecker}
+is a subchecker.
 \end{enumerate}
 
 
@@ -1169,6 +1177,26 @@ To pass an option on the command line, call javac as follows:
 The value is returned as a single string and you have to perform the
 required parsing of the option.
 
+\subsubsectionAndLabel{Default Options}{creating-providing-command-line-options-default-options}
+
+The default options passed to a custom checker may be customized by overriding the
+\refmethodterse{common/basetype}{BaseTypeChecker}{getOptions}{()} method in the
+custom checker class.
+
+For example, to ignore the \<introduce.eliminate> warnings raised by the
+Optional Checker (Chapter~\ref{optional-checker}), override
+\refmethodterse{common/basetype}{BaseTypeChecker}{getOptions}{()} as follows:
+
+\begin{Verbatim}
+  @Override
+  public Map<String, String> getOptions() {
+    Map<String, String> options = new HashMap<>(super.getOptions());
+    options.put("suppressWarnings", "optional:introduce.eliminate");
+    return options;
+  }
+\end{Verbatim}
+
+in the \refclass{checker/optional}{OptionalChecker} class.
 
 % TODO: describe -ANullnessChecker_option=value mechanism.
 % For the implementation, see SourceChecker#OPTION_SEPARATOR.
@@ -1316,9 +1344,16 @@ which is the Checker Framework's representation of an annotated type.
   \refclass{framework/type/treeannotator}{TreeAnnotator},
   typically as a private inner class of your \<AnnotatedTypeFactory>.
   There is a method of \<TreeAnnotator> for every AST node, and the visitor
-  has access to both the tree (the AST node) and its type.  In your
-  subclass of \<AnnotatedTypeFactory>, override \<createTreeAnnotator> to
-  return a \<ListTreeAnnotator> containing that annotator, as in
+  has access to both the tree (the AST node) and its type.
+
+  A \<TreeAnnotator> is best suited to changing the type of an expression.
+  Don't try to use a \<TreeAnnotator> to change the type of a variable or
+  method declaration, because that change will not generally be seen at
+  uses of the variable or method.
+
+  After defining your \<TreeAnnotator>, override \<createTreeAnnotator> (in
+  your subclass of \<AnnotatedTypeFactory>) to return a
+  \<ListTreeAnnotator> containing your new \<TreeAnnotator>, as in:
 
 \begin{Verbatim}
   @Override
@@ -1328,10 +1363,11 @@ which is the Checker Framework's representation of an annotated type.
 \end{Verbatim}
 
   \noindent
-  (or put your TreeAnnotator first; several tree annotators are run by
+  In code like the above, you might choose to put your TreeAnnotator first.
+  Several tree annotators are run by
   default, and among them, \<PropagationTreeAnnotator>
   adds annotations to \<AnnotatedTypeMirror>s that do not have an annotation,
-  but has no effect on those that have an annotation).
+  but has no effect on those that have an annotation.
 
 \item
   Define a subclass of a
@@ -1377,6 +1413,34 @@ which is the Checker Framework's representation of an annotated type.
   your logic to be run even earlier or even later.
 
 \end{enumerate}
+
+
+\subsectionAndLabel{Recursion in \<TreeAnnotator>s}{creating-procedurally-recursion-in-treeannotators}
+
+A subclass of \<TreeAnnotator> should not, in general, call
+\<getAnnotatedType()> more than once.
+This is primarily a concern for \<visitBinary()> and \<visitCompoundAssignment()>.
+For example, the implementation of \<visitBinary()> should not start with
+
+\begin{Verbatim}
+    AnnotatedTypeMirror lExpr = getAnnotatedType(tree.getLeftOperand());
+    AnnotatedTypeMirror rExpr = getAnnotatedType(tree.getRightOperand());
+\end{Verbatim}
+
+\noindent
+The reason is that \<PropagationTreeAnnotator> already does such recursion.  If
+two \<TreeAnnotator>s do so, then expressions at the base of a large binary tree
+will be visited exponentially many times, leading to slowdowns or the appearance
+of an infinite loop.
+
+One approach is to not call \<getAnnotatedType()> in \<visitBinary()>; this is
+what \<UpperBoundAnnotatedTypeFactory> does.
+
+Another approach is to disable \<PropagationTreeAnnotator>, doing all work in a
+different \<TreeAnnotator>.  Create a subclass of \<PropagationTreeAnnotator>
+whose \<visitBinary()> method does no work, and use that subclass in place of
+\<PropagationTreeAnnotator> itself.  This is what \<RegexAnnotatedTypeFactory>
+and \<UnitsAnnotatedTypeFactory> do.
 
 
 \sectionAndLabel{Dataflow: enhancing flow-sensitive type refinement}{creating-dataflow}
@@ -1610,8 +1674,8 @@ override the visitor method that handles the \refclass{dataflow/cfg/node}{Node}s
 relevant to your run-time check or run-time operation.
 Leave the body of the overriding method empty for now.
 
-For example, the Regex Checker refines the type of a run-time test method
-call.  A method call is represented by a
+For example, the Regex Checker refines the type based on a call to the
+\<RegexUtil.isRegex> method.  A method call is represented by a
 \refclass{dataflow/cfg/node}{MethodInvocationNode}.  Therefore,
 \refclass{checker/regex}{RegexTransfer} overrides the
 \code{visitMethodInvocation} method:
@@ -1837,10 +1901,23 @@ at compile time.
 \end{enumerate}
 
 
-\subsectionAndLabel{Disabling flow-sensitive inference}{creating-dataflow-disable}
+\label{creating-dataflow-disable} % temporary label; remove in January 2025
+\subsectionAndLabel{Further customizing flow-sensitive inference}{creating-dataflow-customization}
 
-In the uncommon case that you wish to disable the Checker Framework's
-built-in flow inference in your checker (this is different than choosing
+By default, the Checker Framework assumes that modifications to an object's
+fields do not change its type qualifiers.  This is true for all
+provenance-based type systems (see
+Section~\ref{type-refinement-runtime-tests}), for all value-based type
+systems over immutable values, and for some other type systems.  To
+indicate that \textbf{side effects can change a value's type qualifiers},
+write \<sideEffectsUnrefineAliases = true;> in the type factory
+constructor, before the call to \<this.postInit();>.  Note that this
+setting may lead to large numbers of false positive warnings.  You can
+reduce the number of false positive warnings by writing more precise side
+effect annotations.
+
+In the uncommon case that you wish to \textbf{disable the Checker Framework's
+built-in flow inference} in your checker (this is different than choosing
 not to extend it as described in Section~\ref{creating-dataflow}), put the
 following two lines at the beginning of the constructor for your subtype of
 \refclass{common/basetype}{BaseAnnotatedTypeFactory}:
@@ -1954,7 +2031,8 @@ switch, which is used to pass options to an annotation processor.
 
 \begin{itemize}
 \item \code{-AprintAllQualifiers}: print all type qualifiers, including
-qualifiers meta-annotated with \code{@InvisibleQualifier}, which are
+qualifiers meta-annotated with
+\refqualclass{framework/qual}{InvisibleQualifier}, which are
 usually not shown.
 
 \item \code{-AprintVerboseGenerics}: print more information about type
@@ -1977,6 +2055,10 @@ impeding performance, issue a note rather than a warning.
 This prevents the message from being elevated to an error by \code{-Werror}.
 
 \item \code{-AdumpOnErrors}: Outputs a stack trace when reporting errors or warnings.
+
+\item \code{-AexceptionLineSeparator}: Controls what line separator is used when printing exceptions.
+This is useful when tools, such as Maven, only display the first line of exception messsages. For
+example, \code{-AexceptionLineSeparator="    "}.
 
 \end{itemize}
 
@@ -2045,10 +2127,6 @@ pseudo-assignment check (\<commonAssignmentCheck>) performed by
 \refclass{common/basetype}{BaseTypeVisitor}; see
 Section~\ref{creating-extending-visitor}.
 
-\item \code{-AshowInferenceSteps}: print debugging information
-about intermediate steps in method type argument inference
-(as performed by \refclass{framework/util/typeinference}{DefaultTypeArgumentInference}).
-
 \item \code{-AshowWpiFailedInferences}: print debugging information
 about failed inference steps during whole-program inference. Must
 be used with \code{-Ainfer}; see Section~\ref{whole-program-inference}.
@@ -2093,7 +2171,7 @@ using any of the following four techniques:
   \<CheckerMain>, not by the annotation processor.  That means that it can be
   supplied only when you use the Checker Framework compiler (the ``Checker
   Framework javac wrapper''), and it cannot be written in a file containing
-  command-line arguments passed to the compiler using the @argfile syntax.
+  command-line arguments passed to the compiler using the \<@argfile> syntax.
 
 \end{itemize}
 
@@ -2110,8 +2188,16 @@ for dotfile in *.dot; do dot -Tpdf -o "$dotfile.pdf" "$dotfile"; done
 \end{Verbatim}
 
 \noindent
+or (for more verbose output)
+
+\begin{Verbatim}
+javacheck -processor mypackage.MyProcessor -Acfgviz=org.checkerframework.dataflow.cfg.visualize.DOTCFGVisualizer,outdir=.,verbose MyClass.java
+for dotfile in *.dot; do dot -Tpdf -o "$dotfile.pdf" "$dotfile"; done
+\end{Verbatim}
+
+\noindent
 where the first command creates file \<MyClass.dot> that
-represents the CFG, and the last command draws the CFG in a PDF file.
+represents the CFG, and the second command writes the CFG to a PDF file.
 The \<dot> program is part of \href{http://www.graphviz.org}{Graphviz}.
 
 \noindent
@@ -2142,7 +2228,7 @@ command-line options. \\
 \item \code{-Aflowdotdir=\emph{somedir}}:
   Specify directory for \<.dot> files visualizing the CFG\@.
   Shorthand for\\
-  \<-Acfgviz=org.checkerframework.dataflow.cfg.DOTCFGVisualizer,outdir=\emph{somedir}>.
+  \<-Acfgviz=org.checkerframework.dataflow.cfg.visualize.DOTCFGVisualizer,outdir=\emph{somedir}>.
   % TODO: create the directory if it doesn't exist.
   The directory must already exist.
 
@@ -2158,13 +2244,20 @@ command-line options. \\
   The graph also contains information about flow-sensitively refined
   types of various expressions at many program points.
 
-  The argument is a comma-separated sequence of keys or key--value pairs.
-  The first argument is the fully-qualified name of the
-  \<org.checkerframework.dataflow.cfg.CFGVisualizer> implementation
-  that should be used. The remaining keys or key--value pairs are
+  The argument is a comma-separated sequence.
+  The first element is the fully-qualified name of the
+  \<org.checkerframework.dataflow.cfg.visualize.>\refclass{dataflow/cfg/visualize}{CFGVisualizer} implementation
+  that should be used. Currently, the possibilities are:
+  \begin{itemize}
+  \item \<org.checkerframework.dataflow.cfg.visualize.>\refclass{dataflow/cfg/visualize}{DOTCFGVisualizer}
+  \item \<org.checkerframework.dataflow.cfg.visualize.>\refclass{dataflow/cfg/visualize}{StringCFGVisualizer}
+  \end{itemize}
+  The remaining keys or key--value pairs are
   passed to \<CFGVisualizer.init>.  Supported keys include
   \begin{itemize}
   \item \<verbose>
+    outputs the store after each basic block (in addition to before);
+    shows transfer result values, unique IDs, and the processing order
   \item \<outdir> directory into which to write files
   \item \<checkerName>
   \end{itemize}
@@ -2565,7 +2658,7 @@ build powerful and useful checkers.
 Beyond this document,
 other useful resources include the Java Infrastructure
 Developer's guide at
-\url{https://netbeans.apache.org/wiki/Java_DevelopersGuide.html} and the compiler
+\url{https://netbeans.apache.org/wiki/main/javahowto/Java_DevelopersGuide/} and the compiler
 mailing list archives at
 \url{https://mail.openjdk.org/pipermail/compiler-dev/}
 (subscribe at

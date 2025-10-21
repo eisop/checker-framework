@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
  */
 public class DependentTypesError {
 
-    /// Static fields
+    // Static fields
 
     /** How elements of this class are formatted. */
     @SuppressWarnings("InlineFormatString") // https://github.com/google/error-prone/issues/1650
@@ -49,7 +49,7 @@ public class DependentTypesError {
             Pattern.compile(
                     "^'([a-zA-Z_$][a-zA-Z0-9_$]*)' because (Use \"#\\d+\" rather than \"\\1\")$");
 
-    /// Instance fields
+    // Instance fields
 
     /** The expression that is unparsable or otherwise problematic. */
     public final String expression;
@@ -57,7 +57,7 @@ public class DependentTypesError {
     /** An error message about that expression. */
     public final String error;
 
-    /// Constructors and methods
+    // Constructors and methods
 
     /**
      * Create a DependentTypesError for the given expression and error message.

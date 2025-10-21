@@ -359,7 +359,8 @@ Here are two concerns you may have when partially annotating a library:
 \begin{itemize}
 \item
   Ignoring type-checking errors in unannotated parts of the library.
-  Use the \<-AskipDefs> or \<-AonlyDefs> command-line arguments; see
+  Use the \<-AskipDefs>, \<-AonlyDefs>, \<-AskipFiles>, or \<-AonlyFiles>
+  command-line arguments; see
   Section~\ref{askipdefs}.
 
 \item
@@ -383,6 +384,8 @@ annotation.  For classes without \<@AnnotatedFor>, the checker uses
 conservative defaults
 (see Section~\ref{defaults-classfile}) for any type use with no explicit
 user-written annotation, \emph{and} the checker issues no warnings.
+The command-line argument \code{-AonlyAnnotatedFor} can be used to  suppress errors and warnings outside of the scope of an \<@AnnotatedFor> annotation,
+but does not change the default qualifiers for source code (See Section~\ref{aonlyannotatedfor}).
 \end{sloppypar}
 
 The \refqualclass{framework/qual}{AnnotatedFor} annotation, written on a
@@ -875,7 +878,7 @@ Some command-line options make the stub parser issue more warnings:
   file provided on the command line, but does not warn about built-in stub files.
   These command-line options turn the warnings on or off (respectively) for
   all stub files. \\
-  The \<@NoStubParserWarning> annotation on a package or type in a stub file
+  The \<@NoAnnotationFileParserWarning> annotation on a package or type in a stub file
   causes no warning to be issued for that package or type, regardless of
   the command-line options.
 
@@ -1094,6 +1097,6 @@ being silently ignored.  A typo in an annotation name, or a missing
 % LocalWords: AstubWarnIfNotFoundIgnoresClasses AmergeStubsWithSource
 % LocalWords:  AstubWarnIfRedundantWithBytecode JavaStubifier StubFiles
 % LocalWords:  BaseTypeChecker ImageObserver Graphics2D AstubWarnNote
-% LocalWords:  AstubNoWarnIfNotFound NoStubParserWarning AstubWarn Werror
+% LocalWords:  AstubNoWarnIfNotFound AstubWarn Werror AonlyFiles AskipFiles
 % LocalWords:  Aajava substring outerpackage innerpackage myMethod MyClass
 % LocalWords:  InsertAjavaAnnotations

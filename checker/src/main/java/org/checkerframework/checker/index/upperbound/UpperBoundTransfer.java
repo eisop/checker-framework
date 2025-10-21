@@ -145,7 +145,7 @@ public class UpperBoundTransfer extends IndexAbstractTransfer {
         // null if right-hand-side is not an array creation expression
         ArrayCreationNode acNode =
                 (expNodeSansCast instanceof ArrayCreationNode)
-                        ? acNode = (ArrayCreationNode) expNodeSansCast
+                        ? (ArrayCreationNode) expNodeSansCast
                         : null;
 
         if (acNode != null) {
@@ -855,8 +855,7 @@ public class UpperBoundTransfer extends IndexAbstractTransfer {
     private TransferResult<CFValue, CFStore> createTransferResult(
             Node n, TransferInput<CFValue, CFStore> in, UBQualifier qualifier) {
         AnnotationMirror newAnno = atypeFactory.convertUBQualifierToAnnotation(qualifier);
-        CFValue value = analysis.createSingleAnnotationValue(newAnno, n.getType());
-        return createTransferResult(value, in);
+        return createTransferResult(newAnno, n.getType(), in);
     }
 
     @Override

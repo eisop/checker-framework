@@ -338,9 +338,9 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
     }
 
     // At this point, types are like: (@IntVal(-1) byte, @IntVal(255) int) and knowledge of
-    // signedness is gone.  So, use castType's underlying type to infer correctness of the cast.
-    // This method returns true for (@IntVal(-1), @IntVal(255)) if the underlying type is `byte`,
-    // but not for any other underlying type.
+    // signedness is gone.  So, use castType's underlying type to infer correctness of the
+    // cast.  This method returns true for (@IntVal(-1), @IntVal(255)) if the underlying type
+    // is `byte`, but not for any other underlying type.
     @Override
     protected boolean isTypeCastSafe(AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
         TypeKind castTypeKind =
@@ -499,8 +499,8 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
     }
 
     @Override
-    public Void visitMethod(MethodTree tree, Void p) {
-        super.visitMethod(tree, p);
+    public void processMethodTree(String className, MethodTree tree) {
+        super.processMethodTree(className, tree);
 
         ExecutableElement method = TreeUtils.elementFromDeclaration(tree);
         if (atypeFactory.getDeclAnnotation(method, StaticallyExecutable.class) != null) {
@@ -550,6 +550,5 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
                 }
             }
         }
-        return null;
     }
 }

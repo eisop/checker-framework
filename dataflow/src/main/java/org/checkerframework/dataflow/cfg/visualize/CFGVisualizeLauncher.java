@@ -17,10 +17,13 @@ import org.checkerframework.dataflow.cfg.CFGProcessor.CFGProcessResult;
 import org.checkerframework.dataflow.cfg.ControlFlowGraph;
 import org.plumelib.util.ArrayMap;
 
-import java.io.FileWriter;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Map;
 
@@ -172,7 +175,7 @@ public final class CFGVisualizeLauncher {
      *
      * @param <V> the abstract value type to be tracked by the analysis
      * @param <S> the store type used in the analysis
-     * @param <T> the transfer function type that is used to approximated runtime behavior
+     * @param <T> the transfer function type that is used to approximate run-time behavior
      * @param inputFile a Java source file, used as input
      * @param outputDir source output directory
      * @param method name of the method to generate the CFG for
@@ -230,9 +233,9 @@ public final class CFGVisualizeLauncher {
         JavaCompiler javac = new JavaCompiler(context);
 
         JavaFileObject l;
-        try (@SuppressWarnings(
-                        "mustcall:type.argument") // Context isn't annotated for the Must Call
-                // Checker.
+        try (@SuppressWarnings("mustcall:type.arguments.not.inferred" // Context isn't annotated for
+                // the Must Call Checker.
+                )
                 JavacFileManager fileManager =
                         (JavacFileManager) context.get(JavaFileManager.class)) {
             l = fileManager.getJavaFileObjectsFromStrings(List.of(file)).iterator().next();
@@ -248,7 +251,7 @@ public final class CFGVisualizeLauncher {
                 "builder:required.method.not.called",
                 "mustcall:assignment"
             }) // Won't be needed in JDK 11+ with use of "OutputStream.nullOutputStream()".
-            @MustCall() OutputStream nullOS =
+            @MustCall OutputStream nullOS =
                     // In JDK 11+, this can be just "OutputStream.nullOutputStream()".
                     new OutputStream() {
                         @Override
@@ -296,7 +299,8 @@ public final class CFGVisualizeLauncher {
             String outputFile,
             Analysis<?, ?, ?> analysis) {
         Map<String, Object> res = generateStringOfCFG(inputFile, method, clas, true, analysis);
-        try (FileWriter out = new FileWriter(outputFile)) {
+        try (BufferedWriter out =
+                Files.newBufferedWriter(Paths.get(outputFile), StandardCharsets.UTF_8)) {
             if (res != null && res.get("stringGraph") != null) {
                 out.write(res.get("stringGraph").toString());
             }
@@ -327,7 +331,7 @@ public final class CFGVisualizeLauncher {
      *
      * @param <V> the abstract value type to be tracked by the analysis
      * @param <S> the store type used in the analysis
-     * @param <T> the transfer function type that is used to approximated runtime behavior
+     * @param <T> the transfer function type that is used to approximate run-time behavior
      * @param inputFile a Java source file, used as input
      * @param method name of the method to generate the CFG for
      * @param clas name of the class which includes the method to generate the CFG for
@@ -342,11 +346,11 @@ public final class CFGVisualizeLauncher {
                     S extends Store<S>,
                     T extends TransferFunction<V, S>>
             @Nullable Map<String, Object> generateStringOfCFG(
-            String inputFile,
-            String method,
-            String clas,
-            boolean verbose,
-            @Nullable Analysis<V, S, T> analysis) {
+                    String inputFile,
+                    String method,
+                    String clas,
+                    boolean verbose,
+                    @Nullable Analysis<V, S, T> analysis) {
         ControlFlowGraph cfg = generateMethodCFG(inputFile, clas, method);
         if (analysis != null) {
             analysis.performAnalysis(cfg);

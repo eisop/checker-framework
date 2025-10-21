@@ -31,6 +31,7 @@ public class RawTypeTest {
             m2(c);
         }
 
+        @SuppressWarnings("removal") // AccessController in JDK 17
         public void m4() {
             AccessController.doPrivileged(new PrivilegedAction() {
                 public Object run() {

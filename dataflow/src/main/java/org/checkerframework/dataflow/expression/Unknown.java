@@ -73,9 +73,10 @@ public class Unknown extends JavaExpression {
         return originalExpression;
     }
 
+    @SuppressWarnings("unchecked") // generic cast
     @Override
-    public boolean containsOfClass(Class<? extends JavaExpression> clazz) {
-        return getClass() == clazz;
+    public <T extends JavaExpression> @Nullable T containedOfClass(Class<T> clazz) {
+        return getClass() == clazz ? (T) this : null;
     }
 
     @Override
@@ -84,13 +85,13 @@ public class Unknown extends JavaExpression {
     }
 
     @Override
-    public boolean isUnassignableByOtherCode() {
-        return false;
+    public boolean isAssignableByOtherCode() {
+        return true;
     }
 
     @Override
-    public boolean isUnmodifiableByOtherCode() {
-        return false;
+    public boolean isModifiableByOtherCode() {
+        return true;
     }
 
     @Override

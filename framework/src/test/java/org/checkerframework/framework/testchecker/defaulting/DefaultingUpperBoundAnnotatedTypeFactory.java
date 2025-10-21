@@ -10,6 +10,7 @@ import java.util.Set;
 
 public class DefaultingUpperBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
+    @SuppressWarnings("this-escape")
     public DefaultingUpperBoundAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         this.postInit();

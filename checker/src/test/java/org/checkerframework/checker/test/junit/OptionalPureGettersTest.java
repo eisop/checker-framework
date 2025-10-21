@@ -1,5 +1,6 @@
 package org.checkerframework.checker.test.junit;
 
+import org.checkerframework.checker.optional.OptionalChecker;
 import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
 import org.junit.runners.Parameterized.Parameters;
 
@@ -15,11 +16,7 @@ public class OptionalPureGettersTest extends CheckerFrameworkPerDirectoryTest {
      * @param testFiles the files containing test code, which will be type-checked
      */
     public OptionalPureGettersTest(List<File> testFiles) {
-        super(
-                testFiles,
-                org.checkerframework.checker.optional.OptionalChecker.class,
-                "optional",
-                "-AassumePureGetters");
+        super(testFiles, OptionalChecker.class, "optional", "-AassumePureGetters");
     }
 
     @Parameters

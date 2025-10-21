@@ -15,6 +15,7 @@ import org.checkerframework.checker.resourceleak.MustCallConsistencyAnalyzer.Blo
 import org.checkerframework.checker.resourceleak.MustCallConsistencyAnalyzer.MethodExitKind;
 import org.checkerframework.checker.resourceleak.MustCallConsistencyAnalyzer.Obligation;
 import org.checkerframework.checker.resourceleak.MustCallConsistencyAnalyzer.ResourceAlias;
+import org.checkerframework.checker.rlccalledmethods.RLCCalledMethodsAnnotatedTypeFactory;
 import org.checkerframework.common.accumulation.AccumulationStore;
 import org.checkerframework.common.accumulation.AccumulationValue;
 import org.checkerframework.common.wholeprograminference.WholeProgramInference;
@@ -72,9 +73,9 @@ import javax.lang.model.type.TypeMirror;
  *
  * <p>Each instance of this class corresponds to a single control flow graph (CFG), typically
  * representing a method. The entry method of this class is {@link
- * #runMustCallInference(ResourceLeakAnnotatedTypeFactory, ControlFlowGraph,
+ * #runMustCallInference(RLCCalledMethodsAnnotatedTypeFactory, ControlFlowGraph,
  * MustCallConsistencyAnalyzer)}, invoked from the {@link
- * ResourceLeakAnnotatedTypeFactory#postAnalyze} method when Whole Program Inference is enabled.
+ * RLCCalledMethodsAnnotatedTypeFactory#postAnalyze} method when Whole Program Inference is enabled.
  *
  * <p>The algorithm determines if the @MustCall obligation of a field is satisfied along some path
  * leading to the regular exit point of the method. If the obligation is satisfied, the algorithm
@@ -124,7 +125,7 @@ public class MustCallInference {
      * The type factory for the Resource Leak Checker, which is used to access the Must Call
      * Checker.
      */
-    private final ResourceLeakAnnotatedTypeFactory resourceLeakAtf;
+    private final RLCCalledMethodsAnnotatedTypeFactory resourceLeakAtf;
 
     /** The MustCallConsistencyAnalyzer. */
     private final MustCallConsistencyAnalyzer mcca;
@@ -176,7 +177,7 @@ public class MustCallInference {
      * @param mcca the MustCallConsistencyAnalyzer
      */
     /*package-private*/ MustCallInference(
-            ResourceLeakAnnotatedTypeFactory resourceLeakAtf,
+            RLCCalledMethodsAnnotatedTypeFactory resourceLeakAtf,
             ControlFlowGraph cfg,
             MustCallConsistencyAnalyzer mcca) {
         this.resourceLeakAtf = resourceLeakAtf;
@@ -205,15 +206,15 @@ public class MustCallInference {
 
     /**
      * Creates a MustCallInference instance and runs the inference algorithm. This method is called
-     * by the {@link ResourceLeakAnnotatedTypeFactory#postAnalyze} method if Whole Program Inference
-     * is enabled.
+     * by the {@link RLCCalledMethodsAnnotatedTypeFactory#postAnalyze} method if Whole Program
+     * Inference is enabled.
      *
      * @param resourceLeakAtf the type factory
      * @param cfg the control flow graph of the method to check
      * @param mcca the MustCallConsistencyAnalyzer
      */
-    /*package-private*/ static void runMustCallInference(
-            ResourceLeakAnnotatedTypeFactory resourceLeakAtf,
+    public static void runMustCallInference(
+            RLCCalledMethodsAnnotatedTypeFactory resourceLeakAtf,
             ControlFlowGraph cfg,
             MustCallConsistencyAnalyzer mcca) {
         MustCallInference mustCallInferenceLogic =
@@ -256,10 +257,12 @@ public class MustCallInference {
                 // before the checking phase. However, calling
                 // updateObligationsWithInvocationResult() will not have any side effects on the
                 // outcome of the Resource Leak Checker. This is because the inference occurs within
-                // the postAnalyze method of the ResourceLeakAnnotatedTypeFactory, once the
+                // the postAnalyze method of the RLCCalledMethodsAnnotatedTypeFactory, once the
                 // consistency analyzer has completed its process.
                 if (node instanceof MethodInvocationNode || node instanceof ObjectCreationNode) {
-                    mcca.updateObligationsWithInvocationResult(obligations, node);
+                    if (mcca.shouldTrackInvocationResult(obligations, node, true)) {
+                        mcca.updateObligationsWithInvocationResult(obligations, node);
+                    }
                     inferOwningFromInvocation(obligations, node);
                 } else if (node instanceof AssignmentNode) {
                     analyzeAssignmentNode(obligations, (AssignmentNode) node);
@@ -392,6 +395,28 @@ public class MustCallInference {
     }
 
     /**
+     * This method checks if a field is an owning candidate. A field is an owning candidate if it
+     * has a non-empty must-call obligation, unless it is {code @MustCallUnknown}. For a
+     * {code @MustCallUnknown} field, we don't want to infer anything. So, we conservatively treat
+     * it as a non-owning candidate.
+     *
+     * @param resourceLeakAtf the type factory
+     * @param field the field to check
+     * @return true if the field is an owning candidate, false otherwise
+     */
+    private boolean isFieldOwningCandidate(
+            RLCCalledMethodsAnnotatedTypeFactory resourceLeakAtf, Element field) {
+        AnnotationMirror mustCallAnnotation = resourceLeakAtf.getMustCallAnnotation(field);
+        if (mustCallAnnotation == null) {
+            // Indicates @MustCallUnknown. We want to  conservatively avoid inferring an @Owning
+            // annotation for @MustCallUnknown.
+            return false;
+        }
+        // Otherwise, the field is an @Owning candidate if it has a non-empty @MustCall obligation
+        return !resourceLeakAtf.getMustCallValues(mustCallAnnotation).isEmpty();
+    }
+
+    /**
      * Adds the node to the disposedFields map and the owningFields set if it is a field and its
      * must-call obligation is satisfied by the given method call. If so, it will be given
      * an @Owning annotation later.
@@ -404,7 +429,7 @@ public class MustCallInference {
         if (nodeElt == null || !nodeElt.getKind().isField()) {
             return;
         }
-        if (resourceLeakAtf.isFieldWithNonemptyMustCallValue(nodeElt)) {
+        if (isFieldOwningCandidate(resourceLeakAtf, nodeElt)) {
             node = NodeUtils.removeCasts(node);
             JavaExpression nodeJe = JavaExpression.fromNode(node);
             AnnotationMirror cmAnno = getCalledMethodsAnno(invocation, nodeJe);
@@ -467,9 +492,9 @@ public class MustCallInference {
             // If the owning field is present in the disposedFields map and there is an assignment
             // to the field, it must be removed from the set. This is essential since the
             // disposedFields map is used for adding @EnsuresCalledMethods annotations to the
-            // current method later. Note that this removal doesn't affect the owning annotation we
-            // inferred for the field, as the owningField set is updated with the inferred owning
-            // field in the 'inferOwningField' method.
+            // current method later. Note that this removal doesn't affect the owning annotation
+            // we inferred for the field, as the owningField set is updated with the inferred
+            // owning field in the 'inferOwningField' method.
             if (!TreeUtils.isConstructor(methodTree)) {
                 disposedFields.remove((VariableElement) lhsElement);
             }
@@ -561,8 +586,7 @@ public class MustCallInference {
             Set<String> fields = methodToFields.get(mustCallValue);
             AnnotationMirror am =
                     createEnsuresCalledMethods(
-                            fields.toArray(new String[fields.size()]),
-                            new String[] {mustCallValue});
+                            fields.toArray(new String[0]), new String[] {mustCallValue});
             WholeProgramInference wpi = resourceLeakAtf.getWholeProgramInference();
             wpi.addMethodDeclarationAnnotation(methodElt, am);
         }
@@ -600,11 +624,11 @@ public class MustCallInference {
 
             // If the enclosing class already has a non-empty @MustCall type, either added by
             // programmers or inferred in previous iterations (not-inherited), we do not change it
-            // in the current analysis round to prevent potential inconsistencies and guarantee the
-            // termination of the inference algorithm. This becomes particularly important when
-            // multiple methods could satisfy the must-call obligation of the enclosing class. To
-            // ensure the existing @MustCall annotation is included in the inference result for this
-            // iteration, we re-add it.
+            // in the current analysis round to prevent potential inconsistencies and guarantee
+            // the termination of the inference algorithm. This becomes particularly important
+            // when multiple methods could satisfy the must-call obligation of the enclosing
+            // class. To ensure the existing @MustCall annotation is included in the inference
+            // result for this iteration, we re-add it.
             assert currentMustCallValues.size() == 1 : "TODO: Handle multiple must-call values";
             AnnotationMirror am =
                     createInheritableMustCall(new String[] {currentMustCallValues.get(0)});
@@ -616,9 +640,9 @@ public class MustCallInference {
         // fields, then add (to the class) an InheritableMustCall annotation with the name of this
         // method.
         if (!methodTree.getModifiers().getFlags().contains(Modifier.PRIVATE)) {
-            // Since the result of getOwningFields() is a superset of the key set in disposedFields
-            // map, it is sufficient to check the equality of their sizes to determine if both sets
-            // are equal.
+            // Since the result of getOwningFields() is a superset of the key set in
+            // disposedFields map, it is sufficient to check the equality of their sizes to
+            // determine if both sets are equal.
             if (!disposedFields.isEmpty() && disposedFields.size() == getOwningFields().size()) {
                 AnnotationMirror am =
                         createInheritableMustCall(new String[] {methodTree.getName().toString()});
@@ -707,8 +731,8 @@ public class MustCallInference {
         for (Node argument : mcca.getArgumentsOfInvocation(invocation)) {
             Node arg = mcca.removeCastsAndGetTmpVarIfPresent(argument);
             // In the CFG, explicit passing of multiple arguments in the varargs position is
-            // represented via an ArrayCreationNode. In this case, it checks the called methods set
-            // of each argument passed in this position.
+            // represented via an ArrayCreationNode. In this case, it checks the called methods
+            // set of each argument passed in this position.
             if (arg instanceof ArrayCreationNode) {
                 ArrayCreationNode varArgsNode = (ArrayCreationNode) arg;
                 for (Node varArgNode : varArgsNode.getInitializers()) {
@@ -843,11 +867,14 @@ public class MustCallInference {
             }
 
             Node arg = mcca.removeCastsAndGetTmpVarIfPresent(arguments.get(i));
+            if (!(arg instanceof LocalVariableNode)) {
+                continue;
+            }
             Obligation argObligation =
                     MustCallConsistencyAnalyzer.getObligationForVar(
                             obligations, (LocalVariableNode) arg);
             if (argObligation == null) {
-                return;
+                continue;
             }
             int index = getIndexOfParam(argObligation);
             if (index != -1) {

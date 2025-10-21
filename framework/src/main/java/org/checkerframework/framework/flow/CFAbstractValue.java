@@ -71,6 +71,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
      * @param annotations the annotations in this abstract value
      * @param underlyingType the underlying (Java) type in this abstract value
      */
+    @SuppressWarnings("this-escape")
     protected CFAbstractValue(
             CFAbstractAnalysis<V, ?, ?> analysis,
             AnnotationMirrorSet annotations,
@@ -91,7 +92,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
      * Returns true if the set has an annotation from every hierarchy (or if it doesn't need to);
      * returns false if the set is missing an annotation from some hierarchy.
      *
-     * @param annos set of annotations
+     * @param annos a set of annotations
      * @param typeMirror where the annotations are written
      * @param atypeFactory the type factory
      * @return true if no annotations are missing

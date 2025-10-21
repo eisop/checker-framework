@@ -12,7 +12,7 @@ import java.util.List;
  *
  * @param <V> the abstract value type to be tracked by the analysis
  * @param <S> the store type used in the analysis
- * @param <T> the forward transfer function type that is used to approximated runtime behavior
+ * @param <T> the forward transfer function type that is used to approximate run-time behavior
  */
 public interface ForwardAnalysis<
                 V extends AbstractValue<V>,

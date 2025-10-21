@@ -8,7 +8,7 @@ import java.util.List;
 
 public abstract class Issue887 {
     void test() {
-        // :: error: (argument.type.incompatible) :: error: (type.argument.type.incompatible)
+        // :: error: (type.arguments.not.inferred)
         method(foo(null).get(0));
         methodNullable(fooNullable(null).get(0));
     }

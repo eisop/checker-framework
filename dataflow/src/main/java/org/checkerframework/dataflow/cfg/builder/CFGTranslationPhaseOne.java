@@ -63,6 +63,7 @@ import org.checkerframework.checker.interning.qual.FindDistinct;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.Store.FlowRule;
 import org.checkerframework.dataflow.cfg.UnderlyingAST;
+import org.checkerframework.dataflow.cfg.node.AnyPatternNode;
 import org.checkerframework.dataflow.cfg.node.ArrayAccessNode;
 import org.checkerframework.dataflow.cfg.node.ArrayCreationNode;
 import org.checkerframework.dataflow.cfg.node.ArrayTypeNode;
@@ -396,6 +397,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * @param assumeAssertionsEnabled can assertions be assumed to be enabled?
      * @param env annotation processing environment containing type utilities
      */
+    @SuppressWarnings("this-escape")
     public CFGTranslationPhaseOne(
             TreeBuilder treeBuilder,
             AnnotationProvider annotationProvider,
@@ -426,8 +428,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         exceptionalExitLabel = new Label();
         tryStack = new TryStack(exceptionalExitLabel);
         returnTargetLC = new LabelCell(regularExitLabel);
-        breakLabels = new HashMap<>(2);
-        continueLabels = new HashMap<>(2);
+        breakLabels = new HashMap<>(4);
+        continueLabels = new HashMap<>(4);
         returnNodes = new ArrayList<>();
         declaredClasses = new ArrayList<>();
         declaredLambdas = new ArrayList<>();
@@ -573,6 +575,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         return visitYield17(tree, p);
                     case "DECONSTRUCTION_PATTERN":
                         return visitDeconstructionPattern21(tree, p);
+                    case "ANY_PATTERN":
+                        return visitAnyPattern22(tree, p);
                     default:
                         // fall through to generic behavior
                 }
@@ -582,6 +586,21 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         } finally {
             path = prev;
         }
+    }
+
+    /**
+     * Visit a AnyPatternTree.
+     *
+     * @param anyPatternTree an AnyPatternTree, typed as Tree so the Checker Framework compiles
+     *     under JDK 21 and earlier
+     * @param unused an unused parameter
+     * @return the result of visiting the tree
+     */
+    private Node visitAnyPattern22(Tree anyPatternTree, Void unused) {
+        AnyPatternNode anyPatternNode =
+                new AnyPatternNode(TreeUtils.typeOf(anyPatternTree), anyPatternTree);
+        extendWithNode(anyPatternNode);
+        return anyPatternNode;
     }
 
     /**
@@ -750,7 +769,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * exceptions in {@code causes}.
      *
      * @param node the node to add
-     * @param causes set of exceptions that the node might throw
+     * @param causes the set of exceptions that the node might throw
      * @return the node holder
      */
     protected NodeWithExceptionsHolder extendWithNodeWithExceptions(
@@ -811,7 +830,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * the list of extended nodes, or append to the list if {@code pred} is not present.
      *
      * @param node the node to add
-     * @param causes set of exceptions that the node might throw
+     * @param causes the set of exceptions that the node might throw
      * @param pred the desired predecessor of node
      * @return the node holder
      */
@@ -1104,12 +1123,24 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * @return a TypeMirror representing the binary numeric promoted type
      */
     protected TypeMirror binaryPromotedType(TypeMirror left, TypeMirror right) {
-        if (TypesUtils.isBoxedPrimitive(left)) {
-            left = types.unboxedType(left);
+        if (!left.getKind().isPrimitive()) {
+            if (TypesUtils.isCapturedTypeVariable(left)) {
+                // This doesn't seem legal according to the JLS, but javac accepts it.
+                left = types.unboxedType(TypesUtils.upperBound(left));
+            } else {
+                left = types.unboxedType(left);
+            }
         }
-        if (TypesUtils.isBoxedPrimitive(right)) {
-            right = types.unboxedType(right);
+
+        if (!right.getKind().isPrimitive()) {
+            if (TypesUtils.isCapturedTypeVariable(right)) {
+                // This doesn't seem legal according to the JLS, but javac accepts it.
+                right = types.unboxedType(TypesUtils.upperBound(right));
+            } else {
+                right = types.unboxedType(right);
+            }
         }
+
         TypeKind promotedTypeKind = TypeKindUtils.widenedNumericType(left, right);
         return types.getPrimitiveType(promotedTypeKind);
     }
@@ -1570,7 +1601,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     protected @Nullable Name getLabel(TreePath path) {
         if (path.getParentPath() != null) {
             Tree parent = path.getParentPath().getLeaf();
-            if (parent.getKind() == Tree.Kind.LABELED_STATEMENT) {
+            if (parent instanceof LabeledStatementTree) {
                 return ((LabeledStatementTree) parent).getLabel();
             }
         }
@@ -1733,7 +1764,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     protected VariableTree getAssertionsEnabledVariable() {
         if (ea == null) {
             String name = uniqueName("assertionsEnabled");
-            Element owner = findOwner();
+            Element owner = TreePathUtil.findNearestEnclosingElement(getCurrentPath());
             ExpressionTree initializer = null;
             ea =
                     treeBuilder.buildVariableDecl(
@@ -1741,21 +1772,6 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             handleArtificialTree(ea);
         }
         return ea;
-    }
-
-    /**
-     * Find nearest owner element (Method or Class) which holds current tree.
-     *
-     * @return nearest owner element of current tree
-     */
-    private Element findOwner() {
-        MethodTree enclosingMethod = TreePathUtil.enclosingMethod(getCurrentPath());
-        if (enclosingMethod != null) {
-            return TreeUtils.elementFromDeclaration(enclosingMethod);
-        } else {
-            ClassTree enclosingClass = TreePathUtil.enclosingClass(getCurrentPath());
-            return TreeUtils.elementFromDeclaration(enclosingClass);
-        }
     }
 
     /**
@@ -1893,7 +1909,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      */
     private Node getReceiver(ExpressionTree tree) {
         assert TreeUtils.isFieldAccess(tree) || TreeUtils.isMethodAccess(tree);
-        if (tree.getKind() == Tree.Kind.MEMBER_SELECT) {
+        if (tree instanceof MemberSelectTree) {
             // `tree` has an explicit receiver.
             MemberSelectTree mtree = (MemberSelectTree) tree;
             return scan(mtree.getExpression(), null);
@@ -2351,7 +2367,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                     } else if (leftInfo.isBoolean()
                             && rightInfo.isBoolean()
                             && !(leftInfo.isBoxed() && rightInfo.isBoxed())) {
-                        // JSL 15.21.2 boolean equality
+                        // JLS 15.21.2 boolean equality
                         left = unboxAsNeeded(left, leftInfo.isBoxed());
                         right = unboxAsNeeded(right, rightInfo.isBoxed());
                     }
@@ -2576,7 +2592,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                                 env.getTypeUtils()));
             }
 
-            // JSL 14.11.2
+            // JLS 14.11.2
             // https://docs.oracle.com/javase/specs/jls/se21/html/jls-14.html#jls-14.11.2
             // states "For compatibility reasons, switch statements that are not enhanced switch
             // statements are not required to be exhaustive".
@@ -2651,7 +2667,10 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             TypeMirror selectorExprType = TreeUtils.typeOf(selectorExprTree);
             VariableTree selectorVarTree =
                     treeBuilder.buildVariableDecl(
-                            selectorExprType, uniqueName("switch"), findOwner(), null);
+                            selectorExprType,
+                            uniqueName("switch"),
+                            TreePathUtil.findNearestEnclosingElement(getCurrentPath()),
+                            null);
             handleArtificialTree(selectorVarTree);
 
             VariableDeclarationNode selectorVarNode = new VariableDeclarationNode(selectorVarTree);
@@ -2689,7 +2708,10 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             TypeMirror switchExprType = TreeUtils.typeOf(switchTree);
             switchExprVarTree =
                     treeBuilder.buildVariableDecl(
-                            switchExprType, uniqueName("switchExpr"), findOwner(), null);
+                            switchExprType,
+                            uniqueName("switchExpr"),
+                            TreePathUtil.findNearestEnclosingElement(getCurrentPath()),
+                            null);
             handleArtificialTree(switchExprVarTree);
 
             VariableDeclarationNode switchExprVarNode =
@@ -2838,14 +2860,29 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     public Node visitConditionalExpression(ConditionalExpressionTree tree, Void p) {
         // see JLS 15.25
         TypeMirror exprType = TreeUtils.typeOf(tree);
-
+        if (exprType.getKind() == TypeKind.NULL) {
+            // Happens when the 2nd and 3rd operands are both null, e.g.: b ? null : null
+            Tree parent = TreePathUtil.getContextForPolyExpression(getCurrentPath());
+            if (parent != null) {
+                exprType = TreeUtils.typeOf(parent);
+                // exprType is null when the condition is non-atomic, e.g.: x.isEmpty() ? null :
+                // null
+            }
+            if (parent == null || exprType == null) {
+                exprType = TypesUtils.getObjectTypeMirror(env);
+            }
+        }
         Label trueStart = new Label();
         Label falseStart = new Label();
         Label merge = new Label();
 
         // create a synthetic variable for the value of the conditional expression
         VariableTree condExprVarTree =
-                treeBuilder.buildVariableDecl(exprType, uniqueName("condExpr"), findOwner(), null);
+                treeBuilder.buildVariableDecl(
+                        exprType,
+                        uniqueName("condExpr"),
+                        TreePathUtil.findNearestEnclosingElement(getCurrentPath()),
+                        null);
         handleArtificialTree(condExprVarTree);
         VariableDeclarationNode condExprVarNode = new VariableDeclarationNode(condExprVarTree);
         condExprVarNode.setInSource(false);
@@ -3128,6 +3165,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             // annotations, so save the expression in the node so that the full type can be
             // found later.
             nextCallNode.setIterableExpression(expression);
+            nextCallNode.setEnhancedForLoop(tree);
             nextCallNode.setInSource(false);
             extendWithNode(nextCallNode);
 
@@ -3136,6 +3174,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             // translateAssignment() scans variable and creates new nodes, so set the expression
             // there, too.
             ((MethodInvocationNode) assignNode.getExpression()).setIterableExpression(expression);
+            ((MethodInvocationNode) assignNode.getExpression()).setEnhancedForLoop(tree);
 
             assert statement != null;
             scan(statement, p);
@@ -3157,8 +3196,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             extendWithNode(arrayVariableNode);
             Node expressionNode = scan(expression, p);
 
-            translateAssignment(
-                    arrayVariable, new LocalVariableNode(arrayVariable), expressionNode);
+            translateAssignment(arrayVariable, new LocalVariableNode(arrayVariable), expressionNode)
+                    .setDesugaredFromEnhancedArrayForLoop();
 
             // Declare and initialize the loop index variable
             TypeMirror intType = types.getPrimitiveType(TypeKind.INT);
@@ -3229,6 +3268,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             ArrayAccessNode arrayAccessNode =
                     new ArrayAccessNode(arrayAccess, arrayNode2, indexNode2);
             arrayAccessNode.setArrayExpression(expression);
+            arrayAccessNode.setEnhancedForLoop(tree);
             arrayAccessNode.setInSource(false);
             extendWithNode(arrayAccessNode);
             AssignmentNode arrayAccessAssignNode =
@@ -3239,11 +3279,13 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             Node arrayAccessAssignNodeExpr = arrayAccessAssignNode.getExpression();
             if (arrayAccessAssignNodeExpr instanceof ArrayAccessNode) {
                 ((ArrayAccessNode) arrayAccessAssignNodeExpr).setArrayExpression(expression);
+                ((ArrayAccessNode) arrayAccessAssignNodeExpr).setEnhancedForLoop(tree);
             } else if (arrayAccessAssignNodeExpr instanceof MethodInvocationNode) {
                 // If the array component type is a primitive, there may be a boxing or unboxing
                 // conversion. Treat that as an iterator.
                 MethodInvocationNode boxingNode = (MethodInvocationNode) arrayAccessAssignNodeExpr;
                 boxingNode.setIterableExpression(expression);
+                boxingNode.setEnhancedForLoop(tree);
             }
 
             assert statement != null;
@@ -3858,8 +3900,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     private void handleTryResourcesAndBlock(
             TryTree tryTree, Void p, List<? extends Tree> resources) {
         if (resources.isEmpty()) {
-            // Either `tryTree` was not a try-with-resources, or this method was called recursively
-            // and all the resources have been handled.  Just scan the main try block.
+            // Either `tryTree` was not a try-with-resources, or this method was called
+            // recursively and all the resources have been handled.  Just scan the main try block.
             scan(tryTree.getBlock(), p);
             return;
         }
@@ -3886,9 +3928,9 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
         // Add nodes for the resource declaration to the CFG.  NOTE: it is critical to add these
         // nodes *before* pushing a TryFinallyFrame for the finally block that will close the
-        // resource.
-        // If any exception occurs due to code within the resource declaration, the corresponding
-        // variable or field is *not* automatically closed (as it was never assigned a value).
+        // resource.  If any exception occurs due to code within the resource declaration, the
+        // corresponding variable or field is *not* automatically closed (as it was never
+        // assigned a value).
         Node resourceCloseNode = scan(resourceDeclarationTree, p);
 
         // Now, set things up for our synthetic finally block that closes the resource.
@@ -4324,7 +4366,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                                 treeBuilder.buildVariableDecl(
                                         exprType,
                                         uniqueName("tempPostfix"),
-                                        findOwner(),
+                                        TreePathUtil.findNearestEnclosingElement(getCurrentPath()),
                                         tree.getExpression());
                         handleArtificialTree(tempVarDecl);
                         VariableDeclarationNode tempVarDeclNode =

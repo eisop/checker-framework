@@ -58,6 +58,7 @@ public class NoElementQualifierHierarchy extends QualifierHierarchy {
      * @param elements element utils
      * @param atypeFactory the associated type factory
      */
+    @SuppressWarnings("this-escape")
     public NoElementQualifierHierarchy(
             Collection<Class<? extends Annotation>> qualifierClasses,
             Elements elements,
@@ -99,7 +100,10 @@ public class NoElementQualifierHierarchy extends QualifierHierarchy {
         Map<QualifierKind, AnnotationMirror> quals = new TreeMap<>();
         for (QualifierKind kind : qualifierKindHierarchy.allQualifierKinds()) {
             if (kind.hasElements()) {
-                throw new TypeSystemError(kind + " has elements");
+                throw new TypeSystemError(
+                        kind
+                                + " has elements, so the checker cannot use NoElementQualifierHierarchy."
+                                + " The checker should override createQualifierHierarchy().");
             }
             quals.put(kind, AnnotationBuilder.fromClass(elements, kind.getAnnotationClass()));
         }

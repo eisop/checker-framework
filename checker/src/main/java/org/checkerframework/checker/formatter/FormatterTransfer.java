@@ -3,7 +3,6 @@ package org.checkerframework.checker.formatter;
 import org.checkerframework.checker.formatter.FormatterTreeUtil.Result;
 import org.checkerframework.checker.formatter.qual.ConversionCategory;
 import org.checkerframework.checker.formatter.util.FormatUtil;
-import org.checkerframework.dataflow.analysis.RegularTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
 import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
@@ -38,10 +37,7 @@ public class FormatterTransfer extends CFTransfer {
             } else {
                 AnnotationMirror anno =
                         atypeFactory.treeUtil.categoriesToFormatAnnotation(cats.value());
-                CFValue newResultValue =
-                        analysis.createSingleAnnotationValue(
-                                anno, result.getResultValue().getUnderlyingType());
-                return new RegularTransferResult<>(newResultValue, result.getRegularStore());
+                return recreateTransferResult(anno, result);
             }
         }
 

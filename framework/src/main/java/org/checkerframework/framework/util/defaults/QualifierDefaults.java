@@ -6,6 +6,7 @@ import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.ModifiersTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.VariableTree;
@@ -525,7 +526,7 @@ public class QualifierDefaults {
                             break;
                         }
                     }
-                    if (prev != null && prev.getKind() == Tree.Kind.MODIFIERS) {
+                    if (prev instanceof ModifiersTree) {
                         // Annotations are modifiers. We do not want to apply the local variable
                         // default to annotations. Without this, test fenum/TestSwitch failed,
                         // because the default for an argument became incompatible with the declared
@@ -582,9 +583,9 @@ public class QualifierDefaults {
                 elt = TreeUtils.elementFromUse((MethodInvocationTree) tree);
                 break;
 
-                // TODO cases for array access, etc. -- every expression tree
-                // (The above probably means that we should use defaults in the
-                // scope of the declaration of the array.  Is that right?  -MDE)
+            // TODO cases for array access, etc. -- every expression tree
+            // (The above probably means that we should use defaults in the
+            // scope of the declaration of the array.  Is that right?  -MDE)
 
             default:
                 // If no associated symbol was found, use the tree's (lexical) scope.
@@ -1395,7 +1396,7 @@ public class QualifierDefaults {
                 boundType = BoundType.TYPEVAR_UPPER;
             }
         } else {
-            if (typeParamDecl.getKind() == Tree.Kind.TYPE_PARAMETER) {
+            if (typeParamDecl instanceof TypeParameterTree) {
                 TypeParameterTree tptree = (TypeParameterTree) typeParamDecl;
 
                 List<? extends Tree> bnds = tptree.getBounds();

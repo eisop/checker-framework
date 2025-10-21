@@ -215,14 +215,14 @@ public class ElementUtils {
     }
 
     /**
-     * Returns true if the element is a effectively final element.
+     * Returns true if the element is an effectively final element.
      *
      * @return true if the element is effectively final
      */
     public static boolean isEffectivelyFinal(Element element) {
         Symbol sym = (Symbol) element;
         if (sym.getEnclosingElement().getKind() == ElementKind.METHOD
-                && (sym.getEnclosingElement().flags() & Flags.ABSTRACT) != 0) {
+                && (sym.getEnclosingElement().flags() & (Flags.ABSTRACT | Flags.NATIVE)) != 0) {
             return true;
         }
         return (sym.flags() & (Flags.FINAL | Flags.EFFECTIVELY_FINAL)) != 0;
@@ -654,7 +654,6 @@ public class ElementUtils {
      * @return supertypes of {@code type}
      */
     public static List<TypeElement> getSuperTypes(TypeElement type, Elements elements) {
-
         if (type == null) {
             return Collections.emptyList();
         }
@@ -919,7 +918,6 @@ public class ElementUtils {
      */
     public static boolean matchesElement(
             ExecutableElement method, String methodName, Class<?>... parameters) {
-
         if (!method.getSimpleName().contentEquals(methodName)) {
             return false;
         }
@@ -927,7 +925,7 @@ public class ElementUtils {
         if (method.getParameters().size() != parameters.length) {
             return false;
         } else {
-            for (int i = 0; i < method.getParameters().size(); i++) {
+            for (int i = 0; i < method.getParameters().size(); ++i) {
                 if (!method.getParameters()
                         .get(i)
                         .asType()

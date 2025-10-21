@@ -11,17 +11,14 @@ import org.plumelib.util.SystemPlume;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -34,9 +31,7 @@ import java.util.Set;
 import java.util.StringJoiner;
 
 import javax.tools.Diagnostic;
-import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
-import javax.tools.ToolProvider;
 
 /** Utilities for testing. */
 public class TestUtilities {
@@ -80,11 +75,8 @@ public class TestUtilities {
     /** True if the JVM is version 21 or above. */
     public static final boolean IS_AT_LEAST_21_JVM = SystemUtil.jreVersion >= 21;
 
-    static {
-        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-        OutputStream err = new ByteArrayOutputStream();
-        compiler.run(null, null, err, "-version");
-    }
+    /** True if the JVM is version 22 or above. */
+    public static final boolean IS_AT_LEAST_22_JVM = SystemUtil.jreVersion >= 22;
 
     /**
      * Find test java sources within currentDir/tests.
@@ -120,7 +112,7 @@ public class TestUtilities {
         int i = 0;
         for (String dirName : dirNames) {
             dirs[i] = new File(parent, dirName);
-            i += 1;
+            ++i;
         }
 
         return getJavaFilesAsArgumentList(dirs);
@@ -169,7 +161,8 @@ public class TestUtilities {
                 // Without this check Windows will treat the file as a meaningless one and skip it.
                 if (dir.isFile()) {
                     File p = dir;
-                    try (BufferedReader br = new BufferedReader(new FileReader(dir))) {
+                    try (BufferedReader br =
+                            Files.newBufferedReader(dir.toPath(), StandardCharsets.UTF_8)) {
                         String allSystemPath = br.readLine();
                         if (allSystemPath == null) {
                             throw new BugInCF("test directory does not exist: %s", dir);
@@ -292,7 +285,7 @@ public class TestUtilities {
             return false;
         }
 
-        try (Scanner in = new Scanner(file)) {
+        try (Scanner in = new Scanner(file, StandardCharsets.UTF_8.name())) {
             while (in.hasNext()) {
                 String nextLine = in.nextLine();
                 if (nextLine.contains("@skip-test")
@@ -308,21 +301,29 @@ public class TestUtilities {
                         || (!IS_AT_MOST_17_JVM && nextLine.contains("@above-java17-jdk-skip-test"))
                         || (!IS_AT_LEAST_18_JVM && nextLine.contains("@below-java18-jdk-skip-test"))
                         || (!IS_AT_MOST_18_JVM && nextLine.contains("@above-java18-jdk-skip-test"))
-                        || (!IS_AT_LEAST_21_JVM
-                                && nextLine.contains("@below-java21-jdk-skip-test"))) {
+                        || (!IS_AT_LEAST_21_JVM && nextLine.contains("@below-java21-jdk-skip-test"))
+                        || (!IS_AT_LEAST_22_JVM
+                                && nextLine.contains("@below-java22-jdk-skip-test"))) {
+
                     return false;
                 }
             }
-        } catch (FileNotFoundException e) {
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
 
         return true;
     }
 
+    /**
+     * Convert a compiler diagnostic to a string.
+     *
+     * @param diagnostic the compiler diagnostic
+     * @param usingAnomsgtxt whether message text should be excluded or not
+     * @return the compiler message string or null for certain lint warnings
+     */
     public static @Nullable String diagnosticToString(
             Diagnostic<? extends JavaFileObject> diagnostic, boolean usingAnomsgtxt) {
-
         String result = diagnostic.toString().trim();
 
         // suppress Xlint warnings
@@ -420,7 +421,12 @@ public class TestUtilities {
      * @param lines what lines to write
      */
     public static void writeLines(File file, Iterable<?> lines) {
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter(file, true))) {
+        try (BufferedWriter bw =
+                Files.newBufferedWriter(
+                        file.toPath(),
+                        StandardCharsets.UTF_8,
+                        StandardOpenOption.CREATE,
+                        StandardOpenOption.APPEND)) {
             Iterator<?> iter = lines.iterator();
             while (iter.hasNext()) {
                 Object next = iter.next();
@@ -446,7 +452,13 @@ public class TestUtilities {
             List<String> missing,
             boolean usingNoMsgText,
             boolean testFailed) {
-        try (PrintWriter pw = new PrintWriter(new BufferedWriter(new FileWriter(file, true)))) {
+        try (PrintWriter pw =
+                new PrintWriter(
+                        Files.newBufferedWriter(
+                                file.toPath(),
+                                StandardCharsets.UTF_8,
+                                StandardOpenOption.CREATE,
+                                StandardOpenOption.APPEND))) {
             pw.println("File: " + testFile.getAbsolutePath());
             pw.println("TestFailed: " + testFailed);
             pw.println("Using nomsgtxt: " + usingNoMsgText);
@@ -471,7 +483,6 @@ public class TestUtilities {
             pw.println();
             pw.println();
             pw.flush();
-
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -484,7 +495,12 @@ public class TestUtilities {
      * @param config the configuration to append to the end of the file
      */
     public static void writeTestConfiguration(File file, TestConfiguration config) {
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter(file, true))) {
+        try (BufferedWriter bw =
+                Files.newBufferedWriter(
+                        file.toPath(),
+                        StandardCharsets.UTF_8,
+                        StandardOpenOption.CREATE,
+                        StandardOpenOption.APPEND)) {
             bw.write(config.toString());
             bw.newLine();
             bw.newLine();
@@ -499,7 +515,13 @@ public class TestUtilities {
             Iterable<? extends JavaFileObject> files,
             Iterable<String> options,
             Iterable<String> processors) {
-        try (PrintWriter pw = new PrintWriter(new BufferedWriter(new FileWriter(file, true)))) {
+        try (PrintWriter pw =
+                new PrintWriter(
+                        Files.newBufferedWriter(
+                                file.toPath(),
+                                StandardCharsets.UTF_8,
+                                StandardOpenOption.CREATE,
+                                StandardOpenOption.APPEND))) {
             pw.println("Files:");
             for (JavaFileObject f : files) {
                 pw.println("    " + f.getName());
