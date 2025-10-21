@@ -26,7 +26,7 @@ public class AnnotatedForWithUse {
     class AnnotatedUse {
         void use(Unannotated u) {
             // 1: OK, 2: OK, 3: Err. 4: OK
-            @NonNull Object obj =  u.o;
+            @NonNull Object obj = u.o;
             // 1. Err, 2: Err, TODO want OK, 3:  OK, TODO want Err, 4: Err, TODO want OK
             u.o = null;
             // 1: OK, 2: OK, 3: Err, 4: OK
