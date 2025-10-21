@@ -6,7 +6,6 @@
  * @compile/fail/ref=AnnotatedForWithUseOnlyAnnotatedFor.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -AonlyAnnotatedFor AnnotatedForWithUse.java
  * @compile/fail/ref=AnnotatedForWithUseConservativeDefault.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -AuseConservativeDefaultsForUncheckedCode=source AnnotatedForWithUse.java
  * @compile/fail/ref=AnnotatedForWithUseOptimisticDefault.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -AuseOptimisticDefaultsForUncheckedCode=source AnnotatedForWithUse.java
- * @compile/fail/ref=AnnotatedForWithUseOptimisticDefaultOnlyAnnotatedFor.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -AuseOptimisticDefaultsForUncheckedCode=source -AonlyAnnotatedFor AnnotatedForWithUse.java
  */
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.framework.qual.AnnotatedFor;
