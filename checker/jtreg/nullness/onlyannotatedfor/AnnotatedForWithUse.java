@@ -14,7 +14,11 @@ import org.checkerframework.framework.qual.AnnotatedFor;
 public class AnnotatedForWithUse {
     class Unannotated {
         Object o;
-        Object get() { return null; }
+
+        Object get() {
+            return null;
+        }
+
         void set(Object of) {}
     }
 
