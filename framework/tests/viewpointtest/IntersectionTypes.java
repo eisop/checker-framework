@@ -1,5 +1,4 @@
-// Test case for Issue 247 & EISOP Issue 433:
-// https://github.com/typetools/checker-framework/issues/247
+// Test case for EISOP Issue 433:
 // https://github.com/eisop/checker-framework/issues/433
 
 interface Foo {}
