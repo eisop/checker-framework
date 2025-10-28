@@ -367,6 +367,19 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
                             receiverAnnotation, extractAnnotationMirror(ant));
             ant.replaceAnnotation(resultAnnotation);
             return ant;
+        } else if (declared.getKind() == TypeKind.INTERSECTION) {
+            AnnotatedTypeMirror.AnnotatedIntersectionType intersection =
+                    (AnnotatedTypeMirror.AnnotatedIntersectionType) declared.shallowCopy(true);
+            List<AnnotatedTypeMirror> listBounds = intersection.getBounds();
+            List<AnnotatedTypeMirror> listBoundsCopy = new ArrayList<>(listBounds);
+            for (int i = 0; i < listBoundsCopy.size(); i++) {
+                AnnotatedTypeMirror bound = listBoundsCopy.get(i);
+                AnnotatedTypeMirror combinedBound =
+                        combineAnnotationWithType(receiverAnnotation, bound);
+                listBoundsCopy.set(i, combinedBound);
+            }
+            intersection.setBounds(listBoundsCopy);
+            return intersection;
         } else {
             throw new BugInCF(
                     "ViewpointAdapter::combineAnnotationWithType: Unknown decl: "

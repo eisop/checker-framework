@@ -40,7 +40,7 @@ The Nullness Checker now recognizes references to private, final fields with zer
 
 **Closed issues:**
 
-eisop#1247, eisop#1263, eisop#1310, typetools#7096.
+typetool#247, eisop#433, eisop#1247, eisop#1263, eisop#1310, typetools#7096.
 
 
 Version 3.49.5 (June 30, 2025)
