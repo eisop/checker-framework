@@ -464,6 +464,18 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             rhs = AnnotatedTypeCopierWithReplacement.replace(aat, mappings);
         } else if (rhs.getKind().isPrimitive() || rhs.getKind() == TypeKind.NULL) {
             // nothing to do for primitive types and the null type
+        } else if (rhs.getKind() == TypeKind.INTERSECTION) {
+            AnnotatedTypeMirror.AnnotatedIntersectionType intersection =
+                    (AnnotatedTypeMirror.AnnotatedIntersectionType) rhs.shallowCopy(true);
+            List<AnnotatedTypeMirror> listBounds = intersection.getBounds();
+            List<AnnotatedTypeMirror> listBoundsCopy = new ArrayList<>(listBounds);
+            for (int i = 0; i < listBoundsCopy.size(); i++) {
+                AnnotatedTypeMirror bound = listBoundsCopy.get(i);
+                AnnotatedTypeMirror substBound = substituteTVars(lhs, bound);
+                listBoundsCopy.set(i, substBound);
+            }
+            intersection.setBounds(listBoundsCopy);
+            rhs = intersection;
         } else {
             throw new BugInCF(
                     "ViewpointAdapter::substituteTVars: Cannot handle rhs: "

@@ -3,18 +3,31 @@
 
 import viewpointtest.quals.*;
 
-interface Foo {}
-
-interface Bar {}
-
-class Baz implements Foo, Bar {}
-
 public class IntersectionTypes {
+
+    interface Foo {}
+
+    interface Bar {}
+
+    class Baz implements Foo, Bar {}
+
+    <T extends Foo & Bar> void call(T p) {}
+
     void foo() {
         // :: warning: (cast.unsafe.constructor.invocation)
         Baz baz = new @A Baz();
         call(baz);
     }
 
-    <T extends Foo & Bar> void call(T p) {}
+    interface B<X> {}
+
+    interface C<X> {}
+
+    abstract class D<X extends B<X> & C<X>> {}
+
+    class BC implements B<BC>, C<BC> {}
+
+    class E extends D<BC> {}
+
+    <T extends B<T> & C<T>> void call(T p) {}
 }
