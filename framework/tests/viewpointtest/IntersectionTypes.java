@@ -11,6 +11,7 @@ class Baz implements Foo, Bar {}
 
 public class IntersectionTypes {
     void foo() {
+        // :: warning: (cast.unsafe.constructor.invocation)
         Baz baz = new @A Baz();
         call(baz);
     }
