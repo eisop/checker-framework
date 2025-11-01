@@ -9,6 +9,10 @@ echo "SHELLOPTS=${SHELLOPTS}"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 source "$SCRIPT_DIR"/clone-related.sh
 
+# `./gradlew test` subsumes `./gradlew assemble`, but performing the
+# two steps separately seems to avoid out-of-memory errors.
+./gradlew assemble --warning-mode=all --no-build-cache
+
 # The random Github Actions failures that --max-workers=1 used to work around
 # (eisop#849, "internal error in type processor! method typeProcessOver()
 # doesn't get called") were traced to a stale Gradle build cache reused across
