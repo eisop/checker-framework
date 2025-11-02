@@ -686,7 +686,7 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         return qualifierKind;
       }
       Set<QualifierKind> superQuals = new TreeSet<>(qualifierKind.getStrictSuperTypes());
-      while (superQuals.size() > 0) {
+      while (!superQuals.isEmpty()) {
         Set<QualifierKind> lowest = findLowestQualifiers(superQuals);
         if (lowest.size() == 1) {
           return lowest.iterator().next();
