@@ -433,7 +433,7 @@ allprojects { currentProj ->
 
     test {
         minHeapSize = "256m" // initial heap size
-    maxHeapSize = "6g" // maximum heap size
+    maxHeapSize = "4g" // maximum heap size
     }
 
     boolean useToolchains = (currentRuntimeJavaVersion != useJdkVersionInt)
