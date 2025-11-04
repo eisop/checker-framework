@@ -131,7 +131,7 @@ tasks.register("updateVersionNumbersInDocs", Copy) {
 
             line = line.replaceAll("/${versionRegex}/jar", "/${version}/jar")
 
-            line = line.replaceAll("ext.checkerFrameworkVersion = '${versionRegex}'", "ext.checkerFrameworkVersion = '${version}'")
+            line = line.replaceAll("ext.checkerFrameworkVersion = \"${versionRegex}\"", "ext.checkerFrameworkVersion = \"${version}\"")
 
             line.replaceAll("eisopVersion: '${versionRegex}'", "eisopVersion: '${version}'")
         }
