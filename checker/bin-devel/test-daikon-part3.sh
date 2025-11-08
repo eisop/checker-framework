@@ -7,6 +7,7 @@ export SHELLOPTS
 echo "SHELLOPTS=${SHELLOPTS}"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+
 source "$SCRIPT_DIR"/clone-related.sh
 
 # Run assembleForJavac because it does not build the javadoc, so it is faster than assemble.
@@ -19,7 +20,7 @@ git log | head -n 5
 make --jobs="$(getconf _NPROCESSORS_ONLN)" compile
 if [ "$TRAVIS" = "true" ]; then
   # Travis kills a job if it runs 10 minutes without output
-  time make JAVACHECK_EXTRA_ARGS=-Afilenames -C java --jobs="$(getconf _NPROCESSORS_ONLN)" typecheck
+  time make JAVACHECK_EXTRA_ARGS=-Afilenames -C java --jobs="$(getconf _NPROCESSORS_ONLN)" typecheck-part3
 else
-  time make -C java --jobs="$(getconf _NPROCESSORS_ONLN)" typecheck
+  time make -C java --jobs="$(getconf _NPROCESSORS_ONLN)" typecheck-part3
 fi
