@@ -218,16 +218,16 @@ public class PropagationTypeAnnotator extends TypeAnnotator {
      */
     private @Nullable Element getTypeParameterElement(
             @FindDistinct AnnotatedTypeMirror typeArg, AnnotatedDeclaredType declaredType) {
+        // For raw types, return null instead of throwing an exception
+        if (declaredType.isUnderlyingTypeRaw()) {
+            return null;
+        }
         for (int i = 0; i < declaredType.getTypeArguments().size(); i++) {
             if (declaredType.getTypeArguments().get(i) == typeArg) {
                 TypeElement typeElement =
                         TypesUtils.getTypeElement(declaredType.getUnderlyingType());
                 return typeElement.getTypeParameters().get(i);
             }
-        }
-        // For raw types, return null instead of throwing an exception
-        if (declaredType.isUnderlyingTypeRaw()) {
-            return null;
         }
         throw new BugInCF("Wildcard %s is not a type argument of %s", typeArg, declaredType);
     }
