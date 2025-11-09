@@ -1,6 +1,7 @@
 package org.checkerframework.framework.type.typeannotator;
 
 import org.checkerframework.checker.interning.qual.FindDistinct;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
@@ -212,9 +213,10 @@ public class PropagationTypeAnnotator extends TypeAnnotator {
      *
      * @param typeArg a typeArg of {@code declaredType}
      * @param declaredType the type in which {@code typeArg} is a type argument
-     * @return the type parameter in {@code declaredType} that corresponds to {@code typeArg}
+     * @return the type parameter in {@code declaredType} that corresponds to {@code typeArg}, or
+     *     null if not found (which can happen with raw types)
      */
-    private Element getTypeParameterElement(
+    private @Nullable Element getTypeParameterElement(
             @FindDistinct AnnotatedTypeMirror typeArg, AnnotatedDeclaredType declaredType) {
         for (int i = 0; i < declaredType.getTypeArguments().size(); i++) {
             if (declaredType.getTypeArguments().get(i) == typeArg) {
@@ -222,6 +224,10 @@ public class PropagationTypeAnnotator extends TypeAnnotator {
                         TypesUtils.getTypeElement(declaredType.getUnderlyingType());
                 return typeElement.getTypeParameters().get(i);
             }
+        }
+        // For raw types, return null instead of throwing an exception
+        if (declaredType.isUnderlyingTypeRaw()) {
+            return null;
         }
         throw new BugInCF("Wildcard %s is not a type argument of %s", typeArg, declaredType);
     }
