@@ -83,9 +83,7 @@ public class TypecheckResult {
         errorHeaders.add(
             numFound
                 + " out of "
-                + StringsPlume.nplural(numExpected, "expected diagnostic")
-                + " "
-                + (numFound == 1 ? "was" : "were")
+                + StringsPlume.nvPlural(numExpected, "expected diagnostic", "was")
                 + " found.");
       }
     }
@@ -121,10 +119,7 @@ public class TypecheckResult {
     if (!missingDiagnostics.isEmpty()) {
       int numMissing = missingDiagnostics.size();
       summaryBuilder.add(
-          StringsPlume.nplural(numMissing, "expected diagnostic")
-              + " "
-              + (numMissing == 1 ? "was" : "were")
-              + " not found:");
+          StringsPlume.nvPlural(numMissing, "expected diagnostic", "was") + " not found:");
 
       for (TestDiagnostic missing : missingDiagnostics) {
         summaryBuilder.add("  " + missing.toString());

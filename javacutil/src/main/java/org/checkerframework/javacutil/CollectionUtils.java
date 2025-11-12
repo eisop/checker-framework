@@ -24,7 +24,7 @@ public class CollectionUtils {
    *
    * @param size size of the cache
    * @return a new cache with the provided size
-   * @deprecated use org.plumelib.util.CollectionsPlume.createLruCache
+   * @deprecated use org.plumelib.util.MapsP.createLruCache
    */
   @Deprecated // 2023-06-02
   public static <K, V> Map<K, V> createLRUCache(int size) {
@@ -200,7 +200,7 @@ public class CollectionUtils {
    * @param <M> the type of the map
    * @param orig a map
    * @return a copy of {@code orig}, as described above
-   * @deprecated use org.plumelib.util.CollectionsPlume.deepCopyValues
+   * @deprecated use org.plumelib.util.MapsP.deepCopyValues
    */
   @Deprecated // 2023-06-02
   @SuppressWarnings({"nullness", "signedness"}) // generics problem with clone

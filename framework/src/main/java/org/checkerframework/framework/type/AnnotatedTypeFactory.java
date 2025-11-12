@@ -139,6 +139,7 @@ import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
 import org.checkerframework.javacutil.trees.DetachedVarSymbol;
 import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.MapsP;
 import org.plumelib.util.StringsPlume;
 
 /**
@@ -766,12 +767,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
       this.fromExpressionTreeCache = new IdentityHashMap<>();
       this.fromMemberTreeCache = new IdentityHashMap<>();
       this.fromTypeTreeCache = new IdentityHashMap<>();
-      this.elementCache = CollectionsPlume.createLruCache(cacheSize);
-      this.elementTypeCache = CollectionsPlume.createLruCache(cacheSize);
+      this.elementCache = MapsP.createLruCache(cacheSize);
+      this.elementTypeCache = MapsP.createLruCache(cacheSize);
       this.elementToTreeCache = new IdentityHashMap<>();
       this.scannedEnclosingTrees = Collections.newSetFromMap(new IdentityHashMap<>());
-      this.methodAsMemberOfCache = CollectionsPlume.createLruCache(cacheSize);
-      this.directSupertypesCache = CollectionsPlume.createLruCache(cacheSize);
+      this.methodAsMemberOfCache = MapsP.createLruCache(cacheSize);
+      this.directSupertypesCache = MapsP.createLruCache(cacheSize);
       this.annotationClassNames = new IdentityHashMap<>();
     } else {
       this.classAndMethodTreeCache = null;

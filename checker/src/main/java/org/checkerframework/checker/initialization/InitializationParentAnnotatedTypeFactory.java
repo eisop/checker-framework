@@ -71,7 +71,7 @@ import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
-import org.plumelib.util.CollectionsPlume;
+import org.plumelib.util.MapsP;
 
 /**
  * Superclass for {@link InitializationFieldAccessAnnotatedTypeFactory} and {@link
@@ -123,7 +123,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
    */
   @SuppressWarnings("this-escape")
   private final Map<TypeMirror, AnnotationMirror> underInitializationAnnotationCache =
-      CollectionsPlume.createLruCache(getCacheSize());
+      MapsP.createLruCache(getCacheSize());
 
   /**
    * Cache for {@link #areAllFieldsInitializedOnly(ClassTree)}, whose result depends only on the
