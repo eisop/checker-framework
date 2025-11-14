@@ -1777,9 +1777,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
       return DEFAULT_CACHE_SIZE;
     }
     try {
-      return Integer.valueOf(option);
+      int parsed = Integer.parseInt(option);
+      if (parsed <= 0) {
+        throw new UserError("atfCacheSize must be a positive integer: " + option);
+      }
+      return parsed;
     } catch (NumberFormatException ex) {
-      throw new UserError("atfCacheSize was not an integer: " + option);
+      throw new UserError("atfCacheSize must be a positive integer: " + option);
     }
   }
 
