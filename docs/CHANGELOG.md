@@ -354,6 +354,8 @@ typetools#8055.
 
 **User-visible changes:**
 
+Added `Opt.ifPresentOrElse()` method.
+
 **Implementation details:**
 
 **Closed issues:**
