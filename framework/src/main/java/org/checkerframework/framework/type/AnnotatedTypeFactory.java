@@ -565,7 +565,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * <p>A subclass must call postInit at the end of its constructor. postInit must be the last
      * call in the constructor or else types from stub files may not be created as expected.
      *
-     * @param checker the {@link SourceChecker} to which this factory belongs
+     * @param checker the checker to which this factory belongs
      */
     @SuppressWarnings("this-escape")
     public AnnotatedTypeFactory(BaseTypeChecker checker) {
