@@ -857,18 +857,10 @@ public class AnnotationFileElementTypes {
         }
     }
 
-    /**
-     * Returns a JarURLConnection to "/jdk*".
-     *
-     * @return a JarURLConnection to "/jdk*"
-     */
-    private JarURLConnection getJarURLConnectionToJdk() {
-        URL resourceURL = null;
-
-        // First, try to use the external annotated-jdk.jar file if specified
-        String externalJdkPath = System.getProperty("checker.annotated.jdk.jar");
+    private final URL getAnnotatedJDKResourceURL(String resourcePath) {
         try {
-            File externalJdkFile = new File(externalJdkPath);
+            URL resourceURL = null;
+            File externalJdkFile = new File(resourcePath);
             if (externalJdkFile.exists()) {
                 resourceURL =
                         new URL(
@@ -876,16 +868,37 @@ public class AnnotationFileElementTypes {
                                         + externalJdkFile.getAbsolutePath()
                                         + "!/annotated-jdk");
             }
+            return resourceURL;
         } catch (Exception e) {
             if (stubDebug) {
                 System.out.printf(
                         "Failed to load external annotated JDK from %s: %s%n",
-                        externalJdkPath, e.getMessage());
+                        resourcePath, e.getMessage());
             }
+            return null;
         }
+    }
 
+    /**
+     * Returns a JarURLConnection to "/jdk*".
+     *
+     * @return a JarURLConnection to "/jdk*"
+     */
+    private JarURLConnection getJarURLConnectionToJdk() {
+        // First, try to use the external annotated-jdk.jar file if specified
+        String pathFromProperty = System.getProperty("checker.annotated.jdk.jar");
+        URL resourceURL = getAnnotatedJDKResourceURL(pathFromProperty);
         if (resourceURL == null) {
-            resourceURL = atypeFactory.getClass().getResource("/annotated-jdk");
+            // Get the location of checker.jar
+            URL location =
+                    atypeFactory.getClass().getProtectionDomain().getCodeSource().getLocation();
+            try {
+                Path checkerDir = Paths.get(location.toURI()).getParent();
+                String annotatedJarPath = checkerDir.resolve("annotated-jdk.jar").toString();
+                resourceURL = getAnnotatedJDKResourceURL(annotatedJarPath);
+            } catch (URISyntaxException e) {
+                throw new BugInCF("Cannot parse URL: " + location.toString(), e);
+            }
         }
 
         JarURLConnection connection;

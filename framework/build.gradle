@@ -119,6 +119,22 @@ task copyAndMinimizeAnnotatedJdkFiles(type: JavaExec, dependsOn: cloneAnnotatedJ
     args outputDir
 
     doFirst {
+        if (project.hasProperty('annotatedJdkBranch')) {
+            def repoDir = file(annotatedJdkHome)
+            exec {
+                workingDir repoDir
+                commandLine 'git', 'fetch', '--all', '--tags'
+            }
+            exec {
+                workingDir repoDir
+                commandLine 'git', 'checkout', project.property('annotatedJdkBranch')
+            }
+            exec {
+                workingDir repoDir
+                commandLine 'git', 'pull', '--ff-only'
+            }
+        }
+
         FileTree tree = fileTree(dir: inputDir)
         NavigableSet<String> annotatedForFiles = new TreeSet<>();
         // Populate `annotatedForFiles`.
@@ -147,6 +163,15 @@ task copyAndMinimizeAnnotatedJdkFiles(type: JavaExec, dependsOn: cloneAnnotatedJ
 
 sourcesJar.dependsOn(copyAndMinimizeAnnotatedJdkFiles)
 processResources.dependsOn(copyAndMinimizeAnnotatedJdkFiles)
+
+task annotatedJdkJar(type: Jar, dependsOn: copyAndMinimizeAnnotatedJdkFiles, group: 'Build') {
+    description = 'Packages the generated annotated JDK stubs into annotated-jdk.jar at the repository root'
+    destinationDirectory = rootProject.layout.projectDirectory.dir("checker/dist");
+    archiveFileName = 'annotated-jdk.jar'
+    from("${buildDir}/generated/resources/annotated-jdk") {
+        into 'annotated-jdk'
+    }
+}
 
 task allSourcesJar(type: Jar, group: 'Build') {
     description = 'Creates a sources jar that includes sources for all Checker Framework classes in framework.jar'
