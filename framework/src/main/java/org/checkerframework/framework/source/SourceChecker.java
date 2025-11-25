@@ -1468,24 +1468,23 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /**
      * Reports an error. By default, prints it to the screen via the compiler's internal messager.
      *
-     * @param source the source position information; may be an Element, a Tree, or null
+     * @param source the source position information; may be an Element or a Tree
      * @param messageKey the message key
      * @param args arguments for interpolation in the string corresponding to the given message key
      */
-    public void reportError(
-            @Nullable Object source, @CompilerMessageKey String messageKey, Object... args) {
+    public void reportError(Object source, @CompilerMessageKey String messageKey, Object... args) {
         report(source, Diagnostic.Kind.ERROR, messageKey, args);
     }
 
     /**
      * Reports a warning. By default, prints it to the screen via the compiler's internal messager.
      *
-     * @param source the source position information; may be an Element, a Tree, or null
+     * @param source the source position information; may be an Element or a Tree
      * @param messageKey the message key
      * @param args arguments for interpolation in the string corresponding to the given message key
      */
     public void reportWarning(
-            @Nullable Object source, @CompilerMessageKey String messageKey, Object... args) {
+            Object source, @CompilerMessageKey String messageKey, Object... args) {
         report(source, Diagnostic.Kind.MANDATORY_WARNING, messageKey, args);
     }
 
@@ -1496,10 +1495,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * <p>It is rare to use this method. Most clients should use {@link #reportError} or {@link
      * #reportWarning}.
      *
-     * @param source the source position information; may be an Element, a Tree, or null
+     * @param source the source position information; may be an Element or a Tree
      * @param d the diagnostic message
      */
-    public void report(@Nullable Object source, DiagMessage d) {
+    public void report(Object source, DiagMessage d) {
         report(source, d.getKind(), d.getMessageKey(), d.getArgs());
     }
 
