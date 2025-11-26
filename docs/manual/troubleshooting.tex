@@ -828,9 +828,7 @@ export CHECKERFRAMEWORK=$(pwd)/checker-framework
 You might want to add an \<export CHECKERFRAMEWORK=...> line to your
 \<.bashrc> file.
 
-Ensure line endings are handled properly. If necessary, run
-\code{git config --global core.autocrlf true} to prevent line ending issues between
-Windows and Unix-based systems.
+Line endings are managed automatically via the repository’s .gitattributes file. This ensures consistency between Windows and Unix-based systems. This achieves the same result as configuring core.autocrlf, but is tracked in version control and applies consistently to all contributors.
 
 \subsectionAndLabel{Build the Checker Framework}{building}
 
