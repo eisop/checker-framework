@@ -92,7 +92,10 @@ public abstract class InitializationChecker extends BaseTypeChecker {
     /**
      * Also handle {@code AnnotatedFor} annotations for this checker. See {@link
      * InitializationFieldAccessSubchecker#getUpstreamCheckerNames()} and the two implementations
-     * should be kept in sync.
+     * should be kept in sync. The name of this checker is also added in {@link
+     * #getSuppressWarningsPrefixes()}.
+     *
+     * @return the list of checkers that should be run before this checker
      */
     @Override
     public List<@FullyQualifiedName String> getUpstreamCheckerNames() {
@@ -103,6 +106,13 @@ public abstract class InitializationChecker extends BaseTypeChecker {
         return upstreamCheckerNames;
     }
 
+    /**
+     * Manually add the default prefix "initialization" to the set of prefixes that can be used to
+     * suppress warnings. The checker is also added in {@link #getUpstreamCheckerNames()} for
+     * AnnotatedFor annotations to be recognized by this checker.
+     *
+     * @return the set of prefixes that can be used to suppress warnings
+     */
     @Override
     public NavigableSet<String> getSuppressWarningsPrefixes() {
         NavigableSet<String> result = super.getSuppressWarningsPrefixes();
