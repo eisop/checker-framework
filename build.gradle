@@ -93,7 +93,7 @@ ext {
         junit           : '4.13.2',
         lombok          : '1.18.42',
         // plume-util includes a version of reflection-util. When updating ensure the versions are consistent.
-        plumeUtil       : '1.11.0',
+        plumeUtil       : '1.12.3',
         reflectionUtil  : '1.1.5',
     ]
 }
