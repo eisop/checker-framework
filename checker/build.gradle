@@ -93,7 +93,7 @@ dependencies {
 
     // Required for checker/tests/index-initializedfields/RequireJavadoc.java
     if (isJava8) {
-        testImplementation 'org.plumelib:options:1.0.6'
+        testImplementation 'org.plumelib:options:2.0.3'
     } else {
         testImplementation 'org.plumelib:options:2.0.3'
     }
