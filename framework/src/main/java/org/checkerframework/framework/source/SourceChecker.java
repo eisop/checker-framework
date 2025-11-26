@@ -33,6 +33,7 @@ import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.reflection.MethodValChecker;
 import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.UnannotatedFor;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.util.CheckerMain;
 import org.checkerframework.framework.util.OptionConfiguration;
@@ -502,6 +503,12 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /** The message key emitted when an unused warning suppression is found. */
     public static final @CompilerMessageKey String UNNEEDED_SUPPRESSION_KEY =
             "unneeded.suppression";
+
+    /**
+     * The message key emitted when AnnotatedFor and UnannotatedFor on the same element has same
+     * value.
+     */
+    public static final @CompilerMessageKey String ANNOTATEDFOR_CONFLICT = "annotatedfor.conflict";
 
     /** File name of the localized messages. */
     protected static final String MSGS_FILE = "messages.properties";
@@ -3026,17 +3033,23 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return false;
         }
 
-        AnnotatedFor anno = elt.getAnnotation(AnnotatedFor.class);
-
-        String[] userAnnotatedFors = (anno == null ? null : anno.value());
-
-        if (userAnnotatedFors != null) {
+        AnnotatedFor annotatedFor = elt.getAnnotation(AnnotatedFor.class);
+        UnannotatedFor unannotatedFor = elt.getAnnotation(UnannotatedFor.class);
+        String[] userAnnotatedFors = (annotatedFor == null ? null : annotatedFor.value());
+        String[] userUnannotatedFors = (unannotatedFor == null ? null : unannotatedFor.value());
+        if (userAnnotatedFors != null || userUnannotatedFors != null) {
             List<@FullyQualifiedName String> upstreamCheckerNames = getUpstreamCheckerNames();
 
             for (String userAnnotatedFor : userAnnotatedFors) {
                 if (CheckerMain.matchesCheckerOrSubcheckerFromList(
                         userAnnotatedFor, upstreamCheckerNames)) {
                     return true;
+                }
+            }
+            for (String userUnannotatedFor : userUnannotatedFors) {
+                if (CheckerMain.matchesCheckerOrSubcheckerFromList(
+                        userUnannotatedFor, upstreamCheckerNames)) {
+                    return false;
                 }
             }
         }
