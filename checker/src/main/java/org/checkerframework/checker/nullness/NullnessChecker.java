@@ -40,7 +40,7 @@ import org.checkerframework.framework.source.SupportedModes;
  * @checker_framework.manual #nullness-checker Nullness Checker
  */
 @SupportedModes(NullnessChecker.MODE_JSPECIFY)
-@StubFiles({"junit-assertions.astub", "log4j.astub"})
+@StubFiles({"java-lang-classfile.astub", "junit-assertions.astub", "log4j.astub"})
 public class NullnessChecker extends InitializationChecker {
 
   /**

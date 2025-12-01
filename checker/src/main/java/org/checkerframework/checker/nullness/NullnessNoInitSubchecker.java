@@ -62,7 +62,7 @@ import org.checkerframework.framework.source.SupportedOptions;
   "conservativeArgumentNullnessAfterInvocation"
 })
 @SupportedModes(NullnessChecker.MODE_JSPECIFY)
-@StubFiles({"junit-assertions.astub", "log4j.astub"})
+@StubFiles({"java-lang-classfile.astub", "junit-assertions.astub", "log4j.astub"})
 public class NullnessNoInitSubchecker extends BaseTypeChecker {
 
   /** Default constructor for NonNullChecker. */
