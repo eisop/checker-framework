@@ -117,4 +117,13 @@ public class CopyOfArray {
     List<?>[] copyExact1 = Arrays.copyOf(args, args.length, List[].class);
     @Nullable List<?>[] copyExact2 = Arrays.copyOf(args, args.length, List[].class);
   }
+
+  protected void makeCopyOfRange(Object[] args, int i) {
+    Object[] copyExact1 = Arrays.copyOfRange(args, 2, args.length);
+    @Nullable Object[] copyExact2 = Arrays.copyOfRange(args, 2, args.length);
+
+    // :: error: (assignment.type.incompatible)
+    Object[] copyInexact1 = Arrays.copyOfRange(args, 2, i);
+    @Nullable Object[] copyInexact2 = Arrays.copyOfRange(args, 2, i);
+  }
 }
