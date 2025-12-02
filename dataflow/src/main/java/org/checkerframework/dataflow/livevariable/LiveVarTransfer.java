@@ -12,6 +12,7 @@ import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.ObjectCreationNode;
 import org.checkerframework.dataflow.cfg.node.ReturnNode;
+import org.checkerframework.dataflow.cfg.node.ThisNode;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 
 import java.util.List;
@@ -64,6 +65,10 @@ public class LiveVarTransfer
         LiveVarStore store = transferResult.getRegularStore();
         for (Node arg : n.getArguments()) {
             store.addUseInExpression(arg);
+        }
+        Node receiver = n.getTarget().getReceiver();
+        if (receiver != null) {
+            store.addUseInExpression(receiver);
         }
         return transferResult;
     }
