@@ -350,6 +350,14 @@ typetools#3203,
 typetools#8055.
 
 
+## Version 3.52.2 (2026-01-03)
+
+**User-visible changes:**
+
+**Implementation details:**
+
+**Closed issues:**
+
 ## Version 3.52.1 (2025-12-02)
 
 **User-visible changes:**
