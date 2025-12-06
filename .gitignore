@@ -295,3 +295,5 @@ annotation-file-utilities/figures/*.eps
 annotation-file-utilities/figures/*.pdf
 annotation-file-utilities/figures/*.png
 annotation-file-utilities/*.png
+
+.plume-scripts/
