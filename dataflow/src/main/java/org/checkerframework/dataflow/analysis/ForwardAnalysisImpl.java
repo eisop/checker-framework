@@ -368,7 +368,7 @@ public class ForwardAnalysisImpl<
                     "Problem with initial store for "
                             + underlyingAST
                             + ", parameters="
-                            + parameters);
+                            + parameters, e);
         }
         thenStores.put(entry, initialStore);
         elseStores.put(entry, initialStore);
