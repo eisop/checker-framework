@@ -76,7 +76,6 @@ RUN mkdir /python-env \
 && python3 -m venv /python-env \
 && /python-env/bin/pip install --no-cache-dir lithium-reducer PyGithub pyyaml
 
-
 # Install the JDK.
 RUN export DEBIAN_FRONTEND=noninteractive \
 && apt -qqy update \
