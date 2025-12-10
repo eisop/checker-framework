@@ -16,11 +16,11 @@ public abstract class AbstractNodeVisitor<R, P> implements NodeVisitor<R, P> {
 
     public abstract R visitNode(Node n, P p);
 
+    // Literals
     public R visitValueLiteral(ValueLiteralNode n, P p) {
         return visitNode(n, p);
     }
 
-    // Literals
     @Override
     public R visitShortLiteral(ShortLiteralNode n, P p) {
         return visitValueLiteral(n, p);
@@ -67,19 +67,23 @@ public abstract class AbstractNodeVisitor<R, P> implements NodeVisitor<R, P> {
     }
 
     // Unary operations
+    public R visitUnaryOperation(UnaryOperationNode n, P p) {
+        return visitNode(n, p);
+    }
+
     @Override
     public R visitNumericalMinus(NumericalMinusNode n, P p) {
-        return visitNode(n, p);
+        return visitUnaryOperation(n, p);
     }
 
     @Override
     public R visitNumericalPlus(NumericalPlusNode n, P p) {
-        return visitNode(n, p);
+        return visitUnaryOperation(n, p);
     }
 
     @Override
     public R visitBitwiseComplement(BitwiseComplementNode n, P p) {
-        return visitNode(n, p);
+        return visitUnaryOperation(n, p);
     }
 
     @Override
@@ -88,121 +92,125 @@ public abstract class AbstractNodeVisitor<R, P> implements NodeVisitor<R, P> {
     }
 
     // Binary operations
+    public R visitBinaryOperation(BinaryOperationNode n, P p) {
+        return visitNode(n, p);
+    }
+
     @Override
     public R visitStringConcatenate(StringConcatenateNode n, P p) {
-        return visitNode(n, p);
+        return visitBinaryOperation(n, p);
     }
 
     @Override
     public R visitNumericalAddition(NumericalAdditionNode n, P p) {
-        return visitNode(n, p);
+        return visitBinaryOperation(n, p);
     }
 
     @Override
     public R visitNumericalSubtraction(NumericalSubtractionNode n, P p) {
-        return visitNode(n, p);
+        return visitBinaryOperation(n, p);
     }
 
     @Override
     public R visitNumericalMultiplication(NumericalMultiplicationNode n, P p) {
-        return visitNode(n, p);
+        return visitBinaryOperation(n, p);
     }
 
     @Override
     public R visitIntegerDivision(IntegerDivisionNode n, P p) {
-        return visitNode(n, p);
+        return visitBinaryOperation(n, p);
     }
 
     @Override
     public R visitFloatingDivision(FloatingDivisionNode n, P p) {
-        return visitNode(n, p);
+        return visitBinaryOperation(n, p);
     }
 
     @Override
     public R visitIntegerRemainder(IntegerRemainderNode n, P p) {
-        return visitNode(n, p);
+        return visitBinaryOperation(n, p);
     }
 
     @Override
     public R visitFloatingRemainder(FloatingRemainderNode n, P p) {
-        return visitNode(n, p);
+        return visitBinaryOperation(n, p);
     }
 
     @Override
     public R visitLeftShift(LeftShiftNode n, P p) {
-        return visitNode(n, p);
+        return visitBinaryOperation(n, p);
     }
 
     @Override
     public R visitSignedRightShift(SignedRightShiftNode n, P p) {
-        return visitNode(n, p);
+        return visitBinaryOperation(n, p);
     }
 
     @Override
     public R visitUnsignedRightShift(UnsignedRightShiftNode n, P p) {
-        return visitNode(n, p);
+        return visitBinaryOperation(n, p);
     }
 
     @Override
     public R visitBitwiseAnd(BitwiseAndNode n, P p) {
-        return visitNode(n, p);
+        return visitBinaryOperation(n, p);
     }
 
     @Override
     public R visitBitwiseOr(BitwiseOrNode n, P p) {
-        return visitNode(n, p);
+        return visitBinaryOperation(n, p);
     }
 
     @Override
     public R visitBitwiseXor(BitwiseXorNode n, P p) {
-        return visitNode(n, p);
+        return visitBinaryOperation(n, p);
     }
 
     // Comparison operations
     @Override
     public R visitLessThan(LessThanNode n, P p) {
-        return visitNode(n, p);
+        return visitBinaryOperation(n, p);
     }
 
     @Override
     public R visitLessThanOrEqual(LessThanOrEqualNode n, P p) {
-        return visitNode(n, p);
+        return visitBinaryOperation(n, p);
     }
 
     @Override
     public R visitGreaterThan(GreaterThanNode n, P p) {
-        return visitNode(n, p);
+        return visitBinaryOperation(n, p);
     }
 
     @Override
     public R visitGreaterThanOrEqual(GreaterThanOrEqualNode n, P p) {
-        return visitNode(n, p);
+        return visitBinaryOperation(n, p);
     }
 
     @Override
     public R visitEqualTo(EqualToNode n, P p) {
-        return visitNode(n, p);
+        return visitBinaryOperation(n, p);
     }
 
     @Override
     public R visitNotEqual(NotEqualNode n, P p) {
-        return visitNode(n, p);
+        return visitBinaryOperation(n, p);
     }
 
     // Conditional operations
     @Override
     public R visitConditionalAnd(ConditionalAndNode n, P p) {
-        return visitNode(n, p);
+        return visitBinaryOperation(n, p);
     }
 
     @Override
     public R visitConditionalOr(ConditionalOrNode n, P p) {
-        return visitNode(n, p);
+        return visitBinaryOperation(n, p);
     }
 
     @Override
     public R visitConditionalNot(ConditionalNotNode n, P p) {
-        return visitNode(n, p);
+        return visitUnaryOperation(n, p);
     }
 
     @Override
