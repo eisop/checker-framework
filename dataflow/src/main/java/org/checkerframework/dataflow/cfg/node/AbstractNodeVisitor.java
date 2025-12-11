@@ -3,8 +3,26 @@ package org.checkerframework.dataflow.cfg.node;
 /**
  * A default implementation of the node visitor interface. The class introduces several 'summary'
  * methods, that can be overridden to change the behavior of several related visit methods at once.
- * An example is the {@link #visitValueLiteral} method, which is called for every {@link
- * ValueLiteralNode}.
+ *
+ * <p>The summary methods and the nodes they handle are:
+ *
+ * <ul>
+ *   <li>{@link #visitNode} - All {@code visit*} methods eventually call this method by default.
+ *       <ul>
+ *         <li>{@link #visitValueLiteral} - {@link ValueLiteralNode}s
+ *         <li>{@link #visitUnaryOperation} - {@link UnaryOperationNode}s
+ *         <li>{@link #visitBinaryOperation} - {@link BinaryOperationNode}s
+ *             <ul>
+ *               <li>{@link #visitBinaryNumericalOperation} - numerical operations (arithmetic,
+ *                   bitwise, shifts)
+ *               <li>{@link #visitBinaryComparisonOperation} - comparison operations ({@code <},
+ *                   {@code <=} {@code >}, {@code >=}, {@code ==}, {@code !=})
+ *               <li>{@link #visitBinaryConditionalOperation} - conditional operations ({@code &&},
+ *                   {@code ||})
+ *             </ul>
+ *         <li>{@link #visitThis} - {@code this} references (implicit and explicit)
+ *       </ul>
+ * </ul>
  *
  * <p>This is useful to implement a visitor that performs the same operation (e.g., nothing) for
  * most {@link Node}s and only has special behavior for a few.
