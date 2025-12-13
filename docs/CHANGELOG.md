@@ -406,8 +406,6 @@ takes `method` before `clas`, and an analysis to perform, or null.)
 **Closed issues:**
 
 #7229, #7241, #7248, #7258.
-
-
 ## Version 3.50.0 (August 28, 2025)
 
 **User-visible changes:**
@@ -426,8 +424,6 @@ Java expressions in annotations, such as in contracts and dependent types, are n
 javac's parser instead of JavaParser.
 (EISOP note: when running the Checker Framework without `checker/bin/javac`, export the package
 `jdk.compiler/com.sun.tools.javac.parser` to it.)
-
-
 ## Version 3.49.5-eisop1 (April 26, 2026)
 
 **User-visible changes:**
@@ -538,8 +534,6 @@ The Checker Framework runs under JDK 25 -- that is, it runs on a version 25 JVM.
 **Closed issues:**
 
 #7093.
-
-
 ## Version 3.49.4 (June 2, 2025)
 
 **Closed issues:**
@@ -572,8 +566,6 @@ The Checker Framework runs under JDK 24 -- that is, it runs on a version 24 JVM.
 **Closed issues:**
 
 #6520, #6671, #6750, #6762, #6887, #7001, #7019, #7024, #7029, #7053.
-
-
 ## Version 3.49.2 (April 1, 2025)
 
 **Closed issues:**
@@ -662,8 +654,6 @@ which might require adaptation in checkers.)
 **Closed issues:**
 
 #3568, #6725, #6753, #6769, #6770, #6780, #6785, #6795, #6804, #6811, #6825.
-
-
 ## Version 3.47.0 (September 3, 2024)
 
 **User-visible changes:**
@@ -683,8 +673,6 @@ Removed annotations:
 **Closed issues:**
 
 #6510, #6704, #6743, #6749, #6760, #6761.
-
-
 ## Version 3.46.0 (August 1, 2024)
 
 **User-visible changes:**
@@ -699,8 +687,6 @@ e.g. `AnnotatedTypeMirror.isVarargs()`.
 **Closed issues:**
 
 #4923, #6420, #6469, #6652, #6664.
-
-
 ## Version 3.45.0 (July 1, 2024)
 
 **Implementation details:**
@@ -791,8 +777,6 @@ Renamed `BaseTypeVisitor.checkForPolymorphicQualifiers()` to
 #6322, #6346, #6373, #6376, #6378, #6379, #6380, #6389, #6393, #6396, #6402,
 #6406, #6407, #6417, #6421, #6430, #6433, #6438, #6442, #6473, #6480, #6507,
 #6531, #6535.
-
-
 ## Version 3.42.0-eisop5 (December 20, 2024)
 
 **User-visible changes:**
@@ -934,8 +918,6 @@ in a future release.)
 **Closed issues:**
 
 #1497, #3345, #6037, #6204, #6276, #6282, #6290, #6296, #6319, #6327.
-
-
 ## Version 3.40.0-eisop2 (November 24, 2023)
 
 **Implementation details:**
@@ -1249,8 +1231,6 @@ However, you can still run the Checker Framework under JDK 8.
 **Closed issues:**
 
 #3785, #5436, #5708, #5717, #5720, #5721, #5727, #5732.
-
-
 ## Version 3.32.0-eisop1 (March 9, 2023)
 
 **User-visible changes:**
@@ -1348,8 +1328,6 @@ Renamed Gradle task `copyJarsToDist` to `assembleForJavac`.
 **Closed issues:**
 
 #5402, #5486, #5489, #5519, #5524, #5526.
-
-
 ## Version 3.29.0 (January 5, 2023)
 
 **User-visible changes:**
@@ -1368,8 +1346,6 @@ calls if null is sometimes but not always permitted.
 **Closed issues:**
 
 #5412, #5431, #5435, #5438, #5447, #5450, #5453, #5471, #5472, #5487.
-
-
 ## Version 3.28.0-eisop1 (December 7, 2022)
 
 **User-visible changes:**
@@ -4557,7 +4533,6 @@ Version 1.1.0b, 16 Jun 2010
 ---------------------------
 
 Fixed a bug related to running binary release in JDK 6
-
 ## Version 1.1.0 (13 Jun 2010)
 
 Checkers
