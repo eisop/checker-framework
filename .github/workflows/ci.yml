@@ -40,7 +40,7 @@ jobs:
       uses: gradle/actions/setup-gradle@v5.0.0
 
     - name: Setup Bazel
-      uses: bazel-contrib/setup-bazel@0.15.0
+      uses: bazel-contrib/setup-bazel@0.16.0
       if: ${{ matrix.script == 'cftests-nonjunit' }}
       with:
         # Avoid downloading Bazel every time.
@@ -222,7 +222,7 @@ jobs:
           texlive-font-utils texlive-fonts-recommended texlive-latex-recommended
         pip install black flake8 html5validator
     - name: Setup Bazel
-      uses: bazel-contrib/setup-bazel@0.15.0
+      uses: bazel-contrib/setup-bazel@0.16.0
       if: ${{ matrix.script == 'cftests-nonjunit' }}
       with:
         # Avoid downloading Bazel every time.
