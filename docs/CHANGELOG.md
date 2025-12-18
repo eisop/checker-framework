@@ -38,6 +38,8 @@ The Nullness Checker now recognizes references to private, final fields with zer
 
 **Implementation details:**
 
+The `AbstractNodeVisitor` now has more summary methods, following the class hierarchy of `Node`.
+
 **Closed issues:**
 
 eisop#1247, eisop#1263, eisop#1310, typetools#7096.
