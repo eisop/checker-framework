@@ -11,7 +11,8 @@ package org.checkerframework.dataflow.cfg.node;
  *       <ul>
  *         <li>{@link #visitValueLiteral} - {@link ValueLiteralNode}s
  *         <li>{@link #visitUnaryOperation} - {@link UnaryOperationNode}s
- *         <li>{@link #visitBinaryOperation} - {@link BinaryOperationNode}s
+ *         <li>{@link #visitBinaryOperation} - {@link BinaryOperationNode}s. The specialized visit
+ *             methods for binary operation nodes delegate to this method by default:
  *             <ul>
  *               <li>{@link #visitBinaryNumericalOperation} - numerical operations (arithmetic,
  *                   bitwise, shifts)
