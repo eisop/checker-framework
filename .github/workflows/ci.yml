@@ -27,7 +27,7 @@ jobs:
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: Set up JDK ${{ matrix.java_version }}
       uses: actions/setup-java@v5
       with:
@@ -40,7 +40,7 @@ jobs:
       uses: gradle/actions/setup-gradle@v5.0.0
 
     - name: Setup Bazel
-      uses: bazel-contrib/setup-bazel@0.15.0
+      uses: bazel-contrib/setup-bazel@0.16.0
       if: ${{ matrix.script == 'cftests-nonjunit' }}
       with:
         # Avoid downloading Bazel every time.
@@ -75,11 +75,11 @@ jobs:
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       if: ${{ matrix.script != 'misc' }}
       with:
         fetch-depth: 1
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       if: ${{ matrix.script == 'misc' }}
       with:
         # CI diff needs more history - 0 fetches all history.
@@ -180,12 +180,12 @@ jobs:
     continue-on-error: ${{ matrix.java.experimental }}
     steps:
     - name: Check out sources
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
       if: ${{ matrix.script != 'misc' }}
       with:
         fetch-depth: 1
     - name: Check out sources with all history
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
       if: ${{ matrix.script == 'misc' }}
       with:
         # CI diff needs more history - 0 fetches all history.
@@ -222,7 +222,7 @@ jobs:
           texlive-font-utils texlive-fonts-recommended texlive-latex-recommended
         pip install black flake8 html5validator
     - name: Setup Bazel
-      uses: bazel-contrib/setup-bazel@0.15.0
+      uses: bazel-contrib/setup-bazel@0.16.0
       if: ${{ matrix.script == 'cftests-nonjunit' }}
       with:
         # Avoid downloading Bazel every time.
@@ -257,7 +257,7 @@ jobs:
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: Set up JDK ${{ matrix.java_version }}
       uses: actions/setup-java@v5
       with:
