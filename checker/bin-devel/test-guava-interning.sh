@@ -6,11 +6,10 @@ set -o xtrace
 export SHELLOPTS
 echo "SHELLOPTS=${SHELLOPTS}"
 
-SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-source "$SCRIPTDIR"/clone-related.sh
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+source "$SCRIPT_DIR"/clone-related.sh
 
-
-"$SCRIPTDIR/.git-scripts/git-clone-related" eisop guava
+"$SCRIPT_DIR/.git-scripts/git-clone-related" eisop guava
 cd ../guava
 
 ./typecheck.sh interning

@@ -160,6 +160,7 @@ public class TypeOutputtingChecker extends BaseTypeChecker {
      */
     public static class GeneralAnnotatedTypeFactory extends AnnotatedTypeFactory {
 
+        @SuppressWarnings("this-escape")
         public GeneralAnnotatedTypeFactory(BaseTypeChecker checker) {
             super(checker);
             postInit();

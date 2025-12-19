@@ -415,7 +415,7 @@ def main(argv):
         print_step("Step 5b: Close staged artifacts at Maven central.")
         continue_or_exit(
             "Maven artifacts have been staged!  Please 'close' (but don't release) the artifacts.\n"
-            + " * Browse to https://oss.sonatype.org/#stagingRepositories\n"
+            + " * Browse to https://central.sonatype.com/publishing/deployments\n"
             + " * Log in using your Sonatype credentials\n"
             + ' * In the search box at upper right, type "checker"\n'
             + " * In the top pane, click on iogithubeisop-XXXX\n"
@@ -516,14 +516,14 @@ def main(argv):
     if test_mode:
         msg = (
             "Test Mode: You are in test_mode.  Please 'DROP' the artifacts. "
-            + "To drop, log into https://oss.sonatype.org using your "
+            + "To drop, log into https://central.sonatype.com/publishing/deployments using your "
             + "Sonatype credentials and follow the 'DROP' instructions at: "
             + "http://central.sonatype.org/pages/releasing-the-deployment.html"
         )
     else:
         msg = (
             "Please 'release' the artifacts.\n"
-            + "First log into https://oss.sonatype.org using your Sonatype credentials. Go to Staging Repositories and "
+            + "First log into https://central.sonatype.com/publishing/deployments using your Sonatype credentials. Go to Staging Repositories and "
             + "locate the iogithubeisop-XXXX repository and click on it.\n"
             + "If you have a permissions problem, try logging out and back in.\n"
             + "Finally, click on the Release button at the top of the page. In the dialog box that pops up, "

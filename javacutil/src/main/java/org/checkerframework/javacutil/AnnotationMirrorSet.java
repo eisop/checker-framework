@@ -55,6 +55,7 @@ public class AnnotationMirrorSet
      *
      * @param value the AnnotationMirror to put in the set
      */
+    @SuppressWarnings("this-escape") // `add()` is safe to call
     public AnnotationMirrorSet(AnnotationMirror value) {
         this.add(value);
     }
@@ -64,6 +65,7 @@ public class AnnotationMirrorSet
      *
      * @param annos the AnnotationMirrors to put in the set
      */
+    @SuppressWarnings("this-escape") // `addAll()` is safe to call
     public AnnotationMirrorSet(Collection<? extends AnnotationMirror> annos) {
         this.addAll(annos);
     }

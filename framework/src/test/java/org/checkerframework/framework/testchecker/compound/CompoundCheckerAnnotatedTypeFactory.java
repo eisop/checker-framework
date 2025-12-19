@@ -20,6 +20,7 @@ import java.util.Set;
 
 public class CompoundCheckerAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
+    @SuppressWarnings("this-escape")
     public CompoundCheckerAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         this.postInit();
