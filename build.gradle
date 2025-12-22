@@ -17,7 +17,7 @@ plugins {
     // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
     // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
     // Only works on JDK 11+ (even including the plugin crashes Gradle on JDK 8).
-    id 'com.diffplug.spotless' version '7.2.1'
+    id 'com.diffplug.spotless' version '8.1.0'
 }
 
 // There is another `repositories { ... }` block below; if you change this one, change that one as well.
@@ -80,7 +80,7 @@ ext {
     localRepo = '.git'
 
     versions = [
-        autoValue       : '1.11.0',
+        autoValue       : '1.11.1',
         // https://mvnrepository.com/artifact/com.google.errorprone/error_prone_core
         // If you update this:
         //  * Temporarily comment out "-Werror" elsewhere in this file
@@ -91,7 +91,7 @@ ext {
         googleJavaFormat : '1.25.2',
         hashmapUtil     : '0.0.1',
         junit           : '4.13.2',
-        lombok          : '1.18.40',
+        lombok          : '1.18.42',
         // plume-util includes a version of reflection-util. When updating ensure the versions are consistent.
         plumeUtil       : '1.11.0',
         reflectionUtil  : '1.1.5',
@@ -331,19 +331,10 @@ allprojects { currentProj ->
                 googleJavaFormat(versions.googleJavaFormat) // the formatter to apply to Java files
             }
             formatAnnotations().addTypeAnnotation("PolyInitialized").addTypeAnnotation("PolyVP").addTypeAnnotation("ReceiverDependentQual")
-        }
 
-        java {
-            if (currentProj != currentProj.rootProject) {
-                // not the root project; format all .java files in the sub-project src folders
-                target 'src/**/*.java'
-            }
-            targetExclude doNotFormat
-
-            // This really just removes the wildcard imports - they are not expanded.
-            // That is fine for src files, which should then be manually fixed.
             // There are currently many tests with wildcard imports, so do not enable this for tests.
-            removeWildcardImports()
+            // TODO: Spotless has no easy way to only enable this for a subset of the target.
+            // forbidWildcardImports()
         }
 
         // Only define a groovyGradle task on the root project, for simplicity in setting the target pattern

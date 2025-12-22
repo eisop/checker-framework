@@ -2,6 +2,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 
 import java.util.ArrayList;
 import java.util.List;
+
 // Related jtreg test: checker/jtreg/nullness/ToArrayHeuristic/ToArrayHeuristic.java
 public class ToArrayFromField {
 
