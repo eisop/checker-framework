@@ -2,10 +2,13 @@ apply plugin: 'maven-publish'
 apply plugin: 'signing'
 
 final isSnapshot = version.contains('SNAPSHOT')
-// https://github.com/johnrengelman/shadow/issues/586#issuecomment-708375599
-components.java.withVariantsFromConfiguration(configurations.shadowRuntimeElements) {
-    skip()
-}
+/* TODO: this work-around isn't working anymore. Is it still needed?
+ // https://github.com/johnrengelman/shadow/issues/586#issuecomment-708375599
+ components.java.withVariantsFromConfiguration(configurations.shadowRuntimeElements) {
+ skip()
+ }
+ */
+
 publishing {
     repositories {
         maven {
@@ -22,7 +25,6 @@ publishing {
 }
 
 signing {
-
     // Use external gpg cmd.  This makes it easy to use gpg-agent,
     // to avoid being prompted for a password once per artifact.
     useGpgCmd()
