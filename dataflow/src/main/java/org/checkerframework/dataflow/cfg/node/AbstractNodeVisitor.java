@@ -36,9 +36,9 @@ public abstract class AbstractNodeVisitor<R, P> implements NodeVisitor<R, P> {
     /**
      * Visits a node. All other visit methods delegate to this method by default.
      *
-     * @param n The node to visit.
-     * @param p The input for the visitor.
-     * @return The output produced by the visitor.
+     * @param n the node to visit
+     * @param p the input for the visitor
+     * @return the output produced by the visitor
      */
     public abstract R visitNode(Node n, P p);
 
@@ -47,8 +47,9 @@ public abstract class AbstractNodeVisitor<R, P> implements NodeVisitor<R, P> {
     /**
      * Visits a value literal.
      *
-     * @param p The input for the visitor.
-     * @return The output produced by the visitor.
+     * @param n the value literal node to visit
+     * @param p the input for the visitor
+     * @return the output produced by the visitor
      */
     public R visitValueLiteral(ValueLiteralNode n, P p) {
         return visitNode(n, p);
@@ -104,9 +105,9 @@ public abstract class AbstractNodeVisitor<R, P> implements NodeVisitor<R, P> {
     /**
      * Visits any unary operation.
      *
-     * @param n The unary operation node to visit.
-     * @param p The input for the visitor.
-     * @return The output produced by the visitor.
+     * @param n the unary operation node to visit
+     * @param p the input for the visitor
+     * @return the output produced by the visitor
      */
     public R visitUnaryOperation(UnaryOperationNode n, P p) {
         return visitNode(n, p);
@@ -137,9 +138,9 @@ public abstract class AbstractNodeVisitor<R, P> implements NodeVisitor<R, P> {
     /**
      * Visits any binary operation.
      *
-     * @param n The binary operation node to visit.
-     * @param p The input for the visitor.
-     * @return The output produced by the visitor.
+     * @param n the binary operation node to visit
+     * @param p the input for the visitor
+     * @return the output produced by the visitor
      */
     public R visitBinaryOperation(BinaryOperationNode n, P p) {
         return visitNode(n, p);
@@ -154,9 +155,9 @@ public abstract class AbstractNodeVisitor<R, P> implements NodeVisitor<R, P> {
      * Visits a binary numerical operation node ({@code +}, {@code -}, {@code *}, {@code /}, {@code
      * %}, {@code <<}, {@code >>}, {@code >>>}, {@code &}, {@code |}, {@code ^}).
      *
-     * @param n The binary numerical operation node to visit.
-     * @param p The input for the visitor.
-     * @return The output produced by the visitor.
+     * @param n the binary numerical operation node to visit
+     * @param p the input for the visitor
+     * @return the output produced by the visitor
      */
     public R visitBinaryNumericalOperation(BinaryOperationNode n, P p) {
         return visitBinaryOperation(n, p);
@@ -233,9 +234,9 @@ public abstract class AbstractNodeVisitor<R, P> implements NodeVisitor<R, P> {
      * Visits a binary comparison operation ({@code <}, {@code <=} {@code >}, {@code >=}, {@code
      * ==}, {@code !=}).
      *
-     * @param n The binary comparison operation node to visit.
-     * @param p The input for the visitor.
-     * @return The output produced by the visitor.
+     * @param n the binary comparison operation node to visit
+     * @param p the input for the visitor
+     * @return the output produced by the visitor
      */
     public R visitBinaryComparisonOperation(BinaryOperationNode n, P p) {
         return visitBinaryOperation(n, p);
@@ -276,9 +277,9 @@ public abstract class AbstractNodeVisitor<R, P> implements NodeVisitor<R, P> {
     /**
      * Visits a binary conditional operation ({@code &&}, {@code ||}).
      *
-     * @param n The binary conditional operation node to visit.
-     * @param p The input for the visitor.
-     * @return The output produced by the visitor.
+     * @param n the binary conditional operation node to visit
+     * @param p the input for the visitor
+     * @return the output produced by the visitor
      */
     public R visitBinaryConditionalOperation(BinaryOperationNode n, P p) {
         return visitBinaryOperation(n, p);
@@ -342,9 +343,9 @@ public abstract class AbstractNodeVisitor<R, P> implements NodeVisitor<R, P> {
     /**
      * Visits a explicit or implicit {@code this} reference node.
      *
-     * @param n The {@code this} node to visit.
-     * @param p The input for the visitor.
-     * @return The output produced by the visitor.
+     * @param n the {@code this} node to visit
+     * @param p the input for the visitor
+     * @return the output produced by the visitor
      */
     public R visitThis(ThisNode n, P p) {
         return visitNode(n, p);
