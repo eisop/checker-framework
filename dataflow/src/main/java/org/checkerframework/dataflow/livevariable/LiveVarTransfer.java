@@ -65,6 +65,10 @@ public class LiveVarTransfer
         for (Node arg : n.getArguments()) {
             store.addUseInExpression(arg);
         }
+        Node receiver = n.getTarget().getReceiver();
+        if (receiver != null) {
+            store.addUseInExpression(receiver);
+        }
         return transferResult;
     }
 
