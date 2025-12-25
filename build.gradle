@@ -960,6 +960,8 @@ tasks.register("allJavadoc", Javadoc) {
     // disable interpreting module-info.java files until all sub-modules support them
     modularity.inferModulePath = false
 
+    options.noTimestamp = true
+
     finalizedBy("addFavicon")
 }
 
