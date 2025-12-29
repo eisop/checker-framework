@@ -287,7 +287,22 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                     ClassTree classTree = TreePathUtil.enclosingClass(getPath(tree));
                     clType = (Type) TreeUtils.typeOf(classTree);
                 }
-                String className = getClassNameFromType(clType);
+                String className;
+                if (clType.tsym.isAnonymous()) {
+                    // An anonymous class either directly extends a class or directly implements an
+                    // interface.
+                    // A supertype_field will always be present, but not very useful if an interface
+                    // is implemented.
+                    // Let's check for an interface first, otherwise use the super class.
+                    Type.ClassType asClassType = (Type.ClassType) clType;
+                    if (asClassType.interfaces_field.nonEmpty()) {
+                        className = getClassNameFromType(asClassType.interfaces_field.getFirst());
+                    } else {
+                        className = getClassNameFromType(asClassType.supertype_field);
+                    }
+                } else {
+                    className = getClassNameFromType(clType);
+                }
                 AnnotationMirror newQual = createClassBound(Arrays.asList(className));
                 type.replaceAnnotation(newQual);
             }
