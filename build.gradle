@@ -86,7 +86,7 @@ ext {
         //  * Temporarily comment out "-Werror" elsewhere in this file
         //  * Repeatedly run `./gradlew clean compileJava` and fix all errors
         //  * Uncomment "-Werror"
-        errorprone      : '2.40.0',
+        errorprone      : '2.41.0',
         // NOTE: Google Java Format requires JDK 17 or higher as of version 1.25.0.
         googleJavaFormat : '1.25.2',
         hashmapUtil     : '0.0.1',
@@ -597,7 +597,12 @@ allprojects { currentProj ->
                     // the errors get fixed.  On the downside, Error Prone (or maybe the compiler?)
                     // stops as soon as it issues one warning, rather than outputting them all.
                     // https://github.com/google/error-prone/issues/436
-                    '-Werror',
+                    // -Werror is already in 'compilerArgs' above. Disable it there.
+                    // '-Werror',
+                    // To automatically patch Error Prone issues, list the EP checkers below and
+                    // remove '-Werror' in the 'compilerArgs' above.
+                    // '-XepPatchChecks:EffectivelyPrivate',
+                    // '-XepPatchLocation:IN_PLACE',
                 ]
 
                 if (compilationTask.name.equals('compileTestJava')) {

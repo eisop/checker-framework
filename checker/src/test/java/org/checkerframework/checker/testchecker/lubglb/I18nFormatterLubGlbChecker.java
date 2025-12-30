@@ -54,7 +54,7 @@ public class I18nFormatterLubGlbChecker extends I18nFormatterChecker {
          *
          * @param checker checker
          */
-        public I18nFormatterLubGlbAnnotatedTypeFactory(BaseTypeChecker checker) {
+        I18nFormatterLubGlbAnnotatedTypeFactory(BaseTypeChecker checker) {
             super(checker);
             postInit();
         }
