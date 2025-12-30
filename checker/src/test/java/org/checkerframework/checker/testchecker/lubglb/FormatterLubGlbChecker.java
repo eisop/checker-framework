@@ -52,7 +52,7 @@ public class FormatterLubGlbChecker extends FormatterChecker {
          *
          * @param checker checker
          */
-        public FormatterLubGlbAnnotatedTypeFactory(BaseTypeChecker checker) {
+        FormatterLubGlbAnnotatedTypeFactory(BaseTypeChecker checker) {
             super(checker);
             postInit();
         }

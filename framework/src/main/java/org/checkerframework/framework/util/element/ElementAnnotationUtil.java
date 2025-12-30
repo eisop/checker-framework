@@ -199,26 +199,26 @@ public class ElementAnnotationUtil {
      */
     private static final class WildcardBoundAnnos {
         /** The wildcard type. */
-        public final AnnotatedWildcardType wildcard;
+        final AnnotatedWildcardType wildcard;
 
         /** The upper bound annotations. */
-        public final AnnotationMirrorSet upperBoundAnnos;
+        final AnnotationMirrorSet upperBoundAnnos;
 
         /** The lower bound annotations. */
-        public final AnnotationMirrorSet lowerBoundAnnos;
+        final AnnotationMirrorSet lowerBoundAnnos;
 
         // indicates that this is an annotation in front of an unbounded wildcard
         // e.g.  < @A ? >
         // For each annotation in this set, if there is no annotation in upperBoundAnnos
         // that is in the same hierarchy then the annotation will be applied to both bounds
         // otherwise the annotation applies to the lower bound only
-        public final AnnotationMirrorSet possiblyBoth;
+        final AnnotationMirrorSet possiblyBoth;
 
         /** Whether or not wildcard has an explicit super bound. */
-        private final boolean isSuperBounded;
+        final boolean isSuperBounded;
 
         /** Whether or not wildcard has NO explicit bound whatsoever. */
-        private final boolean isUnbounded;
+        final boolean isUnbounded;
 
         /**
          * Creates a new WildcardBoundAnnos from the given wildcard type, with no upper- or

@@ -112,7 +112,7 @@ public class SearchIndexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          * @param qualifierClasses classes of annotations that are the qualifiers
          * @param elements element utils
          */
-        public SearchIndexQualifierHierarchy(
+        SearchIndexQualifierHierarchy(
                 Set<Class<? extends Annotation>> qualifierClasses, Elements elements) {
             super(qualifierClasses, elements, SearchIndexAnnotatedTypeFactory.this);
         }

@@ -368,7 +368,7 @@ public class DefaultForTypeAnnotator extends TypeAnnotator {
          * @return true if {@link #anno} should be used as the default for a variable named {@code
          *     name}
          */
-        public boolean matches(String name) {
+        boolean matches(String name) {
             return names.stream().anyMatch(p -> p.matcher(name).matches())
                     && namesExceptions.stream().noneMatch(p -> p.matcher(name).matches());
         }
