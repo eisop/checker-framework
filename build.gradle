@@ -205,8 +205,11 @@ allprojects { currentProj ->
     }
 
     dependencies {
-        // Always include Error Prone, but it will not always be enabled.
-        errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: versions.errorprone
+        if (useJdkVersionInt >= 21) {
+            // Only include Error Prone when its minimum version is met. It will not always be enabled.
+            errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: versions.errorprone
+        }
+
         // Always define javacJar, not just when `isJava8` is true, because we redistribute it in checker/build.gradle.
         javacJar group: 'com.google.errorprone', name: 'javac', version: "9+181-r4173-1"
 
@@ -568,7 +571,7 @@ allprojects { currentProj ->
                     && !project.name.startsWith('checker-qual')) {
                 // Error Prone must be available in the annotation processor path
                 options.annotationProcessorPath = configurations.errorProneAnnotationProcessor
-                // Enable Error Prone
+                // Enable Error Prone. Also note the minimum version for the dependency itself.
                 options.errorprone.enabled = (useJdkVersionInt >= 21) && (useJdkVersionInt <= 26)
                 options.errorprone.disableWarningsInGeneratedCode = true
                 options.errorprone.errorproneArgs = [
