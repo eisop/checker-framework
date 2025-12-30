@@ -221,10 +221,10 @@ public class FactoryTestChecker extends BaseTypeChecker {
      * buffer
      */
     private static class TreeSpec {
-        public final String treeString;
-        public final long lineNumber;
+        final String treeString;
+        final long lineNumber;
 
-        public TreeSpec(String treeString, long lineNumber) {
+        TreeSpec(String treeString, long lineNumber) {
             this.treeString = canonizeTreeString(treeString);
             this.lineNumber = lineNumber;
         }
@@ -256,7 +256,7 @@ public class FactoryTestChecker extends BaseTypeChecker {
     private class ToStringVisitor extends BaseTypeVisitor<GenericAnnotatedTypeFactory<?, ?, ?, ?>> {
         Map<TreeSpec, String> expected;
 
-        public ToStringVisitor(BaseTypeChecker checker) {
+        ToStringVisitor(BaseTypeChecker checker) {
             super(checker);
             this.expected = buildExpected(root);
         }
