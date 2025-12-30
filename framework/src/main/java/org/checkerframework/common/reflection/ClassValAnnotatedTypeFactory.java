@@ -269,7 +269,6 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
         @Override
         public Void visitMethodInvocation(MethodInvocationTree tree, AnnotatedTypeMirror type) {
-
             if (isForNameMethodInvocation(tree)) {
                 // Class.forName(name): @ClassVal("name")
                 ExpressionTree arg = tree.getArguments().get(0);
@@ -329,42 +328,46 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         // TODO: This looks like it returns a @BinaryName. Verify that fact and add a type
         // qualifier.
         /**
-         * Return String representation of class name. For anonymous classes this method returns the
-         * name of the implemented interface or the extended class.
+         * Return a binary name String representation of the given type. For anonymous classes this
+         * method returns the name of the implemented interface or the extended class.
+         *
+         * @param type the type to convert
+         * @return the binary name representation of the given type
          */
-        private String getClassNameFromType(Type classType) {
-            switch (classType.getKind()) {
+        private String getClassNameFromType(Type type) {
+            switch (type.getKind()) {
                 case ARRAY:
                     String array = "";
-                    while (classType.getKind() == TypeKind.ARRAY) {
-                        classType = ((ArrayType) classType).getComponentType();
+                    while (type.getKind() == TypeKind.ARRAY) {
+                        type = ((ArrayType) type).getComponentType();
                         array += "[]";
                     }
-                    return getClassNameFromType(classType) + array;
+                    return getClassNameFromType(type) + array;
                 case DECLARED:
-                    if (classType.tsym.isAnonymous()) {
+                    if (type.tsym.isAnonymous()) {
                         // An anonymous class either directly extends a class or directly implements
                         // an interface.
                         // A supertype_field will always be present, but it's just Object if an
                         // interface is implemented.
-                        // Let's check for an interface first, otherwise use the super class.
-                        Type.ClassType asClassType = (Type.ClassType) classType;
+                        // Check for an interface first, otherwise use the super class.
+                        Type.ClassType asClassType = (Type.ClassType) type;
                         if (asClassType.interfaces_field.nonEmpty()) {
+                            // There can only be one implemented interface, so this introduces no
+                            // ambiguity.
                             return getClassNameFromType(asClassType.interfaces_field.get(0));
                         } else {
                             return getClassNameFromType(asClassType.supertype_field);
                         }
                     }
                     StringBuilder className =
-                            new StringBuilder(
-                                    TypesUtils.getQualifiedName((DeclaredType) classType));
-                    if (classType.getEnclosingType() != null) {
-                        while (classType.getEnclosingType().getKind() != TypeKind.NONE) {
-                            classType = classType.getEnclosingType();
-                            int last = className.lastIndexOf(".");
-                            if (last > -1) {
-                                className.replace(last, last + 1, "$");
-                            }
+                            new StringBuilder(TypesUtils.getQualifiedName((DeclaredType) type));
+                    // Convert the separators for enclosing types from "." to "$".
+                    // TODO: should this variant be in TypesUtils?
+                    while (type.getEnclosingType().getKind() != TypeKind.NONE) {
+                        type = type.getEnclosingType();
+                        int last = className.lastIndexOf(".");
+                        if (last > -1) {
+                            className.replace(last, last + 1, "$");
                         }
                     }
                     return className.toString();
@@ -374,12 +377,12 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                 case NULL:
                     return "java.lang.Object";
                 case UNION:
-                    classType = ((UnionClassType) classType).getLub();
-                    return getClassNameFromType(classType);
+                    type = ((UnionClassType) type).getLub();
+                    return getClassNameFromType(type);
                 case TYPEVAR:
                 case WILDCARD:
-                    classType = classType.getUpperBound();
-                    return getClassNameFromType(classType);
+                    type = type.getUpperBound();
+                    return getClassNameFromType(type);
                 case INT:
                     return int.class.getCanonicalName();
                 case LONG:
@@ -400,8 +403,8 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                     return "void";
                 default:
                     throw new BugInCF(
-                            "ClassValAnnotatedTypeFactory.getClassname: did not expect "
-                                    + classType.getKind());
+                            "ClassValTreeAnnotator.getClassNameFromType: did not expect "
+                                    + type.getKind());
             }
         }
     }
