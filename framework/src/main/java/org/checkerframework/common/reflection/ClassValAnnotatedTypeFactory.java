@@ -287,22 +287,7 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                     ClassTree classTree = TreePathUtil.enclosingClass(getPath(tree));
                     clType = (Type) TreeUtils.typeOf(classTree);
                 }
-                String className;
-                if (clType.tsym.isAnonymous()) {
-                    // An anonymous class either directly extends a class or directly implements an
-                    // interface.
-                    // A supertype_field will always be present, but not very useful if an interface
-                    // is implemented.
-                    // Let's check for an interface first, otherwise use the super class.
-                    Type.ClassType asClassType = (Type.ClassType) clType;
-                    if (asClassType.interfaces_field.nonEmpty()) {
-                        className = getClassNameFromType(asClassType.interfaces_field.getFirst());
-                    } else {
-                        className = getClassNameFromType(asClassType.supertype_field);
-                    }
-                } else {
-                    className = getClassNameFromType(clType);
-                }
+                String className = getClassNameFromType(clType);
                 AnnotationMirror newQual = createClassBound(Arrays.asList(className));
                 type.replaceAnnotation(newQual);
             }
@@ -344,8 +329,8 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         // TODO: This looks like it returns a @BinaryName. Verify that fact and add a type
         // qualifier.
         /**
-         * Return String representation of class name. This will not return the correct name for
-         * anonymous classes.
+         * Return String representation of class name. For anonymous classes this method returns the
+         * name of the implemented interface or the extended class.
          */
         private String getClassNameFromType(Type classType) {
             switch (classType.getKind()) {
@@ -357,6 +342,19 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                     }
                     return getClassNameFromType(classType) + array;
                 case DECLARED:
+                    if (classType.tsym.isAnonymous()) {
+                        // An anonymous class either directly extends a class or directly implements
+                        // an interface.
+                        // A supertype_field will always be present, but it's just Object if an
+                        // interface is implemented.
+                        // Let's check for an interface first, otherwise use the super class.
+                        Type.ClassType asClassType = (Type.ClassType) classType;
+                        if (asClassType.interfaces_field.nonEmpty()) {
+                            return getClassNameFromType(asClassType.interfaces_field.get(0));
+                        } else {
+                            return getClassNameFromType(asClassType.supertype_field);
+                        }
+                    }
                     StringBuilder className =
                             new StringBuilder(
                                     TypesUtils.getQualifiedName((DeclaredType) classType));
