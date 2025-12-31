@@ -423,7 +423,7 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     private static class UnitsPropagationTreeAnnotator extends PropagationTreeAnnotator {
 
-        public UnitsPropagationTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        UnitsPropagationTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
 
