@@ -303,7 +303,7 @@ public class JavaExpressionParseUtil {
          * @throws JavaExpressionParseException if {@code expr} cannot be converted to a {@code
          *     JavaExpression}
          */
-        public static JavaExpression convert(
+        static JavaExpression convert(
                 Expression expr,
                 TypeMirror enclosingType,
                 @Nullable ThisReference thisReference,
@@ -546,8 +546,7 @@ public class JavaExpressionParseUtil {
          * @return the {@code ClassName} for {@code identifier}, or null if it is not a simple class
          *     name
          */
-        protected @Nullable ClassName getIdentifierAsInnerClassName(
-                TypeMirror type, String identifier) {
+        @Nullable ClassName getIdentifierAsInnerClassName(TypeMirror type, String identifier) {
             if (type.getKind() != TypeKind.DECLARED) {
                 return null;
             }
@@ -582,7 +581,7 @@ public class JavaExpressionParseUtil {
          * @param identifier possible class name
          * @return the {@code ClassName} for {@code identifier}, or null if it is not a class name
          */
-        protected @Nullable ClassName getIdentifierAsUnqualifiedClassName(String identifier) {
+        @Nullable ClassName getIdentifierAsUnqualifiedClassName(String identifier) {
             // Is identifier an inner class of enclosingType or of any enclosing class of
             // enclosingType?
             TypeMirror searchType = enclosingType;
@@ -651,7 +650,7 @@ public class JavaExpressionParseUtil {
          * @return a field access, or null if {@code identifier} is not a field that can be accessed
          *     via {@code receiverExpr}
          */
-        protected @Nullable FieldAccess getIdentifierAsFieldAccess(
+        @Nullable FieldAccess getIdentifierAsFieldAccess(
                 JavaExpression receiverExpr, String identifier) {
             setResolverField();
             // Find the field element.

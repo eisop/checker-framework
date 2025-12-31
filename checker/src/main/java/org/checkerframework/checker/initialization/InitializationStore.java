@@ -201,7 +201,7 @@ public class InitializationStore extends CFAbstractStore<CFValue, Initialization
                         "initialized fields", ToStringComparator.sorted(initializedFields));
 
         if (superVisualize.isEmpty()) {
-            return String.join(viz.getSeparator(), initializedVisualize);
+            return initializedVisualize;
         } else {
             return String.join(viz.getSeparator(), superVisualize, initializedVisualize);
         }
