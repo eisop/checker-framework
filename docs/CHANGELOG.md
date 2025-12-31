@@ -40,6 +40,8 @@ The `ClassBound` annotation can now be used with anonymous types.
 
 **Implementation details:**
 
+The `AbstractNodeVisitor` now has more summary methods, following the class hierarchy of `Node` and conceptual categories.
+
 **Closed issues:**
 
 eisop#1247, eisop#1263, eisop#1310, typetools#7096.
