@@ -33,6 +33,9 @@ package org.checkerframework.dataflow.cfg.node;
  */
 public abstract class AbstractNodeVisitor<R, P> implements NodeVisitor<R, P> {
 
+    /** Create a new AbstractNodeVisitor. */
+    public AbstractNodeVisitor() {}
+
     /**
      * Visits a node. All other visit methods delegate to this method by default.
      *
