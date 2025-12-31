@@ -1,3 +1,4 @@
+// @below-java10-jdk-skip-test
 import org.checkerframework.common.reflection.qual.ClassBound;
 import org.checkerframework.common.reflection.qual.ClassVal;
 
