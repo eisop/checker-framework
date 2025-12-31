@@ -178,7 +178,7 @@ public class I18nFormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory 
     }
 
     private class I18nFormatterTreeAnnotator extends TreeAnnotator {
-        public I18nFormatterTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        I18nFormatterTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
 
