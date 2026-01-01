@@ -118,13 +118,13 @@ public class InsertAjavaAnnotations {
     /** Represents some text to be inserted at a file and its location. */
     private static class Insertion {
         /** Offset of the insertion in the file, measured in characters from the beginning. */
-        public final int position;
+        final int position;
 
         /** The contents of the insertion. */
-        public final String contents;
+        final String contents;
 
         /** Whether the insertion should be on its own separate line. */
-        public final boolean ownLine;
+        final boolean ownLine;
 
         /**
          * Constructs an insertion with the given position and contents.
@@ -132,7 +132,7 @@ public class InsertAjavaAnnotations {
          * @param position offset of the insertion in the file
          * @param contents contents of the insertion
          */
-        public Insertion(int position, String contents) {
+        Insertion(int position, String contents) {
             this(position, contents, false);
         }
 
@@ -144,7 +144,7 @@ public class InsertAjavaAnnotations {
          * @param ownLine true if this insertion should appear on its own separate line (doesn't
          *     affect the contents of the insertion)
          */
-        public Insertion(int position, String contents, boolean ownLine) {
+        Insertion(int position, String contents, boolean ownLine) {
             this.position = position;
             this.contents = contents;
             this.ownLine = ownLine;
@@ -176,7 +176,7 @@ public class InsertAjavaAnnotations {
         private @MonotonicNonNull Map<String, TypeElement> allAnnotations = null;
 
         /** The annotation insertions seen so far. */
-        public final List<Insertion> insertions = new ArrayList<>();
+        final List<Insertion> insertions = new ArrayList<>();
 
         /** A printer for annotations. */
         private final DefaultPrettyPrinter printer = new DefaultPrettyPrinter();
@@ -203,7 +203,7 @@ public class InsertAjavaAnnotations {
          * @param destFileContents the String the second vistide AST was parsed from
          * @param lineSeparator the line separator that {@code destFileContents} uses
          */
-        public BuildInsertionsVisitor(String destFileContents, String lineSeparator) {
+        BuildInsertionsVisitor(String destFileContents, String lineSeparator) {
             allAnnotations = null;
             String[] lines = destFileContents.split(lineSeparator);
             this.lines = Arrays.asList(lines);

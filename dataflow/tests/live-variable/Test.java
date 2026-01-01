@@ -2,6 +2,8 @@
 public class Test {
     public int test() {
         int a = 1, b = 2, c = 3;
+        String s = "s";
+        s.substring(0);
         if (a > 0) {
             int d = a + c;
         } else {

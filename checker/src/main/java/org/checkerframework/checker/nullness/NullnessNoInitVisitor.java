@@ -981,7 +981,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
          * @param visitor visitor
          * @param atypeFactory factory
          */
-        public NullnessValidator(
+        NullnessValidator(
                 BaseTypeChecker checker,
                 BaseTypeVisitor<?> visitor,
                 AnnotatedTypeFactory atypeFactory) {

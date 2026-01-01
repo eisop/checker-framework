@@ -266,7 +266,7 @@ public class LowerBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
     }
 
     private class LowerBoundTreeAnnotator extends TreeAnnotator {
-        public LowerBoundTreeAnnotator(AnnotatedTypeFactory annotatedTypeFactory) {
+        LowerBoundTreeAnnotator(AnnotatedTypeFactory annotatedTypeFactory) {
             super(annotatedTypeFactory);
         }
 

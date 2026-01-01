@@ -175,7 +175,7 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
          * @return a shallow type created from {@code type}
          */
         @SuppressWarnings("nullness") // AnnotatedTypeMirror isn't annotated for nullness.
-        public static ShallowType create(AnnotatedTypeMirror type) {
+        static ShallowType create(AnnotatedTypeMirror type) {
             AnnotatedTypeMirror erasedType = type.getErased();
             TypeMirror typeMirror =
                     erasedType.getKind() == type.getKind()
