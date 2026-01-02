@@ -42,9 +42,16 @@ The `ClassBound` annotation can now be used with anonymous types.
 
 The `AbstractNodeVisitor` now has more summary methods, following the class hierarchy of `Node` and conceptual categories.
 
+Fixed nullness annotations and documentation of the following methods in `SourceChecker`:
+- `reportError`
+- `reportWarning`
+- `report`
+- `getSourceWithPrecisePosition`
+- `shouldSuppressWarnings`
+
 **Closed issues:**
 
-eisop#1247, eisop#1263, eisop#1310, typetools#7096.
+eisop#1247, eisop#1263, eisop#1310, typetools#7096, eisop#1448.
 
 
 Version 3.49.5 (June 30, 2025)
