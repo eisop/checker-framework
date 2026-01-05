@@ -390,7 +390,7 @@ but does not change the default qualifiers for source code (See Section~\ref{aon
 
 The \refqualclass{framework/qual}{AnnotatedFor} annotation, written on a
 class, indicates that the class has been annotated for certain type
-systems.  For example, \<@AnnotatedFor(\ttlcb"nullness", "regex"\ttrcb)> means that
+systems. This annotation will be retained in bytecode. For example, \<@AnnotatedFor(\ttlcb"nullness", "regex"\ttrcb)> means that
 the programmer has written annotations for the Nullness and Regular
 Expression type systems.  If one of those two type-checkers is run,
 the \<-AuseConservativeDefaultsForUncheckedCode=source,bytecode> command-line argument

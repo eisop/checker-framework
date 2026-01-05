@@ -38,13 +38,15 @@ The Nullness Checker now recognizes references to private, final fields with zer
 
 The `ClassBound` annotation can now be used with anonymous types.
 
+The `AnnotatedFor` annotation is now retained in bytecode.
+
 **Implementation details:**
 
 The `AbstractNodeVisitor` now has more summary methods, following the class hierarchy of `Node` and conceptual categories.
 
 **Closed issues:**
 
-eisop#1247, eisop#1263, eisop#1310, typetools#7096.
+eisop#1247, eisop#1263, eisop#1310, eisop#1481, typetools#7096.
 
 
 Version 3.49.5 (June 30, 2025)
