@@ -26,7 +26,7 @@ import java.lang.annotation.Target;
  * @checker_framework.manual #compiling-libraries Compiling partially-annotated libraries
  */
 @Documented
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.PACKAGE})
 public @interface AnnotatedFor {
     /**
