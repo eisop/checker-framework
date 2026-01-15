@@ -608,10 +608,10 @@ allprojects { currentProj ->
                     // '-XepPatchLocation:IN_PLACE',
                 ]
                 if (useJdkVersionInt == 21) {
-                    options.errorprone.errorproneArgs.addAll([
+                    options.compilerArgs += [
                         // Required on JDK 21 starting with Error Prone 2.46.0
                         '-XDaddTypeAnnotationsToSymbol=true'
-                    ])
+                    ]
                 }
 
                 if (compilationTask.name.equals('compileTestJava')) {
