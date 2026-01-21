@@ -125,7 +125,7 @@ jobs:
           'typecheck-part1', 'typecheck-part2',
           'guava', 'plume-lib',
           'daikon-part1', 'daikon-part2',
-          'misc']
+          'misc', 'typecheck-jdk']
         # JDK 21 used by `sanity` and `remainder` before.
         # `experimental` versions use the $version compiler, but run on JDK 21.
         java: [{version: '8', experimental: false},
@@ -170,12 +170,14 @@ jobs:
           # Exclude all versions here and just explicitly include with JDK 17.
           - script: 'daikon-part1'
           - script: 'daikon-part2'
+          - script : 'typecheck-jdk'
         include:
           - script: 'daikon-part1'
             java: {version: '17', experimental: false}
           - script: 'daikon-part2'
             java: {version: '17', experimental: false}
-
+          - script: 'typecheck-jdk'
+            java: {version: '17', experimental: false}
     env:
       JAVA_VERSION: ${{ matrix.java.version }}
       USE_BAZEL_VERSION: "8.5.1"
