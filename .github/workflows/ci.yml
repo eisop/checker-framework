@@ -49,8 +49,9 @@ jobs:
         disk-cache: ${{ github.workflow }}
         # Share repository cache between workflows.
         repository-cache: true
-      env:
-        USE_BAZEL_VERSION: "8.5.1"
+    - name: Inject bazel version into `.bazelversion`
+      if: ${{ matrix.script == 'cftests-nonjunit' }}
+      run: echo "8.5.1" >> ~/.bazelversion
 
     - name: Run test script checker/bin-devel/test-${{ matrix.script }}
       run: ./checker/bin-devel/test-${{ matrix.script }}.sh
@@ -233,8 +234,9 @@ jobs:
         disk-cache: ${{ github.workflow }}
         # Share repository cache between workflows.
         repository-cache: true
-      env:
-        USE_BAZEL_VERSION: "8.5.1"
+    - name: Inject bazel version into `.bazelversion`
+      if: ${{ matrix.script == 'cftests-nonjunit' }}
+      run: echo "8.5.1" >> ~/.bazelversion
 
     - name: Output version information to debug CI
       run: which java && ./gradlew --version
