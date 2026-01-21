@@ -19,7 +19,7 @@
       "enabled": false
     }
   ],
-      "regexManagers": [
+  "regexManagers": [
     {
       "description": "Update USE_BAZEL_VERSION in GitHub Actions",
       "fileMatch": ["^\\.github/workflows/.*\\.yml$"],
