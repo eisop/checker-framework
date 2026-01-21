@@ -26,6 +26,7 @@ jobs:
         java_version: [21]
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
+      USE_BAZEL_VERSION: "8.5.1"
     steps:
     - uses: actions/checkout@v6
     - name: Set up JDK ${{ matrix.java_version }}
@@ -40,7 +41,7 @@ jobs:
       uses: gradle/actions/setup-gradle@v5.0.0
 
     - name: Setup Bazel
-      uses: bazel-contrib/setup-bazel@0.16.0
+      uses: bazel-contrib/setup-bazel@0.18.0
       if: ${{ matrix.script == 'cftests-nonjunit' }}
       with:
         # Avoid downloading Bazel every time.
@@ -177,6 +178,7 @@ jobs:
 
     env:
       JAVA_VERSION: ${{ matrix.java.version }}
+      USE_BAZEL_VERSION: "8.5.1"
     continue-on-error: ${{ matrix.java.experimental }}
     steps:
     - name: Check out sources
@@ -222,7 +224,7 @@ jobs:
           texlive-font-utils texlive-fonts-recommended texlive-latex-recommended
         pip install black flake8 html5validator
     - name: Setup Bazel
-      uses: bazel-contrib/setup-bazel@0.16.0
+      uses: bazel-contrib/setup-bazel@0.18.0
       if: ${{ matrix.script == 'cftests-nonjunit' }}
       with:
         # Avoid downloading Bazel every time.
