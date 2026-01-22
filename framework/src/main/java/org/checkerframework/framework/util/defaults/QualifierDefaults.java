@@ -104,8 +104,11 @@ public class QualifierDefaults {
     /** Defaults for checked code. */
     private final DefaultSet checkedCodeDefaults = new DefaultSet();
 
-    /** Defaults for unchecked code. */
-    private final DefaultSet uncheckedCodeDefaults = new DefaultSet();
+    /** Optimistic defaults for unchecked code. */
+    private final DefaultSet optimisticUncheckedCodeDefaults = new DefaultSet();
+
+    /** Conservative defaults for unchecked code. */
+    private final DefaultSet conservativeUncheckedCodeDefaults = new DefaultSet();
 
     /** Size for caches. */
     private static final int CACHE_SIZE = 300;
@@ -150,21 +153,40 @@ public class QualifierDefaults {
                             TypeUseLocation.OTHERWISE,
                             TypeUseLocation.ALL));
 
-    /** Standard unchecked default locations that should be top. */
+    /** Optimistic unchecked default locations that should be top. */
+    public static final List<TypeUseLocation> OPTIMISTIC_UNCHECKED_DEFAULTS_TOP =
+            Collections.unmodifiableList(
+                    Arrays.asList(TypeUseLocation.PARAMETER, TypeUseLocation.UPPER_BOUND));
+
+    /** Optimistic unchecked default locations that should be bottom. */
+    public static final List<TypeUseLocation> OPTIMISTIC_UNCHECKED_DEFAULTS_BOTTOM =
+            Collections.unmodifiableList(
+                    Arrays.asList(
+                            TypeUseLocation.RETURN,
+                            TypeUseLocation.FIELD,
+                            TypeUseLocation.LOWER_BOUND));
+
+    /** Conservative unchecked default locations that should be top. */
     // Fields are defaulted to top so that warnings are issued at field reads, which we believe are
     // more common than field writes. Future work is to specify different defaults for field reads
     // and field writes.  (When a field is written to, its type should be bottom.)
-    public static final List<TypeUseLocation> STANDARD_UNCHECKED_DEFAULTS_TOP =
+    public static final List<TypeUseLocation> CONSERVATIVE_UNCHECKED_DEFAULTS_TOP =
             Collections.unmodifiableList(
                     Arrays.asList(
                             TypeUseLocation.RETURN,
                             TypeUseLocation.FIELD,
                             TypeUseLocation.UPPER_BOUND));
 
-    /** Standard unchecked default locations that should be bottom. */
-    public static final List<TypeUseLocation> STANDARD_UNCHECKED_DEFAULTS_BOTTOM =
+    /** Conservative unchecked default locations that should be bottom. */
+    public static final List<TypeUseLocation> CONSERVATIVE_UNCHECKED_DEFAULTS_BOTTOM =
             Collections.unmodifiableList(
                     Arrays.asList(TypeUseLocation.PARAMETER, TypeUseLocation.LOWER_BOUND));
+
+    /** True if optimistic defaults should be used in unannotated source code. */
+    private final boolean useOptimisticDefaultSource;
+
+    /** True if optimistic defaults should be used in unannotated bytecode. */
+    private final boolean useOptimisticDefaultBytecode;
 
     /** True if conservative defaults should be used in unannotated source code. */
     private final boolean useConservativeDefaultsSource;
@@ -188,10 +210,18 @@ public class QualifierDefaults {
     public QualifierDefaults(Elements elements, AnnotatedTypeFactory atypeFactory) {
         this.elements = elements;
         this.atypeFactory = atypeFactory;
-        this.useConservativeDefaultsBytecode =
-                atypeFactory.getChecker().useConservativeDefault("bytecode");
+        this.useOptimisticDefaultSource = atypeFactory.getChecker().useOptimisticDefault("source");
+        this.useOptimisticDefaultBytecode =
+                atypeFactory.getChecker().useOptimisticDefault("bytecode");
         this.useConservativeDefaultsSource =
                 atypeFactory.getChecker().useConservativeDefault("source");
+        this.useConservativeDefaultsBytecode =
+                atypeFactory.getChecker().useConservativeDefault("bytecode");
+        // Check if conservative default and optimistic default are applied at the same time
+        assert !(useOptimisticDefaultSource && useConservativeDefaultsSource)
+                : "source default are applied both optimistically and conservatively";
+        assert !(useOptimisticDefaultBytecode && useConservativeDefaultsBytecode)
+                : "source default are applied both optimistically and conservatively";
         ProcessingEnvironment processingEnv = atypeFactory.getProcessingEnv();
         this.defaultQualifierValueElement =
                 TreeUtils.getMethod(DefaultQualifier.class, "value", 0, processingEnv);
@@ -209,8 +239,12 @@ public class QualifierDefaults {
         return StringsPlume.joinLines(
                 "Checked code defaults: ",
                 StringsPlume.joinLines(checkedCodeDefaults),
-                "Unchecked code defaults: ",
-                StringsPlume.joinLines(uncheckedCodeDefaults),
+                "Optimistic unchecked code defaults: ",
+                StringsPlume.joinLines(optimisticUncheckedCodeDefaults),
+                "Conservative unchecked code defaults: ",
+                StringsPlume.joinLines(conservativeUncheckedCodeDefaults),
+                "useOptimisticDefaultSource: " + useOptimisticDefaultSource,
+                "useOptimisticDefaultBytecode: " + useOptimisticDefaultBytecode,
                 "useConservativeDefaultsSource: " + useConservativeDefaultsSource,
                 "useConservativeDefaultsBytecode: " + useConservativeDefaultsBytecode);
     }
@@ -229,26 +263,45 @@ public class QualifierDefaults {
         return false;
     }
 
-    /** Add standard unchecked defaults that do not conflict with previously added defaults. */
-    public void addUncheckedStandardDefaults() {
+    /** Add unchecked defaults that do not conflict with previously added defaults. */
+    public void addUncheckedDefaults() {
         QualifierHierarchy qualHierarchy = this.atypeFactory.getQualifierHierarchy();
         AnnotationMirrorSet tops = qualHierarchy.getTopAnnotations();
         AnnotationMirrorSet bottoms = qualHierarchy.getBottomAnnotations();
 
-        for (TypeUseLocation loc : STANDARD_UNCHECKED_DEFAULTS_TOP) {
-            // Only add standard defaults in locations where a default has not be specified.
+        for (TypeUseLocation loc : OPTIMISTIC_UNCHECKED_DEFAULTS_TOP) {
+            // Add optimistic defaults in locations where a default has not be specified.
             for (AnnotationMirror top : tops) {
-                if (!conflictsWithExistingDefaults(uncheckedCodeDefaults, top, loc)) {
-                    addUncheckedCodeDefault(top, loc);
+                if (!conflictsWithExistingDefaults(optimisticUncheckedCodeDefaults, top, loc)) {
+                    addOptimisticUncheckedCodeDefault(top, loc);
                 }
             }
         }
 
-        for (TypeUseLocation loc : STANDARD_UNCHECKED_DEFAULTS_BOTTOM) {
+        for (TypeUseLocation loc : OPTIMISTIC_UNCHECKED_DEFAULTS_BOTTOM) {
             for (AnnotationMirror bottom : bottoms) {
-                // Only add standard defaults in locations where a default has not be specified.
-                if (!conflictsWithExistingDefaults(uncheckedCodeDefaults, bottom, loc)) {
-                    addUncheckedCodeDefault(bottom, loc);
+                // Add optimistic defaults in locations where a default has not be specified.
+                if (!conflictsWithExistingDefaults(optimisticUncheckedCodeDefaults, bottom, loc)) {
+                    addOptimisticUncheckedCodeDefault(bottom, loc);
+                }
+            }
+        }
+
+        for (TypeUseLocation loc : CONSERVATIVE_UNCHECKED_DEFAULTS_TOP) {
+            // Add conservative defaults in locations where a default has not be specified.
+            for (AnnotationMirror top : tops) {
+                if (!conflictsWithExistingDefaults(conservativeUncheckedCodeDefaults, top, loc)) {
+                    addConservativeUncheckedCodeDefault(top, loc);
+                }
+            }
+        }
+
+        for (TypeUseLocation loc : CONSERVATIVE_UNCHECKED_DEFAULTS_BOTTOM) {
+            for (AnnotationMirror bottom : bottoms) {
+                // Add conservative defaults in locations where a default has not be specified.
+                if (!conflictsWithExistingDefaults(
+                        conservativeUncheckedCodeDefaults, bottom, loc)) {
+                    addConservativeUncheckedCodeDefault(bottom, loc);
                 }
             }
         }
@@ -310,39 +363,70 @@ public class QualifierDefaults {
     }
 
     /**
-     * Add a default annotation for unchecked elements.
+     * Add optimistic default annotation for unchecked elements.
      *
      * @param uncheckedDefaultAnno the default annotation mirror
      * @param location the type use location
      * @param applyToSubpackages whether the default should be inherited by subpackages
      */
-    public void addUncheckedCodeDefault(
+    public void addOptimisticUncheckedCodeDefault(
             AnnotationMirror uncheckedDefaultAnno,
             TypeUseLocation location,
             boolean applyToSubpackages) {
-        checkDuplicates(uncheckedCodeDefaults, uncheckedDefaultAnno, location);
+        checkDuplicates(optimisticUncheckedCodeDefaults, uncheckedDefaultAnno, location);
         checkIsValidUncheckedCodeLocation(uncheckedDefaultAnno, location);
 
-        uncheckedCodeDefaults.add(new Default(uncheckedDefaultAnno, location, applyToSubpackages));
+        optimisticUncheckedCodeDefaults.add(
+                new Default(uncheckedDefaultAnno, location, applyToSubpackages));
     }
 
     /**
-     * Add a default annotation for unchecked elements that also applies to subpackages, if
+     * Add conservative default annotation for unchecked elements.
+     *
+     * @param uncheckedDefaultAnno the default annotation mirror
+     * @param location the type use location
+     * @param applyToSubpackages whether the default should be inherited by subpackages
+     */
+    public void addConservativeUncheckedCodeDefault(
+            AnnotationMirror uncheckedDefaultAnno,
+            TypeUseLocation location,
+            boolean applyToSubpackages) {
+        checkDuplicates(conservativeUncheckedCodeDefaults, uncheckedDefaultAnno, location);
+        checkIsValidUncheckedCodeLocation(uncheckedDefaultAnno, location);
+
+        conservativeUncheckedCodeDefaults.add(
+                new Default(uncheckedDefaultAnno, location, applyToSubpackages));
+    }
+
+    /**
+     * Add optimistic default annotation for unchecked elements that also applies to subpackages, if
      * applicable.
      *
      * @param uncheckedDefaultAnno the default annotation mirror
      * @param location the type use location
      */
-    public void addUncheckedCodeDefault(
+    public void addOptimisticUncheckedCodeDefault(
             AnnotationMirror uncheckedDefaultAnno, TypeUseLocation location) {
-        addUncheckedCodeDefault(uncheckedDefaultAnno, location, true);
+        addOptimisticUncheckedCodeDefault(uncheckedDefaultAnno, location, true);
+    }
+
+    /**
+     * Add conservative default annotation for unchecked elements that also applies to subpackages,
+     * if applicable.
+     *
+     * @param uncheckedDefaultAnno the default annotation mirror
+     * @param location the type use location
+     */
+    public void addConservativeUncheckedCodeDefault(
+            AnnotationMirror uncheckedDefaultAnno, TypeUseLocation location) {
+        addConservativeUncheckedCodeDefault(uncheckedDefaultAnno, location, true);
     }
 
     /** Sets the default annotation for unchecked elements, with specific locations. */
     public void addUncheckedCodeDefaults(
             AnnotationMirror absoluteDefaultAnno, TypeUseLocation[] locations) {
         for (TypeUseLocation location : locations) {
-            addUncheckedCodeDefault(absoluteDefaultAnno, location);
+            addConservativeUncheckedCodeDefault(absoluteDefaultAnno, location);
         }
     }
 
@@ -782,6 +866,48 @@ public class QualifierDefaults {
     }
 
     /**
+     * Given an element, returns whether the optimistic default should be applied for it. Handles
+     * elements from bytecode or source code.
+     *
+     * @param annotationScope the element that the conservative default might apply to
+     * @return whether the conservative default applies to the given element
+     */
+    public boolean applyOptimisticDefaults(Element annotationScope) {
+        if (annotationScope == null) {
+            return false;
+        }
+
+        if (optimisticUncheckedCodeDefaults.isEmpty()) {
+            return false;
+        }
+
+        // TODO: I would expect this:
+        //   atypeFactory.isFromByteCode(annotationScope)) {
+        // to work instead of the
+        // isElementFromByteCode/declarationFromElement/isFromStubFile calls,
+        // but it doesn't work correctly and tests fail.
+
+        boolean isFromStubFile = atypeFactory.isFromStubFile(annotationScope);
+        boolean isBytecode =
+                ElementUtils.isElementFromByteCode(annotationScope)
+                        && atypeFactory.declarationFromElement(annotationScope) == null
+                        && !isFromStubFile;
+        if (isBytecode) {
+            return useOptimisticDefaultSource && !isElementAnnotatedForThisChecker(annotationScope);
+        } else if (isFromStubFile) {
+            // TODO: Types in stub files not annotated for a particular checker should be
+            // treated as unchecked bytecode.  For now, all types in stub files are treated as
+            // checked code. Eventually, @AnnotatedFor("checker") will be programmatically added
+            // to methods in stub files supplied via the @StubFiles annotation.  Stub files will
+            // be treated like unchecked code except for methods in the scope of an @AnnotatedFor.
+            return false;
+        } else if (useOptimisticDefaultSource) {
+            return !isElementAnnotatedForThisChecker(annotationScope);
+        }
+        return false;
+    }
+
+    /**
      * Given an element, returns whether the conservative default should be applied for it. Handles
      * elements from bytecode or source code.
      *
@@ -793,7 +919,7 @@ public class QualifierDefaults {
             return false;
         }
 
-        if (uncheckedCodeDefaults.isEmpty()) {
+        if (conservativeUncheckedCodeDefaults.isEmpty()) {
             return false;
         }
 
@@ -860,7 +986,13 @@ public class QualifierDefaults {
         }
 
         if (applyConservativeDefaults(annotationScope)) {
-            for (Default def : uncheckedCodeDefaults) {
+            for (Default def : conservativeUncheckedCodeDefaults) {
+                if (!typeVarUseDef || def.location != TypeUseLocation.TYPE_VARIABLE_USE) {
+                    applier.applyDefault(def);
+                }
+            }
+        } else if (applyOptimisticDefaults(annotationScope)) {
+            for (Default def : optimisticUncheckedCodeDefaults) {
                 if (!typeVarUseDef || def.location != TypeUseLocation.TYPE_VARIABLE_USE) {
                     applier.applyDefault(def);
                 }
