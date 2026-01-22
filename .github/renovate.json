@@ -18,5 +18,14 @@
       "matchPackageNames": ["org.apache.spark:spark-sql_2.12"],
       "enabled": false
     }
+  ],
+  "regexManagers": [
+    {
+      "description": "Update USE_BAZEL_VERSION in GitHub Actions",
+      "fileMatch": ["^\\.github/workflows/.*\\.yml$"],
+      "matchStrings": ["USE_BAZEL_VERSION: \"(?<currentValue>.*?)\""],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "bazelbuild/bazel"
+    }
   ]
 }
