@@ -16,7 +16,7 @@ import java.lang.annotation.Target;
  * using it in a fully-annotated library nor in an application that does not export APIs for
  * clients.
  *
- * <p>This annotation has no effect unless the {@code
+ * <p>This annotation is retained in bytecode but has no effect unless the {@code
  * -AuseConservativeDefaultsForUncheckedCode=source} command-line argument is supplied. Ordinarily,
  * the {@code -AuseConservativeDefaultsForUncheckedCode=source} command-line argument causes
  * unannotated locations to be defaulted using conservative defaults, and it suppresses all
@@ -26,7 +26,7 @@ import java.lang.annotation.Target;
  * @checker_framework.manual #compiling-libraries Compiling partially-annotated libraries
  */
 @Documented
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.PACKAGE})
 public @interface AnnotatedFor {
     /**
