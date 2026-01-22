@@ -26,7 +26,7 @@ jobs:
         java_version: [21]
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
-      USE_BAZEL_VERSION: "8.5.1"
+      USE_BAZEL_VERSION: "9.0.0"
     steps:
     - uses: actions/checkout@v6
     - name: Set up JDK ${{ matrix.java_version }}
@@ -178,7 +178,7 @@ jobs:
 
     env:
       JAVA_VERSION: ${{ matrix.java.version }}
-      USE_BAZEL_VERSION: "8.5.1"
+      USE_BAZEL_VERSION: "9.0.0"
     continue-on-error: ${{ matrix.java.experimental }}
     steps:
     - name: Check out sources
