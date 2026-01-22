@@ -263,7 +263,7 @@ public final class TreeUtils {
      * @param tree an expression tree
      * @return the outermost non-parenthesized tree enclosed by the given tree
      */
-    @SuppressWarnings("interning:return.type.incompatible") // pol ymorphism implementation
+    @SuppressWarnings("interning:return.type.incompatible") // polymorphism implementation
     public static @PolyInterned ExpressionTree withoutParens(@PolyInterned ExpressionTree tree) {
         ExpressionTree t = tree;
         while (t instanceof ParenthesizedTree) {

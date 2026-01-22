@@ -1,0 +1,7 @@
+MethodReceiverTypeErrorMessageTest.java:10:12: compiler.err.proc.messager: [method.invocation.invalid] call to foo() not allowed on the given receiver.
+found   : @UnderInitialization(MethodReceiverTypeErrorMessageTest.class) MethodReceiverTypeErrorMessageTest<T extends @Initialized Object>
+required: @Initialized MethodReceiverTypeErrorMessageTest<T extends @Initialized Object>
+MethodReceiverTypeErrorMessageTest.java:18:12: compiler.err.proc.messager: [method.invocation.invalid] call to foo() not allowed on the given receiver.
+found   : @UnderInitialization(sub.class) sub
+required: @Initialized MethodReceiverTypeErrorMessageTest<@Initialized String>
+2 errors
