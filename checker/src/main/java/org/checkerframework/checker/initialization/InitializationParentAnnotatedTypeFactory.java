@@ -752,6 +752,23 @@ public abstract class InitializationParentAnnotatedTypeFactory
                         (DeclaredType) exeType.getReturnType().getUnderlyingType();
                 AnnotationMirror a = getUnderInitializationAnnotationOfSuperType(underlyingType);
                 exeType.getReturnType().replaceAnnotation(a);
+
+                // ReturnType does not capture the annotation information of the enclosing receiver
+                // of constructor, which can be specified in the signature by outer.this identifier.
+                // If enclosing receiver's type is specified, we should not assign default
+                // annotation but the specified one, which is captured in ReceiverType.
+                if (exeType.getReceiverType() != null
+                        && exeType.getReceiverType().hasAnnotationInHierarchy(a)) {
+                    AnnotationMirror enclAnno =
+                            exeType.getReceiverType().getAnnotationInHierarchy(a);
+                    AnnotatedDeclaredType ret = (AnnotatedDeclaredType) exeType.getReturnType();
+                    if (ret.getEnclosingType() != null) {
+                        // The return type of constructor will never be explicitly written;
+                        // therefore the return type will always have no annotation; therefore using
+                        // `addAnnotation` here instead of `replaceAnnotation` is always correct.
+                        ret.getEnclosingType().addAnnotation(enclAnno);
+                    }
+                }
             }
             return result;
         }
