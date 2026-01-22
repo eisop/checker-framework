@@ -44,7 +44,7 @@ The `AbstractNodeVisitor` now has more summary methods, following the class hier
 
 **Closed issues:**
 
-eisop#1247, eisop#1263, eisop#1310, typetools#7096.
+eisop#1099, eisop#1247, eisop#1263, eisop#1310, typetools#7096.
 
 
 Version 3.49.5 (June 30, 2025)
