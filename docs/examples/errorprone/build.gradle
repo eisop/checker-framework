@@ -4,7 +4,7 @@
 
 plugins {
     id 'java'
-    id 'net.ltgt.errorprone' version '4.3.0'
+    id 'net.ltgt.errorprone' version '4.4.0'
     // Checker Framework pluggable type-checking
     id 'org.checkerframework' version '0.6.61' apply false
 }
@@ -34,7 +34,7 @@ if (false) {
 
 dependencies {
     if (JavaVersion.current() >= JavaVersion.VERSION_21) {
-        errorprone 'com.google.errorprone:error_prone_core:2.45.0'
+        errorprone 'com.google.errorprone:error_prone_core:2.46.0'
     }
 }
 

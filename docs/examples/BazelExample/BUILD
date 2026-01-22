@@ -1,3 +1,5 @@
+load("@rules_java//java:defs.bzl", "java_binary", "java_plugin")
+
 java_binary(
     name = "example",
     srcs = ["BazelExample.java"],
