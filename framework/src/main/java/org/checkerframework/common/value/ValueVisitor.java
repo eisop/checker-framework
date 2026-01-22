@@ -352,18 +352,22 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
   protected boolean isTypeCastSafe(AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
     TypeKind castTypeKind = TypeKindUtils.primitiveOrBoxedToTypeKind(castType.getUnderlyingType());
     TypeKind exprTypeKind = TypeKindUtils.primitiveOrBoxedToTypeKind(exprType.getUnderlyingType());
-    if (castTypeKind != null
-        && exprTypeKind != null
-        && TypeKindUtils.isIntegral(castTypeKind)
-        && TypeKindUtils.isIntegral(exprTypeKind)) {
-      AnnotationMirror castAnno = castType.getAnnotationInHierarchy(atypeFactory.UNKNOWNVAL);
-      AnnotationMirror exprAnno = exprType.getAnnotationInHierarchy(atypeFactory.UNKNOWNVAL);
-      if (AnnotationUtils.areSame(castAnno, exprAnno)) {
-        return true;
-      }
-      boolean castAnnoIsIntVal = atypeFactory.areSameByClass(castAnno, IntVal.class);
-      boolean exprAnnoIsIntVal = atypeFactory.areSameByClass(exprAnno, IntVal.class);
-      if (castAnnoIsIntVal && exprAnnoIsIntVal) {
+
+    if (castTypeKind == null || exprTypeKind == null) {
+      return super.isTypeCastSafe(castType, exprType);
+    }
+
+    // The cast is from a numeric type and is to a numeric type.
+
+    AnnotationMirror castAnno = castType.getPrimaryAnnotation();
+    AnnotationMirror exprAnno = exprType.getPrimaryAnnotation();
+    if (castAnno.equals(exprAnno)) {
+      return true;
+    }
+
+    if (TypeKindUtils.isIntegral(castTypeKind) && TypeKindUtils.isIntegral(exprTypeKind)) {
+      if (atypeFactory.areSameByClass(castAnno, IntVal.class)
+          && atypeFactory.areSameByClass(exprAnno, IntVal.class)) {
         List<Long> castValues = atypeFactory.getIntValues(castAnno);
         List<Long> exprValues = atypeFactory.getIntValues(exprAnno);
         if (castValues.size() == 1 && exprValues.size() == 1) {
