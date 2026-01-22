@@ -6,11 +6,12 @@ interface InjectedExecOps {
 
 clean {
     def injected = project.objects.newInstance(InjectedExecOps)
+    def examples = file('examples')
 
     delete('api/')
     doLast {
         injected.execOps.exec {
-            workingDir = file('examples')
+            workingDir = examples
             commandLine 'make', 'clean'
         }
     }
