@@ -203,7 +203,7 @@ jobs:
       uses: actions/setup-java@v5
       with:
         # Install the requested JDK second, to make it the default on which everything else runs.
-        java-version: ${{ matrix.java.version == 'ea' && format('{0}-ea+{1}', env.JDK_EA_MAJOR, env.JDK_EA_BUILD) || matrix.java.version }}
+        java-version: ${{ matrix.java.version == 'ea' && format('{0}.0.0-ea+{1}', env.JDK_EA_MAJOR, env.JDK_EA_BUILD) || matrix.java.version }}
         distribution: 'temurin'
     - name: Inject JAVA_HOME_21_64 into `gradle.properties` to always use JDK 21 for Gradle
       run: mkdir ~/.gradle && echo "org.gradle.java.home=$JAVA_HOME_21_X64" >> ~/.gradle/gradle.properties
