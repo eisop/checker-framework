@@ -243,7 +243,7 @@ jobs:
       # Set the JDK version to use, allowing us to e.g. run Java 25 while gradle does not work
       # on Java 25 yet.
       env:
-        ORG_GRADLE_PROJECT_useJdkVersion: ${{ matrix.java.version }}
+        ORG_GRADLE_PROJECT_useJdkVersion: ${{ matrix.java.version == 'ea' && env.JDK_EA_MAJOR || matrix.java.version }}
 
   # Sanity tests on Windows and MacOS.
   otheros:
