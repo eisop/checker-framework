@@ -3,7 +3,7 @@ plugins {
     id 'base'
     // https://github.com/n0mer/gradle-git-properties
     // Generates file build/resources/main/git.properties when the `classes` task runs.
-    id 'com.gorylenko.gradle-git-properties' version '2.5.0'
+    id 'com.gorylenko.gradle-git-properties' version '2.5.4'
 }
 
 sourceSets {
@@ -77,13 +77,13 @@ dependencies {
     testImplementation 'com.amazonaws:aws-java-sdk-ec2'
     testImplementation 'com.amazonaws:aws-java-sdk-kms'
     // The AWS SDK is used for testing the Called Methods Checker.
-    testImplementation platform('com.amazonaws:aws-java-sdk-bom:1.12.783')
+    testImplementation platform('com.amazonaws:aws-java-sdk-bom:1.12.797')
     // For the Resource Leak Checker's support for JavaEE.
     testImplementation 'javax.servlet:javax.servlet-api:4.0.1'
     // For the Resource Leak Checker's support for IOUtils.
-    testImplementation 'commons-io:commons-io:2.19.0'
+    testImplementation 'commons-io:commons-io:2.21.0'
     // For the Nullness Checker test of junit-assertions.astub in JUnitNull.java
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.13.3'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.14.2'
     testImplementation 'org.apiguardian:apiguardian-api:1.1.2'
     // For tests that use JSpecify annotations
     testImplementation 'org.jspecify:jspecify:1.0.0'
