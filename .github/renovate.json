@@ -26,6 +26,16 @@
       "matchStrings": ["USE_BAZEL_VERSION: \"(?<currentValue>.*?)\""],
       "datasourceTemplate": "github-releases",
       "depNameTemplate": "bazelbuild/bazel"
+    },
+    {
+      "description": "Update JDK_EA_BUILD in GitHub Actions",
+      "fileMatch": ["^\\.github/workflows/ci\\.yml$"],
+      "matchStrings": [
+        "JDK_EA_MAJOR: \"(?<major>\\d+)\"[\\s\\S]*?JDK_EA_BUILD: \"(?<currentValue>\\d+)\""
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "adoptium/temurin{{{major}}}-binaries",
+      "extractVersionTemplate": "^jdk-\\d+\\+(?<version>\\d+).*$"
     }
   ]
 }

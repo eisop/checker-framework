@@ -117,6 +117,11 @@ jobs:
     needs: sanity
     permissions:
       contents: read
+    env:
+      JAVA_VERSION: ${{ matrix.java.version }}
+      USE_BAZEL_VERSION: "9.0.0"
+      JDK_EA_MAJOR: "26"
+      JDK_EA_BUILD: "16"
     strategy:
       fail-fast: true
       matrix:
@@ -133,7 +138,7 @@ jobs:
           {version: '17', experimental: false},
           {version: '24', experimental: false},
           {version: '25', experimental: false},
-          {version: '26.0.0-ea.16.0.ea', experimental: true}]
+          {version: 'ea', experimental: true}]
         exclude:
           # JDK 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
           - script: 'cftests-junit-jdk21'
@@ -175,10 +180,6 @@ jobs:
             java: {version: '17', experimental: false}
           - script: 'daikon-part2'
             java: {version: '17', experimental: false}
-
-    env:
-      JAVA_VERSION: ${{ matrix.java.version }}
-      USE_BAZEL_VERSION: "9.0.0"
     continue-on-error: ${{ matrix.java.experimental }}
     steps:
     - name: Check out sources
@@ -202,7 +203,7 @@ jobs:
       uses: actions/setup-java@v5
       with:
         # Install the requested JDK second, to make it the default on which everything else runs.
-        java-version: ${{ matrix.java.version }}
+        java-version: ${{ matrix.java.version == 'ea' && format('{0}.0.0-ea.{1}.0.ea', env.JDK_EA_MAJOR, env.JDK_EA_BUILD) || matrix.java.version }}
         distribution: 'temurin'
     - name: Inject JAVA_HOME_21_64 into `gradle.properties` to always use JDK 21 for Gradle
       run: mkdir ~/.gradle && echo "org.gradle.java.home=$JAVA_HOME_21_X64" >> ~/.gradle/gradle.properties
@@ -242,7 +243,7 @@ jobs:
       # Set the JDK version to use, allowing us to e.g. run Java 25 while gradle does not work
       # on Java 25 yet.
       env:
-        ORG_GRADLE_PROJECT_useJdkVersion: ${{ matrix.java.version }}
+        ORG_GRADLE_PROJECT_useJdkVersion: ${{ matrix.java.version == 'ea' && env.JDK_EA_MAJOR || matrix.java.version }}
 
   # Sanity tests on Windows and MacOS.
   otheros:
