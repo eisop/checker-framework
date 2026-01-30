@@ -91,7 +91,7 @@ def execute_status(
 # ---------------------------------------------------------------------------------
 
 # Per-user directory for the temporary files created by the release process.
-# ("USER = os.getlogin()" does not work; see http://bugs.python.org/issue584566.
+# ("USER = os.getlogin()" does not work; see https://github.com/python/cpython/issues/36915.
 # Another alternative is: USER = os.getenv('USER').)
 TMP_DIR = Path("/tmp") / pwd.getpwuid(os.geteuid())[0] / "cf-release"
 
