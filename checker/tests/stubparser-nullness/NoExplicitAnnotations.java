@@ -51,6 +51,7 @@ class NoExplicitAnnotationsUse {
             NoExplicitAnnotationsSub2 sub2,
             NoExplicitAnnotationsSub3 sub3) {
         nble = sub1.method1();
+        // :: error: (assignment.type.incompatible)
         nn = sub1.method1();
         nble = sub2.method2();
         nn = sub2.method2();
