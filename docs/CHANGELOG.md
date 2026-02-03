@@ -363,6 +363,16 @@ typetools#2816,
 typetools#3203,
 typetools#8055.
 
+## Version 3.54.0 (2026-03-03)
+
+### User-visible changes
+
+Removed long-deprecated `-Alint=forbidnonnullarraycomponents`.
+
+### Implementation details
+
+### Closed issues
+
 ## Version 3.53.1 (2026-02-02)
 
 ### Closed issues
