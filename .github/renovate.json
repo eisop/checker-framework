@@ -41,5 +41,6 @@
       "versioningTemplate": "loose",
       "depNameTemplate": "adoptium/temurin{{{major}}}-binaries",
       "extractVersionTemplate": "^jdk-\\d+\\+(?<version>\\d+)"
-    }  ]
+    }
+  ]
 }
