@@ -1042,6 +1042,9 @@ tasks.register("wpiManyTest", Exec) {
     // This test must always be re-run when requested.
     outputs.upToDateWhen { false }
 
+  // wpi (really dljc) is unmaintained, errs with: ModuleNotFoundError: No module named 'distutils'
+  enabled = false
+
     def projectDir = project.projectDir
     def injectedFiles = project.objects.newInstance(InjectedFileOps)
 
@@ -1174,6 +1177,9 @@ tasks.register("wpiPlumeLibTest", Exec) {
     description = "Tests whole-program inference on the plume-lib projects. Requires an Internet connection."
     dependsOn("assembleForJavac")
     dependsOn(":getDoLikeJavac")
+
+  // wpi (really dljc) is unmaintained, errs with: ModuleNotFoundError: No module named 'distutils'
+  enabled = false
 
     // This test must always be re-run when requested.
     outputs.upToDateWhen { false }
