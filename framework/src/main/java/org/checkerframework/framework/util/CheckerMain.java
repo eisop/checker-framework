@@ -597,7 +597,7 @@ public class CheckerMain {
                                         new BufferedWriter(
                                                 new OutputStreamWriter(
                                                         System.out, StandardCharsets.UTF_8)))
-                                : new PrintWriter(outputFilename, "UTF-8"));
+                                : new PrintWriter(outputFilename, StandardCharsets.UTF_8));
                 for (int i = 0; i < args.size(); i++) {
                     String arg = args.get(i);
 
@@ -747,7 +747,7 @@ public class CheckerMain {
             String fileName =
                     URLDecoder.decode(
                             uri.substring("jar:file:".length(), idx),
-                            Charset.defaultCharset().name());
+                            Charset.defaultCharset());
             return new File(fileName).getAbsolutePath();
         } catch (UnsupportedEncodingException e) {
             throw new BugInCF("Default charset doesn't exist. Your VM is borked.");
