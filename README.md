@@ -7,9 +7,7 @@ Please see the EISOP Checker Framework manual
 The history of releases and changes is in file
 [docs/CHANGELOG.md](docs/CHANGELOG.md).
 
-Documentation for Checker Framework developers
-is in directory [docs/developer/](docs/developer/).
-See more below.
+See below for EISOP Checker Framework development notes.
 
 ## Quick Start Guide
 
@@ -59,6 +57,11 @@ including a [Developer Manual](https://htmlpreview.github.io/?https://github.com
 
 Import the EISOP Checker Framework source folder into your IDE of choice.
 See the [IDE configuration](https://htmlpreview.github.io/?https://github.com/eisop/checker-framework/blob/master/docs/developer/developer-manual.html#IDE_configuration) section for notes.
+
+To run all test cases, run:
+```
+./gradlew alltests
+```
 
 Contributions are always welcome! For guidelines, see [Contributing](https://eisop.github.io/cf/manual/manual.html#contributing).
 
