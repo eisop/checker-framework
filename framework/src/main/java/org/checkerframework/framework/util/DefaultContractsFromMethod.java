@@ -4,6 +4,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.ConditionalPostconditionAnnotation;
 import org.checkerframework.framework.qual.EnsuresQualifier;
 import org.checkerframework.framework.qual.EnsuresQualifierIf;
+import org.checkerframework.framework.qual.ParameterConditionalPostconditionAnnotation;
 import org.checkerframework.framework.qual.PostconditionAnnotation;
 import org.checkerframework.framework.qual.PreconditionAnnotation;
 import org.checkerframework.framework.qual.QualifierArgument;
@@ -25,6 +26,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.util.ElementFilter;
 
 /**
@@ -36,6 +38,7 @@ import javax.lang.model.util.ElementFilter;
  * @see EnsuresQualifier
  * @see ConditionalPostconditionAnnotation
  * @see EnsuresQualifierIf
+ * @see ParameterConditionalPostconditionAnnotation
  */
 // TODO: This class assumes that most annotations have a field named "expression". If not, issue a
 // more helpful error message.
@@ -179,6 +182,50 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
                                         anno,
                                         ensuresQualifierIfResult));
                 result.add(contract);
+            }
+        }
+
+        // Gather conditional postconditions from parameter-level annotations (e.g.
+        // @NonNullIfReturn).
+        if (kind == Contract.Kind.CONDITIONALPOSTCONDITION) {
+            List<? extends VariableElement> params = executableElement.getParameters();
+            for (int i = 0; i < params.size(); i++) {
+                VariableElement param = params.get(i);
+                List<IPair<AnnotationMirror, AnnotationMirror>> paramAnnotations =
+                        atypeFactory.getDeclAnnotationWithMetaAnnotation(
+                                param, ParameterConditionalPostconditionAnnotation.class);
+                for (IPair<AnnotationMirror, AnnotationMirror> r : paramAnnotations) {
+                    AnnotationMirror paramAnnotation = r.first;
+                    AnnotationMirror metaAnnotation = r.second;
+                    AnnotationMirror enforcedQualifier =
+                            getQualifierEnforcedByContractAnnotation(metaAnnotation, null, null);
+                    if (enforcedQualifier == null) {
+                        continue;
+                    }
+                    @SuppressWarnings("deprecation") // permitted for use in the framework
+                    Boolean resultValue =
+                            AnnotationUtils.getElementValue(
+                                    paramAnnotation, "value", Boolean.class, true);
+                    String expressionString = "#" + (i + 1);
+                    System.err.println(
+                            "[DefaultContractsFromMethod]     -> contract ("
+                                    + atypeFactory.getClass().getSimpleName()
+                                    + "): expression=\""
+                                    + expressionString
+                                    + "\", resultValue="
+                                    + resultValue
+                                    + ", qualifier="
+                                    + enforcedQualifier.getAnnotationType());
+                    T contract =
+                            clazz.cast(
+                                    Contract.create(
+                                            kind,
+                                            expressionString,
+                                            enforcedQualifier,
+                                            paramAnnotation,
+                                            resultValue));
+                    result.add(contract);
+                }
             }
         }
         return result;
