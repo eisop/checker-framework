@@ -68,5 +68,5 @@ There are many AI assistants that might help you navigate the source code, for e
 
 Contributions are always welcome!
 For guidelines, see the [Contributing summary](CONTRIBUTING.md) and the
-[Contributing](https://eisop.github.io/cf/manual/manual.html#contributing)
+[Contributing](https://eisop.github.io/cf/manual/#contributing)
 section in the manual.
