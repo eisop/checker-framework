@@ -19,11 +19,11 @@ See more below.
    cd checker-framework
    ```
 
-2. Build the EISOP Checker Framework:
+2. Build the EISOP Checker Framework (requires JDK 8+):
    ```
    ./gradlew assemble
    ```
-   This will clone the required [eisop/jdk](https://github.com/eisop/jdk) project and build everything.
+   This will clone the required [eisop/jdk](https://github.com/eisop/jdk) project to a sibling directory called `jdk` and build everything without running the test suite.
    There will be warnings about missing javadoc, but overall the build should be successful.
 
 3. Run a simple test:
@@ -59,6 +59,8 @@ including a [Developer Manual](https://htmlpreview.github.io/?https://github.com
 
 Import the EISOP Checker Framework source folder into your IDE of choice.
 See the [IDE configuration](https://htmlpreview.github.io/?https://github.com/eisop/checker-framework/blob/master/docs/developer/developer-manual.html#IDE_configuration) section for notes.
+
+Contributions are always welcome! For guidelines, see [Contributing](https://eisop.github.io/cf/manual/manual.html#contributing).
 
 There are many AI assistants that might help you navigate the source code, for example
 [DeepWiki](https://deepwiki.com/eisop/checker-framework/).
