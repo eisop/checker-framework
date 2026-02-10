@@ -63,7 +63,7 @@ To run all test cases, run:
 ./gradlew alltests
 ```
 
-Contributions are always welcome! For guidelines, see [Contributing](https://eisop.github.io/cf/manual/manual.html#contributing).
-
 There are many AI assistants that might help you navigate the source code, for example
 [DeepWiki](https://deepwiki.com/eisop/checker-framework/).
+
+Contributions are always welcome! For guidelines, see [Contributing](https://eisop.github.io/cf/manual/manual.html#contributing).
