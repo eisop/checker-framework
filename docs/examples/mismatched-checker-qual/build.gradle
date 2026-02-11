@@ -1,0 +1,40 @@
+// ///////////////////////////////////////////////////////////////////////////
+// Checker Framework pluggable type-checking
+// Mismatched Checker Qualifiers Example
+// Having the Wrong qualifiers in the classpath will cause a crash
+//
+
+plugins {
+    id 'java'
+    // Checker Framework pluggable type-checking
+    id 'org.checkerframework' version '0.6.53' apply false
+}
+
+ext {
+    versions = [
+        eisopVersion: '3.49.3-eisop1',
+    ]
+}
+
+apply plugin: 'org.checkerframework'
+
+dependencies {
+    // Without the same checker qualifiers, Nullness Checker should gracefully issue warnings
+    // Use Typetools checker-qual (original) for qualifiers
+    compileOnly "org.checkerframework:checker-qual:3.49.1"
+    testCompileOnly "org.checkerframework:checker-qual:3.49.1"
+    checkerFramework "io.github.eisop:checker-qual:${versions.eisopVersion}"
+    checkerFramework "io.github.eisop:checker:${versions.eisopVersion}"
+}
+
+repositories {
+    // mavenLocal() // Use local Maven repository first for testing
+    mavenCentral()
+}
+
+checkerFramework {
+    checkers = [
+        'org.checkerframework.checker.nullness.NullnessChecker',
+    ]
+    extraJavacArgs = ['-Aversion']
+}
