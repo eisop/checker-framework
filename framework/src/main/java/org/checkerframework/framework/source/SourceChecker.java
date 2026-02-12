@@ -217,6 +217,10 @@ import javax.tools.Diagnostic;
     // org.checkerframework.framework.source.SourceChecker.useConservativeDefault
     "useConservativeDefaultsForUncheckedCode",
 
+    // Whether to store defaulted annotations in bytecode.
+    // org.checkerframework.framework.type.AnnotatedTypeFactory.postProcessClassTree
+    "noBytecodeStorage",
+
     // Whether to assume sound concurrent semantics or
     // simplified sequential semantics
     // org.checkerframework.framework.flow.CFAbstractTransfer.sequentialSemantics
