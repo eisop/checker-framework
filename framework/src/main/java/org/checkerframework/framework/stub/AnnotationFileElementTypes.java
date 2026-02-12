@@ -857,13 +857,50 @@ public class AnnotationFileElementTypes {
         }
     }
 
+    private final URL getAnnotatedJDKResourceURL(String resourcePath) {
+        try {
+            URL resourceURL = null;
+            File externalJdkFile = new File(resourcePath);
+            if (externalJdkFile.exists()) {
+                resourceURL =
+                        new URL(
+                                "jar:file:"
+                                        + externalJdkFile.getAbsolutePath()
+                                        + "!/annotated-jdk");
+            }
+            return resourceURL;
+        } catch (Exception e) {
+            if (stubDebug) {
+                System.out.printf(
+                        "Failed to load external annotated JDK from %s: %s%n",
+                        resourcePath, e.getMessage());
+            }
+            return null;
+        }
+    }
+
     /**
      * Returns a JarURLConnection to "/jdk*".
      *
      * @return a JarURLConnection to "/jdk*"
      */
     private JarURLConnection getJarURLConnectionToJdk() {
-        URL resourceURL = atypeFactory.getClass().getResource("/annotated-jdk");
+        // First, try to use the external annotated-jdk.jar file if specified
+        String pathFromProperty = System.getProperty("checker.annotated.jdk.jar");
+        URL resourceURL = getAnnotatedJDKResourceURL(pathFromProperty);
+        if (resourceURL == null) {
+            // Get the location of checker.jar
+            URL location =
+                    atypeFactory.getClass().getProtectionDomain().getCodeSource().getLocation();
+            try {
+                Path checkerDir = Paths.get(location.toURI()).getParent();
+                String annotatedJarPath = checkerDir.resolve("annotated-jdk.jar").toString();
+                resourceURL = getAnnotatedJDKResourceURL(annotatedJarPath);
+            } catch (URISyntaxException e) {
+                throw new BugInCF("Cannot parse URL: " + location.toString(), e);
+            }
+        }
+
         JarURLConnection connection;
         try {
             connection = (JarURLConnection) resourceURL.openConnection();
