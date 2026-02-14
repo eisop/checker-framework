@@ -876,7 +876,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
 
             for (AnnotationMirror poly : polys) {
-                if (type.hasAnnotation(poly)) {
+                if (type.hasAnnotationRelaxed(poly)) {
                     return Collections.singletonList(
                             DiagMessage.error("invalid.polymorphic.qualifier.use", poly));
                 }

@@ -346,13 +346,14 @@ public abstract class AbstractQualifierPolymorphism implements QualifierPolymorp
         for (Map.Entry<AnnotationMirror, AnnotationMirror> kv : polyQuals.entrySet()) {
             AnnotationMirror top = kv.getValue();
             AnnotationMirror poly = kv.getKey();
-            if (polyType.hasAnnotation(poly)) {
+            if (polyType.hasAnnotationRelaxed(poly)) {
                 AnnotationMirror typeQual = type.getAnnotationInHierarchy(top);
+                AnnotationMirror polyQual = polyType.getAnnotationInHierarchy(top);
                 if (typeQual != null) {
                     if (atypeFactory.hasQualifierParameterInHierarchy(type, top)) {
-                        polyInstantiationForQualifierParameter.put(poly, typeQual);
+                        polyInstantiationForQualifierParameter.put(polyQual, typeQual);
                     }
-                    result.put(poly, typeQual);
+                    result.put(polyQual, typeQual);
                 }
             }
         }
