@@ -54,6 +54,9 @@ configurations {
 dependencies {
     api project(':javacutil')
     api project(':dataflow')
+    // IMPORTANT: stubparser version is intentionally pinned to ensure CI build reproducibility.
+    // External dependency updates can introduce stricter type checking that breaks the build
+    // without code changes in this repository. Always update to explicit versions when needed.
     // At the moement, there are no differences between eisop and typetools stubparsers.
     api 'org.checkerframework:stubparser:3.27.1'
     stubifierImplementation 'org.checkerframework:stubparser:3.27.1'

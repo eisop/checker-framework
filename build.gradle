@@ -79,6 +79,12 @@ ext {
     // This value is always overwritten, but Gradle needs the variable to be initialized.
     localRepo = '.git'
 
+    // IMPORTANT: All dependency versions must be explicitly pinned to exact versions.
+    // This ensures CI build reproducibility and prevents failures caused by external
+    // dependency updates with stricter type checking or breaking changes.
+    // When updating dependencies, always specify the exact version number.
+    // Example: Between Feb 12-15, 2026, an external dependency update caused CI failures
+    // with no code changes in this repository due to dynamic version resolution.
     versions = [
         autoValue       : '1.11.1',
         // https://mvnrepository.com/artifact/com.google.errorprone/error_prone_core
