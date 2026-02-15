@@ -17,7 +17,7 @@ jobs:
   # Basic sanity tests on JDK 21.
   sanity:
     name: ${{ matrix.script }} on JDK ${{ matrix.java_version }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04@20260201.15
     permissions:
       contents: read
     strategy:
@@ -57,7 +57,7 @@ jobs:
   # The remaining tests for JDK 21. Separate from `sanity` to allow parallelism with `otheros`.
   remainder:
     name: ${{ matrix.script }} on JDK ${{ matrix.java_version }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04@20260201.15
     # Don't depend on sanity jobs, to have more parallelism.
     # TODO: cancel these jobs if sanity fails.
     # needs: sanity
@@ -113,7 +113,7 @@ jobs:
 
   otherjdks:
     name: ${{ matrix.script }} on JDK ${{ matrix.java.version }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04@20260201.15
     needs: sanity
     permissions:
       contents: read
