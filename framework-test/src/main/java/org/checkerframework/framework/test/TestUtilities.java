@@ -285,7 +285,7 @@ public class TestUtilities {
             return false;
         }
 
-        try (Scanner in = new Scanner(file, StandardCharsets.UTF_8.name())) {
+        try (Scanner in = new Scanner(file, StandardCharsets.UTF_8)) {
             while (in.hasNext()) {
                 String nextLine = in.nextLine();
                 if (nextLine.contains("@skip-test")
