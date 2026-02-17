@@ -121,7 +121,7 @@ jobs:
       JAVA_VERSION: ${{ matrix.java.version }}
       USE_BAZEL_VERSION: "9.0.0"
       JDK_EA_MAJOR: "26"
-      JDK_EA_BUILD: "16"
+      JDK_EA_BUILD: "34"
     strategy:
       fail-fast: true
       matrix:
