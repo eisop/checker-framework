@@ -34,6 +34,10 @@ including people who wish to edit its source code or make pull requests.
         </ul></li>
       <li><a href="#code-style">Code style</a></li>
       <li><a href="#IDE_configuration">IDE configuration</a></li>
+      <li><a href="#development-debugging-tools">Development and Debugging Tools</a>
+        <ul>
+          <li><a href="#intellij-profiler">Profiling with IntelliJ IDEA</a></li>
+        </ul></li>
       <li><a href="#pull-requests">Pull requests</a>
         <ul>
           <li><a href="#pull-requests-branches">Branches</a></li>
@@ -280,6 +284,106 @@ the IDE for the first time.
 This ensures generated files are not put in the standard <code>../bin/</code> directories.
 </p>
 
+
+<h2 id="development-debugging-tools">Development and Debugging Tools</h2>
+
+<p>
+This section covers various development and debugging tools that can help improve your development experience when working on the Checker Framework.
+</p>
+
+<h3 id="intellij-profiler">Profiling with IntelliJ IDEA</h3>
+
+<p>
+IntelliJ IDEA provides powerful profiling capabilities using Java Flight Recorder (JFR) that can help you analyze performance bottlenecks in the Checker Framework. This tool is essential for identifying slow type-checking operations, memory usage patterns, and optimization opportunities.
+</p>
+
+<h4>Step-by-step Usage Guide</h4>
+
+<p>
+<strong>Step 1: Generate JFR Profile Data</strong>
+</p>
+
+<p>
+First, run the Checker Framework with Java Flight Recorder enabled. Here's a practical example:
+</p>
+
+<pre>
+javac -J-XX:+FlightRecorder \
+      -J-XX:StartFlightRecording=duration=30s,filename=nullness-profile.jfr \
+      -processor org.checkerframework.checker.nullness.NullnessChecker \
+      docs/examples/NullnessExample.java
+</pre>
+
+<p>
+<strong>Command breakdown:</strong>
+</p>
+<ul>
+  <li><code>javac</code> - Java compiler</li>
+  <li><code>-J-XX:+FlightRecorder</code> - Enables JFR functionality</li>
+  <li><code>-J-XX:StartFlightRecording=duration=30s,filename=nullness-profile.jfr</code> - Starts a 30-second performance recording session, saving results to <code>nullness-profile.jfr</code> file</li>
+  <li><code>-processor org.checkerframework.checker.nullness.NullnessChecker</code> - Uses the Nullness Checker for static analysis</li>
+  <li><code>docs/examples/NullnessExample.java</code> - Target Java file to analyze</li>
+</ul>
+
+<p>
+<strong>Step 2: Open JFR File in IntelliJ</strong>
+</p>
+
+<p>
+After the command completes, you'll have a <code>nullness-profile.jfr</code> file. To analyze it in IntelliJ:
+</p>
+<ol>
+  <li>Simply double-click the <code>nullness-profile.jfr</code> file</li>
+  <li>IntelliJ IDEA will automatically open and display the JFR Profiler tool window</li>
+</ol>
+
+<p>
+<strong>Step 3: Understanding the Profiler Interface</strong>
+</p>
+
+<p>
+The profiler window contains several important views:
+</p>
+
+<h5>Understanding the Five Analysis Windows</h5>
+<p>
+The profiler provides five different views to analyze your application's performance:
+</p>
+<ul>
+  <li><strong>Flame Graph:</strong> Visual representation of method call hierarchies with execution time proportions. Horizontal bars show method calls, vertical stacks show call chains.</li>
+  <li><strong>Call Tree:</strong> Hierarchical tree view of method calls with detailed timing and percentage information for each call path.</li>
+  <li><strong>Method List:</strong> Flat list of all methods sorted by execution time, allocation count, or other metrics for quick identification of hotspots.</li>
+  <li><strong>Timeline:</strong> Time-based view showing when different operations occurred during the profiling session, useful for understanding execution patterns.</li>
+  <li><strong>Events:</strong> Detailed event log including garbage collection events, class loading, thread activity, and other JVM-level activities.</li>
+</ul>
+
+<h5>View Controls (Top Right)</h5>
+<p>
+The <strong>Show</strong> dropdown in the top right allows you to switch between different profiling perspectives:
+</p>
+
+<ul>
+  <li><strong>CPU Samples:</strong>
+    <ul>
+      <li>Shows where CPU time is spent during type checking</li>
+      <li>Identifies bottleneck methods and hot spots</li>
+      <li>Best for finding slow algorithms or inefficient code paths</li>
+      <li>Use this to optimize type inference, AST traversal, and annotation processing</li>
+    </ul>
+  </li>
+  <li><strong>Memory Allocations:</strong>
+    <ul>
+      <li>Displays memory allocation patterns and object creation</li>
+      <li>Helps identify memory-intensive operations</li>
+      <li>Useful for finding excessive object creation or memory leaks</li>
+      <li>Important for optimizing type caching and reducing GC pressure</li>
+    </ul>
+  </li>
+</ul>
+
+<p>
+See the <a href="#testing-optimizations">testing optimizations</a> section for additional performance testing approaches.
+</p>
 
 <h2 id="pull-requests">Pull requests</h2>
 
