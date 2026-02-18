@@ -185,6 +185,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         // and sets the corresponding parts to asMemberOf result
         methodType.setReturnType(unsubstitutedMethodType.getReturnType());
         methodType.setReceiverType(unsubstitutedMethodType.getReceiverType());
+        methodType.computeVarargType();
         methodType.setParameterTypes(unsubstitutedMethodType.getParameterTypes());
         methodType.setTypeVariables(unsubstitutedMethodType.getTypeVariables());
     }
