@@ -315,6 +315,10 @@ public class ValueCheckerUtils {
      * null if the exact value is not known. This method should only be used by clients who need
      * exactly one value -- such as the LBC's binary operator rules -- and not by those that need to
      * know whether a valueType belongs to a particular qualifier.
+     *
+     * @param tree the tree to get the exact value from
+     * @param factory a ValueAnnotatedTypeFactory used for annotation accessing
+     * @return the exact value of the tree if it is constant, or null otherwise
      */
     public static @Nullable Long getExactValue(Tree tree, ValueAnnotatedTypeFactory factory) {
         AnnotatedTypeMirror valueType = factory.getAnnotatedType(tree);
@@ -349,6 +353,10 @@ public class ValueCheckerUtils {
      * Checker, or null if the exact value is not known. This method should only be used by clients
      * who need exactly one value and not by those that need to know whether a valueType belongs to
      * a particular qualifier.
+     *
+     * @param tree the tree to get the exact string value from
+     * @param factory a ValueAnnotatedTypeFactory used for annotation accessing
+     * @return the exact string value of the tree if it is constant, or null otherwise
      */
     public static @Nullable String getExactStringValue(
             Tree tree, ValueAnnotatedTypeFactory factory) {
@@ -369,6 +377,10 @@ public class ValueCheckerUtils {
      * Finds the minimum value in a Value Checker type. If there is no information (such as when the
      * list of possible values is empty or null), returns null. Otherwise, returns the smallest
      * value in the list of possible values.
+     *
+     * @param tree the tree to get the minimum value from
+     * @param factory a ValueAnnotatedTypeFactory used for annotation accessing
+     * @return the minimum value in the Value Checker type, or null if there is no information
      */
     public static @Nullable Long getMinValue(Tree tree, ValueAnnotatedTypeFactory factory) {
         AnnotatedTypeMirror valueType = factory.getAnnotatedType(tree);
@@ -382,8 +394,12 @@ public class ValueCheckerUtils {
 
     /**
      * Finds the maximum value in a Value Checker type. If there is no information (such as when the
-     * list of possible values is empty or null), returns null. Otherwise, returns the smallest
-     * value in the list of possible values.
+     * list of possible values is empty or null), returns null. Otherwise, returns the largest value
+     * in the list of possible values.
+     *
+     * @param tree the tree to get the maximum value from
+     * @param factory a ValueAnnotatedTypeFactory used for annotation accessing
+     * @return the maximum value in the Value Checker type, or null if there is no information
      */
     public static @Nullable Long getMaxValue(Tree tree, ValueAnnotatedTypeFactory factory) {
         AnnotatedTypeMirror valueType = factory.getAnnotatedType(tree);
@@ -397,6 +413,10 @@ public class ValueCheckerUtils {
 
     /**
      * Looks up the minlen of a member select tree. The tree must be an access to a sequence length.
+     *
+     * @param tree the tree to get the minimum length from
+     * @param valueATF a ValueAnnotatedTypeFactory used for annotation accessing
+     * @return the minimum length of the sequence, or null if there is no information
      */
     public static @Nullable Integer getMinLenFromTree(
             Tree tree, ValueAnnotatedTypeFactory valueATF) {
@@ -414,6 +434,10 @@ public class ValueCheckerUtils {
     /**
      * Queries the Value Checker to determine if there is a known minimum length for the array
      * represented by {@code tree}. If not, returns 0.
+     *
+     * @param tree the tree to get the minimum length from
+     * @param valueAnnotatedTypeFactory a ValueAnnotatedTypeFactory used for annotation accessing
+     * @return the minimum length of the array, or 0 if there is no information
      */
     public static int getMinLen(Tree tree, ValueAnnotatedTypeFactory valueAnnotatedTypeFactory) {
         AnnotatedTypeMirror minLenType = valueAnnotatedTypeFactory.getAnnotatedType(tree);

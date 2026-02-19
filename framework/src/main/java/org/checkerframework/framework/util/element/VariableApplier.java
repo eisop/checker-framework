@@ -41,6 +41,7 @@ public class VariableApplier extends TargetedElementAnnotationApplier {
      * Returns true if this is a variable declaration including fields an enum constants.
      *
      * @param typeMirror ignored
+     * @param element the element to check
      * @return true if this is a variable declaration including fields an enum constants
      */
     public static boolean accepts(AnnotatedTypeMirror typeMirror, Element element) {
