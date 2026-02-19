@@ -806,8 +806,9 @@ task requireJavadoc(type: JavaExec, group: 'Documentation') {
     description = 'Ensures that Javadoc documentation exists in source code.'
     mainClass = 'org.plumelib.javadoc.RequireJavadoc'
     classpath = configurations.requireJavadoc
-    // Convert each srcDir to its absolute path and flatten the list
-    args requireJavadocDirs.collect { it.srcDirs*.absolutePath }.flatten()
+    // require-javadoc 2.0.0 throws an Error for module-info.java (which has no package declaration).
+    // Exclude module-info.java to avoid this crash.
+    args(['--exclude=module-info\\.java'] + requireJavadocDirs.collect { it.srcDirs*.absolutePath }.flatten())
     jvmArgs += [
         '--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
         '--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
