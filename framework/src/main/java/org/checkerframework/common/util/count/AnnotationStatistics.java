@@ -23,6 +23,7 @@ import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.source.SourceVisitor;
 import org.checkerframework.framework.source.SupportedOptions;
 import org.checkerframework.javacutil.AnnotationProvider;
+import org.checkerframework.javacutil.BugInCF;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -31,6 +32,7 @@ import java.util.TreeSet;
 
 import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.Name;
 import javax.tools.Diagnostic;
 
@@ -325,5 +327,10 @@ public class AnnotationStatistics extends SourceChecker {
     public AnnotationProvider getAnnotationProvider() {
         throw new UnsupportedOperationException(
                 "getAnnotationProvider is not implemented for this class.");
+    }
+
+    @Override
+    protected boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(Element elt) {
+        throw new BugInCF("Unexpected call to determine whether this checker is annotated");
     }
 }

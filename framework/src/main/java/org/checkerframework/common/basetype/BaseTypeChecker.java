@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
 
 /**
  * An abstract {@link SourceChecker} that provides a simple {@link
@@ -312,5 +313,22 @@ public abstract class BaseTypeChecker extends SourceChecker {
                     Arrays.toString(args),
                     causeMessage);
         }
+    }
+
+    /**
+     * Return true if the element has an {@code @AnnotatedFor} annotation, for this checker or an
+     * upstream checker that called this one.
+     *
+     * @param elt the source code element to check, or null
+     * @return true if the element is annotated for this checker or an upstream checker
+     */
+    @Override
+    public boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(Element elt) {
+        // The implementation of this method is at AnnotatedTypeFactory because postinit() is called
+        // in the constructor of ATFs and use the same method before the ATF is fully initialized.
+        // Implement it here and call this method by atf.getChecker() would fail as it will call
+        // getTypeFactory() in the body and would result type system error as the visitor is not
+        // initialized yet.
+        return getTypeFactory().isElementAnnotatedForThisCheckerOrUpstreamChecker(elt);
     }
 }
