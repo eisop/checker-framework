@@ -1025,6 +1025,12 @@ public class AnnotationFileElementTypes {
                                 "jar tf '" + jarFileURL.substring(5) + "' | LC_ALL=C sort");
                 pb.redirectOutput(Redirect.INHERIT);
                 pb.redirectError(Redirect.INHERIT);
+                // Process implements AutoCloseable in JDK 26, but we compile against older JDKs
+                // where close() is not available.
+                @SuppressWarnings({
+                    "resourceleak:required.method.not.called",
+                    "resourceleak:unneeded.suppression"
+                })
                 Process p = pb.start();
                 try {
                     p.waitFor();
