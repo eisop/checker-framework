@@ -32,6 +32,7 @@ import org.checkerframework.dataflow.expression.LocalVariable;
 import org.checkerframework.dataflow.expression.ThisReference;
 import org.checkerframework.dataflow.util.NodeUtils;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
+import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
@@ -417,6 +418,15 @@ public class NullnessNoInitAnnotatedTypeFactory
                     "org.jspecify.nullness.NullMarked",
                     DefaultQualifier.class.getCanonicalName(),
                     nullMarkedDefaultQual);
+
+            AnnotationMirror annotatedForNullness =
+                    new AnnotationBuilder(processingEnv, AnnotatedFor.class)
+                            .setValue("value", new String[] {"nullness"})
+                            .build();
+            addAliasedDeclAnnotation(
+                    "org.jspecify.annotations.NullMarked",
+                    AnnotatedFor.class.getCanonicalName(),
+                    annotatedForNullness);
         }
 
         boolean permitClearProperty =
