@@ -3,7 +3,7 @@ plugins {
     id 'base'
     // https://github.com/n0mer/gradle-git-properties
     // Generates file build/resources/main/git.properties when the `classes` task runs.
-    id 'com.gorylenko.gradle-git-properties' version '2.5.4'
+    id 'com.gorylenko.gradle-git-properties' version '2.5.7'
 }
 
 sourceSets {
@@ -83,7 +83,7 @@ dependencies {
     // For the Resource Leak Checker's support for IOUtils.
     testImplementation 'commons-io:commons-io:2.21.0'
     // For the Nullness Checker test of junit-assertions.astub in JUnitNull.java
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.14.2'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.14.3'
     testImplementation 'org.apiguardian:apiguardian-api:1.1.2'
     // For tests that use JSpecify annotations
     testImplementation 'org.jspecify:jspecify:1.0.0'
