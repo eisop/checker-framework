@@ -591,6 +591,27 @@ to add an additional exception to the set of ignored exceptions, use:
   -AresourceLeakIgnoredExceptions=default,package.MyCustomException
 \end{verbatim}
 
+\sectionAndLabel{JDK 26 API change for \<Process>}{resource-leak-jdk26-process}
+
+In JDK 26, \<java.lang.Process> was changed to implement \<Closeable>.  This can
+introduce new Resource Leak Checker warnings in code that starts a process but does
+not call \<close()> on it.
+
+In projects that are compiled against older JDKs, calling \<close()> on
+\<Process> is not possible.  In that case, the practical
+workaround is to suppress the warning at the smallest possible scope, typically on
+the local variable declaration:
+
+\begin{verbatim}
+  @SuppressWarnings({
+      "resourceleak:required.method.not.called",
+      "resourceleak:unneeded.suppression"
+  })
+  Process p = ...;
+\end{verbatim}
+
+As with any suppression, it is good practice to include a comment explaining why it is needed.
+
 \sectionAndLabel{Errors about field initialization}{resource-leak-field-initialization}
 
 % Arguably, this is working around a bug in the
