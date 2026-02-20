@@ -4,7 +4,7 @@ plugins {
     // https://plugins.gradle.org/plugin/com.gradleup.shadow
     id 'com.gradleup.shadow' version '8.3.8'
     // https://plugins.gradle.org/plugin/de.undercouch.download
-    id 'de.undercouch.download' version '5.6.0'
+    id 'de.undercouch.download' version '5.7.0'
     id 'java'
     // https://github.com/tbroyer/gradle-errorprone-plugin
     id 'net.ltgt.errorprone' version '5.0.0'
@@ -806,8 +806,12 @@ task requireJavadoc(type: JavaExec, group: 'Documentation') {
     description = 'Ensures that Javadoc documentation exists in source code.'
     mainClass = 'org.plumelib.javadoc.RequireJavadoc'
     classpath = configurations.requireJavadoc
-    // Convert each srcDir to its absolute path and flatten the list
-    args requireJavadocDirs.collect { it.srcDirs*.absolutePath }.flatten()
+    // Convert each srcDir to its absolute path and flatten the list.
+    // require-javadoc 2.0.0 throws an Error for module-info.java (which has no package declaration).
+    // Exclude module-info.java to avoid this crash.
+    args([
+        '--exclude=module-info\\.java'
+    ] + requireJavadocDirs.collect { it.srcDirs*.absolutePath }.flatten())
     jvmArgs += [
         '--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
         '--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',

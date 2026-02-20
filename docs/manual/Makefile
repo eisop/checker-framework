@@ -102,7 +102,7 @@ check-labels:
 
 export BIBINPUTS = $BIBINPUTS:.:plume-bib
 plume-bib:
-	(git clone --depth=1 -q https://github.com/mernst/plume-bib.git || git clone --depth=1 -q https://github.com/mernst/plume-bib.git)
+	(git clone --depth=1 -q https://github.com/eisop-plume-lib/plume-bib.git || git clone --depth=1 -q https://github.com/eisop-plume-lib/plume-bib.git)
 .PHONY: plume-bib-update
 plume-bib-update: plume-bib
 # Even if this command fails, it does not terminate the make job.
