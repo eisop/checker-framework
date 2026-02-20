@@ -98,13 +98,10 @@ docs/examples/BazelExample/bazel-testlogs
 docs/examples/BazelExample/Out.txt
 docs/examples/MavenExample/Out.txt
 docs/examples/MavenExample-framework-all/Out.txt
-docs/examples/errorprone/.gradle/
 docs/examples/errorprone/Out.txt
-docs/examples/nullaway/.gradle/
+docs/examples/Wrong-Checker-Qual/Out.txt
 docs/examples/nullaway/Out.txt
-docs/examples/jspecify/.gradle/
 docs/examples/jspecify/Out.txt
-docs/examples/lombok/.gradle/
 docs/examples/lombok/Out.txt
 docs/examples/lombok/lombok.config
 docs/manual/*.png
@@ -124,9 +121,9 @@ target/
 *.ipr
 *.iws
 *.iml
-/.gradle/
-# TODO: why this second gradle directory?
-/buildSrc/.gradle/
+
+# Gradle files
+.gradle/
 
 ## Tests
 
