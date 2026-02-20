@@ -46,6 +46,7 @@ public class InitializedFieldsAnnotatedTypeFactory extends AccumulationAnnotated
      *
      * @param checker the checker
      */
+    @SuppressWarnings("this-escape")
     public InitializedFieldsAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker, InitializedFields.class, InitializedFieldsBottom.class);
 
@@ -130,8 +131,7 @@ public class InitializedFieldsAnnotatedTypeFactory extends AccumulationAnnotated
          *
          * @param factory the type factory associated with the newly-created ContractsFromMethod
          */
-        public InitializedFieldsContractsFromMethod(
-                GenericAnnotatedTypeFactory<?, ?, ?, ?> factory) {
+        InitializedFieldsContractsFromMethod(GenericAnnotatedTypeFactory<?, ?, ?, ?> factory) {
             super(factory);
         }
 

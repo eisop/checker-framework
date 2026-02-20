@@ -17,7 +17,7 @@ jobs:
   # Basic sanity tests on JDK 21.
   sanity:
     name: ${{ matrix.script }} on JDK ${{ matrix.java_version }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       contents: read
     strategy:
@@ -26,10 +26,11 @@ jobs:
         java_version: [21]
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
+      USE_BAZEL_VERSION: "9.0.0"
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Set up JDK ${{ matrix.java_version }}
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: ${{ matrix.java_version }}
         distribution: 'temurin'
@@ -37,10 +38,10 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4.4.1
+      uses: gradle/actions/setup-gradle@v5.0.1
 
     - name: Setup Bazel
-      uses: bazel-contrib/setup-bazel@0.15.0
+      uses: bazel-contrib/setup-bazel@0.18.0
       if: ${{ matrix.script == 'cftests-nonjunit' }}
       with:
         # Avoid downloading Bazel every time.
@@ -56,7 +57,7 @@ jobs:
   # The remaining tests for JDK 21. Separate from `sanity` to allow parallelism with `otheros`.
   remainder:
     name: ${{ matrix.script }} on JDK ${{ matrix.java_version }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     # Don't depend on sanity jobs, to have more parallelism.
     # TODO: cancel these jobs if sanity fails.
     # needs: sanity
@@ -75,17 +76,17 @@ jobs:
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       if: ${{ matrix.script != 'misc' }}
       with:
         fetch-depth: 1
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       if: ${{ matrix.script == 'misc' }}
       with:
         # CI diff needs more history - 0 fetches all history.
         fetch-depth: 0
     - name: Set up JDK ${{ matrix.java_version }}
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: ${{ matrix.java_version }}
         distribution: 'temurin'
@@ -93,14 +94,14 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4.4.1
+      uses: gradle/actions/setup-gradle@v5.0.1
       # Setup for misc tests
     - name: Install misc dependencies
       if: ${{ matrix.script == 'misc' }}
       run: |
-        sudo apt-get update
-        sudo apt-get install -y --fix-missing \
-          shellcheck devscripts python3-pip \
+        sudo apt update
+        sudo apt install -y --fix-missing \
+          asciidoctor shellcheck shfmt devscripts python3-pip \
           texlive-latex-base texlive-latex-extra latexmk librsvg2-bin \
           autoconf dia hevea latexmk libasound2-dev rsync pdf2svg \
           libcups2-dev libfontconfig1-dev libx11-dev libxext-dev \
@@ -112,10 +113,15 @@ jobs:
 
   otherjdks:
     name: ${{ matrix.script }} on JDK ${{ matrix.java.version }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: sanity
     permissions:
       contents: read
+    env:
+      JAVA_VERSION: ${{ matrix.java.version }}
+      USE_BAZEL_VERSION: "9.0.0"
+      JDK_EA_MAJOR: "26"
+      JDK_EA_BUILD: "16"
     strategy:
       fail-fast: true
       matrix:
@@ -131,7 +137,8 @@ jobs:
           {version: '11', experimental: false},
           {version: '17', experimental: false},
           {version: '24', experimental: false},
-          {version: '25.0.0-ea.27.0.ea', experimental: true}]
+          {version: '25', experimental: false},
+          {version: 'ea', experimental: true}]
         exclude:
           # JDK 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
           - script: 'cftests-junit-jdk21'
@@ -173,33 +180,30 @@ jobs:
             java: {version: '17', experimental: false}
           - script: 'daikon-part2'
             java: {version: '17', experimental: false}
-
-    env:
-      JAVA_VERSION: ${{ matrix.java.version }}
     continue-on-error: ${{ matrix.java.experimental }}
     steps:
     - name: Check out sources
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       if: ${{ matrix.script != 'misc' }}
       with:
         fetch-depth: 1
     - name: Check out sources with all history
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       if: ${{ matrix.script == 'misc' }}
       with:
         # CI diff needs more history - 0 fetches all history.
         fetch-depth: 0
     - name: Set up JDK 21 for Gradle to run on
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         # Install JDK 21 first, to make it available to Gradle using `gradle.properties` below.
         java-version: 21
         distribution: 'temurin'
     - name: Set up JDK ${{ matrix.java.version }}
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         # Install the requested JDK second, to make it the default on which everything else runs.
-        java-version: ${{ matrix.java.version }}
+        java-version: ${{ matrix.java.version == 'ea' && format('{0}.0.0-ea.{1}.0.ea', env.JDK_EA_MAJOR, env.JDK_EA_BUILD) || matrix.java.version }}
         distribution: 'temurin'
     - name: Inject JAVA_HOME_21_64 into `gradle.properties` to always use JDK 21 for Gradle
       run: mkdir ~/.gradle && echo "org.gradle.java.home=$JAVA_HOME_21_X64" >> ~/.gradle/gradle.properties
@@ -207,13 +211,13 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4.4.1
+      uses: gradle/actions/setup-gradle@v5.0.1
     - name: Install misc dependencies
       if: ${{ matrix.script == 'misc' }}
       run: |
-        sudo apt-get update
-        sudo apt-get install -y --fix-missing \
-          shellcheck devscripts python3-pip \
+        sudo apt update
+        sudo apt install -y --fix-missing \
+          asciidoctor shellcheck shfmt devscripts python3-pip \
           texlive-latex-base texlive-latex-extra latexmk librsvg2-bin \
           autoconf dia hevea latexmk libasound2-dev rsync pdf2svg \
           libcups2-dev libfontconfig1-dev libx11-dev libxext-dev \
@@ -221,7 +225,7 @@ jobs:
           texlive-font-utils texlive-fonts-recommended texlive-latex-recommended
         pip install black flake8 html5validator
     - name: Setup Bazel
-      uses: bazel-contrib/setup-bazel@0.15.0
+      uses: bazel-contrib/setup-bazel@0.18.0
       if: ${{ matrix.script == 'cftests-nonjunit' }}
       with:
         # Avoid downloading Bazel every time.
@@ -239,7 +243,7 @@ jobs:
       # Set the JDK version to use, allowing us to e.g. run Java 25 while gradle does not work
       # on Java 25 yet.
       env:
-        ORG_GRADLE_PROJECT_useJdkVersion: ${{ matrix.java.version }}
+        ORG_GRADLE_PROJECT_useJdkVersion: ${{ matrix.java.version == 'ea' && env.JDK_EA_MAJOR || matrix.java.version }}
 
   # Sanity tests on Windows and MacOS.
   otheros:
@@ -256,9 +260,9 @@ jobs:
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Set up JDK ${{ matrix.java_version }}
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: ${{ matrix.java_version }}
         distribution: 'temurin'
@@ -266,7 +270,7 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4.4.1
+      uses: gradle/actions/setup-gradle@v5.0.1
 
     - name: Install coreutils on MacOS
       if: ${{ matrix.os == 'macos-latest' }}

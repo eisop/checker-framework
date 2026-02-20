@@ -179,7 +179,7 @@ Graph.java:14: error: [type.argument.type.incompatible] incompatible types in ty
   @Nullable Graph<@KeyFor("g.nodes") String> g;
                   ^
   found   : @KeyFor("this.g.nodes") String
-  required: [extends @UnknownKeyFor Object super @UnknownKeyFor null]
+  required: T [ extends @UnknownKeyFor Object super @UnknownKeyFor NullType ]
 \end{Verbatim}
 
 Note that the upper and lower bounds are both \<@UnknownKeyFor>.  You can

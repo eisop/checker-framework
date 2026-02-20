@@ -10,6 +10,10 @@
   "timezone": "America/Los_Angeles",
   "packageRules": [
     {
+      "matchPackagePatterns": ["^adoptium/temurin\\d+-binaries$"],
+      "ignoreUnstable": false
+    },
+    {
       "matchPackageNames": ["com.amazonaws:aws-java-sdk-bom"],
       "schedule": ["before 3am on the first day of the month"]
     },
@@ -17,6 +21,26 @@
       "description": "We want specifically version 3.3.2, which caused a crash before",
       "matchPackageNames": ["org.apache.spark:spark-sql_2.12"],
       "enabled": false
+    }
+  ],
+  "regexManagers": [
+    {
+      "description": "Update USE_BAZEL_VERSION in GitHub Actions",
+      "fileMatch": ["^\\.github/workflows/.*\\.yml$"],
+      "matchStrings": ["USE_BAZEL_VERSION: \"(?<currentValue>.*?)\""],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "bazelbuild/bazel"
+    },
+    {
+      "description": "Update JDK_EA_BUILD in GitHub Actions",
+      "fileMatch": ["^\\.github/workflows/ci\\.yml$"],
+      "matchStrings": [
+        "JDK_EA_MAJOR:\\s+\"(?<major>\\d+)\"[\\s\\S]*?JDK_EA_BUILD:\\s+\"(?<currentValue>\\d+)\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "loose",
+      "depNameTemplate": "adoptium/temurin{{{major}}}-binaries",
+      "extractVersionTemplate": "^jdk-\\d+\\+(?<version>\\d+)"
     }
   ]
 }

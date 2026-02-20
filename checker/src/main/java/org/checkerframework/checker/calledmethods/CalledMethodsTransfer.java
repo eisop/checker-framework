@@ -37,6 +37,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Types;
 
 /** A transfer function that accumulates the names of methods called. */
+@SuppressWarnings("AlmostJavadoc") // NO-AFU blocks
 public class CalledMethodsTransfer extends AccumulationTransfer {
 
     /**

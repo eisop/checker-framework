@@ -138,6 +138,7 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
      *
      * @param checker the checker associated with this type factory
      */
+    @SuppressWarnings("this-escape")
     public MustCallAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         TOP = AnnotationBuilder.fromClass(elements, MustCallUnknown.class);
@@ -242,8 +243,7 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
          * @param env the processing environment
          * @param factory the factory for the current checker
          */
-        public MustCallQualifierPolymorphism(
-                ProcessingEnvironment env, AnnotatedTypeFactory factory) {
+        MustCallQualifierPolymorphism(ProcessingEnvironment env, AnnotatedTypeFactory factory) {
             super(env, factory);
         }
 
@@ -369,7 +369,7 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
             extends DefaultQualifierForUseTypeAnnotator {
 
         /** Creates a {@code MustCallDefaultQualifierForUseTypeAnnotator}. */
-        public MustCallDefaultQualifierForUseTypeAnnotator() {
+        MustCallDefaultQualifierForUseTypeAnnotator() {
             super(MustCallAnnotatedTypeFactory.this);
         }
 
@@ -404,7 +404,7 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
          * Creates a {@link QualifierUpperBounds} from the MustCall Checker the annotations that are
          * in the type hierarchy.
          */
-        public MustCallQualifierUpperBounds() {
+        MustCallQualifierUpperBounds() {
             super(MustCallAnnotatedTypeFactory.this);
         }
 
@@ -519,7 +519,7 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
          *
          * @param mustCallAnnotatedTypeFactory the type factory
          */
-        public MustCallTreeAnnotator(MustCallAnnotatedTypeFactory mustCallAnnotatedTypeFactory) {
+        MustCallTreeAnnotator(MustCallAnnotatedTypeFactory mustCallAnnotatedTypeFactory) {
             super(mustCallAnnotatedTypeFactory);
         }
 
@@ -588,7 +588,7 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
          * @param processingEnv processing environment
          * @param atypeFactory the associated type factory
          */
-        public MustCallQualifierHierarchy(
+        MustCallQualifierHierarchy(
                 Collection<Class<? extends Annotation>> qualifierClasses,
                 ProcessingEnvironment processingEnv,
                 GenericAnnotatedTypeFactory<?, ?, ?, ?> atypeFactory) {

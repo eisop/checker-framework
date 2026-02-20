@@ -54,6 +54,7 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
      *
      * @param checker the checker to which the new type factory belongs
      */
+    @SuppressWarnings("this-escape")
     public InitializationAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         postInit();
@@ -225,15 +226,15 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
         uninitializedFields.removeIf(
                 var -> {
                     ClassTree enclosingClass = TreePathUtil.enclosingClass(getPath(var));
+                    VariableElement varElement = TreeUtils.elementFromDeclaration(var);
                     Node receiver;
-                    if (ElementUtils.isStatic(TreeUtils.elementFromDeclaration(var))) {
+                    if (ElementUtils.isStatic(varElement)) {
                         receiver = new ClassNameNode(enclosingClass);
                     } else {
                         receiver =
                                 new ImplicitThisNode(
                                         TreeUtils.elementFromDeclaration(enclosingClass).asType());
                     }
-                    VariableElement varElement = TreeUtils.elementFromDeclaration(var);
                     FieldAccessNode fa = new FieldAccessNode(var, varElement, receiver);
                     CFAbstractValue<?> value = targetStore.getValue(fa);
                     return isInitialized(factory, value, varElement);

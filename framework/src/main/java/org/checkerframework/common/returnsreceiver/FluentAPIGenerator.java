@@ -135,6 +135,6 @@ public class FluentAPIGenerator {
          * @param t the annotated type of the method signature
          * @return {@code true} if the method was created by this generator and returns {@code this}
          */
-        protected abstract boolean returnsThis(AnnotatedExecutableType t);
+        abstract boolean returnsThis(AnnotatedExecutableType t);
     }
 }

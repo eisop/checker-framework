@@ -42,6 +42,7 @@ public class SubstringIndexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
      *
      * @param checker the associated checker
      */
+    @SuppressWarnings("this-escape")
     public SubstringIndexAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
 
@@ -92,7 +93,7 @@ public class SubstringIndexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
          * @param qualifierClasses classes of annotations that are the qualifiers
          * @param elements element utils
          */
-        public SubstringIndexQualifierHierarchy(
+        SubstringIndexQualifierHierarchy(
                 Set<Class<? extends Annotation>> qualifierClasses, Elements elements) {
             super(qualifierClasses, elements, SubstringIndexAnnotatedTypeFactory.this);
         }

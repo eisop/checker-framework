@@ -1,10 +1,10 @@
-NullTypeTest.java:11:17: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
+NullTypeTest.java:12:17: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
 found   : @Nullable NullType
 required: @NonNull Object
-NullTypeTest.java:13:18: compiler.err.proc.messager: [type.argument.type.incompatible] incompatible type argument for type parameter T of A.
+NullTypeTest.java:14:18: compiler.err.proc.messager: [type.argument.type.incompatible] incompatible type argument for type parameter T of A.
 found   : @NonNull NullTypeTest.@NonNull A<@NonNull Object>
-required: [extends @Nullable Object super @Nullable NullType]
-NullTypeTest.java:13:19: compiler.err.proc.messager: [type.argument.type.incompatible] incompatible type argument for type parameter T of A.
+required: T [ extends @Nullable Object super @Nullable NullType ]
+NullTypeTest.java:14:19: compiler.err.proc.messager: [type.argument.type.incompatible] incompatible type argument for type parameter T of A.
 found   : @NonNull Object
-required: [extends @Nullable Object super @Nullable NullType]
+required: T [ extends @Nullable Object super @Nullable NullType ]
 3 errors

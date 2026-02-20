@@ -32,6 +32,7 @@ public class JavaExpressionAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
      *
      * @param checker the checker
      */
+    @SuppressWarnings("this-escape")
     public JavaExpressionAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         TOP = AnnotationBuilder.fromClass(elements, FETop.class);
@@ -57,7 +58,7 @@ public class JavaExpressionAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
          * @param qualifierClasses classes of annotations that are the qualifiers
          * @param elements element utils
          */
-        public JavaExpressionQualifierHierarchy(
+        JavaExpressionQualifierHierarchy(
                 Set<Class<? extends Annotation>> qualifierClasses, Elements elements) {
             super(qualifierClasses, elements, JavaExpressionAnnotatedTypeFactory.this);
         }

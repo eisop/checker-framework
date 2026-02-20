@@ -591,6 +591,10 @@ Unsound checking: ignore some errors
   Suppress all errors and warnings within given files or directories/folders
   --- or everywhere except within given files or directories/folders.  See
   Section~\ref{askipfiles}.
+\item \<-AonlyAnnotatedFor>
+  Suppress all errors and warnings for code outside the scope of a corresponding \<@AnnotatedFor> and
+  unsoundly use source defaults.
+  See Section~\ref{aonlyannotatedfor}.
 \item \<-AassumeSideEffectFree>, \<-AassumeDeterministic>, \<-AassumePure>, \<-AassumePureGetters>
   Unsoundly assume that every method is side-effect-free, deterministic, or
   both; or that every getter method is pure.
@@ -829,6 +833,14 @@ See Section~\ref{creating-debugging-options-output-args}.
  \<-AatfDoNotCache>,
  \<-AatfCacheSize>
 Miscellaneous debugging options; see Section~\ref{creating-debugging-options-misc}.
+
+\item
+ \<-AslowTypecheckingSeconds=N>
+Print a warning for any program construct, such as a method or class, whose
+type-checking takes more than N seconds (default 45).
+Often, generic type inference is the slowest part of type-checking, and you
+can significantly speed up type-checking by explicitly writing a few
+generic type arguments.
 
 \item
  \<-Aversion>
