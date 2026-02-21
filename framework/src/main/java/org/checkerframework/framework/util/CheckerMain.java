@@ -16,7 +16,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
@@ -597,7 +596,7 @@ public class CheckerMain {
                                         new BufferedWriter(
                                                 new OutputStreamWriter(
                                                         System.out, StandardCharsets.UTF_8)))
-                                : new PrintWriter(outputFilename, "UTF-8"));
+                                : new PrintWriter(outputFilename, StandardCharsets.UTF_8));
                 for (int i = 0; i < args.size(); i++) {
                     String arg = args.get(i);
 
@@ -743,15 +742,10 @@ public class CheckerMain {
                             + uri);
         }
 
-        try {
-            String fileName =
-                    URLDecoder.decode(
-                            uri.substring("jar:file:".length(), idx),
-                            Charset.defaultCharset().name());
-            return new File(fileName).getAbsolutePath();
-        } catch (UnsupportedEncodingException e) {
-            throw new BugInCF("Default charset doesn't exist. Your VM is borked.");
-        }
+        String fileName =
+                URLDecoder.decode(
+                        uri.substring("jar:file:".length(), idx), Charset.defaultCharset());
+        return new File(fileName).getAbsolutePath();
     }
 
     /**
