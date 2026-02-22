@@ -21,6 +21,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -49,6 +50,14 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
 
     /** The factory that this ContractsFromMethod is associated with. */
     protected final GenericAnnotatedTypeFactory<?, ?, ?, ?> atypeFactory;
+
+    /**
+     * Cache for conditional postconditions. Methods like {@code equals} or {@code hasNext} may be
+     * invoked many times; caching avoids re-iterating parameters and re-scanning annotations on
+     * each invocation.
+     */
+    private final Map<ExecutableElement, Set<Contract.ConditionalPostcondition>>
+            conditionalPostconditionCache = new ConcurrentHashMap<>();
 
     /**
      * Creates a ContractsFromMethod for the given factory.
@@ -110,10 +119,13 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
     @Override
     public Set<Contract.ConditionalPostcondition> getConditionalPostconditions(
             ExecutableElement methodElement) {
-        return getContractsOfKind(
+        return conditionalPostconditionCache.computeIfAbsent(
                 methodElement,
-                Contract.Kind.CONDITIONALPOSTCONDITION,
-                Contract.ConditionalPostcondition.class);
+                elem ->
+                        getContractsOfKind(
+                                elem,
+                                Contract.Kind.CONDITIONALPOSTCONDITION,
+                                Contract.ConditionalPostcondition.class));
     }
 
     // Helper methods
@@ -207,15 +219,6 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
                             AnnotationUtils.getElementValue(
                                     paramAnnotation, "value", Boolean.class, true);
                     String expressionString = "#" + (i + 1);
-                    System.err.println(
-                            "[DefaultContractsFromMethod]     -> contract ("
-                                    + atypeFactory.getClass().getSimpleName()
-                                    + "): expression=\""
-                                    + expressionString
-                                    + "\", resultValue="
-                                    + resultValue
-                                    + ", qualifier="
-                                    + enforcedQualifier.getAnnotationType());
                     T contract =
                             clazz.cast(
                                     Contract.create(
