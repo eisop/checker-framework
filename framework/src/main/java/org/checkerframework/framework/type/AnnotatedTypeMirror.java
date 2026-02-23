@@ -668,20 +668,6 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
   }
 
   /**
-   * Adds an annotation to this type.
-   *
-   * @param a the class of the annotation to add
-   * @deprecated This method creates a new {@code AnnotationMirror} every time it is called. Instead
-   *     of calling this method, store the {@code AnnotationMirror} in a field and use {@link
-   *     #addAnnotation(AnnotationMirror)} instead.
-   */
-  @Deprecated // 2023-06-15
-  public void addAnnotation(Class<? extends Annotation> a) {
-    AnnotationMirror anno = AnnotationBuilder.fromClass(atypeFactory.elements, a);
-    addAnnotation(anno);
-  }
-
-  /**
    * Adds the canonical version of all {@code annotations} as primary annotations of this type and,
    * in the case of {@link AnnotatedTypeVariable}s, {@link AnnotatedWildcardType}s, and {@link
    * AnnotatedIntersectionType}s, adds them to all bounds. (The canonical version is found via

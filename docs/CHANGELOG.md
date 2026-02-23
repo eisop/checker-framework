@@ -371,6 +371,8 @@ Removed long-deprecated `-Alint=forbidnonnullarraycomponents`.
 
 ### Implementation details
 
+Removed classes and methods that have been deprecated for more than two years.
+
 ### Closed issues
 
 ## Version 3.53.1 (2026-02-02)
