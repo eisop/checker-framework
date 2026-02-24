@@ -114,6 +114,8 @@ task copyAndMinimizeAnnotatedJdkFiles(type: JavaExec, dependsOn: cloneAnnotatedJ
     classpath = sourceSets.stubifier.runtimeClasspath
     standardOutput = System.out
     errorOutput = System.err
+    // Increase the stack size to prevent StackOverflowError when parsing deeply nested JDK files.
+    jvmArgs '-Xss16m'
 
     mainClass = 'org.checkerframework.framework.stubifier.JavaStubifier'
     args outputDir
