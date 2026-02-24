@@ -504,13 +504,13 @@ public abstract class UBQualifier {
         /** A triple that is the return type of {@link #mapToSequencesAndOffsets}. */
         private static class SequencesOffsetsAndClass {
             /** List of sequences. */
-            public final List<String> sequences;
+            final List<String> sequences;
 
             /** List of offsets. */
-            public final List<String> offsets;
+            final List<String> offsets;
 
             /** The class of the annotation to be built. */
-            public final Class<? extends Annotation> annoClass;
+            final Class<? extends Annotation> annoClass;
 
             /**
              * Creates a new SequencesOffsetsAndClass.
@@ -519,7 +519,7 @@ public abstract class UBQualifier {
              * @param offsets list of offsets
              * @param annoClass the class of the annotation to be built
              */
-            public SequencesOffsetsAndClass(
+            SequencesOffsetsAndClass(
                     List<String> sequences,
                     List<String> offsets,
                     Class<? extends Annotation> annoClass) {
@@ -1451,7 +1451,7 @@ public abstract class UBQualifier {
     /** The bottom qualifier for the upperbound type system. */
     private static class UpperBoundBottomQualifier extends UBQualifier {
         /** The canonical bottom qualifier for the upperbound type system. */
-        public static final UBQualifier BOTTOM = new UpperBoundBottomQualifier();
+        static final UBQualifier BOTTOM = new UpperBoundBottomQualifier();
 
         /** This class is a singleton. */
         private UpperBoundBottomQualifier() {}
@@ -1485,7 +1485,7 @@ public abstract class UBQualifier {
     /** The polymorphic qualifier. */
     private static class PolyQualifier extends UBQualifier {
         /** The canonical representative. */
-        public static final UBQualifier POLY = new PolyQualifier();
+        static final UBQualifier POLY = new PolyQualifier();
 
         /** This class is a singleton. */
         private PolyQualifier() {}

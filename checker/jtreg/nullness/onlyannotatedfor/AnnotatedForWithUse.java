@@ -12,7 +12,11 @@ import org.checkerframework.framework.qual.AnnotatedFor;
 public class AnnotatedForWithUse {
     class Unannotated {
         Object o;
-        Object get() { return null; }
+
+        Object get() {
+            return null;
+        }
+
         void set(Object of) {}
     }
 
@@ -20,7 +24,7 @@ public class AnnotatedForWithUse {
     class AnnotatedUse {
         void use(Unannotated u) {
             // 1: OK, 2: OK, 3: Err
-            @NonNull Object obj =  u.o;
+            @NonNull Object obj = u.o;
             // 1. Err, 2: Err, TODO want OK, 3:  OK, TODO want Err
             u.o = null;
             // 1: OK, 2: OK, 3: Err

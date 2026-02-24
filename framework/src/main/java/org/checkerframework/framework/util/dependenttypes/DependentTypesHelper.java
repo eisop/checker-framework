@@ -658,7 +658,7 @@ public class DependentTypesHelper {
     @SuppressWarnings("serial")
     private static class FoundLocalVarException extends RuntimeException {
         /** Creates a FoundLocalVarException. */
-        public FoundLocalVarException() {}
+        FoundLocalVarException() {}
     }
 
     /**
