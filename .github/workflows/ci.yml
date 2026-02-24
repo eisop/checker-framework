@@ -114,7 +114,7 @@ jobs:
   otherjdks:
     name: ${{ matrix.script }} on JDK ${{ matrix.java.version }}
     runs-on: ubuntu-24.04
-    needs: sanity
+    needs: remainder
     permissions:
       contents: read
     env:
