@@ -310,7 +310,7 @@ public class OptionalImplVisitor
     ExpressionTree getReceiver = TreeUtils.getReceiverTree(trueReceiver);
     ExpressionTree receiver = isPresentCall.second;
     if (sameExpression(receiver, getReceiver)) {
-    ExecutableElement ele = TreeUtils.elementFromUse((MethodInvocationTree) trueExpr);
+      ExecutableElement ele = TreeUtils.elementFromUse((MethodInvocationTree) trueExpr);
       checker.reportWarning(
           tree,
           PREFER_MAP_AND_ORELSE,

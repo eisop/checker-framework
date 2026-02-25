@@ -667,7 +667,8 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
 
     boolean assumeAssertionActivated =
         CFCFGBuilder.assumeAssertionsActivatedForAssertTree(checker, tree);
-    boolean doVisitAssert = assumeAssertions != AssumeAssertions.DISABLED || assumeAssertionActivated;
+    boolean doVisitAssert =
+        assumeAssertions != AssumeAssertions.DISABLED || assumeAssertionActivated;
 
     if (doVisitAssert) {
       // TODO: If assumeAssertionActivated and the condition is non-null, issue

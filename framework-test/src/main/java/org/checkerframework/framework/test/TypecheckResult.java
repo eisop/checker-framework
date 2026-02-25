@@ -17,38 +17,19 @@ import org.plumelib.util.StringsPlume;
  * TestConfiguration.
  */
 public class TypecheckResult {
-  /** The test configuration. */
   private final TestConfiguration configuration;
-
-  /** The compilation result. */
   private final CompilationResult compilationResult;
+  private final List<TestDiagnostic> expectedDiagnostics;
 
-  // In Java 21, can declare the next three fields as SequencedCollection.
+  private final List<TestDiagnostic> missingDiagnostics;
+  private final List<TestDiagnostic> unexpectedDiagnostics;
 
-  /** The expected diagnostics. */
-  private final Collection<TestDiagnostic> expectedDiagnostics;
-
-  /** The diagnostics that were expected but were not issued. */
-  private final Collection<TestDiagnostic> missingDiagnostics;
-
-  /** The diagnostics that were issued but were not expected. */
-  private final Collection<TestDiagnostic> unexpectedDiagnostics;
-
-  /**
-   * Creates a TypecheckResult.
-   *
-   * @param configuration The test configuration.
-   * @param compilationResult The compilation result.
-   * @param expectedDiagnostics the expected diagnostics
-   * @param missingDiagnostics the diagnostics that were expected but were not issued
-   * @param unexpectedDiagnostics the diagnostics that were issued but were not expected
-   */
   protected TypecheckResult(
       TestConfiguration configuration,
       CompilationResult compilationResult,
-      Collection<TestDiagnostic> expectedDiagnostics,
-      Collection<TestDiagnostic> missingDiagnostics,
-      Collection<TestDiagnostic> unexpectedDiagnostics) {
+      List<TestDiagnostic> expectedDiagnostics,
+      List<TestDiagnostic> missingDiagnostics,
+      List<TestDiagnostic> unexpectedDiagnostics) {
     this.configuration = configuration;
     this.compilationResult = compilationResult;
     this.expectedDiagnostics = expectedDiagnostics;
@@ -56,66 +37,31 @@ public class TypecheckResult {
     this.unexpectedDiagnostics = unexpectedDiagnostics;
   }
 
-  /**
-   * Returns the test configuration.
-   *
-   * @return the test configuration
-   */
   public TestConfiguration getConfiguration() {
     return configuration;
   }
 
-  /**
-   * Returns the compilation result.
-   *
-   * @return the compilation result
-   */
   public CompilationResult getCompilationResult() {
     return compilationResult;
   }
 
-  /**
-   * Returns the actual diagnostics.
-   *
-   * @return the actual diagnostics
-   */
-  public Collection<Diagnostic<? extends JavaFileObject>> getActualDiagnostics() {
+  public List<Diagnostic<? extends JavaFileObject>> getActualDiagnostics() {
     return compilationResult.getDiagnostics();
   }
 
-  /**
-   * Returns the expected diagnostics.
-   *
-   * @return the expected diagnostics
-   */
-  public Collection<TestDiagnostic> getExpectedDiagnostics() {
+  public List<TestDiagnostic> getExpectedDiagnostics() {
     return expectedDiagnostics;
   }
 
-  /**
-   * Returns true if the test failed.
-   *
-   * @return true if the test failed
-   */
   public boolean didTestFail() {
     return !unexpectedDiagnostics.isEmpty() || !missingDiagnostics.isEmpty();
   }
 
-  /**
-   * Returns the diagnostics that were expected but were not issued.
-   *
-   * @return the diagnostics that were expected but were not issued
-   */
-  public Collection<TestDiagnostic> getMissingDiagnostics() {
+  public List<TestDiagnostic> getMissingDiagnostics() {
     return missingDiagnostics;
   }
 
-  /**
-   * Returns the diagnostics that were issued but were not expected.
-   *
-   * @return the diagnostics that were issued but were not expected
-   */
-  public Collection<TestDiagnostic> getUnexpectedDiagnostics() {
+  public List<TestDiagnostic> getUnexpectedDiagnostics() {
     return unexpectedDiagnostics;
   }
 
@@ -191,7 +137,7 @@ public class TypecheckResult {
   public static TypecheckResult fromCompilationResults(
       TestConfiguration configuration,
       CompilationResult result,
-      Collection<TestDiagnostic> expectedDiagnostics) {
+      List<TestDiagnostic> expectedDiagnostics) {
 
     Set<TestDiagnostic> actualDiagnostics =
         TestDiagnosticUtils.fromJavaxToolsDiagnosticList(result.getDiagnostics());
@@ -203,10 +149,14 @@ public class TypecheckResult {
     Set<TestDiagnostic> unexpectedDiagnostics = new LinkedHashSet<>(actualDiagnostics);
     unexpectedDiagnostics.removeAll(expectedSet);
 
-    Set<TestDiagnostic> missingDiagnostics = new LinkedHashSet<>(expectedDiagnostics);
+    List<TestDiagnostic> missingDiagnostics = new ArrayList<>(expectedDiagnostics);
     missingDiagnostics.removeAll(actualDiagnostics);
 
     return new TypecheckResult(
-        configuration, result, expectedDiagnostics, missingDiagnostics, unexpectedDiagnostics);
+        configuration,
+        result,
+        expectedDiagnostics,
+        missingDiagnostics,
+        new ArrayList<>(unexpectedDiagnostics));
   }
 }

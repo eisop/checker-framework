@@ -111,6 +111,7 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.CaseUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.JCVariableDeclUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.SwitchExpressionUtils;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11.YieldUtils;
 import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.UniqueIdMap;
 

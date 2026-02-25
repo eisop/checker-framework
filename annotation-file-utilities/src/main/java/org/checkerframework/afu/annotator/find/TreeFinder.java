@@ -330,7 +330,7 @@ public class TreeFinder extends TreeScanner<Void, List<Insertion>> {
       dbug.debug("TypePositionFinder.visitCompilationUnit%n");
       JCCompilationUnit cu = (JCCompilationUnit) node;
       return IPair.of(astRecord(node), cu.getStartPosition());
-      }
+    }
 
     @Override
     public IPair<ASTRecord, Integer> visitClass(ClassTree node, Insertion ins) {
@@ -666,7 +666,7 @@ public class TreeFinder extends TreeScanner<Void, List<Insertion>> {
       dbug.debug("TypePositionFinder.visitMemberSelect(%s)%n", node);
       JCFieldAccess raw = (JCFieldAccess) node;
       return IPair.of(astRecord(node), TreePathUtil.getEndPosition(raw, tree) - raw.name.length());
-      }
+    }
 
     @Override
     public IPair<ASTRecord, Integer> visitIdentifier(IdentifierTree node, Insertion ins) {
