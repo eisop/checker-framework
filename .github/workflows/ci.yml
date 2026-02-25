@@ -64,7 +64,8 @@ jobs:
     permissions:
       contents: read
     strategy:
-      fail-fast: true
+      # Run all `remainder` tasks, even if one fails.
+      fail-fast: false
       matrix:
         # No need to run 'cftests-junit-jdk21' on JDK 21.
         script: ['typecheck-part1', 'typecheck-part2',
