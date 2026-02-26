@@ -114,7 +114,7 @@ public class TestDiagnosticUtils {
     // Since we want to match the error messages reported by javac exactly, we must parse.
     // diagnostic.getCode() returns "compiler.warn.prob.found.req" for "[unchecked]" messages,
     // but not clear how to map from one to the other.
-    Pair<String, Path> trimmed = formatJavaxToolString(diagnosticString);
+    Pair<String, Path> trimmed = messageAndFilename(diagnosticString);
     return fromPatternMatching(
         DIAGNOSTIC_PATTERN, DIAGNOSTIC_WARNING_PATTERN, trimmed.second, null, trimmed.first);
   }
@@ -148,7 +148,7 @@ public class TestDiagnosticUtils {
     Matcher diagnosticMatcher = diagnosticPattern.matcher(diagnosticString);
     if (diagnosticMatcher.matches()) {
       Pair<DiagnosticKind, Boolean> categoryToFixable =
-          parseCategoryString(diagnosticMatcher.group("kind"));
+          categoryAndFixable(diagnosticMatcher.group("kind"));
       kind = categoryToFixable.first;
       isFixable = categoryToFixable.second;
       message = diagnosticMatcher.group("message").trim();
@@ -261,7 +261,7 @@ public class TestDiagnosticUtils {
    * @param original a javax diagnostic
    * @return the diagnostic, split into message and file
    */
-  public static Pair<String, Path> formatJavaxToolString(String original) {
+  public static Pair<String, Path> messageAndFilename(String original) {
     String firstline;
     // In TestDiagnostic we manually check for "\r\n" and "\n". Here, we only use
     // `firstline` to find the file name. Using the system line separator is not
@@ -297,7 +297,7 @@ public class TestDiagnosticUtils {
    * @param category a category string
    * @return the corresponding diagnostic kind and whether it is fixable
    */
-  private static Pair<DiagnosticKind, Boolean> parseCategoryString(String category) {
+  private static Pair<DiagnosticKind, Boolean> categoryAndFixable(String category) {
     String fixable = "fixable-";
     boolean isFixable = category.startsWith(fixable);
     if (isFixable) {
