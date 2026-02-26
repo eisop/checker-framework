@@ -36,6 +36,7 @@ public class SubtypeIsSupersetQualifierHierarchy extends MostlyNoElementQualifie
      * @param processingEnv processing environment
      * @param atypeFactory the associated type factory
      */
+    @SuppressWarnings({"nullness", "keyfor"}) // GenericAnnotatedTypeFactory hasn't been annotated.
     public SubtypeIsSupersetQualifierHierarchy(
             Collection<Class<? extends Annotation>> qualifierClasses,
             ProcessingEnvironment processingEnv,

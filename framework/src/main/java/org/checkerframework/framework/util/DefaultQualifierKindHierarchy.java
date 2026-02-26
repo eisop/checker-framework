@@ -376,7 +376,7 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
     private Set<DefaultQualifierKind> createBottomsSet(
             @UnderInitialization DefaultQualifierKindHierarchy this,
             Map<DefaultQualifierKind, Set<DefaultQualifierKind>> directSuperMap) {
-        Set<DefaultQualifierKind> bottoms = new HashSet<>(directSuperMap.keySet());
+        Set<DefaultQualifierKind> bottoms = new TreeSet<>(directSuperMap.keySet());
         for (Set<DefaultQualifierKind> superKinds : directSuperMap.values()) {
             bottoms.removeAll(superKinds);
         }
