@@ -3896,6 +3896,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             case METHOD:
             case CONSTRUCTOR:
             case TYPE_PARAMETER:
+            case PARAMETER:
                 fromElt = trees.getTree(elt);
                 break;
             default:
