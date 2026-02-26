@@ -21,8 +21,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -505,7 +503,7 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
 
         // Visit every super qualifier kind and add its super qualifier kinds to allSupers.
         Queue<DefaultQualifierKind> toVisit = new ArrayDeque<>(directSuperMap.get(qualifierKind));
-        Set<DefaultQualifierKind> visited = new HashSet<>();
+        Set<DefaultQualifierKind> visited = new TreeSet<>();
         while (!toVisit.isEmpty()) {
             DefaultQualifierKind superQualKind = toVisit.remove();
             if (superQualKind == qualifierKind) {
@@ -538,7 +536,7 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
     @RequiresNonNull("this.qualifierKinds")
     protected Map<QualifierKind, Map<QualifierKind, QualifierKind>> createLubsMap(
             @UnderInitialization DefaultQualifierKindHierarchy this) {
-        Map<QualifierKind, Map<QualifierKind, QualifierKind>> lubs = new HashMap<>();
+        Map<QualifierKind, Map<QualifierKind, QualifierKind>> lubs = new TreeMap<>();
         for (QualifierKind qual1 : qualifierKinds) {
             for (QualifierKind qual2 : qualifierKinds) {
                 if (qual1.getTop() != qual2.getTop()) {
@@ -692,7 +690,7 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
             QualifierKind value,
             String operationName) {
         Map<QualifierKind, QualifierKind> qual1Map =
-                map.computeIfAbsent(qual1, k -> new HashMap<>());
+                map.computeIfAbsent(qual1, k -> new TreeMap<>());
         QualifierKind existingValue = qual1Map.get(qual2);
         if (existingValue == null) {
             qual1Map.put(qual2, value);
