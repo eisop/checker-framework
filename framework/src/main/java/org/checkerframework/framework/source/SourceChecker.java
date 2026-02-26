@@ -412,6 +412,10 @@ import org.plumelib.util.UtilPlume;
   // org.checkerframework.framework.source.SourceChecker.message(Kind, Object, String, Object...)
   "nomsgtext",
 
+  // Convert newlines to " / ", so error messages fit on one line.
+  // org.checkerframework.framework.source.SourceChecker.message(Kind, Object, String, Object...)
+  "onelinemsg",
+
   // Do not perform a JRE version check.
   "noJreVersionCheck",
 
@@ -1987,6 +1991,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     if (kind == Diagnostic.Kind.ERROR && warns) {
       kind = Diagnostic.Kind.MANDATORY_WARNING;
+    }
+
+    if (hasOption("onelinemsg")) {
+      // Use a virgule (/), as indicates a line break in poetry.
+      messageText = messageText.replace(System.lineSeparator(), " / ");
     }
 
     if (preciseSource == null) {
