@@ -1,18 +1,20 @@
-Issue 1556: Non-deterministic typecheck-part2 CI failures on Ubuntu 24.04
+Issue 1556: typecheck-part2 CI failures on Ubuntu 24.04
 
-These two files illustrate the compilation-order dependency that causes
-non-deterministic failures when type-checking the Checker Framework itself
-with -AuseConservativeDefaultsForUncheckedCode=source.
-
-The actual failure occurs in SubtypeIsSubsetQualifierHierarchy.java:43 (and
-SubtypeIsSupersetQualifierHierarchy.java:43) when passing an argument of
-type GenericAnnotatedTypeFactory<?,?,?,?> to super(). Both the sub-class
-(SubtypeIsSubsetQualifierHierarchy) and the base class
-(MostlyNoElementQualifierHierarchy) declare the same parameter type
-GenericAnnotatedTypeFactory<?,?,?,?>, but the wildcard bounds may be
-annotated differently depending on the compilation order, producing:
+When the Nullness Checker (with -AuseConservativeDefaultsForUncheckedCode=source)
+processes SubtypeIsSubsetQualifierHierarchy.java:43 (and
+SubtypeIsSupersetQualifierHierarchy.java:43), it applies conservative defaults to
+GenericAnnotatedTypeFactory (which lacks @AnnotatedFor("nullness")).  This makes
+the wildcard bounds in the found type @Nullable CFAbstractValue<...>, while the
+formal parameter expects @NonNull Object bounds.  The checker then reports:
   [nullness:argument.type.incompatible]
   [keyfor:argument.type.incompatible]
+
+This is a false positive: passing a GenericAnnotatedTypeFactory<?,?,?,?> to a
+constructor parameter of the same type is always valid.
+
+The fix, matching the established pattern in QualifierHierarchy.java, is to add
+  @SuppressWarnings({"nullness", "keyfor"}) // GenericAnnotatedTypeFactory hasn't been annotated.
+to the affected constructors.
 
 GenericFactory.java      -- Represents GenericAnnotatedTypeFactory.
                             No @AnnotatedFor("nullness").
@@ -21,8 +23,10 @@ WildcardPassthrough.java -- Represents SubtypeIsSubsetQualifierHierarchy
                             MostlyNoElementQualifierHierarchy
                             (class WildcardBase).
                             Both have @AnnotatedFor("nullness").
+                            The constructor uses @SuppressWarnings({"nullness","keyfor"})
+                            to suppress the false-positive, matching the actual fix.
 
-Test both compilation orders:
+Test both compilation orders (both should produce no errors):
 
 javac -processor org.checkerframework.checker.nullness.NullnessChecker \
   -AuseConservativeDefaultsForUncheckedCode=source \
@@ -31,6 +35,3 @@ javac -processor org.checkerframework.checker.nullness.NullnessChecker \
 javac -processor org.checkerframework.checker.nullness.NullnessChecker \
   -AuseConservativeDefaultsForUncheckedCode=source \
   WildcardPassthrough.java GenericFactory.java
-
-If the problem is present, one of these orderings produces errors.
-If the fix is working, both orderings produce no errors.

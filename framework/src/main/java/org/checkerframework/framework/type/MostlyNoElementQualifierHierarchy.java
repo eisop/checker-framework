@@ -47,6 +47,7 @@ public abstract class MostlyNoElementQualifierHierarchy extends ElementQualifier
      * @param elements element utils
      * @param atypeFactory the associated type factory
      */
+    @SuppressWarnings({"nullness", "keyfor"}) // GenericAnnotatedTypeFactory hasn't been annotated.
     protected MostlyNoElementQualifierHierarchy(
             Collection<Class<? extends Annotation>> qualifierClasses,
             Elements elements,
