@@ -3883,7 +3883,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             return ((DetachedVarSymbol) elt).getDeclaration();
         }
 
-        // TODO: handle type parameter declarations?
         Tree fromElt;
         // Prevent calling declarationFor on elements we know we don't have the tree for.
 
@@ -3896,6 +3895,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             case ENUM_CONSTANT:
             case METHOD:
             case CONSTRUCTOR:
+            case PARAMETER:
+            case TYPE_PARAMETER:
                 fromElt = trees.getTree(elt);
                 break;
             default:

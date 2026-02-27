@@ -1,5 +1,5 @@
 # Tests that are currently passing
-PASSING_TESTS = Bug109 compat issue265 issue594 issue607 multiple-errors package-anno shorthand issue3597 issue5174
+PASSING_TESTS = Bug109 compat issue265 issue594 issue607 multiple-errors package-anno shorthand issue3597 issue5174 issue1556
 ifeq (,$(findstring 1.8,$(shell javac -version)))
   # issue309 and issue502 fail with Java 11 because of differences between Java 8 and Java 11 bytecode.
   # TODO: issue559 should work with an annotated jdk11.
@@ -55,6 +55,10 @@ issue607:
 
 issue3597:
 	$(MAKE) -C issue3597
+
+issue1556:
+	$(JAVAC) -processor org.checkerframework.checker.nullness.NullnessChecker -AuseConservativeDefaultsForUncheckedCode=source issue1556/GenericFactory.java issue1556/WildcardPassthrough.java
+	$(JAVAC) -processor org.checkerframework.checker.nullness.NullnessChecker -AuseConservativeDefaultsForUncheckedCode=source issue1556/WildcardPassthrough.java issue1556/GenericFactory.java
 
 issue5174:
 	$(MAKE) -C issue5174

@@ -1,0 +1,36 @@
+Issue 1556: Non-deterministic typecheck-part2 CI failures on Ubuntu 24.04
+
+These two files illustrate the compilation-order dependency that causes
+non-deterministic failures when type-checking the Checker Framework itself
+with -AuseConservativeDefaultsForUncheckedCode=source.
+
+The actual failure occurs in SubtypeIsSubsetQualifierHierarchy.java:43 (and
+SubtypeIsSupersetQualifierHierarchy.java:43) when passing an argument of
+type GenericAnnotatedTypeFactory<?,?,?,?> to super(). Both the sub-class
+(SubtypeIsSubsetQualifierHierarchy) and the base class
+(MostlyNoElementQualifierHierarchy) declare the same parameter type
+GenericAnnotatedTypeFactory<?,?,?,?>, but the wildcard bounds may be
+annotated differently depending on the compilation order, producing:
+  [nullness:argument.type.incompatible]
+  [keyfor:argument.type.incompatible]
+
+GenericFactory.java      -- Represents GenericAnnotatedTypeFactory.
+                            No @AnnotatedFor("nullness").
+WildcardPassthrough.java -- Represents SubtypeIsSubsetQualifierHierarchy
+                            (class WildcardPassthrough) and
+                            MostlyNoElementQualifierHierarchy
+                            (class WildcardBase).
+                            Both have @AnnotatedFor("nullness").
+
+Test both compilation orders:
+
+javac -processor org.checkerframework.checker.nullness.NullnessChecker \
+  -AuseConservativeDefaultsForUncheckedCode=source \
+  GenericFactory.java WildcardPassthrough.java
+
+javac -processor org.checkerframework.checker.nullness.NullnessChecker \
+  -AuseConservativeDefaultsForUncheckedCode=source \
+  WildcardPassthrough.java GenericFactory.java
+
+If the problem is present, one of these orderings produces errors.
+If the fix is working, both orderings produce no errors.
