@@ -3896,6 +3896,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             case ENUM_CONSTANT:
             case METHOD:
             case CONSTRUCTOR:
+            case PARAMETER:
                 fromElt = trees.getTree(elt);
                 break;
             default:
