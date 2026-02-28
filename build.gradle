@@ -18,7 +18,7 @@ plugins {
     // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
     // Only works on JDK 11+ (even including the plugin crashes Gradle on JDK 8).
     id 'com.diffplug.spotless' version '8.2.1'
-    id 'com.github.andygoossens.modernizer' version '1.11.0'
+    id 'com.github.andygoossens.modernizer' version '1.12.0'
 }
 
 // There is another `repositories { ... }` block below; if you change this one, change that one as well.
