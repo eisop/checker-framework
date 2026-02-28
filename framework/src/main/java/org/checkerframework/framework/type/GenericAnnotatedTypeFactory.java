@@ -145,7 +145,7 @@ import javax.lang.model.util.Types;
  * @param <FlowAnalysis> the flow analysis type
  */
 @AnnotatedFor("nullness")
-@SuppressWarnings("nullness")
+@SuppressWarnings("nullness") // TODO: fix all remaining errors
 public abstract class GenericAnnotatedTypeFactory<
                 Value extends CFAbstractValue<Value>,
                 Store extends CFAbstractStore<Value, Store>,
