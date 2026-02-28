@@ -138,6 +138,11 @@ import javax.lang.model.util.Types;
  * DependentTypesHelper}, etc. Those features, and {@link #addComputedTypeAnnotations} (other than
  * the part related to flow-sensitivity), could and should be in the superclass {@link
  * AnnotatedTypeFactory}; it is not clear why they are defined in this class.
+ *
+ * @param <Value> the value type
+ * @param <Store> the store type
+ * @param <TransferFunction> the transfer function type
+ * @param <FlowAnalysis> the flow analysis type
  */
 @AnnotatedFor("nullness")
 @SuppressWarnings("nullness")
