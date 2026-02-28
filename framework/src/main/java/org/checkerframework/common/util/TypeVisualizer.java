@@ -225,12 +225,12 @@ public class TypeVisualizer {
         /** Used to identify nodes uniquely. This field is monotonically increasing. */
         private int nextId = 0;
 
-        public Drawing(String graphName, AnnotatedTypeMirror type) {
+        Drawing(String graphName, AnnotatedTypeMirror type) {
             this.graphName = graphName;
             this.type = type;
         }
 
-        public void draw(File file) {
+        void draw(File file) {
             addNodes(type);
             addConnections();
             write(file);
@@ -418,7 +418,7 @@ public class TypeVisualizer {
         private class NodeDrawer implements AnnotatedTypeVisitor<Void, Void> {
 
             /** Create a new NodeDrawer. */
-            public NodeDrawer() {}
+            NodeDrawer() {}
 
             private void visitAll(List<? extends AnnotatedTypeMirror> types) {
                 for (AnnotatedTypeMirror type : types) {
@@ -557,7 +557,7 @@ public class TypeVisualizer {
              * @param atm an annotated type
              * @return a string representation of the annotations on {@code atm}
              */
-            public String getAnnoStr(AnnotatedTypeMirror atm) {
+            String getAnnoStr(AnnotatedTypeMirror atm) {
                 StringJoiner sj = new StringJoiner(" ");
                 for (AnnotationMirror anno : atm.getAnnotations()) {
                     // TODO: More comprehensive escaping
@@ -566,7 +566,7 @@ public class TypeVisualizer {
                 return sj.toString();
             }
 
-            public boolean checkOrAdd(AnnotatedTypeMirror atm) {
+            boolean checkOrAdd(AnnotatedTypeMirror atm) {
                 Node node = new Node(atm);
                 if (nodes.containsKey(node)) {
                     return false;
@@ -575,25 +575,24 @@ public class TypeVisualizer {
                 return true;
             }
 
-            public String makeLabeledNode(AnnotatedTypeMirror type, String label) {
+            String makeLabeledNode(AnnotatedTypeMirror type, String label) {
                 return makeLabeledNode(type, label, null);
             }
 
-            public String makeLabeledNode(
-                    AnnotatedTypeMirror type, String label, String attributes) {
+            String makeLabeledNode(AnnotatedTypeMirror type, String label, String attributes) {
                 String attr = (attributes != null) ? ", " + attributes : "";
                 return nodes.get(new Node(type)) + " [label=\"" + label + "\"" + attr + "]";
             }
 
-            public void addLabeledNode(AnnotatedTypeMirror type, String label) {
+            void addLabeledNode(AnnotatedTypeMirror type, String label) {
                 lines.add(makeLabeledNode(type, label));
             }
 
-            public void addLabeledNode(AnnotatedTypeMirror type, String label, String attributes) {
+            void addLabeledNode(AnnotatedTypeMirror type, String label, String attributes) {
                 lines.add(makeLabeledNode(type, label, attributes));
             }
 
-            public String makeMethodLabel(AnnotatedExecutableType methodType) {
+            String makeMethodLabel(AnnotatedExecutableType methodType) {
                 ExecutableElement methodElem = methodType.getElement();
 
                 StringBuilder builder = new StringBuilder();

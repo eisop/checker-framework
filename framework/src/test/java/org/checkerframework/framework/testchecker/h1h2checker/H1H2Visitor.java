@@ -26,7 +26,7 @@ public class H1H2Visitor extends BaseTypeVisitor<H1H2AnnotatedTypeFactory> {
 
     private final class H1H2TypeValidator extends BaseTypeValidator {
 
-        public H1H2TypeValidator(
+        H1H2TypeValidator(
                 BaseTypeChecker checker,
                 BaseTypeVisitor<?> visitor,
                 AnnotatedTypeFactory atypeFactory) {
