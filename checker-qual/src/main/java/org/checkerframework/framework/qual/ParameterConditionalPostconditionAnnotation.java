@@ -16,30 +16,19 @@ import java.lang.annotation.Target;
  * {@link EnsuresQualifierIf#result()}. The expression to which the qualifier applies is implicit:
  * it is the annotated parameter (e.g. {@code "#1"} for the first parameter).
  *
- * <p>This is the parameter-level analogue of {@link ConditionalPostconditionAnnotation}. It allows
- * expressing conditional postconditions on parameters without putting the contract on the method
- * and without using expression strings like {@code "#1"}.
- *
- * <p>For example, the nullness checker defines:
+ * <p>For example, the nullness checker defines {@link
+ * org.checkerframework.checker.nullness.qual.NotNullIfReturns}:
  *
  * <pre><code>
  * {@literal @}ParameterConditionalPostconditionAnnotation(qualifier = NonNull.class)
  * {@literal @}Target(ElementType.PARAMETER)
- * public {@literal @}interface NonNullIfReturn {
+ * public {@literal @}interface NotNullIfReturns {
  *   boolean value();
  * }
  * </code></pre>
  *
- * <p>Usage:
- *
- * <pre><code>
- * public boolean equals(
- *     {@literal @}NonNullIfReturn(true) {@literal @}Nullable Object other
- * ) { ... }
- * </code></pre>
- *
- * <p>This is equivalent to the method-level contract {@code @EnsuresNonNullIf(expression="#1",
- * result=true)} on the method.
+ * <p>Usage: {@code @NotNullIfReturns(true)} means the parameter is non-null when the method returns
+ * true.
  *
  * @see ConditionalPostconditionAnnotation
  * @see EnsuresQualifierIf
