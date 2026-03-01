@@ -70,3 +70,6 @@ git diff --exit-code docs/manual/contributors.tex \
 
 # Check gradle tasks are configured properly
 ./gradlew tasks
+
+# Check that modern APIs are used
+./gradlew modernizer

@@ -43,8 +43,8 @@ import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.reflection.Signatures;
 
-import java.io.File;
 import java.lang.annotation.Annotation;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -229,7 +229,7 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
         // load external directories of units
         for (String directoryName : checker.getStringsOption("unitsDirs", ':')) {
-            if (!new File(directoryName).exists()) {
+            if (!Paths.get(directoryName).toFile().exists()) {
                 throw new UserError("Nonexistent directory in -AunitsDirs: " + directoryName);
             }
             loadExternalDirectory(directoryName);
