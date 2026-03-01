@@ -590,7 +590,10 @@ public class CheckerMain {
             String errorMessage = null;
 
             try {
-                @SuppressWarnings("builder:required.method.not.called") // called when needed
+                @SuppressWarnings({
+                    "builder:required.method.not.called", // called when needed
+                    "JdkObsolete"
+                })
                 PrintWriter writer =
                         (outputFilename.equals("-")
                                 ? new PrintWriter(
@@ -744,6 +747,7 @@ public class CheckerMain {
         }
 
         try {
+            @SuppressWarnings("JdkObsolete")
             String fileName =
                     URLDecoder.decode(
                             uri.substring("jar:file:".length(), idx),
