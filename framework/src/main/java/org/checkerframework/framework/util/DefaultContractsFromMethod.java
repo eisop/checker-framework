@@ -13,6 +13,7 @@ import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.TreeUtils;
+import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.IPair;
 
 import java.util.Collections;
@@ -21,7 +22,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -45,6 +45,12 @@ import javax.lang.model.util.ElementFilter;
 // more helpful error message.
 public class DefaultContractsFromMethod implements ContractsFromMethod {
 
+    /**
+     * Maximum size for the conditional postcondition cache. Uses LRU eviction to avoid unbounded
+     * memory use. Concurrency is not a concern (single-threaded).
+     */
+    private static final int CACHE_SIZE = 300;
+
     /** The QualifierArgument.value field/element. */
     protected final ExecutableElement qualifierArgumentValueElement;
 
@@ -52,12 +58,12 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
     protected final GenericAnnotatedTypeFactory<?, ?, ?, ?> atypeFactory;
 
     /**
-     * Cache for conditional postconditions. Methods like {@code equals} or {@code hasNext} may be
-     * invoked many times; caching avoids re-iterating parameters and re-scanning annotations on
+     * LRU cache for conditional postconditions. Methods like {@code equals} or {@code hasNext} may
+     * be invoked many times; caching avoids re-iterating parameters and re-scanning annotations on
      * each invocation.
      */
     private final Map<ExecutableElement, Set<Contract.ConditionalPostcondition>>
-            conditionalPostconditionCache = new ConcurrentHashMap<>();
+            conditionalPostconditionCache = CollectionsPlume.createLruCache(CACHE_SIZE);
 
     /**
      * Creates a ContractsFromMethod for the given factory.
@@ -198,7 +204,7 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
         }
 
         // Gather conditional postconditions from parameter-level annotations (e.g.
-        // @NonNullIfReturn).
+        // @NotNullIfReturns).
         if (kind == Contract.Kind.CONDITIONALPOSTCONDITION) {
             List<? extends VariableElement> params = executableElement.getParameters();
             for (int i = 0; i < params.size(); i++) {
@@ -218,6 +224,9 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
                     Boolean resultValue =
                             AnnotationUtils.getElementValue(
                                     paramAnnotation, "value", Boolean.class, true);
+                    // value = return value under which param has the qualifier (e.g.
+                    // @NotNullIfReturns(true)
+                    // means param is non-null when method returns true).
                     String expressionString = "#" + (i + 1);
                     T contract =
                             clazz.cast(
