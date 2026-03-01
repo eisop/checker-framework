@@ -133,11 +133,11 @@ jobs:
           'daikon-part1', 'daikon-part2',
           'misc']
         # JDK 21 used by `sanity` and `remainder` before.
+        # Keep all LTS versions and the newest non-LTS version.
         # `experimental` versions use the $version compiler, but run on JDK 21.
         java: [{version: '8', experimental: false},
           {version: '11', experimental: false},
           {version: '17', experimental: false},
-          {version: '24', experimental: false},
           {version: '25', experimental: false},
           {version: 'ea', experimental: true}]
         exclude:
