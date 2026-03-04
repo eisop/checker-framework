@@ -737,7 +737,7 @@ public class AnnotationUtils {
          * @param message the detail message
          */
         @Pure
-        public NoSuchElementException(String message) {
+        NoSuchElementException(String message) {
             super(message);
         }
     }

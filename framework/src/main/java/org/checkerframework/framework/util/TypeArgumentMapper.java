@@ -335,8 +335,8 @@ public class TypeArgumentMapper {
      * That is, B can be viewed as an object of type A with an type argument of type parameter Tb
      */
     private static class TypeRecord {
-        public final TypeElement element;
-        public final DeclaredType type;
+        final TypeElement element;
+        final DeclaredType type;
 
         TypeRecord(TypeElement element, DeclaredType type) {
             this.element = element;
