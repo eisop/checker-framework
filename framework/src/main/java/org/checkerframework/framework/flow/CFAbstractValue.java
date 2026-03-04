@@ -294,7 +294,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
          *
          * @param backup value to use if no most specific value is found
          */
-        public MostSpecificVisitor(@Nullable V backup) {
+        MostSpecificVisitor(@Nullable V backup) {
             if (backup != null) {
                 this.backupAMSet = backup.getAnnotations();
             } else {

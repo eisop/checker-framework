@@ -2569,7 +2569,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
          * @return if the switch is a switch expression, then a {@link SwitchExpressionNode};
          *     otherwise, null
          */
-        public @Nullable SwitchExpressionNode build() {
+        @Nullable SwitchExpressionNode build() {
             LabelCell oldBreakTargetLC = breakTargetLC;
             breakTargetLC = new LabelCell(new Label());
             int numCases = caseTrees.size();

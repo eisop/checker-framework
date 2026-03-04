@@ -180,7 +180,7 @@ public class LspTypeInformationPresenter extends AbstractTypeInformationPresente
                     // The preferred start column of MemberSelectTree locates the "."
                     // character before the member identifier. So we increase startCol
                     // by 1 to point to the start of the member identifier.
-                    startCol += 1;
+                    ++startCol;
                     endCol = startCol + ((MemberSelectTree) tree).getIdentifier().length() - 1;
                     break;
                 case MEMBER_REFERENCE:
