@@ -117,7 +117,10 @@ public abstract class InitializationParentAnnotatedTypeFactory
     /** Cached @UnderInitialization annotation for Object.class. */
     protected final AnnotationMirror underInitializationObjectAnnotation;
 
-    /** Cache for @UnderInitialization annotations. */
+    /**
+     * Cache for @UnderInitialization annotations. This always caches UnderInitialization
+     * annotations regardless of the {@code shouldCache} value.
+     */
     @SuppressWarnings("this-escape")
     private final Map<TypeMirror, AnnotationMirror> underInitializationAnnotationCache =
             CollectionsPlume.createLruCache(getCacheSize());
