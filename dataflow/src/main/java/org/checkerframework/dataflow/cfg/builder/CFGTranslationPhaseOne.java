@@ -58,6 +58,7 @@ import com.sun.source.util.TreePath;
 import com.sun.source.util.TreeScanner;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.code.Type;
+import com.sun.tools.javac.code.TypeTag;
 
 import org.checkerframework.checker.interning.qual.FindDistinct;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -139,6 +140,7 @@ import org.checkerframework.dataflow.cfg.node.ValueLiteralNode;
 import org.checkerframework.dataflow.cfg.node.VariableDeclarationNode;
 import org.checkerframework.dataflow.cfg.node.WideningConversionNode;
 import org.checkerframework.dataflow.qual.AssertMethod;
+import org.checkerframework.dataflow.qual.IfNullThrows;
 import org.checkerframework.dataflow.qual.TerminatesExecution;
 import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.AnnotationUtils;
@@ -1368,6 +1370,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
         ArrayList<Node> convertedNodes = new ArrayList<>(numFormals);
         AssertMethodTuple assertMethodTuple = getAssertMethodTuple(executable);
+        Set<Integer> ifNullThrowsParams = getIfNullThrowsParameterIndices(executable);
 
         int numActuals = actualExprs.size();
         if (executable.isVarArgs()) {
@@ -1385,6 +1388,9 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                     if (i == assertMethodTuple.booleanParam) {
                         treatMethodAsAssert(
                                 (MethodInvocationTree) tree, assertMethodTuple, actualVal);
+                    }
+                    if (ifNullThrowsParams.contains(i)) {
+                        treatMethodAsIfNullThrows((MethodInvocationTree) tree, actualVal);
                     }
                     if (actualVal == null) {
                         throw new BugInCF(
@@ -1421,6 +1427,9 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         treatMethodAsAssert(
                                 (MethodInvocationTree) tree, assertMethodTuple, actualVal);
                     }
+                    if (ifNullThrowsParams.contains(i)) {
+                        treatMethodAsIfNullThrows((MethodInvocationTree) tree, actualVal);
+                    }
                     convertedNodes.add(methodInvocationConvert(actualVal, formals.get(i)));
                 }
 
@@ -1452,6 +1461,9 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 Node actualVal = scan(actualExprs.get(i), null);
                 if (i == assertMethodTuple.booleanParam) {
                     treatMethodAsAssert((MethodInvocationTree) tree, assertMethodTuple, actualVal);
+                }
+                if (ifNullThrowsParams.contains(i)) {
+                    treatMethodAsIfNullThrows((MethodInvocationTree) tree, actualVal);
                 }
                 convertedNodes.add(methodInvocationConvert(actualVal, formals.get(i)));
             }
@@ -1492,6 +1504,67 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 AnnotationUtils.getElementValueNotOnClasspath(
                         assertMethodAnno, "isAssertFalse", Boolean.class, false);
         return new AssertMethodTuple(booleanParam, exceptionType, isAssertFalse);
+    }
+
+    /**
+     * Returns the 0-based indices of parameters annotated with {@link IfNullThrows}. Such
+     * parameters cause the method to throw when null; the CFG is modified to add an explicit
+     * branch.
+     *
+     * @param method the method or constructor
+     * @return indices of parameters with {@code @IfNullThrows}
+     */
+    protected Set<Integer> getIfNullThrowsParameterIndices(ExecutableElement method) {
+        Set<Integer> result = new HashSet<>();
+        List<? extends VariableElement> params = method.getParameters();
+        for (int i = 0; i < params.size(); i++) {
+            if (annotationProvider.getDeclAnnotation(params.get(i), IfNullThrows.class) != null) {
+                result.add(i);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Translates a method call with {@link IfNullThrows} on a parameter into CFG nodes: if the
+     * argument is null, the method throws; otherwise execution continues.
+     *
+     * @param tree the method invocation tree
+     * @param argNode the node for the argument (the parameter value)
+     */
+    protected void treatMethodAsIfNullThrows(MethodInvocationTree tree, Node argNode) {
+        // Create (arg == null) condition
+        TypeMirror booleanType = types.getPrimitiveType(TypeKind.BOOLEAN);
+        LiteralTree nullTree = TreeUtils.createLiteral(TypeTag.BOT, null, types.getNullType(), env);
+        handleArtificialTree(nullTree);
+        Node nullNode = new NullLiteralNode(nullTree);
+        extendWithNode(nullNode);
+
+        ExpressionTree argTree = (ExpressionTree) argNode.getTree();
+        BinaryTree eqTree =
+                treeBuilder.buildBinary(booleanType, Tree.Kind.EQUAL_TO, argTree, nullTree);
+        handleArtificialTree(eqTree);
+
+        Node condition = new EqualToNode(eqTree, argNode, nullNode);
+        extendWithNode(condition);
+
+        // When (arg == null) is true, throw; else continue
+        Label throwLabel = new Label();
+        Label continueLabel = new Label();
+        ConditionalJump cjump = new ConditionalJump(throwLabel, continueLabel);
+        extendWithExtendedNode(cjump);
+
+        addLabelForNextNode(throwLabel);
+        AssertionErrorNode assertNode =
+                new AssertionErrorNode(tree, condition, null, nullPointerExceptionType);
+        extendWithNode(assertNode);
+        NodeWithExceptionsHolder exNode =
+                extendWithNodeWithException(
+                        new ThrowNode(null, assertNode, env.getTypeUtils()),
+                        nullPointerExceptionType);
+        exNode.setTerminatesExecution(true);
+
+        addLabelForNextNode(continueLabel);
     }
 
     /** Holds the elements of an {@link AssertMethod} annotation. */
