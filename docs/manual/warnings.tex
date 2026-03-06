@@ -665,7 +665,7 @@ are type-checking the whole thing.
 
 \sectionAndLabel{\code{-AskipFiles} and \code{-AonlyFiles} command-line options}{askipfiles}
 
-You can suppresss all errors and warnings originating from classes that are
+You can suppress all errors and warnings originating from classes that are
 located in a given file or directory/folder, or all those that are \emph{not} in a
 given file or directory/folder.
 
@@ -692,6 +692,15 @@ type-checking.
 Another scenario is when a file contains multiple top-level classes, only
 one of which has a name that corresponds to the file name.
 
+\sectionAndLabel{\code{-AonlyAnnotatedFor} command-line option}{aonlyannotatedfor}
+
+You can suppress all errors and warnings for code outside of a corresponding \code{@AnnotatedFor} by applying this command-line option.
+Note that the \code{@AnnotatedFor} annotation must include the checker's name to enable warnings from that checker.
+For example, use \code{@AnnotatedFor("nullness")} for the Nullness Checker.
+This flag only suppresses warnings, compared to \code{-AuseConservativeDefaultsForUncheckedCode=source},
+which also applies conservative defaults for code outside the scope of an \code{@AnnotatedFor} annotation.
+\href{https://github.com/uber/NullAway}{NullAway} has a similar flag: \code{-XepOpt:NullAway:OnlyNullMarked=true}
+configures NullAway to only issue errors for code inside the scope of \code{@NullMarked} annotations.
 
 \sectionAndLabel{\code{-Alint} command-line option\label{lint-options}}{alint}
 
