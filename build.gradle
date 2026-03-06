@@ -219,6 +219,11 @@ allprojects { currentProj ->
     eclipse.classpath {
         defaultOutputDir = file("build/default")
         file.whenMerged { cp ->
+            // Remove bare 'src/main' source folder entries that cause Eclipse nesting errors.
+            cp.entries.removeAll { e ->
+                e instanceof org.gradle.plugins.ide.eclipse.model.SourceFolder && e.path == 'src/main'
+            }
+
             cp.entries.forEach { cpe ->
                 if (cpe instanceof org.gradle.plugins.ide.eclipse.model.SourceFolder) {
                     cpe.output = cpe.output.replace "bin/", "build/classes/java/"
