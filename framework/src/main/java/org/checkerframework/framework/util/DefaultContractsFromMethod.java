@@ -203,8 +203,7 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
             }
         }
 
-        // Gather conditional postconditions from parameter-level annotations (e.g.
-        // @NotNullIfReturns).
+        // Gather conditional postconditions from parameter-level annotations
         if (kind == Contract.Kind.CONDITIONALPOSTCONDITION) {
             List<? extends VariableElement> params = executableElement.getParameters();
             for (int i = 0; i < params.size(); i++) {
@@ -218,15 +217,32 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
                     AnnotationMirror enforcedQualifier =
                             getQualifierEnforcedByContractAnnotation(metaAnnotation, null, null);
                     if (enforcedQualifier == null) {
+                        atypeFactory
+                                .getChecker()
+                                .reportError(
+                                        param,
+                                        "contracts.parameter.conditional.qualifier.not.supported",
+                                        paramAnnotation
+                                                .getAnnotationType()
+                                                .asElement()
+                                                .getSimpleName());
                         continue;
                     }
+                    // Result value: from param annotation's value() if present, else from
+                    // meta-annotation's result()
+                    Boolean resultValue;
+                    Boolean fromParam =
+                            AnnotationUtils.getElementValueOrNull(
+                                    paramAnnotation, "value", Boolean.class, false);
+                    if (fromParam != null) {
+                        resultValue = fromParam;
+                    } else {
                     @SuppressWarnings("deprecation") // permitted for use in the framework
-                    Boolean resultValue =
+                        Boolean v =
                             AnnotationUtils.getElementValue(
-                                    paramAnnotation, "value", Boolean.class, true);
-                    // value = return value under which param has the qualifier (e.g.
-                    // @NotNullIfReturns(true)
-                    // means param is non-null when method returns true).
+                                        metaAnnotation, "result", Boolean.class, true);
+                        resultValue = v;
+                    }
                     String expressionString = "#" + (i + 1);
                     T contract =
                             clazz.cast(
