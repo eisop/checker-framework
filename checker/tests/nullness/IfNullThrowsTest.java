@@ -1,8 +1,8 @@
 // Test that @IfNullThrows (parameter-level postcondition: if null then throw) is respected by the
 // Nullness Checker.
 
+import org.checkerframework.checker.nullness.qual.IfNullThrows;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.IfNullThrows;
 
 public class IfNullThrowsTest {
 
@@ -44,5 +44,17 @@ public class IfNullThrowsTest {
         requireBothNonNull(x, y);
         x.toString(); // OK
         y.toString(); // OK
+    }
+
+    // Incorrect: has @IfNullThrows but never throws
+    // :: error: (if.null.throws.must.throw)
+    public static <T> T badNoThrow(@IfNullThrows @Nullable T obj) {
+        return obj;
+    }
+
+    // Incorrect: has @IfNullThrows but only returns, no throw
+    // :: error: (if.null.throws.must.throw)
+    public static String badJustReturn(@IfNullThrows @Nullable String s) {
+        return s == null ? "" : s;
     }
 }

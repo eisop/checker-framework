@@ -6,6 +6,7 @@ import com.sun.source.tree.ArrayAccessTree;
 import com.sun.source.tree.ArrayTypeTree;
 import com.sun.source.tree.AssertTree;
 import com.sun.source.tree.BinaryTree;
+import com.sun.source.tree.BlockTree;
 import com.sun.source.tree.CaseTree;
 import com.sun.source.tree.CatchTree;
 import com.sun.source.tree.ClassTree;
@@ -35,9 +36,11 @@ import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.tree.WhileLoopTree;
 import com.sun.source.util.TreePath;
+import com.sun.source.util.TreeScanner;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.formatter.qual.FormatMethod;
+import org.checkerframework.checker.nullness.qual.IfNullThrows;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
@@ -600,7 +603,49 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             }
         }
 
+        // @IfNullThrows well-formedness: method must throw (e.g. on null param)
+        checkIfNullThrowsEnforced(tree);
+
         super.processMethodTree(className, tree);
+    }
+
+    /**
+     * Reports an error if the method has {@link IfNullThrows} on any parameter but its body does
+     * not contain a throw statement (so the contract cannot be satisfied).
+     */
+    private void checkIfNullThrowsEnforced(MethodTree tree) {
+        ExecutableElement methodElement = TreeUtils.elementFromDeclaration(tree);
+        if (methodElement.getModifiers().contains(javax.lang.model.element.Modifier.ABSTRACT)
+                || methodElement
+                        .getModifiers()
+                        .contains(javax.lang.model.element.Modifier.NATIVE)) {
+            return;
+        }
+        boolean hasIfNullThrows = false;
+        for (Element param : methodElement.getParameters()) {
+            if (atypeFactory.getDeclAnnotation(param, IfNullThrows.class) != null) {
+                hasIfNullThrows = true;
+                break;
+            }
+        }
+        if (!hasIfNullThrows) {
+            return;
+        }
+        BlockTree body = tree.getBody();
+        if (body == null) {
+            return;
+        }
+        boolean[] hasThrow = new boolean[] {false};
+        new TreeScanner<Void, Void>() {
+            @Override
+            public Void visitThrow(ThrowTree node, Void p) {
+                hasThrow[0] = true;
+                return super.visitThrow(node, p);
+            }
+        }.scan(body, null);
+        if (!hasThrow[0]) {
+            checker.reportError(tree, "if.null.throws.must.throw");
+        }
     }
 
     @Override

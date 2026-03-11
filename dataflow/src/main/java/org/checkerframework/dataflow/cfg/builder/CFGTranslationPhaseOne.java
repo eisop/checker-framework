@@ -61,6 +61,7 @@ import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.TypeTag;
 
 import org.checkerframework.checker.interning.qual.FindDistinct;
+import org.checkerframework.checker.nullness.qual.IfNullThrows;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.Store.FlowRule;
 import org.checkerframework.dataflow.cfg.UnderlyingAST;
@@ -140,7 +141,6 @@ import org.checkerframework.dataflow.cfg.node.ValueLiteralNode;
 import org.checkerframework.dataflow.cfg.node.VariableDeclarationNode;
 import org.checkerframework.dataflow.cfg.node.WideningConversionNode;
 import org.checkerframework.dataflow.qual.AssertMethod;
-import org.checkerframework.dataflow.qual.IfNullThrows;
 import org.checkerframework.dataflow.qual.TerminatesExecution;
 import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.AnnotationUtils;
@@ -1369,8 +1369,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         int numFormals = formals.size();
 
         ArrayList<Node> convertedNodes = new ArrayList<>(numFormals);
-        AssertMethodTuple assertMethodTuple = getAssertMethodTuple(executable);
-        Set<Integer> ifNullThrowsParams = getIfNullThrowsParameterIndices(executable);
+        List<ParameterConditionalThrowSpec> conditionalThrowSpecs =
+                getParameterConditionalThrowSpecs(executable);
 
         int numActuals = actualExprs.size();
         if (executable.isVarArgs()) {
@@ -1385,17 +1385,25 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 // invocation conversion to all arguments.
                 for (int i = 0; i < numActuals; i++) {
                     Node actualVal = scan(actualExprs.get(i), null);
-                    if (i == assertMethodTuple.booleanParam) {
-                        treatMethodAsAssert(
-                                (MethodInvocationTree) tree, assertMethodTuple, actualVal);
-                    }
-                    if (ifNullThrowsParams.contains(i)) {
-                        treatMethodAsIfNullThrows((MethodInvocationTree) tree, actualVal);
-                    }
                     if (actualVal == null) {
                         throw new BugInCF(
                                 "CFGBuilder: scan returned null for %s [%s]",
                                 actualExprs.get(i), actualExprs.get(i).getClass());
+                    }
+                    for (ParameterConditionalThrowSpec spec : conditionalThrowSpecs) {
+                        if (spec.parameterIndex == i) {
+                            Node conditionNode =
+                                    buildConditionNodeForParameterThrow(
+                                            (MethodInvocationTree) tree, actualVal, spec);
+                            boolean throwWhenConditionTrue =
+                                    spec.compareValue == CompareValue.TRUE
+                                            || spec.compareValue == CompareValue.NULL;
+                            emitConditionalThrow(
+                                    (MethodInvocationTree) tree,
+                                    conditionNode,
+                                    throwWhenConditionTrue,
+                                    spec.exceptionType);
+                        }
                     }
                     convertedNodes.add(methodInvocationConvert(actualVal, formals.get(i)));
                 }
@@ -1423,12 +1431,25 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                 // remaining ones to initialize an array.
                 for (int i = 0; i < lastArgIndex; i++) {
                     Node actualVal = scan(actualExprs.get(i), null);
-                    if (i == assertMethodTuple.booleanParam) {
-                        treatMethodAsAssert(
-                                (MethodInvocationTree) tree, assertMethodTuple, actualVal);
+                    if (actualVal == null) {
+                        throw new BugInCF(
+                                "CFGBuilder: scan returned null for %s [%s]",
+                                actualExprs.get(i), actualExprs.get(i).getClass());
                     }
-                    if (ifNullThrowsParams.contains(i)) {
-                        treatMethodAsIfNullThrows((MethodInvocationTree) tree, actualVal);
+                    for (ParameterConditionalThrowSpec spec : conditionalThrowSpecs) {
+                        if (spec.parameterIndex == i) {
+                            Node conditionNode =
+                                    buildConditionNodeForParameterThrow(
+                                            (MethodInvocationTree) tree, actualVal, spec);
+                            boolean throwWhenConditionTrue =
+                                    spec.compareValue == CompareValue.TRUE
+                                            || spec.compareValue == CompareValue.NULL;
+                            emitConditionalThrow(
+                                    (MethodInvocationTree) tree,
+                                    conditionNode,
+                                    throwWhenConditionTrue,
+                                    spec.exceptionType);
+                        }
                     }
                     convertedNodes.add(methodInvocationConvert(actualVal, formals.get(i)));
                 }
@@ -1459,11 +1480,25 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         } else {
             for (int i = 0; i < numActuals; i++) {
                 Node actualVal = scan(actualExprs.get(i), null);
-                if (i == assertMethodTuple.booleanParam) {
-                    treatMethodAsAssert((MethodInvocationTree) tree, assertMethodTuple, actualVal);
+                if (actualVal == null) {
+                    throw new BugInCF(
+                            "CFGBuilder: scan returned null for %s [%s]",
+                            actualExprs.get(i), actualExprs.get(i).getClass());
                 }
-                if (ifNullThrowsParams.contains(i)) {
-                    treatMethodAsIfNullThrows((MethodInvocationTree) tree, actualVal);
+                for (ParameterConditionalThrowSpec spec : conditionalThrowSpecs) {
+                    if (spec.parameterIndex == i) {
+                        Node conditionNode =
+                                buildConditionNodeForParameterThrow(
+                                        (MethodInvocationTree) tree, actualVal, spec);
+                        boolean throwWhenConditionTrue =
+                                spec.compareValue == CompareValue.TRUE
+                                        || spec.compareValue == CompareValue.NULL;
+                        emitConditionalThrow(
+                                (MethodInvocationTree) tree,
+                                conditionNode,
+                                throwWhenConditionTrue,
+                                spec.exceptionType);
+                    }
                 }
                 convertedNodes.add(methodInvocationConvert(actualVal, formals.get(i)));
             }
@@ -1473,132 +1508,160 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     }
 
     /**
-     * Returns the AssertMethodTuple for {@code method}. If {@code method} is not an assert method,
-     * then {@link AssertMethodTuple#NONE} is returned.
-     *
-     * @param method a method element that might be an assert method
-     * @return the AssertMethodTuple for {@code method}
+     * Value to compare the parameter against; when the condition (param equals this value) holds,
+     * the method throws. Used for both {@link AssertMethod} (TRUE/FALSE) and {@link IfNullThrows}
+     * (NULL).
      */
-    protected AssertMethodTuple getAssertMethodTuple(ExecutableElement method) {
-        AnnotationMirror assertMethodAnno =
-                annotationProvider.getDeclAnnotation(method, AssertMethod.class);
-        if (assertMethodAnno == null) {
-            return AssertMethodTuple.NONE;
-        }
-
-        // Dataflow does not require checker-qual.jar to be on the users classpath, so
-        // AnnotationUtils.getElementValue(...) cannot be used.
-
-        int booleanParam =
-                AnnotationUtils.getElementValueNotOnClasspath(
-                                assertMethodAnno, "parameter", Integer.class, 1)
-                        - 1;
-
-        TypeMirror exceptionType =
-                AnnotationUtils.getElementValueNotOnClasspath(
-                        assertMethodAnno,
-                        "value",
-                        Type.ClassType.class,
-                        (Type.ClassType) assertionErrorType);
-        boolean isAssertFalse =
-                AnnotationUtils.getElementValueNotOnClasspath(
-                        assertMethodAnno, "isAssertFalse", Boolean.class, false);
-        return new AssertMethodTuple(booleanParam, exceptionType, isAssertFalse);
+    protected enum CompareValue {
+        /** Throw when the boolean parameter is true (e.g. assert false methods). */
+        TRUE,
+        /** Throw when the boolean parameter is false (e.g. assert methods). */
+        FALSE,
+        /** Throw when the reference parameter is null ({@link IfNullThrows}). */
+        NULL
     }
 
     /**
-     * Returns the 0-based indices of parameters annotated with {@link IfNullThrows}. Such
-     * parameters cause the method to throw when null; the CFG is modified to add an explicit
-     * branch.
+     * Spec for one parameter that triggers a conditional throw: when the parameter compares equal
+     * to {@link #compareValue}, the method throws {@link #exceptionType}. Unifies {@link
+     * AssertMethod} (one per method) and {@link IfNullThrows} (one per annotated parameter).
+     */
+    protected static class ParameterConditionalThrowSpec {
+        /** 0-based parameter index. */
+        public final int parameterIndex;
+
+        /** Value to compare against; throw when (param equals this). */
+        public final CompareValue compareValue;
+
+        /** Exception type thrown when the condition holds. */
+        public final TypeMirror exceptionType;
+
+        public ParameterConditionalThrowSpec(
+                int parameterIndex, CompareValue compareValue, TypeMirror exceptionType) {
+            this.parameterIndex = parameterIndex;
+            this.compareValue = compareValue;
+            this.exceptionType = exceptionType;
+        }
+    }
+
+    /**
+     * Returns the list of parameter conditional-throw specs for {@code method}: one from {@link
+     * AssertMethod} if present, plus one per parameter annotated with {@link IfNullThrows}.
      *
      * @param method the method or constructor
-     * @return indices of parameters with {@code @IfNullThrows}
+     * @return specs for parameters that trigger a throw when compared to a value
      */
-    protected Set<Integer> getIfNullThrowsParameterIndices(ExecutableElement method) {
-        Set<Integer> result = new HashSet<>();
+    protected List<ParameterConditionalThrowSpec> getParameterConditionalThrowSpecs(
+            ExecutableElement method) {
+        List<ParameterConditionalThrowSpec> result = new ArrayList<>();
+
+        // AssertMethod: one spec (boolean param, throw when true or false)
+        AnnotationMirror assertMethodAnno =
+                annotationProvider.getDeclAnnotation(method, AssertMethod.class);
+        if (assertMethodAnno != null) {
+            int booleanParam =
+                    AnnotationUtils.getElementValueNotOnClasspath(
+                                    assertMethodAnno, "parameter", Integer.class, 1)
+                            - 1;
+            TypeMirror exceptionType =
+                    AnnotationUtils.getElementValueNotOnClasspath(
+                            assertMethodAnno,
+                            "value",
+                            Type.ClassType.class,
+                            (Type.ClassType) assertionErrorType);
+            boolean isAssertFalse =
+                    AnnotationUtils.getElementValueNotOnClasspath(
+                            assertMethodAnno, "isAssertFalse", Boolean.class, false);
+            result.add(
+                    new ParameterConditionalThrowSpec(
+                            booleanParam,
+                            isAssertFalse ? CompareValue.TRUE : CompareValue.FALSE,
+                            exceptionType));
+        }
+
+        // IfNullThrows: one spec per annotated parameter
         List<? extends VariableElement> params = method.getParameters();
         for (int i = 0; i < params.size(); i++) {
             if (annotationProvider.getDeclAnnotation(params.get(i), IfNullThrows.class) != null) {
-                result.add(i);
+                result.add(
+                        new ParameterConditionalThrowSpec(
+                                i, CompareValue.NULL, nullPointerExceptionType));
             }
         }
+
         return result;
     }
 
     /**
-     * Translates a method call with {@link IfNullThrows} on a parameter into CFG nodes: if the
-     * argument is null, the method throws; otherwise execution continues.
+     * Builds the condition node for a parameter conditional throw: for {@link CompareValue#NULL},
+     * returns (argNode == null); for {@link CompareValue#TRUE} or {@link CompareValue#FALSE},
+     * returns the argument node itself (boolean).
      *
-     * @param tree the method invocation tree
-     * @param argNode the node for the argument (the parameter value)
+     * @param tree the method invocation tree (for artificial tree context)
+     * @param argNode the argument value node
+     * @param spec the spec describing the comparison
+     * @return the condition node to branch on
      */
-    protected void treatMethodAsIfNullThrows(MethodInvocationTree tree, Node argNode) {
-        // Create (arg == null) condition
-        TypeMirror booleanType = types.getPrimitiveType(TypeKind.BOOLEAN);
-        LiteralTree nullTree = TreeUtils.createLiteral(TypeTag.BOT, null, types.getNullType(), env);
-        handleArtificialTree(nullTree);
-        Node nullNode = new NullLiteralNode(nullTree);
-        extendWithNode(nullNode);
+    protected Node buildConditionNodeForParameterThrow(
+            MethodInvocationTree tree, Node argNode, ParameterConditionalThrowSpec spec) {
+        if (spec.compareValue == CompareValue.NULL) {
+            TypeMirror booleanType = types.getPrimitiveType(TypeKind.BOOLEAN);
+            LiteralTree nullTree =
+                    TreeUtils.createLiteral(TypeTag.BOT, null, types.getNullType(), env);
+            handleArtificialTree(nullTree);
+            Node nullNode = new NullLiteralNode(nullTree);
+            extendWithNode(nullNode);
 
-        ExpressionTree argTree = (ExpressionTree) argNode.getTree();
-        BinaryTree eqTree =
-                treeBuilder.buildBinary(booleanType, Tree.Kind.EQUAL_TO, argTree, nullTree);
-        handleArtificialTree(eqTree);
+            ExpressionTree argTree = (ExpressionTree) argNode.getTree();
+            BinaryTree eqTree =
+                    treeBuilder.buildBinary(booleanType, Tree.Kind.EQUAL_TO, argTree, nullTree);
+            handleArtificialTree(eqTree);
 
-        Node condition = new EqualToNode(eqTree, argNode, nullNode);
-        extendWithNode(condition);
+            Node condition = new EqualToNode(eqTree, argNode, nullNode);
+            extendWithNode(condition);
+            return condition;
+        }
+        // TRUE or FALSE: condition is the argument (boolean) itself; already in CFG from scan/unbox
+        return unbox(argNode);
+    }
 
-        // When (arg == null) is true, throw; else continue
+    /**
+     * Emits CFG nodes for a conditional throw: branch on {@code conditionNode}; when {@code
+     * throwWhenConditionTrue} is true, take the throw branch when the condition is true, else when
+     * the condition is false. Then emit the throw and the continue label.
+     *
+     * @param tree the method invocation tree (for the AssertionErrorNode)
+     * @param conditionNode the boolean condition node (already extended)
+     * @param throwWhenConditionTrue true to throw when condition is true, false to throw when
+     *     condition is false
+     * @param exceptionType the exception type to throw
+     */
+    protected void emitConditionalThrow(
+            MethodInvocationTree tree,
+            Node conditionNode,
+            boolean throwWhenConditionTrue,
+            TypeMirror exceptionType) {
+        // conditionNode is already in the CFG (extended in buildConditionNodeForParameterThrow for
+        // NULL, or from scan/unbox for TRUE/FALSE)
+
         Label throwLabel = new Label();
         Label continueLabel = new Label();
-        ConditionalJump cjump = new ConditionalJump(throwLabel, continueLabel);
+        ConditionalJump cjump =
+                throwWhenConditionTrue
+                        ? new ConditionalJump(throwLabel, continueLabel)
+                        : new ConditionalJump(continueLabel, throwLabel);
         extendWithExtendedNode(cjump);
 
         addLabelForNextNode(throwLabel);
         AssertionErrorNode assertNode =
-                new AssertionErrorNode(tree, condition, null, nullPointerExceptionType);
+                new AssertionErrorNode(tree, conditionNode, null, exceptionType);
         extendWithNode(assertNode);
         NodeWithExceptionsHolder exNode =
                 extendWithNodeWithException(
-                        new ThrowNode(null, assertNode, env.getTypeUtils()),
-                        nullPointerExceptionType);
+                        new ThrowNode(null, assertNode, env.getTypeUtils()), exceptionType);
         exNode.setTerminatesExecution(true);
 
         addLabelForNextNode(continueLabel);
-    }
-
-    /** Holds the elements of an {@link AssertMethod} annotation. */
-    protected static class AssertMethodTuple {
-
-        /** A tuple representing the lack of an {@link AssertMethodTuple}. */
-        protected static final AssertMethodTuple NONE = new AssertMethodTuple(-1, null, false);
-
-        /**
-         * 0-based index of the parameter of the expression that is tested by the assert method. (Or
-         * -1 if this isn't an assert method.)
-         */
-        public final int booleanParam;
-
-        /** The type of the exception thrown by the assert method. */
-        public final TypeMirror exceptionType;
-
-        /** Is this an assert false method? */
-        public final boolean isAssertFalse;
-
-        /**
-         * Creates an AssertMethodTuple.
-         *
-         * @param booleanParam 0-based index of the parameter of the expression that is tested by
-         *     the assert method
-         * @param exceptionType the type of the exception thrown by the assert method
-         * @param isAssertFalse is this an assert false method
-         */
-        public AssertMethodTuple(
-                int booleanParam, TypeMirror exceptionType, boolean isAssertFalse) {
-            this.booleanParam = booleanParam;
-            this.exceptionType = exceptionType;
-            this.isAssertFalse = isAssertFalse;
-        }
     }
 
     /**
@@ -1878,35 +1941,6 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
 
         // then branch (nothing happens)
         addLabelForNextNode(assertEnd);
-    }
-
-    /**
-     * Translates a method marked as {@link AssertMethod} into CFG nodes corresponding to an {@code
-     * assert} statement.
-     *
-     * @param tree the method invocation tree for a method marked as {@link AssertMethod}
-     * @param assertMethodTuple the assert method tuple for the method
-     * @param condition the boolean expression node for the argument that the method tests
-     */
-    protected void treatMethodAsAssert(
-            MethodInvocationTree tree, AssertMethodTuple assertMethodTuple, Node condition) {
-        // all necessary labels
-        Label thenLabel = new Label();
-        Label elseLabel = new Label();
-        ConditionalJump cjump = new ConditionalJump(thenLabel, elseLabel);
-        extendWithExtendedNode(cjump);
-
-        addLabelForNextNode(assertMethodTuple.isAssertFalse ? thenLabel : elseLabel);
-        AssertionErrorNode assertNode =
-                new AssertionErrorNode(tree, condition, null, assertMethodTuple.exceptionType);
-        extendWithNode(assertNode);
-        NodeWithExceptionsHolder exNode =
-                extendWithNodeWithException(
-                        new ThrowNode(null, assertNode, env.getTypeUtils()),
-                        assertMethodTuple.exceptionType);
-        exNode.setTerminatesExecution(true);
-
-        addLabelForNextNode(assertMethodTuple.isAssertFalse ? elseLabel : thenLabel);
     }
 
     @Override
