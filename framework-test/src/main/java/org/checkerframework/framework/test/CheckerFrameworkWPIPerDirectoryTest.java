@@ -106,7 +106,8 @@ public abstract class CheckerFrameworkWPIPerDirectoryTest extends CheckerFramewo
      * @return whether {@code file} contains {@code skipComment}
      */
     public static boolean hasSkipComment(File file, String skipComment) {
-        try (Scanner in = new Scanner(file, StandardCharsets.UTF_8.name())) {
+        try (@SuppressWarnings("JdkObsolete")
+                Scanner in = new Scanner(file, StandardCharsets.UTF_8.name())) {
             while (in.hasNext()) {
                 String nextLine = in.nextLine();
                 if (nextLine.contains(skipComment)) {

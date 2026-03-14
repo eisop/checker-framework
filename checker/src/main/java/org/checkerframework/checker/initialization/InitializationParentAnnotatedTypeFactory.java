@@ -49,6 +49,7 @@ import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
+import org.plumelib.util.CollectionsPlume;
 
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
@@ -56,6 +57,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
@@ -112,6 +114,17 @@ public abstract class InitializationParentAnnotatedTypeFactory
     /** The value of the assumeInitialized option. */
     protected final boolean assumeInitialized;
 
+    /** Cached @UnderInitialization annotation for Object.class. */
+    protected final AnnotationMirror underInitializationObjectAnnotation;
+
+    /**
+     * Cache for @UnderInitialization annotations. This always caches UnderInitialization
+     * annotations regardless of the {@code shouldCache} value.
+     */
+    @SuppressWarnings("this-escape")
+    private final Map<TypeMirror, AnnotationMirror> underInitializationAnnotationCache =
+            CollectionsPlume.createLruCache(getCacheSize());
+
     /**
      * Create a new InitializationParentAnnotatedTypeFactory.
      *
@@ -119,6 +132,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
      *
      * @param checker the checker to which the new type factory belongs
      */
+    @SuppressWarnings("this-escape")
     public InitializationParentAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker, true);
 
@@ -131,6 +145,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
 
         objectTypeMirror =
                 processingEnv.getElementUtils().getTypeElement("java.lang.Object").asType();
+        underInitializationObjectAnnotation = createUnderInitializationAnnotation(objectTypeMirror);
         unusedWhenElement = TreeUtils.getMethod(Unused.class, "when", 0, processingEnv);
         underInitializationValueElement =
                 TreeUtils.getMethod(UnderInitialization.class, "value", 0, processingEnv);
@@ -231,9 +246,15 @@ public abstract class InitializationParentAnnotatedTypeFactory
      */
     public AnnotationMirror createUnderInitializationAnnotation(TypeMirror typeFrame) {
         assert typeFrame != null;
+        AnnotationMirror cachedAnnotation = underInitializationAnnotationCache.get(typeFrame);
+        if (cachedAnnotation != null) {
+            return cachedAnnotation;
+        }
         AnnotationBuilder builder = new AnnotationBuilder(processingEnv, UnderInitialization.class);
         builder.setValue("value", typeFrame);
-        return builder.build();
+        AnnotationMirror annotation = builder.build();
+        underInitializationAnnotationCache.put(typeFrame, annotation);
+        return annotation;
     }
 
     @Override
@@ -355,8 +376,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
         if (superClass != null) {
             annotation = createUnderInitializationAnnotation(superClass);
         } else {
-            // Use Object as a valid super-class.
-            annotation = createUnderInitializationAnnotation(Object.class);
+            annotation = underInitializationObjectAnnotation;
         }
         return annotation;
     }
@@ -390,19 +410,6 @@ public abstract class InitializationParentAnnotatedTypeFactory
         }
 
         return false;
-    }
-
-    /**
-     * Creates a {@link UnderInitialization} annotation with the given type frame.
-     *
-     * @param typeFrame the type down to which some value has been initialized
-     * @return an {@link UnderInitialization} annotation with the given argument
-     */
-    public AnnotationMirror createUnderInitializationAnnotation(Class<?> typeFrame) {
-        assert typeFrame != null;
-        AnnotationBuilder builder = new AnnotationBuilder(processingEnv, UnderInitialization.class);
-        builder.setValue("value", typeFrame);
-        return builder.build();
     }
 
     /**

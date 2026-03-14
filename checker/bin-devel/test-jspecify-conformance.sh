@@ -13,4 +13,6 @@ source "$SCRIPT_DIR"/clone-related.sh
 
 "$SCRIPT_DIR/.git-scripts/git-clone-related" eisop jspecify-conformance
 cd ../jspecify-conformance
+# This does not use "-PcfVersion=local", because that project does not
+# use the CF gradle plugin.
 ./gradlew test --console=plain -PcfLocal
