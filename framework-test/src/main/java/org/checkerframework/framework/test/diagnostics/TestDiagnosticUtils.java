@@ -19,6 +19,11 @@ import org.plumelib.util.CollectionsPlume;
 /** A set of utilities and factory methods useful for working with TestDiagnostics. */
 public class TestDiagnosticUtils {
 
+  /** Do not instantiate. */
+  private TestDiagnosticUtils() {
+    throw new Error("Do not instantiate");
+  }
+
   /** How the diagnostics appear in Java source files. */
   public static final String DIAGNOSTIC_IN_JAVA_REGEX =
       "\\s*(?<kind>error|fixable-error|warning|fixable-warning|Note|other):\\s*(?<message>[\\s\\S]*)";
