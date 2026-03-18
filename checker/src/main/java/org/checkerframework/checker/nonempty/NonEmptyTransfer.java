@@ -69,7 +69,7 @@ public class NonEmptyTransfer extends CFTransfer {
             EqualToNode n, TransferInput<CFValue, CFStore> in) {
         TransferResult<CFValue, CFStore> result = super.visitEqualTo(n, in);
 
-        // Expand the input store into conditional store if it's regular store
+        // Expand the input store into a conditional store if it is a regular store.
         result = ensureConditionalTransferResult(result);
 
         // The equality holds.
