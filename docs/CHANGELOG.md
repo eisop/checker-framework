@@ -51,6 +51,8 @@ Fixed nullness annotations and documentation of the following methods in `Source
 
 Removed method `InitializationParentAnnotatedTypeFactory.createUnderInitializationAnnotation(Class<?>)` from the Initialization Checker; use `createUnderInitializationAnnotation(TypeMirror)` instead.
 
+NonEmpty Checker now correctly applies conditional refinement in NonEmptyTransfer by converting RegularTransferResult to ConditionalTransferResult when needed.
+
 **Closed issues:**
 
 eisop#1099, eisop#1247, eisop#1263, eisop#1310, eisop#1326, typetools#7096, eisop#1448, eisop#1543.

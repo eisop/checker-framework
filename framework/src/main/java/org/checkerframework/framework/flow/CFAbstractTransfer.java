@@ -887,11 +887,11 @@ public abstract class CFAbstractTransfer<
         V leftV = p.getValueOfSubNode(leftN);
         V rightV = p.getValueOfSubNode(rightN);
 
-        // if one side of equality is false and the result is already forked by the other side,
+        // If one side of equality is false and the result is already forked by the other side,
         // then them being equal means the result passed in should be flipped.
-        // e.g. (a == b) == false <==> a != b
-        // TODO: consider about a smarter way to handel this optimization, maybe include more
-        // boolean axioms like absorption rule?
+        // e.g. P(a,b) == false <==> !P(a,b)
+        // TODO: Consider about a smarter way to handel this optimization, such as including boolean
+        // axioms like absorption rule?
         if (res.containsTwoStores()
                 && (NodeUtils.isConstantBoolean(leftN, false)
                         || NodeUtils.isConstantBoolean(rightN, false))) {
@@ -900,7 +900,7 @@ public abstract class CFAbstractTransfer<
             res = new ConditionalTransferResult<>(res.getResultValue(), thenStore, elseStore);
         }
 
-        // if annotations differ, use the one that is more precise for both
+        // If annotations differ, use the one that is more precise for both
         // sides (and add it to the store if possible)
         res = strengthenAnnotationOfEqualTo(res, leftN, rightN, leftV, rightV, false);
         res = strengthenAnnotationOfEqualTo(res, rightN, leftN, rightV, leftV, false);
@@ -916,9 +916,11 @@ public abstract class CFAbstractTransfer<
         V leftV = p.getValueOfSubNode(leftN);
         V rightV = p.getValueOfSubNode(rightN);
 
-        // if one side of inequality is true and the result is already forked by the other side,
+        // If one side of inequality is true and the result is already forked by the other side,
         // then them being not equal means the result passed in should be flipped.
-        // e.g. (a == b) != true <==> a != b
+        // e.g. P(a,b) != true <==> !P(a,b)
+        // TODO: Consider about a smarter way to handel this optimization, such as including boolean
+        // axioms like absorption rule?
         if (res.containsTwoStores()
                 && (NodeUtils.isConstantBoolean(leftN, true)
                         || NodeUtils.isConstantBoolean(rightN, true))) {
@@ -927,7 +929,7 @@ public abstract class CFAbstractTransfer<
             res = new ConditionalTransferResult<>(res.getResultValue(), thenStore, elseStore);
         }
 
-        // if annotations differ, use the one that is more precise for both
+        // If annotations differ, use the one that is more precise for both
         // sides (and add it to the store if possible)
         res = strengthenAnnotationOfEqualTo(res, leftN, rightN, leftV, rightV, true);
         res = strengthenAnnotationOfEqualTo(res, rightN, leftN, rightV, leftV, true);

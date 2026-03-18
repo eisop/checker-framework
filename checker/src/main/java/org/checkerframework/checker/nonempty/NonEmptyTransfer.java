@@ -395,8 +395,8 @@ public class NonEmptyTransfer extends CFTransfer {
     }
 
     /**
-     * If the passed transfer result is a regular result, then turn it into a conditional result while
-     * preserving the store. Otherwise, do nothing.
+     * If the passed transfer result is a regular result, then convert it to a conditional result
+     * with equivalent then/else store copied from the passed result's store. Otherwise, do nothing.
      *
      * @param result an input transfer result, either regular or conditional
      * @return a conditional transfer result
