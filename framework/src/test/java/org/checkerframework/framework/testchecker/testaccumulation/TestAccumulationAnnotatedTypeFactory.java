@@ -52,7 +52,7 @@ public class TestAccumulationAnnotatedTypeFactory extends AccumulationAnnotatedT
          *
          * @param factory the type factory
          */
-        public TestAccumulationTreeAnnotator(AccumulationAnnotatedTypeFactory factory) {
+        TestAccumulationTreeAnnotator(AccumulationAnnotatedTypeFactory factory) {
             super(factory);
         }
 

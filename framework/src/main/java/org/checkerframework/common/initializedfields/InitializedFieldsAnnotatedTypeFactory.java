@@ -131,8 +131,7 @@ public class InitializedFieldsAnnotatedTypeFactory extends AccumulationAnnotated
          *
          * @param factory the type factory associated with the newly-created ContractsFromMethod
          */
-        public InitializedFieldsContractsFromMethod(
-                GenericAnnotatedTypeFactory<?, ?, ?, ?> factory) {
+        InitializedFieldsContractsFromMethod(GenericAnnotatedTypeFactory<?, ?, ?, ?> factory) {
             super(factory);
         }
 

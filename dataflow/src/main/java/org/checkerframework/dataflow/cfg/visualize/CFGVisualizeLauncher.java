@@ -318,6 +318,12 @@ public final class CFGVisualizeLauncher {
     private static void producePDF(String file) {
         try {
             String command = "dot -Tpdf \"" + file + "\" -o \"" + file + ".pdf\"";
+            // Process implements AutoCloseable in JDK 26, but we compile against older JDKs where
+            // close() is not available.
+            @SuppressWarnings({
+                "resourceleak:required.method.not.called",
+                "resourceleak:unneeded.suppression"
+            })
             Process child = Runtime.getRuntime().exec(new String[] {"/bin/sh", "-c", command});
             child.waitFor();
         } catch (InterruptedException | IOException e) {
