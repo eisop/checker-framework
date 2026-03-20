@@ -59,7 +59,7 @@ public class ReturnsReceiverAnnotatedTypeFactory extends BaseAnnotatedTypeFactor
          * @param typeFactory the {@link AnnotatedTypeFactory} associated with this {@link
          *     TypeAnnotator}
          */
-        public ReturnsReceiverTypeAnnotator(AnnotatedTypeFactory typeFactory) {
+        ReturnsReceiverTypeAnnotator(AnnotatedTypeFactory typeFactory) {
             super(typeFactory);
         }
 

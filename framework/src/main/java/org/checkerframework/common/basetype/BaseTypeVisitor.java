@@ -2305,6 +2305,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             // If not a varargs invocation, type checking is already done in checkArguments.
             return;
         }
+        if (tree instanceof MethodInvocationTree
+                && TreeUtils.isSignaturePolymorphic((MethodInvocationTree) tree)) {
+            // Signature polymorphic methods are type-checked at runtime.
+            return;
+        }
 
         // This is the varags type, an array.
         AnnotatedArrayType lastParamAnnotatedType = invokedMethod.getVarargType();
