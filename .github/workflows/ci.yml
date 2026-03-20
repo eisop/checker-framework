@@ -26,7 +26,7 @@ jobs:
         java_version: [21]
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
-      USE_BAZEL_VERSION: "9.0.0"
+      USE_BAZEL_VERSION: "9.0.1"
     steps:
     - uses: actions/checkout@v6
     - name: Set up JDK ${{ matrix.java_version }}
@@ -38,7 +38,7 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v5.0.1
+      uses: gradle/actions/setup-gradle@v5.0.2
 
     - name: Setup Bazel
       uses: bazel-contrib/setup-bazel@0.18.0
@@ -64,7 +64,8 @@ jobs:
     permissions:
       contents: read
     strategy:
-      fail-fast: true
+      # Run all `remainder` tasks, even if one fails.
+      fail-fast: false
       matrix:
         # No need to run 'cftests-junit-jdk21' on JDK 21.
         script: ['typecheck-part1', 'typecheck-part2',
@@ -94,7 +95,7 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v5.0.1
+      uses: gradle/actions/setup-gradle@v5.0.2
       # Setup for misc tests
     - name: Install misc dependencies
       if: ${{ matrix.script == 'misc' }}
@@ -114,12 +115,12 @@ jobs:
   otherjdks:
     name: ${{ matrix.script }} on JDK ${{ matrix.java.version }}
     runs-on: ubuntu-24.04
-    needs: sanity
+    needs: [sanity, remainder]
     permissions:
       contents: read
     env:
       JAVA_VERSION: ${{ matrix.java.version }}
-      USE_BAZEL_VERSION: "9.0.0"
+      USE_BAZEL_VERSION: "9.0.1"
       JDK_EA_MAJOR: "26"
       JDK_EA_BUILD: "35"
     strategy:
@@ -132,11 +133,11 @@ jobs:
           'daikon-part1', 'daikon-part2',
           'misc']
         # JDK 21 used by `sanity` and `remainder` before.
+        # Keep all LTS versions and the newest non-LTS version.
         # `experimental` versions use the $version compiler, but run on JDK 21.
         java: [{version: '8', experimental: false},
           {version: '11', experimental: false},
           {version: '17', experimental: false},
-          {version: '24', experimental: false},
           {version: '25', experimental: false},
           {version: 'ea', experimental: true}]
         exclude:
@@ -211,7 +212,7 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v5.0.1
+      uses: gradle/actions/setup-gradle@v5.0.2
     - name: Install misc dependencies
       if: ${{ matrix.script == 'misc' }}
       run: |
@@ -270,7 +271,7 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v5.0.1
+      uses: gradle/actions/setup-gradle@v5.0.2
 
     - name: Install coreutils on MacOS
       if: ${{ matrix.os == 'macos-latest' }}
