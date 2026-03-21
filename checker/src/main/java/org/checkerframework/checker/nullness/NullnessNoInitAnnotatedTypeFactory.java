@@ -113,6 +113,14 @@ public class NullnessNoInitAnnotatedTypeFactory
     private final ExecutableElement mapGet =
             TreeUtils.getMethod("java.util.Map", "get", 1, processingEnv);
 
+    /** The Collection.isEmpty method. */
+    private final ExecutableElement collectionIsEmpty =
+            TreeUtils.getMethod("java.util.Collection", "isEmpty", 0, processingEnv);
+
+    /** The Queue.poll method. */
+    private final ExecutableElement queuePoll =
+            TreeUtils.getMethod("java.util.Queue", "poll", 0, processingEnv);
+
     // List is in alphabetical order.  If you update it, also update
     // ../../../../../../../../docs/manual/nullness-checker.tex
     // and make a pull request for variables NONNULL_ANNOTATIONS and BASE_COPYABLE_ANNOTATIONS in
@@ -1071,5 +1079,25 @@ public class NullnessNoInitAnnotatedTypeFactory
      */
     public boolean isMapGet(Node node) {
         return NodeUtils.isMethodInvocation(node, mapGet, getProcessingEnv());
+    }
+
+    /**
+     * Returns true if {@code node} is an invocation of Collection.isEmpty.
+     *
+     * @param node a CFG node
+     * @return true if {@code node} is an invocation of Collection.isEmpty
+     */
+    public boolean isCollectionIsEmpty(Node node) {
+        return NodeUtils.isMethodInvocation(node, collectionIsEmpty, getProcessingEnv());
+    }
+
+    /**
+     * Returns true if {@code node} is an invocation of Queue.poll.
+     *
+     * @param node a CFG node
+     * @return true if {@code node} is an invocation of Queue.poll
+     */
+    public boolean isQueuePoll(Node node) {
+        return NodeUtils.isMethodInvocation(node, queuePoll, getProcessingEnv());
     }
 }
