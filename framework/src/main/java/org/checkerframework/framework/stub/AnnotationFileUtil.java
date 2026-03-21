@@ -265,7 +265,7 @@ public class AnnotationFileUtil {
     }
 
     private static final class ElementPrinter extends SimpleVoidVisitor<Void> {
-        public static String toString(Node n) {
+        static String toString(Node n) {
             ElementPrinter printer = new ElementPrinter();
             n.accept(printer, null);
             return printer.getOutput();
@@ -273,7 +273,7 @@ public class AnnotationFileUtil {
 
         private final StringBuilder sb = new StringBuilder();
 
-        public String getOutput() {
+        String getOutput() {
             return sb.toString();
         }
 

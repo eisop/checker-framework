@@ -51,6 +51,7 @@ import org.checkerframework.framework.flow.CFCFGBuilder;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFTransfer;
 import org.checkerframework.framework.flow.CFValue;
+import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.DefaultFor;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.DefaultQualifierInHierarchy;
@@ -137,7 +138,14 @@ import javax.lang.model.util.Types;
  * DependentTypesHelper}, etc. Those features, and {@link #addComputedTypeAnnotations} (other than
  * the part related to flow-sensitivity), could and should be in the superclass {@link
  * AnnotatedTypeFactory}; it is not clear why they are defined in this class.
+ *
+ * @param <Value> the value type
+ * @param <Store> the store type
+ * @param <TransferFunction> the transfer function type
+ * @param <FlowAnalysis> the flow analysis type
  */
+@AnnotatedFor("nullness")
+@SuppressWarnings("nullness") // TODO: fix all remaining errors
 public abstract class GenericAnnotatedTypeFactory<
                 Value extends CFAbstractValue<Value>,
                 Store extends CFAbstractStore<Value, Store>,

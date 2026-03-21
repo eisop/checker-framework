@@ -295,7 +295,7 @@ public class TypeAnnotationUtils {
 
         private final ExecutableElement meth;
 
-        public AttributeCreator(ProcessingEnvironment env, ExecutableElement meth) {
+        AttributeCreator(ProcessingEnvironment env, ExecutableElement meth) {
             this.processingEnv = env;
             Context context = ((JavacProcessingEnvironment) env).getContext();
             this.elements = env.getElementUtils();

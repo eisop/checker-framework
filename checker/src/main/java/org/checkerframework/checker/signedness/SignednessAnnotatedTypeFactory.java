@@ -272,7 +272,7 @@ public class SignednessAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      */
     private class SignednessTreeAnnotator extends TreeAnnotator {
 
-        public SignednessTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        SignednessTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
 
@@ -406,8 +406,7 @@ public class SignednessAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          * @param env the processing environment
          * @param factory the factory for the current checker
          */
-        public SignednessQualifierPolymorphism(
-                ProcessingEnvironment env, AnnotatedTypeFactory factory) {
+        SignednessQualifierPolymorphism(ProcessingEnvironment env, AnnotatedTypeFactory factory) {
             super(env, factory);
         }
 
