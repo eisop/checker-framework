@@ -94,6 +94,7 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
      * @param invariantArrayComponents whether to make array subtyping invariant with respect to
      *     array component types
      */
+    @SuppressWarnings("this-escape")
     public DefaultTypeHierarchy(
             BaseTypeChecker checker,
             QualifierHierarchy qualHierarchy,
@@ -174,7 +175,7 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
          * @return a shallow type created from {@code type}
          */
         @SuppressWarnings("nullness") // AnnotatedTypeMirror isn't annotated for nullness.
-        public static ShallowType create(AnnotatedTypeMirror type) {
+        static ShallowType create(AnnotatedTypeMirror type) {
             AnnotatedTypeMirror erasedType = type.getErased();
             TypeMirror typeMirror =
                     erasedType.getKind() == type.getKind()

@@ -69,6 +69,7 @@ public class DefaultForTypeAnnotator extends TypeAnnotator {
      * Creates a {@link DefaultForTypeAnnotator} from the given checker, using that checker to
      * determine the annotations that are in the type hierarchy.
      */
+    @SuppressWarnings("this-escape")
     public DefaultForTypeAnnotator(AnnotatedTypeFactory typeFactory) {
         super(typeFactory);
         this.typeKinds = new EnumMap<>(TypeKind.class);
@@ -367,7 +368,7 @@ public class DefaultForTypeAnnotator extends TypeAnnotator {
          * @return true if {@link #anno} should be used as the default for a variable named {@code
          *     name}
          */
-        public boolean matches(String name) {
+        boolean matches(String name) {
             return names.stream().anyMatch(p -> p.matcher(name).matches())
                     && namesExceptions.stream().noneMatch(p -> p.matcher(name).matches());
         }

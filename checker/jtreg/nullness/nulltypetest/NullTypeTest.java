@@ -6,6 +6,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @summary Test case for printing the type of null literal and wildcard/generics lower bound
  *
  * @compile/fail/ref=NullTypeTest.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker NullTypeTest.java
+ * @compile/fail/ref=NullTypeTest.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker NullTypeTest.java -AprintVerboseGenerics
  */
 public class NullTypeTest {
     Object nn = null;

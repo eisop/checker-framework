@@ -13,6 +13,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class TypeDeclDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
+    @SuppressWarnings("this-escape")
     public TypeDeclDefaultAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         this.postInit();

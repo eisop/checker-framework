@@ -173,7 +173,7 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
         }
         Tree declaredInTree =
                 f.getPath(f.declarationFromElement(paramElement)).getParentPath().getLeaf();
-        if (declaredInTree.getKind() == Tree.Kind.LAMBDA_EXPRESSION
+        if (declaredInTree instanceof LambdaExpressionTree
                 && TreeUtils.isImplicitlyTypedLambda(declaredInTree)) {
             LambdaExpressionTree lambdaDecl = (LambdaExpressionTree) declaredInTree;
             int index = lambdaDecl.getParameters().indexOf(f.declarationFromElement(paramElement));
