@@ -49,9 +49,11 @@ Fixed nullness annotations and documentation of the following methods in `Source
 - `getSourceWithPrecisePosition`
 - `shouldSuppressWarnings`
 
+Removed method `InitializationParentAnnotatedTypeFactory.createUnderInitializationAnnotation(Class<?>)` from the Initialization Checker; use `createUnderInitializationAnnotation(TypeMirror)` instead.
+
 **Closed issues:**
 
-eisop#1247, eisop#1263, eisop#1310, typetools#7096, eisop#1448, eisop#1543.
+eisop#1247, eisop#1263, eisop#1310, eisop#1326, typetools#7096, eisop#1448, eisop#1543.
 
 
 Version 3.49.5 (June 30, 2025)
