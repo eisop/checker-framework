@@ -1,7 +1,6 @@
 package org.checkerframework.framework.type.typeannotator;
 
 import org.checkerframework.checker.interning.qual.FindDistinct;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
@@ -128,6 +127,16 @@ public class PropagationTypeAnnotator extends TypeAnnotator {
         }
         visitedNodes.put(wildcard, null);
 
+        // Raw wildcard args are already fixed up in visitDeclared.
+        // Recursive traversal through scan(wildcard.getExtendsBound(), ...) can
+        // re-enter visitWildcard with a synthesized raw wildcard object that is
+        // not identity-equal to the parent type argument wildcard.
+        if (AnnotatedTypes.isTypeArgOfRawType(wildcard)) {
+            scan(wildcard.getExtendsBound(), null);
+            scan(wildcard.getSuperBound(), null);
+            return null;
+        }
+
         Element typeParamElement = TypesUtils.wildcardToTypeParam(wildcard.getUnderlyingType());
         if (typeParamElement == null && !parents.isEmpty()) {
             typeParamElement = getTypeParameterElement(wildcard, parents.peekFirst());
@@ -216,12 +225,8 @@ public class PropagationTypeAnnotator extends TypeAnnotator {
      * @return the type parameter in {@code declaredType} that corresponds to {@code typeArg}, or
      *     null if not found (which can happen with raw types)
      */
-    private @Nullable Element getTypeParameterElement(
+    private Element getTypeParameterElement(
             @FindDistinct AnnotatedTypeMirror typeArg, AnnotatedDeclaredType declaredType) {
-        // For raw types, return null instead of throwing an exception
-        if (declaredType.isUnderlyingTypeRaw()) {
-            return null;
-        }
         for (int i = 0; i < declaredType.getTypeArguments().size(); i++) {
             if (declaredType.getTypeArguments().get(i) == typeArg) {
                 TypeElement typeElement =
