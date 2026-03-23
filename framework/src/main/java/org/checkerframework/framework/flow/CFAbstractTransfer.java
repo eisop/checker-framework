@@ -1,5 +1,6 @@
 package org.checkerframework.framework.flow;
 
+import com.sun.source.tree.AnnotatedTypeTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.LambdaExpressionTree;
@@ -354,7 +355,7 @@ public abstract class CFAbstractTransfer<
                             TreeUtils.classAndMethodTreeKinds());
 
             Element enclosingElement = null;
-            if (enclosingTree.getKind() == Tree.Kind.METHOD) {
+            if (enclosingTree instanceof MethodTree) {
                 // If it is in an initializer, we need to use locals from the initializer.
                 enclosingElement = TreeUtils.elementFromDeclaration((MethodTree) enclosingTree);
 
@@ -437,7 +438,7 @@ public abstract class CFAbstractTransfer<
     private boolean doesLambdaLeak(CFGLambda lambda, AnnotatedTypeFactory aTypeFactory) {
         LambdaExpressionTree lambdaTree = lambda.getLambdaTree();
         Tree lambdaParent = aTypeFactory.getPath(lambdaTree).getParentPath().getLeaf();
-        if (lambdaParent.getKind() == Tree.Kind.METHOD_INVOCATION) {
+        if (lambdaParent instanceof MethodInvocationTree) {
             MethodInvocationTree invok = (MethodInvocationTree) lambdaParent;
             ExecutableElement methodElt = TreeUtils.elementFromUse(invok);
             AliasingAnnotatedTypeFactory aliasingAtf =
@@ -1197,7 +1198,7 @@ public abstract class CFAbstractTransfer<
 
         // The "reference type" is the type after "instanceof".
         Tree refTypeTree = node.getTree().getType();
-        if (refTypeTree != null && refTypeTree.getKind() == Tree.Kind.ANNOTATED_TYPE) {
+        if (refTypeTree instanceof AnnotatedTypeTree) {
             AnnotatedTypeMirror refType = analysis.atypeFactory.getAnnotatedType(refTypeTree);
             AnnotatedTypeMirror expType =
                     analysis.atypeFactory.getAnnotatedType(node.getTree().getExpression());

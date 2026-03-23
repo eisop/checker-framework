@@ -4,7 +4,6 @@ import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.Tree;
-import com.sun.source.tree.Tree.Kind;
 
 import org.checkerframework.checker.optional.qual.Present;
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
@@ -39,6 +38,7 @@ public class OptionalImplAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      * @param checker the {@link org.checkerframework.checker.optional.OptionalImplChecker}
      *     associated with this type factory
      */
+    @SuppressWarnings("this-escape")
     public OptionalImplAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         optionalMap = TreeUtils.getMethodOrNull("java.util.Optional", "map", 1, getProcessingEnv());
@@ -71,7 +71,7 @@ public class OptionalImplAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
         MethodInvocationTree mapTree = (MethodInvocationTree) tree;
         ExpressionTree argTree = mapTree.getArguments().get(0);
-        if (argTree.getKind() != Kind.MEMBER_REFERENCE) {
+        if (!(argTree instanceof MemberReferenceTree)) {
             return;
         }
         AnnotatedTypeMirror mapReceiver = getReceiverType(mapTree);
@@ -121,7 +121,7 @@ public class OptionalImplAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      * Returns true if {@code annos} contains an annotation named "Nullable".
      *
      * @param annos a collection of annotations
-     * @return true if {@code annos} contains an annotation named "Nullable".
+     * @return true if {@code annos} contains an annotation named "Nullable"
      */
     private boolean containsNullable(Collection<? extends AnnotationMirror> annos) {
         for (AnnotationMirror anno : annos) {

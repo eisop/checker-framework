@@ -51,6 +51,7 @@ import org.checkerframework.framework.flow.CFCFGBuilder;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFTransfer;
 import org.checkerframework.framework.flow.CFValue;
+import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.DefaultFor;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.DefaultQualifierInHierarchy;
@@ -137,7 +138,14 @@ import javax.lang.model.util.Types;
  * DependentTypesHelper}, etc. Those features, and {@link #addComputedTypeAnnotations} (other than
  * the part related to flow-sensitivity), could and should be in the superclass {@link
  * AnnotatedTypeFactory}; it is not clear why they are defined in this class.
+ *
+ * @param <Value> the value type
+ * @param <Store> the store type
+ * @param <TransferFunction> the transfer function type
+ * @param <FlowAnalysis> the flow analysis type
  */
+@AnnotatedFor("nullness")
+@SuppressWarnings("nullness") // TODO: fix all remaining errors
 public abstract class GenericAnnotatedTypeFactory<
                 Value extends CFAbstractValue<Value>,
                 Store extends CFAbstractStore<Value, Store>,
@@ -339,6 +347,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * @param checker the checker to which this type factory belongs
      * @param useFlow whether flow analysis should be performed
      */
+    @SuppressWarnings("this-escape")
     protected GenericAnnotatedTypeFactory(BaseTypeChecker checker, boolean useFlow) {
         super(checker);
 
@@ -1162,7 +1171,7 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     public @Nullable Store getRegularExitStore(Tree tree) {
         if (regularExitStores == null) {
-            if (tree.getKind() == Tree.Kind.METHOD) {
+            if (tree instanceof MethodTree) {
                 if (((MethodTree) tree).getBody() == null) {
                     // No body: the method is abstract or in an interface
                     return null;
@@ -1564,8 +1573,8 @@ public abstract class GenericAnnotatedTypeFactory<
     /** Sorts a list of trees with the variables first. */
     private final Comparator<Tree> sortVariablesFirst =
             (t1, t2) -> {
-                boolean variable1 = t1.getKind() == Tree.Kind.VARIABLE;
-                boolean variable2 = t2.getKind() == Tree.Kind.VARIABLE;
+                boolean variable1 = t1 instanceof VariableTree;
+                boolean variable2 = t2 instanceof VariableTree;
                 if (variable1 && !variable2) {
                     return -1;
                 } else if (!variable1 && variable2) {
@@ -1852,8 +1861,7 @@ public abstract class GenericAnnotatedTypeFactory<
                 Element elt = TreeUtils.elementFromTree(lhsTree);
                 if (elt != null) {
                     Tree decl = declarationFromElement(elt);
-                    if (decl != null
-                            && decl.getKind() == Tree.Kind.VARIABLE
+                    if (decl instanceof VariableTree
                             && TreeUtils.isVariableTreeDeclaredUsingVar((VariableTree) decl)) {
                         // If this identifier accesses a variable that was declared using `var`,
                         // re-enable caching to avoid re-computing the initializer expression type.
@@ -2266,7 +2274,7 @@ public abstract class GenericAnnotatedTypeFactory<
         }
 
         Tree declTree = declarationFromElement(elt);
-        if (declTree == null || declTree.getKind() != Tree.Kind.VARIABLE) {
+        if (!(declTree instanceof VariableTree)) {
             return;
         }
 
@@ -2406,7 +2414,7 @@ public abstract class GenericAnnotatedTypeFactory<
             @Nullable T getTypeFactoryOfSubcheckerOrNull(
                     Class<? extends SourceChecker> subCheckerClass) {
         SourceChecker subSourceChecker = checker.getSubchecker(subCheckerClass);
-        if (subSourceChecker == null || !(subSourceChecker instanceof BaseTypeChecker)) {
+        if (!(subSourceChecker instanceof BaseTypeChecker)) {
             return null;
         }
 

@@ -107,6 +107,7 @@ public abstract class AbstractQualifierPolymorphism implements QualifierPolymorp
      * @param env the processing environment
      * @param factory the factory for the current checker
      */
+    @SuppressWarnings("this-escape")
     protected AbstractQualifierPolymorphism(
             ProcessingEnvironment env, AnnotatedTypeFactory factory) {
         this.atypeFactory = factory;
@@ -605,7 +606,7 @@ public abstract class AbstractQualifierPolymorphism implements QualifierPolymorp
         }
 
         /** Resets the state. */
-        public void reset() {
+        void reset() {
             this.visitedTypes.clear();
             this.visited.clear();
         }

@@ -6,7 +6,7 @@ public class MapMerge {
     public static void main(String[] args) {
         Map<String, String> map = new HashMap<>();
         map.put("k", "v");
-        // :: error: (return.type.incompatible)
+        // :: error: (dereference.of.nullable)
         map.merge("k", "v", (a, b) -> null).toString();
     }
 

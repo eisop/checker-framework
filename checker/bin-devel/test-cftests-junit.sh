@@ -6,8 +6,8 @@ set -o xtrace
 export SHELLOPTS
 echo "SHELLOPTS=${SHELLOPTS}"
 
-SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-source "$SCRIPTDIR"/clone-related.sh
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+source "$SCRIPT_DIR"/clone-related.sh
 
 # Adding --max-workers=1 to avoid random failures in Github Actions. An alternative solution is to use --no-build-cache.
 # https://github.com/eisop/checker-framework/issues/849

@@ -6,6 +6,8 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.qual.StubFiles;
 import org.checkerframework.framework.source.SupportedLintOptions;
 
+import java.util.NavigableSet;
+
 import javax.annotation.processing.SupportedOptions;
 
 /**
@@ -19,12 +21,20 @@ import javax.annotation.processing.SupportedOptions;
  * <p>You can use the following {@link SuppressWarnings} prefixes with this checker:
  *
  * <ul>
- *   <li>{@code @SuppressWarnings("nullness")} suppresses warnings for both nullness and
- *       initialization annotations
- *   <li>{@code @SuppressWarnings("initialization")} suppresses warnings for initialization
- *       annotations only
- *   <li>{@code @SuppressWarnings("nullnessnoinit")} suppresses warnings for nullness annotations
- *       only
+ *   <li>{@code @SuppressWarnings("nullness")} suppresses warnings from the Nullness,
+ *       Initialization, and KeyFor Checkers
+ *   <li>{@code @SuppressWarnings("nullnessinitialization")} suppresses warnings from the Nullness
+ *       and Initialization Checkers only, warnings from the KeyFor Checker are not suppressed
+ *   <li>{@code @SuppressWarnings("nullnesskeyfor")} suppresses warnings from the Nullness and
+ *       KeyFor Checkers only, warnings from the Initialization Checker are not suppressed
+ *       {@code @SuppressWarnings("nullnessnoinit")} has the same effect as
+ *       {@code @SuppressWarnings("nullnesskeyfor")}
+ *   <li>{@code @SuppressWarnings("nullnessonly")} suppresses warnings from the Nullness Checker
+ *       only, warnings from the Initialization and KeyFor Checkers are not suppressed
+ *   <li>{@code @SuppressWarnings("initialization")} suppresses warnings from the Initialization
+ *       Checker only, warnings from the Nullness and KeyFor Checkers are not suppressed
+ *   <li>{@code @SuppressWarnings("keyfor")} suppresses warnings from the KeyFor Checker only,
+ *       warnings from the Nullness and Initialization Checkers are not suppressed
  * </ul>
  *
  * @see KeyForSubchecker
@@ -101,5 +111,13 @@ public class NullnessChecker extends InitializationChecker {
     @Override
     public Class<? extends BaseTypeChecker> getTargetCheckerClass() {
         return NullnessNoInitSubchecker.class;
+    }
+
+    @Override
+    public NavigableSet<String> getSuppressWarningsPrefixes() {
+        NavigableSet<String> result = super.getSuppressWarningsPrefixes();
+        // The prefix to suppress both nullness and initialization warnings.
+        result.add("nullnessinitialization");
+        return result;
     }
 }

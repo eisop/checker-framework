@@ -191,7 +191,7 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
 
         /**
          * Print, to sb, {@code keyWord} followed by {@code field}. NULL types are substituted with
-         * their annotations followed by " Void"
+         * their annotations followed by "NullType".
          */
         @SideEffectFree
         protected void printBound(
@@ -216,7 +216,7 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
                 sb.append(
                         annoFormatter.formatAnnotationString(
                                 field.getAnnotations(), currentPrintInvisibleSetting));
-                sb.append("Void");
+                sb.append("NullType");
             }
         }
 
@@ -437,12 +437,12 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
                 try {
                     visiting.add(type);
                     if (currentPrintVerboseGenerics) {
-                        sb.append("[");
+                        sb.append(" [");
                     }
                     printBound("extends", type.getUpperBoundField(), visiting, sb);
                     printBound("super", type.getLowerBoundField(), visiting, sb);
                     if (currentPrintVerboseGenerics) {
-                        sb.append("]");
+                        sb.append(" ]");
                     }
 
                 } finally {
@@ -494,12 +494,12 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
                     visiting.add(type);
 
                     if (currentPrintVerboseGenerics) {
-                        sb.append("[");
+                        sb.append(" [");
                     }
                     printBound("extends", type.getExtendsBoundField(), visiting, sb);
                     printBound("super", type.getSuperBoundField(), visiting, sb);
                     if (currentPrintVerboseGenerics) {
-                        sb.append("]");
+                        sb.append(" ]");
                     }
 
                 } finally {
