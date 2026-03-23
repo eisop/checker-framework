@@ -55,6 +55,9 @@ spotless {
         if (currentRuntimeJavaVersion < 22) {
             doNotFormat += ["tests/**/java22/"]
         }
+        if (currentRuntimeJavaVersion < 25) {
+            doNotFormat += ["tests/**/java25/"]
+        }
     }
 
     format "misc", {
