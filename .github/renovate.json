@@ -10,6 +10,10 @@
   "timezone": "America/Los_Angeles",
   "packageRules": [
     {
+      "matchPackagePatterns": ["^adoptium/temurin\\d+-binaries$"],
+      "ignoreUnstable": false
+    },
+    {
       "matchPackageNames": ["com.amazonaws:aws-java-sdk-bom"],
       "schedule": ["before 3am on the first day of the month"]
     },
@@ -26,6 +30,17 @@
       "matchStrings": ["USE_BAZEL_VERSION: \"(?<currentValue>.*?)\""],
       "datasourceTemplate": "github-releases",
       "depNameTemplate": "bazelbuild/bazel"
+    },
+    {
+      "description": "Update JDK_EA_BUILD in GitHub Actions",
+      "fileMatch": ["^\\.github/workflows/ci\\.yml$"],
+      "matchStrings": [
+        "JDK_EA_MAJOR:\\s+\"(?<major>\\d+)\"[\\s\\S]*?JDK_EA_BUILD:\\s+\"(?<currentValue>\\d+)\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "loose",
+      "depNameTemplate": "adoptium/temurin{{{major}}}-binaries",
+      "extractVersionTemplate": "^jdk-\\d+\\+(?<version>\\d+)"
     }
   ]
 }
