@@ -3998,7 +3998,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     success, null, methodReceiver, erasedTreeReceiver, tree);
             if (!success) {
                 // Don't report the erased types because they show up with '</*RAW*/>' as type args.
-                reportMethodInvocabilityError(tree, treeReceiver, method.getReceiverType());
+                reportMethodInvocabilityError(tree, treeReceiver, methodReceiver);
             }
         }
     }
