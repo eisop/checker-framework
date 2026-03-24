@@ -3,6 +3,8 @@ Version 3.49.5-eisop1 (July ??, 2025)
 
 **User-visible changes:**
 
+Method invocation mismatch diagnostics now report exact receiver type arguments instead of printing raw types.
+
 The new command-line option `-AonlyAnnotatedFor` suppresses all type-checking errors and warnings outside the scope of
 a corresponding `@AnnotatedFor` annotation.
 Note that the `@AnnotatedFor` annotation must include the checker's name to enable warnings from that checker.
@@ -37,7 +39,6 @@ They are enabled by default and can be disabled using `-Alint=-instanceof.unsafe
 The Nullness Checker now recognizes references to private, final fields with zero-length arrays as initializers in calls to `Collection.toArray(T[])`, allowing the returned component type to be refined to `@NonNull`.
 
 The `ClassBound` annotation can now be used with anonymous types.
-
 **Implementation details:**
 
 The `AbstractNodeVisitor` now has more summary methods, following the class hierarchy of `Node` and conceptual categories.
