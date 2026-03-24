@@ -1742,7 +1742,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      *
      * @param receiverType the receiver type
      */
-    /*package-private*/ void setReceiverType(@Nullable AnnotatedDeclaredType receiverType) {
+    public void setReceiverType(@Nullable AnnotatedDeclaredType receiverType) {
       this.receiverType = receiverType;
       receiverTypeComputed = true;
     }
