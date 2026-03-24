@@ -38,7 +38,7 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v5.0.2
+      uses: gradle/actions/setup-gradle@v6.0.0
 
     - name: Setup Bazel
       uses: bazel-contrib/setup-bazel@0.19.0
@@ -95,7 +95,7 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v5.0.2
+      uses: gradle/actions/setup-gradle@v6.0.0
       # Setup for misc tests
     - name: Install misc dependencies
       if: ${{ matrix.script == 'misc' }}
@@ -212,7 +212,7 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v5.0.2
+      uses: gradle/actions/setup-gradle@v6.0.0
     - name: Install misc dependencies
       if: ${{ matrix.script == 'misc' }}
       run: |
@@ -271,7 +271,7 @@ jobs:
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v5.0.2
+      uses: gradle/actions/setup-gradle@v6.0.0
 
     - name: Install coreutils on MacOS
       if: ${{ matrix.os == 'macos-latest' }}
