@@ -57,8 +57,8 @@ public abstract class AggregateChecker extends SourceChecker {
     /**
      * Always returns false. Whether an aggregate checker is annotated with {@code @AnnotatedFor}
      * depends on its subcheckers. For checkers that have an upstream checker and want to handle
-     * {@code @AnnotatedFor} in both this and the upstream checker, see
-     * {@link org.checkerframework.checker.initialization.InitializationChecker#getUpstreamCheckerNames()}.
+     * {@code @AnnotatedFor} in both this and the upstream checker, see {@link
+     * org.checkerframework.checker.initialization.InitializationChecker#getUpstreamCheckerNames()}.
      */
     @Override
     protected boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(Element elt) {

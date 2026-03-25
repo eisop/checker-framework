@@ -315,23 +315,22 @@ public abstract class BaseTypeChecker extends SourceChecker {
         }
     }
 
-    /**
-     * Return true if the element has an {@code @AnnotatedFor} annotation, for this checker or an
-     * upstream checker that called this one.
-     *
-     * @param elt the source code element to check, or null
-     * @return true if the element is annotated for this checker or an upstream checker
-     */
     @Override
     protected boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(Element elt) {
-        // The main implementation of this method resides in AnnotatedTypeFactory. The factory's
-        // postInit() method is invoked from the constructors of AnnotatedTypeFactory instances,
-        // and during postInit() the factory may need to call
-        // isElementAnnotatedForThisCheckerOrUpstreamChecker. If this method were implemented
-        // here and invoked via atf.getChecker(), its body would call getTypeFactory(), which
-        // could access or create the factory before it is fully initialized and before the
-        // visitor is set up, leading to a type-system error. To avoid this initialization
-        // cycle, this checker method simply delegates to the AnnotatedTypeFactory implementation.
+        // The implementation of this method resides in AnnotatedTypeFactory (atf).
+        // We want to implement it here to avoid duplication and call
+        // atypeFactory.getChecker().isElementAnnotatedForThisCheckerOrUpstreamChecker(elt)
+        // in QualifierDefaults, but implement it here causes type-system error.
+        // The reason is the implementation requires an atf to call getDeclAnnotation() to get the
+        // AnnotatedFor annotation on the element.
+        // However, the method is called during the initialization of the atf when applying
+        // qualifier defaults. At that time, the atf and the visitor are not fully initialized, so
+        // calling getTypeFactory() will result in a type-system error.
+        // The initialization logic is as follows:
+        // 1. Create the checker.
+        // 2. Create the visitor, and the visitor's constructor initializes the atf.
+        // 3. During postInit() of the atf, the qualifier defaults are applied, which need to call
+        // isElementAnnotatedForThisCheckerOrUpstreamChecker().
         return getTypeFactory().isElementAnnotatedForThisCheckerOrUpstreamChecker(elt);
     }
 }
