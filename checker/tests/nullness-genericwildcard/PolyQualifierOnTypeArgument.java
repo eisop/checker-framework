@@ -2,13 +2,15 @@ import org.checkerframework.checker.nullness.qual.PolyNull;
 
 public class PolyQualifierOnTypeArgument<T> {
     void toArray(PolyQualifierOnTypeArgument<@PolyNull T> this) {
-        // This method has @PolyNull as receiver's type argument annotation.
+        // This method has @PolyNull on receiver's type argument.
     }
 
     void test(PolyQualifierOnTypeArgument<?> p) {
-        // When invoking method on receiver using an unbounded wildcard as type argument, the LUB of
-        // annotations on the bounds is @Nullable. Therefore, the declared receiver type get
-        // substituted as @Nullable T, which is not compatible with an unbounded wildcard.
+        // When calling toArray on a receiver with an unbounded wildcard type argument, the LUB of
+        // the annotations on the wildcard's bounds is @Nullable. As a result, the receiver type is
+        // substituted as PolyQualifierOnTypeArgument<@Nullable T>, which is not compatible with an
+        // unbounded wildcard type argument.
+        // If the method receiver type argument subtyping check is enabled, the error is:
         // found   : @NonNull PolyQualifierOnTypeArgument<? [ extends @Nullable Object super
         // @NonNull Nulltype ]>
         // required: @NonNull PolyQualifierOnTypeArgument<capture#01 [ extends @Nullable Object
