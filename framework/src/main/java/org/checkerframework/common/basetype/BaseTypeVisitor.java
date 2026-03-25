@@ -2184,7 +2184,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             AnnotatedDeclaredType adt = preInference.executableType.getReceiverType();
             if (adt != null) {
                 List<AnnotatedTypeMirror> rcrTypeArgs = adt.getTypeArguments();
-                // Avoid check method receiver's type arguments has poly arguments.
+                // Don't check when method receiver's type arguments has poly annotation.
                 // See checker/tests/nullness-genericwildcard/PolyQualifierOnTypeArgument.java
                 boolean outerLoopBroken = false;
                 outerloop:
