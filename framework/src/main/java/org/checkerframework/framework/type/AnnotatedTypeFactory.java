@@ -6049,7 +6049,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         if (elt == null) {
             throw new BugInCF(
-                    "Call of QualifierDefaults.isElementAnnotatedForThisChecker with null");
+                    "Call of AnnotatedTypeFactory.isElementAnnotatedForThisCheckerOrUpstreamChecker with null");
         }
 
         if (elementAnnotatedFors.containsKey(elt)) {

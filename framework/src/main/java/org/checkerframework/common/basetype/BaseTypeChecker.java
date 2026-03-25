@@ -323,12 +323,15 @@ public abstract class BaseTypeChecker extends SourceChecker {
      * @return true if the element is annotated for this checker or an upstream checker
      */
     @Override
-    public boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(Element elt) {
-        // The implementation of this method is at AnnotatedTypeFactory because postinit() is called
-        // in the constructor of ATFs and use the same method before the ATF is fully initialized.
-        // Implement it here and call this method by atf.getChecker() would fail as it will call
-        // getTypeFactory() in the body and would result type system error as the visitor is not
-        // initialized yet.
+    protected boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(Element elt) {
+        // The main implementation of this method resides in AnnotatedTypeFactory. The factory's
+        // postInit() method is invoked from the constructors of AnnotatedTypeFactory instances,
+        // and during postInit() the factory may need to call
+        // isElementAnnotatedForThisCheckerOrUpstreamChecker. If this method were implemented
+        // here and invoked via atf.getChecker(), its body would call getTypeFactory(), which
+        // could access or create the factory before it is fully initialized and before the
+        // visitor is set up, leading to a type-system error. To avoid this initialization
+        // cycle, this checker method simply delegates to the AnnotatedTypeFactory implementation.
         return getTypeFactory().isElementAnnotatedForThisCheckerOrUpstreamChecker(elt);
     }
 }
