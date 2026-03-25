@@ -2186,19 +2186,22 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 List<AnnotatedTypeMirror> rcrTypeArgs = adt.getTypeArguments();
                 // Don't check when method receiver's type arguments has poly annotation.
                 // See checker/tests/nullness-genericwildcard/PolyQualifierOnTypeArgument.java
-                boolean outerLoopBroken = false;
-                outerloop:
                 for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
                     AnnotationMirror poly = qualHierarchy.getPolymorphicAnnotation(top);
-                    for (AnnotatedTypeMirror typearg : rcrTypeArgs) {
-                        if (poly != null && typearg.hasAnnotation(poly)) {
-                            outerLoopBroken = true;
-                            break outerloop;
+                    if (poly == null) {
+                        continue;
+                    }
+                    boolean typeArgsHasPolyAnnotation = false;
+                    for (AnnotatedTypeMirror typeArg : rcrTypeArgs) {
+                        // If one of the type argument has poly annotation, then skip the check.
+                        if (typeArg.hasAnnotation(poly)) {
+                            typeArgsHasPolyAnnotation = true;
+                            break;
                         }
                     }
-                }
-                if (!outerLoopBroken) {
-                    checkMethodInvocability(invokedMethod, tree);
+                    if (!typeArgsHasPolyAnnotation) {
+                        checkMethodInvocability(invokedMethod, tree);
+                    }
                 }
             }
         }
