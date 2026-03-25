@@ -3983,22 +3983,23 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return;
         }
 
-        AnnotatedTypeMirror methodReceiver = method.getReceiverType();
-        AnnotatedTypeMirror erasedTreeReceiver = methodReceiver.getErased().shallowCopy(false);
+        AnnotatedTypeMirror erasedMethodReceiver = method.getReceiverType().getErased();
+        AnnotatedTypeMirror erasedTreeReceiver = erasedMethodReceiver.shallowCopy(false);
         AnnotatedTypeMirror treeReceiver = atypeFactory.getReceiverType(tree);
 
         erasedTreeReceiver.addAnnotations(treeReceiver.getEffectiveAnnotations());
 
-        if (!skipReceiverSubtypeCheck(tree, methodReceiver, treeReceiver)) {
+        if (!skipReceiverSubtypeCheck(tree, erasedMethodReceiver, treeReceiver)) {
             // The diagnostic can be a bit misleading because the check is of the receiver but
             // `tree` is the entire method invocation (where the receiver might be implicit).
-            commonAssignmentCheckStartDiagnostic(methodReceiver, erasedTreeReceiver, tree);
-            boolean success = typeHierarchy.isSubtype(erasedTreeReceiver, methodReceiver);
+            commonAssignmentCheckStartDiagnostic(
+                    method.getReceiverType(), erasedTreeReceiver, tree);
+            boolean success = typeHierarchy.isSubtype(erasedTreeReceiver, erasedMethodReceiver);
             commonAssignmentCheckEndDiagnostic(
-                    success, null, methodReceiver, erasedTreeReceiver, tree);
+                    success, null, method.getReceiverType(), erasedTreeReceiver, tree);
             if (!success) {
                 // Don't report the erased types because they show up with '</*RAW*/>' as type args.
-                reportMethodInvocabilityError(tree, treeReceiver, methodReceiver);
+                reportMethodInvocabilityError(tree, treeReceiver, method.getReceiverType());
             }
         }
     }
