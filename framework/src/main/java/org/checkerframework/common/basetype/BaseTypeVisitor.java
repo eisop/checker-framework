@@ -3976,7 +3976,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             MethodInvocationTree tree,
             AnnotatedTypeMirror methodDefinitionReceiver,
             AnnotatedTypeMirror methodCallReceiver) {
-
         return false;
     }
 
