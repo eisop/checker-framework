@@ -2181,31 +2181,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         ExecutableElement invokedMethodElement = invokedMethod.getElement();
         if (!ElementUtils.isStatic(invokedMethodElement)
                 && !TreeUtils.isSuperConstructorCall(tree)) {
-            AnnotatedDeclaredType adt = preInference.executableType.getReceiverType();
-            if (adt != null) {
-                List<AnnotatedTypeMirror> rcrTypeArgs = adt.getTypeArguments();
-                // Don't check when method receiver's type arguments has poly annotation.
-                // See checker/tests/nullness-genericwildcard/PolyQualifierOnTypeArgument.java
-                for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
-                    AnnotationMirror poly = qualHierarchy.getPolymorphicAnnotation(top);
-                    if (poly == null) {
-                        continue;
-                    }
-                    boolean typeArgsHasPolyAnnotation = false;
-                    for (AnnotatedTypeMirror typeArg : rcrTypeArgs) {
-                        // If one of the type argument has poly annotation, then skip the check.
-                        if (typeArg.hasAnnotation(poly)) {
-                            typeArgsHasPolyAnnotation = true;
-                            break;
-                        }
-                    }
-                    if (!typeArgsHasPolyAnnotation) {
-                        checkMethodInvocability(invokedMethod, tree);
-                    }
-                }
-            }
+            checkMethodInvocability(invokedMethod, tree);
         }
-
         // check precondition annotations
         checkPreconditions(
                 tree, atypeFactory.getContractsFromMethod().getPreconditions(invokedMethodElement));
@@ -3992,7 +3969,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     protected void checkMethodInvocability(
             AnnotatedExecutableType method, MethodInvocationTree tree) {
-        if (method.getReceiverType() == null) {
+        AnnotatedDeclaredType methodReceiver = method.getReceiverType();
+        if (methodReceiver == null) {
             // Static methods don't have a receiver to check.
             return;
         }
@@ -4005,7 +3983,23 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return;
         }
 
-        AnnotatedTypeMirror methodReceiver = method.getReceiverType();
+        // Don't check when method receiver's type arguments has poly annotation.
+        // See checker/tests/nullness-genericwildcard/PolyQualifierOnTypeArgument.java.
+        for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
+            AnnotationMirror poly = qualHierarchy.getPolymorphicAnnotation(top);
+            // If this hiearchy does not have a poly annotation, then continue to next hierarchy.
+            if (poly == null) {
+                continue;
+            }
+            List<AnnotatedTypeMirror> receiverTypeArgs = methodReceiver.getTypeArguments();
+            for (AnnotatedTypeMirror typeArg : receiverTypeArgs) {
+                // If one of the type argument has poly annotation, then skip the check.
+                if (typeArg.hasAnnotation(poly)) {
+                    return;
+                }
+            }
+        }
+
         AnnotatedTypeMirror treeReceiver = atypeFactory.getReceiverType(tree);
 
         if (!skipReceiverSubtypeCheck(tree, methodReceiver, treeReceiver)) {
