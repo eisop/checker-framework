@@ -2178,11 +2178,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             typeCheckVectorCopyIntoArgument(tree, params);
         }
 
+        checkMethodInvocability(invokedMethod, tree);
+
         ExecutableElement invokedMethodElement = invokedMethod.getElement();
-        if (!ElementUtils.isStatic(invokedMethodElement)
-                && !TreeUtils.isSuperConstructorCall(tree)) {
-            checkMethodInvocability(invokedMethod, tree);
-        }
         // check precondition annotations
         checkPreconditions(
                 tree, atypeFactory.getContractsFromMethod().getPreconditions(invokedMethodElement));
@@ -3969,12 +3967,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     protected void checkMethodInvocability(
             AnnotatedExecutableType method, MethodInvocationTree tree) {
-        AnnotatedDeclaredType methodReceiver = method.getReceiverType();
-        if (methodReceiver == null) {
+        ExecutableElement invokedMethodElement = method.getElement();
+        if (ElementUtils.isStatic(invokedMethodElement)) {
             // Static methods don't have a receiver to check.
             return;
         }
-        if (method.getElement().getKind() == ElementKind.CONSTRUCTOR) {
+        if (invokedMethodElement.getKind() == ElementKind.CONSTRUCTOR) {
             // TODO: Explicit "this()" calls of constructors have an implicit passed
             // from the enclosing constructor. We must not use the self type, but
             // instead should find a way to determine the receiver of the enclosing constructor.
@@ -3983,6 +3981,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return;
         }
 
+        ParameterizedExecutableType methodDef =
+                atypeFactory.methodFromUseWithoutTypeArgInference(tree);
+        List<AnnotatedTypeMirror> declaredTypeArgs =
+                methodDef.executableType.getReceiverType().getTypeArguments();
         // Don't check when method receiver's type argument has a poly annotation.
         // See checker/tests/nullness-genericwildcard/PolyQualifierOnTypeArgument.java.
         for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
@@ -3991,8 +3993,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             if (poly == null) {
                 continue;
             }
-            List<AnnotatedTypeMirror> receiverTypeArgs = methodReceiver.getTypeArguments();
-            for (AnnotatedTypeMirror typeArg : receiverTypeArgs) {
+            for (AnnotatedTypeMirror typeArg : declaredTypeArgs) {
                 // If one of the type argument has a poly annotation, then skip the check.
                 if (typeArg.hasAnnotation(poly)) {
                     return;
@@ -4000,6 +4001,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
         }
 
+        AnnotatedDeclaredType methodReceiver = method.getReceiverType();
         AnnotatedTypeMirror treeReceiver = atypeFactory.getReceiverType(tree);
 
         if (!skipReceiverSubtypeCheck(tree, methodReceiver, treeReceiver)) {
