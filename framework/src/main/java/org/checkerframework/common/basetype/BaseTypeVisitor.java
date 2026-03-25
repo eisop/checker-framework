@@ -3983,17 +3983,17 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return;
         }
 
-        // Don't check when method receiver's type arguments has poly annotation.
+        // Don't check when method receiver's type argument has a poly annotation.
         // See checker/tests/nullness-genericwildcard/PolyQualifierOnTypeArgument.java.
         for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
             AnnotationMirror poly = qualHierarchy.getPolymorphicAnnotation(top);
-            // If this hiearchy does not have a poly annotation, then continue to next hierarchy.
+            // If this hierarchy does not have a poly annotation, then continue to next hierarchy.
             if (poly == null) {
                 continue;
             }
             List<AnnotatedTypeMirror> receiverTypeArgs = methodReceiver.getTypeArguments();
             for (AnnotatedTypeMirror typeArg : receiverTypeArgs) {
-                // If one of the type argument has poly annotation, then skip the check.
+                // If one of the type argument has a poly annotation, then skip the check.
                 if (typeArg.hasAnnotation(poly)) {
                     return;
                 }
