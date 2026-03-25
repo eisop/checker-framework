@@ -511,7 +511,9 @@ tasks.register("allNullnessTests", Test) {
     // the test source set, so set the class dirs and classpath explicitly.
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
-    include("**/Nullness*.class")
+    filter {
+        includeTestsMatching("org.checkerframework.checker.test.junit.Nullness*")
+    }
 }
 
 tasks.register("allCalledMethodsTests", Test) {
@@ -519,10 +521,17 @@ tasks.register("allCalledMethodsTests", Test) {
     description = "Run all JUnit tests for the Called Methods Checker."
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
-    include("**/CalledMethods*.class")
+    filter {
+        includeTestsMatching("org.checkerframework.checker.test.junit.CalledMethods*")
+    }
     if (!skipDelombok) {
         dependsOn("delombok")
     }
+  testClassesDirs = sourceSets.test.output.classesDirs
+  classpath = sourceSets.test.runtimeClasspath
+  filter {
+    includeTestsMatching("org.checkerframework.checker.test.junit.CalledMethods*")
+  }
 }
 
 tasks.register("allResourceLeakTests", Test) {
@@ -530,8 +539,10 @@ tasks.register("allResourceLeakTests", Test) {
     description = "Run all JUnit tests for the Resource Leak Checker."
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
-    include("**/ResourceLeak*.class")
-    include("**/MustCall*.class")
+    filter {
+        includeTestsMatching("org.checkerframework.checker.test.junit.ResourceLeak*")
+        includeTestsMatching("org.checkerframework.checker.test.junit.MustCall*")
+    }
 }
 
 // These are tests that should only be run with JDK 11+.
