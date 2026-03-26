@@ -3981,10 +3981,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return;
         }
 
-        ParameterizedExecutableType methodDef =
+        ParameterizedExecutableType methodDefPreSubstitution =
                 atypeFactory.methodFromUseWithoutTypeArgInference(tree);
         List<AnnotatedTypeMirror> declaredTypeArgs =
-                methodDef.executableType.getReceiverType().getTypeArguments();
+                methodDefPreSubstitution.executableType.getReceiverType().getTypeArguments();
         // Don't check when method receiver's type argument has a poly annotation.
         // See checker/tests/nullness-genericwildcard/PolyQualifierOnTypeArgument.java.
         for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
