@@ -127,6 +127,16 @@ public class PropagationTypeAnnotator extends TypeAnnotator {
         }
         visitedNodes.put(wildcard, null);
 
+        // Raw wildcard args are already fixed up in visitDeclared.
+        // Recursive traversal through scan(wildcard.getExtendsBound(), ...) can
+        // re-enter visitWildcard with a synthesized raw wildcard object that is
+        // not identity-equal to the parent type argument wildcard.
+        if (AnnotatedTypes.isTypeArgOfRawType(wildcard)) {
+            scan(wildcard.getExtendsBound(), null);
+            scan(wildcard.getSuperBound(), null);
+            return null;
+        }
+
         Element typeParamElement = TypesUtils.wildcardToTypeParam(wildcard.getUnderlyingType());
         if (typeParamElement == null && !parents.isEmpty()) {
             typeParamElement = getTypeParameterElement(wildcard, parents.peekFirst());
@@ -212,7 +222,8 @@ public class PropagationTypeAnnotator extends TypeAnnotator {
      *
      * @param typeArg a typeArg of {@code declaredType}
      * @param declaredType the type in which {@code typeArg} is a type argument
-     * @return the type parameter in {@code declaredType} that corresponds to {@code typeArg}
+     * @return the type parameter in {@code declaredType} that corresponds to {@code typeArg}, or
+     *     null if not found (which can happen with raw types)
      */
     private Element getTypeParameterElement(
             @FindDistinct AnnotatedTypeMirror typeArg, AnnotatedDeclaredType declaredType) {
