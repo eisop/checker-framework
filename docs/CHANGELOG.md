@@ -38,6 +38,8 @@ The Nullness Checker now recognizes references to private, final fields with zer
 
 The `ClassBound` annotation can now be used with anonymous types.
 
+The `CFAbstractTranfer` now only returns `RegularTransferResult` when the method visited has non-boolean return type, instead of always return `ConditionalTransferResult`.
+
 **Implementation details:**
 
 The `AbstractNodeVisitor` now has more summary methods, following the class hierarchy of `Node` and conceptual categories.
@@ -51,7 +53,6 @@ Fixed nullness annotations and documentation of the following methods in `Source
 
 Removed method `InitializationParentAnnotatedTypeFactory.createUnderInitializationAnnotation(Class<?>)` from the Initialization Checker; use `createUnderInitializationAnnotation(TypeMirror)` instead.
 
-NonEmpty Checker now correctly applies conditional refinement in NonEmptyTransfer by converting RegularTransferResult to ConditionalTransferResult when needed.
 
 **Closed issues:**
 
