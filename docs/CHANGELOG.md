@@ -3,7 +3,7 @@ Version 3.49.5-eisop1 (July ??, 2025)
 
 **User-visible changes:**
 
-The EISOP Checker Framework checks subtyping for receiver's type arguments when invoking the method.
+The EISOP Checker Framework checks subtyping for receiver's type arguments when invoking a method.
 The annotations on type arguments of a method receiver (e.g., `void test(Box<@NonNull T> this)`) were previously ignored during type-checking.
 
 The new command-line option `-AonlyAnnotatedFor` suppresses all type-checking errors and warnings outside the scope of
