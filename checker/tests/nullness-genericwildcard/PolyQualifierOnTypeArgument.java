@@ -1,3 +1,5 @@
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 
 public class PolyQualifierOnTypeArgument<T> {
@@ -16,5 +18,24 @@ public class PolyQualifierOnTypeArgument<T> {
         // required: @NonNull PolyQualifierOnTypeArgument<capture#01 [ extends @Nullable Object
         // super @Nullable Nulltype ]>
         p.toArray();
+    }
+
+    void test2(PolyQualifierOnTypeArgument<T> p) {
+        p.toArray(); // same bound mismatch as unbounded wildcard cass
+    }
+
+    void test3(PolyQualifierOnTypeArgument<@NonNull T> p) {
+        p.toArray(); // ok, the LUB is @NonNull, both bounds are @NonNull is compatiable with
+        // @PolyNull T after substitution
+    }
+
+    void test4(PolyQualifierOnTypeArgument<@Nullable Object> p) {
+        p.toArray(); // ok, the LUB is @Nullable, both bounds are @Nullable is compatiable
+        // with @PolyNull T after substitution
+    }
+
+    void test5(PolyQualifierOnTypeArgument<Object> p) {
+        p.toArray(); // ok, the LUB is @NonNull, both bounds are @NonNull is compatiable with
+        // @PolyNull T after substitution
     }
 }
