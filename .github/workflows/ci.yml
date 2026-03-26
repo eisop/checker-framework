@@ -121,8 +121,8 @@ jobs:
     env:
       JAVA_VERSION: ${{ matrix.java.version }}
       USE_BAZEL_VERSION: "9.0.1"
-      JDK_EA_MAJOR: "26"
-      JDK_EA_BUILD: "35"
+      JDK_EA_MAJOR: "27"
+      JDK_EA_BUILD: "03"
     strategy:
       fail-fast: true
       matrix:
@@ -139,6 +139,7 @@ jobs:
           {version: '11', experimental: false},
           {version: '17', experimental: false},
           {version: '25', experimental: false},
+          {version: '26', experimental: false},
           {version: 'ea', experimental: true}]
         exclude:
           # JDK 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
