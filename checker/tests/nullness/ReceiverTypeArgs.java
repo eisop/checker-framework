@@ -1,3 +1,5 @@
+// Test case for issue 104: https://github.com/eisop/checker-framework/issues/104
+
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
