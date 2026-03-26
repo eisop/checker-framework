@@ -140,7 +140,7 @@ jobs:
           {version: '11', experimental: false},
           {version: '17', experimental: false},
           {version: '25', experimental: false},
-          {version: 'ea', experimental: true}]
+          {version: 'EA', experimental: true}]
         exclude:
           # JDK 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
           - script: 'cftests-junit-jdk21'
@@ -210,7 +210,7 @@ jobs:
         java-version: ${{ matrix.java.version }}
         distribution: 'zulu'
         cache: 'gradle'
-    - name: Set up JDK $JDK_EA_MAJOR
+    - name: Set up JDK ${{ env.JDK_EA_MAJOR }}
       if: ${{ matrix.java.version == 'EA' }}
       uses: oracle-actions/setup-java@v1
       with:
