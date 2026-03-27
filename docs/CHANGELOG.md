@@ -38,6 +38,8 @@ The Nullness Checker now recognizes references to private, final fields with zer
 
 The `ClassBound` annotation can now be used with anonymous types.
 
+The Nullness Checker now refines `Queue.poll()` to `@NonNull` after a false `isEmpty()` check for queues with `@NonNull` element types.
+
 **Implementation details:**
 
 The `AbstractNodeVisitor` now has more summary methods, following the class hierarchy of `Node` and conceptual categories.

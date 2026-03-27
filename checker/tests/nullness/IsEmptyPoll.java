@@ -15,6 +15,20 @@ public final class IsEmptyPoll extends ArrayList<String> {
         }
     }
 
+    void noSideEffectMethod(Queue<String> q) {
+        while (!q.isEmpty()) {
+            q.size();
+            @NonNull String firstNode = q.poll();
+        }
+    }
+
+    void unrelatedClear(Queue<String> q1, Queue<String> q2) {
+        while (!q1.isEmpty()) {
+            q2.clear();
+            @NonNull String firstNode = q1.poll();
+        }
+    }
+
     void mNullable(Queue<@Nullable String> q) {
         while (!q.isEmpty()) {
             // :: error: (assignment.type.incompatible)
@@ -26,4 +40,76 @@ public final class IsEmptyPoll extends ArrayList<String> {
         // :: error: (assignment.type.incompatible)
         @NonNull String firstNode = q.poll();
     }
+
+    void secondPoll(Queue<String> q) {
+        while (!q.isEmpty()) {
+            @NonNull String firstNode = q.poll();
+            // :: error: (assignment.type.incompatible)
+            @NonNull String secondNode = q.poll();
+        }
+    }
+
+    void replaceQueue(Queue<String> q1, Queue<String> q2) {
+        while (!q1.isEmpty()) {
+            q1 = q2;
+            // :: error: (assignment.type.incompatible)
+            @NonNull String firstNode = q1.poll();
+        }
+    }
+
+    void removeBeforePoll(Queue<String> q) {
+        while (!q.isEmpty()) {
+            q.remove();
+            // :: error: (assignment.type.incompatible)
+            @NonNull String firstNode = q.poll();
+        }
+    }
+
+    void clearBeforePoll(Queue<String> q) {
+        while (!q.isEmpty()) {
+            q.clear();
+            // :: error: (assignment.type.incompatible)
+            @NonNull String firstNode = q.poll();
+        }
+    }
+
+    void conditionalClearBeforePoll(Queue<String> q, boolean bool) {
+        while (!q.isEmpty()) {
+            if (bool) {
+                q.clear();
+            }
+            // :: error: (assignment.type.incompatible)
+            @NonNull String s = q.poll();
+        }
+    }
+
+    void indexPoll(Queue<String>[] arr, int i) {
+        while (!arr[i].isEmpty()) {
+            i++;
+            // :: error: (assignment.type.incompatible)
+            @NonNull String firstNode = arr[i].poll();
+        }
+    }
+
+    void clearViaArg(Queue<String> q) {
+        q.clear();
+    }
+
+    void argMutate(Queue<String> q) {
+        while (!q.isEmpty()) {
+            clearViaArg(q);
+            // :: error: (assignment.type.incompatible)
+            @NonNull String s = q.poll();
+        }
+    }
+
+    // Currently failing because the store does not track aliases of the queue receiver.
+    // void aliasClearBeforePoll(Queue<String> q) {
+    //     Queue<String> a = q;
+    //     while (!q.isEmpty()) {
+    //         a.clear();
+    //         // should error once aliasing is tracked
+    //         @NonNull String s = q.poll();
+    //     }
+    // }
 }

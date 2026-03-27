@@ -428,6 +428,15 @@ public class NullnessNoInitTransfer
     @Override
     public TransferResult<NullnessNoInitValue, NullnessNoInitStore> visitMethodInvocation(
             MethodInvocationNode n, TransferInput<NullnessNoInitValue, NullnessNoInitStore> in) {
+        Node receiver = n.getTarget().getReceiver();
+        JavaExpression receiverExpr = JavaExpression.fromNode(receiver);
+        // Capture queue non-emptiness fact before superclass mutates the store when handling side
+        // effects.
+        boolean isNonEmptyQueuePoll =
+                nullnessTypeFactory.isQueuePoll(n)
+                        && receiverExpr != null
+                        && in.getRegularStore().isQueueNonEmpty(receiverExpr);
+
         TransferResult<NullnessNoInitValue, NullnessNoInitStore> result =
                 super.visitMethodInvocation(n, in);
 
@@ -437,7 +446,6 @@ public class NullnessNoInitTransfer
         boolean isMethodSideEffectFree =
                 nullnessTypeFactory.isSideEffectFree(method)
                         || PurityUtils.isSideEffectFree(nullnessTypeFactory, method);
-        Node receiver = n.getTarget().getReceiver();
         if (nonNullAssumptionAfterInvocation
                 || isMethodSideEffectFree
                 || !JavaExpression.fromNode(receiver).isAssignableByOtherCode()) {
@@ -481,31 +489,24 @@ public class NullnessNoInitTransfer
             }
         }
 
-        // Handle Collection.isEmpty(), mark receiver as non-empty in the false branch
+        // Handle Collection.isEmpty(): mark receiver as non-empty in the false branch.
         if (nullnessTypeFactory.isCollectionIsEmpty(n)) {
-            JavaExpression receiverExpr = JavaExpression.fromNode(receiver);
-            if (CFAbstractStore.canInsertJavaExpression(receiverExpr)) {
+            if (receiverExpr != null) {
                 NullnessNoInitStore thenStore = result.getThenStore();
                 NullnessNoInitStore elseStore = result.getElseStore();
-                elseStore.insertValue(receiverExpr, NONNULL);
+                elseStore.markQueueAsNonEmpty(receiverExpr);
                 return new ConditionalTransferResult<>(
                         result.getResultValue(), thenStore, elseStore);
             }
         }
 
         // Refine result to @NonNull if n is an invocation of Queue.poll(), the receiver is known to
-        // be non-empty
-        // and Queue element type is @NonNull
-        if (nullnessTypeFactory.isQueuePoll(n)) {
-            NullnessNoInitStore store = result.getRegularStore();
-            JavaExpression receiverExpr = JavaExpression.fromNode(receiver);
-            NullnessNoInitValue receiverValue = store.getValue(receiverExpr);
-            if (receiverValue != null && receiverValue.getAnnotations().contains(NONNULL)) {
-                AnnotatedTypeMirror receiverType = nullnessTypeFactory.getReceiverType(n.getTree());
-                if (!isElementTypeNullable(receiverType)) {
-                    makeNonNull(result, n);
-                    refineToNonNull(result);
-                }
+        // be non-empty, and Queue element type is @NonNull
+        if (isNonEmptyQueuePoll) {
+            AnnotatedTypeMirror receiverType = nullnessTypeFactory.getReceiverType(n.getTree());
+            if (!isElementTypeNullable(receiverType)) {
+                makeNonNull(result, n);
+                refineToNonNull(result);
             }
         }
 
