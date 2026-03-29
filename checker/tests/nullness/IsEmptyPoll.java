@@ -79,7 +79,7 @@ public final class IsEmptyPoll extends ArrayList<String> {
                 q.clear();
             }
             // :: error: (assignment.type.incompatible)
-            @NonNull String s = q.poll();
+            @NonNull String firstNode = q.poll();
         }
     }
 
@@ -99,7 +99,7 @@ public final class IsEmptyPoll extends ArrayList<String> {
         while (!q.isEmpty()) {
             clearViaArg(q);
             // :: error: (assignment.type.incompatible)
-            @NonNull String s = q.poll();
+            @NonNull String firstNode = q.poll();
         }
     }
 
@@ -109,7 +109,7 @@ public final class IsEmptyPoll extends ArrayList<String> {
     //     while (!q.isEmpty()) {
     //         a.clear();
     //         // should error once aliasing is tracked
-    //         @NonNull String s = q.poll();
+    //         @NonNull String firstNode = q.poll();
     //     }
     // }
 }
