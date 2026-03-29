@@ -23,7 +23,7 @@ from release_utils import (  # ty: ignore # TODO: limitation in ty
     execute_write_to_file,
     wget_file,
 )
-from release_vars import (  # ty: ignore # TODO: limitation in ty
+from release_vars import (
     CHECKER_FRAMEWORK,
     SANITY_DIR,
     execute,

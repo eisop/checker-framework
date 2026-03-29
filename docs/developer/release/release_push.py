@@ -44,7 +44,7 @@ from release_vars import (  # ty: ignore # TODO: limitation in ty
     TMP_DIR,
     execute,
 )
-from sanity_checks import (  # ty: ignore # TODO: limitation in ty
+from sanity_checks import (
     javac_sanity_check,
     maven_sanity_check,
 )
