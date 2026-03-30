@@ -38,9 +38,10 @@ The Nullness Checker now recognizes references to private, final fields with zer
 
 The `ClassBound` annotation can now be used with anonymous types.
 
-The `CFAbstractTranfer` now returns `RegularTransferResult` when the method visited has non-boolean return type, instead of always return `ConditionalTransferResult`.
-
 **Implementation details:**
+
+`CFAbstractTranfer` now returns a `RegularTransferResult` when the visited method has non-boolean return type, instead of always returning a `ConditionalTransferResult`.
+If your checker needs a `ConditionalTransferResult` for non-boolean methods, you need to change your transfer function. See `NonEmptyTransfer` for an example.
 
 The `AbstractNodeVisitor` now has more summary methods, following the class hierarchy of `Node` and conceptual categories.
 

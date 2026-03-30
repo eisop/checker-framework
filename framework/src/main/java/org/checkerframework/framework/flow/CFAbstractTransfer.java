@@ -901,7 +901,7 @@ public abstract class CFAbstractTransfer<
         }
 
         // If annotations differ, use the one that is more precise for both
-        // sides (and add it to the store if possible)
+        // sides (and add it to the store if possible).
         res = strengthenAnnotationOfEqualTo(res, leftN, rightN, leftV, rightV, false);
         res = strengthenAnnotationOfEqualTo(res, rightN, leftN, rightV, leftV, false);
         return res;
@@ -930,7 +930,7 @@ public abstract class CFAbstractTransfer<
         }
 
         // If annotations differ, use the one that is more precise for both
-        // sides (and add it to the store if possible)
+        // sides (and add it to the store if possible).
         res = strengthenAnnotationOfEqualTo(res, leftN, rightN, leftV, rightV, true);
         res = strengthenAnnotationOfEqualTo(res, rightN, leftN, rightV, leftV, true);
 

@@ -90,7 +90,7 @@ public class NonEmptyTransfer extends CFTransfer {
             NotEqualNode n, TransferInput<CFValue, CFStore> in) {
         TransferResult<CFValue, CFStore> result = super.visitNotEqual(n, in);
 
-        // Expand the input store into conditional store if it's regular store
+        // Expand the input store into a conditional store if it is a regular store.
         result = ensureConditionalTransferResult(result);
 
         refineNotEqual(n.getLeftOperand(), n.getRightOperand(), result.getThenStore());
@@ -107,7 +107,7 @@ public class NonEmptyTransfer extends CFTransfer {
             LessThanNode n, TransferInput<CFValue, CFStore> in) {
         TransferResult<CFValue, CFStore> result = super.visitLessThan(n, in);
 
-        // Expand the input store into conditional store if it's regular store
+        // Expand the input store into a conditional store if it is a regular store.
         result = ensureConditionalTransferResult(result);
 
         // A < B is equivalent to B > A.
@@ -124,7 +124,7 @@ public class NonEmptyTransfer extends CFTransfer {
             LessThanOrEqualNode n, TransferInput<CFValue, CFStore> in) {
         TransferResult<CFValue, CFStore> result = super.visitLessThanOrEqual(n, in);
 
-        // Expand the input store into conditional store if it's regular store
+        // Expand the input store into a conditional store if it is a regular store.
         result = ensureConditionalTransferResult(result);
 
         // A <= B is equivalent to B >= A.
@@ -141,7 +141,7 @@ public class NonEmptyTransfer extends CFTransfer {
             GreaterThanNode n, TransferInput<CFValue, CFStore> in) {
         TransferResult<CFValue, CFStore> result = super.visitGreaterThan(n, in);
 
-        // Expand the input store into conditional store if it's regular store
+        // Expand the input store into a conditional store if it is a regular store.
         result = ensureConditionalTransferResult(result);
 
         refineGT(n.getLeftOperand(), n.getRightOperand(), result.getThenStore());
@@ -154,7 +154,7 @@ public class NonEmptyTransfer extends CFTransfer {
             GreaterThanOrEqualNode n, TransferInput<CFValue, CFStore> in) {
         TransferResult<CFValue, CFStore> result = super.visitGreaterThanOrEqual(n, in);
 
-        // Expand the input store into conditional store if it's regular store
+        // Expand the input store into a conditional store if it is a regular store.
         result = ensureConditionalTransferResult(result);
 
         refineGTE(n.getLeftOperand(), n.getRightOperand(), result.getThenStore());
@@ -167,7 +167,7 @@ public class NonEmptyTransfer extends CFTransfer {
             CaseNode n, TransferInput<CFValue, CFStore> in) {
         TransferResult<CFValue, CFStore> result = super.visitCase(n, in);
 
-        // Expand the input store into conditional store if it's regular store
+        // Expand the input store into a conditional store if it is a regular store.
         result = ensureConditionalTransferResult(result);
 
         List<Node> caseOperands = n.getCaseOperands();
