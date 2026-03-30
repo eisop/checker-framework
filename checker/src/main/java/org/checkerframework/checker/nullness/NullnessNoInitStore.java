@@ -20,7 +20,6 @@ import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -123,31 +122,15 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
             NullnessNoInitValue val) {
         super.updateForMethodCall(methodInvocationNode, atypeFactory, val);
 
-        // Invalidate any non-empty queue information for side-effecting method calls.
+        // Conservatively invalidate all non-empty queue information for side-effecting method
+        // calls.
         MethodInvocationTree tree = methodInvocationNode.getTree();
         ExecutableElement method = TreeUtils.elementFromUse(tree);
         boolean hasSideEffect =
                 !(atypeFactory.isSideEffectFree(method)
                         || PurityUtils.isSideEffectFree(atypeFactory, method));
         if (hasSideEffect) {
-            JavaExpression receiverExpr =
-                    JavaExpression.fromNode(methodInvocationNode.getTarget().getReceiver());
-            if (receiverExpr != null) {
-                nonEmptyQueueReceivers.removeIf(
-                        queueReceiver ->
-                                queueReceiver.containsSyntacticEqualJavaExpression(receiverExpr));
-            }
-
-            // Invalidate if queue is passed as an arguments, which makes it mutable.
-            List<Node> arguments = methodInvocationNode.getArguments();
-            for (Node arg : arguments) {
-                JavaExpression argExpr = JavaExpression.fromNode(arg);
-                if (argExpr != null) {
-                    nonEmptyQueueReceivers.removeIf(
-                            queueReceiver ->
-                                    queueReceiver.containsSyntacticEqualJavaExpression(argExpr));
-                }
-            }
+            nonEmptyQueueReceivers.clear();
         }
     }
 

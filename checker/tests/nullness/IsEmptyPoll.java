@@ -22,13 +22,6 @@ public final class IsEmptyPoll extends ArrayList<String> {
         }
     }
 
-    void unrelatedClear(Queue<String> q1, Queue<String> q2) {
-        while (!q1.isEmpty()) {
-            q2.clear();
-            @NonNull String firstNode = q1.poll();
-        }
-    }
-
     void mNullable(Queue<@Nullable String> q) {
         while (!q.isEmpty()) {
             // :: error: (assignment.type.incompatible)
@@ -83,6 +76,23 @@ public final class IsEmptyPoll extends ArrayList<String> {
         }
     }
 
+    void aliasClearBeforePoll(Queue<String> q) {
+        Queue<String> a = q;
+        while (!q.isEmpty()) {
+            a.clear();
+            // :: error: (assignment.type.incompatible)
+            @NonNull String firstNode = q.poll();
+        }
+    }
+
+    void potentiallyRelatedMutation(Queue<String> q1, Queue<String> q2) {
+        while (!q1.isEmpty()) {
+            q2.clear();
+            // :: error: (assignment.type.incompatible)
+            @NonNull String firstNode = q1.poll();
+        }
+    }
+
     void indexPoll(Queue<String>[] arr, int i) {
         while (!arr[i].isEmpty()) {
             i++;
@@ -102,14 +112,4 @@ public final class IsEmptyPoll extends ArrayList<String> {
             @NonNull String firstNode = q.poll();
         }
     }
-
-    // Currently failing because the store does not track aliases of the queue receiver.
-    // void aliasClearBeforePoll(Queue<String> q) {
-    //     Queue<String> a = q;
-    //     while (!q.isEmpty()) {
-    //         a.clear();
-    //         // should error once aliasing is tracked
-    //         @NonNull String firstNode = q.poll();
-    //     }
-    // }
 }
