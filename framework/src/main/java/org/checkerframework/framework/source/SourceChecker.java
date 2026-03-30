@@ -138,7 +138,6 @@ import org.plumelib.util.UtilPlume;
   "onlyDefs",
   "skipFiles",
   "onlyFiles",
-  "skipDirs", // Obsolete as of 2024-03-15, replaced by "skipFiles".
 
   // Suppress all errors and warnings for code outside the scope of a corresponding
   // `@AnnotatedFor` annotation.
