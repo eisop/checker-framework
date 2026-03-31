@@ -65,7 +65,7 @@ reflection-util = "org.plumelib:reflection-util:1.1.6"
 
 hashmap-util = "org.plumelib:hashmap-util:0.0.1"
 
-stubparser = "org.checkerframework:stubparser:3.27.1"
+stubparser = "org.checkerframework:stubparser:3.28.0"
 
 asm = "org.ow2.asm:asm:9.10.1"
 
