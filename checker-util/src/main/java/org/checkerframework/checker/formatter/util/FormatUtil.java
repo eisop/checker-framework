@@ -207,8 +207,8 @@ public class FormatUtil {
     } else if (s != null) { // explicit index
       index = Integer.parseInt(s.substring(0, s.length() - 1));
     } else {
-        index = 0; // ordinary index
-      }
+      index = 0; // ordinary index
+    }
     return index;
   }
 
