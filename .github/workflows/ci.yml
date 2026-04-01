@@ -33,7 +33,8 @@ jobs:
       uses: actions/setup-java@v5
       with:
         java-version: ${{ matrix.java_version }}
-        distribution: 'temurin'
+        distribution: 'zulu'
+        cache: 'gradle'
 
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
@@ -90,7 +91,8 @@ jobs:
       uses: actions/setup-java@v5
       with:
         java-version: ${{ matrix.java_version }}
-        distribution: 'temurin'
+        distribution: 'zulu'
+        cache: 'gradle'
 
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
@@ -121,8 +123,8 @@ jobs:
     env:
       JAVA_VERSION: ${{ matrix.java.version }}
       USE_BAZEL_VERSION: "9.0.1"
-      JDK_EA_MAJOR: "26"
-      JDK_EA_BUILD: "35"
+      JDK_EA_MAJOR: "27"
+      JDK_EA_BUILD: "15"
     strategy:
       fail-fast: true
       matrix:
@@ -139,7 +141,8 @@ jobs:
           {version: '11', experimental: false},
           {version: '17', experimental: false},
           {version: '25', experimental: false},
-          {version: 'ea', experimental: true}]
+          {version: '26', experimental: false},
+          {version: 'EA', experimental: true}]
         exclude:
           # JDK 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
           - script: 'cftests-junit-jdk21'
@@ -199,15 +202,26 @@ jobs:
       with:
         # Install JDK 21 first, to make it available to Gradle using `gradle.properties` below.
         java-version: 21
-        distribution: 'temurin'
+        distribution: 'zulu'
+        cache: 'gradle'
     - name: Set up JDK ${{ matrix.java.version }}
+      if: ${{ matrix.java.version != 'EA' }}
       uses: actions/setup-java@v5
       with:
         # Install the requested JDK second, to make it the default on which everything else runs.
-        java-version: ${{ matrix.java.version == 'ea' && format('{0}.0.0-ea.{1}.0.ea', env.JDK_EA_MAJOR, env.JDK_EA_BUILD) || matrix.java.version }}
-        distribution: 'temurin'
+        java-version: ${{ matrix.java.version }}
+        distribution: 'zulu'
+        cache: 'gradle'
+    - name: Set up JDK ${{ env.JDK_EA_MAJOR }}
+      if: ${{ matrix.java.version == 'EA' }}
+      uses: oracle-actions/setup-java@v1
+      with:
+        # Install the requested EA JDK second, to make it the default on which everything else runs.
+        website: jdk.java.net
+        release: ${{ env.JDK_EA_MAJOR }}
+        version: ${{ format('{0}-ea+{1}', env.JDK_EA_MAJOR, env.JDK_EA_BUILD) }}
     - name: Inject JAVA_HOME_21_64 into `gradle.properties` to always use JDK 21 for Gradle
-      run: mkdir ~/.gradle && echo "org.gradle.java.home=$JAVA_HOME_21_X64" >> ~/.gradle/gradle.properties
+      run: mkdir -p ~/.gradle && echo "org.gradle.java.home=$JAVA_HOME_21_X64" >> ~/.gradle/gradle.properties
 
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
@@ -244,7 +258,7 @@ jobs:
       # Set the JDK version to use, allowing us to e.g. run Java 25 while gradle does not work
       # on Java 25 yet.
       env:
-        ORG_GRADLE_PROJECT_useJdkVersion: ${{ matrix.java.version == 'ea' && env.JDK_EA_MAJOR || matrix.java.version }}
+        ORG_GRADLE_PROJECT_useJdkVersion: ${{ matrix.java.version == 'EA' && env.JDK_EA_MAJOR || matrix.java.version }}
 
   # Sanity tests on Windows and MacOS.
   otheros:
@@ -266,7 +280,8 @@ jobs:
       uses: actions/setup-java@v5
       with:
         java-version: ${{ matrix.java_version }}
-        distribution: 'temurin'
+        distribution: 'zulu'
+        cache: 'gradle'
 
     # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
     # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md

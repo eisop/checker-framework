@@ -40,6 +40,9 @@ The `ClassBound` annotation can now be used with anonymous types.
 
 **Implementation details:**
 
+`CFAbstractTranfer` now returns a `RegularTransferResult` when the visited method has non-boolean return type, instead of always returning a `ConditionalTransferResult`.
+If your checker needs a `ConditionalTransferResult` for non-boolean methods, you need to change your transfer function. See `NonEmptyTransfer` for an example.
+
 The `AbstractNodeVisitor` now has more summary methods, following the class hierarchy of `Node` and conceptual categories.
 
 Fixed nullness annotations and documentation of the following methods in `SourceChecker`:
@@ -51,9 +54,10 @@ Fixed nullness annotations and documentation of the following methods in `Source
 
 Removed method `InitializationParentAnnotatedTypeFactory.createUnderInitializationAnnotation(Class<?>)` from the Initialization Checker; use `createUnderInitializationAnnotation(TypeMirror)` instead.
 
+
 **Closed issues:**
 
-eisop#1247, eisop#1263, eisop#1310, eisop#1326, typetools#7096, eisop#1448, eisop#1543.
+eisop#1099, eisop#1247, eisop#1263, eisop#1310, eisop#1326, typetools#7096, eisop#1448, eisop#1543.
 
 
 Version 3.49.5 (June 30, 2025)
