@@ -493,7 +493,8 @@ def ensure_group_access(path: Path) -> None:
 
 def ensure_user_access(path: Path) -> None:
     """Give the user access to all files and directories under the specified path."""
-    execute(f"chmod -f -R u+rwx {path}")
+    # Ignore errors.
+    execute_status(f"chmod -f -R u+rwx {path}")
 
 
 def set_umask() -> None:
