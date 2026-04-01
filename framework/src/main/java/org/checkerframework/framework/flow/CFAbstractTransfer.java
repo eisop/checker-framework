@@ -74,6 +74,7 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -886,6 +887,11 @@ public abstract class CFAbstractTransfer<
         V leftV = p.getValueOfSubNode(leftN);
         V rightV = p.getValueOfSubNode(rightN);
 
+        // If one side of equality is false and the result is already forked by the other side,
+        // then them being equal means the result passed in should be flipped.
+        // e.g. P(a,b) == false <==> !P(a,b)
+        // TODO: Consider about a smarter way to handel this optimization, such as including boolean
+        // axioms like absorption rule?
         if (res.containsTwoStores()
                 && (NodeUtils.isConstantBoolean(leftN, false)
                         || NodeUtils.isConstantBoolean(rightN, false))) {
@@ -894,8 +900,8 @@ public abstract class CFAbstractTransfer<
             res = new ConditionalTransferResult<>(res.getResultValue(), thenStore, elseStore);
         }
 
-        // if annotations differ, use the one that is more precise for both
-        // sides (and add it to the store if possible)
+        // If annotations differ, use the one that is more precise for both
+        // sides (and add it to the store if possible).
         res = strengthenAnnotationOfEqualTo(res, leftN, rightN, leftV, rightV, false);
         res = strengthenAnnotationOfEqualTo(res, rightN, leftN, rightV, leftV, false);
         return res;
@@ -910,6 +916,11 @@ public abstract class CFAbstractTransfer<
         V leftV = p.getValueOfSubNode(leftN);
         V rightV = p.getValueOfSubNode(rightN);
 
+        // If one side of inequality is true and the result is already forked by the other side,
+        // then them being not equal means the result passed in should be flipped.
+        // e.g. P(a,b) != true <==> !P(a,b)
+        // TODO: Consider about a smarter way to handel this optimization, such as including boolean
+        // axioms like absorption rule?
         if (res.containsTwoStores()
                 && (NodeUtils.isConstantBoolean(leftN, true)
                         || NodeUtils.isConstantBoolean(rightN, true))) {
@@ -918,8 +929,8 @@ public abstract class CFAbstractTransfer<
             res = new ConditionalTransferResult<>(res.getResultValue(), thenStore, elseStore);
         }
 
-        // if annotations differ, use the one that is more precise for both
-        // sides (and add it to the store if possible)
+        // If annotations differ, use the one that is more precise for both
+        // sides (and add it to the store if possible).
         res = strengthenAnnotationOfEqualTo(res, leftN, rightN, leftV, rightV, true);
         res = strengthenAnnotationOfEqualTo(res, rightN, leftN, rightV, leftV, true);
 
@@ -1159,14 +1170,18 @@ public abstract class CFAbstractTransfer<
         // add new information based on postcondition
         processPostconditions(n, store, method, invocationTree);
 
-        S thenStore = store;
-        S elseStore = thenStore.copy();
+        if (TypesUtils.isBooleanType(method.getReturnType())) {
+            S thenStore = store;
+            S elseStore = thenStore.copy();
 
-        // add new information based on conditional postcondition
-        processConditionalPostconditions(n, method, invocationTree, thenStore, elseStore);
+            // add new information based on conditional postcondition
+            processConditionalPostconditions(n, method, invocationTree, thenStore, elseStore);
 
-        return new ConditionalTransferResult<>(
-                finishValue(resValue, thenStore, elseStore), thenStore, elseStore);
+            return new ConditionalTransferResult<>(
+                    finishValue(resValue, thenStore, elseStore), thenStore, elseStore);
+        } else {
+            return new RegularTransferResult<>(finishValue(resValue, store), store);
+        }
     }
 
     @Override
