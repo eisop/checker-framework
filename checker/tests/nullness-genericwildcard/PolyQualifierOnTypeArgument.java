@@ -14,28 +14,28 @@ public class PolyQualifierOnTypeArgument<T> {
         // unbounded wildcard type argument.
         // If the method receiver type argument subtyping check is enabled, the error is:
         // found   : @NonNull PolyQualifierOnTypeArgument<? [ extends @Nullable Object super
-        // @NonNull Nulltype ]>
+        // @NonNull NullType ]>
         // required: @NonNull PolyQualifierOnTypeArgument<capture#01 [ extends @Nullable Object
-        // super @Nullable Nulltype ]>
+        // super @Nullable NullType ]>
         p.toArray();
     }
 
     void test2(PolyQualifierOnTypeArgument<T> p) {
-        p.toArray(); // same bound mismatch as unbounded wildcard cass
+        p.toArray(); // same bound mismatch as unbounded wildcard case
     }
 
     void test3(PolyQualifierOnTypeArgument<@NonNull T> p) {
-        p.toArray(); // ok, the LUB is @NonNull, both bounds are @NonNull is compatiable with
+        p.toArray(); // ok, the LUB is @NonNull, both bounds are @NonNull is compatible with
         // @PolyNull T after substitution
     }
 
     void test4(PolyQualifierOnTypeArgument<@Nullable Object> p) {
-        p.toArray(); // ok, the LUB is @Nullable, both bounds are @Nullable is compatiable
+        p.toArray(); // ok, the LUB is @Nullable, both bounds are @Nullable is compatible
         // with @PolyNull T after substitution
     }
 
     void test5(PolyQualifierOnTypeArgument<Object> p) {
-        p.toArray(); // ok, the LUB is @NonNull, both bounds are @NonNull is compatiable with
+        p.toArray(); // ok, the LUB is @NonNull, both bounds are @NonNull is compatible with
         // @PolyNull T after substitution
     }
 }

@@ -3994,7 +3994,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 continue;
             }
             for (AnnotatedTypeMirror typeArg : declaredTypeArgs) {
-                // If one of the type argument has a poly annotation, then skip the check.
+                // If one of the type arguments has a poly annotation, then skip the check.
                 if (typeArg.hasAnnotation(poly)) {
                     return;
                 }
