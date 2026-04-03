@@ -367,7 +367,7 @@ typetools#2816,
 typetools#3203,
 typetools#8055.
 
-## Version 3.55.1 (2026-04-02)
+## Version 3.55.1 (2026-04-03)
 
 No user-visible changes.
 
