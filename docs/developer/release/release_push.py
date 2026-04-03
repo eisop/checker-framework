@@ -119,8 +119,9 @@ def promote_release(path_to_releases: Path, release_version: str) -> None:
 
 def copy_htaccess() -> None:
     """Copy the .htaccess file from the dev site to the live site."""
+    dev_htaccess = Path(DEV_SITE_DIR) / ".htaccess"
     live_htaccess = Path(LIVE_SITE_DIR) / ".htaccess"
-    execute(f"rsync --times {Path(DEV_SITE_DIR) / '.htaccess'} {live_htaccess}")
+    execute(f"rsync --times {dev_htaccess} {live_htaccess}")
     ensure_group_access(live_htaccess)
 
 
@@ -305,10 +306,14 @@ def main(argv: list[str]) -> None:
     # MANUAL Indicates a manual step
     # AUTO Indicates the step is fully automated.
 
-    set_umask()
-
-    validate_args(argv)
+    dev_checker_website = DEV_SITE_URL
+    live_checker_website = LIVE_SITE_URL
+    current_cf_version = current_distribution_by_website(live_checker_website)
+    new_cf_version = CF_VERSION
     test_mode = not has_command_line_option(argv, "release")
+    validate_args(argv)
+
+    set_umask()
 
     m2_settings = str(pathlib.Path("~").expanduser()) + "/.m2/settings.xml"
     if not pathlib.Path(m2_settings).exists():
@@ -349,10 +354,6 @@ def main(argv: list[str]) -> None:
     dev_afu_website = f"{DEV_SITE_URL}/annotation-file-utilities"  # NO-AFU
     live_afu_website = f"{LIVE_SITE_URL}/annotation-file-utilities"  # NO-AFU
 
-    dev_checker_website = DEV_SITE_URL
-    live_checker_website = LIVE_SITE_URL
-    current_cf_version = current_distribution_by_website(live_checker_website)
-    new_cf_version = CF_VERSION
     check_release_version(current_cf_version, new_cf_version)
 
     print(
