@@ -15,7 +15,7 @@ from release_utils import (
     delete_directory,
     delete_directory_if_exists,
     delete_if_exists,
-    ensure_group_access,
+    ensure_writeable,
     get_announcement_email,
     has_command_line_option,
     print_step,
@@ -122,7 +122,7 @@ def copy_htaccess() -> None:
     dev_htaccess = Path(DEV_SITE_DIR) / ".htaccess"
     live_htaccess = Path(LIVE_SITE_DIR) / ".htaccess"
     execute(f"rsync --times {dev_htaccess} {live_htaccess}")
-    ensure_group_access(live_htaccess)
+    ensure_writeable(live_htaccess)
 
 
 def copy_releases_to_live_site(cf_version: str) -> None:
@@ -143,8 +143,8 @@ def ensure_group_access_to_releases() -> None:
 
     That is, to all files and directories in them, for the AFU and the Checker Framework.
     """
-    ensure_group_access(AFU_LIVE_RELEASES_DIR)  # NO-AFU
-    ensure_group_access(CHECKER_LIVE_RELEASES_DIR)
+    ensure_writeable(AFU_LIVE_RELEASES_DIR)  # NO-AFU
+    ensure_writeable(CHECKER_LIVE_RELEASES_DIR)
 
 
 def is_file_empty(filename: Path) -> bool:
