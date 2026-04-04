@@ -216,8 +216,7 @@ jobs:
       if: ${{ matrix.java.version == 'EA' }}
       uses: oracle-actions/setup-java@v1
       with:
-        # Pin the archive URI directly because oracle-actions/setup-java's resolver
-        # drops older EA builds from jdk.java.net-uri.properties.
+        # Pin EA builds by direct archive URI.
         uri: ${{ format('https://download.java.net/java/early_access/jdk{0}/{1}/GPL/openjdk-{0}-ea+{1}_linux-x64_bin.tar.gz', env.JDK_EA_MAJOR, env.JDK_EA_BUILD) }}
         install-as-version: ${{ env.JDK_EA_MAJOR }}
     - name: Inject JAVA_HOME_21_64 into `gradle.properties` to always use JDK 21 for Gradle
