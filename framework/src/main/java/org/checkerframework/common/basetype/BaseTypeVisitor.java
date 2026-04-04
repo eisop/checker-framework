@@ -5241,7 +5241,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         // parameters.
         AnnotationMirrorSet tops = qualHierarchy.getTopAnnotations();
         TypeMirror declarationTM = declarationType.getUnderlyingType();
-        AnnotationMirrorSet upperBounds = atypeFactory.getTypeDeclarationBounds(declarationTM);
+        AnnotationMirrorSet upperBounds =
+                atypeFactory.getAdaptedTypeDeclarationBounds(declarationTM, useType);
+
         for (AnnotationMirror top : tops) {
             AnnotationMirror upperBound = qualHierarchy.findAnnotationInHierarchy(upperBounds, top);
             if (!typeHierarchy.isSubtypeShallowEffective(useType, upperBound)) {
