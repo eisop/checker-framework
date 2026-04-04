@@ -216,7 +216,10 @@ jobs:
       if: ${{ matrix.java.version == 'EA' }}
       uses: oracle-actions/setup-java@v1
       with:
+        # Install the requested EA JDK second, to make it the default on which everything else runs.
         # Pin EA builds by direct archive URI.
+        # If the URI stops working, check for the updated pattern here:
+        # https://github.com/oracle-actions/setup-java/blob/main/jdk.java.net-uri.properties
         uri: ${{ format('https://download.java.net/java/early_access/jdk{0}/{1}/GPL/openjdk-{0}-ea+{1}_linux-x64_bin.tar.gz', env.JDK_EA_MAJOR, env.JDK_EA_BUILD) }}
         install-as-version: ${{ env.JDK_EA_MAJOR }}
     - name: Inject JAVA_HOME_21_64 into `gradle.properties` to always use JDK 21 for Gradle
