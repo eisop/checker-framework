@@ -3,6 +3,8 @@ Version 3.49.5-eisop1 (July ??, 2025)
 
 **User-visible changes:**
 
+Support the JSpecify `@NullMarked` annotation as an alias to `@AnnotatedFor("nullness")`.
+
 The new command-line option `-AonlyAnnotatedFor` suppresses all type-checking errors and warnings outside the scope of
 a corresponding `@AnnotatedFor` annotation.
 Note that the `@AnnotatedFor` annotation must include the checker's name to enable warnings from that checker.

@@ -3,10 +3,13 @@ package org.checkerframework.framework.source;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.Tree;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import javax.lang.model.element.Element;
 import javax.tools.Diagnostic;
 
 /**
@@ -51,5 +54,10 @@ public abstract class AggregateChecker extends SourceChecker {
             // Aggregate checkers do not visit source,
             // the checkers in the aggregate checker do.
         };
+    }
+
+    @Override
+    protected boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
+        return false;
     }
 }

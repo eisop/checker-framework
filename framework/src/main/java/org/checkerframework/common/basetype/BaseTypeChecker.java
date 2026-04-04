@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
 
 /**
  * An abstract {@link SourceChecker} that provides a simple {@link
@@ -312,5 +313,10 @@ public abstract class BaseTypeChecker extends SourceChecker {
                     Arrays.toString(args),
                     causeMessage);
         }
+    }
+
+    @Override
+    protected boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
+        return getTypeFactory().isElementAnnotatedForThisCheckerOrUpstreamChecker(elt);
     }
 }
