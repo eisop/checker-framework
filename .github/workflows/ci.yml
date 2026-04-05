@@ -137,12 +137,15 @@ jobs:
         # JDK 21 used by `sanity` and `remainder` before.
         # Keep all LTS versions and the newest non-LTS version.
         # `experimental` versions use the $version compiler, but run on JDK 21.
-        java: [{version: '8', experimental: false},
-          {version: '11', experimental: false},
-          {version: '17', experimental: false},
-          {version: '25', experimental: false},
-          {version: '26', experimental: false},
-          {version: 'EA', experimental: true}]
+        java:
+          - {version: '8', experimental: false}
+          - {version: '11', experimental: false}
+          - {version: '17', experimental: false}
+          - {version: '25', experimental: false}
+          - {version: '26', experimental: false}
+          # Keep in sync with env.JDK_EA_MAJOR above.
+          # env context is not available in strategy.matrix, so the version is hard-coded here.
+          - {version: '27', experimental: true}
         exclude:
           # JDK 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
           - script: 'cftests-junit-jdk21'
@@ -204,16 +207,16 @@ jobs:
         java-version: 21
         distribution: 'zulu'
         cache: 'gradle'
-    - name: Set up JDK ${{ matrix.java.version }}
-      if: ${{ matrix.java.version != 'EA' }}
+    - name: Set up stable JDK ${{ matrix.java.version }}
+      if: ${{ matrix.java.version != env.JDK_EA_MAJOR }}
       uses: actions/setup-java@v5
       with:
         # Install the requested JDK second, to make it the default on which everything else runs.
         java-version: ${{ matrix.java.version }}
         distribution: 'zulu'
         cache: 'gradle'
-    - name: Set up JDK ${{ env.JDK_EA_MAJOR }}
-      if: ${{ matrix.java.version == 'EA' }}
+    - name: Set up early-access JDK ${{ env.JDK_EA_MAJOR }}
+      if: ${{ matrix.java.version == env.JDK_EA_MAJOR }}
       uses: oracle-actions/setup-java@v1
       with:
         # Install the requested EA JDK second, to make it the default on which everything else runs.
@@ -260,7 +263,7 @@ jobs:
       # Set the JDK version to use, allowing us to e.g. run Java 25 while gradle does not work
       # on Java 25 yet.
       env:
-        ORG_GRADLE_PROJECT_useJdkVersion: ${{ matrix.java.version == 'EA' && env.JDK_EA_MAJOR || matrix.java.version }}
+        ORG_GRADLE_PROJECT_useJdkVersion: ${{ matrix.java.version }}
 
   # Sanity tests on Windows and MacOS.
   otheros:
