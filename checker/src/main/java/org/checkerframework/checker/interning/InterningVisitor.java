@@ -655,7 +655,7 @@ public final class InterningVisitor extends BaseTypeVisitor<InterningAnnotatedTy
         Heuristics.Matcher matcherEqOrEquals =
                 new Heuristics.Matcher() {
 
-                    /** Returns true if e is either "e1 != null" or "e2 != null". */
+                    /* Returns true if e is either "e1 != null" or "e2 != null". */
                     private boolean isNeqNull(
                             ExpressionTree e, ExpressionTree e1, ExpressionTree e2) {
                         e = TreeUtils.withoutParens(e);
