@@ -61,7 +61,6 @@ import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.TypeTag;
 
 import org.checkerframework.checker.interning.qual.FindDistinct;
-import org.checkerframework.checker.nullness.qual.IfNullThrows;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.Store.FlowRule;
 import org.checkerframework.dataflow.cfg.UnderlyingAST;
@@ -1396,8 +1395,9 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                                     buildConditionNodeForParameterThrow(
                                             (MethodInvocationTree) tree, actualVal, spec);
                             boolean throwWhenConditionTrue =
-                                    spec.compareValue == CompareValue.TRUE
-                                            || spec.compareValue == CompareValue.NULL;
+                                    spec.compareValue == ConditionalThrowCompareValue.TRUE
+                                            || spec.compareValue
+                                                    == ConditionalThrowCompareValue.NULL;
                             emitConditionalThrow(
                                     (MethodInvocationTree) tree,
                                     conditionNode,
@@ -1442,8 +1442,9 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                                     buildConditionNodeForParameterThrow(
                                             (MethodInvocationTree) tree, actualVal, spec);
                             boolean throwWhenConditionTrue =
-                                    spec.compareValue == CompareValue.TRUE
-                                            || spec.compareValue == CompareValue.NULL;
+                                    spec.compareValue == ConditionalThrowCompareValue.TRUE
+                                            || spec.compareValue
+                                                    == ConditionalThrowCompareValue.NULL;
                             emitConditionalThrow(
                                     (MethodInvocationTree) tree,
                                     conditionNode,
@@ -1491,8 +1492,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                                 buildConditionNodeForParameterThrow(
                                         (MethodInvocationTree) tree, actualVal, spec);
                         boolean throwWhenConditionTrue =
-                                spec.compareValue == CompareValue.TRUE
-                                        || spec.compareValue == CompareValue.NULL;
+                                spec.compareValue == ConditionalThrowCompareValue.TRUE
+                                        || spec.compareValue == ConditionalThrowCompareValue.NULL;
                         emitConditionalThrow(
                                 (MethodInvocationTree) tree,
                                 conditionNode,
@@ -1508,45 +1509,9 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     }
 
     /**
-     * Value to compare the parameter against; when the condition (param equals this value) holds,
-     * the method throws. Used for both {@link AssertMethod} (TRUE/FALSE) and {@link IfNullThrows}
-     * (NULL).
-     */
-    protected enum CompareValue {
-        /** Throw when the boolean parameter is true (e.g. assert false methods). */
-        TRUE,
-        /** Throw when the boolean parameter is false (e.g. assert methods). */
-        FALSE,
-        /** Throw when the reference parameter is null ({@link IfNullThrows}). */
-        NULL
-    }
-
-    /**
-     * Spec for one parameter that triggers a conditional throw: when the parameter compares equal
-     * to {@link #compareValue}, the method throws {@link #exceptionType}. Unifies {@link
-     * AssertMethod} (one per method) and {@link IfNullThrows} (one per annotated parameter).
-     */
-    protected static class ParameterConditionalThrowSpec {
-        /** 0-based parameter index. */
-        public final int parameterIndex;
-
-        /** Value to compare against; throw when (param equals this). */
-        public final CompareValue compareValue;
-
-        /** Exception type thrown when the condition holds. */
-        public final TypeMirror exceptionType;
-
-        public ParameterConditionalThrowSpec(
-                int parameterIndex, CompareValue compareValue, TypeMirror exceptionType) {
-            this.parameterIndex = parameterIndex;
-            this.compareValue = compareValue;
-            this.exceptionType = exceptionType;
-        }
-    }
-
-    /**
-     * Returns the list of parameter conditional-throw specs for {@code method}: one from {@link
-     * AssertMethod} if present, plus one per parameter annotated with {@link IfNullThrows}.
+     * Returns the list of parameter conditional-throw specs for {@code method} from dataflow
+     * annotations (e.g. {@link AssertMethod}). When the CFG is built through the Checker Framework,
+     * additional specs may be merged by framework-specific phase-one subclasses.
      *
      * @param method the method or constructor
      * @return specs for parameters that trigger a throw when compared to a value
@@ -1575,27 +1540,20 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             result.add(
                     new ParameterConditionalThrowSpec(
                             booleanParam,
-                            isAssertFalse ? CompareValue.TRUE : CompareValue.FALSE,
+                            isAssertFalse
+                                    ? ConditionalThrowCompareValue.TRUE
+                                    : ConditionalThrowCompareValue.FALSE,
                             exceptionType));
-        }
-
-        // IfNullThrows: one spec per annotated parameter
-        List<? extends VariableElement> params = method.getParameters();
-        for (int i = 0; i < params.size(); i++) {
-            if (annotationProvider.getDeclAnnotation(params.get(i), IfNullThrows.class) != null) {
-                result.add(
-                        new ParameterConditionalThrowSpec(
-                                i, CompareValue.NULL, nullPointerExceptionType));
-            }
         }
 
         return result;
     }
 
     /**
-     * Builds the condition node for a parameter conditional throw: for {@link CompareValue#NULL},
-     * returns (argNode == null); for {@link CompareValue#TRUE} or {@link CompareValue#FALSE},
-     * returns the argument node itself (boolean).
+     * Builds the condition node for a parameter conditional throw: for {@link
+     * ConditionalThrowCompareValue#NULL}, returns (argNode == null); for {@link
+     * ConditionalThrowCompareValue#TRUE} or {@link ConditionalThrowCompareValue#FALSE}, returns the
+     * argument node itself (boolean).
      *
      * @param tree the method invocation tree (for artificial tree context)
      * @param argNode the argument value node
@@ -1604,7 +1562,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      */
     protected Node buildConditionNodeForParameterThrow(
             MethodInvocationTree tree, Node argNode, ParameterConditionalThrowSpec spec) {
-        if (spec.compareValue == CompareValue.NULL) {
+        if (spec.compareValue == ConditionalThrowCompareValue.NULL) {
             TypeMirror booleanType = types.getPrimitiveType(TypeKind.BOOLEAN);
             LiteralTree nullTree =
                     TreeUtils.createLiteral(TypeTag.BOT, null, types.getNullType(), env);

@@ -45,6 +45,7 @@ import org.checkerframework.common.reflection.MethodValAnnotatedTypeFactory;
 import org.checkerframework.common.reflection.MethodValChecker;
 import org.checkerframework.common.reflection.ReflectionResolver;
 import org.checkerframework.common.reflection.qual.MethodVal;
+import org.checkerframework.dataflow.cfg.builder.ParameterConditionalThrowSpec;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.EnsuresQualifier;
@@ -899,6 +900,19 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     public BaseTypeChecker getChecker() {
         return checker;
+    }
+
+    /**
+     * Extra conditional-parameter throw specs merged during CFG construction (phase one). The
+     * default implementation returns none; {@link GenericAnnotatedTypeFactory} merges self-only
+     * contributions from composite checkers.
+     *
+     * @param method method or constructor being called
+     * @return additional {@link ParameterConditionalThrowSpec} entries
+     */
+    public List<ParameterConditionalThrowSpec> getAdditionalParameterConditionalThrowSpecs(
+            ExecutableElement method) {
+        return Collections.emptyList();
     }
 
     /**
@@ -4038,7 +4052,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * Set the tree path for the given artificial tree.
      *
      * <p>See {@code
-     * org.checkerframework.framework.flow.CFCFGBuilder.CFCFGTranslationPhaseOne.handleArtificialTree(Tree)}.
+     * org.checkerframework.framework.flow.CFCFGTranslationPhaseOne#handleArtificialTree(Tree)}.
      *
      * @param tree the artificial {@link Tree} to set the path for
      * @param path the {@link TreePath} for the artificial tree

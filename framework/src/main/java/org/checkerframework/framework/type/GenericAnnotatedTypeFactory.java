@@ -31,6 +31,8 @@ import org.checkerframework.dataflow.cfg.UnderlyingAST;
 import org.checkerframework.dataflow.cfg.UnderlyingAST.CFGLambda;
 import org.checkerframework.dataflow.cfg.UnderlyingAST.CFGMethod;
 import org.checkerframework.dataflow.cfg.UnderlyingAST.CFGStatement;
+import org.checkerframework.dataflow.cfg.builder.ConditionalThrowCompareValue;
+import org.checkerframework.dataflow.cfg.builder.ParameterConditionalThrowSpec;
 import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.ObjectCreationNode;
@@ -114,11 +116,13 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.WeakHashMap;
 import java.util.regex.Pattern;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
@@ -264,6 +268,30 @@ public abstract class GenericAnnotatedTypeFactory<
     private final Map<Tree, AnnotatedTypeMirror> initializerCache;
 
     /**
+     * Caches merged conditional-throw specs per callee declaration for the current compilation
+     * unit, so repeated call sites avoid re-discovering hook annotations.
+     */
+    private final Map<ExecutableElement, List<ParameterConditionalThrowSpec>>
+            additionalParameterConditionalThrowSpecsCache;
+
+    /**
+     * Name of nullness's declaration annotation that indicates a parameter throws when null.
+     *
+     * <p>Using the binary name avoids introducing a framework->checker module dependency.
+     */
+    private static final String IF_NULL_THROWS_ANNOTATION_NAME =
+            "org.checkerframework.checker.nullness.qual.IfNullThrows";
+
+    /**
+     * Cross-factory cache of parameter indexes annotated with framework-level null-throw hooks.
+     *
+     * <p>Keys are weak to avoid retaining elements beyond javac rounds.
+     */
+    private static final Map<ExecutableElement, List<Integer>>
+            frameworkIfNullThrowsParameterIndexesCache =
+                    Collections.synchronizedMap(new WeakHashMap<>());
+
+    /**
      * Should the analysis assume that side effects to a value can change the type of aliased
      * references?
      *
@@ -370,9 +398,12 @@ public abstract class GenericAnnotatedTypeFactory<
             int cacheSize = getCacheSize();
             flowResultAnalysisCaches = CollectionsPlume.createLruCache(cacheSize);
             initializerCache = CollectionsPlume.createLruCache(cacheSize);
+            additionalParameterConditionalThrowSpecsCache =
+                    CollectionsPlume.createLruCache(cacheSize);
         } else {
             flowResultAnalysisCaches = null;
             initializerCache = null;
+            additionalParameterConditionalThrowSpecsCache = null;
         }
 
         RelevantJavaTypes relevantJavaTypesAnno =
@@ -422,6 +453,88 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     protected boolean getUseFlow() {
         return useFlow;
+    }
+
+    @Override
+    public List<ParameterConditionalThrowSpec> getAdditionalParameterConditionalThrowSpecs(
+            ExecutableElement method) {
+        GenericAnnotatedTypeFactory<?, ?, ?, ?> ultimateAtf =
+                checker.getUltimateParentChecker().getTypeFactory();
+        if (this != ultimateAtf) {
+            return ultimateAtf.getAdditionalParameterConditionalThrowSpecs(method);
+        }
+        if (shouldCache) {
+            List<ParameterConditionalThrowSpec> cached =
+                    additionalParameterConditionalThrowSpecsCache.get(method);
+            if (cached != null) {
+                return cached;
+            }
+        }
+        List<ParameterConditionalThrowSpec> result = new ArrayList<>();
+        result.addAll(getFrameworkParameterConditionalThrowSpecs(method));
+        result.addAll(getAdditionalParameterConditionalThrowSpecsSelfOnly(method));
+        if (hasOrIsSubchecker) {
+            for (SourceChecker sub : checker.getSubcheckers()) {
+                if (sub instanceof BaseTypeChecker) {
+                    result.addAll(
+                            ((BaseTypeChecker) sub)
+                                    .getTypeFactory()
+                                    .getAdditionalParameterConditionalThrowSpecsSelfOnly(method));
+                }
+            }
+        }
+        List<ParameterConditionalThrowSpec> immutableResult = Collections.unmodifiableList(result);
+        if (shouldCache) {
+            additionalParameterConditionalThrowSpecsCache.put(method, immutableResult);
+        }
+        return immutableResult;
+    }
+
+    /**
+     * Returns framework-level conditional throw specs that are independent of a specific checker.
+     *
+     * @param method method or constructor
+     * @return framework-level specs for the callee declaration
+     */
+    private List<ParameterConditionalThrowSpec> getFrameworkParameterConditionalThrowSpecs(
+            ExecutableElement method) {
+        List<Integer> parameterIndexes = frameworkIfNullThrowsParameterIndexesCache.get(method);
+        if (parameterIndexes == null) {
+            parameterIndexes = new ArrayList<>();
+            List<? extends VariableElement> params = method.getParameters();
+            for (int i = 0; i < params.size(); i++) {
+                VariableElement param = params.get(i);
+                for (AnnotationMirror anno : param.getAnnotationMirrors()) {
+                    if (AnnotationUtils.areSameByName(anno, IF_NULL_THROWS_ANNOTATION_NAME)) {
+                        parameterIndexes.add(i);
+                        break;
+                    }
+                }
+            }
+            parameterIndexes = Collections.unmodifiableList(parameterIndexes);
+            frameworkIfNullThrowsParameterIndexesCache.put(method, parameterIndexes);
+        }
+
+        List<ParameterConditionalThrowSpec> result = new ArrayList<>();
+        TypeMirror npeType = TypesUtils.typeFromClass(NullPointerException.class, types, elements);
+        for (int index : parameterIndexes) {
+            result.add(
+                    new ParameterConditionalThrowSpec(
+                            index, ConditionalThrowCompareValue.NULL, npeType));
+        }
+        return result;
+    }
+
+    /**
+     * Conditional throw specs contributed only by this type factory. The merged list used during
+     * CFG construction is {@link #getAdditionalParameterConditionalThrowSpecs(ExecutableElement)}.
+     *
+     * @param method method or constructor
+     * @return specs for this factory alone
+     */
+    public List<ParameterConditionalThrowSpec> getAdditionalParameterConditionalThrowSpecsSelfOnly(
+            ExecutableElement method) {
+        return Collections.emptyList();
     }
 
     @Override
@@ -494,6 +607,7 @@ public abstract class GenericAnnotatedTypeFactory<
         if (shouldCache) {
             this.flowResultAnalysisCaches.clear();
             this.initializerCache.clear();
+            this.additionalParameterConditionalThrowSpecsCache.clear();
             this.defaultQualifierForUseTypeAnnotator.clearCache();
 
             if (this.checker.getParentChecker() == null) {
