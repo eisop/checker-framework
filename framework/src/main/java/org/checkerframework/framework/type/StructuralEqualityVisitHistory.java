@@ -32,8 +32,8 @@ public class StructuralEqualityVisitHistory {
     }
 
     /**
-     * Removes all entries from both inner histories. Called at the start of each top-level subtype
-     * check to bound memory.
+     * Removes all entries from both inner histories. Called between top-level subtype checks to
+     * bound memory.
      */
     public void clear() {
         trueHistory.clear();

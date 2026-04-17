@@ -37,9 +37,10 @@ public class SubtypeVisitHistory {
     }
 
     /**
-     * Removes all entries. Must be called at the start of each top-level subtype check so the map
-     * does not grow unboundedly across a compilation. Clearing is safe because the history is only
-     * needed to break cycles within a single subtype check, not across independent checks.
+     * Removes all entries. Must be called once per top-level subtype check (for example, between
+     * independent top-level subtype checks) so the map does not grow unboundedly across a
+     * compilation. Clearing is safe because the history is only needed to break cycles within a
+     * single subtype check, not across independent checks.
      */
     public void clear() {
         visited.clear();
