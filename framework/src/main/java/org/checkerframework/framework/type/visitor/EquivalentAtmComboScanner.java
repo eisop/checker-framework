@@ -33,7 +33,11 @@ public abstract class EquivalentAtmComboScanner<RETURN_TYPE, PARAM>
     /** Entry point for this scanner. */
     @Override
     public RETURN_TYPE visit(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, PARAM param) {
-        visited.clear();
+        // Avoid the cost of IdentityHashMap.clear() when the map is already empty, which is the
+        // common case for top-level equality checks on simple types.
+        if (!visited.isEmpty()) {
+            visited.clear();
+        }
         return scan(type1, type2, param);
     }
 
@@ -212,6 +216,11 @@ public abstract class EquivalentAtmComboScanner<RETURN_TYPE, PARAM>
         private final IdentityHashMap<
                         AnnotatedTypeMirror, IdentityHashMap<AnnotatedTypeMirror, RETURN_TYPE>>
                 visits = new IdentityHashMap<>();
+
+        /** Returns true if no pairs have been recorded. */
+        public boolean isEmpty() {
+            return visits.isEmpty();
+        }
 
         public void clear() {
             visits.clear();
