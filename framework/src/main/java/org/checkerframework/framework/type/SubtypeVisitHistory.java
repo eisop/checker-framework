@@ -23,7 +23,6 @@ import javax.lang.model.element.AnnotationMirror;
  * Serializable<T>} and {@code @C Serializable<?>}, then isSubtype is first called one those types
  * and then on {@code @B Serializable<T>} and {@code @C Serializable<?>}.
  */
-// TODO: do we need to clear the history sometimes?
 public class SubtypeVisitHistory {
 
     /**
@@ -35,6 +34,15 @@ public class SubtypeVisitHistory {
     /** Creates a new SubtypeVisitHistory. */
     public SubtypeVisitHistory() {
         this.visited = new HashMap<>();
+    }
+
+    /**
+     * Removes all entries. Must be called at the start of each top-level subtype check so the map
+     * does not grow unboundedly across a compilation. Clearing is safe because the history is only
+     * needed to break cycles within a single subtype check, not across independent checks.
+     */
+    public void clear() {
+        visited.clear();
     }
 
     /**
