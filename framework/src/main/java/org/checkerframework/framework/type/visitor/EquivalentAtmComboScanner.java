@@ -213,15 +213,21 @@ public abstract class EquivalentAtmComboScanner<RETURN_TYPE, PARAM>
      */
     protected class Visited {
 
+        /** The backing history of type pairs. */
         private final IdentityHashMap<
                         AnnotatedTypeMirror, IdentityHashMap<AnnotatedTypeMirror, RETURN_TYPE>>
                 visits = new IdentityHashMap<>();
 
-        /** Returns true if no pairs have been recorded. */
+        /**
+         * Returns true if no pairs have been recorded.
+         *
+         * @return true if no pairs have been recorded
+         */
         public boolean isEmpty() {
             return visits.isEmpty();
         }
 
+        /** Clears the history. */
         public void clear() {
             visits.clear();
         }
