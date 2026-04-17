@@ -4196,7 +4196,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     private @Nullable AnnotationMirror getDeclAnnotation(
             Element elt, Class<? extends Annotation> annoClass, boolean checkAliases) {
-        return getDeclAnnotation(elt, annoClass.getCanonicalName(), checkAliases);
+        @CanonicalName String name;
+        if (shouldCache) {
+            @SuppressWarnings("nullness") // assume getCanonicalName returns non-null
+            @CanonicalName String cached =
+                    annotationClassNames.computeIfAbsent(annoClass, Class::getCanonicalName);
+            name = cached;
+        } else {
+            name = annoClass.getCanonicalName();
+        }
+        return getDeclAnnotation(elt, name, checkAliases);
     }
 
     /**
@@ -5777,13 +5786,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return true if annoclass is the class of am
      */
     public boolean areSameByClass(AnnotationMirror am, Class<? extends Annotation> annoClass) {
-        if (!shouldCache) {
-            return AnnotationUtils.areSameByName(am, annoClass.getCanonicalName());
+        @CanonicalName String name;
+        if (shouldCache) {
+            @SuppressWarnings("nullness") // assume getCanonicalName returns non-null
+            @CanonicalName String cached =
+                    annotationClassNames.computeIfAbsent(annoClass, Class::getCanonicalName);
+            name = cached;
+        } else {
+            name = annoClass.getCanonicalName();
         }
-        @SuppressWarnings("nullness") // assume getCanonicalName returns non-null
-        String canonicalName =
-                annotationClassNames.computeIfAbsent(annoClass, Class::getCanonicalName);
-        return AnnotationUtils.areSameByName(am, canonicalName);
+        return AnnotationUtils.areSameByName(am, name);
     }
 
     /**
