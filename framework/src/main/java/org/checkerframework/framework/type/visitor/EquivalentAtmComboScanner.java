@@ -213,6 +213,9 @@ public abstract class EquivalentAtmComboScanner<RETURN_TYPE, PARAM>
      */
     protected class Visited {
 
+        /** Default constructor. */
+        Visited() {}
+
         /** The backing history of type pairs. */
         private final IdentityHashMap<
                         AnnotatedTypeMirror, IdentityHashMap<AnnotatedTypeMirror, RETURN_TYPE>>
