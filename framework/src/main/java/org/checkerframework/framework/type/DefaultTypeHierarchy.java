@@ -127,7 +127,7 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
      * Tracks re-entrant calls to {@link #isSubtype(AnnotatedTypeMirror, AnnotatedTypeMirror)}. The
      * visit histories are cleared only when this counter transitions from 1 to 0, i.e. at the end
      * of a true outermost entry. {@link #isContainedWithinBounds} internally invokes the public
-     * 2-arg method, so a clear-on-every-entry would wipe the history mid-check and destroy cycle
+     * 2-arg method, so a clear-on-every-exit would wipe the history mid-check and destroy cycle
      * detection for recursive wildcard bounds.
      */
     private int isSubtypeDepth = 0;
