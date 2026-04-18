@@ -142,7 +142,9 @@ public class AnnotationMirrorSet
             @UnknownInitialization(AnnotationMirrorSet.class) AnnotationMirrorSet this,
             @Nullable Object o) {
         return o instanceof AnnotationMirror
-                && AnnotationUtils.containsSame(shadowSet, (AnnotationMirror) o);
+                // We can directly use shadowSet.contains instead of AnnotationUtils.containsSame,
+                // because compareAnnotationMirrors is compatible with areSame.
+                && shadowSet.contains(o);
     }
 
     @Override
@@ -166,18 +168,23 @@ public class AnnotationMirrorSet
     public boolean add(
             @UnknownInitialization(AnnotationMirrorSet.class) AnnotationMirrorSet this,
             AnnotationMirror annotationMirror) {
-        if (contains(annotationMirror)) {
-            return false;
-        }
-        shadowSet.add(annotationMirror);
-        return true;
+        return shadowSet.add(annotationMirror);
     }
 
     @Override
     public boolean remove(@Nullable Object o) {
         if (o instanceof AnnotationMirror) {
-            AnnotationMirror found = AnnotationUtils.getSame(shadowSet, (AnnotationMirror) o);
-            return found != null && shadowSet.remove(found);
+            // Use floor() to find the element in O(log n) via the comparator, rather than the
+            // O(n) linear scan of getSame(). floor() returns the greatest element <= o; if
+            // compareAnnotationMirrors returns 0 (i.e. they are equivalent), it is the match.
+            AnnotationMirror am = (AnnotationMirror) o;
+            @SuppressWarnings(
+                    // TODO: floor requires KeyFor arg, which seems wrong.
+                    "keyfor:argument.type.incompatible")
+            AnnotationMirror found = shadowSet.floor(am);
+            return found != null
+                    && AnnotationUtils.compareAnnotationMirrors(found, am) == 0
+                    && shadowSet.remove(found);
         }
         return false;
     }
@@ -196,6 +203,15 @@ public class AnnotationMirrorSet
     public boolean addAll(
             @UnknownInitialization(AnnotationMirrorSet.class) AnnotationMirrorSet this,
             Collection<? extends AnnotationMirror> c) {
+        if (c instanceof AnnotationMirrorSet) {
+            // Both sets use the same comparator, so we can bulk-insert via the backing TreeSet.
+            // TreeSet.addAll() skips elements that compare as equal (returns 0), which is the
+            // correct duplicate-rejection semantics. This avoids per-element contains() checks.
+            @SuppressWarnings("keyfor:argument.type.incompatible") // TODO: wildcard issue.
+            boolean ret = shadowSet.addAll(((AnnotationMirrorSet) c).shadowSet);
+            return ret;
+        }
+
         boolean result = true;
         for (AnnotationMirror a : c) {
             if (!add(a)) {
