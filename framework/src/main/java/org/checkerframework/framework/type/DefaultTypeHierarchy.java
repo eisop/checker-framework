@@ -182,7 +182,7 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
                             ? type.getUnderlyingType()
                             : erasedType.getUnderlyingType();
             // The effective annotations are the primary annotations on the erased type.
-            return new ShallowType(erasedType.getAnnotations(), typeMirror);
+            return new ShallowType(erasedType.getAnnotationsField(), typeMirror);
         }
     }
 
