@@ -32,6 +32,15 @@ public class StructuralEqualityVisitHistory {
     }
 
     /**
+     * Removes all entries from both inner histories. Called between top-level subtype checks to
+     * bound memory.
+     */
+    public void clear() {
+        trueHistory.clear();
+        falseHistory.clear();
+    }
+
+    /**
      * Put result of comparing {@code type1} and {@code type2} for structural equality for the given
      * hierarchy.
      *
