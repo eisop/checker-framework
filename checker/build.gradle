@@ -133,45 +133,43 @@ jar {
 // This task differs from the `assemble` task in that it does not build Javadoc.
 // It is useful for those who only want to run `javac`.
 // checker.jar is copied to checker/dist/ when it is built by the shadowJar task.
-task assembleForJavac(dependsOn: shadowJar, group: 'Build') {
+task assembleForJavac(group: 'Build') {
     description = 'Builds or downloads jars required by CheckerMain and puts them in checker/dist/.'
+    dependsOn 'copyCheckerQualJar'
+    dependsOn 'copyCheckerUtilJar'
+    dependsOn 'copyJavacJar'
+}
+
+tasks.register('copyCheckerQualJar', Copy) {
+    dependsOn ':checker-qual:jar'
     dependsOn project(':checker-qual').tasks.jar
-    def checkerQualJarFile = file(project(':checker-qual').tasks.getByName('jar').archiveFile)
-    def checkerUtilJarFile = file(project(':checker-util').tasks.getByName('jar').archiveFile)
 
-    doLast {
-        if (!checkerQualJarFile.exists()) {
-            throw new GradleException('File not found: ' + checkerQualJarFile)
-        }
-        copy {
-            from checkerQualJarFile
-            into "${projectDir}/dist"
-            rename { String fileName ->
-                // remove version number on checker-qual.jar
-                fileName.replace(fileName, 'checker-qual.jar')
-            }
-        }
+    from project(':checker-qual').tasks.jar.archiveFile
+    into "${projectDir}/dist"
+    rename { String fileName ->
+        // remove version number on checker-qual.jar
+        fileName.replace(fileName, 'checker-qual.jar')
+    }
+}
 
-        if (!checkerUtilJarFile.exists()) {
-            throw new GradleException('File not found: ' + checkerUtilJarFile)
-        }
-        copy {
-            from checkerUtilJarFile
-            into "${projectDir}/dist"
-            rename { String fileName ->
-                // remove version number on checker-util.jar
-                fileName.replace(fileName, 'checker-util.jar')
-            }
-        }
+tasks.register('copyCheckerUtilJar', Copy) {
+    dependsOn 'shadowJar'
+    dependsOn project(':checker-util').tasks.jar
 
-        copy {
-            // This is required to *run* the Checker Framework on JDK 8.
-            from configurations.javacJar
-            into "${projectDir}/dist"
-            rename { String fileName ->
-                fileName.replace(fileName, 'javac.jar')
-            }
-        }
+    from project(':checker-util').tasks.jar.archiveFile
+    into "${projectDir}/dist"
+    rename { String fileName ->
+        // remove version number on checker-util.jar
+        fileName.replace(fileName, 'checker-util.jar')
+    }
+}
+
+tasks.register('copyJavacJar', Copy) {
+    // This is required to *run* the Checker Framework on JDK 8.
+    from configurations.javacJar
+    into "${projectDir}/dist"
+    rename { String fileName ->
+        fileName.replace(fileName, 'javac.jar')
     }
 }
 
@@ -234,15 +232,20 @@ shadowJar {
     // To see what files are incorporated into the shadow jar file:
     // doFirst { println sourceSets.main.runtimeClasspath.asPath }
     archiveClassifier = 'all'
-    doLast{
-        copy {
-            from archiveFile.get()
-            into file("${projectDir}/dist")
-            rename 'checker.*', 'checker.jar'
-        }
-    }
 
     minimize()
+}
+
+shadowJar.finalizedBy('copyCheckerJar')
+
+tasks.register('copyCheckerJar', Copy) {
+    dependsOn ':checker:shadowJar'
+
+    // This used `from archiveFile.get()` when it was part of shadowJar.
+    // Look at e.g. copyCheckerQualJar whether there is a better way to do this.
+    from file("${projectDir}/build/libs/checker-${project.version}-all.jar")
+    into file("${projectDir}/dist")
+    rename 'checker.*', 'checker.jar'
 }
 
 artifacts {
@@ -257,8 +260,12 @@ artifacts {
 
 clean {
     def injected = project.objects.newInstance(InjectedExecOps)
+    def bldDir = buildDir
+    def distDir = "${projectDir}/dist"
+    def cmdlineDir = file('tests/command-line')
+    def nullnessextraDir = file('tests/nullness-extra')
 
-    delete("${projectDir}/dist")
+    delete(distDir)
     delete('tests/calledmethods-delomboked')
     delete('tests/ainfer-testchecker/annotated')
     delete('tests/ainfer-testchecker/inference-output')
@@ -271,20 +278,18 @@ clean {
     delete('tests/build')
     doLast {
         injected.execOps.exec {
-            workingDir = file('tests/command-line')
+            workingDir = cmdlineDir
             commandLine 'make', 'clean'
         }
         injected.execOps.exec {
-            workingDir = file('tests/nullness-extra')
+            workingDir = nullnessextraDir
             commandLine 'make', 'clean'
         }
-    }
-}
 
-clean.doLast {
-    while (buildDir.exists()) {
-        sleep(10000)                // wait 10 seconds
-        buildDir.deleteDir()
+        while(bldDir.exists()) {
+            sleep(10000)                // wait 10 seconds
+            bldDir.deleteDir()
+        }
     }
 }
 
@@ -1090,7 +1095,7 @@ final checkerPom(publication) {
 publishing {
     publications {
         checker(MavenPublication) {
-            project.shadow.component it
+            from components.shadow
             checkerPom it
             artifact checkerJar
             artifact allSourcesJar
