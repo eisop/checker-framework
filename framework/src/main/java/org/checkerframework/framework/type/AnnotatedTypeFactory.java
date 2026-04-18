@@ -599,9 +599,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             this.fromTypeTreeCache = CollectionsPlume.createLruCache(cacheSize);
             this.elementCache = CollectionsPlume.createLruCache(cacheSize);
             this.elementToTreeCache = CollectionsPlume.createLruCache(cacheSize);
-            this.annotationClassNames =
-                    Collections.synchronizedMap(
-                            CollectionsPlume.createLruCache(ANNOTATION_CACHE_SIZE));
+            this.annotationClassNames = CollectionsPlume.createLruCache(ANNOTATION_CACHE_SIZE);
         } else {
             this.classAndMethodTreeCache = null;
             this.fromExpressionTreeCache = null;
