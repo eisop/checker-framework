@@ -18,6 +18,8 @@ public class HashcodeAtmVisitor extends SimpleAnnotatedTypeScanner<Integer, Void
     /** Creates a {@link HashcodeAtmVisitor}. */
     public HashcodeAtmVisitor() {
         super(Integer::sum, 0);
+        // TODO: evaluate whether using collision-avoiding hash would improve performance.
+        // super((r1, r2) -> 31 * r1 + r2, 0);
     }
 
     /**
@@ -33,6 +35,7 @@ public class HashcodeAtmVisitor extends SimpleAnnotatedTypeScanner<Integer, Void
         if (type == null) {
             return 0;
         }
-        return Objects.hash(type.getUnderlyingTypeHashCode(), type.getAnnotations().toString());
+        return Objects.hash(
+                type.getUnderlyingTypeHashCode(), type.getAnnotationsField().toString());
     }
 }
