@@ -3023,7 +3023,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 p.addAll(superCon.getParameterTypes());
                 con.setParameterTypes(Collections.unmodifiableList(p));
             }
-            AnnotationMirrorSet lub =
+            Set<? extends AnnotationMirror> lub =
                     // TODO: should we use getAnnotationsField() even though it flows to the
                     // QualifierHierarchy?
                     qualHierarchy.leastUpperBoundsShallow(
