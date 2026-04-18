@@ -1,4 +1,7 @@
 import de.undercouch.gradle.tasks.download.Download
+import org.gradle.api.tasks.testing.TestDescriptor
+import org.gradle.api.tasks.testing.TestListener
+import org.gradle.api.tasks.testing.TestResult
 
 plugins {
     // https://plugins.gradle.org/plugin/com.gradleup.shadow
@@ -146,7 +149,7 @@ spotless {
     //     > Could not create task ':checker-qual:spotlessJava'.
     //        > File signature can only be created for existing regular files, given:
     //          .../checker-framework/checker-qual/build/libs/checker-qual-3.25.1-SNAPSHOT.jar
-    predeclareDepsFromBuildscript()
+    predeclareDeps()
 }
 
 spotlessPredeclare {
@@ -207,11 +210,11 @@ allprojects { currentProj ->
     dependencies {
         if (useJdkVersionInt >= 21) {
             // Only include Error Prone when its minimum version is met. It will not always be enabled.
-            errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: versions.errorprone
+            errorprone("com.google.errorprone:error_prone_core:${versions.errorprone}")
         }
 
         // Always define javacJar, not just when `isJava8` is true, because we redistribute it in checker/build.gradle.
-        javacJar group: 'com.google.errorprone', name: 'javac', version: "9+181-r4173-1"
+        javacJar("com.google.errorprone:javac:9+181-r4173-1")
 
         allProjects subprojects
     }
@@ -1212,18 +1215,25 @@ subprojects {
             }
 
             // After each test, print a summary.
-            afterSuite { desc, result ->
-                if (desc.getClassName() != null) {
-                    long mils = result.getEndTime() - result.getStartTime()
-                    double seconds = mils / 1000.0
+            addTestListener(new TestListener() {
+                        @Override void beforeSuite(TestDescriptor suite) {}
+                        @Override void beforeTest(TestDescriptor test) {}
+                        @Override void afterTest(TestDescriptor test, TestResult result) {}
 
-                    println "Testsuite: ${desc.getClassName()}\n" +
-                            "Tests run: ${result.testCount}, " +
-                            "Failures: ${result.failedTestCount}, " +
-                            "Skipped: ${result.skippedTestCount}, " +
-                            "Time elapsed: ${seconds} sec\n"
-                }
-            }
+                        @Override
+                        void afterSuite(TestDescriptor desc, TestResult result) {
+                            if (desc.getClassName() != null) {
+                                long mils = result.getEndTime() - result.getStartTime()
+                                double seconds = mils / 1000.0
+
+                                println "Testsuite: ${desc.getClassName()}\n" +
+                                        "Tests run: ${result.testCount}, " +
+                                        "Failures: ${result.failedTestCount}, " +
+                                        "Skipped: ${result.skippedTestCount}, " +
+                                        "Time elapsed: ${seconds} sec\n"
+                            }
+                        }
+                    })
         }
 
         // Create a nonJunitTests task per project
