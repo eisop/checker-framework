@@ -512,11 +512,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             expectedTreesVisitor.visitCompilationUnit(root, null);
             for (Tree expected : expectedTreesVisitor.getTrees()) {
                 if (!treePairs.containsKey(expected)) {
+                    @SuppressWarnings("removal") // TODO: encapsulate methods
+                    long startpos = positions.getStartPosition(root, expected);
                     throw new BugInCF(
                             "Javac tree not matched to JavaParser node: %s [%s @ %d], in file: %s",
                             expected,
                             expected.getClass(),
-                            positions.getStartPosition(root, expected),
+                            startpos,
                             root.getSourceFile().getName());
                 }
             }
