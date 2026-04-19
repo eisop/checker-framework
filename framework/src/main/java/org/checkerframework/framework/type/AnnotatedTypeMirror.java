@@ -1203,11 +1203,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                                     atypeFactory.types.erasure(underlyingType),
                                     atypeFactory,
                                     false);
-            erased.addAnnotations(this.getAnnotations());
+            erased.addAnnotations(this.getAnnotationsField());
             AnnotatedDeclaredType erasedEnclosing = erased.getEnclosingType();
             AnnotatedDeclaredType thisEnclosing = this.getEnclosingType();
             while (erasedEnclosing != null) {
-                erasedEnclosing.addAnnotations(thisEnclosing.getAnnotations());
+                erasedEnclosing.addAnnotations(thisEnclosing.getAnnotationsField());
                 erasedEnclosing = erasedEnclosing.getEnclosingType();
                 thisEnclosing = thisEnclosing.getEnclosingType();
             }
@@ -2636,7 +2636,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         public void copyIntersectionBoundAnnotations() {
             AnnotationMirrorSet annos = new AnnotationMirrorSet();
             for (AnnotatedTypeMirror bound : getBounds()) {
-                for (AnnotationMirror a : bound.getAnnotations()) {
+                for (AnnotationMirror a : bound.getAnnotationsField()) {
                     if (atypeFactory.getQualifierHierarchy().findAnnotationInSameHierarchy(annos, a)
                             == null) {
                         annos.add(a);

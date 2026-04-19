@@ -2006,7 +2006,7 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     public AnnotatedTypeMirror getDefaultAnnotations(Tree tree, AnnotatedTypeMirror type) {
         AnnotatedTypeMirror copy = type.deepCopy();
-        copy.removeAnnotations(type.getAnnotations());
+        copy.removeAnnotations(type.getAnnotationsField());
         addComputedTypeAnnotationsWithoutFlow(tree, copy);
         return copy;
     }
@@ -2301,7 +2301,7 @@ public abstract class GenericAnnotatedTypeFactory<
         }
 
         AnnotationMirrorSet qualParamTypes = new AnnotationMirrorSet();
-        for (AnnotationMirror initializerAnnotation : initializerType.getAnnotations()) {
+        for (AnnotationMirror initializerAnnotation : initializerType.getAnnotationsField()) {
             if (hasQualifierParameterInHierarchy(
                     type, qualHierarchy.getTopAnnotation(initializerAnnotation))) {
                 qualParamTypes.add(initializerAnnotation);
@@ -3050,7 +3050,7 @@ public abstract class GenericAnnotatedTypeFactory<
       }
 
       List<AnnotationMirror> result = new ArrayList<>();
-      for (AnnotationMirror inferredAm : inferredType.getAnnotations()) {
+      for (AnnotationMirror inferredAm : inferredType.getAnnotationsField()) {
         AnnotationMirror declaredAm = declaredType.getAnnotationInHierarchy(inferredAm);
         if (declaredAm == null || AnnotationUtils.areSame(inferredAm, declaredAm)) {
           continue;
@@ -3062,7 +3062,7 @@ public abstract class GenericAnnotatedTypeFactory<
         }
 
         List<AnnotationMirror> result = new ArrayList<>();
-        for (AnnotationMirror inferredAm : inferredType.getAnnotations()) {
+        for (AnnotationMirror inferredAm : inferredType.getAnnotationsField()) {
             AnnotationMirror declaredAm = declaredType.getAnnotationInHierarchy(inferredAm);
             if (declaredAm == null || AnnotationUtils.areSame(inferredAm, declaredAm)) {
                 continue;
