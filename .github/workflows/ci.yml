@@ -26,7 +26,7 @@ jobs:
         java_version: [21]
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
-      USE_BAZEL_VERSION: "9.0.1"
+      USE_BAZEL_VERSION: "9.0.2"
     steps:
     - uses: actions/checkout@v6
     - name: Set up JDK ${{ matrix.java_version }}
@@ -122,7 +122,7 @@ jobs:
       contents: read
     env:
       JAVA_VERSION: ${{ matrix.java.version }}
-      USE_BAZEL_VERSION: "9.0.1"
+      USE_BAZEL_VERSION: "9.0.2"
       JDK_EA_MAJOR: "27"
       JDK_EA_BUILD: "15"
     strategy:
