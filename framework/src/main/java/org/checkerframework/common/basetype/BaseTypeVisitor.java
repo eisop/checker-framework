@@ -3985,7 +3985,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 atypeFactory.methodFromUseWithoutTypeArgInference(tree);
         List<AnnotatedTypeMirror> declaredTypeArgs =
                 methodDefPreSubstitution.executableType.getReceiverType().getTypeArguments();
-        // Skip the check only if both: calling receiver has wildcard AND declared receiver has poly
+        // Skip the check only if both:
+        // calling receiver type argument has different bounds, i.e. has wildcard or type
+        // variable as type argument AND declared receiver's type argument has poly annotation.
         // See checker/tests/nullness-genericwildcard/PolyQualifierOnTypeArgument.java.
         AnnotatedTypeMirror treeReceiver = atypeFactory.getReceiverType(tree);
         if (treeReceiver instanceof AnnotatedDeclaredType) {
@@ -3994,7 +3996,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
             boolean callingHasWildcard = false;
             for (AnnotatedTypeMirror typeArg : callingTypeArgs) {
-                if (typeArg.getKind() == TypeKind.WILDCARD) {
+                if (typeArg.getKind() == TypeKind.WILDCARD
+                        || typeArg.getKind() == TypeKind.TYPEVAR) {
                     callingHasWildcard = true;
                     break;
                 }
