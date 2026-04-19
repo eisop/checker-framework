@@ -3679,6 +3679,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     private String fileAndLineNumber(Tree tree) {
         StringBuilder result = new StringBuilder();
         result.append(Paths.get(root.getSourceFile().getName()).getFileName().toString());
+        @SuppressWarnings("removal")
         long valuePos = positions.getStartPosition(root, tree);
         LineMap lineMap = root.getLineMap();
         if (valuePos != -1 && lineMap != null) {
