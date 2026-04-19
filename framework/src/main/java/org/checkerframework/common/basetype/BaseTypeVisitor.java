@@ -3985,24 +3985,38 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 atypeFactory.methodFromUseWithoutTypeArgInference(tree);
         List<AnnotatedTypeMirror> declaredTypeArgs =
                 methodDefPreSubstitution.executableType.getReceiverType().getTypeArguments();
-        // Don't check when method receiver's type argument has a poly annotation.
+        // Skip the check only if both: calling receiver has wildcard AND declared receiver has poly
         // See checker/tests/nullness-genericwildcard/PolyQualifierOnTypeArgument.java.
-        for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
-            AnnotationMirror poly = qualHierarchy.getPolymorphicAnnotation(top);
-            // If this hierarchy does not have a poly annotation, then continue to next hierarchy.
-            if (poly == null) {
-                continue;
+        AnnotatedTypeMirror treeReceiver = atypeFactory.getReceiverType(tree);
+        if (treeReceiver instanceof AnnotatedDeclaredType) {
+            AnnotatedDeclaredType treeReceiverDeclared = (AnnotatedDeclaredType) treeReceiver;
+            List<AnnotatedTypeMirror> callingTypeArgs = treeReceiverDeclared.getTypeArguments();
+
+            boolean callingHasWildcard = false;
+            for (AnnotatedTypeMirror typeArg : callingTypeArgs) {
+                if (typeArg.getKind() == TypeKind.WILDCARD) {
+                    callingHasWildcard = true;
+                    break;
+                }
             }
-            for (AnnotatedTypeMirror typeArg : declaredTypeArgs) {
-                // If one of the type arguments has a poly annotation, then skip the check.
-                if (typeArg.hasAnnotation(poly)) {
-                    return;
+
+            if (callingHasWildcard && !declaredTypeArgs.isEmpty()) {
+                // Check if declared type args have poly annotation
+                for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
+                    AnnotationMirror poly = qualHierarchy.getPolymorphicAnnotation(top);
+                    if (poly == null) {
+                        continue;
+                    }
+                    for (AnnotatedTypeMirror typeArg : declaredTypeArgs) {
+                        if (typeArg.hasAnnotation(poly)) {
+                            return; // Skip check only if both conditions met
+                        }
+                    }
                 }
             }
         }
 
         AnnotatedDeclaredType methodReceiver = method.getReceiverType();
-        AnnotatedTypeMirror treeReceiver = atypeFactory.getReceiverType(tree);
 
         if (!skipReceiverSubtypeCheck(tree, methodReceiver, treeReceiver)) {
             // The diagnostic can be a bit misleading because the check is of the receiver but

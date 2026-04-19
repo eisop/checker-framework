@@ -21,6 +21,7 @@ public class PolyQualifierOnTypeArgument<T> {
     }
 
     void test2(PolyQualifierOnTypeArgument<T> p) {
+        // :: error: (method.invocation.invalid)
         p.toArray(); // same bound mismatch as unbounded wildcard case
     }
 
