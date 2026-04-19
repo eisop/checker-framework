@@ -138,14 +138,14 @@ jobs:
         # Keep all LTS versions and the newest non-LTS version.
         # `experimental` versions use the $version compiler, but run on JDK 21.
         java:
-          - {version: '8', experimental: false}
-          - {version: '11', experimental: false}
-          - {version: '17', experimental: false}
-          - {version: '25', experimental: false}
-          - {version: '26', experimental: false}
           # Keep in sync with env.JDK_EA_MAJOR above.
           # env context is not available in strategy.matrix, so the version is hard-coded here.
           - {version: '27', experimental: true}
+          - {version: '26', experimental: false}
+          - {version: '25', experimental: false}
+          - {version: '17', experimental: false}
+          - {version: '11', experimental: false}
+          - {version: '8', experimental: false}
         exclude:
           # JDK 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
           - script: 'cftests-junit-jdk21'
