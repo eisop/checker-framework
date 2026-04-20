@@ -512,11 +512,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             expectedTreesVisitor.visitCompilationUnit(root, null);
             for (Tree expected : expectedTreesVisitor.getTrees()) {
                 if (!treePairs.containsKey(expected)) {
+                    @SuppressWarnings("removal") // TODO: encapsulate methods
+                    long startpos = positions.getStartPosition(root, expected);
                     throw new BugInCF(
                             "Javac tree not matched to JavaParser node: %s [%s @ %d], in file: %s",
                             expected,
                             expected.getClass(),
-                            positions.getStartPosition(root, expected),
+                            startpos,
                             root.getSourceFile().getName());
                 }
             }
@@ -3674,6 +3676,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     private String fileAndLineNumber(Tree tree) {
         StringBuilder result = new StringBuilder();
         result.append(Paths.get(root.getSourceFile().getName()).getFileName().toString());
+        @SuppressWarnings("removal")
         long valuePos = positions.getStartPosition(root, tree);
         LineMap lineMap = root.getLineMap();
         if (valuePos != -1 && lineMap != null) {
