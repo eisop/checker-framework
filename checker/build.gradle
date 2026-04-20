@@ -219,7 +219,10 @@ shadowJar {
         }
     }
 
-    minimize()
+    minimize {
+        exclude(dependency('org.checkerframework:checker-qual:.*'))
+        exclude(dependency('org.checkerframework:checker-util:.*'))
+    }
 }
 
 tasks.named("assemble") {
@@ -363,7 +366,7 @@ task jtregJdk11Tests(type: Exec, group: 'Verification') {
     dependsOn('compileTestJava')
     dependsOn('shadowJar')
 
-    String jtregOutput = "${buildDir}/jtregJdk11"
+    String jtregOutput = "${layout.buildDir}/jtregJdk11"
     String name = 'all'
 
     executable "${jtregHome}/bin/jtreg"
@@ -449,7 +452,7 @@ task ainferTestCheckerGenerateStubs(type: Test) {
 
     doFirst {
         delete('tests/ainfer-testchecker/annotated')
-        delete("${buildDir}/ainfer-testchecker/")
+        delete("${layout.buildDir}/ainfer-testchecker/")
     }
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerStubsGenerationTest.class'
@@ -514,7 +517,7 @@ task ainferTestCheckerGenerateAjava(type: Test) {
 
     doFirst {
         delete('tests/ainfer-testchecker/annotated')
-        delete("${buildDir}/ainfer-testchecker/")
+        delete("${layout.buildDir}/ainfer-testchecker/")
     }
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerAjavaGenerationTest.class'
@@ -754,7 +757,7 @@ task ainferNullnessGenerateAjava(type: Test) {
 
     doFirst {
         delete('tests/ainfer-nullness/annotated')
-        delete("${buildDir}/ainfer-nullness/")
+        delete("${layout.buildDir}/ainfer-nullness/")
     }
     outputs.upToDateWhen { false }
     include '**/AinferNullnessAjavaGenerationTest.class'
@@ -806,7 +809,7 @@ task ainferResourceLeakGenerateAjava(type: Test) {
 
     doFirst {
         delete('tests/ainfer-resourceleak/annotated')
-        delete("${buildDir}/ainfer-resourceleak/")
+        delete("${layout.buildDir}/ainfer-resourceleak/")
     }
     outputs.upToDateWhen { false }
     include '**/AinferResourceLeakAjavaGenerationTest.class'
