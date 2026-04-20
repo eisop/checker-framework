@@ -398,7 +398,22 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     // getAnnotations in javac APIs works.
     // Removed getEffectiveAnnotation
     public AnnotationMirrorSet getEffectiveAnnotations() {
-        AnnotationMirrorSet effectiveAnnotations = getErased().getAnnotations();
+        AnnotationMirrorSet effectiveAnnotations;
+        /* As a performance optimization I experimented with the following
+        * version, which tries to avoid creating the erased type. In the end,
+        * this did not produce a significant improvement, but could be tried
+        * again.
+              TypeKind k = getKind();
+              if (k == TypeKind.DECLARED
+                      || k == TypeKind.ARRAY
+                      || k.isPrimitive()
+                      || k == TypeKind.NULL
+                      || k == TypeKind.VOID
+                      || k == TypeKind.NONE) {
+                  // Avoid the cost of calling `getErased()` when erasure has no effect.
+                  effectiveAnnotations = this.getAnnotations();
+              } else {*/
+        effectiveAnnotations = getErased().getAnnotations();
         //        assert atypeFactory.qualHierarchy.getWidth() == effectiveAnnotations
         //                .size() : "Invalid number of effective annotations ("
         //                + effectiveAnnotations + "). Should be "
