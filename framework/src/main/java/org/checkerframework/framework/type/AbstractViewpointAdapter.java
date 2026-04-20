@@ -8,6 +8,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedNullType
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiveType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
+import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.plumelib.util.IPair;
@@ -284,7 +285,12 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
                 AnnotatedTypeMirror resLower =
                         combineAnnotationWithType(receiverAnnotation, atv.getLowerBound());
                 mappings.put(atv.getLowerBound(), resLower);
-
+                // The values of the mappings are the viewpoint adapted lower and upper bounds,
+                // and we wish to replace the old bounds of atv with the new mappings.
+                // However, we need to first remove the primary annotations of atv, otherwise
+                // in later replacement, the primary annotations would override our computed
+                // new mappings (see method fixupBoundAnnotations).
+                atv.clearAnnotations();
                 AnnotatedTypeMirror result =
                         AnnotatedTypeCopierWithReplacement.replace(atv, mappings);
 
@@ -404,7 +410,16 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
 
             // Base case where actual type argument is extracted
             if (lhs.getKind() == TypeKind.DECLARED) {
+                // Replace type variable with its actual type argument
                 rhs = getTypeVariableSubstitution((AnnotatedDeclaredType) lhs, atv);
+                // If the type variable use is annotated, the upperbound and lowerbound annotation
+                // on the type variable are the same. Replace the primary annotation of the
+                // substituted result (rhs) with annotation on type variable use.
+                if (AnnotationUtils.areSame(
+                        atv.getLowerBound().getAnnotations(),
+                        atv.getUpperBound().getAnnotations())) {
+                    rhs.replaceAnnotations(atv.getLowerBound().getAnnotations());
+                }
             }
         } else if (rhs.getKind() == TypeKind.DECLARED) {
             AnnotatedDeclaredType adt = (AnnotatedDeclaredType) rhs.shallowCopy();
