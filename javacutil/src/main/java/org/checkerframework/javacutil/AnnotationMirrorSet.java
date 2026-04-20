@@ -278,12 +278,8 @@ public class AnnotationMirrorSet
     @Override
     public int hashCode() {
         int result = 0;
-        Iterator<AnnotationMirror> i = iterator();
-        while (i.hasNext()) {
-            AnnotationMirror am = i.next();
-            if (am != null) {
-                result += am.hashCode();
-            }
+        for (AnnotationMirror am : shadowSet) {
+            result += am.hashCode();
         }
         return result;
     }
