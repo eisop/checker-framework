@@ -31,10 +31,12 @@ import javax.lang.model.element.AnnotationMirror;
  * method; therefore, the existing implementations of Set cannot be used.
  *
  * <p>Implementation note: the backing store is an {@link ArrayList} with linear scan using {@link
- * AnnotationUtils#areSame} rather than a {@code TreeSet} with {@link
- * AnnotationUtils#compareAnnotationMirrors}. In practice these sets are very small (typically 1-3
- * elements, almost always fewer than 5) so a linear scan beats a sorted structure whose comparator
- * invocation and per-node allocation exceed the benefit of O(log n) lookup.
+ * AnnotationUtils#areSame} rather than a {@code TreeSet}. In practice these sets are very small
+ * (typically 1-3 elements, almost always fewer than 5) so a linear scan beats a sorted structure
+ * whose comparator invocation and per-node allocation exceed the benefit of O(log n) lookup.
+ *
+ * <p>Iteration order and array order follow the backing list encounter order and are not part of
+ * set semantics. Only {@link #toString()} sorts elements, for deterministic debugging output.
  *
  * <p>Unmodifiability is tracked by a boolean flag.
  *
@@ -160,26 +162,6 @@ public class AnnotationMirrorSet
         return -1;
     }
 
-    /**
-     * Returns the index where {@code am} should be inserted to keep {@link #shadowList} sorted by
-     * {@link AnnotationUtils#compareAnnotationMirrors}.
-     */
-    private int insertionIndex(
-            @UnknownInitialization(AnnotationMirrorSet.class) AnnotationMirrorSet this,
-            AnnotationMirror am) {
-        int low = 0;
-        int high = shadowList.size();
-        while (low < high) {
-            int mid = low + (high - low) / 2;
-            if (AnnotationUtils.compareAnnotationMirrors(shadowList.get(mid), am) < 0) {
-                low = mid + 1;
-            } else {
-                high = mid;
-            }
-        }
-        return low;
-    }
-
     // Set methods
 
     @Override
@@ -227,7 +209,7 @@ public class AnnotationMirrorSet
         if (indexOfSame(annotationMirror) >= 0) {
             return false;
         }
-        shadowList.add(insertionIndex(annotationMirror), annotationMirror);
+        shadowList.add(annotationMirror);
         hashCodeCache = 0; // recompute
         return true;
     }
@@ -311,7 +293,10 @@ public class AnnotationMirrorSet
 
     @Override
     public String toString() {
-        return shadowList.toString();
+        // Keep deterministic debugging output without imposing ordering semantics on the set.
+        ArrayList<AnnotationMirror> sorted = new ArrayList<>(shadowList);
+        sorted.sort(AnnotationUtils::compareAnnotationMirrors);
+        return sorted.toString();
     }
 
     @Override
