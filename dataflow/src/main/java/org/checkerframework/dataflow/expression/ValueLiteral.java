@@ -141,6 +141,9 @@ public class ValueLiteral extends JavaExpression {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof ValueLiteral)) {
             return false;
         }

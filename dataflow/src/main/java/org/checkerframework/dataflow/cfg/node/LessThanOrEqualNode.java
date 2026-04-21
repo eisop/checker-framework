@@ -40,6 +40,9 @@ public class LessThanOrEqualNode extends BinaryOperationNode {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof LessThanOrEqualNode)) {
             return false;
         }
