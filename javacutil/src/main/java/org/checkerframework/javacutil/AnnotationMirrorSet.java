@@ -294,6 +294,7 @@ public class AnnotationMirrorSet
     @Override
     public String toString() {
         // Keep deterministic debugging output without imposing ordering semantics on the set.
+        // This intentionally allocates and sorts only for debugging display.
         ArrayList<AnnotationMirror> sorted = new ArrayList<>(shadowList);
         sorted.sort(AnnotationUtils::compareAnnotationMirrors);
         return sorted.toString();
