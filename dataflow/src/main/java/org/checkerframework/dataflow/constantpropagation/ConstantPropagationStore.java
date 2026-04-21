@@ -98,9 +98,6 @@ public class ConstantPropagationStore implements Store<ConstantPropagationStore>
         if (this == o) {
             return true;
         }
-        if (o == null) {
-            return false;
-        }
         if (!(o instanceof ConstantPropagationStore)) {
             return false;
         }
