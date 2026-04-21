@@ -160,6 +160,26 @@ public class AnnotationMirrorSet
         return -1;
     }
 
+    /**
+     * Returns the index where {@code am} should be inserted to keep {@link #shadowList} sorted by
+     * {@link AnnotationUtils#compareAnnotationMirrors}.
+     */
+    private int insertionIndex(
+            @UnknownInitialization(AnnotationMirrorSet.class) AnnotationMirrorSet this,
+            AnnotationMirror am) {
+        int low = 0;
+        int high = shadowList.size();
+        while (low < high) {
+            int mid = low + (high - low) / 2;
+            if (AnnotationUtils.compareAnnotationMirrors(shadowList.get(mid), am) < 0) {
+                low = mid + 1;
+            } else {
+                high = mid;
+            }
+        }
+        return low;
+    }
+
     // Set methods
 
     @Override
@@ -207,13 +227,7 @@ public class AnnotationMirrorSet
         if (indexOfSame(annotationMirror) >= 0) {
             return false;
         }
-        int idx = 0;
-        int sz = shadowList.size();
-        while (idx < sz
-                && AnnotationUtils.compareAnnotationMirrors(shadowList.get(idx), annotationMirror) < 0) {
-            idx++;
-        }
-        shadowList.add(idx, annotationMirror);
+        shadowList.add(insertionIndex(annotationMirror), annotationMirror);
         hashCodeCache = 0; // recompute
         return true;
     }
@@ -342,17 +356,17 @@ public class AnnotationMirrorSet
     }
 
     /** Iterator wrapper that updates the hash cache and unmodifiability checks on remove(). */
-    private final class AnnotationMirrorSetIterator<@KeyForBottom T extends AnnotationMirror>
-            implements Iterator<T> {
+    private final class AnnotationMirrorSetIterator
+            implements Iterator<@KeyFor("this") AnnotationMirror> {
         /** The real iterator. */
-        private final Iterator<T> it;
+        private final Iterator<@KeyFor("this") AnnotationMirror> it;
 
         /**
          * Construct an iterator wrapper.
          *
          * @param it the iterator to wrap
          */
-        AnnotationMirrorSetIterator(Iterator<T> it) {
+        AnnotationMirrorSetIterator(Iterator<@KeyFor("this") AnnotationMirror> it) {
             this.it = it;
         }
 
@@ -362,7 +376,7 @@ public class AnnotationMirrorSet
         }
 
         @Override
-        public T next() {
+        public @KeyFor("this") AnnotationMirror next() {
             return it.next();
         }
 
