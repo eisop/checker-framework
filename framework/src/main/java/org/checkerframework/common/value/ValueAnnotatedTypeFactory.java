@@ -758,8 +758,8 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             isSpecial = false;
         }
 
-        if (cached == null) {
-            specialIntRangeCache.put(anm, isSpecial);
+        if (cached == null && !isSpecial) {
+            specialIntRangeCache.put(anm, false);
         }
         return res;
     }
