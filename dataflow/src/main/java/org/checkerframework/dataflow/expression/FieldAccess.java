@@ -117,9 +117,15 @@ public class FieldAccess extends JavaExpression {
                         || this.getReceiver() instanceof ThisReference);
     }
 
+    /** Cache the hashCode. Recomputed if zero. */
+    private int hashCodeCache = 0;
+
     @Override
     public int hashCode() {
-        return Objects.hash(getField(), getReceiver());
+        if (hashCodeCache == 0) {
+            hashCodeCache = Objects.hash(getField(), getReceiver());
+        }
+        return hashCodeCache;
     }
 
     @Override
