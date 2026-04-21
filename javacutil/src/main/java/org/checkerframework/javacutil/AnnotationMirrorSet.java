@@ -138,7 +138,7 @@ public class AnnotationMirrorSet
     private void checkMutable(
             @UnknownInitialization(AnnotationMirrorSet.class) AnnotationMirrorSet this) {
         if (unmodifiable) {
-            throw new TypeSystemError("AnnotationMirrorSet is unmodifiable");
+            throw new UnsupportedOperationException("AnnotationMirrorSet is unmodifiable");
         }
     }
 
@@ -184,8 +184,7 @@ public class AnnotationMirrorSet
 
     @Override
     public Iterator<@KeyFor("this") AnnotationMirror> iterator() {
-        Iterator<@KeyFor("this") AnnotationMirror> it = shadowList.iterator();
-        return unmodifiable ? new ReadOnlyIter<@KeyFor("this") AnnotationMirror>(it) : it;
+        return new AnnotationMirrorSetIterator(shadowList.iterator());
     }
 
     @Override
@@ -208,7 +207,13 @@ public class AnnotationMirrorSet
         if (indexOfSame(annotationMirror) >= 0) {
             return false;
         }
-        shadowList.add(annotationMirror);
+        int idx = 0;
+        int sz = shadowList.size();
+        while (idx < sz
+                && AnnotationUtils.compareAnnotationMirrors(shadowList.get(idx), annotationMirror) < 0) {
+            idx++;
+        }
+        shadowList.add(idx, annotationMirror);
         hashCodeCache = 0; // recompute
         return true;
     }
@@ -256,42 +261,28 @@ public class AnnotationMirrorSet
 
     @Override
     public boolean retainAll(Collection<?> c) {
-        checkMutable();
-        ArrayList<@KeyFor("this") AnnotationMirror> newList = new ArrayList<>(shadowList.size());
-        for (Object o : c) {
-            if (!(o instanceof AnnotationMirror)) {
-                continue;
-            }
-            AnnotationMirror am = (AnnotationMirror) o;
-            if (indexOfSame(am) < 0) {
-                continue;
-            }
-            // Dedupe against newList.
-            boolean dup = false;
-            for (int i = 0, n = newList.size(); i < n; ++i) {
-                if (AnnotationUtils.areSame(newList.get(i), am)) {
-                    dup = true;
-                    break;
+        boolean changed = false;
+        for (int i = shadowList.size() - 1; i >= 0; --i) {
+            if (!containsSame(c, shadowList.get(i))) {
+                if (!changed) {
+                    checkMutable();
+                    changed = true;
                 }
-            }
-            if (!dup) {
-                @SuppressWarnings("keyfor:argument.type.incompatible") // element came from this set
-                boolean unused = newList.add(am);
+                shadowList.remove(i);
             }
         }
-        if (newList.size() != shadowList.size()) {
-            shadowList = newList;
-            return true;
+        if (changed) {
+            hashCodeCache = 0; // recompute
         }
-        return false;
+        return changed;
     }
 
     @Override
     public boolean removeAll(Collection<?> c) {
-        boolean result = true;
+        boolean result = false;
         for (Object a : c) {
-            if (!remove(a)) {
-                result = false;
+            if (remove(a)) {
+                result = true;
             }
         }
         return result;
@@ -340,17 +331,28 @@ public class AnnotationMirrorSet
         return hashCodeCache;
     }
 
-    /** A minimal {@link Iterator} wrapper whose {@code remove()} throws. */
-    private static final class ReadOnlyIter<@KeyForBottom T> implements Iterator<T> {
+    /** Returns true iff {@code c} contains an annotation same as {@code am}. */
+    private static boolean containsSame(Collection<?> c, AnnotationMirror am) {
+        for (Object o : c) {
+            if (o instanceof AnnotationMirror && AnnotationUtils.areSame((AnnotationMirror) o, am)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Iterator wrapper that updates the hash cache and unmodifiability checks on remove(). */
+    private final class AnnotationMirrorSetIterator<@KeyForBottom T extends AnnotationMirror>
+            implements Iterator<T> {
         /** The real iterator. */
         private final Iterator<T> it;
 
         /**
-         * Construct a readonly iterator wrapper.
+         * Construct an iterator wrapper.
          *
          * @param it the iterator to wrap
          */
-        ReadOnlyIter(Iterator<T> it) {
+        AnnotationMirrorSetIterator(Iterator<T> it) {
             this.it = it;
         }
 
@@ -366,7 +368,9 @@ public class AnnotationMirrorSet
 
         @Override
         public void remove() {
-            throw new UnsupportedOperationException();
+            checkMutable();
+            it.remove();
+            hashCodeCache = 0; // recompute
         }
     }
 }
