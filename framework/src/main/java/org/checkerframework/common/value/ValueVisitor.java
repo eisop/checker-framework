@@ -89,7 +89,7 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
 
         if (valueType.getKind() == TypeKind.CHAR
                 && valueType.hasAnnotation(getTypeFactory().UNKNOWNVAL)) {
-            valueType.addAnnotation(
+            valueType.replaceAnnotation(
                     getTypeFactory().createIntRangeAnnotation(Range.CHAR_EVERYTHING));
         }
 

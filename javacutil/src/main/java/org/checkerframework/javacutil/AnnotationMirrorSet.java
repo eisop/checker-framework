@@ -31,12 +31,10 @@ import javax.lang.model.element.AnnotationMirror;
  * method; therefore, the existing implementations of Set cannot be used.
  *
  * <p>Implementation note: the backing store is an {@link ArrayList} with linear scan using {@link
- * AnnotationUtils#areSame} rather than a {@code TreeSet}. In practice these sets are very small
- * (typically 1-3 elements, almost always fewer than 5) so a linear scan beats a sorted structure
- * whose comparator invocation and per-node allocation exceed the benefit of O(log n) lookup.
- *
- * <p>Iteration order and array order follow the backing list encounter order and are not part of
- * set semantics. Only {@link #toString()} sorts elements, for deterministic debugging output.
+ * AnnotationUtils#areSame} rather than a {@code TreeSet} with {@link
+ * AnnotationUtils#compareAnnotationMirrors}. In practice these sets are very small (typically 1-3
+ * elements, almost always fewer than 5) so a linear scan beats a sorted structure whose comparator
+ * invocation and per-node allocation exceed the benefit of O(log n) lookup.
  *
  * <p>Unmodifiability is tracked by a boolean flag.
  *
@@ -140,7 +138,7 @@ public class AnnotationMirrorSet
     private void checkMutable(
             @UnknownInitialization(AnnotationMirrorSet.class) AnnotationMirrorSet this) {
         if (unmodifiable) {
-            throw new UnsupportedOperationException("AnnotationMirrorSet is unmodifiable");
+            throw new TypeSystemError("AnnotationMirrorSet is unmodifiable");
         }
     }
 
@@ -186,7 +184,8 @@ public class AnnotationMirrorSet
 
     @Override
     public Iterator<@KeyFor("this") AnnotationMirror> iterator() {
-        return new AnnotationMirrorSetIterator(shadowList.iterator());
+        Iterator<@KeyFor("this") AnnotationMirror> it = shadowList.iterator();
+        return unmodifiable ? new ReadOnlyIter<@KeyFor("this") AnnotationMirror>(it) : it;
     }
 
     @Override
@@ -257,28 +256,42 @@ public class AnnotationMirrorSet
 
     @Override
     public boolean retainAll(Collection<?> c) {
-        boolean changed = false;
-        for (int i = shadowList.size() - 1; i >= 0; --i) {
-            if (!containsSame(c, shadowList.get(i))) {
-                if (!changed) {
-                    checkMutable();
-                    changed = true;
+        checkMutable();
+        ArrayList<@KeyFor("this") AnnotationMirror> newList = new ArrayList<>(shadowList.size());
+        for (Object o : c) {
+            if (!(o instanceof AnnotationMirror)) {
+                continue;
+            }
+            AnnotationMirror am = (AnnotationMirror) o;
+            if (indexOfSame(am) < 0) {
+                continue;
+            }
+            // Dedupe against newList.
+            boolean dup = false;
+            for (int i = 0, n = newList.size(); i < n; ++i) {
+                if (AnnotationUtils.areSame(newList.get(i), am)) {
+                    dup = true;
+                    break;
                 }
-                shadowList.remove(i);
+            }
+            if (!dup) {
+                @SuppressWarnings("keyfor:argument.type.incompatible") // element came from this set
+                boolean unused = newList.add(am);
             }
         }
-        if (changed) {
-            hashCodeCache = 0; // recompute
+        if (newList.size() != shadowList.size()) {
+            shadowList = newList;
+            return true;
         }
-        return changed;
+        return false;
     }
 
     @Override
     public boolean removeAll(Collection<?> c) {
-        boolean result = false;
+        boolean result = true;
         for (Object a : c) {
-            if (remove(a)) {
-                result = true;
+            if (!remove(a)) {
+                result = false;
             }
         }
         return result;
@@ -293,11 +306,7 @@ public class AnnotationMirrorSet
 
     @Override
     public String toString() {
-        // Keep deterministic debugging output without imposing ordering semantics on the set.
-        // This intentionally allocates and sorts only for debugging display.
-        ArrayList<AnnotationMirror> sorted = new ArrayList<>(shadowList);
-        sorted.sort(AnnotationUtils::compareAnnotationMirrors);
-        return sorted.toString();
+        return shadowList.toString();
     }
 
     @Override
@@ -331,29 +340,21 @@ public class AnnotationMirrorSet
         return hashCodeCache;
     }
 
-    /** Returns true iff {@code c} contains an annotation same as {@code am}. */
-    private static boolean containsSame(Collection<?> c, AnnotationMirror am) {
-        for (Object o : c) {
-            if (o instanceof AnnotationMirror
-                    && AnnotationUtils.areSame((AnnotationMirror) o, am)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /** Iterator wrapper that updates the hash cache and unmodifiability checks on remove(). */
-    private final class AnnotationMirrorSetIterator
-            implements Iterator<@KeyFor("this") AnnotationMirror> {
+    /**
+     * A minimal {@link Iterator} wrapper whose {@code remove()} throws.
+     *
+     * @param <T> element type
+     */
+    private static final class ReadOnlyIter<@KeyForBottom T> implements Iterator<T> {
         /** The real iterator. */
-        private final Iterator<@KeyFor("this") AnnotationMirror> it;
+        private final Iterator<T> it;
 
         /**
-         * Construct an iterator wrapper.
+         * Construct a readonly iterator wrapper.
          *
          * @param it the iterator to wrap
          */
-        AnnotationMirrorSetIterator(Iterator<@KeyFor("this") AnnotationMirror> it) {
+        ReadOnlyIter(Iterator<T> it) {
             this.it = it;
         }
 
@@ -363,15 +364,13 @@ public class AnnotationMirrorSet
         }
 
         @Override
-        public @KeyFor("this") AnnotationMirror next() {
+        public T next() {
             return it.next();
         }
 
         @Override
         public void remove() {
-            checkMutable();
-            it.remove();
-            hashCodeCache = 0; // recompute
+            throw new UnsupportedOperationException();
         }
     }
 }
