@@ -118,6 +118,9 @@ public class UnaryOperation extends JavaExpression {
 
     @Override
     public boolean equals(@Nullable Object other) {
+        if (this == other) {
+            return true;
+        }
         if (!(other instanceof UnaryOperation)) {
             return false;
         }

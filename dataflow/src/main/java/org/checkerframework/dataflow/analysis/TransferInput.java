@@ -279,6 +279,9 @@ public class TransferInput<V extends AbstractValue<V>, S extends Store<S>> imple
 
     @Override
     public boolean equals(@Nullable Object o) {
+        if (this == o) {
+            return true;
+        }
         if (o instanceof TransferInput) {
             @SuppressWarnings("unchecked")
             TransferInput<V, S> other = (TransferInput<V, S>) o;
