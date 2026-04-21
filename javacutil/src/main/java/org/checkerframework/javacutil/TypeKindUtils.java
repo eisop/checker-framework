@@ -22,6 +22,7 @@ public final class TypeKindUtils {
 
     static {
         Map<@FullyQualifiedName String, TypeKind> map = new LinkedHashMap<>();
+        // Keep consistent with checks in `isPossiblyBoxedSimpleName`.
         map.put("java.lang.Byte", TypeKind.BYTE);
         map.put("java.lang.Boolean", TypeKind.BOOLEAN);
         map.put("java.lang.Character", TypeKind.CHAR);
@@ -168,6 +169,7 @@ public final class TypeKindUtils {
      * @return whether the simple name matches the boxed primitive types
      */
     private static boolean isPossiblyBoxedSimpleName(Name n) {
+        // Keep consistent with keys in `boxedToPrimitiveType`.
         return n.contentEquals("Byte")
                 || n.contentEquals("Boolean")
                 || n.contentEquals("Character")
