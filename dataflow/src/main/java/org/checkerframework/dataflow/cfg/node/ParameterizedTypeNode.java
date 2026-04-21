@@ -47,9 +47,6 @@ public class ParameterizedTypeNode extends Node {
 
     @Override
     public boolean equals(@Nullable Object obj) {
-        if (this == obj) {
-            return true;
-        }
         if (!(obj instanceof ParameterizedTypeNode)) {
             return false;
         }

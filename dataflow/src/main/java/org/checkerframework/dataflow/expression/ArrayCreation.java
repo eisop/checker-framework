@@ -101,9 +101,6 @@ public class ArrayCreation extends JavaExpression {
 
     @Override
     public boolean equals(@Nullable Object obj) {
-        if (this == obj) {
-            return true;
-        }
         if (!(obj instanceof ArrayCreation)) {
             return false;
         }

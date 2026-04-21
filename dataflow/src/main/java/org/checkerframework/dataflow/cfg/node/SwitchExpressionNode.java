@@ -89,9 +89,6 @@ public class SwitchExpressionNode extends Node {
 
     @Override
     public boolean equals(@Nullable Object obj) {
-        if (this == obj) {
-            return true;
-        }
         if (!(obj instanceof SwitchExpressionNode)) {
             return false;
         }

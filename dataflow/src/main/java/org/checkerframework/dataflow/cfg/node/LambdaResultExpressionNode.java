@@ -65,9 +65,6 @@ public class LambdaResultExpressionNode extends Node {
 
     @Override
     public boolean equals(@Nullable Object obj) {
-        if (this == obj) {
-            return true;
-        }
         // No need to compare tree, since in a well-formed LambdaResultExpressionNode, result will
         // be the same only when tree is the same (this is similar to ReturnNode).
         if (!(obj instanceof LambdaResultExpressionNode)) {

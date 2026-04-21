@@ -57,9 +57,6 @@ public class SuperReference extends JavaExpression {
 
     @Override
     public boolean equals(@Nullable Object obj) {
-        if (this == obj) {
-            return true;
-        }
         return obj instanceof SuperReference;
     }
 

@@ -97,9 +97,6 @@ public class Constant implements AbstractValue<Constant> {
 
     @Override
     public boolean equals(@Nullable Object obj) {
-        if (this == obj) {
-            return true;
-        }
         if (!(obj instanceof Constant)) {
             return false;
         }

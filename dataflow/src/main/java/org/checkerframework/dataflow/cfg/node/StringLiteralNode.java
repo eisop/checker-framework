@@ -36,9 +36,6 @@ public class StringLiteralNode extends ValueLiteralNode {
 
     @Override
     public boolean equals(@Nullable Object obj) {
-        if (this == obj) {
-            return true;
-        }
         // test that obj is a StringLiteralNode
         if (!(obj instanceof StringLiteralNode)) {
             return false;
