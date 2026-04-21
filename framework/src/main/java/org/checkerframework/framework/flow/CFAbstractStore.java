@@ -1259,6 +1259,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      * equality, not by any subtype relationship. This method is used primarily to simplify the
      * equals predicate.
      */
+    @SuppressWarnings("interning:not.interned") // TODO: nicer fix?
     protected boolean supersetOf(CFAbstractStore<V, S> other) {
         for (Map.Entry<LocalVariable, V> e : other.localVariableValues.entrySet()) {
             LocalVariable key = e.getKey();
