@@ -7,6 +7,9 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import javax.lang.model.element.Element;
+import javax.lang.model.element.Name;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -140,8 +143,39 @@ public final class TypeKindUtils {
             return null;
         }
 
+        // Fast reject: all boxed primitives are in java.lang and have short names.
+        // A DeclaredType whose asElement is not a TypeElement, or whose simple name
+        // doesn't match one of 8 known short names, can't be boxed.
+        Element e = ((DeclaredType) type).asElement();
+        if (!(e instanceof TypeElement)) {
+            return null;
+        }
+        Name simple = e.getSimpleName();
+        // Simple-name compare is MUCH cheaper than qualified-name extraction:
+        // javac's Name.contentEquals uses byte-level compare on the shared name table.
+        if (!isPossiblyBoxedSimpleName(simple)) {
+            return null;
+        }
+        // Only now pay for getQualifiedName:
         String typeString = TypesUtils.getQualifiedName((DeclaredType) type);
         return boxedToPrimitiveType.get(typeString);
+    }
+
+    /**
+     * Is the simple name n possibly a boxed primitive?
+     *
+     * @param n the simple name of the type
+     * @return whether the simple name matches the boxed primitive types
+     */
+    private static boolean isPossiblyBoxedSimpleName(Name n) {
+        return n.contentEquals("Byte")
+                || n.contentEquals("Boolean")
+                || n.contentEquals("Character")
+                || n.contentEquals("Double")
+                || n.contentEquals("Float")
+                || n.contentEquals("Integer")
+                || n.contentEquals("Long")
+                || n.contentEquals("Short");
     }
 
     // No overload that takes AnnotatedTypeMirror because javacutil cannot depend on framework.
