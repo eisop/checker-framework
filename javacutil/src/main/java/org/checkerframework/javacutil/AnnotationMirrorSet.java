@@ -238,7 +238,13 @@ public class AnnotationMirrorSet
         return true;
     }
 
-    /** Returns true iff {@code c} contains an annotation same as {@code am}. */
+    /**
+     * Returns true iff {@code c} contains an annotation same as {@code am}.
+     *
+     * @param c the collection to check
+     * @param am the element to look for
+     * @return whether the collection contains the same element
+     */
     private static boolean containsSame(Collection<?> c, AnnotationMirror am) {
         for (Object o : c) {
             if (o instanceof AnnotationMirror
