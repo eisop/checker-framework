@@ -167,13 +167,20 @@ public class MethodCall extends JavaExpression {
                 && arguments.equals(other.arguments);
     }
 
+    /** Cache the hashCode. Recomputed if zero. */
+    private int hashCodeCache = 0;
+
     @Override
     public int hashCode() {
-        if (method.getKind() == ElementKind.CONSTRUCTOR) {
-            // No two constructor instances have the same hashcode.
-            return System.identityHashCode(this);
+        if (hashCodeCache == 0) {
+            if (method.getKind() == ElementKind.CONSTRUCTOR) {
+                // No two constructor instances have the same hashcode.
+                hashCodeCache = System.identityHashCode(this);
+            } else {
+                hashCodeCache = Objects.hash(method, receiver, arguments);
+            }
         }
-        return Objects.hash(method, receiver, arguments);
+        return hashCodeCache;
     }
 
     @Override
