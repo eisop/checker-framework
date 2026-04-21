@@ -238,6 +238,17 @@ public class AnnotationMirrorSet
         return true;
     }
 
+    /** Returns true iff {@code c} contains an annotation same as {@code am}. */
+    private static boolean containsSame(Collection<?> c, AnnotationMirror am) {
+        for (Object o : c) {
+            if (o instanceof AnnotationMirror
+                    && AnnotationUtils.areSame((AnnotationMirror) o, am)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     public boolean addAll(
             @UnknownInitialization(AnnotationMirrorSet.class) AnnotationMirrorSet this,
@@ -256,42 +267,28 @@ public class AnnotationMirrorSet
 
     @Override
     public boolean retainAll(Collection<?> c) {
-        checkMutable();
-        ArrayList<@KeyFor("this") AnnotationMirror> newList = new ArrayList<>(shadowList.size());
-        for (Object o : c) {
-            if (!(o instanceof AnnotationMirror)) {
-                continue;
-            }
-            AnnotationMirror am = (AnnotationMirror) o;
-            if (indexOfSame(am) < 0) {
-                continue;
-            }
-            // Dedupe against newList.
-            boolean dup = false;
-            for (int i = 0, n = newList.size(); i < n; ++i) {
-                if (AnnotationUtils.areSame(newList.get(i), am)) {
-                    dup = true;
-                    break;
+        boolean changed = false;
+        for (int i = shadowList.size() - 1; i >= 0; --i) {
+            if (!containsSame(c, shadowList.get(i))) {
+                if (!changed) {
+                    checkMutable();
+                    changed = true;
                 }
-            }
-            if (!dup) {
-                @SuppressWarnings("keyfor:argument.type.incompatible") // element came from this set
-                boolean unused = newList.add(am);
+                shadowList.remove(i);
             }
         }
-        if (newList.size() != shadowList.size()) {
-            shadowList = newList;
-            return true;
+        if (changed) {
+            hashCodeCache = 0; // recompute
         }
-        return false;
+        return changed;
     }
 
     @Override
     public boolean removeAll(Collection<?> c) {
-        boolean result = true;
+        boolean result = false;
         for (Object a : c) {
-            if (!remove(a)) {
-                result = false;
+            if (remove(a)) {
+                result = true;
             }
         }
         return result;
@@ -306,7 +303,9 @@ public class AnnotationMirrorSet
 
     @Override
     public String toString() {
-        return shadowList.toString();
+        ArrayList<AnnotationMirror> sorted = new ArrayList<>(shadowList);
+        sorted.sort(AnnotationUtils::compareAnnotationMirrors);
+        return sorted.toString();
     }
 
     @Override
@@ -340,7 +339,11 @@ public class AnnotationMirrorSet
         return hashCodeCache;
     }
 
-    /** A minimal {@link Iterator} wrapper whose {@code remove()} throws. */
+    /**
+     * A minimal {@link Iterator} wrapper whose {@code remove()} throws.
+     *
+     * @param <T> the element type
+     */
     private static final class ReadOnlyIter<@KeyForBottom T> implements Iterator<T> {
         /** The real iterator. */
         private final Iterator<T> it;
