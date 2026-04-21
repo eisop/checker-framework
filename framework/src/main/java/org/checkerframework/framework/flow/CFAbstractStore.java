@@ -1267,11 +1267,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         for (Map.Entry<LocalVariable, V> e : other.localVariableValues.entrySet()) {
             LocalVariable key = e.getKey();
             V value = localVariableValues.get(key);
-            if (value == null) {
-                return false;
-            }
-            V eValue = e.getValue();
-            if (value != eValue && !value.equals(eValue)) {
+            if (value == null || !value.equals(e.getValue())) {
                 return false;
             }
         }
@@ -1281,44 +1277,28 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         for (Map.Entry<FieldAccess, V> e : other.fieldValues.entrySet()) {
             FieldAccess key = e.getKey();
             V value = fieldValues.get(key);
-            if (value == null) {
-                return false;
-            }
-            V eValue = e.getValue();
-            if (value != eValue && !value.equals(eValue)) {
+            if (value == null || !value.equals(e.getValue())) {
                 return false;
             }
         }
         for (Map.Entry<ArrayAccess, V> e : other.arrayValues.entrySet()) {
             ArrayAccess key = e.getKey();
             V value = arrayValues.get(key);
-            if (value == null) {
-                return false;
-            }
-            V eValue = e.getValue();
-            if (value != eValue && !value.equals(eValue)) {
+            if (value == null || !value.equals(e.getValue())) {
                 return false;
             }
         }
         for (Map.Entry<MethodCall, V> e : other.methodCallExpressions.entrySet()) {
             MethodCall key = e.getKey();
             V value = methodCallExpressions.get(key);
-            if (value == null) {
-                return false;
-            }
-            V eValue = e.getValue();
-            if (value != eValue && !value.equals(eValue)) {
+            if (value == null || !value.equals(e.getValue())) {
                 return false;
             }
         }
         for (Map.Entry<ClassName, V> e : other.classValues.entrySet()) {
             ClassName key = e.getKey();
             V value = classValues.get(key);
-            if (value == null) {
-                return false;
-            }
-            V eValue = e.getValue();
-            if (value != eValue && !value.equals(eValue)) {
+            if (value == null || !value.equals(e.getValue())) {
                 return false;
             }
         }
@@ -1327,9 +1307,6 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
 
     @Override
     public boolean equals(@Nullable Object o) {
-        if (this == o) {
-            return true;
-        }
         if (o instanceof CFAbstractStore) {
             @SuppressWarnings("unchecked")
             CFAbstractStore<V, S> other = (CFAbstractStore<V, S>) o;
