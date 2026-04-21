@@ -68,6 +68,8 @@ change your transfer function. See `NonEmptyTransfer` for an example.
 The `AbstractNodeVisitor` now has more summary methods, following the class hierarchy of
 `Node` and conceptual categories.
 
+`AnnotationMirrorSet` now only implements `Set`, not `NavigableSet`.
+
 Fixed nullness annotations and documentation of the following methods in `SourceChecker`:
 - `reportError`
 - `reportWarning`
