@@ -95,8 +95,8 @@ public class ConstantPropagationStore implements Store<ConstantPropagationStore>
 
     @Override
     public boolean equals(@Nullable Object o) {
-        if (o == null) {
-            return false;
+        if (this == o) {
+            return true;
         }
         if (!(o instanceof ConstantPropagationStore)) {
             return false;

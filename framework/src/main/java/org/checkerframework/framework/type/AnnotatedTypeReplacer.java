@@ -74,7 +74,7 @@ public class AnnotatedTypeReplacer extends DoubleAnnotatedTypeScanner<Void> {
      */
     protected void replaceAnnotations(AnnotatedTypeMirror from, AnnotatedTypeMirror to) {
         if (top == null) {
-            to.replaceAnnotations(from.getAnnotations());
+            to.replaceAnnotations(from.getAnnotationsField());
         } else {
             AnnotationMirror replacement = from.getAnnotationInHierarchy(top);
             if (replacement != null) {
@@ -111,7 +111,7 @@ public class AnnotatedTypeReplacer extends DoubleAnnotatedTypeScanner<Void> {
                 }
             } else {
                 List<AnnotationMirror> toRemove = new ArrayList<>(1);
-                for (AnnotationMirror toPrimaryAnno : to.getAnnotations()) {
+                for (AnnotationMirror toPrimaryAnno : to.getAnnotationsField()) {
                     if (from.getAnnotationInHierarchy(toPrimaryAnno) == null) {
                         // Doing the removal here directly can lead to a
                         // ConcurrentModificationException,

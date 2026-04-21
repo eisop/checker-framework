@@ -160,15 +160,23 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
         this(null, null);
     }
 
-    // To prevent infinite loops
-    protected final IdentityHashMap<AnnotatedTypeMirror, R> visitedNodes = new IdentityHashMap<>();
+    /**
+     * To prevent infinite loops. Should only be re-assigned in reset, see note there. No code
+     * should re-assign the field or hold an alias to this object.
+     */
+    protected IdentityHashMap<AnnotatedTypeMirror, R> visitedNodes = new IdentityHashMap<>();
 
     /**
      * Reset the scanner to allow reuse of the same instance. Subclasses should override this method
      * to clear their additional state; they must call the super implementation.
      */
     public void reset() {
-        visitedNodes.clear();
+        // Instead of re-using the same visitedNodes instance and clear-ing it, profiling showed it
+        // to be more efficient to create a new instance.
+        // visitedNodes.clear();
+        if (!visitedNodes.isEmpty()) {
+            visitedNodes = new IdentityHashMap<>();
+        }
     }
 
     /**

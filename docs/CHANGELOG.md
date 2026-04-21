@@ -3,6 +3,9 @@ Version 3.49.5-eisop1 (July ??, 2025)
 
 **User-visible changes:**
 
+Considerable performance improvements. In a large project (over 4000 .java files) with
+complex qualifiers, compilation time was reduced from around 30 minutes to around 11 minutes.
+
 The new command-line option `-AonlyAnnotatedFor` suppresses all type-checking errors and warnings outside the scope of
 a corresponding `@AnnotatedFor` annotation.
 Note that the `@AnnotatedFor` annotation must include the checker's name to enable warnings from that checker.
@@ -40,7 +43,12 @@ The `ClassBound` annotation can now be used with anonymous types.
 
 **Implementation details:**
 
+`CFAbstractTranfer` now returns a `RegularTransferResult` when the visited method has non-boolean return type, instead of always returning a `ConditionalTransferResult`.
+If your checker needs a `ConditionalTransferResult` for non-boolean methods, you need to change your transfer function. See `NonEmptyTransfer` for an example.
+
 The `AbstractNodeVisitor` now has more summary methods, following the class hierarchy of `Node` and conceptual categories.
+
+`AnnotationMirrorSet` now only implements `Set`, not `NavigableSet`.
 
 Fixed nullness annotations and documentation of the following methods in `SourceChecker`:
 - `reportError`
@@ -51,9 +59,10 @@ Fixed nullness annotations and documentation of the following methods in `Source
 
 Removed method `InitializationParentAnnotatedTypeFactory.createUnderInitializationAnnotation(Class<?>)` from the Initialization Checker; use `createUnderInitializationAnnotation(TypeMirror)` instead.
 
+
 **Closed issues:**
 
-eisop#1247, eisop#1263, eisop#1310, eisop#1326, typetools#7096, eisop#1448, eisop#1543.
+eisop#1099, eisop#1247, eisop#1263, eisop#1310, eisop#1326, typetools#7096, eisop#1448, eisop#1543.
 
 
 Version 3.49.5 (June 30, 2025)

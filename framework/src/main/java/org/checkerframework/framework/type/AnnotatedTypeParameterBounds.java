@@ -44,6 +44,9 @@ public class AnnotatedTypeParameterBounds {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof AnnotatedTypeParameterBounds)) {
             return false;
         }
