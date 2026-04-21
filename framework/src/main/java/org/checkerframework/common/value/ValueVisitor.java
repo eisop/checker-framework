@@ -352,7 +352,7 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
                 && TypeKindUtils.isIntegral(exprTypeKind)) {
             AnnotationMirror castAnno = castType.getAnnotationInHierarchy(atypeFactory.UNKNOWNVAL);
             AnnotationMirror exprAnno = exprType.getAnnotationInHierarchy(atypeFactory.UNKNOWNVAL);
-            if (castAnno == exprAnno) {
+            if (AnnotationUtils.areSame(castAnno, exprAnno)) {
                 return true;
             }
             boolean castAnnoIsIntVal = atypeFactory.areSameByClass(castAnno, IntVal.class);

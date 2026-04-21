@@ -348,7 +348,8 @@ public class AnnotationMirrorSet
     /** Returns true iff {@code c} contains an annotation same as {@code am}. */
     private static boolean containsSame(Collection<?> c, AnnotationMirror am) {
         for (Object o : c) {
-            if (o instanceof AnnotationMirror && AnnotationUtils.areSame((AnnotationMirror) o, am)) {
+            if (o instanceof AnnotationMirror
+                    && AnnotationUtils.areSame((AnnotationMirror) o, am)) {
                 return true;
             }
         }
