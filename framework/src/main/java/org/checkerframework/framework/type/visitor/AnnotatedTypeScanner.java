@@ -174,7 +174,9 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
         // Instead of re-using the same visitedNodes instance and clear-ing it, profiling showed it
         // to be more efficient to create a new instance.
         // visitedNodes.clear();
-        visitedNodes = new IdentityHashMap<>();
+        if (!visitedNodes.isEmpty()) {
+            visitedNodes = new IdentityHashMap<>();
+        }
     }
 
     /**

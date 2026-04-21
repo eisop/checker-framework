@@ -64,14 +64,21 @@ public class FormalParameter extends JavaExpression {
         return element;
     }
 
+    /** Cache the hashCode. Recomputed if zero. */
+    private int hashCodeCache = 0;
+
     @Override
     public int hashCode() {
-        VarSymbol vs = (VarSymbol) element;
-        return Objects.hash(
-                index,
-                vs.name.toString(),
-                TypeAnnotationUtils.unannotatedType(vs.type).toString(),
-                vs.owner.toString());
+        if (hashCodeCache == 0) {
+            VarSymbol vs = (VarSymbol) element;
+            hashCodeCache =
+                    Objects.hash(
+                            index,
+                            vs.name.toString(),
+                            TypeAnnotationUtils.unannotatedType(vs.type).toString(),
+                            vs.owner.toString());
+        }
+        return hashCodeCache;
     }
 
     @Override
