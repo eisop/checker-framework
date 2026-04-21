@@ -301,7 +301,11 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
     }
 
-    /** Gets a helper object that holds references to methods with special handling. */
+    /**
+     * Gets a helper object that holds references to methods with special handling.
+     *
+     * @return the value method identifier object
+     */
     ValueMethodIdentifier getMethodIdentifier() {
         return methods;
     }
