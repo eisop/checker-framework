@@ -34,6 +34,9 @@ public class ReachingDefinitionNode {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof ReachingDefinitionNode)) {
             return false;
         }
