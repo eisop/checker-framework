@@ -61,10 +61,10 @@ public class NullChkNode extends Node {
         if (this == obj) {
             return true;
         }
-        if (!(obj instanceof NumericalPlusNode)) {
+        if (!(obj instanceof NullChkNode)) {
             return false;
         }
-        NumericalPlusNode other = (NumericalPlusNode) obj;
+        NullChkNode other = (NullChkNode) obj;
         return getOperand().equals(other.getOperand());
     }
 
