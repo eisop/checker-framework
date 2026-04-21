@@ -1262,7 +1262,6 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      * @param other the other store
      * @return true iff this store contains a superset of the map entries in the other store
      */
-    @SuppressWarnings("interning:not.interned") // TODO: nicer fix?
     protected boolean supersetOf(CFAbstractStore<V, S> other) {
         for (Map.Entry<LocalVariable, V> e : other.localVariableValues.entrySet()) {
             LocalVariable key = e.getKey();
@@ -1307,6 +1306,9 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
 
     @Override
     public boolean equals(@Nullable Object o) {
+        if (this == o) {
+            return true;
+        }
         if (o instanceof CFAbstractStore) {
             @SuppressWarnings("unchecked")
             CFAbstractStore<V, S> other = (CFAbstractStore<V, S>) o;
