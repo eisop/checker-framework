@@ -1,5 +1,6 @@
 package org.checkerframework.common.value;
 
+import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.Tree;
@@ -287,6 +288,16 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
         if (this.getClass() == ValueAnnotatedTypeFactory.class) {
             this.postInit();
+        }
+    }
+
+    @Override
+    public void setRoot(@Nullable CompilationUnitTree root) {
+        super.setRoot(root);
+        // Clear out the cache between compilation units.
+        // TODO: It would be nice to have a identity-based LRU cache.
+        if (specialIntRangeCache.size() > 100) {
+            specialIntRangeCache.clear();
         }
     }
 
