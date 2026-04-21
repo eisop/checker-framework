@@ -847,9 +847,9 @@ public class AnnotationBuilder {
 
         @Override
         public boolean equals(@Nullable Object obj) {
-        if (this == obj) {
-            return true;
-        }
+            if (this == obj) {
+                return true;
+            }
             // System.out.printf("Calling CFAV.equals()%n");
             if (!(obj instanceof AnnotationValue)) {
                 return false;
