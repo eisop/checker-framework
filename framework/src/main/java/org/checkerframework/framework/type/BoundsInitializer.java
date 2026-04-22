@@ -132,7 +132,7 @@ public class BoundsInitializer {
          *
          * @param atypeFactory the type factory
          */
-        public BoundInitializerVisitor(AnnotatedTypeFactory atypeFactory) {
+        private BoundInitializerVisitor(AnnotatedTypeFactory atypeFactory) {
             this.atypeFactory = atypeFactory;
         }
 

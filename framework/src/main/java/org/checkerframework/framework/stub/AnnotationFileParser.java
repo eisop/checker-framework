@@ -2407,6 +2407,25 @@ public class AnnotationFileParser {
         return findFieldElement(typeElt, enumConstName, astNode);
     }
 
+    /** Cache all the methods that are in a TypeElement. */
+    private final Map<TypeElement, List<ExecutableElement>> methodsInTypeElementCache =
+            CollectionsPlume.createLruCache(100);
+
+    /**
+     * Determine all the methods that are in a TypeElement, caching the result.
+     *
+     * @param typeElt the type element
+     * @return the methods in that type element
+     */
+    private List<ExecutableElement> methodsInTypeElement(TypeElement typeElt) {
+        List<ExecutableElement> res = methodsInTypeElementCache.get(typeElt);
+        if (res == null) {
+            res = ElementFilter.methodsIn(typeElt.getEnclosedElements());
+            methodsInTypeElementCache.put(typeElt, res);
+        }
+        return res;
+    }
+
     /**
      * Looks for a method element in {@code typeElt} that has the same name and formal parameter
      * types as {@code methodDecl}. Returns null, and possibly issues a warning, if no such method
@@ -2428,7 +2447,7 @@ public class AnnotationFileParser {
         int wantedMethodParams =
                 (methodDecl.getParameters() == null) ? 0 : methodDecl.getParameters().size();
         String wantedMethodString = AnnotationFileUtil.toString(methodDecl);
-        for (ExecutableElement method : ElementFilter.methodsIn(typeElt.getEnclosedElements())) {
+        for (ExecutableElement method : methodsInTypeElement(typeElt)) {
             if (wantedMethodParams == method.getParameters().size()
                     && wantedMethodName.contentEquals(method.getSimpleName().toString())
                     && ElementUtils.getSimpleSignature(method).equals(wantedMethodString)) {
@@ -2455,8 +2474,7 @@ public class AnnotationFileParser {
                         "method " + wantedMethodString + " not found in type " + typeElt);
                 if (debugAnnotationFileParser) {
                     stubDebug("  methods of %s:", typeElt);
-                    for (ExecutableElement method :
-                            ElementFilter.methodsIn(typeElt.getEnclosedElements())) {
+                    for (ExecutableElement method : methodsInTypeElement(typeElt)) {
                         stubDebug("    %s", method);
                     }
                 }
@@ -3425,13 +3443,13 @@ public class AnnotationFileParser {
     /** Represents a class: its package name and name (including outer class names if any). */
     private static class FqName {
         /** Name of the package being parsed, or null. */
-        public final @Nullable String packageName;
+        final @Nullable String packageName;
 
         /**
          * Name of the type being parsed. Includes outer class names if any. Null if the parser has
          * parsed a package declaration but has not yet gotten to a type declaration.
          */
-        public final @Nullable String className;
+        final @Nullable String className;
 
         /**
          * Create a new FqName, which represents a class.
@@ -3440,7 +3458,7 @@ public class AnnotationFileParser {
          * @param className unqualified name of the type, including outer class names if any. May be
          *     null.
          */
-        public FqName(@Nullable String packageName, @Nullable String className) {
+        FqName(@Nullable String packageName, @Nullable String className) {
             this.packageName = packageName;
             this.className = className;
         }

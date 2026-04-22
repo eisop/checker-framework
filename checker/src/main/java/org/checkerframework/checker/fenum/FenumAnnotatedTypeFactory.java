@@ -43,6 +43,7 @@ public class FenumAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      *
      * @param checker checker
      */
+    @SuppressWarnings("this-escape")
     public FenumAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
 

@@ -14,6 +14,7 @@ import java.util.Set;
 
 public class TypeDeclBoundsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
+    @SuppressWarnings("this-escape")
     public TypeDeclBoundsAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         postInit();

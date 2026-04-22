@@ -384,6 +384,8 @@ annotation.  For classes without \<@AnnotatedFor>, the checker uses
 conservative defaults
 (see Section~\ref{defaults-classfile}) for any type use with no explicit
 user-written annotation, \emph{and} the checker issues no warnings.
+The command-line argument \code{-AonlyAnnotatedFor} can be used to  suppress errors and warnings outside of the scope of an \<@AnnotatedFor> annotation,
+but does not change the default qualifiers for source code (See Section~\ref{aonlyannotatedfor}).
 \end{sloppypar}
 
 The \refqualclass{framework/qual}{AnnotatedFor} annotation, written on a

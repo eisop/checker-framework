@@ -122,7 +122,7 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
             AnnotationMirrorSet lubs = null;
             for (AnnotatedDeclaredType altern : annotatedUnionType.getAlternatives()) {
                 if (lubs == null) {
-                    lubs = altern.getAnnotations();
+                    lubs = altern.getAnnotationsField();
                 } else {
                     TypeMirror typeMirror = type.getUnderlyingType();
                     AnnotationMirrorSet newLubs = new AnnotationMirrorSet();
@@ -156,8 +156,9 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
 
     private AnnotatedTypeMirror copyPrimaryAnnos(AnnotatedTypeMirror from, AnnotatedTypeMirror to) {
         // There may have been annotations added by a recursive call to asSuper, so replace existing
-        // annotations
-        to.replaceAnnotations(new ArrayList<>(from.getAnnotations()));
+        // annotations.
+        // TODO: Use from.getAnnotations() to avoid a concurrent modification problem.
+        to.replaceAnnotations(from.getAnnotations());
         // if to is a Typevar or Wildcard, then replaceAnnotations also sets primary annotations on
         // the bounds to from.getAnnotations()
 
@@ -166,7 +167,7 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
             // Alternatives cannot have type arguments, so asSuper isn't called recursively
             AnnotatedUnionType unionType = (AnnotatedUnionType) to;
             for (AnnotatedDeclaredType altern : unionType.getAlternatives()) {
-                altern.addMissingAnnotations(unionType.getAnnotations());
+                altern.addMissingAnnotations(unionType.getAnnotationsField());
             }
         }
         return to;
@@ -606,6 +607,12 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
             AnnotatedTypeVariable type, AnnotatedTypeMirror superType, Void p) {
         AnnotatedTypeMirror asSuper = visit(type.getUpperBound(), superType, p);
         return copyPrimaryAnnos(type, asSuper);
+    }
+
+    @Override
+    public AnnotatedTypeMirror visitTypevar_Array(
+            AnnotatedTypeVariable type, AnnotatedArrayType superType, Void p) {
+        return visitTypevar_NotTypevarNorWildcard(type, superType, p);
     }
 
     @Override

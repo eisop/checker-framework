@@ -15,6 +15,7 @@ public class InitializationFieldAccessAnnotatedTypeFactory
      *
      * @param checker the checker to which the new type factory belongs
      */
+    @SuppressWarnings("this-escape")
     public InitializationFieldAccessAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         postInit();

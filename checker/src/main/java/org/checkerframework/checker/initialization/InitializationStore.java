@@ -21,6 +21,7 @@ import javax.lang.model.element.VariableElement;
  *
  * @see InitializationTransfer
  */
+@SuppressWarnings("AlmostJavadoc") // Commented-out code.
 public class InitializationStore extends CFAbstractStore<CFValue, InitializationStore> {
 
     /** The set of fields that are initialized. */
@@ -200,7 +201,7 @@ public class InitializationStore extends CFAbstractStore<CFValue, Initialization
                         "initialized fields", ToStringComparator.sorted(initializedFields));
 
         if (superVisualize.isEmpty()) {
-            return String.join(viz.getSeparator(), initializedVisualize);
+            return initializedVisualize;
         } else {
             return String.join(viz.getSeparator(), superVisualize, initializedVisualize);
         }

@@ -1,0 +1,46 @@
+// ///////////////////////////////////////////////////////////////////////////
+// Checker Framework pluggable type-checking and NullAway example
+//
+
+plugins {
+    id 'java'
+    id 'net.ltgt.errorprone' version '5.1.0'
+    // Checker Framework pluggable type-checking
+    id 'org.checkerframework' version '1.0.2'
+}
+
+ext {
+    versions = [
+        eisopVersion: '3.49.3-eisop1',
+    ]
+}
+
+dependencies {
+    compileOnly("io.github.eisop:checker-qual:${versions.eisopVersion}")
+    testCompileOnly("io.github.eisop:checker-qual:${versions.eisopVersion}")
+    checkerFramework("io.github.eisop:checker-qual:${versions.eisopVersion}")
+    checkerFramework("io.github.eisop:checker:${versions.eisopVersion}")
+
+    if (JavaVersion.current() >= JavaVersion.VERSION_21) {
+        errorprone("com.google.errorprone:error_prone_core:2.49.0")
+    }
+    errorprone("com.uber.nullaway:nullaway:0.13.4")
+}
+
+repositories {
+    mavenCentral()
+}
+
+checkerFramework {
+    version = "dependencies"
+    checkers = [
+        'org.checkerframework.checker.nullness.NullnessChecker',
+    ]
+    extraJavacArgs = ['-Aversion']
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.errorprone {
+        option("NullAway:AnnotatedPackages", "com.example")
+    }
+}

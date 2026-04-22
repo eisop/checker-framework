@@ -78,7 +78,10 @@ import javax.lang.model.type.TypeVariable;
      * @param map a mapping from type variable to inference variable
      * @param id a unique number for this variable
      */
-    @SuppressWarnings("interning:argument") // "this" is interned
+    @SuppressWarnings({
+        "interning:argument", // "this" is interned
+        "this-escape"
+    })
     protected Variable(
             AnnotatedTypeVariable typeVariable,
             TypeVariable typeVariableJava,
@@ -123,14 +126,14 @@ import javax.lang.model.type.TypeVariable;
                         ((IntersectionType) upperBound).getBounds().iterator();
                 for (AnnotatedTypeMirror bound : typeVariable.getUpperBound().directSupertypes()) {
                     AbstractType t1 = InferenceType.create(bound, iter.next(), map, context);
-                    variableBounds.addBound(BoundKind.UPPER, t1);
+                    variableBounds.addBound(null, BoundKind.UPPER, t1);
                 }
                 break;
             default:
                 AbstractType t1 =
                         InferenceType.create(
                                 typeVariable.getUpperBound(), upperBound, map, context);
-                variableBounds.addBound(BoundKind.UPPER, t1);
+                variableBounds.addBound(null, BoundKind.UPPER, t1);
                 break;
         }
 
@@ -176,10 +179,13 @@ import javax.lang.model.type.TypeVariable;
 
     @Override
     public String toString() {
-        if (variableBounds.hasInstantiation()) {
-            return "a" + id + " := " + variableBounds.getInstantiation();
-        }
-        return "a" + id;
+        return String.format("%s from %s", typeVariableJava, invocation);
+
+        // Uncomment for easier to read names for debugging.
+        // if (variableBounds.hasInstantiation()) {
+        //    return "a" + id + " := " + variableBounds.getInstantiation();
+        //  }
+        //  return "a" + id;
     }
 
     /**

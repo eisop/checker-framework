@@ -4,22 +4,26 @@
 
 plugins {
     id 'java'
-    id 'io.freefair.lombok' version '8.12.1'
+    id 'io.freefair.lombok' version '9.4.0'
     // Checker Framework pluggable type-checking
-    id 'org.checkerframework' version '0.6.52'
+    id 'org.checkerframework' version '1.0.2'
 }
 
 lombok {
     version = "1.18.30"
 }
 
-apply plugin: 'org.checkerframework'
+ext {
+    versions = [
+        eisopVersion: '3.49.3-eisop1',
+    ]
+}
 
-def cfHome = "${projectDir}/../../.."
 dependencies {
-    compileOnly files(cfHome + '/checker/dist/checker-qual.jar')
-    testCompileOnly files(cfHome + '/checker/dist/checker-qual.jar')
-    checkerFramework files(cfHome + '/checker/dist/checker.jar')
+    compileOnly("io.github.eisop:checker-qual:${versions.eisopVersion}")
+    testCompileOnly("io.github.eisop:checker-qual:${versions.eisopVersion}")
+    checkerFramework("io.github.eisop:checker-qual:${versions.eisopVersion}")
+    checkerFramework("io.github.eisop:checker:${versions.eisopVersion}")
 }
 
 repositories {
@@ -27,6 +31,7 @@ repositories {
 }
 
 checkerFramework {
+    version = "dependencies"
     checkers = [
         'org.checkerframework.checker.nullness.NullnessChecker',
     ]

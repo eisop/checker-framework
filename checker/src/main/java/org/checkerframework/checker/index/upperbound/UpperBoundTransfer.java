@@ -145,7 +145,7 @@ public class UpperBoundTransfer extends IndexAbstractTransfer {
         // null if right-hand-side is not an array creation expression
         ArrayCreationNode acNode =
                 (expNodeSansCast instanceof ArrayCreationNode)
-                        ? acNode = (ArrayCreationNode) expNodeSansCast
+                        ? (ArrayCreationNode) expNodeSansCast
                         : null;
 
         if (acNode != null) {

@@ -1,21 +1,22 @@
 package org.checkerframework.checker.resourceleak;
 
 import com.google.common.collect.ImmutableSet;
+import com.sun.source.tree.CompilationUnitTree;
 
-import org.checkerframework.checker.calledmethods.CalledMethodsChecker;
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.mustcall.MustCallChecker;
-import org.checkerframework.checker.mustcall.MustCallNoCreatesMustCallForChecker;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.common.basetype.BaseTypeVisitor;
-import org.checkerframework.framework.qual.StubFiles;
+import org.checkerframework.checker.rlccalledmethods.RLCCalledMethodsChecker;
+import org.checkerframework.framework.source.AggregateChecker;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.source.SupportedOptions;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.NavigableSet;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -25,9 +26,18 @@ import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 
 /**
- * The entry point for the Resource Leak Checker. This checker is a modifed {@link
- * CalledMethodsChecker} that checks that the must-call obligations of each expression (as computed
- * via the {@link org.checkerframework.checker.mustcall.MustCallChecker} have been fulfilled.
+ * The entry point for the Resource Leak Checker. This checker only counts the number of {@link
+ * org.checkerframework.checker.mustcall.qual.MustCall} annotations and defines a set of ignored
+ * exceptions. This checker calls the {@link RLCCalledMethodsChecker} as a direct subchecker, which
+ * then in turn calls the {@link MustCallChecker} as a subchecker, and afterwards this checker
+ * traverses the CFG to check whether all MustCall obligations are fulfilled.
+ *
+ * <p>The checker hierarchy is: this "empty" RLC &rarr; RLCCalledMethodsChecker &rarr;
+ * MustCallChecker
+ *
+ * <p>The MustCallChecker is a subchecker of the RLCCm checker (instead of a sibling), since we want
+ * them to operate on the same CFG (so we can get both a CM and MC store for a given CFG block),
+ * which only works if one of them is a subchecker of the other.
  */
 @SupportedOptions({
     "permitStaticOwning",
@@ -40,8 +50,7 @@ import javax.tools.Diagnostic;
     // NO-AFU    ResourceLeakChecker.ENABLE_WPI_FOR_RLC,
     ResourceLeakChecker.ENABLE_RETURNS_RECEIVER
 })
-@StubFiles("IOUtils.astub")
-public class ResourceLeakChecker extends CalledMethodsChecker {
+public class ResourceLeakChecker extends AggregateChecker {
 
     /** Creates a ResourceLeakChecker. */
     public ResourceLeakChecker() {}
@@ -155,21 +164,11 @@ public class ResourceLeakChecker extends CalledMethodsChecker {
     private @MonotonicNonNull SetOfTypes ignoredExceptions = null;
 
     @Override
-    protected Set<Class<? extends SourceChecker>> getImmediateSubcheckerClasses() {
-        Set<Class<? extends SourceChecker>> checkers = super.getImmediateSubcheckerClasses();
-
-        if (this.processingEnv.getOptions().containsKey(MustCallChecker.NO_CREATES_MUSTCALLFOR)) {
-            checkers.add(MustCallNoCreatesMustCallForChecker.class);
-        } else {
-            checkers.add(MustCallChecker.class);
-        }
+    protected Set<Class<? extends SourceChecker>> getSupportedCheckers() {
+        Set<Class<? extends SourceChecker>> checkers = new LinkedHashSet<>(1);
+        checkers.add(RLCCalledMethodsChecker.class);
 
         return checkers;
-    }
-
-    @Override
-    protected BaseTypeVisitor<?> createSourceVisitor() {
-        return new ResourceLeakVisitor(this);
     }
 
     @Override
@@ -199,16 +198,7 @@ public class ResourceLeakChecker extends CalledMethodsChecker {
     }
 
     /**
-     * Disable the Returns Receiver Checker unless it has been explicitly enabled with the {@link
-     * #ENABLE_RETURNS_RECEIVER} option.
-     */
-    @Override
-    protected boolean isReturnsReceiverDisabled() {
-        return !hasOption(ENABLE_RETURNS_RECEIVER) || super.isReturnsReceiverDisabled();
-    }
-
-    /**
-     * Get the set of exceptions that should be ignored. This set comes from the {@link
+     * Returns the set of exceptions that should be ignored. This set comes from the {@link
      * #IGNORED_EXCEPTIONS} option if it was provided, or {@link #DEFAULT_IGNORED_EXCEPTIONS} if
      * not.
      *
@@ -320,5 +310,18 @@ public class ResourceLeakChecker extends CalledMethodsChecker {
             return null;
         }
         return types.getDeclaredType(elem);
+    }
+
+    @Override
+    public NavigableSet<String> getSuppressWarningsPrefixes() {
+        NavigableSet<String> result = super.getSuppressWarningsPrefixes();
+        result.add("builder");
+        return result;
+    }
+
+    // public to allow access from RLCCalledMethodsAnnotatedTypeFactory.
+    @Override
+    public void setRoot(CompilationUnitTree newRoot) {
+        super.setRoot(newRoot);
     }
 }

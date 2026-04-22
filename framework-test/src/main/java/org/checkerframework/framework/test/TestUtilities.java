@@ -75,6 +75,9 @@ public class TestUtilities {
     /** True if the JVM is version 21 or above. */
     public static final boolean IS_AT_LEAST_21_JVM = SystemUtil.jreVersion >= 21;
 
+    /** True if the JVM is version 22 or above. */
+    public static final boolean IS_AT_LEAST_22_JVM = SystemUtil.jreVersion >= 22;
+
     /**
      * Find test java sources within currentDir/tests.
      *
@@ -282,7 +285,8 @@ public class TestUtilities {
             return false;
         }
 
-        try (Scanner in = new Scanner(file, StandardCharsets.UTF_8.name())) {
+        try (@SuppressWarnings("JdkObsolete")
+                Scanner in = new Scanner(file, StandardCharsets.UTF_8.name())) {
             while (in.hasNext()) {
                 String nextLine = in.nextLine();
                 if (nextLine.contains("@skip-test")
@@ -298,8 +302,10 @@ public class TestUtilities {
                         || (!IS_AT_MOST_17_JVM && nextLine.contains("@above-java17-jdk-skip-test"))
                         || (!IS_AT_LEAST_18_JVM && nextLine.contains("@below-java18-jdk-skip-test"))
                         || (!IS_AT_MOST_18_JVM && nextLine.contains("@above-java18-jdk-skip-test"))
-                        || (!IS_AT_LEAST_21_JVM
-                                && nextLine.contains("@below-java21-jdk-skip-test"))) {
+                        || (!IS_AT_LEAST_21_JVM && nextLine.contains("@below-java21-jdk-skip-test"))
+                        || (!IS_AT_LEAST_22_JVM
+                                && nextLine.contains("@below-java22-jdk-skip-test"))) {
+
                     return false;
                 }
             }

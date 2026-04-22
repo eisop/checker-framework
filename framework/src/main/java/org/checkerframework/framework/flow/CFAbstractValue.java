@@ -71,6 +71,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
      * @param annotations the annotations in this abstract value
      * @param underlyingType the underlying (Java) type in this abstract value
      */
+    @SuppressWarnings("this-escape")
     protected CFAbstractValue(
             CFAbstractAnalysis<V, ?, ?> analysis,
             AnnotationMirrorSet annotations,
@@ -175,6 +176,9 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
     @SuppressWarnings("interning:not.interned") // efficiency pre-test
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof CFAbstractValue)) {
             return false;
         }
@@ -293,7 +297,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
          *
          * @param backup value to use if no most specific value is found
          */
-        public MostSpecificVisitor(@Nullable V backup) {
+        MostSpecificVisitor(@Nullable V backup) {
             if (backup != null) {
                 this.backupAMSet = backup.getAnnotations();
             } else {

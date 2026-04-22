@@ -94,6 +94,7 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
      * @param invariantArrayComponents whether to make array subtyping invariant with respect to
      *     array component types
      */
+    @SuppressWarnings("this-escape")
     public DefaultTypeHierarchy(
             BaseTypeChecker checker,
             QualifierHierarchy qualHierarchy,
@@ -123,6 +124,15 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
     }
 
     /**
+     * Tracks re-entrant calls to {@link #isSubtype(AnnotatedTypeMirror, AnnotatedTypeMirror)}. The
+     * visit histories are cleared only when this counter transitions from 1 to 0, i.e. at the end
+     * of a true outermost entry. {@link #isContainedWithinBounds} internally invokes the public
+     * 2-arg method, so a clear-on-every-exit would wipe the history mid-check and destroy cycle
+     * detection for recursive wildcard bounds.
+     */
+    private int isSubtypeDepth = 0;
+
+    /**
      * Returns true if subtype {@literal <:} supertype.
      *
      * <p>This implementation iterates over all top annotations and invokes {@link
@@ -136,13 +146,23 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
      */
     @Override
     public boolean isSubtype(AnnotatedTypeMirror subtype, AnnotatedTypeMirror supertype) {
-        for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
-            if (!isSubtype(subtype, supertype, top)) {
-                return false;
+        isSubtypeDepth++;
+        try {
+            for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
+                if (!isSubtype(subtype, supertype, top)) {
+                    return false;
+                }
+            }
+            return true;
+        } finally {
+            isSubtypeDepth--;
+
+            // Bound the lifetime of the visit histories to a single top-level check.
+            if (isSubtypeDepth == 0) {
+                isSubtypeVisitHistory.clear();
+                areEqualVisitHistory.clear();
             }
         }
-
-        return true;
     }
 
     /** A set of annotations and a {@link TypeMirror}. */
@@ -174,14 +194,14 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
          * @return a shallow type created from {@code type}
          */
         @SuppressWarnings("nullness") // AnnotatedTypeMirror isn't annotated for nullness.
-        public static ShallowType create(AnnotatedTypeMirror type) {
+        static ShallowType create(AnnotatedTypeMirror type) {
             AnnotatedTypeMirror erasedType = type.getErased();
             TypeMirror typeMirror =
                     erasedType.getKind() == type.getKind()
                             ? type.getUnderlyingType()
                             : erasedType.getUnderlyingType();
             // The effective annotations are the primary annotations on the erased type.
-            return new ShallowType(erasedType.getAnnotations(), typeMirror);
+            return new ShallowType(erasedType.getAnnotationsField(), typeMirror);
         }
     }
 

@@ -126,7 +126,7 @@ public class BoundSet implements ReductionResult {
         if (this.errorMsg.isEmpty()) {
             this.errorMsg = newSet.errorMsg;
         } else if (!newSet.errorMsg.isEmpty()) {
-            this.errorMsg += " " + newSet.errorMsg;
+            this.errorMsg += System.lineSeparator() + newSet.errorMsg;
         }
         return changed;
     }
@@ -273,10 +273,8 @@ public class BoundSet implements ReductionResult {
         Set<Variable> allVariables = new LinkedHashSet<>(variables);
         allVariables.addAll(additionalVars);
         for (Variable alpha : allVariables) {
-            LinkedHashSet<Variable> alphaDependencies = new LinkedHashSet<>();
-            // An inference variable alpha depends on the resolution of itself.
-            alphaDependencies.add(alpha);
-            alphaDependencies.addAll(alpha.getBounds().getVariablesMentionedInBounds());
+            LinkedHashSet<Variable> alphaDependencies =
+                    new LinkedHashSet<>(alpha.getBounds().getVariablesMentionedInBounds());
 
             if (alpha.isCaptureVariable()) {
                 // If alpha appears on the left-hand side of another bound of the form
@@ -293,6 +291,8 @@ public class BoundSet implements ReductionResult {
                     }
                 }
             }
+            // An inference variable alpha depends on the resolution of itself.
+            dependencies.putOrAdd(alpha, alpha);
         }
 
         // Add transitive dependencies

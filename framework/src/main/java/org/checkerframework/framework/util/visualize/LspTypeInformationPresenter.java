@@ -98,7 +98,9 @@ public class LspTypeInformationPresenter extends AbstractTypeInformationPresente
          * @return a message range corresponds to the tree
          */
         protected @Nullable TypeOccurrenceRange computeTypeOccurrenceRange(Tree tree) {
+            @SuppressWarnings("removal") // TODO: encapsulate methods
             long startPos = sourcePositions.getStartPosition(currentRoot, tree);
+            @SuppressWarnings("removal")
             long endPos = sourcePositions.getEndPosition(currentRoot, tree);
             if (startPos == Diagnostic.NOPOS || endPos == Diagnostic.NOPOS) {
                 // The tree doesn't exist in the source file.
@@ -180,7 +182,7 @@ public class LspTypeInformationPresenter extends AbstractTypeInformationPresente
                     // The preferred start column of MemberSelectTree locates the "."
                     // character before the member identifier. So we increase startCol
                     // by 1 to point to the start of the member identifier.
-                    startCol += 1;
+                    ++startCol;
                     endCol = startCol + ((MemberSelectTree) tree).getIdentifier().length() - 1;
                     break;
                 case MEMBER_REFERENCE:

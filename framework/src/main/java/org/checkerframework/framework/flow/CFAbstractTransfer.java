@@ -1,5 +1,6 @@
 package org.checkerframework.framework.flow;
 
+import com.sun.source.tree.AnnotatedTypeTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.LambdaExpressionTree;
@@ -24,6 +25,7 @@ import org.checkerframework.dataflow.cfg.UnderlyingAST;
 import org.checkerframework.dataflow.cfg.UnderlyingAST.CFGLambda;
 import org.checkerframework.dataflow.cfg.UnderlyingAST.CFGMethod;
 import org.checkerframework.dataflow.cfg.node.AbstractNodeVisitor;
+import org.checkerframework.dataflow.cfg.node.AnyPatternNode;
 import org.checkerframework.dataflow.cfg.node.ArrayAccessNode;
 import org.checkerframework.dataflow.cfg.node.AssignmentNode;
 import org.checkerframework.dataflow.cfg.node.CaseNode;
@@ -72,6 +74,7 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -338,8 +341,12 @@ public abstract class CFAbstractTransfer<
             }
 
             for (LocalVariableNode p : parameters) {
-                AnnotatedTypeMirror anno = atypeFactory.getAnnotatedType(p.getElement());
-                store.initializeMethodParameter(p, analysis.createAbstractValue(anno));
+                try {
+                    AnnotatedTypeMirror anno = atypeFactory.getAnnotatedType(p.getElement());
+                    store.initializeMethodParameter(p, analysis.createAbstractValue(anno));
+                } catch (Exception e) {
+                    throw new BugInCF("Problem in parameter " + p + " of lambda " + lambda, e);
+                }
             }
 
             @SuppressWarnings("interning:assignment.type.incompatible") // used in == tests
@@ -349,7 +356,7 @@ public abstract class CFAbstractTransfer<
                             TreeUtils.classAndMethodTreeKinds());
 
             Element enclosingElement = null;
-            if (enclosingTree.getKind() == Tree.Kind.METHOD) {
+            if (enclosingTree instanceof MethodTree) {
                 // If it is in an initializer, we need to use locals from the initializer.
                 enclosingElement = TreeUtils.elementFromDeclaration((MethodTree) enclosingTree);
 
@@ -432,7 +439,7 @@ public abstract class CFAbstractTransfer<
     private boolean doesLambdaLeak(CFGLambda lambda, AnnotatedTypeFactory aTypeFactory) {
         LambdaExpressionTree lambdaTree = lambda.getLambdaTree();
         Tree lambdaParent = aTypeFactory.getPath(lambdaTree).getParentPath().getLeaf();
-        if (lambdaParent.getKind() == Tree.Kind.METHOD_INVOCATION) {
+        if (lambdaParent instanceof MethodInvocationTree) {
             MethodInvocationTree invok = (MethodInvocationTree) lambdaParent;
             ExecutableElement methodElt = TreeUtils.elementFromUse(invok);
             AliasingAnnotatedTypeFactory aliasingAtf =
@@ -880,6 +887,11 @@ public abstract class CFAbstractTransfer<
         V leftV = p.getValueOfSubNode(leftN);
         V rightV = p.getValueOfSubNode(rightN);
 
+        // If one side of equality is false and the result is already forked by the other side,
+        // then them being equal means the result passed in should be flipped.
+        // e.g. P(a,b) == false <==> !P(a,b)
+        // TODO: Consider about a smarter way to handel this optimization, such as including boolean
+        // axioms like absorption rule?
         if (res.containsTwoStores()
                 && (NodeUtils.isConstantBoolean(leftN, false)
                         || NodeUtils.isConstantBoolean(rightN, false))) {
@@ -888,8 +900,8 @@ public abstract class CFAbstractTransfer<
             res = new ConditionalTransferResult<>(res.getResultValue(), thenStore, elseStore);
         }
 
-        // if annotations differ, use the one that is more precise for both
-        // sides (and add it to the store if possible)
+        // If annotations differ, use the one that is more precise for both
+        // sides (and add it to the store if possible).
         res = strengthenAnnotationOfEqualTo(res, leftN, rightN, leftV, rightV, false);
         res = strengthenAnnotationOfEqualTo(res, rightN, leftN, rightV, leftV, false);
         return res;
@@ -904,6 +916,11 @@ public abstract class CFAbstractTransfer<
         V leftV = p.getValueOfSubNode(leftN);
         V rightV = p.getValueOfSubNode(rightN);
 
+        // If one side of inequality is true and the result is already forked by the other side,
+        // then them being not equal means the result passed in should be flipped.
+        // e.g. P(a,b) != true <==> !P(a,b)
+        // TODO: Consider about a smarter way to handel this optimization, such as including boolean
+        // axioms like absorption rule?
         if (res.containsTwoStores()
                 && (NodeUtils.isConstantBoolean(leftN, true)
                         || NodeUtils.isConstantBoolean(rightN, true))) {
@@ -912,8 +929,8 @@ public abstract class CFAbstractTransfer<
             res = new ConditionalTransferResult<>(res.getResultValue(), thenStore, elseStore);
         }
 
-        // if annotations differ, use the one that is more precise for both
-        // sides (and add it to the store if possible)
+        // If annotations differ, use the one that is more precise for both
+        // sides (and add it to the store if possible).
         res = strengthenAnnotationOfEqualTo(res, leftN, rightN, leftV, rightV, true);
         res = strengthenAnnotationOfEqualTo(res, rightN, leftN, rightV, leftV, true);
 
@@ -1153,20 +1170,31 @@ public abstract class CFAbstractTransfer<
         // add new information based on postcondition
         processPostconditions(n, store, method, invocationTree);
 
-        S thenStore = store;
-        S elseStore = thenStore.copy();
+        if (TypesUtils.isBooleanType(method.getReturnType())) {
+            S thenStore = store;
+            S elseStore = thenStore.copy();
 
-        // add new information based on conditional postcondition
-        processConditionalPostconditions(n, method, invocationTree, thenStore, elseStore);
+            // add new information based on conditional postcondition
+            processConditionalPostconditions(n, method, invocationTree, thenStore, elseStore);
 
-        return new ConditionalTransferResult<>(
-                finishValue(resValue, thenStore, elseStore), thenStore, elseStore);
+            return new ConditionalTransferResult<>(
+                    finishValue(resValue, thenStore, elseStore), thenStore, elseStore);
+        } else {
+            return new RegularTransferResult<>(finishValue(resValue, store), store);
+        }
     }
 
     @Override
     public TransferResult<V, S> visitDeconstructorPattern(
             DeconstructorPatternNode n, TransferInput<V, S> in) {
         // TODO: Implement getting the type of a DeconstructorPatternTree.
+        V value = null;
+        return createTransferResult(value, in);
+    }
+
+    @Override
+    public TransferResult<V, S> visitAnyPattern(AnyPatternNode n, TransferInput<V, S> in) {
+        // This is an unnamed variable, so ignored it.
         V value = null;
         return createTransferResult(value, in);
     }
@@ -1185,7 +1213,7 @@ public abstract class CFAbstractTransfer<
 
         // The "reference type" is the type after "instanceof".
         Tree refTypeTree = node.getTree().getType();
-        if (refTypeTree != null && refTypeTree.getKind() == Tree.Kind.ANNOTATED_TYPE) {
+        if (refTypeTree instanceof AnnotatedTypeTree) {
             AnnotatedTypeMirror refType = analysis.atypeFactory.getAnnotatedType(refTypeTree);
             AnnotatedTypeMirror expType =
                     analysis.atypeFactory.getAnnotatedType(node.getTree().getExpression());

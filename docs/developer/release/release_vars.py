@@ -91,7 +91,7 @@ LIVE_CHECKER_REPO = "git@github.com:eisop/checker-framework.git"
 GIT_SCRIPTS_REPO = "https://github.com/eisop-plume-lib/git-scripts"
 PLUME_SCRIPTS_REPO = "https://github.com/eisop-plume-lib/plume-scripts"
 CHECKLINK_REPO = "https://github.com/eisop-plume-lib/checklink"
-PLUME_BIB_REPO = "https://github.com/mernst/plume-bib"
+PLUME_BIB_REPO = "https://github.com/eisop-plume-lib/plume-bib"
 
 # Location of the project directories in which we will build the actual projects.
 # When we build these projects are pushed to the INTERM repositories.
@@ -153,8 +153,8 @@ os.environ["PLUME_SCRIPTS"] = PLUME_SCRIPTS
 os.environ["CHECKLINK"] = CHECKLINK
 os.environ["BIBINPUTS"] = ".:" + PLUME_BIB
 os.environ["TEXINPUTS"] = ".:..:"
-os.environ["JAVA_17_HOME"] = "/usr/lib/jvm/java-17-openjdk-amd64/"
-os.environ["JAVA_HOME"] = os.environ["JAVA_17_HOME"]
+os.environ["JAVA_21_HOME"] = "/usr/lib/jvm/java-21-openjdk/"
+os.environ["JAVA_HOME"] = os.environ["JAVA_21_HOME"]
 
 EDITOR = os.getenv("EDITOR")
 if EDITOR is None:
