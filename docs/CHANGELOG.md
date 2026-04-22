@@ -3,6 +3,9 @@ Version 3.49.5-eisop1 (April 22, 2026)
 
 **User-visible changes:**
 
+The EISOP Checker Framework checks subtyping for receiver's type arguments when invoking a method.
+The annotations on type arguments of a method receiver (e.g., `void test(Box<@NonNull T> this)`) were previously ignored during type-checking.
+
 Considerable performance improvements. In a large project (over 4000 .java files) with
 complex qualifiers, compilation time was reduced from around 30 minutes to around 9 minutes.
 Running `allNullnessTests` went from around 3 minutes to 2.5 minutes and
@@ -86,7 +89,7 @@ instead.
 
 **Closed issues:**
 
-typetools#7096, eisop#1099, eisop#1219, eisop#1225, eisop#1231, eisop#1242,
+typetools#3203, typetools#7096, eisop#104, eisop#1099, eisop#1219, eisop#1225, eisop#1231, eisop#1242,
 eisop#1247, eisop#1257, eisop#1263, eisop#1265, eisop#1272, eisop#1310,
 eisop#1326, eisop#1444, eisop#1448, eisop#1500, eisop#1506, eisop#1536,
 eisop#1543, eisop#1565.
