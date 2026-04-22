@@ -1,5 +1,6 @@
 package org.checkerframework.common.value;
 
+import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.Tree;
@@ -68,6 +69,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -289,7 +291,21 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
     }
 
-    /** Gets a helper object that holds references to methods with special handling. */
+    @Override
+    public void setRoot(@Nullable CompilationUnitTree root) {
+        super.setRoot(root);
+        // Clear out the cache between compilation units.
+        // TODO: It would be nice to have a identity-based LRU cache.
+        if (specialIntRangeCache.size() > 100) {
+            specialIntRangeCache.clear();
+        }
+    }
+
+    /**
+     * Gets a helper object that holds references to methods with special handling.
+     *
+     * @return the value method identifier object
+     */
     ValueMethodIdentifier getMethodIdentifier() {
         return methods;
     }
@@ -472,8 +488,13 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     @Override
     public AnnotationMirrorSet getWidenedAnnotations(
             AnnotationMirrorSet annos, TypeKind typeKind, TypeKind widenedTypeKind) {
+        AnnotationMirror anno = qualHierarchy.findAnnotationInSameHierarchy(annos, UNKNOWNVAL);
+        if (anno == null) {
+            throw new TypeSystemError("No value annotation in: " + annos);
+        }
+
         return AnnotationMirrorSet.singleton(
-                convertSpecialIntRangeToStandardIntRange(annos.first(), typeKind));
+                convertSpecialIntRangeToStandardIntRange(anno, typeKind));
     }
 
     /**
@@ -691,11 +712,17 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         if (TypesUtils.isIntegralPrimitiveOrBoxed(typeMirror)) {
             Range maxRange = Range.create(primitiveKind);
             return convertSpecialIntRangeToStandardIntRange(anm, maxRange.to);
-
         } else {
             return convertSpecialIntRangeToStandardIntRange(anm, Long.MAX_VALUE);
         }
     }
+
+    /**
+     * Identity cache: true iff the mirror is one of IntRangeFromPositive/NonNeg/GTENegOne. Absence
+     * from the map means "unknown"; false means "known non-special".
+     */
+    private final IdentityHashMap<AnnotationMirror, Boolean> specialIntRangeCache =
+            new IdentityHashMap<>();
 
     /**
      * Converts {@link IntRangeFromPositive}, {@link IntRangeFromNonNegative}, or {@link
@@ -708,18 +735,33 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      */
     private AnnotationMirror convertSpecialIntRangeToStandardIntRange(
             AnnotationMirror anm, long max) {
-        if (AnnotationUtils.areSameByName(anm, INTRANGE_FROMPOS_NAME)) {
-            return createIntRangeAnnotation(1, max);
+        Boolean cached = specialIntRangeCache.get(anm);
+        if (Boolean.FALSE.equals(cached)) {
+            return anm; // fast path, ~95%+ of calls
         }
 
-        if (AnnotationUtils.areSameByName(anm, INTRANGE_FROMNONNEG_NAME)) {
-            return createIntRangeAnnotation(0, max);
+        String name = AnnotationUtils.annotationName(anm);
+        AnnotationMirror res;
+        boolean isSpecial;
+
+        if (name.equals(INTRANGE_FROMPOS_NAME)) {
+            res = createIntRangeAnnotation(1, max);
+            isSpecial = true;
+        } else if (name.equals(INTRANGE_FROMNONNEG_NAME)) {
+            res = createIntRangeAnnotation(0, max);
+            isSpecial = true;
+        } else if (name.equals(INTRANGE_FROMGTENEGONE_NAME)) {
+            res = createIntRangeAnnotation(-1, max);
+            isSpecial = true;
+        } else {
+            res = anm;
+            isSpecial = false;
         }
 
-        if (AnnotationUtils.areSameByName(anm, INTRANGE_FROMGTENEGONE_NAME)) {
-            return createIntRangeAnnotation(-1, max);
+        if (cached == null && !isSpecial) {
+            specialIntRangeCache.put(anm, false);
         }
-        return anm;
+        return res;
     }
 
     /**
