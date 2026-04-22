@@ -11,7 +11,7 @@ Running `allNullnessTests` went from around 3 minutes to 2.5 minutes and
 The EISOP Checker Framework runs under JDK 26 and under JDK 27 b18 early access
 builds -- that is, it runs on version 26 and 27 JVMs.
 
-The new command-line option `-AonlyAnnotatedFor` suppresses all	type-checking errors and
+The new command-line option `-AonlyAnnotatedFor` suppresses all type-checking errors and
 warnings outside the scope of a corresponding `@AnnotatedFor` annotation.
 Note that the `@AnnotatedFor` annotation must include the checker's name to enable
 warnings from that checker.
@@ -38,8 +38,8 @@ The Nullness Checker now has more fine-grained prefix options to suppress warnin
 - `@SuppressWarnings("keyfor")` is used to suppress warnings from the KeyFor Checker only,
   warnings from the Nullness and Initialization Checkers are not suppressed.
 
-The EISOP Checker Framework now use `NullType` instead `Void` to denote the bottom type in
-the Java type hierarchy.
+The EISOP Checker Framework now uses `NullType` instead of `Void` to denote the bottom
+type in the Java type hierarchy.
 It is visible in error messages with type variable's or wildcard's lower bounds.
 The type of the `null` literal in the Nullness Checker is now displayed as
 `@Nullable NullType` instead of the earlier `null (NullType)`.
@@ -62,7 +62,7 @@ The `ClassBound` annotation can now be used with anonymous types.
 
 **Implementation details:**
 
-`CFAbstractTranfer` now returns a `RegularTransferResult` when the visited method has
+`CFAbstractTransfer` now returns a `RegularTransferResult` when the visited method has
 non-boolean return type, instead of always returning a `ConditionalTransferResult`.
 If your checker needs a `ConditionalTransferResult` for non-boolean methods, you need to
 change your transfer function. See `NonEmptyTransfer` for an example.
@@ -89,7 +89,7 @@ instead.
 typetools#7096, eisop#1099, eisop#1219, eisop#1225, eisop#1231, eisop#1242,
 eisop#1247, eisop#1257, eisop#1263, eisop#1265, eisop#1272, eisop#1310,
 eisop#1326, eisop#1444, eisop#1448, eisop#1500, eisop#1506, eisop#1536,
-eisop#eisop#1543, eisop#1565.
+eisop#1543, eisop#1565.
 
 
 Version 3.49.5 (June 30, 2025)
