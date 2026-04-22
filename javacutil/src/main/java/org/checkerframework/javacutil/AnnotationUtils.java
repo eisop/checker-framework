@@ -177,6 +177,23 @@ public class AnnotationUtils {
     }
 
     /**
+     * Compute a hashCode for the AnnotationMirror that is compatible with areSame.
+     *
+     * @param a the AnnotationMirror to hash
+     * @return the hash code
+     */
+    public static int hashCode(AnnotationMirror a) {
+        int h = annotationName(a).hashCode();
+        Map<? extends ExecutableElement, ? extends AnnotationValue> vals = a.getElementValues();
+        for (AnnotationValue av : vals.values()) {
+            // Ignore ordering of annotation values.
+            // TODO: should we break down the annotation values?
+            h += av.hashCode();
+        }
+        return h;
+    }
+
+    /**
      * Return true iff a1 and a2 have the same annotation type.
      *
      * @param a1 the first AnnotationMirror to compare
@@ -503,6 +520,7 @@ public class AnnotationUtils {
         }
         int result = val1.toString().compareTo(val2.toString());
         if (result == 0) {
+            // Unintuitive, but recommended style.
             result = -1;
         }
         return result;

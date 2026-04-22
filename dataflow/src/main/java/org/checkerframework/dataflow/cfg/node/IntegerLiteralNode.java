@@ -36,6 +36,9 @@ public class IntegerLiteralNode extends ValueLiteralNode {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         // test that obj is a IntegerLiteralNode
         if (!(obj instanceof IntegerLiteralNode)) {
             return false;
