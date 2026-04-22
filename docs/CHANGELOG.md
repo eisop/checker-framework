@@ -86,10 +86,10 @@ instead.
 
 **Closed issues:**
 
-typetools#7096, eisop#1099, eisop#1219, eisop#1225, eisop#1231, eisop#1242,
-eisop#1247, eisop#1257, eisop#1263, eisop#1265, eisop#1272, eisop#1310,
-eisop#1326, eisop#1444, eisop#1448, eisop#1500, eisop#1506, eisop#1536,
-eisop#1543, eisop#1565.
+typetools#7096, typetools#7539, eisop#1099, eisop#1219, eisop#1225, eisop#1231,
+eisop#1242, eisop#1247, eisop#1257, eisop#1263, eisop#1265, eisop#1272,
+eisop#1310, eisop#1326, eisop#1444, eisop#1448, eisop#1500, eisop#1506,
+eisop#1536, eisop#1543, eisop#1565.
 
 
 Version 3.49.5 (June 30, 2025)
