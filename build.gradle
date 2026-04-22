@@ -91,7 +91,7 @@ ext {
         googleJavaFormat : '1.25.2',
         hashmapUtil     : '0.0.1',
         junit           : '4.13.2',
-        lombok          : '1.18.44',
+        lombok          : '1.18.46',
         // plume-util includes a version of reflection-util. When updating ensure the versions are consistent.
         plumeUtil       : '1.11.0',
         reflectionUtil  : '1.1.6',
@@ -173,7 +173,7 @@ allprojects { currentProj ->
     //   * any new checkers have been added, or
     //   * backward-incompatible changes have been made to APIs or elsewhere.
     // To make a snapshot release, version should end in "-SNAPSHOT", then: ./gradlew publish
-    version = '3.49.5-eisop1-SNAPSHOT'
+    version = '3.49.5-eisop1'
 
     apply plugin: 'java'
     apply plugin: 'eclipse'
