@@ -21,20 +21,6 @@ PLUME_SCRIPTS="$SCRIPT_DIR/.plume-scripts"
 
 status=0
 
-## Code style and formatting
-JAVA_VER=$(java -version 2>&1 | head -1 | cut -d'"' -f2 | sed '/^1\./s///' | cut -d'.' -f1 | sed 's/-ea//' | sed 's/-beta//')
-if [ "${JAVA_VER}" != "8" ] && [ "${JAVA_VER}" != "11" ]; then
-  ./gradlew spotlessCheck --console=plain --warning-mode=all
-fi
-if grep -n -r --exclude-dir=build --exclude-dir=examples --exclude-dir=jtreg --exclude-dir=tests --exclude="*.astub" --exclude="*.tex" '^\(import static \|import .*\*;$\)'; then
-  echo "Don't use static import or wildcard import"
-  exit 1
-fi
-make style-check --jobs="$(getconf _NPROCESSORS_ONLN)"
-
-## HTML legality
-./gradlew htmlValidate --console=plain --warning-mode=all
-
 ## Javadoc documentation
 # Try twice in case of network lossage.
 (./gradlew javadoc --console=plain --warning-mode=all || (sleep 60 && ./gradlew javadoc --console=plain --warning-mode=all)) || status=1
@@ -70,3 +56,17 @@ git diff --exit-code docs/manual/contributors.tex \
 
 # Check gradle tasks are configured properly
 ./gradlew tasks
+
+## Code style and formatting
+JAVA_VER=$(java -version 2>&1 | head -1 | cut -d'"' -f2 | sed '/^1\./s///' | cut -d'.' -f1 | sed 's/-ea//' | sed 's/-beta//')
+if [ "${JAVA_VER}" != "8" ] && [ "${JAVA_VER}" != "11" ]; then
+  ./gradlew spotlessCheck --console=plain --warning-mode=all
+fi
+if grep -n -r --exclude-dir=build --exclude-dir=examples --exclude-dir=jtreg --exclude-dir=tests --exclude="*.astub" --exclude="*.tex" '^\(import static \|import .*\*;$\)'; then
+  echo "Don't use static import or wildcard import"
+  exit 1
+fi
+make style-check --jobs="$(getconf _NPROCESSORS_ONLN)"
+
+## HTML legality
+./gradlew htmlValidate --console=plain --warning-mode=all
