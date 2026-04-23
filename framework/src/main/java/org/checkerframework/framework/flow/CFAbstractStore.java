@@ -1320,8 +1320,14 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
 
     @Override
     public int hashCode() {
-        // What is a good hash code to use?
-        return 22;
+        // Cheap and equal-compatible hash based on sizes only.
+        int h = localVariableValues.size();
+        h = 31 * h + fieldValues.size();
+        h = 31 * h + methodCallExpressions.size();
+        h = 31 * h + arrayValues.size();
+        h = 31 * h + classValues.size();
+        h = 31 * h + (thisValue == null ? 0 : 1);
+        return h;
     }
 
     @SideEffectFree
