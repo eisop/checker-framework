@@ -4,6 +4,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.ConditionalPostconditionAnnotation;
 import org.checkerframework.framework.qual.EnsuresQualifier;
 import org.checkerframework.framework.qual.EnsuresQualifierIf;
+import org.checkerframework.framework.qual.ParameterConditionalPostconditionAnnotation;
 import org.checkerframework.framework.qual.PostconditionAnnotation;
 import org.checkerframework.framework.qual.PreconditionAnnotation;
 import org.checkerframework.framework.qual.QualifierArgument;
@@ -12,6 +13,7 @@ import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.TreeUtils;
+import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.IPair;
 
 import java.util.Collections;
@@ -25,6 +27,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.util.ElementFilter;
 
 /**
@@ -36,16 +39,31 @@ import javax.lang.model.util.ElementFilter;
  * @see EnsuresQualifier
  * @see ConditionalPostconditionAnnotation
  * @see EnsuresQualifierIf
+ * @see ParameterConditionalPostconditionAnnotation
  */
 // TODO: This class assumes that most annotations have a field named "expression". If not, issue a
 // more helpful error message.
 public class DefaultContractsFromMethod implements ContractsFromMethod {
+
+    /**
+     * Maximum size for the conditional postcondition cache. Uses LRU eviction to avoid unbounded
+     * memory use. Concurrency is not a concern (single-threaded).
+     */
+    private static final int CACHE_SIZE = 300;
 
     /** The QualifierArgument.value field/element. */
     protected final ExecutableElement qualifierArgumentValueElement;
 
     /** The factory that this ContractsFromMethod is associated with. */
     protected final GenericAnnotatedTypeFactory<?, ?, ?, ?> atypeFactory;
+
+    /**
+     * LRU cache for conditional postconditions. Methods like {@code equals} or {@code hasNext} may
+     * be invoked many times; caching avoids re-iterating parameters and re-scanning annotations on
+     * each invocation.
+     */
+    private final Map<ExecutableElement, Set<Contract.ConditionalPostcondition>>
+            conditionalPostconditionCache = CollectionsPlume.createLruCache(CACHE_SIZE);
 
     /**
      * Creates a ContractsFromMethod for the given factory.
@@ -107,10 +125,13 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
     @Override
     public Set<Contract.ConditionalPostcondition> getConditionalPostconditions(
             ExecutableElement methodElement) {
-        return getContractsOfKind(
+        return conditionalPostconditionCache.computeIfAbsent(
                 methodElement,
-                Contract.Kind.CONDITIONALPOSTCONDITION,
-                Contract.ConditionalPostcondition.class);
+                elem ->
+                        getContractsOfKind(
+                                elem,
+                                Contract.Kind.CONDITIONALPOSTCONDITION,
+                                Contract.ConditionalPostcondition.class));
     }
 
     // Helper methods
@@ -179,6 +200,60 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
                                         anno,
                                         ensuresQualifierIfResult));
                 result.add(contract);
+            }
+        }
+
+        // Gather conditional postconditions from parameter-level annotations
+        if (kind == Contract.Kind.CONDITIONALPOSTCONDITION) {
+            List<? extends VariableElement> params = executableElement.getParameters();
+            for (int i = 0; i < params.size(); i++) {
+                VariableElement param = params.get(i);
+                List<IPair<AnnotationMirror, AnnotationMirror>> paramAnnotations =
+                        atypeFactory.getDeclAnnotationWithMetaAnnotation(
+                                param, ParameterConditionalPostconditionAnnotation.class);
+                for (IPair<AnnotationMirror, AnnotationMirror> r : paramAnnotations) {
+                    AnnotationMirror paramAnnotation = r.first;
+                    AnnotationMirror metaAnnotation = r.second;
+                    AnnotationMirror enforcedQualifier =
+                            getQualifierEnforcedByContractAnnotation(metaAnnotation, null, null);
+                    if (enforcedQualifier == null) {
+                        atypeFactory
+                                .getChecker()
+                                .reportError(
+                                        param,
+                                        "contracts.parameter.conditional.qualifier.not.supported",
+                                        paramAnnotation
+                                                .getAnnotationType()
+                                                .asElement()
+                                                .getSimpleName());
+                        continue;
+                    }
+                    // Result value: from param annotation's value() if present, else from
+                    // meta-annotation's result()
+                    Boolean resultValue;
+                    Boolean fromParam =
+                            AnnotationUtils.getElementValueOrNull(
+                                    paramAnnotation, "value", Boolean.class, false);
+                    if (fromParam != null) {
+                        resultValue = fromParam;
+                    } else {
+                    @SuppressWarnings("deprecation") // permitted for use in the framework
+                        Boolean v =
+                            AnnotationUtils.getElementValue(
+                                        metaAnnotation, "result", Boolean.class, true);
+                        resultValue = v;
+                    }
+                    String expressionString = "#" + (i + 1);
+                    T contract =
+                            clazz.cast(
+                                    Contract.create(
+                                            kind,
+                                            expressionString,
+                                            enforcedQualifier,
+                                            paramAnnotation,
+                                            resultValue));
+                    result.add(contract);
+                }
             }
         }
         return result;
