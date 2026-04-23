@@ -60,7 +60,7 @@ import java.util.IdentityHashMap;
  *
  *    {@literal @}Override
  *     public Integer visitTypeVariable(AnnotatedTypeVariable type, Void p) {
- *         return reduce(super.visitTypeVariable(type, p), 1);
+ *         return reduce(1, super.visitTypeVariable(type, p));
  *     }
  * }
  * </pre>
@@ -91,6 +91,13 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
     /**
      * Reduces two results into a single result.
      *
+     * <p>Convention: {@code add} is the newly-produced contribution being folded in - either the
+     * current type's own contribution from {@code defaultAction}, or a freshly-scanned sibling.
+     * {@code acc} is the accumulator - either the result from recursively visiting the current
+     * type's children (its subtree), or a running sum across already-processed siblings. Callers in
+     * {@link AnnotatedTypeScanner} and its subclasses always pass arguments in this order, so
+     * implementors of non-commutative reduce functions can rely on it.
+     *
      * @param <R> the result type
      */
     @FunctionalInterface
@@ -99,11 +106,11 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
         /**
          * Returns the combination of two results.
          *
-         * @param r1 the first result
-         * @param r2 the second result
+         * @param add the new contribution being folded in (current node or next sibling)
+         * @param acc the accumulated subtree or sibling result so far
          * @return the combination of the two results
          */
-        R reduce(R r1, R r2);
+        R reduce(R add, R acc);
     }
 
     /** The reduce function to use. */
@@ -252,17 +259,17 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
     }
 
     /**
-     * Combines {@code r1} and {@code r2} and returns the result. The default implementation returns
-     * {@code r1} if it is not null; otherwise, it returns {@code r2}.
+     * Combines {@code add} and {@code acc} and returns the result. The default implementation
+     * returns {@code add} if it is not null; otherwise, it returns {@code acc}.
      *
-     * @param r1 a result of scan, nonnull if {@link #defaultResult} is nonnull and this method
+     * @param add a result of scan, nonnull if {@link #defaultResult} is nonnull and this method
      *     never returns null
-     * @param r2 a result of scan, nonnull if {@link #defaultResult} is nonnull and this method
+     * @param acc a result of scan, nonnull if {@link #defaultResult} is nonnull and this method
      *     never returns null
-     * @return the combination of {@code r1} and {@code r2}
+     * @return the combination of {@code add} and {@code acc}
      */
-    protected R reduce(R r1, R r2) {
-        return reduceFunction.reduce(r1, r2);
+    protected R reduce(R add, R acc) {
+        return reduceFunction.reduce(add, acc);
     }
 
     @Override
