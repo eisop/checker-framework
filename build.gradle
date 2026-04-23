@@ -278,7 +278,8 @@ allprojects { currentProj ->
         'dataflow': ['manual/examples/**'],
         'docs': [
             'examples/BazelExample/bazel-BazelExample/**',
-            'examples/lombok/build/**'
+            'examples/lombok/build/**',
+            'manual/plume-bib/.plume-scripts/**',
         ],
         'framework': [
             'tests/build/**',
