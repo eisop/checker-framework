@@ -472,7 +472,7 @@ public final class TypesIntoElements {
             TypeAnnotationPosition newpos = TypeAnnotationUtils.copyTAPosition(tapos);
             newpos.location = tapos.location.append(TypePathEntry.ARRAY);
 
-            return reduce(super.visitArray(type, newpos), res);
+            return reduce(res, super.visitArray(type, newpos));
         }
 
         @Override
