@@ -39,6 +39,7 @@ import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
@@ -80,6 +81,14 @@ public class NullnessNoInitTransfer
      * AnnotatedDeclaredType, but just passed to asSuper().
      */
     protected final AnnotatedDeclaredType MAP_TYPE;
+
+    /**
+     * Java's Queue interface.
+     *
+     * <p>The qualifiers in this type don't matter -- it is not used as a fully-annotated
+     * AnnotatedDeclaredType, but just passed to asSuper().
+     */
+    protected final AnnotatedDeclaredType QUEUE_TYPE;
 
     /** The type factory for the nullness analysis that was passed to the constructor. */
     protected final NullnessNoInitAnnotatedTypeFactory nullnessTypeFactory;
@@ -127,6 +136,14 @@ public class NullnessNoInitTransfer
                 (AnnotatedDeclaredType)
                         AnnotatedTypeMirror.createType(
                                 TypesUtils.typeFromClass(Map.class, analysis.getTypes(), elements),
+                                nullnessTypeFactory,
+                                false);
+
+        QUEUE_TYPE =
+                (AnnotatedDeclaredType)
+                        AnnotatedTypeMirror.createType(
+                                TypesUtils.typeFromClass(
+                                        Queue.class, analysis.getTypes(), elements),
                                 nullnessTypeFactory,
                                 false);
 
@@ -411,6 +428,15 @@ public class NullnessNoInitTransfer
     @Override
     public TransferResult<NullnessNoInitValue, NullnessNoInitStore> visitMethodInvocation(
             MethodInvocationNode n, TransferInput<NullnessNoInitValue, NullnessNoInitStore> in) {
+        Node receiver = n.getTarget().getReceiver();
+        JavaExpression receiverExpr = JavaExpression.fromNode(receiver);
+        // Capture queue non-emptiness fact before superclass mutates the store when handling side
+        // effects.
+        boolean isNonEmptyQueuePoll =
+                nullnessTypeFactory.isQueuePoll(n)
+                        && receiverExpr != null
+                        && in.getRegularStore().isQueueNonEmpty(receiverExpr);
+
         TransferResult<NullnessNoInitValue, NullnessNoInitStore> result =
                 super.visitMethodInvocation(n, in);
 
@@ -420,7 +446,6 @@ public class NullnessNoInitTransfer
         boolean isMethodSideEffectFree =
                 nullnessTypeFactory.isSideEffectFree(method)
                         || PurityUtils.isSideEffectFree(nullnessTypeFactory, method);
-        Node receiver = n.getTarget().getReceiver();
         if (nonNullAssumptionAfterInvocation
                 || isMethodSideEffectFree
                 || !JavaExpression.fromNode(receiver).isAssignableByOtherCode()) {
@@ -464,6 +489,27 @@ public class NullnessNoInitTransfer
             }
         }
 
+        // Handle Collection.isEmpty(): mark receiver as non-empty in the false branch.
+        if (nullnessTypeFactory.isCollectionIsEmpty(n)) {
+            if (receiverExpr != null) {
+                NullnessNoInitStore thenStore = result.getThenStore();
+                NullnessNoInitStore elseStore = result.getElseStore();
+                elseStore.markQueueAsNonEmpty(receiverExpr);
+                return new ConditionalTransferResult<>(
+                        result.getResultValue(), thenStore, elseStore);
+            }
+        }
+
+        // Refine result to @NonNull if n is an invocation of Queue.poll(), the receiver is known to
+        // be non-empty, and Queue element type is @NonNull
+        if (isNonEmptyQueuePoll) {
+            AnnotatedTypeMirror receiverType = nullnessTypeFactory.getReceiverType(n.getTree());
+            if (!isElementTypeNullable(receiverType)) {
+                makeNonNull(result, n);
+                refineToNonNull(result);
+            }
+        }
+
         return result;
     }
 
@@ -483,6 +529,24 @@ public class NullnessNoInitTransfer
         }
         AnnotatedTypeMirror valueType = mapType.getTypeArguments().get(1);
         return valueType.hasAnnotation(NULLABLE);
+    }
+
+    /**
+     * Returns true if queueType's element type (the E type argument to Queue) is @Nullable.
+     *
+     * @param queueOrSubtype the Queue type, or a subtype
+     * @return true if queueType's element type is @Nullable
+     */
+    private boolean isElementTypeNullable(AnnotatedTypeMirror queueOrSubtype) {
+        AnnotatedDeclaredType queueType =
+                AnnotatedTypes.asSuper(nullnessTypeFactory, queueOrSubtype, QUEUE_TYPE);
+        int numTypeArguments = queueType.getTypeArguments().size();
+        if (numTypeArguments != 1) {
+            throw new TypeSystemError(
+                    "Wrong number %d of type arguments: %s", numTypeArguments, queueType);
+        }
+        AnnotatedTypeMirror elementType = queueType.getTypeArguments().get(0);
+        return elementType.hasAnnotation(NULLABLE);
     }
 
     @Override

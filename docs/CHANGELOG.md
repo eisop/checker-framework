@@ -60,6 +60,8 @@ component type to be refined to `@NonNull`.
 
 The `ClassBound` annotation can now be used with anonymous types.
 
+The Nullness Checker now refines `Queue.poll()` to `@NonNull` after a false `isEmpty()` check for queues with `@NonNull` element types.
+
 **Implementation details:**
 
 `CFAbstractTransfer` now returns a `RegularTransferResult` when the visited method has
