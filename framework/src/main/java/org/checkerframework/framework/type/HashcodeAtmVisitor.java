@@ -17,7 +17,7 @@ public class HashcodeAtmVisitor extends SimpleAnnotatedTypeScanner<Integer, Void
     public HashcodeAtmVisitor() {
         // Avoid collisions between compound types.
         // Note: this function is called in different places than `defaultAction`.
-        super((r1, r2) -> 31 * r1 + r2, 0);
+        super((currentHash, cumulativeHash) -> 31 * cumulativeHash + currentHash, 0);
     }
 
     /**
