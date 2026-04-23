@@ -15,9 +15,9 @@ public class HashcodeAtmVisitor extends SimpleAnnotatedTypeScanner<Integer, Void
 
     /** Creates a {@link HashcodeAtmVisitor}. */
     public HashcodeAtmVisitor() {
-        super(Integer::sum, 0);
-        // TODO: evaluate whether using collision-avoiding hash would improve performance.
-        // super((r1, r2) -> 31 * r1 + r2, 0);
+        // Avoid collisions between compound types.
+        // Note: this function is called in different places than `defaultAction`.
+        super((r1, r2) -> 31 * r1 + r2, 0);
     }
 
     /**
