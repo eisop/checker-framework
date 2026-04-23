@@ -118,6 +118,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.WeakHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -501,36 +502,60 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     public boolean shouldCache;
 
     /** Size of LRU cache if one isn't specified using the atfCacheSize option. */
-    private static final int DEFAULT_CACHE_SIZE = 2000;
+    private static final int DEFAULT_CACHE_SIZE = 500;
 
-    /** Mapping from a Tree to its annotated type; defaults have been applied. */
+    /**
+     * Mapping from a Tree to its annotated type; defaults have been applied.
+     *
+     * <p>Uses a {@link WeakHashMap} so that entries are automatically evicted when javac releases
+     * the underlying {@code Tree} nodes (typically at the end of each compilation unit). javac's
+     * {@code JCTree} does not override {@code equals}/{@code hashCode}, so identity equality
+     * applies and {@code WeakHashMap} behaves correctly.
+     */
     private final Map<Tree, AnnotatedTypeMirror> classAndMethodTreeCache;
 
     /**
      * Mapping from an expression tree to its annotated type; before defaults are applied, just what
      * the programmer wrote.
+     *
+     * @see #classAndMethodTreeCache
      */
     protected final Map<Tree, AnnotatedTypeMirror> fromExpressionTreeCache;
 
     /**
      * Mapping from a member tree to its annotated type; before defaults are applied, just what the
      * programmer wrote.
+     *
+     * @see #classAndMethodTreeCache
      */
     protected final Map<Tree, AnnotatedTypeMirror> fromMemberTreeCache;
 
     /**
      * Mapping from a type tree to its annotated type; before defaults are applied, just what the
      * programmer wrote.
+     *
+     * @see #classAndMethodTreeCache
      */
     protected final Map<Tree, AnnotatedTypeMirror> fromTypeTreeCache;
 
     /**
      * Mapping from an Element to its annotated type; before defaults are applied, just what the
      * programmer wrote.
+     *
+     * <p>Uses a {@link WeakHashMap} so that entries are evicted when javac releases the underlying
+     * {@code Element} (Symbol) objects. javac's {@code Symbol} does not override {@code
+     * equals}/{@code hashCode}, so identity equality applies. Unlike the tree caches, this cache is
+     * not cleared between compilation units (elements from earlier files remain valid), and the
+     * weak keys allow it to grow unboundedly during a compilation while reclaiming memory
+     * automatically afterward.
      */
     private final Map<Element, AnnotatedTypeMirror> elementCache;
 
-    /** Mapping from an Element to the source Tree of the declaration. */
+    /**
+     * Mapping from an Element to the source Tree of the declaration.
+     *
+     * @see #elementCache
+     */
     private final Map<Element, Tree> elementToTreeCache;
 
     /** Mapping from a Tree to its TreePath. Shared between all instances. */
@@ -592,13 +617,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         this.shouldCache = !checker.hasOption("atfDoNotCache");
         if (shouldCache) {
-            int cacheSize = getCacheSize();
-            this.classAndMethodTreeCache = CollectionsPlume.createLruCache(cacheSize);
-            this.fromExpressionTreeCache = CollectionsPlume.createLruCache(cacheSize);
-            this.fromMemberTreeCache = CollectionsPlume.createLruCache(cacheSize);
-            this.fromTypeTreeCache = CollectionsPlume.createLruCache(cacheSize);
-            this.elementCache = CollectionsPlume.createLruCache(cacheSize);
-            this.elementToTreeCache = CollectionsPlume.createLruCache(cacheSize);
+            this.classAndMethodTreeCache = new WeakHashMap<>();
+            this.fromExpressionTreeCache = new WeakHashMap<>();
+            this.fromMemberTreeCache = new WeakHashMap<>();
+            this.fromTypeTreeCache = new WeakHashMap<>();
+            this.elementCache = new WeakHashMap<>();
+            this.elementToTreeCache = new WeakHashMap<>();
             this.annotationClassNames = CollectionsPlume.createLruCache(ANNOTATION_CACHE_SIZE);
         } else {
             this.classAndMethodTreeCache = null;
