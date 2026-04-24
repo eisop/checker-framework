@@ -953,7 +953,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      * <p>For {@link TypeKind}s whose {@link TypeMirror#equals} contract is effectively identity
      * (primitives, void, none, null, package), this method avoids the toString-based hash entirely
      * and uses the kind's ordinal. This is safe because types of those kinds are canonicalized by
-     * javac and caddnnot be structurally equal without being reference-equal.
+     * javac and cannot be structurally equal without being reference-equal.
      *
      * @return a hash for the underlying type that is consistent with {@link TypeMirror#equals}
      */
