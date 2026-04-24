@@ -947,16 +947,53 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     }
 
     /**
-     * Returns the result of calling {@code underlyingType.toString().hashcode()}. This method saves
-     * the result in a field so that it isn't recomputed each time.
+     * Returns a hash for the {@code underlyingType}. This method saves the result in a field so
+     * that it is not recomputed each time.
      *
-     * @return the result of calling {@code underlyingType.toString().hashcode()}
+     * <p>For {@link TypeKind}s whose {@link TypeMirror#equals} contract is effectively identity
+     * (primitives, void, none, null, package), this method avoids the toString-based hash entirely
+     * and uses the kind's ordinal. This is safe because types of those kinds are canonicalized by
+     * javac and caddnnot be structurally equal without being reference-equal.
+     *
+     * @return a hash for the underlying type that is consistent with {@link TypeMirror#equals}
      */
-    public int getUnderlyingTypeHashCode() {
+    protected int getUnderlyingTypeHashCode() {
         if (underlyingTypeHashCode == -1) {
-            underlyingTypeHashCode = underlyingType.toString().hashCode();
+            underlyingTypeHashCode = computeUnderlyingTypeHashCode();
         }
         return underlyingTypeHashCode;
+    }
+
+    /**
+     * Computes the underlying-type hash. See {@link #getUnderlyingTypeHashCode}.
+     *
+     * @return the underlying-type hash
+     */
+    private int computeUnderlyingTypeHashCode() {
+        switch (underlyingType.getKind()) {
+            case BOOLEAN:
+            case BYTE:
+            case SHORT:
+            case INT:
+            case LONG:
+            case CHAR:
+            case FLOAT:
+            case DOUBLE:
+            case VOID:
+            case NONE:
+            case NULL:
+            case PACKAGE:
+                // Ordinal is in the range [0, 20], shift it out of the -1 collision zone.
+                @SuppressWarnings("EnumOrdinal")
+                int ord = underlyingType.getKind().ordinal() + 1;
+                return ord;
+            default:
+                int h = underlyingType.toString().hashCode();
+                // Guard against the theoretical case where toString().hashCode() returns -1,
+                // which would collide with the uninitialized sentinel and force recomputation
+                // on every call.
+                return h == -1 ? 0 : h;
+        }
     }
 
     /** Represents a declared type (whether class or interface). */

@@ -84,6 +84,8 @@ Removed method
 from the Initialization Checker; use `createUnderInitializationAnnotation(TypeMirror)`
 instead.
 
+Method `AnnotatedTypeMirror#getUnderlyingTypeHashCode()` is no longer public.
+
 **Closed issues:**
 
 typetools#7096, typetools#7539, eisop#1099, eisop#1219, eisop#1225, eisop#1231,
