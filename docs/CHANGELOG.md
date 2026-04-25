@@ -84,6 +84,9 @@ Removed method
 from the Initialization Checker; use `createUnderInitializationAnnotation(TypeMirror)`
 instead.
 
+Removed `AnnotationUtils#annotationNameInterned`. `annotationName` itself now
+returns an interned name.
+
 Method `AnnotatedTypeMirror#getUnderlyingTypeHashCode()` is no longer public.
 
 **Closed issues:**
