@@ -27,6 +27,7 @@ import java.util.Deque;
 import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.WeakHashMap;
@@ -65,8 +66,8 @@ public class ElementUtils {
      * Cache mapping an {@link Element} (typically a {@link TypeElement} or {@link PackageElement})
      * to the interned, canonical name String form of its qualified name.
      */
-    private static final WeakHashMap<Element, @CanonicalName @Interned String> qualifiedNameCache =
-            new WeakHashMap<>();
+    private static final Map<Element, @CanonicalName @Interned String> qualifiedNameCache =
+            Collections.synchronizedMap(new WeakHashMap<>());
 
     /** The value of Flags.COMPACT_RECORD_CONSTRUCTOR which does not exist in Java 9 or 11. */
     private static final long Flags_COMPACT_RECORD_CONSTRUCTOR = 1L << 51;

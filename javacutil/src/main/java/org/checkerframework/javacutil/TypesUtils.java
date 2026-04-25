@@ -142,7 +142,8 @@ public final class TypesUtils {
                 // @CanonicalNameOrEmpty.  They are different for inner classes.
                 @SuppressWarnings("signature") // https://tinyurl.com/cfissue/658 for Names.toString
                 @DotSeparatedIdentifiers String typeString = TypesUtils.getQualifiedName((DeclaredType) typeMirror);
-                if (typeString.equals("<nulltype>")) {
+                if (typeString == "<nulltype>") {
+                    // TODO: verify this actually happens.
                     return void.class;
                 }
 

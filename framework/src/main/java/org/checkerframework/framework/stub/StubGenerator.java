@@ -84,7 +84,7 @@ public class StubGenerator {
         }
 
         String pkg = ElementUtils.getQualifiedName(ElementUtils.enclosingPackage(elt));
-        if ("" != pkg) {
+        if (!pkg.isEmpty()) {
             currentPackage = pkg;
             currentIndention = "    ";
             indent();
