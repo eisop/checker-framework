@@ -707,13 +707,12 @@ public class AnnotationBuilder {
          * @param annotationType the annotation type
          * @param elementValues the element values
          */
-        @SuppressWarnings("signature:assignment.type.incompatible") // needs JDK annotations
         CheckerFrameworkAnnotationMirror(
                 DeclaredType annotationType,
                 Map<ExecutableElement, AnnotationValue> elementValues) {
             this.annotationType = annotationType;
             TypeElement elm = (TypeElement) annotationType.asElement();
-            this.annotationName = elm.getQualifiedName().toString().intern();
+            this.annotationName = ElementUtils.getQualifiedName(elm);
             this.elementValues = elementValues;
         }
 

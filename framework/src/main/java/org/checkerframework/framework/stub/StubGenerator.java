@@ -84,7 +84,7 @@ public class StubGenerator {
         }
 
         String pkg = ElementUtils.getQualifiedName(ElementUtils.enclosingPackage(elt));
-        if (!"".equals(pkg)) {
+        if ("" != pkg) {
             currentPackage = pkg;
             currentIndention = "    ";
             indent();
@@ -95,7 +95,7 @@ public class StubGenerator {
 
     /** Generate the stub file for all the classes within the provided package. */
     public void stubFromPackage(PackageElement packageElement) {
-        currentPackage = packageElement.getQualifiedName().toString();
+        currentPackage = ElementUtils.getQualifiedName(packageElement);
 
         indent();
         out.print("package ");
