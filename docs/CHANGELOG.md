@@ -89,6 +89,8 @@ returns an interned name.
 
 Method `AnnotatedTypeMirror#getUnderlyingTypeHashCode()` is no longer public.
 
+Changed behavior and usage of `HashcodeAtmVisitor`.
+
 **Closed issues:**
 
 typetools#7096, typetools#7539, eisop#1099, eisop#1219, eisop#1225, eisop#1231,

@@ -209,7 +209,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     @Pure
     @Override
     public final int hashCode() {
-        return HASHCODE_VISITOR.visit(this);
+        return HASHCODE_VISITOR.compute(this);
     }
 
     /**
