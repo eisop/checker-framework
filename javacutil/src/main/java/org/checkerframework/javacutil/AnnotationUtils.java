@@ -228,7 +228,8 @@ public class AnnotationUtils {
         // At least one is not a CheckerFrameworkAnnotationMirror.
         Name n1 = annotationNameAsName(a1);
         Name n2 = annotationNameAsName(a2);
-        return (n1 == n2) || n1.contentEquals(n2);
+        // Names are interned for a run. Do not use n1.contentEquals(n2).
+        return n1 == n2;
     }
 
     /**
