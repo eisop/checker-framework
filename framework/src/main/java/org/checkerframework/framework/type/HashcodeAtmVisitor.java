@@ -14,7 +14,7 @@ import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
  * total CPU in profiling.
  *
  * @see org.checkerframework.framework.type.EqualityAtmComparer for more details.
- *     <p>This is used by AnnotatedTypeMirror.hashcode.
+ *     <p>This is used by AnnotatedTypeMirror.hashCode.
  */
 public class HashcodeAtmVisitor extends SimpleAnnotatedTypeScanner<Void, Void> {
 
