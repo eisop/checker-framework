@@ -137,9 +137,9 @@ public class NoElementQualifierHierarchy extends QualifierHierarchy {
 
     /**
      * Creates the TypeElement to QualifierKind identity map from the already-populated
-     * kindToAnnotationMirror. This is O(n) in the number of qualifier kinds (tiny), done once
+     * kindToAnnotationMirror. This is O(n) in the number of qualifier kinds (tiny), done once.
      *
-     * @return a mapping from qualifier kind to its annotation mirror
+     * @return a mapping from type elements to their qualifier kind
      */
     @RequiresNonNull("this.kindToAnnotationMirror")
     protected IdentityHashMap<TypeElement, QualifierKind> createElementToQualifierKindMap(

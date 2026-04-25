@@ -187,9 +187,7 @@ public abstract class ElementQualifierHierarchy extends QualifierHierarchy {
         Set<QualifierKind> coveredKinds = new HashSet<>(teMap.values());
         for (QualifierKind kind : qualifierKindHierarchy.allQualifierKinds()) {
             if (kind.hasElements() && !coveredKinds.contains(kind)) {
-                @SuppressWarnings(
-                        "nullness:assignment.type.incompatible") // annotations have a name
-                @NonNull String className = kind.getAnnotationClass().getCanonicalName();
+                String className = kind.getName();
                 TypeElement te = elements.getTypeElement(className);
                 if (te != null) {
                     teMap.put(te, kind);
