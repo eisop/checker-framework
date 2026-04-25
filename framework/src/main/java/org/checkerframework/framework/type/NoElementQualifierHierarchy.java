@@ -17,11 +17,13 @@ import org.checkerframework.javacutil.TypeSystemError;
 import java.lang.annotation.Annotation;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.Elements;
 
 /**
@@ -52,6 +54,26 @@ public class NoElementQualifierHierarchy extends QualifierHierarchy {
     protected final Set<? extends AnnotationMirror> qualifiers;
 
     /**
+     * A mapping from an annotation's declaring {@link TypeElement} to its {@link QualifierKind}.
+     *
+     * <p>Keyed by identity because javac's {@code ClassSymbol} (the {@link TypeElement}
+     * implementation) does not override {@code equals}/{@code hashCode}. All annotation mirrors
+     * produced within the same javac compilation share the same {@link
+     * javax.lang.model.util.Elements} instance, so the {@code TypeElement} for (e.g.)
+     * {@code @NonNull} in the qualifier hierarchy is the same object as the {@code TypeElement} in
+     * any {@code @NonNull} encountered during type-checking.
+     *
+     * <p>This allows {@link #getQualifierKind(AnnotationMirror)} to resolve a candidate annotation
+     * to its {@link QualifierKind} in O(1) via a single identity lookup, avoiding two string-based
+     * map lookups ({@link AnnotationUtils#annotationName} + {@link
+     * QualifierKindHierarchy#getQualifierKind(String)}) per call.
+     *
+     * <p>This map is per-hierarchy-instance (not static), so its TypeElement keys are naturally
+     * reclaimed when the associated type factory and javac compilation context are released.
+     */
+    protected final IdentityHashMap<TypeElement, QualifierKind> elementToQualifierKind;
+
+    /**
      * Creates a NoElementQualifierHierarchy from the given classes.
      *
      * @param qualifierClasses classes of annotations that are the qualifiers
@@ -67,8 +89,11 @@ public class NoElementQualifierHierarchy extends QualifierHierarchy {
 
         this.qualifierKindHierarchy = createQualifierKindHierarchy(qualifierClasses);
 
-        this.kindToAnnotationMirror = createAnnotationMirrors(elements);
+        this.kindToAnnotationMirror =
+                Collections.unmodifiableMap(createAnnotationMirrors(elements));
         this.qualifiers = AnnotationMirrorSet.unmodifiableSet(kindToAnnotationMirror.values());
+
+        this.elementToQualifierKind = createElementToQualifierKindMap();
 
         this.tops = createTops();
         this.bottoms = createBottoms();
@@ -107,7 +132,24 @@ public class NoElementQualifierHierarchy extends QualifierHierarchy {
             }
             quals.put(kind, AnnotationBuilder.fromClass(elements, kind.getAnnotationClass()));
         }
-        return Collections.unmodifiableMap(quals);
+        return quals;
+    }
+
+    /**
+     * Creates the TypeElement to QualifierKind identity map from the already-populated
+     * kindToAnnotationMirror. This is O(n) in the number of qualifier kinds (tiny), done once.
+     *
+     * @return a mapping from type elements to their qualifier kind
+     */
+    @RequiresNonNull("this.kindToAnnotationMirror")
+    protected IdentityHashMap<TypeElement, QualifierKind> createElementToQualifierKindMap(
+            @UnderInitialization NoElementQualifierHierarchy this) {
+        IdentityHashMap<TypeElement, QualifierKind> teMap = new IdentityHashMap<>();
+        for (Map.Entry<QualifierKind, AnnotationMirror> entry : kindToAnnotationMirror.entrySet()) {
+            TypeElement te = (TypeElement) entry.getValue().getAnnotationType().asElement();
+            teMap.put(te, entry.getKey());
+        }
+        return teMap;
     }
 
     /**
@@ -153,12 +195,24 @@ public class NoElementQualifierHierarchy extends QualifierHierarchy {
     /**
      * Returns the {@link QualifierKind} for the given annotation.
      *
+     * <p>Uses a TypeElement identity lookup rather than a string-based lookup, which requires no
+     * string allocation and no string comparison. The TypeElement for an annotation type is a
+     * unique object within a javac compilation, so identity comparison is correct.
+     *
      * @param anno an annotation that is a qualifier in this
      * @return the {@code QualifierKind} for the given annotation
      */
     protected QualifierKind getQualifierKind(AnnotationMirror anno) {
+        TypeElement te = (TypeElement) anno.getAnnotationType().asElement();
+        QualifierKind kind = elementToQualifierKind.get(te);
+        if (kind != null) {
+            return kind;
+        }
+        // Defensive fallback: te not in the identity map (should not happen in normal use;
+        // can occur if an AnnotationMirror from a different javac Context reaches this method).
+        // Falls through to the string-based lookup.
         String name = AnnotationUtils.annotationName(anno);
-        QualifierKind kind = qualifierKindHierarchy.getQualifierKind(name);
+        kind = qualifierKindHierarchy.getQualifierKind(name);
         if (kind == null) {
             throw new BugInCF("Annotation not in hierarchy: %s", anno);
         }
