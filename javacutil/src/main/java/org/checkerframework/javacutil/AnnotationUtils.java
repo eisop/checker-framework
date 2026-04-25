@@ -161,41 +161,18 @@ public class AnnotationUtils {
      *
      * @param a1 the first AnnotationMirror to compare
      * @param a2 the second AnnotationMirror to compare
-     * @return a negative integer, zero, or a positive integer if the name of a1 is less than,
-     *     equal to, or greater than the name of a2
+     * @return a negative integer, zero, or a positive integer if the name of a1 is less than, equal
+     *     to, or greater than the name of a2
      * @see #areSame(AnnotationMirror, AnnotationMirror)
      * @see #areSameByName(AnnotationMirror, AnnotationMirror)
      */
     @CompareToMethod
     public static int compareByName(AnnotationMirror a1, AnnotationMirror a2) {
-        // Keep implementation in sync with #areSameByName.
-        // TODO: Maybe just do areSameByName first and if they are not equal, compare the Strings?
-        if (a1 == a2) {
+        if (areSameByName(a1, a2)) {
             return 0;
+        } else {
+            return annotationName(a1).compareTo(annotationName(a2));
         }
-        if (a1 == null || a2 == null) {
-            throw new BugInCF("Unexpected null argument:  compareByName(%s, %s)", a1, a2);
-        }
-
-        // Fast path for CF-produced mirrors: the name is already an interned String.
-        if (a1 instanceof CheckerFrameworkAnnotationMirror
-                && a2 instanceof CheckerFrameworkAnnotationMirror) {
-            @Interned @CanonicalName String name1 = ((CheckerFrameworkAnnotationMirror) a1).annotationName;
-            @Interned @CanonicalName String name2 = ((CheckerFrameworkAnnotationMirror) a2).annotationName;
-            if (name1 == name2) {
-                return 0;
-            } else {
-                return name1.compareTo(name2);
-            }
-        }
-        // At least one is not a CheckerFrameworkAnnotationMirror.
-        Name n1 = annotationNameAsName(a1);
-        Name n2 = annotationNameAsName(a2);
-        if (n1 == n2) {
-            return 0;
-        }
-        // Names differ: fall back to string comparison for ordering.
-        return n1.toString().compareTo(n2.toString());
     }
 
     /**
@@ -232,7 +209,6 @@ public class AnnotationUtils {
      */
     @EqualsMethod
     public static boolean areSameByName(AnnotationMirror a1, AnnotationMirror a2) {
-        // Keep implementation in sync with #compareByName.
         // Conceptually, this is like `compareByName(a1, a2) == 0`, but this implementation avoids
         // String allocations.
         if (a1 == a2) {
