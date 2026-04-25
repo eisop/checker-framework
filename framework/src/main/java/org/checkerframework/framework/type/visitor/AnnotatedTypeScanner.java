@@ -168,10 +168,18 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
     }
 
     /**
+     * The default IdentityHashMap max capacity is 32, which causes a resize at 21 elements. Traces
+     * showed that this was frequently reached, resulting in resizes of the map. This higher
+     * expected maximum size should avoid resizes of the visitedNodes map.
+     */
+    protected static final int VISITED_NODES_EXPECTED_MAX_SIZE = 64;
+
+    /**
      * To prevent infinite loops. Should only be re-assigned in reset, see note there. No code
      * should re-assign the field or hold an alias to this object.
      */
-    protected IdentityHashMap<AnnotatedTypeMirror, R> visitedNodes = new IdentityHashMap<>();
+    protected IdentityHashMap<AnnotatedTypeMirror, R> visitedNodes =
+            new IdentityHashMap<>(VISITED_NODES_EXPECTED_MAX_SIZE);
 
     /**
      * Reset the scanner to allow reuse of the same instance. Subclasses should override this method
@@ -182,7 +190,7 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
         // to be more efficient to create a new instance.
         // visitedNodes.clear();
         if (!visitedNodes.isEmpty()) {
-            visitedNodes = new IdentityHashMap<>();
+            visitedNodes = new IdentityHashMap<>(VISITED_NODES_EXPECTED_MAX_SIZE);
         }
     }
 
