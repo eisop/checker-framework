@@ -241,7 +241,11 @@ public class AnnotationUtils {
      * @return true if aname is the name of am
      */
     public static boolean areSameByName(AnnotationMirror am, String aname) {
-        return aname.equals(annotationName(am));
+        // Fast path for CF-produced mirrors: the name is already an interned String.
+        if (am instanceof CheckerFrameworkAnnotationMirror) {
+            return aname.equals(((CheckerFrameworkAnnotationMirror) am).annotationName);
+        }
+        return aname.contentEquals(annotationNameAsName(am));
     }
 
     /**
