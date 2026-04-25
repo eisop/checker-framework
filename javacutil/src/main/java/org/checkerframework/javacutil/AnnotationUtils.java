@@ -161,11 +161,12 @@ public class AnnotationUtils {
      *
      * @param a1 the first AnnotationMirror to compare
      * @param a2 the second AnnotationMirror to compare
-     * @return true iff a1 and a2 have the same annotation name
+     * @return a negative integer, zero, or a positive integer if the name of a1 is less than,
+     *     equal to, or greater than the name of a2
      * @see #areSame(AnnotationMirror, AnnotationMirror)
      * @see #areSameByName(AnnotationMirror, AnnotationMirror)
      */
-    @EqualsMethod
+    @CompareToMethod
     public static int compareByName(AnnotationMirror a1, AnnotationMirror a2) {
         // Keep implementation in sync with #areSameByName.
         // TODO: Maybe just do areSameByName first and if they are not equal, compare the Strings?
@@ -251,7 +252,7 @@ public class AnnotationUtils {
         // At least one is not a CheckerFrameworkAnnotationMirror.
         Name n1 = annotationNameAsName(a1);
         Name n2 = annotationNameAsName(a2);
-        return (n1 == n2);
+        return (n1 == n2) || n1.contentEquals(n2);
     }
 
     /**
