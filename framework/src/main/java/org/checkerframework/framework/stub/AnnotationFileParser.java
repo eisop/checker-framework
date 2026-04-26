@@ -96,6 +96,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -2408,8 +2409,8 @@ public class AnnotationFileParser {
     }
 
     /** Cache all the methods that are in a TypeElement. */
-    private final Map<TypeElement, List<ExecutableElement>> methodsInTypeElementCache =
-            CollectionsPlume.createLruCache(100);
+    private final IdentityHashMap<TypeElement, List<ExecutableElement>> methodsInTypeElementCache =
+            new IdentityHashMap<>();
 
     /**
      * Determine all the methods that are in a TypeElement, caching the result.
