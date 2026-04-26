@@ -1,12 +1,12 @@
-Version 3.49.5-eisop1 (April 22, 2026)
+Version 3.49.5-eisop1 (April 26, 2026)
 --------------------------------------
 
 **User-visible changes:**
 
 Considerable performance improvements. In a large project (over 4000 .java files) with
-complex qualifiers, compilation time was reduced from around 30 minutes to around 9 minutes.
+complex qualifiers, compilation time was reduced from around 30 minutes to below 7 minutes.
 Running `allNullnessTests` went from around 3 minutes to 2.5 minutes and
-`checkNullness` went from around 5.25 to 4.25 minutes.
+`checkNullness` went from around 5.25 to below 4 minutes.
 
 The EISOP Checker Framework runs under JDK 26 and under JDK 27 b18 early access
 builds -- that is, it runs on version 26 and 27 JVMs.
