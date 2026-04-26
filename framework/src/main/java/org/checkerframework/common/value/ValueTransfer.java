@@ -131,9 +131,9 @@ public class ValueTransfer extends CFTransfer {
             return null;
         }
         String annoName = AnnotationUtils.annotationName(anno);
-        if (annoName.equals(ValueAnnotatedTypeFactory.ARRAYLENRANGE_NAME)) {
+        if (annoName == ValueAnnotatedTypeFactory.ARRAYLENRANGE_NAME) {
             return atypeFactory.getRange(anno);
-        } else if (annoName.equals(ValueAnnotatedTypeFactory.BOTTOMVAL_NAME)) {
+        } else if (annoName == ValueAnnotatedTypeFactory.BOTTOMVAL_NAME) {
             return Range.NOTHING;
         }
 
@@ -169,9 +169,9 @@ public class ValueTransfer extends CFTransfer {
             return null;
         }
         String annoName = AnnotationUtils.annotationName(anno);
-        if (annoName.equals(ValueAnnotatedTypeFactory.ARRAYLEN_NAME)) {
+        if (annoName == ValueAnnotatedTypeFactory.ARRAYLEN_NAME) {
             return atypeFactory.getArrayLength(anno);
-        } else if (annoName.equals(ValueAnnotatedTypeFactory.BOTTOMVAL_NAME)) {
+        } else if (annoName == ValueAnnotatedTypeFactory.BOTTOMVAL_NAME) {
             return Collections.emptyList();
         }
 
@@ -230,7 +230,7 @@ public class ValueTransfer extends CFTransfer {
 
         // @IntVal, @IntRange, @DoubleVal, @BoolVal (have to be converted to string)
         List<? extends Object> values;
-        if (annoName.equals(ValueAnnotatedTypeFactory.BOOLVAL_NAME)) {
+        if (annoName == ValueAnnotatedTypeFactory.BOOLVAL_NAME) {
             values = getBooleanValues(subNode, p);
         } else if (subNode.getType().getKind() == TypeKind.CHAR) {
             values = getCharValues(subNode, p);

@@ -9,6 +9,7 @@ import com.sun.tools.javac.model.JavacTypes;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.util.Context;
 
+import org.checkerframework.checker.interning.qual.Interned;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.BinaryName;
@@ -26,8 +27,10 @@ import java.util.Deque;
 import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.WeakHashMap;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
@@ -37,6 +40,7 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.PackageElement;
+import javax.lang.model.element.QualifiedNameable;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
@@ -57,6 +61,13 @@ public class ElementUtils {
     private ElementUtils() {
         throw new AssertionError("Class ElementUtils cannot be instantiated.");
     }
+
+    /**
+     * Cache mapping an {@link Element} (typically a {@link TypeElement} or {@link PackageElement})
+     * to the interned, canonical name String form of its qualified name.
+     */
+    private static final Map<Element, @CanonicalName @Interned String> qualifiedNameCache =
+            Collections.synchronizedMap(new WeakHashMap<>());
 
     /** The value of Flags.COMPACT_RECORD_CONSTRUCTOR which does not exist in Java 9 or 11. */
     private static final long Flags_COMPACT_RECORD_CONSTRUCTOR = 1L << 51;
@@ -184,7 +195,7 @@ public class ElementUtils {
         // The following might do the same thing:
         //   ((Symbol) elt).owner;
         // TODO: verify and see whether the change is worth it.
-        String fqnstart = elem.getQualifiedName().toString();
+        String fqnstart = getQualifiedName(elem);
         String fqn = fqnstart;
         if (fqn != null && !fqn.isEmpty()) {
             int dotPos = fqn.lastIndexOf('.');
@@ -273,16 +284,18 @@ public class ElementUtils {
      * @param elt the element whose name to obtain
      * @return the qualified name of the given element
      */
-    public static String getQualifiedName(Element elt) {
-        if (elt.getKind() == ElementKind.PACKAGE || isTypeElement(elt)) {
-            Name n = getQualifiedClassName(elt);
-            if (n == null) {
-                return "Unexpected element: " + elt;
+    @SuppressWarnings("signature:assignment.type.incompatible") // TODO ensure assignments
+    public static @CanonicalName @Interned String getQualifiedName(Element elt) {
+        @CanonicalName @Interned String s = qualifiedNameCache.get(elt);
+        if (s == null) {
+            if (elt instanceof QualifiedNameable) {
+                s = ((QualifiedNameable) elt).getQualifiedName().toString().intern();
+            } else {
+                s = (getQualifiedName(elt.getEnclosingElement()) + "." + elt).intern();
             }
-            return n.toString();
-        } else {
-            return getQualifiedName(elt.getEnclosingElement()) + "." + elt;
+            qualifiedNameCache.put(elt, s);
         }
+        return s;
     }
 
     /**

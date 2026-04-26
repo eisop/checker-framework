@@ -13,6 +13,7 @@ import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Names;
 
 import org.checkerframework.checker.interning.qual.EqualsMethod;
+import org.checkerframework.checker.interning.qual.Interned;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.BinaryName;
 import org.checkerframework.checker.signature.qual.CanonicalNameOrEmpty;
@@ -141,7 +142,8 @@ public final class TypesUtils {
                 // @CanonicalNameOrEmpty.  They are different for inner classes.
                 @SuppressWarnings("signature") // https://tinyurl.com/cfissue/658 for Names.toString
                 @DotSeparatedIdentifiers String typeString = TypesUtils.getQualifiedName((DeclaredType) typeMirror);
-                if (typeString.equals("<nulltype>")) {
+                if (typeString == "<nulltype>") {
+                    // TODO: verify this actually happens.
                     return void.class;
                 }
 
@@ -165,11 +167,9 @@ public final class TypesUtils {
      * @param type the declared type
      * @return the name corresponding to that type
      */
-    @SuppressWarnings("signature:return") // todo: add fake override of Name.toString.
-    public static @CanonicalNameOrEmpty String getQualifiedName(DeclaredType type) {
+    public static @CanonicalNameOrEmpty @Interned String getQualifiedName(DeclaredType type) {
         TypeElement element = (TypeElement) type.asElement();
-        @CanonicalNameOrEmpty Name name = element.getQualifiedName();
-        return name.toString();
+        return ElementUtils.getQualifiedName(element);
     }
 
     /**

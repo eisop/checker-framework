@@ -349,7 +349,7 @@ public class AutoValueSupport implements BuilderFrameworkSupport {
         TypeElement typeElement = (TypeElement) declaredType.asElement();
         return typeElement.getTypeParameters().size() == declaredType.getTypeArguments().size()
                 && ArraysPlume.indexOf(
-                                optionalClassNames, typeElement.getQualifiedName().toString())
+                                optionalClassNames, ElementUtils.getQualifiedName(typeElement))
                         != -1;
     }
 

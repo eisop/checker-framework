@@ -3742,7 +3742,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     public @Nullable AnnotationMirror canonicalAnnotation(AnnotationMirror a) {
         TypeElement elem = (TypeElement) a.getAnnotationType().asElement();
-        String qualName = elem.getQualifiedName().toString();
+        String qualName = ElementUtils.getQualifiedName(elem);
         Alias alias = aliases.get(qualName);
         if (alias == null) {
             return null;
