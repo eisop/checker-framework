@@ -1267,9 +1267,11 @@ public class AnnotationUtils {
         if (am1 == am2) {
             return true;
         }
-
         Map<? extends ExecutableElement, ? extends AnnotationValue> vals1 = am1.getElementValues();
         Map<? extends ExecutableElement, ? extends AnnotationValue> vals2 = am2.getElementValues();
+        if (vals1.isEmpty() && vals2.isEmpty()) {
+            return true; // no-element annotations: nothing to compare
+        }
         for (ExecutableElement meth :
                 ElementFilter.methodsIn(
                         am1.getAnnotationType().asElement().getEnclosedElements())) {

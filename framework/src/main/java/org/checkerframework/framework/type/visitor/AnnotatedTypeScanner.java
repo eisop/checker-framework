@@ -172,7 +172,7 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
      * showed that this was frequently reached, resulting in resizes of the map. This higher
      * expected maximum size should avoid resizes of the visitedNodes map.
      */
-    protected static final int VISITED_NODES_EXPECTED_MAX_SIZE = 64;
+    public static final int VISITED_NODES_EXPECTED_MAX_SIZE = 64;
 
     /**
      * To prevent infinite loops. Should only be re-assigned in reset, see note there. No code
