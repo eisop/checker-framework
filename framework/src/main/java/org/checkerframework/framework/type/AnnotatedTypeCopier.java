@@ -10,6 +10,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiv
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
+import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeVisitor;
 import org.plumelib.util.CollectionsPlume;
 
@@ -92,7 +93,8 @@ public class AnnotatedTypeCopier
 
     @Override
     public AnnotatedTypeMirror visit(AnnotatedTypeMirror type) {
-        return type.accept(this, new IdentityHashMap<>());
+        return type.accept(
+                this, new IdentityHashMap<>(AnnotatedTypeScanner.VISITED_NODES_EXPECTED_MAX_SIZE));
     }
 
     @Override
