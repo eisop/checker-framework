@@ -988,7 +988,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 int ord = underlyingType.getKind().ordinal() + 1;
                 return ord;
             default:
-                int h = underlyingType.toString().hashCode();
+                int h = underlyingType.hashCode();
                 // Guard against the theoretical case where toString().hashCode() returns -1,
                 // which would collide with the uninitialized sentinel and force recomputation
                 // on every call.
