@@ -66,6 +66,8 @@ public class ElementUtils {
      * Cache mapping an {@link Element} (typically a {@link TypeElement} or {@link PackageElement})
      * to the interned, canonical name String form of its qualified name.
      */
+    // TODO: evaluate using an IdentityHashMap instead. Would it be a problem to keep all Elements
+    // around?
     private static final Map<Element, @CanonicalName @Interned String> qualifiedNameCache =
             Collections.synchronizedMap(new WeakHashMap<>());
 
