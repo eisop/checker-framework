@@ -542,11 +542,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /** The Object.getClass method. */
     protected final ExecutableElement objectGetClass;
 
-    /** Size of the annotationClassNames cache. */
-    private static final int ANNOTATION_CACHE_SIZE = 500;
-
     /** Maps classes representing AnnotationMirrors to their canonical names. */
-    private final Map<Class<? extends Annotation>, @CanonicalName String> annotationClassNames;
+    private final IdentityHashMap<Class<? extends Annotation>, @CanonicalName String>
+            annotationClassNames;
 
     /** An annotated type of the declaration of {@link Iterable} without any annotations. */
     private AnnotatedDeclaredType iterableDeclType;
@@ -599,7 +597,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             this.fromTypeTreeCache = CollectionsPlume.createLruCache(cacheSize);
             this.elementCache = CollectionsPlume.createLruCache(cacheSize);
             this.elementToTreeCache = CollectionsPlume.createLruCache(cacheSize);
-            this.annotationClassNames = CollectionsPlume.createLruCache(ANNOTATION_CACHE_SIZE);
+            this.annotationClassNames = new IdentityHashMap<>();
         } else {
             this.classAndMethodTreeCache = null;
             this.fromExpressionTreeCache = null;
