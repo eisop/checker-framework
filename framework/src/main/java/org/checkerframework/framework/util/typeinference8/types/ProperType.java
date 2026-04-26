@@ -283,7 +283,7 @@ public class ProperType extends AbstractType {
      * @return the hash code
      */
     private int computeHashCode() {
-        int hc = properType.hashCode();
+        int hc = properType.toString().hashCode();
         hc = 31 * hc + Kind.PROPER.hashCode();
         return hc;
     }

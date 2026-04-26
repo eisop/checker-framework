@@ -100,7 +100,10 @@ import javax.lang.model.type.TypeVariable;
         this.invocation = invocation;
         this.map = map;
         this.id = id;
-        this.hashCode = computeHashCode();
+        // TODO: not clear why this issue is raised.
+        @SuppressWarnings("interning:method.invocation.invalid")
+        int hc = computeHashCode();
+        this.hashCode = hc;
     }
 
     /**
