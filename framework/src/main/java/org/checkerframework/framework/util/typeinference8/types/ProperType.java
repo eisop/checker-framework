@@ -33,6 +33,9 @@ public class ProperType extends AbstractType {
     /** A mapping from polymorphic annotation to {@link QualifierVar}. */
     private final AnnotationMirrorMap<QualifierVar> qualifierVars;
 
+    /** Compute the hash code only once. */
+    private final int hashCode;
+
     /**
      * Creates a proper type.
      *
@@ -81,6 +84,7 @@ public class ProperType extends AbstractType {
         this.type = type;
         this.qualifierVars = qualifierVars;
         verifyTypeKinds(type, properType);
+        hashCode = computeHashCode();
     }
 
     /**
@@ -95,6 +99,7 @@ public class ProperType extends AbstractType {
         this.properType = type.getUnderlyingType();
         this.qualifierVars = AnnotationMirrorMap.emptyMap();
         verifyTypeKinds(type, properType);
+        hashCode = computeHashCode();
     }
 
     /**
@@ -109,6 +114,7 @@ public class ProperType extends AbstractType {
         this.properType = TreeUtils.typeOf(varTree);
         this.qualifierVars = AnnotationMirrorMap.emptyMap();
         verifyTypeKinds(type, properType);
+        hashCode = computeHashCode();
     }
 
     /**
@@ -271,11 +277,20 @@ public class ProperType extends AbstractType {
                         .isSameType(properType, otherProperType.properType); // slower
     }
 
+    /**
+     * Compute the hash code for this instance.
+     *
+     * @return the hash code
+     */
+    private int computeHashCode() {
+        int hc = properType.hashCode();
+        hc = 31 * hc + Kind.PROPER.hashCode();
+        return hc;
+    }
+
     @Override
     public int hashCode() {
-        int result = properType.toString().hashCode();
-        result = 31 * result + Kind.PROPER.hashCode();
-        return result;
+        return hashCode;
     }
 
     @Override

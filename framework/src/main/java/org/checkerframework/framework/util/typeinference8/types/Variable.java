@@ -50,6 +50,9 @@ import javax.lang.model.type.TypeVariable;
     /** The context. */
     protected final Java8InferenceContext context;
 
+    /** Compute the hash code only once. */
+    private final int hashCode;
+
     /**
      * Creates a variable.
      *
@@ -97,6 +100,7 @@ import javax.lang.model.type.TypeVariable;
         this.invocation = invocation;
         this.map = map;
         this.id = id;
+        this.hashCode = computeHashCode();
     }
 
     /**
@@ -169,12 +173,21 @@ import javax.lang.model.type.TypeVariable;
                 && invocation == variable.invocation;
     }
 
+    /**
+     * Compute the hash code for this instance.
+     *
+     * @return the hash code
+     */
+    private int computeHashCode() {
+        int hc = typeVariableJava.hashCode();
+        hc = 31 * hc + Kind.USE_OF_VARIABLE.hashCode();
+        hc = 31 * hc + invocation.hashCode();
+        return hc;
+    }
+
     @Override
     public int hashCode() {
-        int result = typeVariableJava.toString().hashCode();
-        result = 31 * result + Kind.USE_OF_VARIABLE.hashCode();
-        result = 31 * result + invocation.hashCode();
-        return result;
+        return hashCode;
     }
 
     @Override
