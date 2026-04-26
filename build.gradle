@@ -1194,7 +1194,7 @@ subprojects {
             // To create a Java Flight Recorder trace for tests, uncomment the following block.
             /*
              jvmArgs += [
-             "-XX:StartFlightRecording=duration=600s,filename=${rootDir}/cf-${project.name}-${name}.jfr,settings=profile,dumponexit=true"
+             "-XX:StartFlightRecording=duration=600s,stackdepth=256,filename=${rootDir}/cf-${project.name}-${name}.jfr,settings=profile,dumponexit=true"
              ]
              maxParallelForks = 1
              forkEvery = 0
