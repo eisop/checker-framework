@@ -6,6 +6,7 @@ import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.util.TreePath;
 
+import org.checkerframework.checker.interning.qual.Interned;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.checker.regex.qual.Regex;
@@ -86,57 +87,67 @@ import javax.lang.model.type.TypeMirror;
 /** AnnotatedTypeFactory for the Value type system. */
 public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     /** Fully-qualified class name of {@link UnknownVal}. */
-    public static final String UNKNOWN_NAME = "org.checkerframework.common.value.qual.UnknownVal";
+    public static final @Interned String UNKNOWN_NAME =
+            "org.checkerframework.common.value.qual.UnknownVal";
 
     /** Fully-qualified class name of {@link BottomVal}. */
-    public static final String BOTTOMVAL_NAME = "org.checkerframework.common.value.qual.BottomVal";
+    public static final @Interned String BOTTOMVAL_NAME =
+            "org.checkerframework.common.value.qual.BottomVal";
 
     /** Fully-qualified class name of {@link PolyValue}. */
-    public static final String POLY_NAME = "org.checkerframework.common.value.qual.PolyValue";
+    public static final @Interned String POLY_NAME =
+            "org.checkerframework.common.value.qual.PolyValue";
 
     /** Fully-qualified class name of {@link ArrayLen}. */
-    public static final String ARRAYLEN_NAME = "org.checkerframework.common.value.qual.ArrayLen";
+    public static final @Interned String ARRAYLEN_NAME =
+            "org.checkerframework.common.value.qual.ArrayLen";
 
     /** Fully-qualified class name of {@link BoolVal}. */
-    public static final String BOOLVAL_NAME = "org.checkerframework.common.value.qual.BoolVal";
+    public static final @Interned String BOOLVAL_NAME =
+            "org.checkerframework.common.value.qual.BoolVal";
 
     /** Fully-qualified class name of {@link DoubleVal}. */
-    public static final String DOUBLEVAL_NAME = "org.checkerframework.common.value.qual.DoubleVal";
+    public static final @Interned String DOUBLEVAL_NAME =
+            "org.checkerframework.common.value.qual.DoubleVal";
 
     /** Fully-qualified class name of {@link IntVal}. */
-    public static final String INTVAL_NAME = "org.checkerframework.common.value.qual.IntVal";
+    public static final @Interned String INTVAL_NAME =
+            "org.checkerframework.common.value.qual.IntVal";
 
     /** Fully-qualified class name of {@link StringVal}. */
-    public static final String STRINGVAL_NAME = "org.checkerframework.common.value.qual.StringVal";
+    public static final @Interned String STRINGVAL_NAME =
+            "org.checkerframework.common.value.qual.StringVal";
 
     /** Fully-qualified class name of {@link ArrayLenRange}. */
-    public static final String ARRAYLENRANGE_NAME =
+    public static final @Interned String ARRAYLENRANGE_NAME =
             "org.checkerframework.common.value.qual.ArrayLenRange";
 
     /** Fully-qualified class name of {@link IntRange}. */
-    public static final String INTRANGE_NAME = "org.checkerframework.common.value.qual.IntRange";
+    public static final @Interned String INTRANGE_NAME =
+            "org.checkerframework.common.value.qual.IntRange";
 
     /** Fully-qualified class name of {@link IntRangeFromGTENegativeOne}. */
-    public static final String INTRANGE_FROMGTENEGONE_NAME =
+    public static final @Interned String INTRANGE_FROMGTENEGONE_NAME =
             "org.checkerframework.common.value.qual.IntRangeFromGTENegativeOne";
 
     /** Fully-qualified class name of {@link IntRangeFromNonNegative}. */
-    public static final String INTRANGE_FROMNONNEG_NAME =
+    public static final @Interned String INTRANGE_FROMNONNEG_NAME =
             "org.checkerframework.common.value.qual.IntRangeFromNonNegative";
 
     /** Fully-qualified class name of {@link IntRangeFromPositive}. */
-    public static final String INTRANGE_FROMPOS_NAME =
+    public static final @Interned String INTRANGE_FROMPOS_NAME =
             "org.checkerframework.common.value.qual.IntRangeFromPositive";
 
     /** Fully-qualified class name of {@link MinLen}. */
-    public static final String MINLEN_NAME = "org.checkerframework.common.value.qual.MinLen";
+    public static final @Interned String MINLEN_NAME =
+            "org.checkerframework.common.value.qual.MinLen";
 
     /** Fully-qualified class name of {@link MatchesRegex}. */
-    public static final String MATCHES_REGEX_NAME =
+    public static final @Interned String MATCHES_REGEX_NAME =
             "org.checkerframework.common.value.qual.MatchesRegex";
 
     /** Fully-qualified class name of {@link DoesNotMatchRegex}. */
-    public static final String DOES_NOT_MATCH_REGEX_NAME =
+    public static final @Interned String DOES_NOT_MATCH_REGEX_NAME =
             "org.checkerframework.common.value.qual.DoesNotMatchRegex";
 
     /** The maximum number of values allowed in an annotation's array. */
@@ -744,13 +755,13 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         AnnotationMirror res;
         boolean isSpecial;
 
-        if (name.equals(INTRANGE_FROMPOS_NAME)) {
+        if (name == INTRANGE_FROMPOS_NAME) {
             res = createIntRangeAnnotation(1, max);
             isSpecial = true;
-        } else if (name.equals(INTRANGE_FROMNONNEG_NAME)) {
+        } else if (name == INTRANGE_FROMNONNEG_NAME) {
             res = createIntRangeAnnotation(0, max);
             isSpecial = true;
-        } else if (name.equals(INTRANGE_FROMGTENEGONE_NAME)) {
+        } else if (name == INTRANGE_FROMGTENEGONE_NAME) {
             res = createIntRangeAnnotation(-1, max);
             isSpecial = true;
         } else {
@@ -1612,10 +1623,10 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      */
     public boolean isIntRange(AnnotationMirror anno) {
         String name = AnnotationUtils.annotationName(anno);
-        return name.equals(INTRANGE_NAME)
-                || name.equals(INTRANGE_FROMPOS_NAME)
-                || name.equals(INTRANGE_FROMNONNEG_NAME)
-                || name.equals(INTRANGE_FROMGTENEGONE_NAME);
+        return name == INTRANGE_NAME
+                || name == INTRANGE_FROMPOS_NAME
+                || name == INTRANGE_FROMNONNEG_NAME
+                || name == INTRANGE_FROMGTENEGONE_NAME;
     }
 
     public int getMinLenValue(AnnotatedTypeMirror atm) {
@@ -1760,11 +1771,10 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             List<? extends AnnotationMirror> annoList =
                     expressionObj.getType().getAnnotationMirrors();
             for (AnnotationMirror anno : annoList) {
-                String ANNO_NAME = AnnotationUtils.annotationName(anno);
-                if (ANNO_NAME.equals(MINLEN_NAME)) {
+                String name = AnnotationUtils.annotationName(anno);
+                if (name == MINLEN_NAME) {
                     return getMinLenValue(canonicalAnnotation(anno));
-                } else if (ANNO_NAME.equals(ARRAYLEN_NAME)
-                        || ANNO_NAME.equals(ARRAYLENRANGE_NAME)) {
+                } else if (name == ARRAYLEN_NAME || name == ARRAYLENRANGE_NAME) {
                     return getMinLenValue(anno);
                 }
             }

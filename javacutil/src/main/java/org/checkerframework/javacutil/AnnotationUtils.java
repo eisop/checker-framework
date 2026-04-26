@@ -68,38 +68,21 @@ public class AnnotationUtils {
      * Returns the fully-qualified name of an annotation as a String.
      *
      * <p>This method is efficient for {@code AnnotationBuilder.CheckerFrameworkAnnotationMirror},
-     * for which it looks up the name. This method may be inefficient for other subclasses of {@code
-     * AnnotationMirror}, because it may compute a new string.
+     * for which it looks up the name. For other subclasses of {@code AnnotationMirror}, the result
+     * is cached.
      *
      * @param annotation the annotation whose name to return
      * @return the fully-qualified name of an annotation as a String
      */
-    public static final @CanonicalName String annotationName(AnnotationMirror annotation) {
-        if (annotation instanceof AnnotationBuilder.CheckerFrameworkAnnotationMirror) {
-            return ((AnnotationBuilder.CheckerFrameworkAnnotationMirror) annotation).annotationName;
-        }
-        @SuppressWarnings("signature:assignment.type.incompatible") // JDK needs annotations
-        @CanonicalName String name = annotationNameAsName(annotation).toString();
-        return name;
-    }
-
-    /**
-     * Returns the fully-qualified name of an annotation as a String.
-     *
-     * <p>This is more efficient than calling {@link #annotationName} and {@link
-     * java.lang.String#intern}.
-     *
-     * @param annotation the annotation whose name to return
-     * @return the fully-qualified name of an annotation as a String
-     */
-    public static final @CanonicalName @Interned String annotationNameInterned(
+    public static final @CanonicalName @Interned String annotationName(
             AnnotationMirror annotation) {
         if (annotation instanceof AnnotationBuilder.CheckerFrameworkAnnotationMirror) {
             return ((AnnotationBuilder.CheckerFrameworkAnnotationMirror) annotation).annotationName;
         }
-        @SuppressWarnings("signature:assignment") // JDK needs annotations
-        @CanonicalName String name = annotationNameAsName(annotation).toString();
-        return name.intern();
+        DeclaredType annoType = annotation.getAnnotationType();
+        TypeElement elm = (TypeElement) annoType.asElement();
+        @CanonicalName @Interned String name = ElementUtils.getQualifiedName(elm);
+        return name;
     }
 
     /**
@@ -223,7 +206,7 @@ public class AnnotationUtils {
                 && a2 instanceof CheckerFrameworkAnnotationMirror) {
             @Interned @CanonicalName String name1 = ((CheckerFrameworkAnnotationMirror) a1).annotationName;
             @Interned @CanonicalName String name2 = ((CheckerFrameworkAnnotationMirror) a2).annotationName;
-            return (name1 == name2);
+            return name1 == name2;
         }
         // At least one is not a CheckerFrameworkAnnotationMirror.
         Name n1 = annotationNameAsName(a1);

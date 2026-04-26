@@ -511,7 +511,7 @@ public class AnnotationFileParser {
         for (TypeElement typeElm : typeElements) {
             if (typeElm.getKind() == ElementKind.ANNOTATION_TYPE) {
                 putIfAbsent(result, typeElm.getSimpleName().toString(), typeElm);
-                putIfAbsent(result, typeElm.getQualifiedName().toString(), typeElm);
+                putIfAbsent(result, ElementUtils.getQualifiedName(typeElm), typeElm);
             }
         }
         return result;
@@ -533,7 +533,7 @@ public class AnnotationFileParser {
                     || varElement.getKind() == ElementKind.ENUM_CONSTANT) {
                 @SuppressWarnings("signature") // string concatenation
                 @FullyQualifiedName String fqName =
-                        typeElement.getQualifiedName().toString()
+                        ElementUtils.getQualifiedName(typeElement)
                                 + "."
                                 + varElement.getSimpleName().toString();
                 result.add(fqName);
@@ -994,7 +994,7 @@ public class AnnotationFileParser {
         TypeElement typeElt;
         if (classTree != null) {
             typeElt = TreeUtils.elementFromDeclaration(classTree);
-            innerName = typeElt.getQualifiedName().toString();
+            innerName = ElementUtils.getQualifiedName(typeElt);
             typeBeingParsed = new FqName(typeBeingParsed.packageName, innerName);
             fqTypeName = typeBeingParsed.toString();
         } else {
@@ -2670,7 +2670,7 @@ public class AnnotationFileParser {
                     createNameToAnnotationMap(Collections.singletonList(annoTypeElt)));
         }
         @SuppressWarnings("signature") // not anonymous, so name is not empty
-        @CanonicalName String annoName = annoTypeElt.getQualifiedName().toString();
+        @CanonicalName String annoName = ElementUtils.getQualifiedName(annoTypeElt);
 
         if (annotation instanceof MarkerAnnotationExpr) {
             return AnnotationBuilder.fromName(elements, annoName);

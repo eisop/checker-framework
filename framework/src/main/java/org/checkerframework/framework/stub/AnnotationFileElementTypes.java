@@ -596,7 +596,7 @@ public class AnnotationFileElementTypes {
             if (AnnotationFileUtil.isCanonicalConstructor((ExecutableElement) elt, types)) {
                 TypeElement enclosing = (TypeElement) elt.getEnclosingElement();
                 AnnotationFileParser.RecordStub recordComponentType =
-                        annotationFileAnnos.records.get(enclosing.getQualifiedName().toString());
+                        annotationFileAnnos.records.get(ElementUtils.getQualifiedName(enclosing));
                 if (recordComponentType != null) {
                     List<AnnotatedTypeMirror> componentsInCanonicalConstructor =
                             recordComponentType.getComponentsInCanonicalConstructor();
@@ -790,11 +790,7 @@ public class AnnotationFileElementTypes {
             }
             enclosingClass = t;
         }
-        @SuppressWarnings(
-                "signature:assignment.type.incompatible" // https://tinyurl.com/cfissue/658:
-        // Name.toString should be @PolySignature
-        )
-        @CanonicalNameOrEmpty String result = enclosingClass.getQualifiedName().toString();
+        @CanonicalNameOrEmpty String result = ElementUtils.getQualifiedName(enclosingClass);
         return result;
     }
 
