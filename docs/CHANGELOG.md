@@ -1,3 +1,13 @@
+Version 3.49.5-eisop2 (May ?, 2026)
+-----------------------------------
+
+**User-visible changes:**
+
+**Implementation details:**
+
+**Closed issues:**
+
+
 Version 3.49.5-eisop1 (April 26, 2026)
 --------------------------------------
 
