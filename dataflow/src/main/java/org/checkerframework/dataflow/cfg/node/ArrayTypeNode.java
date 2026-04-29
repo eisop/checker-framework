@@ -48,6 +48,9 @@ public class ArrayTypeNode extends Node {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof ArrayTypeNode)) {
             return false;
         }

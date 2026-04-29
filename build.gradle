@@ -91,7 +91,7 @@ ext {
         googleJavaFormat : '1.25.2',
         hashmapUtil     : '0.0.1',
         junit           : '4.13.2',
-        lombok          : '1.18.44',
+        lombok          : '1.18.46',
         // plume-util includes a version of reflection-util. When updating ensure the versions are consistent.
         plumeUtil       : '1.11.0',
         reflectionUtil  : '1.1.6',
@@ -173,7 +173,7 @@ allprojects { currentProj ->
     //   * any new checkers have been added, or
     //   * backward-incompatible changes have been made to APIs or elsewhere.
     // To make a snapshot release, version should end in "-SNAPSHOT", then: ./gradlew publish
-    version = '3.49.5-eisop1-SNAPSHOT'
+    version = '3.49.5-eisop2-SNAPSHOT'
 
     apply plugin: 'java'
     apply plugin: 'eclipse'
@@ -278,7 +278,8 @@ allprojects { currentProj ->
         'dataflow': ['manual/examples/**'],
         'docs': [
             'examples/BazelExample/bazel-BazelExample/**',
-            'examples/lombok/build/**'
+            'examples/lombok/build/**',
+            'manual/plume-bib/.plume-scripts/**',
         ],
         'framework': [
             'tests/build/**',
@@ -1189,6 +1190,15 @@ subprojects {
                     forkEvery = 25
                 }
             }
+
+            // To create a Java Flight Recorder trace for tests, uncomment the following block.
+            /*
+             jvmArgs += [
+             "-XX:StartFlightRecording=duration=600s,stackdepth=256,filename=${rootDir}/cf-${project.name}-${name}.jfr,settings=profile,dumponexit=true"
+             ]
+             maxParallelForks = 1
+             forkEvery = 0
+             */
 
             if (isChecker) {
                 dependsOn('assembleForJavac')

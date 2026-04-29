@@ -28,6 +28,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.List;
@@ -185,7 +186,7 @@ public class AnnotationMirrorToAnnotationExprConversion {
         public Expression visitEnumConstant(VariableElement value, Void p) {
             // The enclosing element of an enum constant is the enum type itself.
             TypeElement enumElt = (TypeElement) value.getEnclosingElement();
-            String[] components = enumElt.getQualifiedName().toString().split("\\.");
+            String[] components = ElementUtils.getQualifiedName(enumElt).split("\\.");
             Expression enumName = new NameExpr(components[0]);
             for (int i = 1; i < components.length; i++) {
                 enumName = new FieldAccessExpr(enumName, components[i]);

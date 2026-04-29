@@ -235,7 +235,7 @@ public final class TypesIntoElements {
             { // This block is essentially direct annotations, perhaps we should refactor that
                 // method out
                 List<Attribute.TypeCompound> res = List.nil();
-                for (AnnotationMirror am : typeVar.getLowerBound().getAnnotations()) {
+                for (AnnotationMirror am : typeVar.getLowerBound().getAnnotationsField()) {
                     Attribute.TypeCompound tc =
                             TypeAnnotationUtils.createTypeCompoundFromAnnotationMirror(
                                     am, tapos, processingEnv);
@@ -344,7 +344,7 @@ public final class TypesIntoElements {
                 AnnotatedTypeMirror type, TypeAnnotationPosition tapos) {
             List<Attribute.TypeCompound> res = List.nil();
 
-            for (AnnotationMirror am : type.getAnnotations()) {
+            for (AnnotationMirror am : type.getAnnotationsField()) {
                 // TODO: I BELIEVE THIS ISN'T TRUE BECAUSE PARAMETERS MAY HAVE ANNOTATIONS THAT CAME
                 // FROM THE ELEMENT OF THE CLASS WHICH PREVIOUSLY WAS WRITTEN OUT BY
                 // TYPESINTOELEMENT.
@@ -472,7 +472,7 @@ public final class TypesIntoElements {
             TypeAnnotationPosition newpos = TypeAnnotationUtils.copyTAPosition(tapos);
             newpos.location = tapos.location.append(TypePathEntry.ARRAY);
 
-            return reduce(super.visitArray(type, newpos), res);
+            return reduce(res, super.visitArray(type, newpos));
         }
 
         @Override

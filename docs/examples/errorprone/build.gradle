@@ -11,7 +11,7 @@ plugins {
 
 ext {
     versions = [
-        eisopVersion: '3.49.3-eisop1',
+        eisopVersion: '3.49.5-eisop1',
     ]
 }
 
@@ -22,7 +22,7 @@ dependencies {
     checkerFramework("io.github.eisop:checker:${versions.eisopVersion}")
 
     if (JavaVersion.current() >= JavaVersion.VERSION_21) {
-        errorprone("com.google.errorprone:error_prone_core:2.48.0")
+        errorprone("com.google.errorprone:error_prone_core:2.49.0")
     }
 }
 

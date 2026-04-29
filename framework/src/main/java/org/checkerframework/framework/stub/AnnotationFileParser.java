@@ -96,6 +96,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -511,7 +512,7 @@ public class AnnotationFileParser {
         for (TypeElement typeElm : typeElements) {
             if (typeElm.getKind() == ElementKind.ANNOTATION_TYPE) {
                 putIfAbsent(result, typeElm.getSimpleName().toString(), typeElm);
-                putIfAbsent(result, typeElm.getQualifiedName().toString(), typeElm);
+                putIfAbsent(result, ElementUtils.getQualifiedName(typeElm), typeElm);
             }
         }
         return result;
@@ -533,7 +534,7 @@ public class AnnotationFileParser {
                     || varElement.getKind() == ElementKind.ENUM_CONSTANT) {
                 @SuppressWarnings("signature") // string concatenation
                 @FullyQualifiedName String fqName =
-                        typeElement.getQualifiedName().toString()
+                        ElementUtils.getQualifiedName(typeElement)
                                 + "."
                                 + varElement.getSimpleName().toString();
                 result.add(fqName);
@@ -994,7 +995,7 @@ public class AnnotationFileParser {
         TypeElement typeElt;
         if (classTree != null) {
             typeElt = TreeUtils.elementFromDeclaration(classTree);
-            innerName = typeElt.getQualifiedName().toString();
+            innerName = ElementUtils.getQualifiedName(typeElt);
             typeBeingParsed = new FqName(typeBeingParsed.packageName, innerName);
             fqTypeName = typeBeingParsed.toString();
         } else {
@@ -2407,6 +2408,25 @@ public class AnnotationFileParser {
         return findFieldElement(typeElt, enumConstName, astNode);
     }
 
+    /** Cache all the methods that are in a TypeElement. */
+    private final IdentityHashMap<TypeElement, List<ExecutableElement>> methodsInTypeElementCache =
+            new IdentityHashMap<>();
+
+    /**
+     * Determine all the methods that are in a TypeElement, caching the result.
+     *
+     * @param typeElt the type element
+     * @return the methods in that type element
+     */
+    private List<ExecutableElement> methodsInTypeElement(TypeElement typeElt) {
+        List<ExecutableElement> res = methodsInTypeElementCache.get(typeElt);
+        if (res == null) {
+            res = ElementFilter.methodsIn(typeElt.getEnclosedElements());
+            methodsInTypeElementCache.put(typeElt, res);
+        }
+        return res;
+    }
+
     /**
      * Looks for a method element in {@code typeElt} that has the same name and formal parameter
      * types as {@code methodDecl}. Returns null, and possibly issues a warning, if no such method
@@ -2428,7 +2448,7 @@ public class AnnotationFileParser {
         int wantedMethodParams =
                 (methodDecl.getParameters() == null) ? 0 : methodDecl.getParameters().size();
         String wantedMethodString = AnnotationFileUtil.toString(methodDecl);
-        for (ExecutableElement method : ElementFilter.methodsIn(typeElt.getEnclosedElements())) {
+        for (ExecutableElement method : methodsInTypeElement(typeElt)) {
             if (wantedMethodParams == method.getParameters().size()
                     && wantedMethodName.contentEquals(method.getSimpleName().toString())
                     && ElementUtils.getSimpleSignature(method).equals(wantedMethodString)) {
@@ -2455,8 +2475,7 @@ public class AnnotationFileParser {
                         "method " + wantedMethodString + " not found in type " + typeElt);
                 if (debugAnnotationFileParser) {
                     stubDebug("  methods of %s:", typeElt);
-                    for (ExecutableElement method :
-                            ElementFilter.methodsIn(typeElt.getEnclosedElements())) {
+                    for (ExecutableElement method : methodsInTypeElement(typeElt)) {
                         stubDebug("    %s", method);
                     }
                 }
@@ -2652,7 +2671,7 @@ public class AnnotationFileParser {
                     createNameToAnnotationMap(Collections.singletonList(annoTypeElt)));
         }
         @SuppressWarnings("signature") // not anonymous, so name is not empty
-        @CanonicalName String annoName = annoTypeElt.getQualifiedName().toString();
+        @CanonicalName String annoName = ElementUtils.getQualifiedName(annoTypeElt);
 
         if (annotation instanceof MarkerAnnotationExpr) {
             return AnnotationBuilder.fromName(elements, annoName);

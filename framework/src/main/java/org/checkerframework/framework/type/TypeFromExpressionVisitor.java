@@ -361,7 +361,7 @@ class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
         boolean hasInit = tree.getInitializers() != null;
         AnnotatedTypeMirror typeElem = descendBy(result, hasInit ? 1 : tree.getDimensions().size());
         while (true) {
-            typeElem.addAnnotations(treeElem.getAnnotations());
+            typeElem.addAnnotations(treeElem.getAnnotationsField());
             if (!(treeElem instanceof AnnotatedArrayType)) {
                 break;
             }
@@ -406,7 +406,7 @@ class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
                 (AnnotatedDeclaredType) f.constructorFromUse(tree).executableType.getReturnType();
         // Clear the annotations on the return type, so that the explicit annotations can be added
         // first, then the annotations from the return type are added as needed.
-        AnnotationMirrorSet fromReturn = new AnnotationMirrorSet(returnType.getAnnotations());
+        AnnotationMirrorSet fromReturn = new AnnotationMirrorSet(returnType.getAnnotationsField());
         returnType.clearAnnotations();
         returnType.addAnnotations(f.getExplicitNewClassAnnos(tree));
         returnType.addMissingAnnotations(fromReturn);

@@ -1906,7 +1906,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         }
 
         SourcePositions sourcePositions = trees.getSourcePositions();
+        @SuppressWarnings("removal") // TODO: encapsulate methods
         long start = sourcePositions.getStartPosition(currentRoot, tree);
+        @SuppressWarnings("removal")
         long end = sourcePositions.getEndPosition(currentRoot, tree);
 
         return "( " + start + ", " + end + " )";

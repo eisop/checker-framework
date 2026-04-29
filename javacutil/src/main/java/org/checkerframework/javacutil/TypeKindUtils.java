@@ -7,6 +7,9 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import javax.lang.model.element.Element;
+import javax.lang.model.element.Name;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -19,6 +22,7 @@ public final class TypeKindUtils {
 
     static {
         Map<@FullyQualifiedName String, TypeKind> map = new LinkedHashMap<>();
+        // Keep consistent with checks in `isPossiblyBoxedSimpleName`.
         map.put("java.lang.Byte", TypeKind.BYTE);
         map.put("java.lang.Boolean", TypeKind.BOOLEAN);
         map.put("java.lang.Character", TypeKind.CHAR);
@@ -140,8 +144,47 @@ public final class TypeKindUtils {
             return null;
         }
 
+        // Fast reject: all boxed primitives are in java.lang and have short names.
+        // A DeclaredType whose asElement is not a TypeElement, or whose simple name
+        // doesn't match one of 8 known short names, can't be boxed.
+        Element e = ((DeclaredType) type).asElement();
+        if (!(e instanceof TypeElement)) {
+            return null;
+        }
+        Name simple = e.getSimpleName();
+        // Simple-name compare is MUCH cheaper than qualified-name extraction:
+        // javac's Name.contentEquals uses byte-level compare on the shared name table.
+        if (!isPossiblyBoxedSimpleName(simple)) {
+            return null;
+        }
+        // Only now pay for getQualifiedName:
         String typeString = TypesUtils.getQualifiedName((DeclaredType) type);
         return boxedToPrimitiveType.get(typeString);
+    }
+
+    /**
+     * Is the simple name n possibly a boxed primitive?
+     *
+     * @param n the simple name of the type
+     * @return whether the simple name matches the boxed primitive types
+     */
+    private static boolean isPossiblyBoxedSimpleName(Name n) {
+        // Keep consistent with keys in `boxedToPrimitiveType`.
+        // Decode the Name once, then dispatch via String switch (compiles to
+        // hashCode + targeted equals — short-circuits on length mismatch).
+        switch (n.toString()) {
+            case "Byte":
+            case "Boolean":
+            case "Character":
+            case "Double":
+            case "Float":
+            case "Integer":
+            case "Long":
+            case "Short":
+                return true;
+            default:
+                return false;
+        }
     }
 
     // No overload that takes AnnotatedTypeMirror because javacutil cannot depend on framework.
