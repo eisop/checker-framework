@@ -4098,6 +4098,18 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
+     * Returns true if this type factory is currently parsing stub files or ajava files. While this
+     * is true, annotation-file-backed lookup may observe partially loaded annotation-file data.
+     *
+     * @return true if stub files or ajava files are currently being parsed
+     */
+    public boolean isParsingAnnotationFiles() {
+        return stubTypes.isParsing()
+                || ajavaTypes.isParsing()
+                || (currentFileAjavaTypes != null && currentFileAjavaTypes.isParsing());
+    }
+
+    /**
      * Returns all of the declaration annotations whose name equals the passed annotation class (or
      * is an alias for it) including annotations:
      *

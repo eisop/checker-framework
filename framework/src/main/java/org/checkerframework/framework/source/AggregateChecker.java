@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import javax.lang.model.element.Element;
 import javax.tools.Diagnostic;
 
 /**
@@ -51,5 +52,16 @@ public abstract class AggregateChecker extends SourceChecker {
             // Aggregate checkers do not visit source,
             // the checkers in the aggregate checker do.
         };
+    }
+
+    /**
+     * Always returns false. Whether an aggregate checker is annotated with {@code @AnnotatedFor}
+     * depends on its subcheckers. For checkers that have an upstream checker and want to handle
+     * {@code @AnnotatedFor} in both this and the upstream checker, see {@link
+     * org.checkerframework.checker.initialization.InitializationChecker#getUpstreamCheckerNames()}.
+     */
+    @Override
+    public boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(Element elt) {
+        return false;
     }
 }
