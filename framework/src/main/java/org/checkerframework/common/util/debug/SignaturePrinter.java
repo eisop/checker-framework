@@ -102,7 +102,7 @@ public class SignaturePrinter extends AbstractTypeProcessor {
                     new SourceChecker() {
 
                         @Override
-                        protected boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(
+                        public boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(
                                 Element elt) {
                             throw new BugInCF(
                                     "Unexpected call to determine whether this checker is annotated");

@@ -2999,7 +2999,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @param elt the source code element to check, or null
      * @return true if the element is annotated for this checker or an upstream checker
      */
-    protected abstract boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(Element elt);
+    public abstract boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(Element elt);
 
     /**
      * Returns a modifiable set of lower-case strings that are prefixes for SuppressWarnings

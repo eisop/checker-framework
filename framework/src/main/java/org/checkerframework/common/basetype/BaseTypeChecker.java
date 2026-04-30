@@ -4,6 +4,7 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.ClassGetName;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizer;
+import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.SubtypeOf;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
@@ -13,6 +14,7 @@ import org.checkerframework.framework.type.TypeHierarchy;
 import org.checkerframework.javacutil.AbstractTypeProcessor;
 import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.CollectionsPlume;
@@ -22,10 +24,13 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.IdentityHashMap;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.PackageElement;
 
 /**
  * An abstract {@link SourceChecker} that provides a simple {@link
@@ -68,6 +73,13 @@ import javax.lang.model.element.Element;
  * @checker_framework.manual #creating-compiler-interface The checker class
  */
 public abstract class BaseTypeChecker extends SourceChecker {
+
+    /**
+     * A mapping from an element to whether it is in an {@code @AnnotatedFor} scope for this checker
+     * or an upstream checker.
+     */
+    private final IdentityHashMap<Element, Boolean> elementAnnotatedForThisCheckerOrUpstreamCache =
+            new IdentityHashMap<>();
 
     /** An array containing just {@code BaseTypeChecker.class}. */
     protected static Class<?>[] baseTypeCheckerClassArray = new Class<?>[] {BaseTypeChecker.class};
@@ -315,26 +327,39 @@ public abstract class BaseTypeChecker extends SourceChecker {
         }
     }
 
-    /**
-     * The implementation of this method resides in AnnotatedTypeFactory (atf), see {@link
-     * AnnotatedTypeFactory#isElementAnnotatedForThisCheckerOrUpstreamChecker(Element)} We want to
-     * implement it here to avoid duplication and call
-     * atypeFactory.getChecker().isElementAnnotatedForThisCheckerOrUpstreamChecker(elt) in
-     * QualifierDefaults, but implement it here causes type-system error. The reason is the
-     * implementation requires an atf to call {@link AnnotatedTypeFactory#getDeclAnnotation(Element,
-     * Class)}to get the relavent {@code @AnnotatedFor} annotation on the element. However, the
-     * method is called during the initialization of the atf when applying qualifier defaults. At
-     * that time, the atf and the visitor are not fully initialized, so calling getTypeFactory()
-     * will result in a type-system error. The initialization logic is as follows: 1. Create the
-     * checker. 2. Create the visitor, and the visitor's constructor initializes the atf. 3. During
-     * postInit() of the atf, the qualifier defaults are applied, which need to call
-     * isElementAnnotatedForThisCheckerOrUpstreamChecker().
-     *
-     * @param elt the source code element to check, or null
-     * @return true if the element is annotated for this checker or an upstream checker
-     */
     @Override
-    protected boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(Element elt) {
-        return getTypeFactory().isElementAnnotatedForThisCheckerOrUpstreamChecker(elt);
+    public boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
+        if (elt == null) {
+            throw new BugInCF(
+                    "Call of BaseTypeChecker.isElementAnnotatedForThisCheckerOrUpstreamChecker with null");
+        }
+
+        if (elementAnnotatedForThisCheckerOrUpstreamCache.containsKey(elt)) {
+            return elementAnnotatedForThisCheckerOrUpstreamCache.get(elt);
+        }
+
+        AnnotatedTypeFactory atypeFactory = getTypeFactory();
+        AnnotationMirror annotatedFor = atypeFactory.getDeclAnnotation(elt, AnnotatedFor.class);
+        boolean elementAnnotatedForThisChecker =
+                annotatedFor != null
+                        && atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor);
+
+        if (!elementAnnotatedForThisChecker) {
+            Element parent;
+            if (elt.getKind() == ElementKind.PACKAGE) {
+                parent =
+                        ElementUtils.parentPackage(
+                                (PackageElement) elt, atypeFactory.getElementUtils());
+            } else {
+                parent = elt.getEnclosingElement();
+            }
+
+            if (parent != null && isElementAnnotatedForThisCheckerOrUpstreamChecker(parent)) {
+                elementAnnotatedForThisChecker = true;
+            }
+        }
+
+        elementAnnotatedForThisCheckerOrUpstreamCache.put(elt, elementAnnotatedForThisChecker);
+        return elementAnnotatedForThisChecker;
     }
 }

@@ -61,7 +61,7 @@ public abstract class AggregateChecker extends SourceChecker {
      * org.checkerframework.checker.initialization.InitializationChecker#getUpstreamCheckerNames()}.
      */
     @Override
-    protected boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(Element elt) {
+    public boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(Element elt) {
         return false;
     }
 }

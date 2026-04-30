@@ -330,7 +330,7 @@ public class AnnotationStatistics extends SourceChecker {
     }
 
     @Override
-    protected boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(Element elt) {
+    public boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(Element elt) {
         throw new BugInCF("Unexpected call to determine whether this checker is annotated");
     }
 }
