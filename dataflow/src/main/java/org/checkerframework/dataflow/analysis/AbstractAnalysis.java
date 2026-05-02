@@ -400,8 +400,13 @@ public abstract class AbstractAnalysis<
         }
         transferInput.node = node;
         setCurrentNode(node);
-        TransferResult<V, S> transferResult = node.accept(transferFunction, transferInput);
-        setCurrentNode(null);
+        TransferResult<V, S> transferResult;
+        try {
+            transferResult = node.accept(transferFunction, transferInput);
+        } finally {
+            // Preserve invariant `!isRunning => currentNode == null` even on exception.
+            setCurrentNode(null);
+        }
         if (node instanceof AssignmentNode) {
             // store the flow-refined value effectively for final local variables
             AssignmentNode assignment = (AssignmentNode) node;
