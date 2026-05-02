@@ -279,10 +279,11 @@ public class AnalysisResult<V extends AbstractValue<V>, S extends Store<S>> impl
      *     or decrement tree
      */
     public BinaryTree getPostfixBinaryTree(UnaryTree postfixTree) {
-        if (!postfixLookup.containsKey(postfixTree)) {
+        BinaryTree result = postfixLookup.get(postfixTree);
+        if (result == null) {
             throw new BugInCF(postfixTree + " is not in postfixLookup");
         }
-        return postfixLookup.get(postfixTree);
+        return result;
     }
 
     /**
