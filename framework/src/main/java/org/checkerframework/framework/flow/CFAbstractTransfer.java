@@ -225,8 +225,8 @@ public abstract class CFAbstractTransfer<
             } else {
                 at = factory.getAnnotatedType(tree);
             }
-        } catch (Throwable t) {
-            throw BugInCF.addLocation(tree, t);
+        } catch (Exception e) {
+            throw BugInCF.addLocation(tree, e);
         } finally {
             analysis.setCurrentTree(preTree);
         }

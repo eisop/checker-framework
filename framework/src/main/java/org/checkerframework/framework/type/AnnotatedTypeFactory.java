@@ -1087,7 +1087,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 String ajavaPath = candidateAjavaFiles.toArray(new String[0])[0];
                 try {
                     currentFileAjavaTypes.parseAjavaFileWithTree(ajavaPath, root);
-                } catch (Throwable e) {
+                } catch (Exception e) {
                     throw new Error(
                             "Problem while parsing "
                                     + ajavaPath

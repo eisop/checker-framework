@@ -432,13 +432,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
         try {
             return (Factory) new BaseAnnotatedTypeFactory(checker);
-        } catch (Throwable t) {
+        } catch (Exception e) {
             throw new BugInCF(
                     "Unexpected "
-                            + t.getClass().getSimpleName()
+                            + e.getClass().getSimpleName()
                             + " when invoking BaseAnnotatedTypeFactory for checker "
                             + checker.getClass().getSimpleName(),
-                    t);
+                    e);
         }
     }
 
