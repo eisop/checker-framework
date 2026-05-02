@@ -2285,10 +2285,11 @@ public abstract class GenericAnnotatedTypeFactory<
 
         VariableElement variableElt = (VariableElement) elt;
         variablesUnderInitialization.add(variableElt);
-        AnnotatedTypeMirror initializerType;
-        if (shouldCache && initializerCache.containsKey(initializer)) {
+        AnnotatedTypeMirror initializerType = null;
+        if (shouldCache) {
             initializerType = initializerCache.get(initializer);
-        } else {
+        }
+        if (initializerType == null) {
             // When this method is called by getAnnotatedTypeLhs, flow is turned off.
             // Turn it back on so the type of the initializer is the refined type.
             boolean oldUseFlow = useFlow;
