@@ -2078,7 +2078,8 @@ public abstract class GenericAnnotatedTypeFactory<
         log(
                 "%s GATF.addComputedTypeAnnotations#1(%s, %s, %s)%n",
                 thisClass, treeString, type, this.useFlow);
-        if (!TreeUtils.isExpressionTree(tree)) {
+        boolean isExpressionTree = TreeUtils.isExpressionTree(tree);
+        if (!isExpressionTree) {
             // Don't apply defaults to expressions. Their types may be computed from subexpressions
             // in treeAnnotator.
             addAnnotationsFromDefaultForType(TreeUtils.elementFromTree(tree), type);
@@ -2090,7 +2091,7 @@ public abstract class GenericAnnotatedTypeFactory<
         log(
                 "%s GATF.addComputedTypeAnnotations#4(%s, %s)%n  treeAnnotator=%s%n",
                 thisClass, treeString, type, treeAnnotator);
-        if (TreeUtils.isExpressionTree(tree)) {
+        if (isExpressionTree) {
             // If a tree annotator did not add a type, add the DefaultForUse default.
             addAnnotationsFromDefaultForType(TreeUtils.elementFromTree(tree), type);
             log("%s GATF.addComputedTypeAnnotations#5(%s, %s)%n", thisClass, treeString, type);
