@@ -1484,7 +1484,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         AnnotatedTypeMirror type;
-        if (TreeUtils.isClassTree(tree)) {
+        boolean isClassTree = TreeUtils.isClassTree(tree);
+        if (isClassTree) {
             type = fromClass((ClassTree) tree);
         } else if (tree instanceof MethodTree || tree instanceof VariableTree) {
             type = fromMember(tree);
@@ -1502,7 +1503,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             type = applyCaptureConversion(type);
         }
 
-        if (shouldCache && (TreeUtils.isClassTree(tree) || tree instanceof MethodTree)) {
+        if (shouldCache && (isClassTree || tree instanceof MethodTree)) {
             // Don't cache VARIABLE
             classAndMethodTreeCache.put(tree, type.deepCopy());
         } else {
