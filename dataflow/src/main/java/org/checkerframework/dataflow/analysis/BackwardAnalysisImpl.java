@@ -358,6 +358,7 @@ public class BackwardAnalysisImpl<
             assert currentInput != null : "@AssumeAssertion(nullness): invariant";
             return currentInput.getRegularStore();
         }
+        setNodeValues(nodeValues);
         isRunning = true;
         try {
             IdentityHashMap<Node, TransferResult<V, S>> cache;

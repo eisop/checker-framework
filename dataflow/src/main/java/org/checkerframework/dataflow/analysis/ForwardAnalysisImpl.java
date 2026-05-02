@@ -253,16 +253,6 @@ public class ForwardAnalysisImpl<
         assert block != null : "@AssumeAssertion(nullness): invariant";
         Node oldCurrentNode = currentNode;
 
-        // Prepare cache
-        IdentityHashMap<Node, TransferResult<V, S>> cache;
-        if (analysisCaches != null) {
-            cache =
-                    analysisCaches.computeIfAbsent(
-                            blockTransferInput, __ -> new IdentityHashMap<>());
-        } else {
-            cache = null;
-        }
-
         if (isRunning) {
             assert currentInput != null : "@AssumeAssertion(nullness): invariant";
             return currentInput.getRegularStore();
@@ -270,6 +260,16 @@ public class ForwardAnalysisImpl<
         setNodeValues(nodeValues);
         isRunning = true;
         try {
+            // Prepare cache (after the isRunning check to avoid creating empty cache entries when
+            // the analysis is already running)
+            IdentityHashMap<Node, TransferResult<V, S>> cache;
+            if (analysisCaches != null) {
+                cache =
+                        analysisCaches.computeIfAbsent(
+                                blockTransferInput, __ -> new IdentityHashMap<>());
+            } else {
+                cache = null;
+            }
             switch (block.getType()) {
                 case REGULAR_BLOCK:
                     {
