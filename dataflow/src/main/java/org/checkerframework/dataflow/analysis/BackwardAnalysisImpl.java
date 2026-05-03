@@ -361,6 +361,8 @@ public class BackwardAnalysisImpl<
         setNodeValues(nodeValues);
         isRunning = true;
         try {
+            // Prepare cache (after the isRunning check to avoid creating empty cache entries when
+            // the analysis is already running)
             IdentityHashMap<Node, TransferResult<V, S>> cache;
             if (analysisCaches != null) {
                 cache =
