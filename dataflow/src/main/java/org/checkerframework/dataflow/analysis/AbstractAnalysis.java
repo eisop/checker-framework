@@ -21,9 +21,9 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Objects;
 import java.util.PriorityQueue;
@@ -253,11 +253,8 @@ public abstract class AbstractAnalysis<
     @RequiresNonNull("cfg")
     public @Nullable S getRegularExitStore() {
         SpecialBlock regularExitBlock = cfg.getRegularExitBlock();
-        if (inputs.containsKey(regularExitBlock)) {
-            return inputs.get(regularExitBlock).getRegularStore();
-        } else {
-            return null;
-        }
+        TransferInput<V, S> input = inputs.get(regularExitBlock);
+        return input == null ? null : input.getRegularStore();
     }
 
     @Override
@@ -265,12 +262,8 @@ public abstract class AbstractAnalysis<
     @RequiresNonNull("cfg")
     public @Nullable S getExceptionalExitStore() {
         SpecialBlock exceptionalExitBlock = cfg.getExceptionalExitBlock();
-        if (inputs.containsKey(exceptionalExitBlock)) {
-            S exceptionalExitStore = inputs.get(exceptionalExitBlock).getRegularStore();
-            return exceptionalExitStore;
-        } else {
-            return null;
-        }
+        TransferInput<V, S> input = inputs.get(exceptionalExitBlock);
+        return input == null ? null : input.getRegularStore();
     }
 
     /**
@@ -400,8 +393,13 @@ public abstract class AbstractAnalysis<
         }
         transferInput.node = node;
         setCurrentNode(node);
-        TransferResult<V, S> transferResult = node.accept(transferFunction, transferInput);
-        setCurrentNode(null);
+        TransferResult<V, S> transferResult;
+        try {
+            transferResult = node.accept(transferFunction, transferInput);
+        } finally {
+            // Preserve invariant `!isRunning => currentNode == null` even on exception.
+            setCurrentNode(null);
+        }
         if (node instanceof AssignmentNode) {
             // store the flow-refined value effectively for final local variables
             AssignmentNode assignment = (AssignmentNode) node;
@@ -486,11 +484,7 @@ public abstract class AbstractAnalysis<
      * @param b the block to add to {@link #worklist}
      */
     protected void addToWorklist(Block b) {
-        // TODO: This costs linear (!) time.  Use a more efficient way to check if b is already
-        // present.
-        // Two possibilities:
-        //  * add unconditionally, and detect duplicates when removing from the queue.
-        //  * maintain a HashSet of the elements that are already in the queue.
+        // Worklist.contains is O(1) via worklist.queueSet.
         if (!worklist.contains(b)) {
             worklist.add(b);
         }
@@ -513,10 +507,13 @@ public abstract class AbstractAnalysis<
             /** Creates a new ForwardDfoComparator. */
             public ForwardDfoComparator() {}
 
-            @SuppressWarnings("nullness:unboxing.of.nullable")
             @Override
             public int compare(Block b1, Block b2) {
-                return depthFirstOrder.get(b1) - depthFirstOrder.get(b2);
+                Integer o1 = depthFirstOrder.get(b1);
+                Integer o2 = depthFirstOrder.get(b2);
+                assert o1 != null && o2 != null
+                        : "@AssumeAssertion(nullness): blocks have been processed";
+                return Integer.compare(o1, o2);
             }
         }
 
@@ -528,10 +525,13 @@ public abstract class AbstractAnalysis<
             /** Creates a new BackwardDfoComparator. */
             public BackwardDfoComparator() {}
 
-            @SuppressWarnings("nullness:unboxing.of.nullable")
             @Override
             public int compare(Block b1, Block b2) {
-                return depthFirstOrder.get(b2) - depthFirstOrder.get(b1);
+                Integer o1 = depthFirstOrder.get(b1);
+                Integer o2 = depthFirstOrder.get(b2);
+                assert o1 != null && o2 != null
+                        : "@AssumeAssertion(nullness): blocks have been processed";
+                return Integer.compare(o2, o1);
             }
         }
 
@@ -549,10 +549,10 @@ public abstract class AbstractAnalysis<
         public Worklist(Direction direction) {
             if (direction == Direction.FORWARD) {
                 queue = new PriorityQueue<>(new ForwardDfoComparator());
-                queueSet = new HashSet<>();
+                queueSet = Collections.newSetFromMap(new IdentityHashMap<>());
             } else if (direction == Direction.BACKWARD) {
                 queue = new PriorityQueue<>(new BackwardDfoComparator());
-                queueSet = new HashSet<>();
+                queueSet = Collections.newSetFromMap(new IdentityHashMap<>());
             } else {
                 throw new BugInCF("Unexpected Direction: " + direction.name());
             }
