@@ -3990,8 +3990,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             return null;
         }
 
+        TreePath cached = treePathCache.getCachedPath(tree);
+        if (cached != null) {
+            return cached;
+        }
         if (treePathCache.isCached(tree)) {
-            return treePathCache.getPath(root, tree);
+            // tree was previously searched for and not found in the compilation unit.
+            return null;
         }
 
         TreePath currentPath = visitorTreePath;
