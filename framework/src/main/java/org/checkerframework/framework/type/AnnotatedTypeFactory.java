@@ -1479,12 +1479,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (tree == null) {
             throw new BugInCF("AnnotatedTypeFactory.getAnnotatedType: null tree");
         }
-        if (shouldCache && classAndMethodTreeCache.containsKey(tree)) {
-            return classAndMethodTreeCache.get(tree).deepCopy();
+        if (shouldCache) {
+            AnnotatedTypeMirror cached = classAndMethodTreeCache.get(tree);
+            if (cached != null) {
+                return cached.deepCopy();
+            }
         }
 
         AnnotatedTypeMirror type;
-        if (TreeUtils.isClassTree(tree)) {
+        boolean isClassTree = TreeUtils.isClassTree(tree);
+        if (isClassTree) {
             type = fromClass((ClassTree) tree);
         } else if (tree instanceof MethodTree || tree instanceof VariableTree) {
             type = fromMember(tree);
@@ -1502,7 +1506,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             type = applyCaptureConversion(type);
         }
 
-        if (shouldCache && (TreeUtils.isClassTree(tree) || tree instanceof MethodTree)) {
+        if (shouldCache && (isClassTree || tree instanceof MethodTree)) {
             // Don't cache VARIABLE
             classAndMethodTreeCache.put(tree, type.deepCopy());
         } else {
@@ -1660,8 +1664,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return AnnotatedTypeMirror of the element with explicitly-written and stub file annotations
      */
     public AnnotatedTypeMirror fromElement(Element elt) {
-        if (shouldCache && elementCache.containsKey(elt)) {
-            return elementCache.get(elt).deepCopy();
+        if (shouldCache) {
+            AnnotatedTypeMirror cached = elementCache.get(elt);
+            if (cached != null) {
+                return cached.deepCopy();
+            }
         }
         if (elt.getKind() == ElementKind.PACKAGE) {
             return toAnnotatedType(elt.asType(), false);
@@ -1753,8 +1760,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     "AnnotatedTypeFactory.fromMember: not a method or variable declaration: "
                             + tree);
         }
-        if (shouldCache && fromMemberTreeCache.containsKey(tree)) {
-            return fromMemberTreeCache.get(tree).deepCopy();
+        if (shouldCache) {
+            AnnotatedTypeMirror cached = fromMemberTreeCache.get(tree);
+            if (cached != null) {
+                return cached.deepCopy();
+            }
         }
         AnnotatedTypeMirror result = TypeFromTree.fromMember(this, tree);
 
@@ -1846,8 +1856,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @see TypeFromExpressionVisitor
      */
     private AnnotatedTypeMirror fromExpression(ExpressionTree tree) {
-        if (shouldCache && fromExpressionTreeCache.containsKey(tree)) {
-            return fromExpressionTreeCache.get(tree).deepCopy();
+        if (shouldCache) {
+            AnnotatedTypeMirror cached = fromExpressionTreeCache.get(tree);
+            if (cached != null) {
+                return cached.deepCopy();
+            }
         }
 
         AnnotatedTypeMirror result = TypeFromTree.fromExpression(this, tree);
@@ -1876,8 +1889,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return the (partially) annotated type of the type in the AST
      */
     /*package-private*/ final AnnotatedTypeMirror fromTypeTree(Tree tree) {
-        if (shouldCache && fromTypeTreeCache.containsKey(tree)) {
-            return fromTypeTreeCache.get(tree).deepCopy();
+        if (shouldCache) {
+            AnnotatedTypeMirror cached = fromTypeTreeCache.get(tree);
+            if (cached != null) {
+                return cached.deepCopy();
+            }
         }
 
         AnnotatedTypeMirror result = TypeFromTree.fromTypeTree(this, tree);

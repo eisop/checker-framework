@@ -21,9 +21,9 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Objects;
 import java.util.PriorityQueue;
@@ -393,8 +393,13 @@ public abstract class AbstractAnalysis<
         }
         transferInput.node = node;
         setCurrentNode(node);
-        TransferResult<V, S> transferResult = node.accept(transferFunction, transferInput);
-        setCurrentNode(null);
+        TransferResult<V, S> transferResult;
+        try {
+            transferResult = node.accept(transferFunction, transferInput);
+        } finally {
+            // Preserve invariant `!isRunning => currentNode == null` even on exception.
+            setCurrentNode(null);
+        }
         if (node instanceof AssignmentNode) {
             // store the flow-refined value effectively for final local variables
             AssignmentNode assignment = (AssignmentNode) node;
@@ -544,10 +549,10 @@ public abstract class AbstractAnalysis<
         public Worklist(Direction direction) {
             if (direction == Direction.FORWARD) {
                 queue = new PriorityQueue<>(new ForwardDfoComparator());
-                queueSet = new HashSet<>();
+                queueSet = Collections.newSetFromMap(new IdentityHashMap<>());
             } else if (direction == Direction.BACKWARD) {
                 queue = new PriorityQueue<>(new BackwardDfoComparator());
-                queueSet = new HashSet<>();
+                queueSet = Collections.newSetFromMap(new IdentityHashMap<>());
             } else {
                 throw new BugInCF("Unexpected Direction: " + direction.name());
             }
