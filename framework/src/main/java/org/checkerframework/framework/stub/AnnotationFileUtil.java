@@ -156,7 +156,7 @@ public class AnnotationFileUtil {
 
     /*package-private*/ static TypeDeclaration<?> findDeclaration(
             TypeElement type, StubUnit indexFile) {
-        return findDeclaration(type.getQualifiedName().toString(), indexFile);
+        return findDeclaration(ElementUtils.getQualifiedName(type), indexFile);
     }
 
     /*package-private*/ static @Nullable FieldDeclaration findDeclaration(

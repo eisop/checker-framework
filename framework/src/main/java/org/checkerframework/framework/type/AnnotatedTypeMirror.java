@@ -209,7 +209,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     @Pure
     @Override
     public final int hashCode() {
-        return HASHCODE_VISITOR.visit(this);
+        return HASHCODE_VISITOR.compute(this);
     }
 
     /**
@@ -398,7 +398,22 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     // getAnnotations in javac APIs works.
     // Removed getEffectiveAnnotation
     public AnnotationMirrorSet getEffectiveAnnotations() {
-        AnnotationMirrorSet effectiveAnnotations = getErased().getAnnotations();
+        AnnotationMirrorSet effectiveAnnotations;
+        /* As a performance optimization I experimented with the following
+        * version, which tries to avoid creating the erased type. In the end,
+        * this did not produce a significant improvement, but could be tried
+        * again.
+              TypeKind k = getKind();
+              if (k == TypeKind.DECLARED
+                      || k == TypeKind.ARRAY
+                      || k.isPrimitive()
+                      || k == TypeKind.NULL
+                      || k == TypeKind.VOID
+                      || k == TypeKind.NONE) {
+                  // Avoid the cost of calling `getErased()` when erasure has no effect.
+                  effectiveAnnotations = this.getAnnotations();
+              } else {*/
+        effectiveAnnotations = getErased().getAnnotations();
         //        assert atypeFactory.qualHierarchy.getWidth() == effectiveAnnotations
         //                .size() : "Invalid number of effective annotations ("
         //                + effectiveAnnotations + "). Should be "
@@ -932,16 +947,53 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     }
 
     /**
-     * Returns the result of calling {@code underlyingType.toString().hashcode()}. This method saves
-     * the result in a field so that it isn't recomputed each time.
+     * Returns a hash for the {@code underlyingType}. This method saves the result in a field so
+     * that it is not recomputed each time.
      *
-     * @return the result of calling {@code underlyingType.toString().hashcode()}
+     * <p>For {@link TypeKind}s whose {@link TypeMirror#equals} contract is effectively identity
+     * (primitives, void, none, null, package), this method avoids the toString-based hash entirely
+     * and uses the kind's ordinal. This is safe because types of those kinds are canonicalized by
+     * javac and cannot be structurally equal without being reference-equal.
+     *
+     * @return a hash for the underlying type that is consistent with {@link TypeMirror#equals}
      */
-    public int getUnderlyingTypeHashCode() {
+    protected int getUnderlyingTypeHashCode() {
         if (underlyingTypeHashCode == -1) {
-            underlyingTypeHashCode = underlyingType.toString().hashCode();
+            underlyingTypeHashCode = computeUnderlyingTypeHashCode();
         }
         return underlyingTypeHashCode;
+    }
+
+    /**
+     * Computes the underlying-type hash. See {@link #getUnderlyingTypeHashCode}.
+     *
+     * @return the underlying-type hash
+     */
+    private int computeUnderlyingTypeHashCode() {
+        switch (underlyingType.getKind()) {
+            case BOOLEAN:
+            case BYTE:
+            case SHORT:
+            case INT:
+            case LONG:
+            case CHAR:
+            case FLOAT:
+            case DOUBLE:
+            case VOID:
+            case NONE:
+            case NULL:
+            case PACKAGE:
+                // Ordinal is in the range [0, 20], shift it out of the -1 collision zone.
+                @SuppressWarnings("EnumOrdinal")
+                int ord = underlyingType.getKind().ordinal() + 1;
+                return ord;
+            default:
+                int h = underlyingType.hashCode();
+                // Guard against the theoretical case where underlyingType.hashCode() returns -1,
+                // which would collide with the uninitialized sentinel and force recomputation
+                // on every call.
+                return h == -1 ? 0 : h;
+        }
     }
 
     /** Represents a declared type (whether class or interface). */
@@ -1203,11 +1255,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                                     atypeFactory.types.erasure(underlyingType),
                                     atypeFactory,
                                     false);
-            erased.addAnnotations(this.getAnnotations());
+            erased.addAnnotations(this.getAnnotationsField());
             AnnotatedDeclaredType erasedEnclosing = erased.getEnclosingType();
             AnnotatedDeclaredType thisEnclosing = this.getEnclosingType();
             while (erasedEnclosing != null) {
-                erasedEnclosing.addAnnotations(thisEnclosing.getAnnotations());
+                erasedEnclosing.addAnnotations(thisEnclosing.getAnnotationsField());
                 erasedEnclosing = erasedEnclosing.getEnclosingType();
                 thisEnclosing = thisEnclosing.getEnclosingType();
             }
@@ -2636,7 +2688,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         public void copyIntersectionBoundAnnotations() {
             AnnotationMirrorSet annos = new AnnotationMirrorSet();
             for (AnnotatedTypeMirror bound : getBounds()) {
-                for (AnnotationMirror a : bound.getAnnotations()) {
+                for (AnnotationMirror a : bound.getAnnotationsField()) {
                     if (atypeFactory.getQualifierHierarchy().findAnnotationInSameHierarchy(annos, a)
                             == null) {
                         annos.add(a);

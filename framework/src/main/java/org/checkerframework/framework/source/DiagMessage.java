@@ -88,6 +88,9 @@ public class DiagMessage {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof DiagMessage)) {
             return false;
         }

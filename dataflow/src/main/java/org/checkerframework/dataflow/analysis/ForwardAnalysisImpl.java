@@ -253,16 +253,6 @@ public class ForwardAnalysisImpl<
         assert block != null : "@AssumeAssertion(nullness): invariant";
         Node oldCurrentNode = currentNode;
 
-        // Prepare cache
-        IdentityHashMap<Node, TransferResult<V, S>> cache;
-        if (analysisCaches != null) {
-            cache =
-                    analysisCaches.computeIfAbsent(
-                            blockTransferInput, __ -> new IdentityHashMap<>());
-        } else {
-            cache = null;
-        }
-
         if (isRunning) {
             assert currentInput != null : "@AssumeAssertion(nullness): invariant";
             return currentInput.getRegularStore();
@@ -270,6 +260,16 @@ public class ForwardAnalysisImpl<
         setNodeValues(nodeValues);
         isRunning = true;
         try {
+            // Prepare cache (after the isRunning check to avoid creating empty cache entries when
+            // the analysis is already running)
+            IdentityHashMap<Node, TransferResult<V, S>> cache;
+            if (analysisCaches != null) {
+                cache =
+                        analysisCaches.computeIfAbsent(
+                                blockTransferInput, __ -> new IdentityHashMap<>());
+            } else {
+                cache = null;
+            }
             switch (block.getType()) {
                 case REGULAR_BLOCK:
                     {
@@ -283,11 +283,12 @@ public class ForwardAnalysisImpl<
                             if (n == node && preOrPost == Analysis.BeforeOrAfter.BEFORE) {
                                 return store.getRegularStore();
                             }
-                            if (cache != null && cache.containsKey(n)) {
-                                transferResult = cache.get(n);
+                            TransferResult<V, S> cached = cache != null ? cache.get(n) : null;
+                            if (cached != null) {
+                                transferResult = cached;
                             } else {
                                 // Copy the store to avoid changing other blocks' transfer inputs in
-                                // {@link #inputs}
+                                // {@link #inputs}.
                                 transferResult = callTransferFunction(n, store.copy());
                                 if (cache != null) {
                                     cache.put(n, transferResult);
@@ -315,14 +316,13 @@ public class ForwardAnalysisImpl<
                             return blockTransferInput.getRegularStore();
                         }
                         setCurrentNode(node);
-                        // Copy the store to avoid changing other blocks' transfer inputs in {@link
-                        // #inputs}
                         TransferResult<V, S> transferResult;
-                        if (cache != null && cache.containsKey(node)) {
-                            transferResult = cache.get(node);
+                        TransferResult<V, S> cached = cache != null ? cache.get(node) : null;
+                        if (cached != null) {
+                            transferResult = cached;
                         } else {
                             // Copy the store to avoid changing other blocks' transfer inputs in
-                            // {@link #inputs}
+                            // {@link #inputs}.
                             transferResult = callTransferFunction(node, blockTransferInput.copy());
                             if (cache != null) {
                                 cache.put(node, transferResult);
@@ -489,8 +489,6 @@ public class ForwardAnalysisImpl<
      */
     protected void addStoreBefore(
             Block b, @Nullable Node node, S s, Store.Kind kind, boolean addBlockToWorklist) {
-        S thenStore = getStoreBefore(b, Store.Kind.THEN);
-        S elseStore = getStoreBefore(b, Store.Kind.ELSE);
         boolean shouldWiden = false;
         if (blockCount != null) {
             Integer count = blockCount.getOrDefault(b, 0);
@@ -504,10 +502,12 @@ public class ForwardAnalysisImpl<
         switch (kind) {
             case THEN:
                 {
-                    // Update the then store
+                    // Update the then store.
+                    S thenStore = getStoreBefore(b, Store.Kind.THEN);
                     S newThenStore = mergeStores(s, thenStore, shouldWiden);
                     if (!newThenStore.equals(thenStore)) {
                         thenStores.put(b, newThenStore);
+                        S elseStore = getStoreBefore(b, Store.Kind.ELSE);
                         if (elseStore != null) {
                             inputs.put(b, new TransferInput<>(node, this, newThenStore, elseStore));
                             addBlockToWorklist = true;
@@ -517,10 +517,12 @@ public class ForwardAnalysisImpl<
                 }
             case ELSE:
                 {
-                    // Update the else store
+                    // Update the else store.
+                    S elseStore = getStoreBefore(b, Store.Kind.ELSE);
                     S newElseStore = mergeStores(s, elseStore, shouldWiden);
                     if (!newElseStore.equals(elseStore)) {
                         elseStores.put(b, newElseStore);
+                        S thenStore = getStoreBefore(b, Store.Kind.THEN);
                         if (thenStore != null) {
                             inputs.put(b, new TransferInput<>(node, this, thenStore, newElseStore));
                             addBlockToWorklist = true;
@@ -529,6 +531,8 @@ public class ForwardAnalysisImpl<
                     break;
                 }
             case BOTH:
+                S thenStore = getStoreBefore(b, Store.Kind.THEN);
+                S elseStore = getStoreBefore(b, Store.Kind.ELSE);
                 @SuppressWarnings("interning:not.interned")
                 boolean sameStore = (thenStore == elseStore);
                 if (sameStore) {

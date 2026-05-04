@@ -67,7 +67,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
 
         AnnotatedTypeMirror decltype = atypeFactory.getAnnotatedType(memberElement);
         AnnotatedTypeMirror combinedType = combineTypeWithType(receiverType, decltype);
-        memberType.replaceAnnotations(combinedType.getAnnotations());
+        memberType.replaceAnnotations(combinedType.getAnnotationsField());
         if (memberType.getKind() == TypeKind.DECLARED
                 && combinedType.getKind() == TypeKind.DECLARED) {
             AnnotatedDeclaredType adtType = (AnnotatedDeclaredType) memberType;

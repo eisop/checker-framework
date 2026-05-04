@@ -1258,6 +1258,9 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      * argument {@link CFAbstractStore}. Note that we test the entry keys and values by Java
      * equality, not by any subtype relationship. This method is used primarily to simplify the
      * equals predicate.
+     *
+     * @param other the other store
+     * @return true iff this store contains a superset of the map entries in the other store
      */
     protected boolean supersetOf(CFAbstractStore<V, S> other) {
         for (Map.Entry<LocalVariable, V> e : other.localVariableValues.entrySet()) {
@@ -1303,6 +1306,9 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
 
     @Override
     public boolean equals(@Nullable Object o) {
+        if (this == o) {
+            return true;
+        }
         if (o instanceof CFAbstractStore) {
             @SuppressWarnings("unchecked")
             CFAbstractStore<V, S> other = (CFAbstractStore<V, S>) o;
@@ -1314,8 +1320,14 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
 
     @Override
     public int hashCode() {
-        // What is a good hash code to use?
-        return 22;
+        // Cheap and equal-compatible hash based on sizes only.
+        int h = localVariableValues.size();
+        h = 31 * h + fieldValues.size();
+        h = 31 * h + methodCallExpressions.size();
+        h = 31 * h + arrayValues.size();
+        h = 31 * h + classValues.size();
+        h = 31 * h + (thisValue == null ? 0 : 1);
+        return h;
     }
 
     @SideEffectFree

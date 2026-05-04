@@ -36,14 +36,12 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
-import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.StringsPlume;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -107,12 +105,9 @@ public class QualifierDefaults {
     /** Defaults for unchecked code. */
     private final DefaultSet uncheckedCodeDefaults = new DefaultSet();
 
-    /** Size for caches. */
-    private static final int CACHE_SIZE = 300;
-
     /** Mapping from an Element to the bound type. */
-    protected final Map<Element, BoundType> elementToBoundType =
-            CollectionsPlume.createLruCache(CACHE_SIZE);
+    protected final IdentityHashMap<Element, BoundType> elementToBoundType =
+            new IdentityHashMap<>();
 
     /**
      * Defaults that apply for a certain Element. On the one hand this is used for caching (an

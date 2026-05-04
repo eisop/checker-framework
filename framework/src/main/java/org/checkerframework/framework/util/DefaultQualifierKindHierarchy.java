@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -248,8 +249,9 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
     protected Map<@Interned @CanonicalName String, DefaultQualifierKind> createQualifierKinds(
             @UnderInitialization DefaultQualifierKindHierarchy this,
             Collection<Class<? extends Annotation>> qualifierClasses) {
-        TreeMap<@Interned @CanonicalName String, DefaultQualifierKind> nameToQualifierKind =
-                new TreeMap<>();
+        // Use a LinkedHashMap instead of a TreeMap for O(1) access.
+        LinkedHashMap<@Interned @CanonicalName String, DefaultQualifierKind> nameToQualifierKind =
+                new LinkedHashMap<>();
         for (Class<? extends Annotation> clazz : qualifierClasses) {
             @SuppressWarnings("interning") // uniqueness is tested immediately below
             @Interned DefaultQualifierKind qualifierKind = new DefaultQualifierKind(clazz);

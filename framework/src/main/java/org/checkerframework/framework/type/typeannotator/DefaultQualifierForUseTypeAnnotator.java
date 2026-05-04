@@ -10,10 +10,9 @@ import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.TreeUtils;
-import org.plumelib.util.CollectionsPlume;
 
+import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
@@ -63,8 +62,8 @@ public class DefaultQualifierForUseTypeAnnotator extends TypeAnnotator {
      * Cache of elements to the set of annotations that should be applied to unannotated uses of the
      * element.
      */
-    protected final Map<Element, AnnotationMirrorSet> elementToDefaults =
-            CollectionsPlume.createLruCache(100);
+    protected final IdentityHashMap<Element, AnnotationMirrorSet> elementToDefaults =
+            new IdentityHashMap<>();
 
     /** Clears all caches. */
     public void clearCache() {
