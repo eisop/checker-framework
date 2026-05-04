@@ -870,6 +870,7 @@ public abstract class CFAbstractTransfer<
     @Override
     public TransferResult<V, S> visitTernaryExpression(
             TernaryExpressionNode n, TransferInput<V, S> p) {
+        // TODO: See the comment on visitWideningConversion for why super is not called.
         TransferResult<V, S> result = super.visitTernaryExpression(n, p);
         S thenStore = result.getThenStore();
         S elseStore = result.getElseStore();
@@ -1526,12 +1527,14 @@ public abstract class CFAbstractTransfer<
     @Override
     public TransferResult<V, S> visitWideningConversion(
             WideningConversionNode n, TransferInput<V, S> p) {
-        TransferResult<V, S> result = super.visitWideningConversion(n, p);
-        // Combine annotations from the operand with the wide type
+        // Combine annotations from the operand with the wide type.
+        // We don't call super.visitWideningConversion here because its only effect is to compute
+        // a value via getValueFromFactory that we would immediately discard via setResultValue.
+        // Building the result directly also means finishValue is called once with the actual
+        // returned value, instead of once with a discarded value plus once via setResultValue.
         V operandValue = p.getValueOfSubNode(n.getOperand());
         V widenedValue = getWidenedValue(n.getType(), operandValue);
-        result.setResultValue(widenedValue);
-        return result;
+        return createTransferResult(widenedValue, p);
     }
 
     /**
@@ -1583,20 +1586,18 @@ public abstract class CFAbstractTransfer<
     @Override
     public TransferResult<V, S> visitNarrowingConversion(
             NarrowingConversionNode n, TransferInput<V, S> p) {
-        TransferResult<V, S> result = super.visitNarrowingConversion(n, p);
-        // Combine annotations from the operand with the narrow type
+        // Combine annotations from the operand with the narrow type.  See the comment on
+        // visitWideningConversion for why super is not called.
         V operandValue = p.getValueOfSubNode(n.getOperand());
         V narrowedValue = getNarrowedValue(n.getType(), operandValue);
-        result.setResultValue(narrowedValue);
-        return result;
+        return createTransferResult(narrowedValue, p);
     }
 
     @Override
     public TransferResult<V, S> visitStringConversion(
             StringConversionNode n, TransferInput<V, S> p) {
-        TransferResult<V, S> result = super.visitStringConversion(n, p);
-        result.setResultValue(p.getValueOfSubNode(n.getOperand()));
-        return result;
+        // See the comment on visitWideningConversion for why super is not called.
+        return createTransferResult(p.getValueOfSubNode(n.getOperand()), p);
     }
 
     @Override
