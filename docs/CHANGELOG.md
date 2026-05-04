@@ -5,7 +5,7 @@ Version 3.49.5-eisop2 (May ?, 2026)
 
 **Implementation details:**
 
-Fixed a bug that caused an IndexOutOfBoundsError for lambdas in varargs, for
+Fixed a bug that caused an IndexOutOfBoundsException for lambdas in varargs, for
 type systems that had the Aliasing Checker as a subchecker, like the Optional
 Checker.
 
