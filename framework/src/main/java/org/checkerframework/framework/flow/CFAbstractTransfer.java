@@ -127,6 +127,16 @@ public abstract class CFAbstractTransfer<
     /** True if {@code -AassumePureGetters} was passed. */
     protected final boolean assumePureGetters;
 
+    /**
+     * Cached lookup of the AliasingChecker subchecker's type factory; valid only when {@link
+     * #aliasingAtfInitialized} is true. Caching is safe because the subchecker set is fixed once
+     * the checker initializes.
+     */
+    protected @Nullable AliasingAnnotatedTypeFactory aliasingAtfCache;
+
+    /** Whether {@link #aliasingAtfCache} has been initialized. */
+    protected boolean aliasingAtfInitialized = false;
+
     /* NO-AFU Indicates that the whole-program inference is on. */
     /* NO-AFU
     private final boolean infer;
@@ -453,20 +463,46 @@ public abstract class CFAbstractTransfer<
         if (lambdaParent instanceof MethodInvocationTree) {
             MethodInvocationTree invok = (MethodInvocationTree) lambdaParent;
             ExecutableElement methodElt = TreeUtils.elementFromUse(invok);
-            AliasingAnnotatedTypeFactory aliasingAtf =
-                    analysis.atypeFactory
-                            .getChecker()
-                            .getTypeFactoryOfSubcheckerOrNull(AliasingChecker.class);
+            AliasingAnnotatedTypeFactory aliasingAtf = getAliasingAtf();
             if (aliasingAtf != null) {
                 int indexOfLambdaActual = invok.getArguments().indexOf(lambdaTree);
-                VariableElement lambdaFormal = methodElt.getParameters().get(indexOfLambdaActual);
-                return aliasingAtf
-                                .getAnnotatedType(lambdaFormal)
-                                .getEffectiveAnnotation(NonLeaked.class)
-                        == null;
+                List<? extends VariableElement> formals = methodElt.getParameters();
+                // Adapt formal index for varargs methods.
+                int formalIndex =
+                        (methodElt.isVarArgs() && indexOfLambdaActual >= formals.size() - 1)
+                                ? formals.size() - 1
+                                : indexOfLambdaActual;
+                if (formalIndex < 0 || formalIndex >= formals.size()) {
+                    // Defensive: shouldn't happen for well-formed code.  initialStore can be
+                    // invoked on recovered/error trees, so handle gracefully by treating the
+                    // lambda as leaked.
+                    return true;
+                }
+                VariableElement lambdaFormal = formals.get(formalIndex);
+                return !aliasingAtf
+                        .getAnnotatedType(lambdaFormal)
+                        .hasEffectiveAnnotation(NonLeaked.class);
             }
         }
         return true;
+    }
+
+    /**
+     * Returns the {@link AliasingAnnotatedTypeFactory}, or null if the Aliasing Checker is not a
+     * subchecker. The result is cached after the first call to avoid repeated subchecker-registry
+     * walks for every lambda's initial store.
+     *
+     * @return the AliasingChecker's type factory, or null
+     */
+    private @Nullable AliasingAnnotatedTypeFactory getAliasingAtf() {
+        if (!aliasingAtfInitialized) {
+            aliasingAtfCache =
+                    analysis.atypeFactory
+                            .getChecker()
+                            .getTypeFactoryOfSubcheckerOrNull(AliasingChecker.class);
+            aliasingAtfInitialized = true;
+        }
+        return aliasingAtfCache;
     }
 
     /**
