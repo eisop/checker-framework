@@ -50,7 +50,6 @@ import org.checkerframework.dataflow.cfg.node.TernaryExpressionNode;
 import org.checkerframework.dataflow.cfg.node.ThisNode;
 import org.checkerframework.dataflow.cfg.node.VariableDeclarationNode;
 import org.checkerframework.dataflow.cfg.node.WideningConversionNode;
-import org.checkerframework.dataflow.expression.FieldAccess;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.expression.LocalVariable;
 import org.checkerframework.dataflow.expression.MethodCall;
@@ -79,7 +78,6 @@ import org.checkerframework.javacutil.TypesUtils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -120,6 +118,15 @@ public abstract class CFAbstractTransfer<
      */
     protected final boolean sequentialSemantics;
 
+    /** True if {@code -AassumeSideEffectFree} or {@code -AassumePure} was passed. */
+    protected final boolean assumeSideEffectFree;
+
+    /** True if {@code -AassumeDeterministic} or {@code -AassumePure} was passed. */
+    protected final boolean assumeDeterministic;
+
+    /** True if {@code -AassumePureGetters} was passed. */
+    protected final boolean assumePureGetters;
+
     /* NO-AFU Indicates that the whole-program inference is on. */
     /* NO-AFU
     private final boolean infer;
@@ -149,6 +156,11 @@ public abstract class CFAbstractTransfer<
         this.analysis = analysis;
         this.sequentialSemantics =
                 !(forceConcurrentSemantics || analysis.checker.hasOption("concurrentSemantics"));
+        boolean assumePure = analysis.checker.hasOption("assumePure");
+        this.assumeSideEffectFree =
+                assumePure || analysis.checker.hasOption("assumeSideEffectFree");
+        this.assumeDeterministic = assumePure || analysis.checker.hasOption("assumeDeterministic");
+        this.assumePureGetters = analysis.checker.hasOption("assumePureGetters");
         /* NO-AFU
                this.infer = analysis.checker.hasOption("infer");
         */
@@ -392,15 +404,14 @@ public abstract class CFAbstractTransfer<
             }
 
             // We want the initialization stuff, but need to throw out any refinements.
-            Map<FieldAccess, V> fieldValuesClone = new HashMap<>(store.fieldValues);
-            for (Map.Entry<FieldAccess, V> fieldValue : fieldValuesClone.entrySet()) {
-                AnnotatedTypeMirror declaredType =
-                        atypeFactory.getAnnotatedType(fieldValue.getKey().getField());
-                V lubbedValue =
-                        analysis.createAbstractValue(declaredType)
-                                .leastUpperBound(fieldValue.getValue());
-                store.fieldValues.put(fieldValue.getKey(), lubbedValue);
-            }
+            // Update values in place; keys are unchanged.
+            store.fieldValues.replaceAll(
+                    (fieldAccess, currentValue) -> {
+                        AnnotatedTypeMirror declaredType =
+                                atypeFactory.getAnnotatedType(fieldAccess.getField());
+                        return analysis.createAbstractValue(declaredType)
+                                .leastUpperBound(currentValue);
+                    });
         } else {
             assert false : "Unexpected tree: " + underlyingAST;
             store = null;
@@ -467,18 +478,7 @@ public abstract class CFAbstractTransfer<
      */
     private boolean isExpressionOrStatementPure(
             TreePath expressionOrStatement, AnnotatedTypeFactory aTypeFactory) {
-        // TODO: almost certainly should not have to do this here. It is not enough to check for the
-        // existence of the assume SideEffectFree/Deterministic flags at this point. The checker is
-        // queried for these options, but the parsing of the assumePure flag into these flags are
-        // done at the visitor-level. As a result, it's possible for only the assumePure flag to
-        // exist here, which entails assumeSideEffectFree and assumeDeterministic
-        boolean isAssumeSideEffectFreeEnabled =
-                aTypeFactory.getChecker().hasOption("assumeSideEffectFree")
-                        || aTypeFactory.getChecker().hasOption("assumePure");
-        boolean isAssumeDeterministicEnabled =
-                aTypeFactory.getChecker().hasOption("assumeDeterministic")
-                        || aTypeFactory.getChecker().hasOption("assumePure");
-        if (isAssumeSideEffectFreeEnabled && isAssumeDeterministicEnabled) {
+        if (assumeSideEffectFree && assumeDeterministic) {
             // Under the side effect free and deterministic assumptions, we can conclude
             // that the expression or statement is pure.
             return true;
@@ -487,9 +487,9 @@ public abstract class CFAbstractTransfer<
                 PurityChecker.checkPurity(
                         expressionOrStatement,
                         aTypeFactory,
-                        isAssumeSideEffectFreeEnabled,
-                        isAssumeDeterministicEnabled,
-                        aTypeFactory.getChecker().hasOption("assumePureGetters"));
+                        assumeSideEffectFree,
+                        assumeDeterministic,
+                        assumePureGetters);
         return result.isPure(EnumSet.allOf(Pure.Kind.class));
     }
 
@@ -520,6 +520,8 @@ public abstract class CFAbstractTransfer<
         boolean isStaticMethod =
                 ElementUtils.isStatic(TreeUtils.elementFromDeclaration(methodTree));
         TypeElement classEle = TreeUtils.elementFromDeclaration(classTree);
+        boolean isInitializedReceiver =
+                !isConstructor && !isNotFullyInitializedReceiver(methodTree);
         for (FieldInitialValue<V> fieldInitialValue : analysis.getFieldInitialValues()) {
             VariableElement varEle = fieldInitialValue.fieldDecl.getField();
             boolean isStaticField = ElementUtils.isStatic(varEle);
@@ -544,7 +546,6 @@ public abstract class CFAbstractTransfer<
             if (!isConstructor) {
                 // If it's not a constructor, use the declared type if the receiver of the method is
                 // fully initialized.
-                boolean isInitializedReceiver = !isNotFullyInitializedReceiver(methodTree);
                 if (isInitializedReceiver && isFieldOfCurrentClass) {
                     store.insertValue(fieldInitialValue.fieldDecl, fieldInitialValue.declared);
                 }
@@ -1005,15 +1006,17 @@ public abstract class CFAbstractTransfer<
      */
     @SideEffectFree
     protected List<Node> splitAssignments(Node node) {
-        if (node instanceof AssignmentNode) {
-            List<Node> result = new ArrayList<>(2);
-            AssignmentNode a = (AssignmentNode) node;
-            result.add(a.getTarget());
-            result.addAll(splitAssignments(a.getExpression()));
-            return result;
-        } else {
+        if (!(node instanceof AssignmentNode)) {
             return Collections.singletonList(node);
         }
+        List<Node> result = new ArrayList<>(2);
+        while (node instanceof AssignmentNode) {
+            AssignmentNode a = (AssignmentNode) node;
+            result.add(a.getTarget());
+            node = a.getExpression();
+        }
+        result.add(node);
+        return result;
     }
 
     @Override
@@ -1202,11 +1205,11 @@ public abstract class CFAbstractTransfer<
     @Override
     public TransferResult<V, S> visitInstanceOf(InstanceOfNode node, TransferInput<V, S> in) {
         TransferResult<V, S> result = super.visitInstanceOf(node, in);
+        ExpressionTree exprTree = node.getTree().getExpression();
+        AnnotatedTypeMirror exprType = analysis.atypeFactory.getAnnotatedType(exprTree);
         for (LocalVariableNode bindingVar : node.getBindingVariables()) {
             JavaExpression expr = JavaExpression.fromNode(bindingVar);
-            AnnotatedTypeMirror expType =
-                    analysis.atypeFactory.getAnnotatedType(node.getTree().getExpression());
-            for (AnnotationMirror anno : expType.getAnnotations()) {
+            for (AnnotationMirror anno : exprType.getAnnotations()) {
                 in.getRegularStore().insertOrRefine(expr, anno);
             }
         }
@@ -1215,12 +1218,10 @@ public abstract class CFAbstractTransfer<
         Tree refTypeTree = node.getTree().getType();
         if (refTypeTree instanceof AnnotatedTypeTree) {
             AnnotatedTypeMirror refType = analysis.atypeFactory.getAnnotatedType(refTypeTree);
-            AnnotatedTypeMirror expType =
-                    analysis.atypeFactory.getAnnotatedType(node.getTree().getExpression());
-            if (analysis.atypeFactory.getTypeHierarchy().isSubtype(refType, expType)
-                    && !refType.getAnnotations().equals(expType.getAnnotations())
-                    && !expType.getAnnotations().isEmpty()) {
-                JavaExpression expr = JavaExpression.fromTree(node.getTree().getExpression());
+            if (analysis.atypeFactory.getTypeHierarchy().isSubtype(refType, exprType)
+                    && !refType.getAnnotations().equals(exprType.getAnnotations())
+                    && !exprType.getAnnotations().isEmpty()) {
+                JavaExpression expr = JavaExpression.fromTree(exprTree);
                 for (AnnotationMirror anno : refType.getAnnotations()) {
                     in.getRegularStore().insertOrRefine(expr, anno);
                 }
@@ -1410,6 +1411,8 @@ public abstract class CFAbstractTransfer<
         // precise.
         // If there are multiple case constants then a new store is created for each case constant
         // and then they are lubbed. This method returns the lubbed result.
+        AssignmentNode assign = n.getSwitchOperand();
+        V switchValue = store.getValue(JavaExpression.fromNode(assign.getTarget()));
         for (Node caseOperand : n.getCaseOperands()) {
             TransferResult<V, S> result =
                     new ConditionalTransferResult<>(
@@ -1418,8 +1421,6 @@ public abstract class CFAbstractTransfer<
                             in.getElseStore().copy(),
                             false);
             V caseValue = in.getValueOfSubNode(caseOperand);
-            AssignmentNode assign = n.getSwitchOperand();
-            V switchValue = store.getValue(JavaExpression.fromNode(assign.getTarget()));
             result =
                     strengthenAnnotationOfEqualTo(
                             result,
