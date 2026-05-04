@@ -78,6 +78,7 @@ import org.checkerframework.javacutil.TypesUtils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -596,54 +597,43 @@ public abstract class CFAbstractTransfer<
     }
 
     /**
-     * Adds information about effectively final variables (from outer scopes)
+     * Add information about effectively-final variables (from outer scopes).
      *
      * @param store the store to add to
      * @param enclosingElement the enclosing element of the code we are analyzing
      */
     private void addFinalLocalValues(S store, Element enclosingElement) {
-        // add information about effectively final variables (from outer scopes)
-        for (Map.Entry<VariableElement, V> e :
-                analysis.atypeFactory.getFinalLocalValues().entrySet()) {
-
+        // TODO: There is a design flaw where the values of final local values leaks into other
+        // methods of the same class. For example, in
+        //   class a { void b() {...} void c() {...} }
+        // final local values from b() would be visible in the store for c(), even though they
+        // should only be visible in b() and in classes defined inside the method body of b().
+        // This is partly because GenericAnnotatedTypeFactory.performFlowAnalysis does not call
+        // itself recursively to analyze inner classes, but instead pops classes off of a queue,
+        // and the information about known final local values is stored by
+        // GenericAnnotatedTypeFactory.analyze in GenericAnnotatedTypeFactory.flowResult, which is
+        // visible to all classes in the queue regardless of their level of recursion.
+        //
+        // We work around this here by ensuring that we only add a final local value to a method's
+        // store if that method is enclosed by the method where the local variables were declared.
+        //
+        // Implementation note: previously this was an O(F * C) double loop (F final locals,
+        // C enclosing-chain depth) -- for each final local we walked the entire enclosing chain
+        // looking for a match.  We now precompute the enclosing chain once into a Set so each
+        // entry is a single set lookup, making the total O(F + C).
+        Map<VariableElement, V> finalLocals = analysis.atypeFactory.getFinalLocalValues();
+        if (finalLocals.isEmpty()) {
+            return;
+        }
+        Set<Element> enclosingChain = new HashSet<>();
+        for (Element e = enclosingElement; e != null; e = e.getEnclosingElement()) {
+            enclosingChain.add(e);
+        }
+        for (Map.Entry<VariableElement, V> e : finalLocals.entrySet()) {
             VariableElement elem = e.getKey();
-
-            // TODO: There is a design flaw where the values of final local values leaks
-            // into other methods of the same class. For example, in
-            // class a { void b() {...} void c() {...} }
-            // final local values from b() would be visible in the store for c(),
-            // even though they should only be visible in b() and in classes
-            // defined inside the method body of b().
-            // This is partly because GenericAnnotatedTypeFactory.performFlowAnalysis does not call
-            // itself recursively to analyze inner classes, but instead pops classes off of a queue,
-            // and the information about known final local values is stored by
-            // GenericAnnotatedTypeFactory.analyze in GenericAnnotatedTypeFactory.flowResult, which
-            // is visible to all classes in the queue regardless of their level of recursion.
-
-            // We work around this here by ensuring that we only add a final local value to a
-            // method's store if that method is enclosed by the method where the local variables
-            // were declared.
-
-            // Find the enclosing method of the element
-            Element enclosingMethodOfVariableDeclaration = elem.getEnclosingElement();
-
-            if (enclosingMethodOfVariableDeclaration != null) {
-
-                // Now find all the enclosing methods of the code we are analyzing. If any one of
-                // them matches the above, then the final local variable value applies.
-                Element enclosingMethodOfCurrentMethod = enclosingElement;
-
-                while (enclosingMethodOfCurrentMethod != null) {
-                    if (enclosingMethodOfVariableDeclaration.equals(
-                            enclosingMethodOfCurrentMethod)) {
-                        LocalVariable l = new LocalVariable(elem);
-                        store.insertValue(l, e.getValue());
-                        break;
-                    }
-
-                    enclosingMethodOfCurrentMethod =
-                            enclosingMethodOfCurrentMethod.getEnclosingElement();
-                }
+            Element decl = elem.getEnclosingElement();
+            if (decl != null && enclosingChain.contains(decl)) {
+                store.insertValue(new LocalVariable(elem), e.getValue());
             }
         }
     }
