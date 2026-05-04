@@ -11,6 +11,7 @@ Optional Checker.
 
 **Closed issues:**
 
+eisop#1542.
 
 Version 3.49.5-eisop1 (April 26, 2026)
 --------------------------------------
