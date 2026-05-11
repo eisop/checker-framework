@@ -248,7 +248,7 @@ public class AnnotatedForTest {
         }
     }
 
-    // @SuppressWarnings("subtyping") should suppress all subtying diagnostics within the annotated
+    // @SuppressWarnings("subtyping") should suppress all subtyping diagnostics within the annotated
     // declaration's scope, including those in nested @AnnotatedFor("subtyping") scopes.
     @SuppressWarnings("subtyping")
     class SuppressWarningsClassWithAnnotatedForMethod {

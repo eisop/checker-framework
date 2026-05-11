@@ -2756,6 +2756,12 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *     otherwise
      */
     public boolean shouldSuppressWarnings(TreePath path, String errKey) {
+        if (shouldSuppress(getSuppressWarningsStringsFromOption(), errKey)) {
+            return true;
+        }
+
+        boolean foundAnnotatedFor = false;
+
         // iterate through the path; continue until path contains no declarations
         for (TreePath declPath = TreePathUtil.enclosingDeclarationPath(path);
                 declPath != null;
@@ -2764,41 +2770,36 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
             if (decl instanceof VariableTree) {
                 Element elt = TreeUtils.elementFromDeclaration((VariableTree) decl);
-                if (shouldSuppressWarnings(elt, errKey)) {
+                if (shouldSuppressWarningsOnElement(elt, errKey)) {
                     return true;
                 }
             } else if (decl instanceof MethodTree) {
                 Element elt = TreeUtils.elementFromDeclaration((MethodTree) decl);
-                if (shouldSuppressWarnings(elt, errKey)) {
+                if (shouldSuppressWarningsOnElement(elt, errKey)) {
                     return true;
                 }
 
-                if (isAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
-                    // Return false immediately. Do NOT check for AnnotatedFor in the enclosing
-                    // elements as the closest AnnotatedFor is already found.
-                    return false;
+                if (!foundAnnotatedFor && isAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
+                    foundAnnotatedFor = true;
                 }
             } else if (TreeUtils.classTreeKinds().contains(decl.getKind())) {
                 // A class tree
                 Element elt = TreeUtils.elementFromDeclaration((ClassTree) decl);
-                if (shouldSuppressWarnings(elt, errKey)) {
+                if (shouldSuppressWarningsOnElement(elt, errKey)) {
                     return true;
                 }
 
-                if (isAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
-                    // Return false immediately. Do NOT check for AnnotatedFor in the enclosing
-                    // elements as the closest AnnotatedFor is already found.
-                    return false;
+                if (!foundAnnotatedFor && isAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
+                    foundAnnotatedFor = true;
                 }
                 Element packageElement = elt.getEnclosingElement();
                 if (packageElement != null && packageElement.getKind() == ElementKind.PACKAGE) {
-                    if (shouldSuppressWarnings(packageElement, errKey)) {
+                    if (shouldSuppressWarningsOnElement(packageElement, errKey)) {
                         return true;
                     }
-                    if (isAnnotatedForThisCheckerOrUpstreamChecker(packageElement)) {
-                        // Return false immediately. Do NOT check for AnnotatedFor in the enclosing
-                        // elements as the closest AnnotatedFor is already found.
-                        return false;
+                    if (!foundAnnotatedFor
+                            && isAnnotatedForThisCheckerOrUpstreamChecker(packageElement)) {
+                        foundAnnotatedFor = true;
                     }
                 }
             } else {
@@ -2806,7 +2807,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             }
         }
 
-        if (useConservativeDefaultsSource || onlyAnnotatedFor) {
+        if (foundAnnotatedFor) {
+            return false;
+        } else if (useConservativeDefaultsSource || onlyAnnotatedFor) {
             // If we got this far without hitting an @AnnotatedFor and returning
             // false, we DO suppress the warning.
             return true;
@@ -2865,15 +2868,30 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         }
 
         for (Element currElt = elt; currElt != null; currElt = currElt.getEnclosingElement()) {
-            SuppressWarnings suppressWarningsAnno = currElt.getAnnotation(SuppressWarnings.class);
-            if (suppressWarningsAnno != null) {
-                String[] suppressWarningsStrings = suppressWarningsAnno.value();
-                if (shouldSuppress(suppressWarningsStrings, errKey)) {
-                    if (warnUnneededSuppressions) {
-                        elementsWithSuppressedWarnings.add(currElt);
-                    }
-                    return true;
+            if (shouldSuppressWarningsOnElement(currElt, errKey)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns true if the given element has a {@code @SuppressWarnings} annotation that suppresses
+     * the given error key.
+     *
+     * @param elt the element whose annotations to check
+     * @param errKey the error key the checker is emitting
+     * @return true if {@code elt} has an corresponding {@code @SuppressWarnings} annotation
+     */
+    private boolean shouldSuppressWarningsOnElement(Element elt, String errKey) {
+        SuppressWarnings suppressWarningsAnno = elt.getAnnotation(SuppressWarnings.class);
+        if (suppressWarningsAnno != null) {
+            String[] suppressWarningsStrings = suppressWarningsAnno.value();
+            if (shouldSuppress(suppressWarningsStrings, errKey)) {
+                if (warnUnneededSuppressions) {
+                    elementsWithSuppressedWarnings.add(elt);
                 }
+                return true;
             }
         }
         return false;
