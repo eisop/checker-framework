@@ -2582,6 +2582,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (inferTypeArgs) {
             // Adapt parameters, which makes parameters and arguments be the same size for later
             // checking.
+            // TODO: this should not depend on whether type arguments need to be inferred!
             List<AnnotatedTypeMirror> parameters =
                     AnnotatedTypes.adaptParameters(this, method, tree.getArguments(), tree);
             method.setParameterTypes(parameters);
@@ -3105,11 +3106,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // checking.
             // The vararg type of con has been already computed and stored when calling
             // typeVarSubstitutor.substitute.
+            // TODO: this should not depend on whether type arguments need to be inferred!
             List<AnnotatedTypeMirror> parameters =
                     AnnotatedTypes.adaptParameters(this, con, tree.getArguments(), tree);
             con.setParameterTypes(parameters);
         }
-
         return new ParameterizedExecutableType(con, typeargs);
     }
 
