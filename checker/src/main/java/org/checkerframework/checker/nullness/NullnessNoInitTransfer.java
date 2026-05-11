@@ -320,6 +320,12 @@ public class NullnessNoInitTransfer
         }
 
         @Override
+        public void reset() {
+            isTopLevel = true;
+            super.reset();
+        }
+
+        @Override
         protected Boolean defaultAction(AnnotatedTypeMirror type, Void p) {
             if (isTopLevel) {
                 isTopLevel = false;
@@ -337,9 +343,6 @@ public class NullnessNoInitTransfer
      * @return true if there is an occurrence of @PolyNull that is not at the top level
      */
     private boolean containsPolyNullNotAtTopLevel(AnnotatedTypeMirror t) {
-        // The scanner is stateful (isTopLevel and visitedNodes); reset before reuse.
-        polyNullScanner.isTopLevel = true;
-        polyNullScanner.reset();
         return polyNullScanner.visit(t);
     }
 
