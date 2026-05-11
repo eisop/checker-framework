@@ -186,7 +186,7 @@ public class ForwardAnalysisImpl<
                                 addStoreBefore(
                                         exceptionSucc,
                                         node,
-                                        regular,
+                                        regular.copy(),
                                         Store.Kind.BOTH,
                                         addToWorklistAgain);
                             }
