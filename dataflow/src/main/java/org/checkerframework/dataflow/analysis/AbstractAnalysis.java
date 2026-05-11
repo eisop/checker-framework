@@ -21,6 +21,7 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -205,14 +206,27 @@ public abstract class AbstractAnalysis<
                     || (currentTree != null && currentTree == n.getTree())) {
                 return null;
             }
-            // check that 'n' is a subnode of 'currentNode'. Check immediate operands
-            // first for efficiency.
+            // Check that 'n' is a subnode of 'currentNode'. Check immediate operands
+            // first for efficiency, then walk transitive operands with early exit
+            // (vs. materializing the whole subtree as Node#getTransitiveOperands does).
             assert !n.isLValue() : "Did not expect an lvalue, but got " + n;
-            if (!currentNode.getOperands().contains(n)
-                    && !currentNode.getTransitiveOperands().contains(n)) {
-                return null;
+            Collection<Node> immediate = currentNode.getOperands();
+            if (!immediate.contains(n)) {
+                java.util.ArrayDeque<Node> queue = new java.util.ArrayDeque<>(immediate);
+                boolean found = false;
+                while (!queue.isEmpty()) {
+                    Collection<Node> ops = queue.removeFirst().getOperands();
+                    if (ops.contains(n)) {
+                        found = true;
+                        break;
+                    }
+                    queue.addAll(ops);
+                }
+                if (!found) {
+                    return null;
+                }
             }
-            // fall through when the current node is not 'n', and 'n' is not a subnode.
+            // Fall through when 'n' is a (transitive) subnode of currentNode.
         }
         return nodeValues.get(n);
     }
