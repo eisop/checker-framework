@@ -129,6 +129,9 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     /** True if -Alint=redundantNullComparison was passed on the command line. */
     private final boolean redundantNullComparison;
 
+    /** True if -Alint=noInitForMonotonicNonNull was passed on the command line. */
+    private final boolean noInitForMonotonicNonNull;
+
     /**
      * Create a new NullnessVisitor.
      *
@@ -159,6 +162,10 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 checker.getLintOption(
                         NullnessChecker.LINT_REDUNDANTNULLCOMPARISON,
                         NullnessChecker.LINT_DEFAULT_REDUNDANTNULLCOMPARISON);
+        noInitForMonotonicNonNull =
+                checker.getLintOption(
+                        NullnessChecker.LINT_NOINITFORMONOTONICNONNULL,
+                        NullnessChecker.LINT_DEFAULT_NOINITFORMONOTONICNONNULL);
     }
 
     @Override
@@ -199,13 +206,12 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         // constructor, or in an initializer block.  (The latter two are, strictly speaking, unsound
         // because the constructor or initializer block might have previously set the field to a
         // non-null value.  Maybe add an option to disable that behavior.)
-        Element elem = initializedElement(varTree);
-        if (elem != null
-                && atypeFactory.fromElement(elem).hasEffectiveAnnotation(MONOTONIC_NONNULL)
-                && !checker.getLintOption(
-                        NullnessChecker.LINT_NOINITFORMONOTONICNONNULL,
-                        NullnessChecker.LINT_DEFAULT_NOINITFORMONOTONICNONNULL)) {
-            return true;
+        if (!noInitForMonotonicNonNull) {
+            Element elem = initializedElement(varTree);
+            if (elem != null
+                    && atypeFactory.fromElement(elem).hasEffectiveAnnotation(MONOTONIC_NONNULL)) {
+                return true;
+            }
         }
         return super.commonAssignmentCheck(varTree, valueExp, errorKey, extraArgs);
     }
@@ -716,7 +722,8 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     @Override
     protected void checkMethodInvocability(
             AnnotatedExecutableType method, MethodInvocationTree tree) {
-        if (method.getReceiverType() == null) {
+        AnnotatedTypeMirror methodReceiverType = method.getReceiverType();
+        if (methodReceiverType == null) {
             // Static methods don't have a receiver to check.
             return;
         }
@@ -726,7 +733,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             // method.getElement().getKind() != ElementKind.CONSTRUCTOR) {
             AnnotatedTypeMirror rcv = atypeFactory.getReceiverType(tree);
             AnnotationMirrorSet receiverAnnos = rcv.getAnnotations();
-            AnnotatedTypeMirror methodReceiver = method.getReceiverType().getErased();
+            AnnotatedTypeMirror methodReceiver = methodReceiverType.getErased();
             AnnotatedTypeMirror treeReceiver = methodReceiver.shallowCopy(false);
             treeReceiver.addAnnotations(rcv.getEffectiveAnnotations());
             // If receiver is Nullable, then we don't want to issue a warning about method
