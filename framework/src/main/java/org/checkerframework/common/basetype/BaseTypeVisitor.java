@@ -5030,7 +5030,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param overriderType the subtype
      * @param overriddenType the supertype
      * @param mustSubset annotations that should be weaker
-     * @param set anontations that should be stronger
+     * @param set annotations that should be stronger
      * @param messageKey message key for error messages
      * @return whether the contracts are subsets
      */
