@@ -5032,6 +5032,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param mustSubset annotations that should be weaker
      * @param set anontations that should be stronger
      * @param messageKey message key for error messages
+     * @return whether the contracts are subsets
      */
     private boolean checkContractsSubset(
             AnnotatedTypeMirror overriderType,
