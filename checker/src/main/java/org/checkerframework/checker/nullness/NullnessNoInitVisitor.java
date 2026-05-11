@@ -721,16 +721,13 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             return;
         }
 
-        if (!TreeUtils.isSelfAccess(tree)
-                &&
-                // Static methods don't have a receiver
-                method.getReceiverType() != null) {
+        if (!TreeUtils.isSelfAccess(tree)) {
             // TODO: should all or some constructors be excluded?
             // method.getElement().getKind() != ElementKind.CONSTRUCTOR) {
-            AnnotationMirrorSet receiverAnnos = atypeFactory.getReceiverType(tree).getAnnotations();
+            AnnotatedTypeMirror rcv = atypeFactory.getReceiverType(tree);
+            AnnotationMirrorSet receiverAnnos = rcv.getAnnotations();
             AnnotatedTypeMirror methodReceiver = method.getReceiverType().getErased();
             AnnotatedTypeMirror treeReceiver = methodReceiver.shallowCopy(false);
-            AnnotatedTypeMirror rcv = atypeFactory.getReceiverType(tree);
             treeReceiver.addAnnotations(rcv.getEffectiveAnnotations());
             // If receiver is Nullable, then we don't want to issue a warning about method
             // invocability (we'd rather have only the "dereference.of.nullable" message).

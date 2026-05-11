@@ -99,6 +99,10 @@ public class NullnessNoInitTransfer
      */
     private final boolean nonNullAssumptionAfterInvocation;
 
+    /** Reusable scanner for {@link #containsPolyNullNotAtTopLevel}; reset before each visit. */
+    private final ContainsPolyNullNotAtTopLevelScanner polyNullScanner =
+            new ContainsPolyNullNotAtTopLevelScanner();
+
     /**
      * Create a new NullnessTransfer for the given analysis.
      *
@@ -333,7 +337,10 @@ public class NullnessNoInitTransfer
      * @return true if there is an occurrence of @PolyNull that is not at the top level
      */
     private boolean containsPolyNullNotAtTopLevel(AnnotatedTypeMirror t) {
-        return new ContainsPolyNullNotAtTopLevelScanner().visit(t);
+        // The scanner is stateful (isTopLevel and visitedNodes); reset before reuse.
+        polyNullScanner.isTopLevel = true;
+        polyNullScanner.reset();
+        return polyNullScanner.visit(t);
     }
 
     @Override
