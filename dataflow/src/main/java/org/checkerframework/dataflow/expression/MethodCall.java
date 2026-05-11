@@ -105,8 +105,15 @@ public class MethodCall extends JavaExpression {
         // implementation changed.
         // There is no need to check that the method is deterministic, because a MethodCall is
         // only created for deterministic methods.
-        return receiver.isModifiableByOtherCode()
-                || arguments.stream().anyMatch(JavaExpression::isModifiableByOtherCode);
+        if (receiver.isModifiableByOtherCode()) {
+            return true;
+        }
+        for (int i = 0, n = arguments.size(); i < n; ++i) {
+            if (arguments.get(i).isModifiableByOtherCode()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
