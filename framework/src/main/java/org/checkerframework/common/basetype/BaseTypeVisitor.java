@@ -4547,14 +4547,18 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             } else {
                 result &= checkReceiverOverride();
             }
-            checkPreAndPostConditions();
-            checkPurity();
+            result &= checkPreAndPostConditions();
+            result &= checkPurity();
 
             return result;
         }
 
-        /** Check that an override respects purity. */
-        private void checkPurity() {
+        /**
+         * Check that an override respects purity.
+         *
+         * @return true if the override is allowed by purity rules
+         */
+        private boolean checkPurity() {
             String msgKey =
                     isMethodReference ? "purity.invalid.methodref" : "purity.invalid.overriding";
 
@@ -4573,24 +4577,29 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         overridden,
                         subPurity,
                         superPurity);
+                return false;
             }
+            return true;
         }
 
         /**
          * Checks that overrides obey behavioral subtyping, that is, postconditions must be at least
          * as strong as the postcondition on the superclass, and preconditions must be at most as
          * strong as the condition on the superclass.
+         *
+         * @return true if the override satisfies the contract subsetting rules
          */
-        private void checkPreAndPostConditions() {
+        private boolean checkPreAndPostConditions() {
             String msgKey = isMethodReference ? "methodref" : "override";
             if (isMethodReference) {
                 // TODO: Support postconditions and method references.
                 // The parse context always expects instance methods, but method references can be
                 // static.
-                return;
+                return true;
             }
 
             ContractsFromMethod contractsUtils = atypeFactory.getContractsFromMethod();
+            boolean result = true;
 
             // Check preconditions
             Set<Precondition> superPre = contractsUtils.getPreconditions(overridden.getElement());
@@ -4601,7 +4610,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     parseAndLocalizeContracts(subPre, overrider);
             @SuppressWarnings("compilermessages")
             @CompilerMessageKey String premsg = "contracts.precondition." + msgKey + ".invalid";
-            checkContractsSubset(overriderType, overriddenType, subPre2, superPre2, premsg);
+            result &=
+                    checkContractsSubset(overriderType, overriddenType, subPre2, superPre2, premsg);
 
             // Check postconditions
             Set<Postcondition> superPost =
@@ -4613,7 +4623,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     parseAndLocalizeContracts(subPost, overrider);
             @SuppressWarnings("compilermessages")
             @CompilerMessageKey String postmsg = "contracts.postcondition." + msgKey + ".invalid";
-            checkContractsSubset(overriderType, overriddenType, superPost2, subPost2, postmsg);
+            result &=
+                    checkContractsSubset(
+                            overriderType, overriddenType, superPost2, subPost2, postmsg);
 
             // Check conditional postconditions
             Set<ConditionalPostcondition> superCPost =
@@ -4629,8 +4641,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     parseAndLocalizeContracts(subCPostTrue, overrider);
             @SuppressWarnings("compilermessages")
             @CompilerMessageKey String posttruemsg = "contracts.conditional.postcondition.true." + msgKey + ".invalid";
-            checkContractsSubset(
-                    overriderType, overriddenType, superCPostTrue2, subCPostTrue2, posttruemsg);
+            result &=
+                    checkContractsSubset(
+                            overriderType,
+                            overriddenType,
+                            superCPostTrue2,
+                            subCPostTrue2,
+                            posttruemsg);
 
             // consider only 'false' postconditions
             Set<Postcondition> superCPostFalse = filterConditionalPostconditions(superCPost, false);
@@ -4642,8 +4659,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             @SuppressWarnings("compilermessages")
             @CompilerMessageKey String postfalsemsg =
                     "contracts.conditional.postcondition.false." + msgKey + ".invalid";
-            checkContractsSubset(
-                    overriderType, overriddenType, superCPostFalse2, subCPostFalse2, postfalsemsg);
+            result &=
+                    checkContractsSubset(
+                            overriderType,
+                            overriddenType,
+                            superCPostFalse2,
+                            subCPostFalse2,
+                            postfalsemsg);
+            return result;
         }
 
         /**
@@ -5005,12 +5028,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param set anontations that should be stronger
      * @param messageKey message key for error messages
      */
-    private void checkContractsSubset(
+    private boolean checkContractsSubset(
             AnnotatedTypeMirror overriderType,
             AnnotatedDeclaredType overriddenType,
             Set<IPair<JavaExpression, AnnotationMirror>> mustSubset,
             Set<IPair<JavaExpression, AnnotationMirror>> set,
             @CompilerMessageKey String messageKey) {
+        boolean result = true;
         for (IPair<JavaExpression, AnnotationMirror> weak : mustSubset) {
             JavaExpression jexpr = weak.first;
             boolean found = false;
@@ -5029,6 +5053,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
 
             if (!found) {
+                result = false;
 
                 String overriddenTypeString =
                         overriddenType.getUnderlyingType().asElement().toString();
@@ -5074,6 +5099,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         overriderAnno);
             }
         }
+        return result;
     }
 
     /**
