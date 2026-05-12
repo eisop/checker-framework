@@ -260,9 +260,13 @@ public class AnnotationUtils {
             return areSame(c1.iterator().next(), c2.iterator().next());
         }
 
-        // For each annotation in c1, look for a matching annotation in c2 by `areSame`.
-        for (AnnotationMirror a : c1) {
-            if (!containsSame(c2, a)) {
+        ArrayList<AnnotationMirror> sorted1 = new ArrayList<>(c1);
+        ArrayList<AnnotationMirror> sorted2 = new ArrayList<>(c2);
+        sorted1.sort(AnnotationUtils::compareAnnotationMirrors);
+        sorted2.sort(AnnotationUtils::compareAnnotationMirrors);
+
+        for (int i = 0; i < sorted1.size(); i++) {
+            if (!areSame(sorted1.get(i), sorted2.get(i))) {
                 return false;
             }
         }
