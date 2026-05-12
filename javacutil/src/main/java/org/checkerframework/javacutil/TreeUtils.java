@@ -94,7 +94,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.SourceVersion;
@@ -367,10 +366,14 @@ public final class TreeUtils {
      * @return the list of fields that are declared within the given class declaration
      */
     public static List<VariableTree> fieldsFromClassTree(ClassTree tree) {
-        return tree.getMembers().stream()
-                .filter(t -> t instanceof VariableTree)
-                .map(t -> (VariableTree) t)
-                .collect(Collectors.toList());
+        List<? extends Tree> members = tree.getMembers();
+        List<VariableTree> result = new ArrayList<>(members.size());
+        for (Tree t : members) {
+            if (t instanceof VariableTree) {
+                result.add((VariableTree) t);
+            }
+        }
+        return result;
     }
 
     /**
