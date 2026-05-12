@@ -121,13 +121,8 @@ public class TreeBuilder {
 
         TypeElement exprElement = (TypeElement) exprType.asElement();
 
-        // Find the iterator() method of the iterable type
-        // See buildCloseMethodAccess for why we use members().getSymbolsByName rather than
-        // elements.getAllMembers (cheaper, and avoids occasional CompletionFailure crashes).
+        // Find the iterator() method of the Iterable type.
         Symbol.MethodSymbol iteratorMethod = findMethodByName(exprElement, iteratorName);
-
-        assert iteratorMethod != null
-                : "@AssumeAssertion(nullness): no iterator method declared for expression type";
 
         Type.MethodType methodType = (Type.MethodType) iteratorMethod.asType();
         Symbol.TypeSymbol methodClass = methodType.asElement();
@@ -183,15 +178,8 @@ public class TreeBuilder {
 
         TypeElement exprElement = (TypeElement) exprType.asElement();
 
-        // Find the close() method
-        // We could use elements.getAllMembers(exprElement) to find the close method, but in rare
-        // cases calling that method crashes with a Symbol$CompletionFailure exception.  See
-        // https://github.com/typetools/checker-framework/issues/6396.  The code below directly
-        // searches all supertypes for the method and avoids the crash.
+        // Find the close() method of the AutoCloseable type.
         Symbol.MethodSymbol closeMethod = findMethodByName(exprElement, closeName);
-
-        assert closeMethod != null
-                : "@AssumeAssertion(nullness): no close method declared for expression type";
 
         JCTree.JCFieldAccess closeAccess = TreeUtils.Select(maker, autoCloseableExpr, closeMethod);
 
@@ -210,12 +198,8 @@ public class TreeBuilder {
 
         TypeElement exprElement = (TypeElement) exprType.asElement();
 
-        // Find the hasNext() method of the iterator type
+        // Find the hasNext() method of the iterator type.
         Symbol.MethodSymbol hasNextMethod = findMethodByName(exprElement, hasNextName);
-
-        if (hasNextMethod == null) {
-            throw new BugInCF("no hasNext method declared for " + exprElement);
-        }
 
         JCTree.JCFieldAccess hasNextAccess = TreeUtils.Select(maker, iteratorExpr, hasNextMethod);
         hasNextAccess.setType(hasNextMethod.asType());
@@ -235,11 +219,8 @@ public class TreeBuilder {
 
         TypeElement exprElement = (TypeElement) exprType.asElement();
 
-        // Find the next() method of the iterator type
+        // Find the next() method of the iterator type.
         Symbol.MethodSymbol nextMethod = findMethodByName(exprElement, nextName);
-
-        assert nextMethod != null
-                : "@AssumeAssertion(nullness): no next method declared for expression type";
 
         Type.MethodType methodType = (Type.MethodType) nextMethod.asType();
         Symbol.TypeSymbol methodClass = methodType.asElement();
@@ -267,8 +248,13 @@ public class TreeBuilder {
     }
 
     /**
-     * Finds the first non-static no-argument method with the given name declared by the given
-     * element or one of its supertypes.
+     * Find the first non-static no-argument method with the given name declared by the given
+     * element or one of its supertypes. Throws an error if no such method is found.
+     *
+     * <p>We could use elements.getAllMembers(exprElement) to find the close method, but in rare
+     * cases calling that method crashes with a Symbol$CompletionFailure exception. See
+     * https://github.com/typetools/checker-framework/issues/6396. The code below directly searches
+     * all supertypes for the method and avoids the crash.
      *
      * @param element the element whose closure should be searched
      * @param methodName the method name to search for
@@ -285,7 +271,7 @@ public class TreeBuilder {
                 }
             }
         }
-        return null;
+        throw new BugInCF("Element: " + element + " has no method " + methodName);
     }
 
     /**
