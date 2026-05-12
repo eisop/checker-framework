@@ -85,9 +85,7 @@ public class Resolver {
     // Note that currently access(...) is defined in InvalidSymbolError, a superclass of AccessError
     private static final Method ACCESSERROR_ACCESS;
 
-    /**
-     * {@code com.sun.tools.javac.comp.Resolve$MethodResolutionContext} no-arg-style constructor.
-     */
+    /** {@code com.sun.tools.javac.comp.Resolve$MethodResolutionContext} constructor. */
     private static final Constructor<?> METHOD_RESOLUTION_CONTEXT_CTOR;
 
     /** {@code Resolve$MethodResolutionContext#attrMode} field. */
@@ -232,7 +230,7 @@ public class Resolver {
         try {
             Class<?> methCtxClss =
                     Class.forName("com.sun.tools.javac.comp.Resolve$MethodResolutionContext");
-            METHOD_RESOLUTION_CONTEXT_CTOR = methCtxClss.getDeclaredConstructors()[0];
+            METHOD_RESOLUTION_CONTEXT_CTOR = getMethodResolutionContextConstructor(methCtxClss);
             METHOD_RESOLUTION_CONTEXT_CTOR.setAccessible(true);
 
             METHOD_RESOLUTION_CONTEXT_ATTR_MODE = methCtxClss.getDeclaredField("attrMode");
@@ -533,18 +531,22 @@ public class Resolver {
                 // TODO: find a nicer way to do this.
                 Object methodContext = buildMethodContext();
                 Object oldContext = RESOLVE_CURRENT_RESOLUTION_CONTEXT.get(resolve);
-                RESOLVE_CURRENT_RESOLUTION_CONTEXT.set(resolve, methodContext);
-                Element resolveResult =
-                        resolve(
-                                FIND_METHOD,
-                                env,
-                                site,
-                                name,
-                                argtypes,
-                                typeargtypes,
-                                allowBoxing,
-                                useVarargs);
-                RESOLVE_CURRENT_RESOLUTION_CONTEXT.set(resolve, oldContext);
+                Element resolveResult;
+                setFieldValue(RESOLVE_CURRENT_RESOLUTION_CONTEXT, resolve, methodContext);
+                try {
+                    resolveResult =
+                            resolve(
+                                    FIND_METHOD,
+                                    env,
+                                    site,
+                                    name,
+                                    argtypes,
+                                    typeargtypes,
+                                    allowBoxing,
+                                    useVarargs);
+                } finally {
+                    setFieldValue(RESOLVE_CURRENT_RESOLUTION_CONTEXT, resolve, oldContext);
+                }
                 ExecutableElement methodResult;
                 if (resolveResult.getKind() == ElementKind.METHOD
                         || resolveResult.getKind() == ElementKind.CONSTRUCTOR) {
@@ -586,19 +588,54 @@ public class Resolver {
      * @throws IllegalAccessException if there is trouble constructing the instance
      * @throws InvocationTargetException if there is trouble constructing the instance
      */
-    // TODO: handle set calls of reflection API.
-    @SuppressWarnings("interning:argument.type.incompatible")
     protected Object buildMethodContext()
             throws InstantiationException, IllegalAccessException, InvocationTargetException {
         // Class is not accessible, instantiate reflectively.
         Object methodContext = METHOD_RESOLUTION_CONTEXT_CTOR.newInstance(resolve);
         // we need to also initialize the fields attrMode and step
-        METHOD_RESOLUTION_CONTEXT_ATTR_MODE.set(methodContext, DeferredAttr.AttrMode.CHECK);
+        setFieldValue(
+                METHOD_RESOLUTION_CONTEXT_ATTR_MODE, methodContext, DeferredAttr.AttrMode.CHECK);
         @SuppressWarnings("rawtypes")
         List<?> phases = (List) RESOLVE_METHOD_RESOLUTION_STEPS.get(resolve);
         assert phases != null : "@AssumeAssertion(nullness): assumption";
-        METHOD_RESOLUTION_CONTEXT_STEP.set(methodContext, phases.get(1));
+        setFieldValue(METHOD_RESOLUTION_CONTEXT_STEP, methodContext, phases.get(1));
         return methodContext;
+    }
+
+    /**
+     * Returns the {@code Resolve$MethodResolutionContext} constructor that accepts the enclosing
+     * {@link Resolve} instance.
+     *
+     * @param methCtxClss the method resolution context class
+     * @return the matching constructor
+     */
+    private static Constructor<?> getMethodResolutionContextConstructor(Class<?> methCtxClss) {
+        for (Constructor<?> constructor : methCtxClss.getDeclaredConstructors()) {
+            Class<?>[] parameterTypes = constructor.getParameterTypes();
+            if (parameterTypes.length == 1 && parameterTypes[0] == Resolve.class) {
+                return constructor;
+            }
+        }
+        throw new BugInCF(
+                "Compiler 'Resolve$MethodResolutionContext' class doesn't contain the expected"
+                        + " constructor");
+    }
+
+    /**
+     * Reflectively set a field value.
+     *
+     * @param field the field to modify
+     * @param receiver the receiver containing the field
+     * @param value the new field value
+     * @throws IllegalAccessException if the field is not accessible
+     */
+    @SuppressWarnings({
+        "interning:argument.type.incompatible",
+        "nullness:argument.type.incompatible"
+    })
+    private static void setFieldValue(Field field, Object receiver, @Nullable Object value)
+            throws IllegalAccessException {
+        field.set(receiver, value);
     }
 
     /**

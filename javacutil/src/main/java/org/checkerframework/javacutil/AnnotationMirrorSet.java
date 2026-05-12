@@ -209,7 +209,7 @@ public class AnnotationMirrorSet
             return false;
         }
         shadowList.add(annotationMirror);
-        hashCodeCache = 0; // recompute
+        hashCodeComputed = false;
         return true;
     }
 
@@ -224,7 +224,7 @@ public class AnnotationMirrorSet
         }
         checkMutable();
         shadowList.remove(idx);
-        hashCodeCache = 0; // recompute
+        hashCodeComputed = false;
         return true;
     }
 
@@ -282,7 +282,7 @@ public class AnnotationMirrorSet
             }
         }
         if (changed) {
-            hashCodeCache = 0; // recompute
+            hashCodeComputed = false;
         }
         return changed;
     }
@@ -302,7 +302,7 @@ public class AnnotationMirrorSet
     public void clear() {
         checkMutable();
         shadowList.clear();
-        hashCodeCache = 0; // recompute
+        hashCodeComputed = false;
     }
 
     @Override
@@ -327,22 +327,22 @@ public class AnnotationMirrorSet
         return containsAll(s);
     }
 
-    /** Cached hash code. Recomputed if zero. */
+    /** Cached hash code. */
     private int hashCodeCache = 0;
+
+    /** True if {@link #hashCodeCache} contains the current hash code. */
+    private boolean hashCodeComputed = false;
 
     @Override
     public int hashCode() {
-        if (hashCodeCache == 0) {
+        if (!hashCodeComputed) {
             int result = 0;
             for (int i = 0, n = shadowList.size(); i < n; i++) {
                 // This is a set, so ordering is not considered.
                 result += AnnotationUtils.hashCode(shadowList.get(i));
             }
-            if (result == 0) {
-                // Avoid recomputation.
-                result = 1;
-            }
             hashCodeCache = result;
+            hashCodeComputed = true;
         }
         return hashCodeCache;
     }
