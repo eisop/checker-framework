@@ -101,6 +101,15 @@ public class SignaturePrinter extends AbstractTypeProcessor {
                     new SourceChecker() {
 
                         @Override
+                        public boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(
+                                Element elt) {
+                            // SignaturePrinter only prints signatures; it does not perform any
+                            // type-checking. Returning false keeps callers (e.g.,
+                            // QualifierDefaults) on safe defaults rather than crashing.
+                            return false;
+                        }
+
+                        @Override
                         protected SourceVisitor<?, ?> createSourceVisitor() {
                             return null;
                         }

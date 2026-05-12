@@ -24,6 +24,7 @@ import java.util.List;
 import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 
 /**
@@ -202,5 +203,12 @@ public class JavaCodeStatistics extends SourceChecker {
     public AnnotationProvider getAnnotationProvider() {
         throw new UnsupportedOperationException(
                 "getAnnotationProvider is not implemented for this class.");
+    }
+
+    @Override
+    public boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(Element elt) {
+        // This checker only counts code; it does not perform any type-checking. Returning false
+        // keeps callers (e.g., QualifierDefaults) on safe defaults rather than crashing.
+        return false;
     }
 }
