@@ -1276,7 +1276,9 @@ public class AnnotationUtils {
             for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> e :
                     vals1.entrySet()) {
                 AnnotationValue aval1 = e.getValue();
-                AnnotationValue aval2 = vals2.get(e.getKey());
+                // From the earlier check we know e.getKey() is a key in vals2.
+                @SuppressWarnings("nullness")
+                @NonNull AnnotationValue aval2 = vals2.get(e.getKey());
                 @SuppressWarnings("interning:not.interned") // optimization via equality test
                 boolean identical = aval1 == aval2;
                 if (identical) {
