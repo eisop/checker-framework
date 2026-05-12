@@ -614,6 +614,13 @@ public class AnnotationBuilder {
         return this;
     }
 
+    /**
+     * Find the executable element with the given name. Throws an exception if no element with that
+     * name exists.
+     *
+     * @param key the executable element name
+     * @return the executable element
+     */
     public ExecutableElement findElement(CharSequence key) {
         List<ExecutableElement> methods = annotationMethodsCache;
         if (methods == null) {
