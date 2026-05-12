@@ -86,6 +86,23 @@ public class Resolver {
     private static final Method ACCESSERROR_ACCESS;
 
     /**
+     * {@code com.sun.tools.javac.comp.Resolve$MethodResolutionContext} no-arg-style constructor.
+     */
+    private static final Constructor<?> METHOD_RESOLUTION_CONTEXT_CTOR;
+
+    /** {@code Resolve$MethodResolutionContext#attrMode} field. */
+    private static final Field METHOD_RESOLUTION_CONTEXT_ATTR_MODE;
+
+    /** {@code Resolve$MethodResolutionContext#step} field. */
+    private static final Field METHOD_RESOLUTION_CONTEXT_STEP;
+
+    /** {@code Resolve#currentResolutionContext} field. */
+    private static final Field RESOLVE_CURRENT_RESOLUTION_CONTEXT;
+
+    /** {@code Resolve#methodResolutionSteps} field. */
+    private static final Field RESOLVE_METHOD_RESOLUTION_STEPS;
+
+    /**
      * Method for new Log.DiscardDiagnosticHandler. Before JDK 25, DiscardDiagnosticHandler was a
      * static inner class of Log and an instance of log was passed as the first argument. Starting
      * with JDK 25, DiscardDiagnosticHandler is an inner class of log.
@@ -209,6 +226,32 @@ public class Resolver {
         } catch (NoSuchMethodException e) {
             throw new BugInCF(
                     "Compiler 'Resolve$AccessError' class doesn't contain required 'access' method",
+                    e);
+        }
+
+        try {
+            Class<?> methCtxClss =
+                    Class.forName("com.sun.tools.javac.comp.Resolve$MethodResolutionContext");
+            METHOD_RESOLUTION_CONTEXT_CTOR = methCtxClss.getDeclaredConstructors()[0];
+            METHOD_RESOLUTION_CONTEXT_CTOR.setAccessible(true);
+
+            METHOD_RESOLUTION_CONTEXT_ATTR_MODE = methCtxClss.getDeclaredField("attrMode");
+            METHOD_RESOLUTION_CONTEXT_ATTR_MODE.setAccessible(true);
+
+            METHOD_RESOLUTION_CONTEXT_STEP = methCtxClss.getDeclaredField("step");
+            METHOD_RESOLUTION_CONTEXT_STEP.setAccessible(true);
+
+            RESOLVE_CURRENT_RESOLUTION_CONTEXT =
+                    Resolve.class.getDeclaredField("currentResolutionContext");
+            RESOLVE_CURRENT_RESOLUTION_CONTEXT.setAccessible(true);
+
+            RESOLVE_METHOD_RESOLUTION_STEPS =
+                    Resolve.class.getDeclaredField("methodResolutionSteps");
+            RESOLVE_METHOD_RESOLUTION_STEPS.setAccessible(true);
+        } catch (ClassNotFoundException | NoSuchFieldException e) {
+            throw new BugInCF(
+                    "Compiler 'Resolve$MethodResolutionContext' class or its expected fields could"
+                            + " not be retrieved.",
                     e);
         }
     }
@@ -484,8 +527,8 @@ public class Resolver {
                 // For some reason we have to set our own method context, which is rather ugly.
                 // TODO: find a nicer way to do this.
                 Object methodContext = buildMethodContext();
-                Object oldContext = getField(resolve, "currentResolutionContext");
-                setField(resolve, "currentResolutionContext", methodContext);
+                Object oldContext = RESOLVE_CURRENT_RESOLUTION_CONTEXT.get(resolve);
+                RESOLVE_CURRENT_RESOLUTION_CONTEXT.set(resolve, methodContext);
                 Element resolveResult =
                         resolve(
                                 FIND_METHOD,
@@ -496,7 +539,7 @@ public class Resolver {
                                 typeargtypes,
                                 allowBoxing,
                                 useVarargs);
-                setField(resolve, "currentResolutionContext", oldContext);
+                RESOLVE_CURRENT_RESOLUTION_CONTEXT.set(resolve, oldContext);
                 ExecutableElement methodResult;
                 if (resolveResult.getKind() == ElementKind.METHOD
                         || resolveResult.getKind() == ElementKind.CONSTRUCTOR) {
@@ -534,59 +577,21 @@ public class Resolver {
      * Build an instance of {@code Resolve$MethodResolutionContext}.
      *
      * @return a MethodResolutionContext
-     * @throws ClassNotFoundException if there is trouble constructing the instance
      * @throws InstantiationException if there is trouble constructing the instance
      * @throws IllegalAccessException if there is trouble constructing the instance
      * @throws InvocationTargetException if there is trouble constructing the instance
-     * @throws NoSuchFieldException if there is trouble constructing the instance
      */
     protected Object buildMethodContext()
-            throws ClassNotFoundException,
-                    InstantiationException,
-                    IllegalAccessException,
-                    InvocationTargetException,
-                    NoSuchFieldException {
+            throws InstantiationException, IllegalAccessException, InvocationTargetException {
         // Class is not accessible, instantiate reflectively.
-        Class<?> methCtxClss =
-                Class.forName("com.sun.tools.javac.comp.Resolve$MethodResolutionContext");
-        Constructor<?> constructor = methCtxClss.getDeclaredConstructors()[0];
-        constructor.setAccessible(true);
-        Object methodContext = constructor.newInstance(resolve);
+        Object methodContext = METHOD_RESOLUTION_CONTEXT_CTOR.newInstance(resolve);
         // we need to also initialize the fields attrMode and step
-        setField(methodContext, "attrMode", DeferredAttr.AttrMode.CHECK);
+        METHOD_RESOLUTION_CONTEXT_ATTR_MODE.set(methodContext, DeferredAttr.AttrMode.CHECK);
         @SuppressWarnings("rawtypes")
-        List<?> phases = (List) getField(resolve, "methodResolutionSteps");
+        List<?> phases = (List) RESOLVE_METHOD_RESOLUTION_STEPS.get(resolve);
         assert phases != null : "@AssumeAssertion(nullness): assumption";
-        setField(methodContext, "step", phases.get(1));
+        METHOD_RESOLUTION_CONTEXT_STEP.set(methodContext, phases.get(1));
         return methodContext;
-    }
-
-    /**
-     * Reflectively set a field.
-     *
-     * @param receiver the receiver in which to set the field
-     * @param fieldName name of field to set
-     * @param value new value for field
-     * @throws NoSuchFieldException if the field does not exist in the receiver
-     * @throws IllegalAccessException if the field is not accessible
-     */
-    @SuppressWarnings({
-        "nullness:argument.type.incompatible",
-        "interning:argument.type.incompatible"
-    }) // assume that the fields all accept null and uninterned values
-    private void setField(Object receiver, String fieldName, @Nullable Object value)
-            throws NoSuchFieldException, IllegalAccessException {
-        Field f = receiver.getClass().getDeclaredField(fieldName);
-        f.setAccessible(true);
-        f.set(receiver, value);
-    }
-
-    /** Reflectively get the value of a field. */
-    private @Nullable Object getField(Object receiver, String fieldName)
-            throws NoSuchFieldException, IllegalAccessException {
-        Field f = receiver.getClass().getDeclaredField(fieldName);
-        f.setAccessible(true);
-        return f.get(receiver);
     }
 
     /**
