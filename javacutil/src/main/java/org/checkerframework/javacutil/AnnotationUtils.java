@@ -1632,7 +1632,7 @@ public class AnnotationUtils {
                             sb.append(", ");
                         }
                         notfirst = true;
-                        sb.append(arg.getKey().getSimpleName() + "=");
+                        sb.append(arg.getKey().getSimpleName()).append("=");
                         formatAnnotationMirrorArg(arg.getValue(), sb);
                     }
                 }
@@ -1654,9 +1654,8 @@ public class AnnotationUtils {
         Map<ExecutableElement, AnnotationValue> nonDefaults = new ArrayMap<>(0);
         elementValues.forEach(
                 (element, value) -> {
-                    if (element.getDefaultValue() == null
-                            || !Objects.equals(
-                                    value.getValue(), element.getDefaultValue().getValue())) {
+                    AnnotationValue dflt = element.getDefaultValue();
+                    if (dflt == null || !Objects.equals(value.getValue(), dflt.getValue())) {
                         nonDefaults.put(element, value);
                     }
                 });
@@ -1672,7 +1671,7 @@ public class AnnotationUtils {
      */
     private static void formatAnnotationMirrorArg(AnnotationValue av, StringBuilder sb) {
         Object val = av.getValue();
-        if (List.class.isAssignableFrom(val.getClass())) {
+        if (val instanceof List) {
             @SuppressWarnings("unchecked")
             List<AnnotationValue> vallist = (List<AnnotationValue>) val;
             if (vallist.size() == 1) {
@@ -1689,9 +1688,11 @@ public class AnnotationUtils {
                 }
                 sb.append('}');
             }
-        } else if (VariableElement.class.isAssignableFrom(val.getClass())) {
+        } else if (val instanceof VariableElement) {
             VariableElement ve = (VariableElement) val;
-            sb.append(ve.getEnclosingElement().getSimpleName() + "." + ve.getSimpleName());
+            sb.append(ve.getEnclosingElement().getSimpleName())
+                    .append('.')
+                    .append(ve.getSimpleName());
         } else {
             sb.append(av.toString());
         }
