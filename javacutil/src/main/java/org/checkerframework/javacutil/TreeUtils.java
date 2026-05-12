@@ -1407,6 +1407,9 @@ public final class TreeUtils {
             ProcessingEnvironment env,
             String... paramTypes) {
         TypeElement typeElt = env.getElementUtils().getTypeElement(typeName);
+        if (typeElt == null) {
+            throw new UserError("Configuration problem! Could not load type: " + typeName);
+        }
         for (ExecutableElement exec : ElementFilter.methodsIn(typeElt.getEnclosedElements())) {
             if (exec.getSimpleName().contentEquals(methodName)
                     && exec.getParameters().size() == paramTypes.length) {
