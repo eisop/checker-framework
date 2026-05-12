@@ -503,7 +503,11 @@ public class Resolver {
      * @param argumentTypes types of arguments passed to the method call
      * @return the method element (if found)
      */
-    @SuppressWarnings("interning:argument.type.incompatible") // TODO reflection API
+    // TODO: handle set calls of reflection API.
+    @SuppressWarnings({
+        "interning:argument.type.incompatible",
+        "nullness:argument.type.incompatible"
+    })
     public @Nullable ExecutableElement findMethod(
             String methodName,
             TypeMirror receiverType,
@@ -529,7 +533,6 @@ public class Resolver {
                 // TODO: find a nicer way to do this.
                 Object methodContext = buildMethodContext();
                 Object oldContext = RESOLVE_CURRENT_RESOLUTION_CONTEXT.get(resolve);
-                assert oldContext != null : "@AssumeAssertion(nullness): context always set";
                 RESOLVE_CURRENT_RESOLUTION_CONTEXT.set(resolve, methodContext);
                 Element resolveResult =
                         resolve(
@@ -583,7 +586,8 @@ public class Resolver {
      * @throws IllegalAccessException if there is trouble constructing the instance
      * @throws InvocationTargetException if there is trouble constructing the instance
      */
-    @SuppressWarnings("interning:argument.type.incompatible") // TODO reflection API
+    // TODO: handle set calls of reflection API.
+    @SuppressWarnings("interning:argument.type.incompatible")
     protected Object buildMethodContext()
             throws InstantiationException, IllegalAccessException, InvocationTargetException {
         // Class is not accessible, instantiate reflectively.
