@@ -259,16 +259,14 @@ public class AnnotationMirrorSet
     public boolean addAll(
             @UnknownInitialization(AnnotationMirrorSet.class) AnnotationMirrorSet this,
             Collection<? extends AnnotationMirror> c) {
-        // True iff every element was newly added.
-        // Note: this differs from Set.addAll's specified semantics.
-        // TODO: check whether this difference is actually useful.
-        boolean result = true;
+        // Returns true if any element was newly added, per Set.addAll's specified contract.
+        boolean changed = false;
         for (AnnotationMirror a : c) {
-            if (!add(a)) {
-                result = false;
+            if (add(a)) {
+                changed = true;
             }
         }
-        return result;
+        return changed;
     }
 
     @Override
@@ -329,7 +327,7 @@ public class AnnotationMirrorSet
         return containsAll(s);
     }
 
-    /** Cache the hashCode. Recomputed if zero. */
+    /** Cached hash code. Recomputed if zero. */
     private int hashCodeCache = 0;
 
     @Override
@@ -339,6 +337,10 @@ public class AnnotationMirrorSet
             for (int i = 0, n = shadowList.size(); i < n; i++) {
                 // This is a set, so ordering is not considered.
                 result += AnnotationUtils.hashCode(shadowList.get(i));
+            }
+            if (result == 0) {
+                // Avoid recomputation.
+                result = 1;
             }
             hashCodeCache = result;
         }
