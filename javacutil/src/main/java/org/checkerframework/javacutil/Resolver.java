@@ -232,6 +232,7 @@ public class Resolver {
         try {
             Class<?> methCtxClss =
                     Class.forName("com.sun.tools.javac.comp.Resolve$MethodResolutionContext");
+            // TODO: this assumes only one constructor. Could be improved.
             METHOD_RESOLUTION_CONTEXT_CTOR = methCtxClss.getDeclaredConstructors()[0];
             METHOD_RESOLUTION_CONTEXT_CTOR.setAccessible(true);
 
