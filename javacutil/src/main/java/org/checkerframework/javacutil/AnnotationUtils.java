@@ -31,9 +31,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.StringJoiner;
-import java.util.TreeSet;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
@@ -403,6 +401,13 @@ public class AnnotationUtils {
     }
 
     /**
+     * Comparator used by {@link #compareAnnotationMirrors} to sort an annotation type's element
+     * methods by simple signature, hoisted to a static constant so the lambda is allocated once.
+     */
+    private static final Comparator<ExecutableElement> SIMPLE_SIGNATURE_COMPARATOR =
+            Comparator.comparing(ElementUtils::getSimpleSignature);
+
+    /**
      * Provide an ordering for {@link AnnotationMirror}s. AnnotationMirrors are first compared by
      * their fully-qualified names, then by their element values in order of the name of the
      * element.
@@ -420,10 +425,12 @@ public class AnnotationUtils {
         // The annotations have the same name, but possibly different values, so compare values.
         Map<? extends ExecutableElement, ? extends AnnotationValue> vals1 = a1.getElementValues();
         Map<? extends ExecutableElement, ? extends AnnotationValue> vals2 = a2.getElementValues();
-        Set<ExecutableElement> sortedElements =
-                new TreeSet<>(Comparator.comparing(ElementUtils::getSimpleSignature));
-        sortedElements.addAll(
-                ElementFilter.methodsIn(a1.getAnnotationType().asElement().getEnclosedElements()));
+        // Sort method elements once into an ArrayList.
+        List<ExecutableElement> sortedElements =
+                new ArrayList<>(
+                        ElementFilter.methodsIn(
+                                a1.getAnnotationType().asElement().getEnclosedElements()));
+        sortedElements.sort(SIMPLE_SIGNATURE_COMPARATOR);
 
         // getDefaultValue() returns null if the method is not an annotation interface element.
         for (ExecutableElement meth : sortedElements) {
@@ -1261,6 +1268,25 @@ public class AnnotationUtils {
         Map<? extends ExecutableElement, ? extends AnnotationValue> vals2 = am2.getElementValues();
         if (vals1.isEmpty() && vals2.isEmpty()) {
             return true; // no-element annotations: nothing to compare
+        }
+        // Fast path: when both annotations have an explicit value for the same set of methods,
+        // we don't need to enumerate all annotation methods (and pay an
+        // ElementFilter.methodsIn list allocation) just to handle defaults.
+        if (vals1.size() == vals2.size() && vals1.keySet().equals(vals2.keySet())) {
+            for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> e :
+                    vals1.entrySet()) {
+                AnnotationValue aval1 = e.getValue();
+                AnnotationValue aval2 = vals2.get(e.getKey());
+                @SuppressWarnings("interning:not.interned") // optimization via equality test
+                boolean identical = aval1 == aval2;
+                if (identical) {
+                    continue;
+                }
+                if (!sameAnnotationValue(aval1, aval2)) {
+                    return false;
+                }
+            }
+            return true;
         }
         for (ExecutableElement meth :
                 ElementFilter.methodsIn(
