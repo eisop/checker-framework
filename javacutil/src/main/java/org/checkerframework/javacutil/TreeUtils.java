@@ -93,6 +93,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -2134,6 +2135,9 @@ public final class TreeUtils {
         return false;
     }
 
+    /** Pattern matching one or more whitespace characters; used by {@link #toStringOneLine}. */
+    private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
+
     /**
      * Return toString(), but without line separators.
      *
@@ -2141,7 +2145,7 @@ public final class TreeUtils {
      * @return a one-line string representation of the tree
      */
     public static String toStringOneLine(Tree tree) {
-        return tree.toString().trim().replaceAll("\\s+", " ");
+        return WHITESPACE_PATTERN.matcher(tree.toString().trim()).replaceAll(" ");
     }
 
     /**
