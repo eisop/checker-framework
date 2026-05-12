@@ -1,6 +1,7 @@
 package org.checkerframework.javacutil;
 
 import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.CanonicalName;
@@ -73,6 +74,13 @@ public class AnnotationBuilder {
 
     /** A mapping from element to AnnotationValue. */
     private final Map<ExecutableElement, AnnotationValue> elementValues;
+
+    /**
+     * Cached list of declared methods on {@link #annotationElt}, used by {@link
+     * #findElement(CharSequence)} to avoid an {@code ElementFilter.methodsIn} allocation per
+     * lookup.
+     */
+    private @MonotonicNonNull List<ExecutableElement> annotationMethodsCache = null;
 
     /**
      * Create a new AnnotationBuilder for the given annotation and environment (with no
@@ -607,7 +615,12 @@ public class AnnotationBuilder {
     }
 
     public ExecutableElement findElement(CharSequence key) {
-        for (ExecutableElement elt : ElementFilter.methodsIn(annotationElt.getEnclosedElements())) {
+        List<ExecutableElement> methods = annotationMethodsCache;
+        if (methods == null) {
+            methods = ElementFilter.methodsIn(annotationElt.getEnclosedElements());
+            annotationMethodsCache = methods;
+        }
+        for (ExecutableElement elt : methods) {
             if (elt.getSimpleName().contentEquals(key)) {
                 return elt;
             }
@@ -697,6 +710,13 @@ public class AnnotationBuilder {
         /** The element values. */
         private final Map<ExecutableElement, AnnotationValue> elementValues;
 
+        /**
+         * Cached unmodifiable view of {@link #elementValues}, populated lazily on first call to
+         * {@link #getElementValues()} to avoid allocating a wrapper map per call.
+         */
+        private @Nullable Map<? extends ExecutableElement, ? extends AnnotationValue>
+                unmodifiableElementValues;
+
         /** The annotation name. */
         // default visibility to allow access from within package.
         final @Interned @CanonicalName String annotationName;
@@ -723,7 +743,13 @@ public class AnnotationBuilder {
 
         @Override
         public Map<? extends ExecutableElement, ? extends AnnotationValue> getElementValues() {
-            return Collections.unmodifiableMap(elementValues);
+            Map<? extends ExecutableElement, ? extends AnnotationValue> r =
+                    unmodifiableElementValues;
+            if (r == null) {
+                r = Collections.unmodifiableMap(elementValues);
+                unmodifiableElementValues = r;
+            }
+            return r;
         }
 
         @SideEffectFree
