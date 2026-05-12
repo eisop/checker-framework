@@ -79,6 +79,15 @@ public class TreeBuilder {
      */
     private final Name closeName;
 
+    /** {@link Name} object for {@code iterator}. */
+    private final Name iteratorName;
+
+    /** {@link Name} object for {@code hasNext}. */
+    private final Name hasNextName;
+
+    /** {@link Name} object for {@code next}. */
+    private final Name nextName;
+
     /**
      * Creates a new TreeBuilder.
      *
@@ -94,6 +103,9 @@ public class TreeBuilder {
         names = Names.instance(context);
         symtab = Symtab.instance(context);
         closeName = names.fromString("close");
+        iteratorName = names.fromString("iterator");
+        hasNextName = names.fromString("hasNext");
+        nextName = names.fromString("next");
     }
 
     /**
@@ -112,11 +124,19 @@ public class TreeBuilder {
         // Find the iterator() method of the iterable type
         Symbol.MethodSymbol iteratorMethod = null;
 
-        for (ExecutableElement method :
-                ElementFilter.methodsIn(elements.getAllMembers(exprElement))) {
-            if (method.getParameters().isEmpty()
-                    && method.getSimpleName().contentEquals("iterator")) {
-                iteratorMethod = (Symbol.MethodSymbol) method;
+        // See buildCloseMethodAccess for why we use members().getSymbolsByName rather than
+        // elements.getAllMembers (cheaper, and avoids occasional CompletionFailure crashes).
+        outer:
+        for (Type s : javacTypes.closure(((Symbol) exprElement).type)) {
+            for (Symbol m : s.tsym.members().getSymbolsByName(iteratorName)) {
+                if (!(m instanceof Symbol.MethodSymbol)) {
+                    continue;
+                }
+                Symbol.MethodSymbol msym = (Symbol.MethodSymbol) m;
+                if (!msym.isStatic() && msym.getParameters().isEmpty()) {
+                    iteratorMethod = msym;
+                    break outer;
+                }
             }
         }
 
@@ -184,6 +204,7 @@ public class TreeBuilder {
         // cases calling that method crashes with a Symbol$CompletionFailure exception.  See
         // https://github.com/typetools/checker-framework/issues/6396.  The code below directly
         // searches all supertypes for the method and avoids the crash.
+        outer:
         for (Type s : javacTypes.closure(((Symbol) exprElement).type)) {
             for (Symbol m : s.tsym.members().getSymbolsByName(closeName)) {
                 if (!(m instanceof Symbol.MethodSymbol)) {
@@ -192,7 +213,7 @@ public class TreeBuilder {
                 Symbol.MethodSymbol msym = (Symbol.MethodSymbol) m;
                 if (!msym.isStatic() && msym.getParameters().isEmpty()) {
                     closeMethod = msym;
-                    break;
+                    break outer;
                 }
             }
         }
@@ -220,12 +241,17 @@ public class TreeBuilder {
         // Find the hasNext() method of the iterator type
         Symbol.MethodSymbol hasNextMethod = null;
 
-        for (ExecutableElement method :
-                ElementFilter.methodsIn(elements.getAllMembers(exprElement))) {
-            if (method.getParameters().isEmpty()
-                    && method.getSimpleName().contentEquals("hasNext")) {
-                hasNextMethod = (Symbol.MethodSymbol) method;
-                break;
+        outer:
+        for (Type s : javacTypes.closure(((Symbol) exprElement).type)) {
+            for (Symbol m : s.tsym.members().getSymbolsByName(hasNextName)) {
+                if (!(m instanceof Symbol.MethodSymbol)) {
+                    continue;
+                }
+                Symbol.MethodSymbol msym = (Symbol.MethodSymbol) m;
+                if (!msym.isStatic() && msym.getParameters().isEmpty()) {
+                    hasNextMethod = msym;
+                    break outer;
+                }
             }
         }
 
@@ -254,10 +280,17 @@ public class TreeBuilder {
         // Find the next() method of the iterator type
         Symbol.MethodSymbol nextMethod = null;
 
-        for (ExecutableElement method :
-                ElementFilter.methodsIn(elements.getAllMembers(exprElement))) {
-            if (method.getParameters().isEmpty() && method.getSimpleName().contentEquals("next")) {
-                nextMethod = (Symbol.MethodSymbol) method;
+        outer:
+        for (Type s : javacTypes.closure(((Symbol) exprElement).type)) {
+            for (Symbol m : s.tsym.members().getSymbolsByName(nextName)) {
+                if (!(m instanceof Symbol.MethodSymbol)) {
+                    continue;
+                }
+                Symbol.MethodSymbol msym = (Symbol.MethodSymbol) m;
+                if (!msym.isStatic() && msym.getParameters().isEmpty()) {
+                    nextMethod = msym;
+                    break outer;
+                }
             }
         }
 
