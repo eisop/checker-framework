@@ -939,21 +939,15 @@ public class ElementUtils {
             return false;
         }
 
-        if (method.getParameters().size() != parameters.length) {
+        List<? extends VariableElement> params = method.getParameters();
+        if (params.size() != parameters.length) {
             return false;
-        } else {
-            for (int i = 0; i < method.getParameters().size(); ++i) {
-                if (!method.getParameters()
-                        .get(i)
-                        .asType()
-                        .toString()
-                        .equals(parameters[i].getName())) {
-
-                    return false;
-                }
+        }
+        for (int i = 0, n = params.size(); i < n; ++i) {
+            if (!params.get(i).asType().toString().equals(parameters[i].getName())) {
+                return false;
             }
         }
-
         return true;
     }
 
