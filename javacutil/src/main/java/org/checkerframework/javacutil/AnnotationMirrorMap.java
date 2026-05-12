@@ -171,14 +171,14 @@ public class AnnotationMirrorMap<V> implements Map<@KeyFor("this") AnnotationMir
      * is a separate class rather than a view over the backing map's keys, we approximate with a
      * cached snapshot rebuilt only when the map mutates.
      */
-    private @Nullable AnnotationMirrorSet keySetCache;
+    private @Nullable Set<AnnotationMirror> keySetCache;
 
     @Override
-    public AnnotationMirrorSet keySet() {
-        AnnotationMirrorSet r = keySetCache;
+    public Set<AnnotationMirror> keySet() {
+        Set<AnnotationMirror> r = keySetCache;
         if (r == null) {
             r = new AnnotationMirrorSet(shadowMap.keySet());
-            keySetCache = r;
+            keySetCache = Collections.unmodifiableSet(r);
         }
         return r;
     }
