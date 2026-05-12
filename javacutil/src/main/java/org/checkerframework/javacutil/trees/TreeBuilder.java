@@ -122,23 +122,9 @@ public class TreeBuilder {
         TypeElement exprElement = (TypeElement) exprType.asElement();
 
         // Find the iterator() method of the iterable type
-        Symbol.MethodSymbol iteratorMethod = null;
-
         // See buildCloseMethodAccess for why we use members().getSymbolsByName rather than
         // elements.getAllMembers (cheaper, and avoids occasional CompletionFailure crashes).
-        outer:
-        for (Type s : javacTypes.closure(((Symbol) exprElement).type)) {
-            for (Symbol m : s.tsym.members().getSymbolsByName(iteratorName)) {
-                if (!(m instanceof Symbol.MethodSymbol)) {
-                    continue;
-                }
-                Symbol.MethodSymbol msym = (Symbol.MethodSymbol) m;
-                if (!msym.isStatic() && msym.getParameters().isEmpty()) {
-                    iteratorMethod = msym;
-                    break outer;
-                }
-            }
-        }
+        Symbol.MethodSymbol iteratorMethod = findMethodByName(exprElement, iteratorName);
 
         assert iteratorMethod != null
                 : "@AssumeAssertion(nullness): no iterator method declared for expression type";
@@ -198,25 +184,11 @@ public class TreeBuilder {
         TypeElement exprElement = (TypeElement) exprType.asElement();
 
         // Find the close() method
-        Symbol.MethodSymbol closeMethod = null;
-
         // We could use elements.getAllMembers(exprElement) to find the close method, but in rare
         // cases calling that method crashes with a Symbol$CompletionFailure exception.  See
         // https://github.com/typetools/checker-framework/issues/6396.  The code below directly
         // searches all supertypes for the method and avoids the crash.
-        outer:
-        for (Type s : javacTypes.closure(((Symbol) exprElement).type)) {
-            for (Symbol m : s.tsym.members().getSymbolsByName(closeName)) {
-                if (!(m instanceof Symbol.MethodSymbol)) {
-                    continue;
-                }
-                Symbol.MethodSymbol msym = (Symbol.MethodSymbol) m;
-                if (!msym.isStatic() && msym.getParameters().isEmpty()) {
-                    closeMethod = msym;
-                    break outer;
-                }
-            }
-        }
+        Symbol.MethodSymbol closeMethod = findMethodByName(exprElement, closeName);
 
         assert closeMethod != null
                 : "@AssumeAssertion(nullness): no close method declared for expression type";
@@ -239,21 +211,7 @@ public class TreeBuilder {
         TypeElement exprElement = (TypeElement) exprType.asElement();
 
         // Find the hasNext() method of the iterator type
-        Symbol.MethodSymbol hasNextMethod = null;
-
-        outer:
-        for (Type s : javacTypes.closure(((Symbol) exprElement).type)) {
-            for (Symbol m : s.tsym.members().getSymbolsByName(hasNextName)) {
-                if (!(m instanceof Symbol.MethodSymbol)) {
-                    continue;
-                }
-                Symbol.MethodSymbol msym = (Symbol.MethodSymbol) m;
-                if (!msym.isStatic() && msym.getParameters().isEmpty()) {
-                    hasNextMethod = msym;
-                    break outer;
-                }
-            }
-        }
+        Symbol.MethodSymbol hasNextMethod = findMethodByName(exprElement, hasNextName);
 
         if (hasNextMethod == null) {
             throw new BugInCF("no hasNext method declared for " + exprElement);
@@ -278,21 +236,7 @@ public class TreeBuilder {
         TypeElement exprElement = (TypeElement) exprType.asElement();
 
         // Find the next() method of the iterator type
-        Symbol.MethodSymbol nextMethod = null;
-
-        outer:
-        for (Type s : javacTypes.closure(((Symbol) exprElement).type)) {
-            for (Symbol m : s.tsym.members().getSymbolsByName(nextName)) {
-                if (!(m instanceof Symbol.MethodSymbol)) {
-                    continue;
-                }
-                Symbol.MethodSymbol msym = (Symbol.MethodSymbol) m;
-                if (!msym.isStatic() && msym.getParameters().isEmpty()) {
-                    nextMethod = msym;
-                    break outer;
-                }
-            }
-        }
+        Symbol.MethodSymbol nextMethod = findMethodByName(exprElement, nextName);
 
         assert nextMethod != null
                 : "@AssumeAssertion(nullness): no next method declared for expression type";
@@ -320,6 +264,28 @@ public class TreeBuilder {
         nextAccess.setType(updatedMethodType);
 
         return nextAccess;
+    }
+
+    /**
+     * Finds the first non-static no-argument method with the given name declared by the given
+     * element or one of its supertypes.
+     *
+     * @param element the element whose closure should be searched
+     * @param methodName the method name to search for
+     * @return the matching method, or null if none is found
+     */
+    private Symbol.MethodSymbol findMethodByName(Element element, Name methodName) {
+        for (Type supertype : javacTypes.closure(((Symbol) element).type)) {
+            for (Symbol symbol : supertype.tsym.members().getSymbolsByName(methodName)) {
+                if (symbol instanceof Symbol.MethodSymbol) {
+                    Symbol.MethodSymbol methodSymbol = (Symbol.MethodSymbol) symbol;
+                    if (!methodSymbol.isStatic() && methodSymbol.getParameters().isEmpty()) {
+                        return methodSymbol;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     /**
