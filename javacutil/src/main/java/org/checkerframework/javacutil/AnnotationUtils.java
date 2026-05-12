@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -263,18 +262,9 @@ public class AnnotationUtils {
             return areSame(c1.iterator().next(), c2.iterator().next());
         }
 
-        // while loop depends on NavigableSet implementation.
-        AnnotationMirrorSet s1 = new AnnotationMirrorSet();
-        AnnotationMirrorSet s2 = new AnnotationMirrorSet();
-        s1.addAll(c1);
-        s2.addAll(c2);
-        Iterator<AnnotationMirror> iter1 = s1.iterator();
-        Iterator<AnnotationMirror> iter2 = s2.iterator();
-
-        while (iter1.hasNext()) {
-            AnnotationMirror anno1 = iter1.next();
-            AnnotationMirror anno2 = iter2.next();
-            if (!areSame(anno1, anno2)) {
+        // For each annotation in c1, look for a matching annotation in c2 by `areSame`.
+        for (AnnotationMirror a : c1) {
+            if (!containsSame(c2, a)) {
                 return false;
             }
         }
