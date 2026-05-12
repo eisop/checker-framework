@@ -18,6 +18,7 @@ import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.List;
+import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Log.DiscardDiagnosticHandler;
 import com.sun.tools.javac.util.Name;
@@ -470,10 +471,11 @@ public class Resolver {
 
             Type site = (Type) receiverType;
             Name name = names.fromString(methodName);
-            List<Type> argtypes = List.nil();
+            ListBuffer<Type> argtypesBuf = new ListBuffer<>();
             for (TypeMirror a : argumentTypes) {
-                argtypes = argtypes.append((Type) a);
+                argtypesBuf.append((Type) a);
             }
+            List<Type> argtypes = argtypesBuf.toList();
             List<Type> typeargtypes = List.nil();
             boolean allowBoxing = true;
             boolean useVarargs = false;
