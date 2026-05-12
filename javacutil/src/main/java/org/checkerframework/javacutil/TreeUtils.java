@@ -146,14 +146,19 @@ public final class TreeUtils {
     private static final long Flags_RECORD = 2305843009213693952L;
 
     /** Tree kinds that represent a binary comparison. */
-    private static final Set<Tree.Kind> BINARY_COMPARISON_TREE_KINDS =
-            EnumSet.of(
-                    Tree.Kind.EQUAL_TO,
-                    Tree.Kind.NOT_EQUAL_TO,
-                    Tree.Kind.LESS_THAN,
-                    Tree.Kind.GREATER_THAN,
-                    Tree.Kind.LESS_THAN_EQUAL,
-                    Tree.Kind.GREATER_THAN_EQUAL);
+    private static final Set<Tree.Kind> BINARY_COMPARISON_TREE_KINDS;
+
+    static {
+        Set<Tree.Kind> bctk =
+                EnumSet.of(
+                        Tree.Kind.EQUAL_TO,
+                        Tree.Kind.NOT_EQUAL_TO,
+                        Tree.Kind.LESS_THAN,
+                        Tree.Kind.GREATER_THAN,
+                        Tree.Kind.LESS_THAN_EQUAL,
+                        Tree.Kind.GREATER_THAN_EQUAL);
+        BINARY_COMPARISON_TREE_KINDS = Collections.unmodifiableSet(bctk);
+    }
 
     static {
         try {
@@ -1120,20 +1125,22 @@ public final class TreeUtils {
     private static final Set<Tree.Kind> classTreeKinds;
 
     static {
-        classTreeKinds = EnumSet.noneOf(Tree.Kind.class);
+        Set<Tree.Kind> ctk = EnumSet.noneOf(Tree.Kind.class);
         for (Tree.Kind kind : Tree.Kind.values()) {
             if (kind.asInterface() == ClassTree.class) {
-                classTreeKinds.add(kind);
+                ctk.add(kind);
             }
         }
+        classTreeKinds = Collections.unmodifiableSet(ctk);
     }
 
     /** Kinds that represent a class or method tree. */
     private static final Set<Tree.Kind> classAndMethodTreeKinds;
 
     static {
-        classAndMethodTreeKinds = EnumSet.copyOf(classTreeKinds());
-        classAndMethodTreeKinds.add(Tree.Kind.METHOD);
+        Set<Tree.Kind> camtk = EnumSet.copyOf(classTreeKinds());
+        camtk.add(Tree.Kind.METHOD);
+        classAndMethodTreeKinds = Collections.unmodifiableSet(camtk);
     }
 
     /**
@@ -1171,10 +1178,11 @@ public final class TreeUtils {
     private static final Set<Tree.Kind> declarationTreeKinds;
 
     static {
-        declarationTreeKinds = EnumSet.noneOf(Tree.Kind.class);
-        declarationTreeKinds.addAll(classTreeKinds);
-        declarationTreeKinds.add(Tree.Kind.METHOD);
-        declarationTreeKinds.add(Tree.Kind.VARIABLE);
+        Set<Tree.Kind> dtk = EnumSet.noneOf(Tree.Kind.class);
+        dtk.addAll(classTreeKinds);
+        dtk.add(Tree.Kind.METHOD);
+        dtk.add(Tree.Kind.VARIABLE);
+        declarationTreeKinds = Collections.unmodifiableSet(dtk);
     }
 
     /**
@@ -1197,16 +1205,21 @@ public final class TreeUtils {
     }
 
     /** The kinds that represent types. */
-    private static final Set<Tree.Kind> typeTreeKinds =
-            EnumSet.of(
-                    Tree.Kind.PRIMITIVE_TYPE,
-                    Tree.Kind.PARAMETERIZED_TYPE,
-                    Tree.Kind.TYPE_PARAMETER,
-                    Tree.Kind.ARRAY_TYPE,
-                    Tree.Kind.UNBOUNDED_WILDCARD,
-                    Tree.Kind.EXTENDS_WILDCARD,
-                    Tree.Kind.SUPER_WILDCARD,
-                    Tree.Kind.ANNOTATED_TYPE);
+    private static final Set<Tree.Kind> typeTreeKinds;
+
+    static {
+        Set<Tree.Kind> ttk =
+                EnumSet.of(
+                        Tree.Kind.PRIMITIVE_TYPE,
+                        Tree.Kind.PARAMETERIZED_TYPE,
+                        Tree.Kind.TYPE_PARAMETER,
+                        Tree.Kind.ARRAY_TYPE,
+                        Tree.Kind.UNBOUNDED_WILDCARD,
+                        Tree.Kind.EXTENDS_WILDCARD,
+                        Tree.Kind.SUPER_WILDCARD,
+                        Tree.Kind.ANNOTATED_TYPE);
+        typeTreeKinds = Collections.unmodifiableSet(ttk);
+    }
 
     /**
      * Return the set of kinds that represent types.
