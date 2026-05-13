@@ -391,13 +391,14 @@ public class WholeProgramInferenceScenesStorage
      */
     public AnnotatedTypeMirror getPreconditionDeclaredType(AMethod m, String expression) {
         String key = m.methodSignature + expression;
-        if (!preconditionsToDeclaredTypes.containsKey(key)) {
+        AnnotatedTypeMirror result = preconditionsToDeclaredTypes.get(key);
+        if (result == null) {
             throw new BugInCF(
                     "attempted to retrieve the declared type of a precondition expression for which"
                             + "nothing was inferred: "
                             + key);
         }
-        return preconditionsToDeclaredTypes.get(key);
+        return result;
     }
 
     /**
@@ -410,13 +411,14 @@ public class WholeProgramInferenceScenesStorage
      */
     public AnnotatedTypeMirror getPostconditionDeclaredType(AMethod m, String expression) {
         String key = m.methodSignature + expression;
-        if (!postconditionsToDeclaredTypes.containsKey(key)) {
+        AnnotatedTypeMirror result = postconditionsToDeclaredTypes.get(key);
+        if (result == null) {
             throw new BugInCF(
                     "attempted to retrieve the declared type of a postcondition expression for which"
                             + "nothing was inferred: "
                             + key);
         }
-        return postconditionsToDeclaredTypes.get(key);
+        return result;
     }
 
     @Override

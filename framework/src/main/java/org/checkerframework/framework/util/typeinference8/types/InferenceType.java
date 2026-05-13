@@ -129,14 +129,19 @@ public class InferenceType extends AbstractType {
             return new ProperType(type, typeMirror, qualifierVars, context, ignoreAnnotations);
         }
 
-        if (typeMirror.getKind() == TypeKind.TYPEVAR && map.containsKey(type.getUnderlyingType())) {
-            return new UseOfVariable(
-                    (AnnotatedTypeVariable) type,
-                    map.get(type.getUnderlyingType()),
-                    qualifierVars,
-                    context,
-                    ignoreAnnotations);
-        } else if (AnnotatedContainsInferenceVariable.hasAnyTypeVariable(map.keySet(), type)) {
+        if (typeMirror.getKind() == TypeKind.TYPEVAR) {
+            TypeVariable underlying = (TypeVariable) type.getUnderlyingType();
+            Variable mapped = map.get(underlying);
+            if (mapped != null) {
+                return new UseOfVariable(
+                        (AnnotatedTypeVariable) type,
+                        mapped,
+                        qualifierVars,
+                        context,
+                        ignoreAnnotations);
+            }
+        }
+        if (AnnotatedContainsInferenceVariable.hasAnyTypeVariable(map.keySet(), type)) {
             return new InferenceType(
                     type, typeMirror, map, qualifierVars, context, ignoreAnnotations);
         } else {
@@ -169,15 +174,19 @@ public class InferenceType extends AbstractType {
             return new ProperType(type, typeMirror, qualifierVars, context, ignoreAnnotations);
         }
 
-        if (typeMirror.getKind() == TypeKind.TYPEVAR && map.containsKey(type.getUnderlyingType())) {
-            return new UseOfVariable(
-                    (AnnotatedTypeVariable) type,
-                    map.get(type.getUnderlyingType()),
-                    qualifierVars,
-                    context,
-                    ignoreAnnotations);
-        } else if (AnnotatedContainsInferenceVariable.hasAnyTypeVariable(
-                map.getNotInstantiated(), type)) {
+        if (typeMirror.getKind() == TypeKind.TYPEVAR) {
+            TypeVariable underlying = (TypeVariable) type.getUnderlyingType();
+            Variable mapped = map.get(underlying);
+            if (mapped != null) {
+                return new UseOfVariable(
+                        (AnnotatedTypeVariable) type,
+                        mapped,
+                        qualifierVars,
+                        context,
+                        ignoreAnnotations);
+            }
+        }
+        if (AnnotatedContainsInferenceVariable.hasAnyTypeVariable(map.getNotInstantiated(), type)) {
             return new InferenceType(
                     type, typeMirror, map, qualifierVars, context, ignoreAnnotations);
         } else {

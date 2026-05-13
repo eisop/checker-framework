@@ -404,8 +404,9 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
             }
             qualifierKind.poly = qualifierKind;
             String topName = QualifierKindHierarchy.annotationClassName(polyMetaAnno.value());
-            if (nameToQualifierKind.containsKey(topName)) {
-                qualifierKind.top = nameToQualifierKind.get(topName);
+            DefaultQualifierKind topKind = nameToQualifierKind.get(topName);
+            if (topKind != null) {
+                qualifierKind.top = topKind;
             } else if (topName.equals(Annotation.class.getCanonicalName())) {
                 // Annotation.class is the default value of PolymorphicQualifier. If it is used,
                 // then there must be exactly one top.
