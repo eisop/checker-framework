@@ -255,10 +255,9 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
         for (Class<? extends Annotation> clazz : qualifierClasses) {
             @SuppressWarnings("interning") // uniqueness is tested immediately below
             @Interned DefaultQualifierKind qualifierKind = new DefaultQualifierKind(clazz);
-            if (nameToQualifierKind.containsKey(qualifierKind.getName())) {
+            if (nameToQualifierKind.putIfAbsent(qualifierKind.getName(), qualifierKind) != null) {
                 throw new TypeSystemError("Duplicate QualifierKind " + qualifierKind.getName());
             }
-            nameToQualifierKind.put(qualifierKind.getName(), qualifierKind);
         }
         return Collections.unmodifiableMap(nameToQualifierKind);
     }

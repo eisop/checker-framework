@@ -532,23 +532,22 @@ public class WholeProgramInferenceScenesStorage
      * @return the Scene read from the file, or an empty Scene if the file does not exist
      */
     private ASceneWrapper getScene(String jaifPath) {
-        AScene scene;
-        if (!scenes.containsKey(jaifPath)) {
-            File jaifFile = new File(jaifPath);
-            scene = new AScene();
-            if (jaifFile.exists()) {
-                try {
-                    IndexFileParser.parseFile(jaifPath, scene);
-                } catch (IOException e) {
-                    throw new UserError("Problem while reading %s: %s", jaifPath, e.getMessage());
-                }
-            }
-            ASceneWrapper wrapper = new ASceneWrapper(scene);
-            scenes.put(jaifPath, wrapper);
-            return wrapper;
-        } else {
-            return scenes.get(jaifPath);
+        ASceneWrapper existing = scenes.get(jaifPath);
+        if (existing != null) {
+            return existing;
         }
+        AScene scene = new AScene();
+        File jaifFile = new File(jaifPath);
+        if (jaifFile.exists()) {
+            try {
+                IndexFileParser.parseFile(jaifPath, scene);
+            } catch (IOException e) {
+                throw new UserError("Problem while reading %s: %s", jaifPath, e.getMessage());
+            }
+        }
+        ASceneWrapper wrapper = new ASceneWrapper(scene);
+        scenes.put(jaifPath, wrapper);
+        return wrapper;
     }
 
     /**
