@@ -601,6 +601,8 @@ public class ElementUtils {
      * @return true if {@code element} is "com.sun.tools.javac.comp.Resolve$SymbolNotFoundError"
      */
     public static boolean isError(Element element) {
+        // TODO: Class.getName() is not documented to be interned. Either use equals() or find a
+        // better way to check this.
         return element.getClass().getName()
                 == "com.sun.tools.javac.comp.Resolve$SymbolNotFoundError"; // interned
     }
@@ -937,21 +939,15 @@ public class ElementUtils {
             return false;
         }
 
-        if (method.getParameters().size() != parameters.length) {
+        List<? extends VariableElement> params = method.getParameters();
+        if (params.size() != parameters.length) {
             return false;
-        } else {
-            for (int i = 0; i < method.getParameters().size(); ++i) {
-                if (!method.getParameters()
-                        .get(i)
-                        .asType()
-                        .toString()
-                        .equals(parameters[i].getName())) {
-
-                    return false;
-                }
+        }
+        for (int i = 0, n = params.size(); i < n; ++i) {
+            if (!params.get(i).asType().toString().equals(parameters[i].getName())) {
+                return false;
             }
         }
-
         return true;
     }
 

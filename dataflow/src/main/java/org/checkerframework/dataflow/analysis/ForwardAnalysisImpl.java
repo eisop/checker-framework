@@ -181,11 +181,12 @@ public class ForwardAnalysisImpl<
                                         addToWorklistAgain);
                             }
                         } else {
+                            S regular = inputBefore.getRegularStore();
                             for (Block exceptionSucc : e.getValue()) {
                                 addStoreBefore(
                                         exceptionSucc,
                                         node,
-                                        inputBefore.copy().getRegularStore(),
+                                        regular.copy(),
                                         Store.Kind.BOTH,
                                         addToWorklistAgain);
                             }

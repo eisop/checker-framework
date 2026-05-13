@@ -53,7 +53,12 @@ public final class TreePathUtil {
      * @return the path to the enclosing tree of the given type, {@code null} otherwise
      */
     public static @Nullable TreePath pathTillOfKind(TreePath path, Tree.Kind kind) {
-        return pathTillOfKind(path, EnumSet.of(kind));
+        for (TreePath p = path; p != null; p = p.getParentPath()) {
+            if (p.getLeaf().getKind() == kind) {
+                return p;
+            }
+        }
+        return null;
     }
 
     /**
@@ -107,7 +112,8 @@ public final class TreePathUtil {
      * @return the enclosing tree of the given type as given by the path, {@code null} otherwise
      */
     public static @Nullable Tree enclosingOfKind(TreePath path, Tree.Kind kind) {
-        return enclosingOfKind(path, EnumSet.of(kind));
+        TreePath p = pathTillOfKind(path, kind);
+        return (p == null) ? null : p.getLeaf();
     }
 
     /**
@@ -197,6 +203,10 @@ public final class TreePathUtil {
         return (MethodTree) enclosingOfKind(path, Tree.Kind.METHOD);
     }
 
+    /** The set of Tree.Kinds for METHOD and LAMBDA_EXPRESSION. */
+    private static final Set<Tree.Kind> METHOD_OR_LAMBDA_KINDS =
+            EnumSet.of(Tree.Kind.METHOD, Tree.Kind.LAMBDA_EXPRESSION);
+
     /**
      * Gets the enclosing method or lambda expression of the tree node defined by the given {@link
      * TreePath}. It returns a {@link Tree}, from which an {@code
@@ -208,7 +218,7 @@ public final class TreePathUtil {
      *     exist
      */
     public static @Nullable Tree enclosingMethodOrLambda(TreePath path) {
-        return enclosingOfKind(path, EnumSet.of(Tree.Kind.METHOD, Tree.Kind.LAMBDA_EXPRESSION));
+        return enclosingOfKind(path, METHOD_OR_LAMBDA_KINDS);
     }
 
     /**
