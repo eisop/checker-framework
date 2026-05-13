@@ -1014,7 +1014,7 @@ public class DependentTypesHelper {
                 AnnotatedTypeMirror.AnnotatedTypeVariable type,
                 Function<AnnotationMirror, AnnotationMirror> func) {
             if (visitedNodes.containsKey(type)) {
-                return visitedNodes.get(type);
+                return null;
             }
             visitedNodes.put(type, null);
 
