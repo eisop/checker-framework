@@ -1126,7 +1126,7 @@ public class DependentTypesHelper {
     private List<DependentTypesError> errorElements(AnnotationMirror am) {
         assert hasDependentAnnotations();
 
-        List<DependentTypesError> errors = new ArrayList<>();
+        List<DependentTypesError> errors = null;
 
         for (ExecutableElement element : getListOfExpressionElements(am)) {
             // It's always an array, not a single value, because @JavaExpression may only be written
@@ -1136,11 +1136,36 @@ public class DependentTypesHelper {
                             am, element, String.class, Collections.emptyList());
             for (String v : value) {
                 if (DependentTypesError.isExpressionError(v)) {
+                    if (errors == null) {
+                        errors = new ArrayList<>();
+                    }
                     errors.add(DependentTypesError.unparse(v));
                 }
             }
         }
-        return errors;
+        return errors == null ? Collections.emptyList() : errors;
+    }
+
+    /**
+     * Returns true if any Java expression element of the given annotation is an expression error
+     * string. Like {@link #errorElements} but allocates no list and short-circuits.
+     *
+     * @param am an annotation
+     * @return true if at least one expression element is an error string
+     */
+    private boolean hasErrorElement(AnnotationMirror am) {
+        assert hasDependentAnnotations();
+        for (ExecutableElement element : getListOfExpressionElements(am)) {
+            List<String> value =
+                    AnnotationUtils.getElementValueArray(
+                            am, element, String.class, Collections.emptyList());
+            for (String v : value) {
+                if (DependentTypesError.isExpressionError(v)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -1263,13 +1288,19 @@ public class DependentTypesHelper {
         private ExpressionErrorCollector() {
             super(
                     (AnnotatedTypeMirror type, Void aVoid) -> {
-                        List<DependentTypesError> errors = new ArrayList<>();
+                        List<DependentTypesError> errors = null;
                         for (AnnotationMirror am : type.getAnnotations()) {
                             if (isExpressionAnno(am)) {
-                                errors.addAll(errorElements(am));
+                                List<DependentTypesError> annoErrors = errorElements(am);
+                                if (!annoErrors.isEmpty()) {
+                                    if (errors == null) {
+                                        errors = new ArrayList<>();
+                                    }
+                                    errors.addAll(annoErrors);
+                                }
                             }
                         }
-                        return errors;
+                        return errors == null ? Collections.emptyList() : errors;
                     },
                     DependentTypesHelper::concatenate,
                     Collections.emptyList());
@@ -1292,7 +1323,7 @@ public class DependentTypesHelper {
                     (AnnotatedTypeMirror type, Void aVoid) -> {
                         AnnotationMirrorSet replacementAnnos = null;
                         for (AnnotationMirror am : type.getAnnotations()) {
-                            if (isExpressionAnno(am) && !errorElements(am).isEmpty()) {
+                            if (isExpressionAnno(am) && hasErrorElement(am)) {
                                 if (replacementAnnos == null) {
                                     replacementAnnos = new AnnotationMirrorSet();
                                 }
