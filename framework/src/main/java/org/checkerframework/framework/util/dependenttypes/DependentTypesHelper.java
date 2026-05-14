@@ -147,6 +147,14 @@ public class DependentTypesHelper {
     protected final TypeMirror objectTM;
 
     /**
+     * Snapshot of {@link #annoToElements}'s key set, used by {@link ViewpointAdaptedCopier#scan} to
+     * iterate dependent annotation names without allocating a fresh {@code keySet} iterator at
+     * every visited type node. Initialized in the constructor after {@link #annoToElements} is
+     * fully populated. Empty (length 0) when there are no dependent annotations.
+     */
+    private final String[] dependentAnnoNames;
+
+    /**
      * Creates a {@code DependentTypesHelper}.
      *
      * @param atypeFactory annotated type factory
@@ -163,6 +171,7 @@ public class DependentTypesHelper {
                 annoToElements.put(expressionAnno.getCanonicalName(), elementList);
             }
         }
+        this.dependentAnnoNames = annoToElements.keySet().toArray(new String[0]);
 
         this.objectTM =
                 TypesUtils.typeFromClass(
@@ -1378,7 +1387,7 @@ public class DependentTypesHelper {
                 return null;
             }
             AnnotationMirrorSet replacements = new AnnotationMirrorSet();
-            for (String vpa : annoToElements.keySet()) {
+            for (String vpa : dependentAnnoNames) {
                 AnnotationMirror anno = from.getAnnotation(vpa);
                 if (anno != null) {
                     // Only replace annotations that might have been changed.
