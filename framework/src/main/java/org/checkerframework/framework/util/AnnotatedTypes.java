@@ -474,7 +474,7 @@ public class AnnotatedTypes {
 
         // The below is checking for a super() call where the super type is a raw type.
         // See framework/tests/all-systems/RawSuper.java for an example.
-        if ("<init>".contentEquals(method.getSimpleName())) {
+        if (method.getSimpleName().contentEquals("<init>")) {
             ExecutableElement constructor = (ExecutableElement) method;
             TypeMirror constructorClass = types.erasure(constructor.getEnclosingElement().asType());
             TypeMirror directSuper = types.directSupertypes(receiver.getUnderlyingType()).get(0);
