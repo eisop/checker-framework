@@ -9,7 +9,6 @@ import org.checkerframework.framework.qual.AnnotatedFor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 
 import javax.tools.Diagnostic;
 
@@ -31,6 +30,18 @@ public class DiagMessage {
     private final Object[] args;
 
     /**
+     * Cached hash code. Lazily computed on first call to {@link #hashCode()} and gated by {@link
+     * #hashCodeComputed}.
+     */
+    private transient int hashCodeCache = 0;
+
+    /** True if {@link #hashCodeCache} contains the current hash code. */
+    private transient boolean hashCodeComputed = false;
+
+    /** Shared empty args array, returned for no-arg DiagMessages instead of allocating. */
+    private static final Object[] EMPTY_ARGS = new Object[0];
+
+    /**
      * Create a DiagMessage.
      *
      * @param kind the kind of message
@@ -41,8 +52,9 @@ public class DiagMessage {
             Diagnostic.Kind kind, @CompilerMessageKey String messageKey, Object... args) {
         this.kind = kind;
         this.messageKey = messageKey;
-        if (args == null) {
-            this.args = new Object[0]; /*null->nn*/
+        if (args == null || args.length == 0) {
+            // Share a single empty array instead of allocating one per no-arg DiagMessage.
+            this.args = EMPTY_ARGS; /*null->nn*/
         } else {
             this.args = Arrays.copyOf(args, args.length);
         }
@@ -105,7 +117,14 @@ public class DiagMessage {
     @Pure
     @Override
     public int hashCode() {
-        return Objects.hash(kind, messageKey, Arrays.hashCode(args));
+        if (!hashCodeComputed) {
+            int h = (kind == null ? 0 : kind.hashCode());
+            h = 31 * h + (messageKey == null ? 0 : messageKey.hashCode());
+            h = 31 * h + Arrays.hashCode(args);
+            hashCodeCache = h;
+            hashCodeComputed = true;
+        }
+        return hashCodeCache;
     }
 
     @SideEffectFree
