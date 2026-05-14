@@ -18,7 +18,6 @@ import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.IPair;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -155,11 +154,11 @@ public abstract class AbstractType {
     public abstract AnnotatedTypeMirror getAnnotatedType();
 
     /**
-     * Return a collection of all inference variables referenced by this type.
+     * Return a set of all inference variables referenced by this type.
      *
-     * @return a collection of all inference variables referenced by this type
+     * @return a fresh, mutable set of all inference variables referenced by this type
      */
-    public abstract Collection<Variable> getInferenceVariables();
+    public abstract Set<Variable> getInferenceVariables();
 
     /**
      * Return a new type that is the same as this one except the variables in {@code instantiations}
