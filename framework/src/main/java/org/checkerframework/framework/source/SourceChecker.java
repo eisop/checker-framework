@@ -2013,7 +2013,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         while (tofind != null) {
             if (activeLints.contains(tofind)) {
                 return true;
-            } else if (activeLints.contains(String.format("-%s", tofind))) {
+            } else if (activeLints.contains("-" + tofind)) {
                 return false;
             }
 
@@ -2068,7 +2068,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         if (val) {
             newlints.add(name);
         } else {
-            newlints.add(String.format("-%s", name));
+            newlints.add("-" + name);
         }
         activeLints = Collections.unmodifiableSet(newlints);
     }
