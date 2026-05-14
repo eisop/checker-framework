@@ -51,6 +51,11 @@ class AtmLubVisitor extends AbstractAtmComboVisitor<Void, AnnotatedTypeMirror> {
     private final Set<AnnotatedTypeMirror> visited =
             Collections.newSetFromMap(new IdentityHashMap<>());
 
+    /**
+     * Construct an AtmLubVisitor.
+     *
+     * @param atypeFactory the type factory to use
+     */
     AtmLubVisitor(AnnotatedTypeFactory atypeFactory) {
         this.atypeFactory = atypeFactory;
         this.qualHierarchy = atypeFactory.getQualifierHierarchy();
