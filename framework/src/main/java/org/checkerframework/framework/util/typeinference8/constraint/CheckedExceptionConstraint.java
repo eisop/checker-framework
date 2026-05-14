@@ -127,10 +127,6 @@ public class CheckedExceptionConstraint extends TypeConstraint {
         if (inputs.isEmpty()) {
             return new LinkedHashSet<>(toAdd);
         }
-        if (inputs instanceof LinkedHashSet) {
-            inputs.addAll(toAdd);
-            return inputs;
-        }
         Set<Variable> result = new LinkedHashSet<>(inputs);
         result.addAll(toAdd);
         return result;
