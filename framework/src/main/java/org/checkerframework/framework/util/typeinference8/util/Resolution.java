@@ -132,7 +132,7 @@ public class Resolution {
             assert !boundSet.containsFalse();
 
             Set<Variable> smallestDependencySet =
-                    getSmallestDependecySet(resolvedSet, unresolvedVars);
+                    getSmallestDependencySet(resolvedSet, unresolvedVars);
 
             // Resolve the smallest unresolved dependency set.
             boundSet = resolveSmallestSet(smallestDependencySet, boundSet);
@@ -151,7 +151,7 @@ public class Resolution {
      * @param unresolvedVars variables that have not been resolved
      * @return the smallest set of unresolved variable
      */
-    private Set<Variable> getSmallestDependecySet(
+    private Set<Variable> getSmallestDependencySet(
             Set<Variable> resolvedSet, Set<Variable> unresolvedVars) {
         Set<Variable> smallestDependencySet = null;
         // This loop is looking for the smallest set of dependencies that have not been resolved.
