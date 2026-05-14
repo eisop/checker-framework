@@ -328,12 +328,12 @@ public class BoundSet implements ReductionResult {
             boolean boundsChangeInst = false;
             if (!instantiations.isEmpty()) {
                 for (Variable var : variables) {
-                    boundsChangeInst = var.getBounds().applyInstantiationsToBounds();
+                    boundsChangeInst |= var.getBounds().applyInstantiationsToBounds();
                 }
             }
             boundsChangeInst |= captures.addAll(newBounds.captures);
             for (Variable alpha : variables) {
-                boundsChangeInst = alpha.getBounds().applyInstantiationsToBounds();
+                boundsChangeInst |= alpha.getBounds().applyInstantiationsToBounds();
 
                 while (!alpha.getBounds().constraints.isEmpty()) {
                     boundsChangeInst = true;
