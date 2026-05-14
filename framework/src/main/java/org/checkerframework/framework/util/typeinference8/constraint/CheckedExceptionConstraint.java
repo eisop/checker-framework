@@ -116,6 +116,8 @@ public class CheckedExceptionConstraint extends TypeConstraint {
      *
      * <p>This method avoids allocation when {@code toAdd} is empty.
      *
+     * @param inputs the input set
+     * @param toAdd the set to add
      * @return {@code inputs} itself when {@code toAdd} is empty; otherwise a new mutable set
      *     containing all variables from {@code inputs} and {@code toAdd}
      */
