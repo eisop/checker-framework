@@ -65,7 +65,7 @@ public class Resolution {
         Dependencies dependencies = boundSet.getDependencies();
         Queue<Variable> unresolvedVars = new ArrayDeque<>(as);
         for (Variable var : as) {
-            for (Variable dep : dependencies.get(var)) {
+            for (Variable dep : dependencies.dependsOn(var)) {
                 if (!unresolvedVars.contains(dep)) {
                     unresolvedVars.add(dep);
                 }

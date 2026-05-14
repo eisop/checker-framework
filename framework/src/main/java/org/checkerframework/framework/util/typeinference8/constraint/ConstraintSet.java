@@ -224,9 +224,9 @@ public class ConstraintSet implements ReductionResult {
                 boolean foundInfluence = false;
                 inputLoop:
                 for (Variable in : inputsOfSingleConstraint) {
+                    Set<Variable> inDeps = dependencies.dependsOn(in);
                     for (Variable out : allOutputsOfC) {
-                        if (dependencies.get(in).contains(out)
-                                || dependencies.get(out).contains(in)) {
+                        if (inDeps.contains(out) || dependencies.dependsOn(out).contains(in)) {
                             foundInfluence = true;
                             break inputLoop;
                         }
