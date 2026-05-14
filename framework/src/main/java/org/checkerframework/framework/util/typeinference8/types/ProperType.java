@@ -13,6 +13,7 @@ import org.checkerframework.javacutil.AnnotationMirrorMap;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 
@@ -307,14 +308,9 @@ public class ProperType extends AbstractType {
         return TypesUtils.isObject(properType);
     }
 
-    /**
-     * Returns an unmodifiable empty set because proper types contain no inference variables.
-     *
-     * @return an unmodifiable empty set
-     */
     @Override
-    public Set<Variable> getInferenceVariables() {
-        return Collections.emptySet();
+    public Collection<Variable> getInferenceVariables() {
+        return Collections.emptyList();
     }
 
     @Override

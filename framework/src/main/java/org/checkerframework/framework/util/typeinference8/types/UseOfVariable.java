@@ -9,6 +9,7 @@ import org.checkerframework.framework.util.typeinference8.util.Java8InferenceCon
 import org.checkerframework.javacutil.AnnotationMirrorMap;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -115,13 +116,8 @@ public class UseOfVariable extends AbstractType {
         return Kind.USE_OF_VARIABLE;
     }
 
-    /**
-     * Returns an unmodifiable singleton set containing this variable.
-     *
-     * @return an unmodifiable singleton set containing this variable
-     */
     @Override
-    public Set<Variable> getInferenceVariables() {
+    public Collection<Variable> getInferenceVariables() {
         return Collections.singleton(variable);
     }
 

@@ -13,6 +13,7 @@ import org.checkerframework.javacutil.AnnotationMirrorMap;
 import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -279,10 +280,10 @@ public class InferenceType extends AbstractType {
     /**
      * Returns all inference variables mentioned in this type.
      *
-     * @return a fresh, mutable set containing all inference variables mentioned in this type
+     * @return all inference variables mentioned in this type
      */
     @Override
-    public Set<Variable> getInferenceVariables() {
+    public Collection<Variable> getInferenceVariables() {
         LinkedHashSet<Variable> variables = new LinkedHashSet<>();
         for (TypeVariable typeVar :
                 ContainsInferenceVariable.getMentionedTypeVariables(map.keySet(), typeMirror)) {

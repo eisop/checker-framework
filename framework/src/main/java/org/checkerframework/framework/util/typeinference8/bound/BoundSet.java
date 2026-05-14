@@ -11,7 +11,6 @@ import org.plumelib.util.StringsPlume;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -184,15 +183,13 @@ public class BoundSet implements ReductionResult {
      *     capture(G<...>)} for any variable in {@code as}
      */
     public boolean containsCapture(Collection<Variable> as) {
-        if (as.isEmpty() || captures.isEmpty()) {
-            return false;
-        }
-        Set<Variable> asSet = (as instanceof Set) ? (Set<Variable>) as : new HashSet<>(as);
+        List<Variable> list = new ArrayList<>();
         for (CaptureBound c : captures) {
-            for (Variable v : c.getAllVariablesOnLHS()) {
-                if (asSet.contains(v)) {
-                    return true;
-                }
+            list.addAll(c.getAllVariablesOnLHS());
+        }
+        for (Variable ai : as) {
+            if (list.contains(ai)) {
+                return true;
             }
         }
         return false;
@@ -215,18 +212,18 @@ public class BoundSet implements ReductionResult {
     }
 
     /**
-     * Returns a fresh, mutable set of all variables in this bound set that are instantiated.
+     * Returns a list of all variables in this bound set that are instantiated.
      *
-     * @return a fresh, mutable set of all variables in this bound set that are instantiated
+     * @return a list of all variables in this bound set that are instantiated
      */
-    public Set<Variable> getInstantiatedVariables() {
-        Set<Variable> set = new LinkedHashSet<>();
+    public List<Variable> getInstantiatedVariables() {
+        List<Variable> list = new ArrayList<>();
         for (Variable var : variables) {
             if (var.getBounds().hasInstantiation()) {
-                set.add(var);
+                list.add(var);
             }
         }
-        return set;
+        return list;
     }
 
     /**
@@ -276,7 +273,8 @@ public class BoundSet implements ReductionResult {
         Set<Variable> allVariables = new LinkedHashSet<>(variables);
         allVariables.addAll(additionalVars);
         for (Variable alpha : allVariables) {
-            Set<Variable> alphaDependencies = alpha.getBounds().getVariablesMentionedInBounds();
+            LinkedHashSet<Variable> alphaDependencies =
+                    new LinkedHashSet<>(alpha.getBounds().getVariablesMentionedInBounds());
 
             if (alpha.isCaptureVariable()) {
                 // If alpha appears on the left-hand side of another bound of the form
@@ -323,16 +321,16 @@ public class BoundSet implements ReductionResult {
         int count = 0;
         do {
             count++;
-            Set<Variable> instantiations = getInstantiatedVariables();
+            List<Variable> instantiations = getInstantiatedVariables();
             boolean boundsChangeInst = false;
             if (!instantiations.isEmpty()) {
                 for (Variable var : variables) {
-                    boundsChangeInst |= var.getBounds().applyInstantiationsToBounds();
+                    boundsChangeInst = var.getBounds().applyInstantiationsToBounds();
                 }
             }
             boundsChangeInst |= captures.addAll(newBounds.captures);
             for (Variable alpha : variables) {
-                boundsChangeInst |= alpha.getBounds().applyInstantiationsToBounds();
+                boundsChangeInst = alpha.getBounds().applyInstantiationsToBounds();
 
                 while (!alpha.getBounds().constraints.isEmpty()) {
                     boundsChangeInst = true;

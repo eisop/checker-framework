@@ -1,9 +1,9 @@
 package org.checkerframework.framework.util.typeinference8.types;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -69,39 +69,26 @@ public class Dependencies {
     }
 
     /**
-     * Returns a non-modifiable view of the dependencies of {@code alpha}. The returned set is
-     * backed by the internal map; callers must not mutate it and must treat it as read-only.
+     * Returns the set of dependencies of {@code alpha}.
      *
      * @param alpha a variable
-     * @return a non-modifiable view of the dependencies of {@code alpha}
-     */
-    public Set<Variable> dependsOn(Variable alpha) {
-        Set<Variable> s = map.get(alpha);
-        return s == null ? Collections.emptySet() : Collections.unmodifiableSet(s);
-    }
-
-    /**
-     * Returns a fresh, mutable set of the dependencies of {@code alpha}. Use this only when the
-     * caller needs to mutate the returned set; otherwise use {@link #dependsOn(Variable)}.
-     *
-     * @param alpha a variable
-     * @return a fresh, mutable copy of the dependencies of {@code alpha}
+     * @return the set of dependencies of {@code alpha}
      */
     public Set<Variable> get(Variable alpha) {
         return new LinkedHashSet<>(map.get(alpha));
     }
 
     /**
-     * Returns the set of dependencies for all variables in {@code variables}. The returned set is
-     * freshly allocated and mutable.
+     * Returns the set of dependencies for all variables in {@code variables}.
      *
-     * @param variables collection of variables
+     * @param variables list of variables
      * @return the set of dependencies for all variables in {@code variables}
      */
-    public Set<Variable> get(Collection<? extends Variable> variables) {
+    public Set<Variable> get(List<Variable> variables) {
         LinkedHashSet<Variable> set = new LinkedHashSet<>();
         for (Variable v : variables) {
-            set.addAll(map.get(v));
+            Set<Variable> get = get(v);
+            set.addAll(get);
         }
         return set;
     }

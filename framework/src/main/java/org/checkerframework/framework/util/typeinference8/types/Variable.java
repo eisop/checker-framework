@@ -14,7 +14,6 @@ import org.checkerframework.javacutil.TypesUtils;
 import java.util.Iterator;
 import java.util.Set;
 
-import javax.lang.model.element.Element;
 import javax.lang.model.type.IntersectionType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
@@ -179,20 +178,10 @@ import javax.lang.model.type.TypeVariable;
     /**
      * Compute the hash code for this instance.
      *
-     * <p>Derived from the same fields that {@link #equals} consults via {@link
-     * TypesUtils#areSame(TypeVariable, TypeVariable)}: the type parameter element's simple name and
-     * enclosing element, plus the invocation tree. Using {@code typeVariableJava.hashCode()}
-     * directly would be incorrect because javac may materialize the same logical type variable as
-     * two distinct {@code TypeVariable} instances with different identity hash codes; those two
-     * instances would be {@code equals}-true but could have different {@code hashCode}s, violating
-     * the contract.
-     *
      * @return the hash code
      */
     private int computeHashCode() {
-        Element elt = typeVariableJava.asElement();
-        int hc = elt.getSimpleName().toString().hashCode();
-        hc = 31 * hc + elt.getEnclosingElement().hashCode();
+        int hc = typeVariableJava.hashCode();
         hc = 31 * hc + invocation.hashCode();
         return hc;
     }

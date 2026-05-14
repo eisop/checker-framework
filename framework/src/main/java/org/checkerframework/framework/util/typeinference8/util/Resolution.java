@@ -11,11 +11,13 @@ import org.checkerframework.framework.util.typeinference8.types.Variable;
 import org.checkerframework.framework.util.typeinference8.types.VariableBounds;
 import org.checkerframework.framework.util.typeinference8.types.VariableBounds.BoundKind;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Queue;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
@@ -53,7 +55,7 @@ public class Resolution {
             Collection<Variable> as, BoundSet boundSet, Java8InferenceContext context) {
 
         // Remove any variables that already have instantiations
-        Set<Variable> resolvedVars = boundSet.getInstantiatedVariables();
+        List<Variable> resolvedVars = boundSet.getInstantiatedVariables();
         as.removeAll(resolvedVars);
         if (as.isEmpty()) {
             return boundSet;
@@ -61,9 +63,13 @@ public class Resolution {
         // Calculate the dependencies between variables. (A variable depends on another if it is
         // included in one of its bounds.)
         Dependencies dependencies = boundSet.getDependencies();
-        LinkedHashSet<Variable> unresolvedVars = new LinkedHashSet<>(as);
+        Queue<Variable> unresolvedVars = new ArrayDeque<>(as);
         for (Variable var : as) {
-            unresolvedVars.addAll(dependencies.dependsOn(var));
+            for (Variable dep : dependencies.get(var)) {
+                if (!unresolvedVars.contains(dep)) {
+                    unresolvedVars.add(dep);
+                }
+            }
         }
 
         // Remove any variables that already have instantiations
@@ -125,20 +131,20 @@ public class Resolution {
      * @param unresolvedVars a set of unresolved variables that includes all dependencies
      * @return the bounds set with the resolved bounds
      */
-    private BoundSet resolve(BoundSet boundSet, Set<Variable> unresolvedVars) {
-        Set<Variable> resolvedSet = boundSet.getInstantiatedVariables();
+    private BoundSet resolve(BoundSet boundSet, Queue<Variable> unresolvedVars) {
+        List<Variable> resolvedVars = boundSet.getInstantiatedVariables();
 
         while (!unresolvedVars.isEmpty()) {
             assert !boundSet.containsFalse();
 
             Set<Variable> smallestDependencySet =
-                    getSmallestDependecySet(resolvedSet, unresolvedVars);
+                    getSmallestDependecySet(resolvedVars, unresolvedVars);
 
             // Resolve the smallest unresolved dependency set.
             boundSet = resolveSmallestSet(smallestDependencySet, boundSet);
 
-            resolvedSet = boundSet.getInstantiatedVariables();
-            unresolvedVars.removeAll(resolvedSet);
+            resolvedVars = boundSet.getInstantiatedVariables();
+            unresolvedVars.removeAll(resolvedVars);
         }
         return boundSet;
     }
@@ -147,17 +153,17 @@ public class Resolution {
      * Returns the smallest set of unresolved variables that includes any variable on which a
      * variable in the set depends.
      *
-     * @param resolvedSet variables that have been resolved, as a Set for fast contains
+     * @param resolvedVars variables that have been resolved
      * @param unresolvedVars variables that have not been resolved
      * @return the smallest set of unresolved variable
      */
     private Set<Variable> getSmallestDependecySet(
-            Set<Variable> resolvedSet, Set<Variable> unresolvedVars) {
+            List<Variable> resolvedVars, Queue<Variable> unresolvedVars) {
         Set<Variable> smallestDependencySet = null;
         // This loop is looking for the smallest set of dependencies that have not been resolved.
         for (Variable alpha : unresolvedVars) {
             Set<Variable> alphasDependencySet = dependencies.get(alpha);
-            alphasDependencySet.removeAll(resolvedSet);
+            alphasDependencySet.removeAll(resolvedVars);
 
             if (smallestDependencySet == null
                     || alphasDependencySet.size() < smallestDependencySet.size()) {
@@ -187,7 +193,7 @@ public class Resolution {
 
         if (boundSet.containsCapture(as)) {
             BoundSet resolvedBounds = resolveWithoutCapture(as, boundSet);
-            as.removeAll(boundSet.getInstantiatedVariables());
+            boundSet.getInstantiatedVariables().forEach(as::remove);
             // Then resolve the capture variables
             return resolveWithCapture(as, resolvedBounds, context);
         } else {

@@ -13,10 +13,10 @@ import org.checkerframework.javacutil.SwitchExpressionScanner;
 import org.checkerframework.javacutil.SwitchExpressionScanner.FunctionalSwitchExpressionScanner;
 import org.checkerframework.javacutil.TreeUtils;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.StringJoiner;
 
 import javax.lang.model.type.TypeKind;
@@ -107,14 +107,11 @@ public abstract class TypeConstraint implements Constraint {
     }
 
     /**
-     * Returns a set of all inference variables mentioned by this constraint.
+     * Returns a collection of all inference variables mentioned by this constraint.
      *
-     * <p>The mutability/freshness guarantees are the same as {@link
-     * AbstractType#getInferenceVariables()}.
-     *
-     * @return a set of all inference variables mentioned by this constraint
+     * @return a collection of all inference variables mentioned by this constraint
      */
-    public Set<Variable> getInferenceVariables() {
+    public Collection<Variable> getInferenceVariables() {
         return T.getInferenceVariables();
     }
 
@@ -129,11 +126,9 @@ public abstract class TypeConstraint implements Constraint {
      * href="https://docs.oracle.com/javase/specs/jls/se11/html/jls-18.html#jls-18.5.2.2">JLS
      * section 18.5.2.2</a>
      *
-     * <p>Callers that need to mutate the result should make a defensive copy first.
-     *
      * @return input variables for this constraint
      */
-    public abstract Set<Variable> getInputVariables();
+    public abstract List<Variable> getInputVariables();
 
     /**
      * "The output variables of [expression] constraints are all inference variables mentioned by
@@ -143,33 +138,9 @@ public abstract class TypeConstraint implements Constraint {
      * href="https://docs.oracle.com/javase/specs/jls/se11/html/jls-18.html#jls-18.5.2.2">JLS
      * section 18.5.2.2</a>
      *
-     * <p>Callers that need to mutate the result should make a defensive copy first.
-     *
      * @return output variables for this constraint
      */
-    public abstract Set<Variable> getOutputVariables();
-
-    /**
-     * Returns the union of {@code inputs} and {@code toAdd} without modifying {@code inputs}.
-     *
-     * <p>This method avoids allocation when {@code toAdd} is empty.
-     *
-     * @param inputs the input set
-     * @param toAdd the set to add
-     * @return {@code inputs} itself when {@code toAdd} is empty; otherwise a new mutable set
-     *     containing all variables from {@code inputs} and {@code toAdd}
-     */
-    protected static Set<Variable> addAllLazily(Set<Variable> inputs, Set<Variable> toAdd) {
-        if (toAdd.isEmpty()) {
-            return inputs;
-        }
-        if (inputs.isEmpty()) {
-            return new LinkedHashSet<>(toAdd);
-        }
-        Set<Variable> result = new LinkedHashSet<>(inputs);
-        result.addAll(toAdd);
-        return result;
-    }
+    public abstract List<Variable> getOutputVariables();
 
     /**
      * Implementation of {@link #getInputVariables()} that is used both by expressions constraints
@@ -180,22 +151,22 @@ public abstract class TypeConstraint implements Constraint {
      * @param T the type of the right hand side of the constraint
      * @return the input variables for this constraint
      */
-    protected Set<Variable> getInputVariablesForExpression(ExpressionTree tree, AbstractType T) {
+    protected List<Variable> getInputVariablesForExpression(ExpressionTree tree, AbstractType T) {
         switch (tree.getKind()) {
             case LAMBDA_EXPRESSION:
                 if (T.isUseOfVariable()) {
-                    return Collections.singleton(((UseOfVariable) T).getVariable());
+                    return Collections.singletonList(((UseOfVariable) T).getVariable());
                 } else {
                     LambdaExpressionTree lambdaTree = (LambdaExpressionTree) tree;
-                    Set<Variable> inputs = Collections.emptySet();
+                    List<Variable> inputs = new ArrayList<>();
                     if (TreeUtils.isImplicitlyTypedLambda(lambdaTree)) {
                         List<AbstractType> params = this.T.getFunctionTypeParameterTypes();
                         if (params == null) {
                             // T is not a function type.
-                            return Collections.emptySet();
+                            return Collections.emptyList();
                         }
                         for (AbstractType param : params) {
-                            inputs = addAllLazily(inputs, param.getInferenceVariables());
+                            inputs.addAll(param.getInferenceVariables());
                         }
                     }
                     AbstractType R = this.T.getFunctionTypeReturnType();
@@ -204,24 +175,24 @@ public abstract class TypeConstraint implements Constraint {
                     }
                     for (ExpressionTree e : TreeUtils.getReturnedExpressions(lambdaTree)) {
                         TypeConstraint c = new Expression("Returned expression constraint", e, R);
-                        inputs = addAllLazily(inputs, c.getInputVariables());
+                        inputs.addAll(c.getInputVariables());
                     }
                     return inputs;
                 }
             case MEMBER_REFERENCE:
                 if (T.isUseOfVariable()) {
-                    return Collections.singleton(((UseOfVariable) T).getVariable());
+                    return Collections.singletonList(((UseOfVariable) T).getVariable());
                 } else if (TreeUtils.isExactMethodReference((MemberReferenceTree) tree)) {
-                    return Collections.emptySet();
+                    return Collections.emptyList();
                 } else {
                     List<AbstractType> params = this.T.getFunctionTypeParameterTypes();
                     if (params == null) {
                         // T is not a function type.
-                        return Collections.emptySet();
+                        return Collections.emptyList();
                     }
-                    Set<Variable> inputs = Collections.emptySet();
+                    List<Variable> inputs = new ArrayList<>();
                     for (AbstractType param : params) {
-                        inputs = addAllLazily(inputs, param.getInferenceVariables());
+                        inputs.addAll(param.getInferenceVariables());
                     }
                     return inputs;
                 }
@@ -229,20 +200,13 @@ public abstract class TypeConstraint implements Constraint {
                 return getInputVariablesForExpression(TreeUtils.withoutParens(tree), T);
             case CONDITIONAL_EXPRESSION:
                 ConditionalExpressionTree conditional = (ConditionalExpressionTree) tree;
-                Set<Variable> inputs = Collections.emptySet();
-                inputs =
-                        addAllLazily(
-                                inputs,
-                                getInputVariablesForExpression(conditional.getTrueExpression(), T));
-                inputs =
-                        addAllLazily(
-                                inputs,
-                                getInputVariablesForExpression(
-                                        conditional.getFalseExpression(), T));
+                List<Variable> inputs = new ArrayList<>();
+                inputs.addAll(getInputVariablesForExpression(conditional.getTrueExpression(), T));
+                inputs.addAll(getInputVariablesForExpression(conditional.getFalseExpression(), T));
                 return inputs;
             default:
                 if (TreeUtils.isSwitchExpression(tree)) {
-                    Set<Variable> inputs2 = new LinkedHashSet<>();
+                    List<Variable> inputs2 = new ArrayList<>();
 
                     SwitchExpressionScanner<Boolean, Void> scanner =
                             new FunctionalSwitchExpressionScanner<>(
@@ -253,7 +217,7 @@ public abstract class TypeConstraint implements Constraint {
                     scanner.scanSwitchExpression(tree, null);
                     return inputs2;
                 }
-                return Collections.emptySet();
+                return Collections.emptyList();
         }
     }
 

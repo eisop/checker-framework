@@ -15,9 +15,10 @@ import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
-import java.util.Collections;
-import java.util.IdentityHashMap;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -60,7 +61,7 @@ public class Java8InferenceContext {
      * Store previously created type variable to inference variable maps as a map from invocation
      * expression to Theta.
      */
-    public final IdentityHashMap<ExpressionTree, Theta> maps;
+    public final Map<ExpressionTree, Theta> maps;
 
     /** Number of non-capture variables in this inference problem. */
     private int variableCount = 1;
@@ -81,8 +82,7 @@ public class Java8InferenceContext {
     public final AnnotatedTypeFactory typeFactory;
 
     /** There's no way to tell if an element is a parameter of a lambda, so keep track of them. */
-    public final Set<VariableElement> lambdaParms =
-            Collections.newSetFromMap(new IdentityHashMap<>());
+    public final Set<VariableElement> lambdaParms = new HashSet<>();
 
     /**
      * Creates a context
@@ -105,7 +105,7 @@ public class Java8InferenceContext {
         this.modelTypes = factory.getProcessingEnv().getTypeUtils();
         ClassTree clazz = TreePathUtil.enclosingClass(pathToExpression);
         this.enclosingType = (DeclaredType) TreeUtils.typeOf(clazz);
-        this.maps = new IdentityHashMap<>();
+        this.maps = new HashMap<>();
         this.runtimeEx =
                 TypesUtils.typeFromClass(
                         RuntimeException.class, env.getTypeUtils(), env.getElementUtils());

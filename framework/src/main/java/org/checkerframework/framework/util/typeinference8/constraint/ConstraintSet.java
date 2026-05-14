@@ -219,14 +219,14 @@ public class ConstraintSet implements ReductionResult {
             if (constraint.getKind() == Kind.EXPRESSION
                     || constraint.getKind() == Kind.LAMBDA_EXCEPTION
                     || constraint.getKind() == Kind.METHOD_REF_EXCEPTION) {
-                Set<Variable> inputsOfSingleConstraint =
+                List<Variable> inputsOfSingleConstraint =
                         ((TypeConstraint) constraint).getInputVariables();
                 boolean foundInfluence = false;
                 inputLoop:
                 for (Variable in : inputsOfSingleConstraint) {
-                    Set<Variable> inDeps = dependencies.dependsOn(in);
                     for (Variable out : allOutputsOfC) {
-                        if (inDeps.contains(out) || dependencies.dependsOn(out).contains(in)) {
+                        if (dependencies.get(in).contains(out)
+                                || dependencies.get(out).contains(in)) {
                             foundInfluence = true;
                             break inputLoop;
                         }
@@ -308,13 +308,10 @@ public class ConstraintSet implements ReductionResult {
      * @return all variables mentioned by any constraint in this set
      */
     public Set<Variable> getAllInferenceVariables() {
-        // addAllLazily does not mutate its first argument.
-        Set<Variable> vars = Collections.emptySet();
+        Set<Variable> vars = new LinkedHashSet<>();
         for (Constraint c : list) {
             if (c instanceof TypeConstraint) {
-                vars =
-                        TypeConstraint.addAllLazily(
-                                vars, ((TypeConstraint) c).getInferenceVariables());
+                vars.addAll(((TypeConstraint) c).getInferenceVariables());
             }
         }
         return vars;
@@ -326,13 +323,10 @@ public class ConstraintSet implements ReductionResult {
      * @return all input variables for all constraints in this set
      */
     public Set<Variable> getAllInputVariables() {
-        // addAllLazily does not mutate its first argument.
-        Set<Variable> vars = Collections.emptySet();
+        Set<Variable> vars = new LinkedHashSet<>();
         for (Constraint constraint : list) {
             if (constraint instanceof TypeConstraint) {
-                vars =
-                        TypeConstraint.addAllLazily(
-                                vars, ((TypeConstraint) constraint).getInputVariables());
+                vars.addAll(((TypeConstraint) constraint).getInputVariables());
             }
         }
         return vars;

@@ -11,11 +11,10 @@ import org.checkerframework.framework.util.typeinference8.util.Java8InferenceCon
 import org.checkerframework.framework.util.typeinference8.util.Theta;
 import org.checkerframework.javacutil.TreeUtils;
 
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 import javax.lang.model.type.TypeKind;
 
@@ -61,50 +60,50 @@ public class CheckedExceptionConstraint extends TypeConstraint {
     }
 
     @Override
-    public Set<Variable> getInputVariables() {
+    public List<Variable> getInputVariables() {
         if (getKind() == Kind.LAMBDA_EXCEPTION) {
             if (T.isUseOfVariable()) {
-                return Collections.singleton(((UseOfVariable) T).getVariable());
+                return Collections.singletonList(((UseOfVariable) T).getVariable());
             } else {
                 LambdaExpressionTree lambdaTree = (LambdaExpressionTree) expression;
-                Set<Variable> inputs = Collections.emptySet();
+                List<Variable> inputs = new ArrayList<>();
                 if (TreeUtils.isImplicitlyTypedLambda(lambdaTree)) {
                     List<AbstractType> params = this.T.getFunctionTypeParameterTypes();
                     if (params == null) {
                         // T is not a function type.
-                        return Collections.emptySet();
+                        return Collections.emptyList();
                     }
                     for (AbstractType param : params) {
-                        inputs = addAllLazily(inputs, param.getInferenceVariables());
+                        inputs.addAll(param.getInferenceVariables());
                     }
                 }
                 AbstractType R = this.T.getFunctionTypeReturnType();
                 if (R == null || R.getTypeKind() == TypeKind.NONE) {
                     return inputs;
                 }
-                inputs = addAllLazily(inputs, R.getInferenceVariables());
+                inputs.addAll(R.getInferenceVariables());
                 return inputs;
             }
         } else if (getKind() == Kind.METHOD_REF_EXCEPTION) {
             if (T.isUseOfVariable()) {
-                return Collections.singleton(((UseOfVariable) T).getVariable());
+                return Collections.singletonList(((UseOfVariable) T).getVariable());
             } else if (TreeUtils.isExactMethodReference((MemberReferenceTree) expression)) {
-                return Collections.emptySet();
+                return Collections.emptyList();
             } else {
                 List<AbstractType> params = this.T.getFunctionTypeParameterTypes();
                 if (params == null) {
                     // T is not a function type.
-                    return Collections.emptySet();
+                    return Collections.emptyList();
                 }
-                Set<Variable> inputs = Collections.emptySet();
+                List<Variable> inputs = new ArrayList<>();
                 for (AbstractType param : params) {
-                    inputs = addAllLazily(inputs, param.getInferenceVariables());
+                    inputs.addAll(param.getInferenceVariables());
                 }
                 AbstractType R = this.T.getFunctionTypeReturnType();
                 if (R == null || R.getTypeKind() == TypeKind.NONE) {
                     return inputs;
                 }
-                inputs = addAllLazily(inputs, R.getInferenceVariables());
+                inputs.addAll(R.getInferenceVariables());
                 return inputs;
             }
         }
@@ -112,9 +111,9 @@ public class CheckedExceptionConstraint extends TypeConstraint {
     }
 
     @Override
-    public Set<Variable> getOutputVariables() {
-        Set<Variable> input = getInputVariables();
-        Set<Variable> output = new LinkedHashSet<>(getT().getInferenceVariables());
+    public List<Variable> getOutputVariables() {
+        List<Variable> input = getInputVariables();
+        List<Variable> output = new ArrayList<>(getT().getInferenceVariables());
         output.removeAll(input);
         return output;
     }

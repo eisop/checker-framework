@@ -12,7 +12,9 @@ import org.checkerframework.framework.util.typeinference8.util.Java8InferenceCon
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TypesUtils;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -114,22 +116,21 @@ public class Typing extends TypeConstraint {
     }
 
     @Override
-    public Set<Variable> getInputVariables() {
-        return Collections.emptySet();
+    public List<Variable> getInputVariables() {
+        return Collections.emptyList();
     }
 
     @Override
-    public Set<Variable> getOutputVariables() {
-        return Collections.emptySet();
+    public List<Variable> getOutputVariables() {
+        return Collections.emptyList();
     }
 
     @Override
-    public Set<Variable> getInferenceVariables() {
-        // addAllLazily does not mutate its first argument.
-        Set<Variable> vars = Collections.emptySet();
-        vars = addAllLazily(vars, T.getInferenceVariables());
-        vars = addAllLazily(vars, S.getInferenceVariables());
-        return vars;
+    public List<Variable> getInferenceVariables() {
+        Set<Variable> vars = new HashSet<>();
+        vars.addAll(T.getInferenceVariables());
+        vars.addAll(S.getInferenceVariables());
+        return new ArrayList<>(vars);
     }
 
     @Override

@@ -26,9 +26,7 @@ import org.plumelib.util.IPair;
 
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 
 import javax.lang.model.type.TypeKind;
 
@@ -72,14 +70,14 @@ public class Expression extends TypeConstraint {
     }
 
     @Override
-    public Set<Variable> getInputVariables() {
+    public List<Variable> getInputVariables() {
         return getInputVariablesForExpression(expression, getT());
     }
 
     @Override
-    public Set<Variable> getOutputVariables() {
-        Set<Variable> output = new LinkedHashSet<>(getT().getInferenceVariables());
-        Set<Variable> input = getInputVariables();
+    public List<Variable> getOutputVariables() {
+        List<Variable> input = getInputVariables();
+        List<Variable> output = new ArrayList<>(getT().getInferenceVariables());
         output.removeAll(input);
         return output;
     }
