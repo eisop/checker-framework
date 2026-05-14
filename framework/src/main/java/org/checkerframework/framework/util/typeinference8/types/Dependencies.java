@@ -95,7 +95,7 @@ public class Dependencies {
      * Returns the set of dependencies for all variables in {@code variables}. The returned set is
      * freshly allocated.
      *
-     * @param variables variables
+     * @param variables collection of variables
      * @return the set of dependencies for all variables in {@code variables}
      */
     public Set<Variable> get(Collection<? extends Variable> variables) {
