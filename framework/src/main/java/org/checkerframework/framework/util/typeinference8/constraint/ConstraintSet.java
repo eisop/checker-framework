@@ -219,7 +219,7 @@ public class ConstraintSet implements ReductionResult {
             if (constraint.getKind() == Kind.EXPRESSION
                     || constraint.getKind() == Kind.LAMBDA_EXCEPTION
                     || constraint.getKind() == Kind.METHOD_REF_EXCEPTION) {
-                List<Variable> inputsOfSingleConstraint =
+                Set<Variable> inputsOfSingleConstraint =
                         ((TypeConstraint) constraint).getInputVariables();
                 boolean foundInfluence = false;
                 inputLoop:

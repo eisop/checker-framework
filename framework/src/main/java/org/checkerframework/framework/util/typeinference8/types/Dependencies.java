@@ -4,7 +4,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -96,10 +95,10 @@ public class Dependencies {
      * Returns the set of dependencies for all variables in {@code variables}. The returned set is
      * freshly allocated.
      *
-     * @param variables list of variables
+     * @param variables variables
      * @return the set of dependencies for all variables in {@code variables}
      */
-    public Set<Variable> get(List<Variable> variables) {
+    public Set<Variable> get(Collection<? extends Variable> variables) {
         LinkedHashSet<Variable> set = new LinkedHashSet<>();
         for (Variable v : variables) {
             set.addAll(map.get(v));

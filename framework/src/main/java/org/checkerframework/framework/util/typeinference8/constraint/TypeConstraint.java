@@ -13,10 +13,11 @@ import org.checkerframework.javacutil.SwitchExpressionScanner;
 import org.checkerframework.javacutil.SwitchExpressionScanner.FunctionalSwitchExpressionScanner;
 import org.checkerframework.javacutil.TreeUtils;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.StringJoiner;
 
 import javax.lang.model.type.TypeKind;
@@ -128,7 +129,7 @@ public abstract class TypeConstraint implements Constraint {
      *
      * @return input variables for this constraint
      */
-    public abstract List<Variable> getInputVariables();
+    public abstract Set<Variable> getInputVariables();
 
     /**
      * "The output variables of [expression] constraints are all inference variables mentioned by
@@ -140,7 +141,7 @@ public abstract class TypeConstraint implements Constraint {
      *
      * @return output variables for this constraint
      */
-    public abstract List<Variable> getOutputVariables();
+    public abstract Set<Variable> getOutputVariables();
 
     /**
      * Implementation of {@link #getInputVariables()} that is used both by expressions constraints
@@ -151,19 +152,19 @@ public abstract class TypeConstraint implements Constraint {
      * @param T the type of the right hand side of the constraint
      * @return the input variables for this constraint
      */
-    protected List<Variable> getInputVariablesForExpression(ExpressionTree tree, AbstractType T) {
+    protected Set<Variable> getInputVariablesForExpression(ExpressionTree tree, AbstractType T) {
         switch (tree.getKind()) {
             case LAMBDA_EXPRESSION:
                 if (T.isUseOfVariable()) {
-                    return Collections.singletonList(((UseOfVariable) T).getVariable());
+                    return Collections.singleton(((UseOfVariable) T).getVariable());
                 } else {
                     LambdaExpressionTree lambdaTree = (LambdaExpressionTree) tree;
-                    List<Variable> inputs = new ArrayList<>();
+                    Set<Variable> inputs = new LinkedHashSet<>();
                     if (TreeUtils.isImplicitlyTypedLambda(lambdaTree)) {
                         List<AbstractType> params = this.T.getFunctionTypeParameterTypes();
                         if (params == null) {
                             // T is not a function type.
-                            return Collections.emptyList();
+                            return Collections.emptySet();
                         }
                         for (AbstractType param : params) {
                             inputs.addAll(param.getInferenceVariables());
@@ -181,16 +182,16 @@ public abstract class TypeConstraint implements Constraint {
                 }
             case MEMBER_REFERENCE:
                 if (T.isUseOfVariable()) {
-                    return Collections.singletonList(((UseOfVariable) T).getVariable());
+                    return Collections.singleton(((UseOfVariable) T).getVariable());
                 } else if (TreeUtils.isExactMethodReference((MemberReferenceTree) tree)) {
-                    return Collections.emptyList();
+                    return Collections.emptySet();
                 } else {
                     List<AbstractType> params = this.T.getFunctionTypeParameterTypes();
                     if (params == null) {
                         // T is not a function type.
-                        return Collections.emptyList();
+                        return Collections.emptySet();
                     }
-                    List<Variable> inputs = new ArrayList<>();
+                    Set<Variable> inputs = new LinkedHashSet<>();
                     for (AbstractType param : params) {
                         inputs.addAll(param.getInferenceVariables());
                     }
@@ -200,13 +201,13 @@ public abstract class TypeConstraint implements Constraint {
                 return getInputVariablesForExpression(TreeUtils.withoutParens(tree), T);
             case CONDITIONAL_EXPRESSION:
                 ConditionalExpressionTree conditional = (ConditionalExpressionTree) tree;
-                List<Variable> inputs = new ArrayList<>();
+                Set<Variable> inputs = new LinkedHashSet<>();
                 inputs.addAll(getInputVariablesForExpression(conditional.getTrueExpression(), T));
                 inputs.addAll(getInputVariablesForExpression(conditional.getFalseExpression(), T));
                 return inputs;
             default:
                 if (TreeUtils.isSwitchExpression(tree)) {
-                    List<Variable> inputs2 = new ArrayList<>();
+                    Set<Variable> inputs2 = new LinkedHashSet<>();
 
                     SwitchExpressionScanner<Boolean, Void> scanner =
                             new FunctionalSwitchExpressionScanner<>(
@@ -217,7 +218,7 @@ public abstract class TypeConstraint implements Constraint {
                     scanner.scanSwitchExpression(tree, null);
                     return inputs2;
                 }
-                return Collections.emptyList();
+                return Collections.emptySet();
         }
     }
 

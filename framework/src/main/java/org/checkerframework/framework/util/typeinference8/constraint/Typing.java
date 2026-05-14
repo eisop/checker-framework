@@ -115,13 +115,13 @@ public class Typing extends TypeConstraint {
     }
 
     @Override
-    public List<Variable> getInputVariables() {
-        return Collections.emptyList();
+    public Set<Variable> getInputVariables() {
+        return Collections.emptySet();
     }
 
     @Override
-    public List<Variable> getOutputVariables() {
-        return Collections.emptyList();
+    public Set<Variable> getOutputVariables() {
+        return Collections.emptySet();
     }
 
     @Override

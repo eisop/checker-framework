@@ -11,10 +11,11 @@ import org.checkerframework.framework.util.typeinference8.util.Java8InferenceCon
 import org.checkerframework.framework.util.typeinference8.util.Theta;
 import org.checkerframework.javacutil.TreeUtils;
 
-import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import javax.lang.model.type.TypeKind;
 
@@ -60,18 +61,18 @@ public class CheckedExceptionConstraint extends TypeConstraint {
     }
 
     @Override
-    public List<Variable> getInputVariables() {
+    public Set<Variable> getInputVariables() {
         if (getKind() == Kind.LAMBDA_EXCEPTION) {
             if (T.isUseOfVariable()) {
-                return Collections.singletonList(((UseOfVariable) T).getVariable());
+                return Collections.singleton(((UseOfVariable) T).getVariable());
             } else {
                 LambdaExpressionTree lambdaTree = (LambdaExpressionTree) expression;
-                List<Variable> inputs = new ArrayList<>();
+                Set<Variable> inputs = new LinkedHashSet<>();
                 if (TreeUtils.isImplicitlyTypedLambda(lambdaTree)) {
                     List<AbstractType> params = this.T.getFunctionTypeParameterTypes();
                     if (params == null) {
                         // T is not a function type.
-                        return Collections.emptyList();
+                        return Collections.emptySet();
                     }
                     for (AbstractType param : params) {
                         inputs.addAll(param.getInferenceVariables());
@@ -86,16 +87,16 @@ public class CheckedExceptionConstraint extends TypeConstraint {
             }
         } else if (getKind() == Kind.METHOD_REF_EXCEPTION) {
             if (T.isUseOfVariable()) {
-                return Collections.singletonList(((UseOfVariable) T).getVariable());
+                return Collections.singleton(((UseOfVariable) T).getVariable());
             } else if (TreeUtils.isExactMethodReference((MemberReferenceTree) expression)) {
-                return Collections.emptyList();
+                return Collections.emptySet();
             } else {
                 List<AbstractType> params = this.T.getFunctionTypeParameterTypes();
                 if (params == null) {
                     // T is not a function type.
-                    return Collections.emptyList();
+                    return Collections.emptySet();
                 }
-                List<Variable> inputs = new ArrayList<>();
+                Set<Variable> inputs = new LinkedHashSet<>();
                 for (AbstractType param : params) {
                     inputs.addAll(param.getInferenceVariables());
                 }
@@ -111,9 +112,9 @@ public class CheckedExceptionConstraint extends TypeConstraint {
     }
 
     @Override
-    public List<Variable> getOutputVariables() {
-        List<Variable> input = getInputVariables();
-        List<Variable> output = new ArrayList<>(getT().getInferenceVariables());
+    public Set<Variable> getOutputVariables() {
+        Set<Variable> input = getInputVariables();
+        Set<Variable> output = new LinkedHashSet<>(getT().getInferenceVariables());
         output.removeAll(input);
         return output;
     }
