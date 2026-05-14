@@ -47,6 +47,9 @@ public class ExpectedTreesVisitor extends TreeScannerWithDefaults {
     /** The set of trees that should be matched to a JavaParser node when visiting both. */
     private Set<Tree> trees = Collections.newSetFromMap(new IdentityHashMap<>());
 
+    /** Construct an object. */
+    public ExpectedTreesVisitor() {}
+
     /**
      * Returns the visited trees that should match to some JavaParser node.
      *
