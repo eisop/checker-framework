@@ -117,8 +117,8 @@ public class CheckedExceptionConstraint extends TypeConstraint {
      * <p>If {@code inputs} is empty, this method avoids allocation until a non-empty set needs to
      * be added.
      *
-     * @return {@code inputs} if {@code toAdd} is empty, otherwise a mutable set containing the
-     *     union
+     * @return {@code inputs} unchanged if {@code toAdd} is empty; otherwise a mutable set
+     *     containing all variables from {@code inputs} and {@code toAdd}
      */
     private static Set<Variable> addAllLazily(Set<Variable> inputs, Set<Variable> toAdd) {
         if (toAdd.isEmpty()) {
