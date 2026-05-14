@@ -19,6 +19,7 @@ import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.Collections;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
@@ -198,20 +199,20 @@ class AtmLubVisitor extends AbstractAtmComboVisitor<Void, AnnotatedTypeMirror> {
 
         lubPrimaryAnnotations(type1, type2, lub);
 
-        if (lub.getKind() == TypeKind.DECLARED) {
-            AnnotatedDeclaredType enclosingLub = ((AnnotatedDeclaredType) lub).getEnclosingType();
-            AnnotatedDeclaredType enclosing1 = type1.getEnclosingType();
-            AnnotatedDeclaredType enclosing2 = type2.getEnclosingType();
-            if (enclosingLub != null && enclosing1 != null && enclosing2 != null) {
-                visitDeclared_Declared(enclosing1, enclosing2, enclosingLub);
-            }
+        // castedLub is non-null and is `lub` cast to AnnotatedDeclaredType.
+        AnnotatedDeclaredType enclosingLub = castedLub.getEnclosingType();
+        AnnotatedDeclaredType enclosing1 = type1.getEnclosingType();
+        AnnotatedDeclaredType enclosing2 = type2.getEnclosingType();
+        if (enclosingLub != null && enclosing1 != null && enclosing2 != null) {
+            visitDeclared_Declared(enclosing1, enclosing2, enclosingLub);
         }
 
-        for (int i = 0; i < type1.getTypeArguments().size(); i++) {
-            AnnotatedTypeMirror type1TypeArg = type1.getTypeArguments().get(i);
-            AnnotatedTypeMirror type2TypeArg = type2.getTypeArguments().get(i);
-            AnnotatedTypeMirror lubTypeArg = castedLub.getTypeArguments().get(i);
-            lubTypeArgument(type1TypeArg, type2TypeArg, lubTypeArg);
+        List<AnnotatedTypeMirror> type1Args = type1.getTypeArguments();
+        List<AnnotatedTypeMirror> type2Args = type2.getTypeArguments();
+        List<AnnotatedTypeMirror> lubArgs = castedLub.getTypeArguments();
+        int n = type1Args.size();
+        for (int i = 0; i < n; ++i) {
+            lubTypeArgument(type1Args.get(i), type2Args.get(i), lubArgs.get(i));
         }
         return null;
     }
