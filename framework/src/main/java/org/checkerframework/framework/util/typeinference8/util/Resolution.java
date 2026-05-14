@@ -15,6 +15,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Queue;
@@ -132,19 +133,19 @@ public class Resolution {
      * @return the bounds set with the resolved bounds
      */
     private BoundSet resolve(BoundSet boundSet, Queue<Variable> unresolvedVars) {
-        List<Variable> resolvedVars = boundSet.getInstantiatedVariables();
+        Set<Variable> resolvedSet = new HashSet<>(boundSet.getInstantiatedVariables());
 
         while (!unresolvedVars.isEmpty()) {
             assert !boundSet.containsFalse();
 
             Set<Variable> smallestDependencySet =
-                    getSmallestDependecySet(resolvedVars, unresolvedVars);
+                    getSmallestDependecySet(resolvedSet, unresolvedVars);
 
             // Resolve the smallest unresolved dependency set.
             boundSet = resolveSmallestSet(smallestDependencySet, boundSet);
 
-            resolvedVars = boundSet.getInstantiatedVariables();
-            unresolvedVars.removeAll(resolvedVars);
+            resolvedSet = new HashSet<>(boundSet.getInstantiatedVariables());
+            unresolvedVars.removeAll(resolvedSet);
         }
         return boundSet;
     }
@@ -153,17 +154,18 @@ public class Resolution {
      * Returns the smallest set of unresolved variables that includes any variable on which a
      * variable in the set depends.
      *
-     * @param resolvedVars variables that have been resolved
+     * @param resolvedSet variables that have been resolved, as a Set for fast contains
      * @param unresolvedVars variables that have not been resolved
      * @return the smallest set of unresolved variable
      */
     private Set<Variable> getSmallestDependecySet(
-            List<Variable> resolvedVars, Queue<Variable> unresolvedVars) {
+            Set<Variable> resolvedSet, Queue<Variable> unresolvedVars) {
         Set<Variable> smallestDependencySet = null;
         // This loop is looking for the smallest set of dependencies that have not been resolved.
         for (Variable alpha : unresolvedVars) {
+            // TODO: should this copy before pruning?
             Set<Variable> alphasDependencySet = dependencies.get(alpha);
-            alphasDependencySet.removeAll(resolvedVars);
+            alphasDependencySet.removeAll(resolvedSet);
 
             if (smallestDependencySet == null
                     || alphasDependencySet.size() < smallestDependencySet.size()) {
