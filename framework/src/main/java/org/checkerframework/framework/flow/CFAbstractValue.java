@@ -17,8 +17,6 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.StringsPlume;
 
-import java.util.Objects;
-
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.type.TypeKind;
@@ -63,6 +61,15 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
 
     /** The annotations in this abstract value. */
     protected final AnnotationMirrorSet annotations;
+
+    /**
+     * Cached hash code. Lazily computed on first call to {@link #hashCode()} and gated by {@link
+     * #hashCodeComputed}.
+     */
+    private transient int hashCodeCache = 0;
+
+    /** True if {@link #hashCodeCache} contains the current hash code. */
+    private transient boolean hashCodeComputed = false;
 
     /**
      * Creates a new CFAbstractValue.
@@ -195,7 +202,13 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
     @Pure
     @Override
     public int hashCode() {
-        return Objects.hash(getAnnotations(), underlyingType);
+        if (!hashCodeComputed) {
+            int h = annotations.hashCode();
+            h = 31 * h + (underlyingType == null ? 0 : underlyingType.hashCode());
+            hashCodeCache = h;
+            hashCodeComputed = true;
+        }
+        return hashCodeCache;
     }
 
     /**
