@@ -118,9 +118,7 @@ public class UseOfVariable extends AbstractType {
 
     @Override
     public Set<Variable> getInferenceVariables() {
-        Set<Variable> vars = new LinkedHashSet<>();
-        vars.add(variable);
-        return vars;
+        return new LinkedHashSet<>(Collections.singleton(variable));
     }
 
     @Override
