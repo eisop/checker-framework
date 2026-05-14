@@ -692,6 +692,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /** True if the -AwarnUnneededSuppressions command-line argument was passed. */
     private boolean warnUnneededSuppressions;
 
+    /** True if the -AdumpOnErrors command-line argument was passed. */
+    private boolean dumpOnErrors;
+
     /** True if the -AonlyAnnotatedFor command-line argument was passed. */
     private boolean onlyAnnotatedFor;
 
@@ -1190,6 +1193,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         requirePrefixInWarningSuppressions = hasOption("requirePrefixInWarningSuppressions");
         showPrefixInWarningMessages = hasOption("showPrefixInWarningMessages");
         warnUnneededSuppressions = hasOption("warnUnneededSuppressions");
+        dumpOnErrors = hasOption("dumpOnErrors");
         useConservativeDefaultsSource = useConservativeDefault("source");
         onlyAnnotatedFor = hasOption("onlyAnnotatedFor");
     }
@@ -1697,7 +1701,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             Tree source,
             CompilationUnitTree root) {
         assert this.currentRoot == root;
-        StackTraceElement[] trace = Thread.currentThread().getStackTrace();
+        // Thread.currentThread().getStackTrace() walks the entire JVM stack and allocates a
+        // StackTraceElement[] on every reported diagnostic.  The trace is only consulted by
+        // printStackTrace() when -AdumpOnErrors is set, so skip the capture in the common case.
+        StackTraceElement[] trace =
+                dumpOnErrors ? Thread.currentThread().getStackTrace() : EMPTY_STACK_TRACE;
         if (messageStore == null) {
             printOrStoreMessage(kind, message, source, root, trace);
         } else {
@@ -1705,6 +1713,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             messageStore.add(checkerMessage);
         }
     }
+
+    /** Sentinel for "no stack trace was captured" -- shared across all checkers. */
+    private static final StackTraceElement[] EMPTY_STACK_TRACE = new StackTraceElement[0];
 
     /**
      * Do not call this method. Call {@link #reportError} or {@link #reportWarning} instead.
@@ -1735,7 +1746,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @param trace stack trace when the checker encountered a warning/error
      */
     private void printStackTrace(StackTraceElement[] trace) {
-        if (hasOption("dumpOnErrors")) {
+        if (dumpOnErrors) {
             StringJoiner msg = new StringJoiner(System.lineSeparator());
             for (StackTraceElement elem : trace) {
                 msg.add("\tat " + elem);
