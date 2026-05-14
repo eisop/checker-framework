@@ -25,8 +25,8 @@ import org.checkerframework.javacutil.TreeUtils.MemberReferenceKind;
 import org.plumelib.util.IPair;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -72,15 +72,14 @@ public class Expression extends TypeConstraint {
     }
 
     @Override
-    public List<Variable> getInputVariables() {
+    public Set<Variable> getInputVariables() {
         return getInputVariablesForExpression(expression, getT());
     }
 
     @Override
-    public List<Variable> getOutputVariables() {
-        // Use a Set for O(1) membership checks during removeAll.
-        Set<Variable> input = new HashSet<>(getInputVariables());
-        List<Variable> output = new ArrayList<>(getT().getInferenceVariables());
+    public Set<Variable> getOutputVariables() {
+        Set<Variable> output = new LinkedHashSet<>(getT().getInferenceVariables());
+        Set<Variable> input = getInputVariables();
         output.removeAll(input);
         return output;
     }
