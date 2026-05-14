@@ -11,13 +11,11 @@ import org.checkerframework.framework.util.typeinference8.types.Variable;
 import org.checkerframework.framework.util.typeinference8.types.VariableBounds;
 import org.checkerframework.framework.util.typeinference8.types.VariableBounds.BoundKind;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Queue;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
@@ -63,13 +61,9 @@ public class Resolution {
         // Calculate the dependencies between variables. (A variable depends on another if it is
         // included in one of its bounds.)
         Dependencies dependencies = boundSet.getDependencies();
-        Queue<Variable> unresolvedVars = new ArrayDeque<>(as);
+        LinkedHashSet<Variable> unresolvedVars = new LinkedHashSet<>(as);
         for (Variable var : as) {
-            for (Variable dep : dependencies.dependsOn(var)) {
-                if (!unresolvedVars.contains(dep)) {
-                    unresolvedVars.add(dep);
-                }
-            }
+            unresolvedVars.addAll(dependencies.dependsOn(var));
         }
 
         // Remove any variables that already have instantiations
@@ -131,7 +125,7 @@ public class Resolution {
      * @param unresolvedVars a set of unresolved variables that includes all dependencies
      * @return the bounds set with the resolved bounds
      */
-    private BoundSet resolve(BoundSet boundSet, Queue<Variable> unresolvedVars) {
+    private BoundSet resolve(BoundSet boundSet, Set<Variable> unresolvedVars) {
         Set<Variable> resolvedSet = boundSet.getInstantiatedVariables();
 
         while (!unresolvedVars.isEmpty()) {
@@ -158,7 +152,7 @@ public class Resolution {
      * @return the smallest set of unresolved variable
      */
     private Set<Variable> getSmallestDependecySet(
-            Set<Variable> resolvedSet, Queue<Variable> unresolvedVars) {
+            Set<Variable> resolvedSet, Set<Variable> unresolvedVars) {
         Set<Variable> smallestDependencySet = null;
         // This loop is looking for the smallest set of dependencies that have not been resolved.
         for (Variable alpha : unresolvedVars) {
