@@ -93,7 +93,7 @@ public class Dependencies {
 
     /**
      * Returns the set of dependencies for all variables in {@code variables}. The returned set is
-     * freshly allocated.
+     * freshly allocated and mutable.
      *
      * @param variables collection of variables
      * @return the set of dependencies for all variables in {@code variables}

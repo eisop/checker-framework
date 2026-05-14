@@ -279,7 +279,7 @@ public class InferenceType extends AbstractType {
     /**
      * Returns all inference variables mentioned in this type.
      *
-     * @return all inference variables mentioned in this type
+     * @return a fresh, mutable set containing all inference variables mentioned in this type
      */
     @Override
     public Set<Variable> getInferenceVariables() {

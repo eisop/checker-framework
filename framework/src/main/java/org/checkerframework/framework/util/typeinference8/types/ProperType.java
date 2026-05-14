@@ -307,6 +307,11 @@ public class ProperType extends AbstractType {
         return TypesUtils.isObject(properType);
     }
 
+    /**
+     * Returns an unmodifiable empty set because proper types contain no inference variables.
+     *
+     * @return an unmodifiable empty set
+     */
     @Override
     public Set<Variable> getInferenceVariables() {
         return Collections.emptySet();

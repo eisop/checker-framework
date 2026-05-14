@@ -115,6 +115,11 @@ public class UseOfVariable extends AbstractType {
         return Kind.USE_OF_VARIABLE;
     }
 
+    /**
+     * Returns an unmodifiable singleton set containing this variable.
+     *
+     * @return an unmodifiable singleton set containing this variable
+     */
     @Override
     public Set<Variable> getInferenceVariables() {
         return Collections.singleton(variable);

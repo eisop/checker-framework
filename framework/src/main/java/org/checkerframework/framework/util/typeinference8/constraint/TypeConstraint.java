@@ -110,6 +110,9 @@ public abstract class TypeConstraint implements Constraint {
     /**
      * Returns a collection of all inference variables mentioned by this constraint.
      *
+     * <p>The mutability/freshness guarantees are the same as {@link
+     * AbstractType#getInferenceVariables()}.
+     *
      * @return a collection of all inference variables mentioned by this constraint
      */
     public Collection<Variable> getInferenceVariables() {
@@ -127,6 +130,8 @@ public abstract class TypeConstraint implements Constraint {
      * href="https://docs.oracle.com/javase/specs/jls/se11/html/jls-18.html#jls-18.5.2.2">JLS
      * section 18.5.2.2</a>
      *
+     * <p>Callers that need to mutate the result should make a defensive copy first.
+     *
      * @return input variables for this constraint
      */
     public abstract Set<Variable> getInputVariables();
@@ -138,6 +143,8 @@ public abstract class TypeConstraint implements Constraint {
      * <p>As defined in <a
      * href="https://docs.oracle.com/javase/specs/jls/se11/html/jls-18.html#jls-18.5.2.2">JLS
      * section 18.5.2.2</a>
+     *
+     * <p>Callers that need to mutate the result should make a defensive copy first.
      *
      * @return output variables for this constraint
      */
