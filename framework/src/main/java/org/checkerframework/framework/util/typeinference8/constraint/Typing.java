@@ -125,6 +125,7 @@ public class Typing extends TypeConstraint {
 
     @Override
     public Set<Variable> getInferenceVariables() {
+        // addAllLazily does not mutate its first argument.
         Set<Variable> vars = Collections.emptySet();
         vars = addAllLazily(vars, T.getInferenceVariables());
         vars = addAllLazily(vars, S.getInferenceVariables());

@@ -308,6 +308,7 @@ public class ConstraintSet implements ReductionResult {
      * @return all variables mentioned by any constraint in this set
      */
     public Set<Variable> getAllInferenceVariables() {
+        // addAllLazily does not mutate its first argument.
         Set<Variable> vars = Collections.emptySet();
         for (Constraint c : list) {
             if (c instanceof TypeConstraint) {
@@ -323,6 +324,7 @@ public class ConstraintSet implements ReductionResult {
      * @return all input variables for all constraints in this set
      */
     public Set<Variable> getAllInputVariables() {
+        // addAllLazily does not mutate its first argument.
         Set<Variable> vars = Collections.emptySet();
         for (Constraint constraint : list) {
             if (constraint instanceof TypeConstraint) {
