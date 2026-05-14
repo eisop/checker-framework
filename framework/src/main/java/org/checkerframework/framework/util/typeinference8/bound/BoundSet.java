@@ -215,7 +215,7 @@ public class BoundSet implements ReductionResult {
     }
 
     /**
-     * /** Returns a fresh, mutable set of all variables in this bound set that are instantiated.
+     * Returns a fresh, mutable set of all variables in this bound set that are instantiated.
      *
      * @return a fresh, mutable set of all variables in this bound set that are instantiated
      */
