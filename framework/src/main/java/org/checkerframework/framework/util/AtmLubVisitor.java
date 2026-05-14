@@ -17,8 +17,8 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TypesUtils;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
@@ -41,11 +41,14 @@ class AtmLubVisitor extends AbstractAtmComboVisitor<Void, AnnotatedTypeMirror> {
     private final QualifierHierarchy qualHierarchy;
 
     /**
-     * List of {@link AnnotatedTypeVariable} or {@link AnnotatedWildcardType} that have been
-     * visited. Call {@link #visited(AnnotatedTypeMirror)} to check if the type have been visited,
-     * so that reference equality is used rather than {@link #equals(Object)}.
+     * Identity-based set of {@link AnnotatedTypeVariable} and {@link AnnotatedWildcardType} that
+     * have been visited. Call {@link #visited(AnnotatedTypeMirror)} to check if the type has been
+     * visited. Reference equality is used rather than {@link #equals(Object)} because the visitor
+     * may visit two types that are structurally equal but not actually the same. For example, the
+     * wildcards in {@code IPair<?,?>} may be equal, but they both should be visited.
      */
-    private final List<AnnotatedTypeMirror> visited = new ArrayList<>();
+    private final Set<AnnotatedTypeMirror> visited =
+            Collections.newSetFromMap(new IdentityHashMap<>());
 
     AtmLubVisitor(AnnotatedTypeFactory atypeFactory) {
         this.atypeFactory = atypeFactory;
@@ -436,15 +439,9 @@ class AtmLubVisitor extends AbstractAtmComboVisitor<Void, AnnotatedTypeMirror> {
      * @return true if the given type has been visited
      */
     private boolean visited(@FindDistinct AnnotatedTypeMirror atm) {
-        for (AnnotatedTypeMirror atmVisit : visited) {
-            // Use reference equality rather than equals because the visitor may visit two types
-            // that are structurally equal, but not actually the same.  For example, the
-            // wildcards in IPair<?,?> may be equal, but they both should be visited.
-            if (atmVisit == atm) {
-                return true;
-            }
-        }
-        visited.add(atm);
-        return false;
+        // Set is identity-based (newSetFromMap over an IdentityHashMap). `add` returns false if
+        // the element is already present, true otherwise; invert to match the existing contract
+        // ("was already visited").
+        return !visited.add(atm);
     }
 }
