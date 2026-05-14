@@ -111,28 +111,6 @@ public class CheckedExceptionConstraint extends TypeConstraint {
         return getInputVariablesForExpression(expression, getT());
     }
 
-    /**
-     * Returns the union of {@code inputs} and {@code toAdd} without modifying {@code inputs}.
-     *
-     * <p>This method avoids allocation when {@code toAdd} is empty.
-     *
-     * @param inputs the input set
-     * @param toAdd the set to add
-     * @return {@code inputs} itself when {@code toAdd} is empty; otherwise a new mutable set
-     *     containing all variables from {@code inputs} and {@code toAdd}
-     */
-    private static Set<Variable> addAllLazily(Set<Variable> inputs, Set<Variable> toAdd) {
-        if (toAdd.isEmpty()) {
-            return inputs;
-        }
-        if (inputs.isEmpty()) {
-            return new LinkedHashSet<>(toAdd);
-        }
-        Set<Variable> result = new LinkedHashSet<>(inputs);
-        result.addAll(toAdd);
-        return result;
-    }
-
     @Override
     public Set<Variable> getOutputVariables() {
         Set<Variable> input = getInputVariables();

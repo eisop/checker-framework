@@ -151,6 +151,28 @@ public abstract class TypeConstraint implements Constraint {
     public abstract Set<Variable> getOutputVariables();
 
     /**
+     * Returns the union of {@code inputs} and {@code toAdd} without modifying {@code inputs}.
+     *
+     * <p>This method avoids allocation when {@code toAdd} is empty.
+     *
+     * @param inputs the input set
+     * @param toAdd the set to add
+     * @return {@code inputs} itself when {@code toAdd} is empty; otherwise a new mutable set
+     *     containing all variables from {@code inputs} and {@code toAdd}
+     */
+    protected static Set<Variable> addAllLazily(Set<Variable> inputs, Set<Variable> toAdd) {
+        if (toAdd.isEmpty()) {
+            return inputs;
+        }
+        if (inputs.isEmpty()) {
+            return new LinkedHashSet<>(toAdd);
+        }
+        Set<Variable> result = new LinkedHashSet<>(inputs);
+        result.addAll(toAdd);
+        return result;
+    }
+
+    /**
      * Implementation of {@link #getInputVariables()} that is used both by expressions constraints
      * and checked exception constraints
      * https://docs.oracle.com/javase/specs/jls/se8/html/jls-18.html#jls-18.5.2-200
@@ -166,7 +188,7 @@ public abstract class TypeConstraint implements Constraint {
                     return Collections.singleton(((UseOfVariable) T).getVariable());
                 } else {
                     LambdaExpressionTree lambdaTree = (LambdaExpressionTree) tree;
-                    Set<Variable> inputs = new LinkedHashSet<>();
+                    Set<Variable> inputs = Collections.emptySet();
                     if (TreeUtils.isImplicitlyTypedLambda(lambdaTree)) {
                         List<AbstractType> params = this.T.getFunctionTypeParameterTypes();
                         if (params == null) {
@@ -174,7 +196,7 @@ public abstract class TypeConstraint implements Constraint {
                             return Collections.emptySet();
                         }
                         for (AbstractType param : params) {
-                            inputs.addAll(param.getInferenceVariables());
+                            inputs = addAllLazily(inputs, param.getInferenceVariables());
                         }
                     }
                     AbstractType R = this.T.getFunctionTypeReturnType();
@@ -183,7 +205,7 @@ public abstract class TypeConstraint implements Constraint {
                     }
                     for (ExpressionTree e : TreeUtils.getReturnedExpressions(lambdaTree)) {
                         TypeConstraint c = new Expression("Returned expression constraint", e, R);
-                        inputs.addAll(c.getInputVariables());
+                        inputs = addAllLazily(inputs, c.getInputVariables());
                     }
                     return inputs;
                 }
@@ -198,9 +220,9 @@ public abstract class TypeConstraint implements Constraint {
                         // T is not a function type.
                         return Collections.emptySet();
                     }
-                    Set<Variable> inputs = new LinkedHashSet<>();
+                    Set<Variable> inputs = Collections.emptySet();
                     for (AbstractType param : params) {
-                        inputs.addAll(param.getInferenceVariables());
+                        inputs = addAllLazily(inputs, param.getInferenceVariables());
                     }
                     return inputs;
                 }
@@ -208,9 +230,15 @@ public abstract class TypeConstraint implements Constraint {
                 return getInputVariablesForExpression(TreeUtils.withoutParens(tree), T);
             case CONDITIONAL_EXPRESSION:
                 ConditionalExpressionTree conditional = (ConditionalExpressionTree) tree;
-                Set<Variable> inputs = new LinkedHashSet<>();
-                inputs.addAll(getInputVariablesForExpression(conditional.getTrueExpression(), T));
-                inputs.addAll(getInputVariablesForExpression(conditional.getFalseExpression(), T));
+                Set<Variable> inputs = Collections.emptySet();
+                inputs =
+                        addAllLazily(
+                                inputs,
+                                getInputVariablesForExpression(conditional.getTrueExpression(), T));
+                inputs =
+                        addAllLazily(
+                                inputs,
+                                getInputVariablesForExpression(conditional.getFalseExpression(), T));
                 return inputs;
             default:
                 if (TreeUtils.isSwitchExpression(tree)) {
