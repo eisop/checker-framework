@@ -1051,17 +1051,22 @@ public class DependentTypesHelper {
             if (visitedNodes.containsKey(type)) {
                 return null;
             }
-            for (AnnotationMirror anno : new AnnotationMirrorSet(type.getAnnotations())) {
-                AnnotationMirror newAnno = func.apply(anno);
-                if (newAnno != null) {
-                    // This code must remove and then add, rather than call `replace`, because a
-                    // type may have multiple annotations with the same class, but different
-                    // elements.  (This is a bug; see
-                    // https://github.com/typetools/checker-framework/issues/4451 .)
-                    // AnnotatedTypeMirror#replace only removes one annotation that is in the same
-                    // hierarchy as the passed argument.
-                    type.removeAnnotation(anno);
-                    type.addAnnotation(newAnno);
+            AnnotationMirrorSet primary = type.getAnnotations();
+            if (!primary.isEmpty()) {
+                // Snapshot into a fresh set so the loop below can mutate
+                // type.getAnnotations() safely via removeAnnotation/addAnnotation.
+                for (AnnotationMirror anno : new AnnotationMirrorSet(primary)) {
+                    AnnotationMirror newAnno = func.apply(anno);
+                    if (newAnno != null) {
+                        // This code must remove and then add, rather than call `replace`, because
+                        // a type may have multiple annotations with the same class, but different
+                        // elements.  (This is a bug; see
+                        // https://github.com/typetools/checker-framework/issues/4451 .)
+                        // AnnotatedTypeMirror#replace only removes one annotation that is in the
+                        // same hierarchy as the passed argument.
+                        type.removeAnnotation(anno);
+                        type.addAnnotation(newAnno);
+                    }
                 }
             }
             return super.scan(type, func);
