@@ -255,9 +255,10 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
         for (Class<? extends Annotation> clazz : qualifierClasses) {
             @SuppressWarnings("interning") // uniqueness is tested immediately below
             @Interned DefaultQualifierKind qualifierKind = new DefaultQualifierKind(clazz);
-            if (nameToQualifierKind.putIfAbsent(qualifierKind.getName(), qualifierKind) != null) {
+            if (nameToQualifierKind.containsKey(qualifierKind.getName())) {
                 throw new TypeSystemError("Duplicate QualifierKind " + qualifierKind.getName());
             }
+            nameToQualifierKind.put(qualifierKind.getName(), qualifierKind);
         }
         return Collections.unmodifiableMap(nameToQualifierKind);
     }
@@ -403,9 +404,8 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
             }
             qualifierKind.poly = qualifierKind;
             String topName = QualifierKindHierarchy.annotationClassName(polyMetaAnno.value());
-            DefaultQualifierKind topKind = nameToQualifierKind.get(topName);
-            if (topKind != null) {
-                qualifierKind.top = topKind;
+            if (nameToQualifierKind.containsKey(topName)) {
+                qualifierKind.top = nameToQualifierKind.get(topName);
             } else if (topName.equals(Annotation.class.getCanonicalName())) {
                 // Annotation.class is the default value of PolymorphicQualifier. If it is used,
                 // then there must be exactly one top.
@@ -471,7 +471,7 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
                 }
                 if (qualifierKind.bottom == null) {
                     qualifierKind.bottom = bot;
-                } else if (qualifierKind.bottom != bot) {
+                } else if (qualifierKind.top != bot) {
                     throw new TypeSystemError(
                             "Multiple bottoms found for qualifier %s. Bottoms: %s and %s.",
                             qualifierKind, bot, qualifierKind.bottom);

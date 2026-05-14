@@ -30,8 +30,7 @@ import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.BindingPatternUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.SwitchExpressionUtils;
 
-import java.util.Collections;
-import java.util.IdentityHashMap;
+import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -45,10 +44,7 @@ import java.util.Set;
  */
 public class ExpectedTreesVisitor extends TreeScannerWithDefaults {
     /** The set of trees that should be matched to a JavaParser node when visiting both. */
-    private Set<Tree> trees = Collections.newSetFromMap(new IdentityHashMap<>());
-
-    /** Construct an object. */
-    public ExpectedTreesVisitor() {}
+    private Set<Tree> trees = new HashSet<>();
 
     /**
      * Returns the visited trees that should match to some JavaParser node.

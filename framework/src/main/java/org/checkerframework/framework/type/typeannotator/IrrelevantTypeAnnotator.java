@@ -13,9 +13,6 @@ import javax.lang.model.type.TypeMirror;
  */
 public class IrrelevantTypeAnnotator extends TypeAnnotator {
 
-    /** The factory, with its concrete generic type for direct access. */
-    private final GenericAnnotatedTypeFactory<?, ?, ?, ?> gatf;
-
     /**
      * Annotate every type except for those whose underlying Java type is one of (or a subtype or
      * supertype of) a class in relevantClasses. (Only adds annotationMirror if no annotation in the
@@ -24,16 +21,19 @@ public class IrrelevantTypeAnnotator extends TypeAnnotator {
      *
      * @param atypeFactory a GenericAnnotatedTypeFactory
      */
-    public IrrelevantTypeAnnotator(GenericAnnotatedTypeFactory<?, ?, ?, ?> atypeFactory) {
+    @SuppressWarnings("rawtypes")
+    public IrrelevantTypeAnnotator(GenericAnnotatedTypeFactory atypeFactory) {
         super(atypeFactory);
-        this.gatf = atypeFactory;
     }
 
     @Override
     protected Void scan(AnnotatedTypeMirror type, Void aVoid) {
+        GenericAnnotatedTypeFactory<?, ?, ?, ?> gatf = (GenericAnnotatedTypeFactory) atypeFactory;
+
         TypeMirror tm = type.getUnderlyingType();
         if (shouldAddPrimaryAnnotation(tm) && !gatf.isRelevant(tm)) {
-            type.addMissingAnnotations(gatf.annotationsForIrrelevantJavaType(tm));
+            type.addMissingAnnotations(
+                    gatf.annotationsForIrrelevantJavaType(type.getUnderlyingType()));
         }
 
         return super.scan(type, aVoid);

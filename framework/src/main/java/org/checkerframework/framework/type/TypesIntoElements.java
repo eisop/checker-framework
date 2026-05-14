@@ -368,9 +368,8 @@ public final class TypesIntoElements {
         @Override
         public List<TypeCompound> visitDeclared(
                 AnnotatedDeclaredType type, TypeAnnotationPosition tapos) {
-            List<TypeCompound> cached = visitedNodes.get(type);
-            if (cached != null) {
-                return cached;
+            if (visitedNodes.containsKey(type)) {
+                return visitedNodes.get(type);
             }
             // Hack for termination
             visitedNodes.put(type, List.nil());
@@ -436,9 +435,8 @@ public final class TypesIntoElements {
         @Override
         public List<TypeCompound> visitIntersection(
                 AnnotatedIntersectionType type, TypeAnnotationPosition tapos) {
-            List<TypeCompound> cached = visitedNodes.get(type);
-            if (cached != null) {
-                return cached;
+            if (visitedNodes.containsKey(type)) {
+                return visitedNodes.get(type);
             }
             visitedNodes.put(type, List.nil());
             List<Attribute.TypeCompound> res;

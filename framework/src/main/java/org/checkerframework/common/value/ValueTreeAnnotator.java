@@ -29,15 +29,17 @@ import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 
@@ -47,6 +49,32 @@ class ValueTreeAnnotator extends TreeAnnotator {
     /** The type factory to use. Shadows the field from the superclass with a more specific type. */
     @SuppressWarnings("HidingField")
     protected final ValueAnnotatedTypeFactory atypeFactory;
+
+    /**
+     * The domain of the Constant Value Checker: the types for which it estimates possible values.
+     */
+    protected static final Set<String> COVERED_CLASS_STRINGS =
+            Collections.unmodifiableSet(
+                    new HashSet<>(
+                            Arrays.asList(
+                                    "int",
+                                    "java.lang.Integer",
+                                    "double",
+                                    "java.lang.Double",
+                                    "byte",
+                                    "java.lang.Byte",
+                                    "java.lang.String",
+                                    "char",
+                                    "java.lang.Character",
+                                    "float",
+                                    "java.lang.Float",
+                                    "boolean",
+                                    "java.lang.Boolean",
+                                    "long",
+                                    "java.lang.Long",
+                                    "short",
+                                    "java.lang.Short",
+                                    "char[]")));
 
     /**
      * Create a ValueTreeAnnotator.
@@ -60,6 +88,7 @@ class ValueTreeAnnotator extends TreeAnnotator {
 
     @Override
     public Void visitNewArray(NewArrayTree tree, AnnotatedTypeMirror type) {
+
         List<? extends ExpressionTree> dimensions = tree.getDimensions();
         List<? extends ExpressionTree> initializers = tree.getInitializers();
 
@@ -146,6 +175,7 @@ class ValueTreeAnnotator extends TreeAnnotator {
     private void handleInitializers(
             List<? extends ExpressionTree> initializers,
             AnnotatedTypeMirror.AnnotatedArrayType type) {
+
         type.replaceAnnotation(
                 atypeFactory.createArrayLenAnnotation(
                         Collections.singletonList(initializers.size())));
@@ -611,20 +641,16 @@ class ValueTreeAnnotator extends TreeAnnotator {
         }
     }
 
-    /**
-     * Returns true iff the given type is in the domain of the Constant Value Checker, that is,
-     * whether it estimates possible values for the type.
-     *
-     * @param type the type to test
-     * @return whether the type is handled by the Constant Value Checker
-     */
+    /** Returns true iff the given type is in the domain of the Constant Value Checker. */
     private boolean handledByValueChecker(AnnotatedTypeMirror type) {
         TypeMirror tm = type.getUnderlyingType();
+        /* TODO: compare performance to the more readable.
         return TypesUtils.isPrimitive(tm)
                 || TypesUtils.isBoxedPrimitive(tm)
                 || TypesUtils.isString(tm)
-                || (tm.getKind() == TypeKind.ARRAY
-                        && ((ArrayType) tm).getComponentType().getKind() == TypeKind.CHAR);
+                || tm.toString().equals("char[]"); // Why?
+        */
+        return COVERED_CLASS_STRINGS.contains(tm.toString());
     }
 
     @Override

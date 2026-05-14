@@ -1732,8 +1732,8 @@ public final class TreeUtils {
         assert ex != null : "@AssumeAssertion(nullness): tree kind";
         Name name = ElementUtils.getQualifiedClassName(ex);
         assert name != null : "@AssumeAssertion(nullness): assumption";
-        boolean correctClass = name.contentEquals("java.lang.Enum");
-        boolean correctMethod = ex.getSimpleName().contentEquals("<init>");
+        boolean correctClass = "java.lang.Enum".contentEquals(name);
+        boolean correctMethod = "<init>".contentEquals(ex.getSimpleName());
         return correctClass && correctMethod;
     }
 

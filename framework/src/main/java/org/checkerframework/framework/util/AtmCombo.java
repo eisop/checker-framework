@@ -41,13 +41,6 @@ enum AtmKind {
     }
 
     /**
-     * Cached values from {@link #values()}, used to avoid the array-clone cost that {@code
-     * values()} would otherwise incur on every call to {@link #valueOf(AnnotatedTypeMirror)}. Do
-     * not mutate.
-     */
-    private static final AtmKind[] VALUES = values();
-
-    /**
      * Returns the AtmKind corresponding to the class of atm.
      *
      * @return the AtmKind corresponding to the class of atm
@@ -55,7 +48,7 @@ enum AtmKind {
     public static AtmKind valueOf(AnnotatedTypeMirror atm) {
         Class<?> argClass = atm.getClass();
 
-        for (AtmKind atmKind : VALUES) {
+        for (AtmKind atmKind : AtmKind.values()) {
             Class<?> kindClass = atmKind.atmClass;
             if (argClass == kindClass) {
                 return atmKind;

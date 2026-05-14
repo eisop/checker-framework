@@ -17,8 +17,7 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TypesUtils;
 
-import java.util.Collections;
-import java.util.IdentityHashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -42,20 +41,12 @@ class AtmLubVisitor extends AbstractAtmComboVisitor<Void, AnnotatedTypeMirror> {
     private final QualifierHierarchy qualHierarchy;
 
     /**
-     * Identity-based set of {@link AnnotatedTypeVariable} and {@link AnnotatedWildcardType} that
-     * have been visited. Call {@link #visited(AnnotatedTypeMirror)} to check if the type has been
-     * visited. Reference equality is used rather than {@link #equals(Object)} because the visitor
-     * may visit two types that are structurally equal but not actually the same. For example, the
-     * wildcards in {@code IPair<?,?>} may be equal, but they both should be visited.
+     * List of {@link AnnotatedTypeVariable} or {@link AnnotatedWildcardType} that have been
+     * visited. Call {@link #visited(AnnotatedTypeMirror)} to check if the type have been visited,
+     * so that reference equality is used rather than {@link #equals(Object)}.
      */
-    private final Set<AnnotatedTypeMirror> visited =
-            Collections.newSetFromMap(new IdentityHashMap<>());
+    private final List<AnnotatedTypeMirror> visited = new ArrayList<>();
 
-    /**
-     * Construct an AtmLubVisitor.
-     *
-     * @param atypeFactory the type factory to use
-     */
     AtmLubVisitor(AnnotatedTypeFactory atypeFactory) {
         this.atypeFactory = atypeFactory;
         this.qualHierarchy = atypeFactory.getQualifierHierarchy();
@@ -204,20 +195,20 @@ class AtmLubVisitor extends AbstractAtmComboVisitor<Void, AnnotatedTypeMirror> {
 
         lubPrimaryAnnotations(type1, type2, lub);
 
-        // castedLub is non-null and is `lub` cast to AnnotatedDeclaredType.
-        AnnotatedDeclaredType enclosingLub = castedLub.getEnclosingType();
-        AnnotatedDeclaredType enclosing1 = type1.getEnclosingType();
-        AnnotatedDeclaredType enclosing2 = type2.getEnclosingType();
-        if (enclosingLub != null && enclosing1 != null && enclosing2 != null) {
-            visitDeclared_Declared(enclosing1, enclosing2, enclosingLub);
+        if (lub.getKind() == TypeKind.DECLARED) {
+            AnnotatedDeclaredType enclosingLub = ((AnnotatedDeclaredType) lub).getEnclosingType();
+            AnnotatedDeclaredType enclosing1 = type1.getEnclosingType();
+            AnnotatedDeclaredType enclosing2 = type2.getEnclosingType();
+            if (enclosingLub != null && enclosing1 != null && enclosing2 != null) {
+                visitDeclared_Declared(enclosing1, enclosing2, enclosingLub);
+            }
         }
 
-        List<AnnotatedTypeMirror> type1Args = type1.getTypeArguments();
-        List<AnnotatedTypeMirror> type2Args = type2.getTypeArguments();
-        List<AnnotatedTypeMirror> lubArgs = castedLub.getTypeArguments();
-        int n = type1Args.size();
-        for (int i = 0; i < n; ++i) {
-            lubTypeArgument(type1Args.get(i), type2Args.get(i), lubArgs.get(i));
+        for (int i = 0; i < type1.getTypeArguments().size(); i++) {
+            AnnotatedTypeMirror type1TypeArg = type1.getTypeArguments().get(i);
+            AnnotatedTypeMirror type2TypeArg = type2.getTypeArguments().get(i);
+            AnnotatedTypeMirror lubTypeArg = castedLub.getTypeArguments().get(i);
+            lubTypeArgument(type1TypeArg, type2TypeArg, lubTypeArg);
         }
         return null;
     }
@@ -445,9 +436,15 @@ class AtmLubVisitor extends AbstractAtmComboVisitor<Void, AnnotatedTypeMirror> {
      * @return true if the given type has been visited
      */
     private boolean visited(@FindDistinct AnnotatedTypeMirror atm) {
-        // Set is identity-based (newSetFromMap over an IdentityHashMap). `add` returns false if
-        // the element is already present, true otherwise; invert to match the existing contract
-        // ("was already visited").
-        return !visited.add(atm);
+        for (AnnotatedTypeMirror atmVisit : visited) {
+            // Use reference equality rather than equals because the visitor may visit two types
+            // that are structurally equal, but not actually the same.  For example, the
+            // wildcards in IPair<?,?> may be equal, but they both should be visited.
+            if (atmVisit == atm) {
+                return true;
+            }
+        }
+        visited.add(atm);
+        return false;
     }
 }

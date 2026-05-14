@@ -578,16 +578,18 @@ public abstract class CFAbstractTransfer<
                 continue;
             }
 
-            // Maybe insert the declared type.
-            // varEle.getEnclosingElement().equals(classEle) ensures the field belongs to the
-            // current class.
-            if (isConstructor) {
-                if (fieldInitialValue.initializer != null
-                        && varEle.getEnclosingElement().equals(classEle)) {
+            boolean isFieldOfCurrentClass = varEle.getEnclosingElement().equals(classEle);
+            // Maybe insert the declared type:
+            if (!isConstructor) {
+                // If it's not a constructor, use the declared type if the receiver of the method is
+                // fully initialized.
+                if (isInitializedReceiver && isFieldOfCurrentClass) {
                     store.insertValue(fieldInitialValue.fieldDecl, fieldInitialValue.declared);
                 }
-            } else if (isInitializedReceiver) {
-                if (varEle.getEnclosingElement().equals(classEle)) {
+            } else {
+                // If it is a constructor, then only use the declared type if the field has been
+                // initialized.
+                if (fieldInitialValue.initializer != null && isFieldOfCurrentClass) {
                     store.insertValue(fieldInitialValue.fieldDecl, fieldInitialValue.declared);
                 }
             }

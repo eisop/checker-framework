@@ -147,14 +147,6 @@ public class DependentTypesHelper {
     protected final TypeMirror objectTM;
 
     /**
-     * Snapshot of {@link #annoToElements}'s key set, used by {@link ViewpointAdaptedCopier#scan} to
-     * iterate dependent annotation names without allocating a fresh {@code keySet} iterator at
-     * every visited type node. Initialized in the constructor after {@link #annoToElements} is
-     * fully populated. Empty (length 0) when there are no dependent annotations.
-     */
-    private final String[] dependentAnnoNames;
-
-    /**
      * Creates a {@code DependentTypesHelper}.
      *
      * @param atypeFactory annotated type factory
@@ -171,7 +163,6 @@ public class DependentTypesHelper {
                 annoToElements.put(expressionAnno.getCanonicalName(), elementList);
             }
         }
-        this.dependentAnnoNames = annoToElements.keySet().toArray(new String[0]);
 
         this.objectTM =
                 TypesUtils.typeFromClass(
@@ -1023,7 +1014,7 @@ public class DependentTypesHelper {
                 AnnotatedTypeMirror.AnnotatedTypeVariable type,
                 Function<AnnotationMirror, AnnotationMirror> func) {
             if (visitedNodes.containsKey(type)) {
-                return null;
+                return visitedNodes.get(type);
             }
             visitedNodes.put(type, null);
 
@@ -1051,22 +1042,17 @@ public class DependentTypesHelper {
             if (visitedNodes.containsKey(type)) {
                 return null;
             }
-            AnnotationMirrorSet primary = type.getAnnotations();
-            if (!primary.isEmpty()) {
-                // Snapshot into a fresh set so the loop below can mutate
-                // type.getAnnotations() safely via removeAnnotation/addAnnotation.
-                for (AnnotationMirror anno : new AnnotationMirrorSet(primary)) {
-                    AnnotationMirror newAnno = func.apply(anno);
-                    if (newAnno != null) {
-                        // This code must remove and then add, rather than call `replace`, because
-                        // a type may have multiple annotations with the same class, but different
-                        // elements.  (This is a bug; see
-                        // https://github.com/typetools/checker-framework/issues/4451 .)
-                        // AnnotatedTypeMirror#replace only removes one annotation that is in the
-                        // same hierarchy as the passed argument.
-                        type.removeAnnotation(anno);
-                        type.addAnnotation(newAnno);
-                    }
+            for (AnnotationMirror anno : new AnnotationMirrorSet(type.getAnnotations())) {
+                AnnotationMirror newAnno = func.apply(anno);
+                if (newAnno != null) {
+                    // This code must remove and then add, rather than call `replace`, because a
+                    // type may have multiple annotations with the same class, but different
+                    // elements.  (This is a bug; see
+                    // https://github.com/typetools/checker-framework/issues/4451 .)
+                    // AnnotatedTypeMirror#replace only removes one annotation that is in the same
+                    // hierarchy as the passed argument.
+                    type.removeAnnotation(anno);
+                    type.addAnnotation(newAnno);
                 }
             }
             return super.scan(type, func);
@@ -1140,7 +1126,7 @@ public class DependentTypesHelper {
     private List<DependentTypesError> errorElements(AnnotationMirror am) {
         assert hasDependentAnnotations();
 
-        List<DependentTypesError> errors = null;
+        List<DependentTypesError> errors = new ArrayList<>();
 
         for (ExecutableElement element : getListOfExpressionElements(am)) {
             // It's always an array, not a single value, because @JavaExpression may only be written
@@ -1150,36 +1136,11 @@ public class DependentTypesHelper {
                             am, element, String.class, Collections.emptyList());
             for (String v : value) {
                 if (DependentTypesError.isExpressionError(v)) {
-                    if (errors == null) {
-                        errors = new ArrayList<>();
-                    }
                     errors.add(DependentTypesError.unparse(v));
                 }
             }
         }
-        return errors == null ? Collections.emptyList() : errors;
-    }
-
-    /**
-     * Returns true if any Java expression element of the given annotation is an expression error
-     * string. Like {@link #errorElements} but allocates no list and short-circuits.
-     *
-     * @param am an annotation
-     * @return true if at least one expression element is an error string
-     */
-    private boolean hasErrorElement(AnnotationMirror am) {
-        assert hasDependentAnnotations();
-        for (ExecutableElement element : getListOfExpressionElements(am)) {
-            List<String> value =
-                    AnnotationUtils.getElementValueArray(
-                            am, element, String.class, Collections.emptyList());
-            for (String v : value) {
-                if (DependentTypesError.isExpressionError(v)) {
-                    return true;
-                }
-            }
-        }
-        return false;
+        return errors;
     }
 
     /**
@@ -1302,19 +1263,13 @@ public class DependentTypesHelper {
         private ExpressionErrorCollector() {
             super(
                     (AnnotatedTypeMirror type, Void aVoid) -> {
-                        List<DependentTypesError> errors = null;
+                        List<DependentTypesError> errors = new ArrayList<>();
                         for (AnnotationMirror am : type.getAnnotations()) {
                             if (isExpressionAnno(am)) {
-                                List<DependentTypesError> annoErrors = errorElements(am);
-                                if (!annoErrors.isEmpty()) {
-                                    if (errors == null) {
-                                        errors = new ArrayList<>();
-                                    }
-                                    errors.addAll(annoErrors);
-                                }
+                                errors.addAll(errorElements(am));
                             }
                         }
-                        return errors == null ? Collections.emptyList() : errors;
+                        return errors;
                     },
                     DependentTypesHelper::concatenate,
                     Collections.emptyList());
@@ -1337,7 +1292,7 @@ public class DependentTypesHelper {
                     (AnnotatedTypeMirror type, Void aVoid) -> {
                         AnnotationMirrorSet replacementAnnos = null;
                         for (AnnotationMirror am : type.getAnnotations()) {
-                            if (isExpressionAnno(am) && hasErrorElement(am)) {
+                            if (isExpressionAnno(am) && !errorElements(am).isEmpty()) {
                                 if (replacementAnnos == null) {
                                     replacementAnnos = new AnnotationMirrorSet();
                                 }
@@ -1392,7 +1347,7 @@ public class DependentTypesHelper {
                 return null;
             }
             AnnotationMirrorSet replacements = new AnnotationMirrorSet();
-            for (String vpa : dependentAnnoNames) {
+            for (String vpa : annoToElements.keySet()) {
                 AnnotationMirror anno = from.getAnnotation(vpa);
                 if (anno != null) {
                     // Only replace annotations that might have been changed.

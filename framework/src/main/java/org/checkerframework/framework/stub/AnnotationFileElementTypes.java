@@ -506,9 +506,8 @@ public class AnnotationFileElementTypes {
 
         maybeParseEnclosingJdkClass(elt);
         String eltName = ElementUtils.getQualifiedName(elt);
-        AnnotationMirrorSet stored = annotationFileAnnos.declAnnos.get(eltName);
-        if (stored != null) {
-            return stored;
+        if (annotationFileAnnos.declAnnos.containsKey(eltName)) {
+            return annotationFileAnnos.declAnnos.get(eltName);
         } else {
             // Handle annotations on record declarations.
             boolean canTransferAnnotationsToSameName;
@@ -755,17 +754,13 @@ public class AnnotationFileElementTypes {
             return;
         }
 
-        Path stubPath = remainingJdkStubFiles.remove(className);
-        if (stubPath != null) {
-            parseJdkStubFile(stubPath);
+        if (remainingJdkStubFiles.containsKey(className)) {
+            parseJdkStubFile(remainingJdkStubFiles.remove(className));
+        } else if (remainingJdkStubFilesJar.containsKey(className)) {
+            parseJdkJarEntry(remainingJdkStubFilesJar.remove(className));
         } else {
-            String jarEntry = remainingJdkStubFilesJar.remove(className);
-            if (jarEntry != null) {
-                parseJdkJarEntry(jarEntry);
-            } else {
-                if (stubDebug) {
-                    System.out.printf("  not in remaining JDK stub files: %s%n", className);
-                }
+            if (stubDebug) {
+                System.out.printf("  not in remaining JDK stub files: %s%n", className);
             }
         }
     }

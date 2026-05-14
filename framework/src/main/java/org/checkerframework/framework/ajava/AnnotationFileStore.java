@@ -51,9 +51,11 @@ public class AnnotationFileStore {
                 for (TypeDeclaration<?> type : root.getTypes()) {
                     String name = JavaParserUtil.getFullyQualifiedName(type, root);
 
-                    annotationFiles
-                            .computeIfAbsent(name, __ -> new ArrayList<>())
-                            .add(location.getPath());
+                    if (!annotationFiles.containsKey(name)) {
+                        annotationFiles.put(name, new ArrayList<>());
+                    }
+
+                    annotationFiles.get(name).add(location.getPath());
                 }
             } catch (FileNotFoundException e) {
                 throw new BugInCF("Unable to open annotation file: " + location.getPath(), e);
@@ -69,11 +71,10 @@ public class AnnotationFileStore {
      * @return a list of paths to annotation files with annotations for {@code typeName}
      */
     public List<String> getAnnotationFileForType(String typeName) {
-        List<String> paths = annotationFiles.get(typeName);
-        if (paths == null) {
+        if (!annotationFiles.containsKey(typeName)) {
             return Collections.emptyList();
         }
 
-        return Collections.unmodifiableList(paths);
+        return Collections.unmodifiableList(annotationFiles.get(typeName));
     }
 }

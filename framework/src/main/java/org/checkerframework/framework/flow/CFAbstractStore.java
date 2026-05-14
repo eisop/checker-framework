@@ -1309,25 +1309,13 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         if (this == o) {
             return true;
         }
-        if (!(o instanceof CFAbstractStore)) {
+        if (o instanceof CFAbstractStore) {
+            @SuppressWarnings("unchecked")
+            CFAbstractStore<V, S> other = (CFAbstractStore<V, S>) o;
+            return this.supersetOf(other) && other.supersetOf(this);
+        } else {
             return false;
         }
-        @SuppressWarnings("unchecked")
-        CFAbstractStore<V, S> other = (CFAbstractStore<V, S>) o;
-        // Fast path: if any underlying map has a different size, the stores cannot be equal.
-        // This avoids two full supersetOf walks (each of which traverses all 5 maps) for the
-        // common fixpoint case where stores grow or shrink between iterations.
-        if (localVariableValues.size() != other.localVariableValues.size()
-                || fieldValues.size() != other.fieldValues.size()
-                || arrayValues.size() != other.arrayValues.size()
-                || methodCallExpressions.size() != other.methodCallExpressions.size()
-                || classValues.size() != other.classValues.size()) {
-            return false;
-        }
-        // Once all map sizes match, supersetOf(other) is equivalent to equals: every key of
-        // `other` must have an equal value in `this`, and since |this| == |other| per map, no
-        // extra keys can exist in `this`.  supersetOf also checks `thisValue`.
-        return this.supersetOf(other);
     }
 
     @Override

@@ -391,14 +391,13 @@ public class WholeProgramInferenceScenesStorage
      */
     public AnnotatedTypeMirror getPreconditionDeclaredType(AMethod m, String expression) {
         String key = m.methodSignature + expression;
-        AnnotatedTypeMirror result = preconditionsToDeclaredTypes.get(key);
-        if (result == null) {
+        if (!preconditionsToDeclaredTypes.containsKey(key)) {
             throw new BugInCF(
                     "attempted to retrieve the declared type of a precondition expression for which"
                             + "nothing was inferred: "
                             + key);
         }
-        return result;
+        return preconditionsToDeclaredTypes.get(key);
     }
 
     /**
@@ -411,14 +410,13 @@ public class WholeProgramInferenceScenesStorage
      */
     public AnnotatedTypeMirror getPostconditionDeclaredType(AMethod m, String expression) {
         String key = m.methodSignature + expression;
-        AnnotatedTypeMirror result = postconditionsToDeclaredTypes.get(key);
-        if (result == null) {
+        if (!postconditionsToDeclaredTypes.containsKey(key)) {
             throw new BugInCF(
                     "attempted to retrieve the declared type of a postcondition expression for which"
                             + "nothing was inferred: "
                             + key);
         }
-        return result;
+        return postconditionsToDeclaredTypes.get(key);
     }
 
     @Override
@@ -532,22 +530,23 @@ public class WholeProgramInferenceScenesStorage
      * @return the Scene read from the file, or an empty Scene if the file does not exist
      */
     private ASceneWrapper getScene(String jaifPath) {
-        ASceneWrapper existing = scenes.get(jaifPath);
-        if (existing != null) {
-            return existing;
-        }
-        AScene scene = new AScene();
-        File jaifFile = new File(jaifPath);
-        if (jaifFile.exists()) {
-            try {
-                IndexFileParser.parseFile(jaifPath, scene);
-            } catch (IOException e) {
-                throw new UserError("Problem while reading %s: %s", jaifPath, e.getMessage());
+        AScene scene;
+        if (!scenes.containsKey(jaifPath)) {
+            File jaifFile = new File(jaifPath);
+            scene = new AScene();
+            if (jaifFile.exists()) {
+                try {
+                    IndexFileParser.parseFile(jaifPath, scene);
+                } catch (IOException e) {
+                    throw new UserError("Problem while reading %s: %s", jaifPath, e.getMessage());
+                }
             }
+            ASceneWrapper wrapper = new ASceneWrapper(scene);
+            scenes.put(jaifPath, wrapper);
+            return wrapper;
+        } else {
+            return scenes.get(jaifPath);
         }
-        ASceneWrapper wrapper = new ASceneWrapper(scene);
-        scenes.put(jaifPath, wrapper);
-        return wrapper;
     }
 
     /**

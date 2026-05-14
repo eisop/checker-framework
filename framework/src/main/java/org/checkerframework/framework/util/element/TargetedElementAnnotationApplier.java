@@ -170,15 +170,13 @@ abstract class TargetedElementAnnotationApplier {
             targetClassToCompound.put(targetClass, new ArrayList<>());
         }
 
-        TargetType[] annotated = annotatedTargets();
-        TargetType[] valid = validTargets();
         for (Attribute.TypeCompound typeCompound : typeCompounds) {
             TargetType typeCompoundTarget = typeCompound.position.type;
             List<Attribute.TypeCompound> destList;
 
-            if (ElementAnnotationUtil.contains(typeCompoundTarget, annotated)) {
+            if (ElementAnnotationUtil.contains(typeCompoundTarget, annotatedTargets())) {
                 destList = targetClassToCompound.get(TargetClass.TARGETED);
-            } else if (ElementAnnotationUtil.contains(typeCompoundTarget, valid)) {
+            } else if (ElementAnnotationUtil.contains(typeCompoundTarget, validTargets())) {
                 destList = targetClassToCompound.get(TargetClass.VALID);
             } else {
                 destList = targetClassToCompound.get(TargetClass.INVALID);
