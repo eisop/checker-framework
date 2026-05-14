@@ -475,6 +475,20 @@ public class VariableBounds {
     public boolean applyInstantiationsToBounds() {
         boolean changed = false;
         for (Set<AbstractType> boundList : bounds.values()) {
+            // Fast path: if every bound's applyInstantiations returns the same instance, no
+            // rebuild is needed.  This is the common case at fixpoint convergence.
+            boolean listChanged = false;
+            for (AbstractType bound : boundList) {
+                if (bound.applyInstantiations() != bound) {
+                    listChanged = true;
+                    break;
+                }
+            }
+            if (!listChanged) {
+                continue;
+            }
+
+            // Slow path: at least one bound changed instance; rebuild this bound list.
             LinkedHashSet<AbstractType> newBounds = new LinkedHashSet<>(boundList.size());
             for (AbstractType bound : boundList) {
                 AbstractType newBound = bound.applyInstantiations();
