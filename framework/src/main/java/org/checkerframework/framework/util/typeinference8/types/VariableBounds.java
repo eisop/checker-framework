@@ -12,6 +12,7 @@ import org.plumelib.util.IPair;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -387,7 +388,7 @@ public class VariableBounds {
                 context.inferenceTypeFactory.getParameterizedSupers(s, t);
 
         if (pair == null) {
-            return new ArrayList<>();
+            return Collections.emptyList();
         }
 
         List<AbstractType> ss = pair.first.getTypeArguments();
@@ -647,6 +648,15 @@ public class VariableBounds {
      * @return constraints generated when incorporating a capture bound
      */
     public ConstraintSet getWildcardConstraints(AbstractType Ai, AbstractType Bi) {
+        // EQUAL-bound check first: if any EQUAL bound is proper or an inference type,
+        // the bound is false and we return null without doing any work.
+        for (AbstractType bound : bounds.get(VariableBounds.BoundKind.EQUAL)) {
+            if (bound.isProper() || bound.isInferenceType()) {
+                // var = R implies the bound false
+                return null;
+            }
+        }
+
         ConstraintSet constraintSet = new ConstraintSet();
         String source = "Constraint from wildcard bound.";
 
@@ -661,13 +671,6 @@ public class VariableBounds {
         for (AbstractType bound : bounds.get(VariableBounds.BoundKind.LOWER)) {
             if (bound.isProper() || bound.isInferenceType()) {
                 lowerBoundsNonVar.add(bound);
-            }
-        }
-
-        for (AbstractType bound : bounds.get(VariableBounds.BoundKind.EQUAL)) {
-            if (bound.isProper() || bound.isInferenceType()) {
-                // var = R implies the bound false
-                return null;
             }
         }
 

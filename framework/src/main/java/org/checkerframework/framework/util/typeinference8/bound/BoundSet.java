@@ -11,6 +11,7 @@ import org.plumelib.util.StringsPlume;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -183,13 +184,15 @@ public class BoundSet implements ReductionResult {
      *     capture(G<...>)} for any variable in {@code as}
      */
     public boolean containsCapture(Collection<Variable> as) {
-        List<Variable> list = new ArrayList<>();
-        for (CaptureBound c : captures) {
-            list.addAll(c.getAllVariablesOnLHS());
+        if (as.isEmpty() || captures.isEmpty()) {
+            return false;
         }
-        for (Variable ai : as) {
-            if (list.contains(ai)) {
-                return true;
+        Set<Variable> asSet = (as instanceof Set) ? (Set<Variable>) as : new HashSet<>(as);
+        for (CaptureBound c : captures) {
+            for (Variable v : c.getAllVariablesOnLHS()) {
+                if (asSet.contains(v)) {
+                    return true;
+                }
             }
         }
         return false;
