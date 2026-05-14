@@ -237,7 +237,8 @@ public abstract class TypeConstraint implements Constraint {
                 inputs =
                         addAllLazily(
                                 inputs,
-                                getInputVariablesForExpression(conditional.getFalseExpression(), T));
+                                getInputVariablesForExpression(
+                                        conditional.getFalseExpression(), T));
                 return inputs;
             default:
                 if (TreeUtils.isSwitchExpression(tree)) {

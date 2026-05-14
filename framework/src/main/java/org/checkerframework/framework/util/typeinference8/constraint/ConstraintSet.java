@@ -312,7 +312,9 @@ public class ConstraintSet implements ReductionResult {
         Set<Variable> vars = Collections.emptySet();
         for (Constraint c : list) {
             if (c instanceof TypeConstraint) {
-                vars = TypeConstraint.addAllLazily(vars, ((TypeConstraint) c).getInferenceVariables());
+                vars =
+                        TypeConstraint.addAllLazily(
+                                vars, ((TypeConstraint) c).getInferenceVariables());
             }
         }
         return vars;
