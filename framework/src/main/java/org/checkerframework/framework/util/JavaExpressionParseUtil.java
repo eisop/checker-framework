@@ -117,8 +117,11 @@ public class JavaExpressionParseUtil {
     /** The length of {@link #PARAMETER_PREFIX}. */
     private static final int PARAMETER_PREFIX_LENGTH = PARAMETER_PREFIX.length();
 
-    /** A pattern that matches the start of a formal parameter in "#2" syntax. */
-    private static final Pattern FORMAL_PARAMETER = Pattern.compile("#(\\d)");
+    /**
+     * A pattern that matches the start of a formal parameter in "#2" syntax. The capture group
+     * matches the full integer (one or more digits).
+     */
+    private static final Pattern FORMAL_PARAMETER = Pattern.compile("#(\\d+)");
 
     /** The replacement for a formal parameter in "#2" syntax. */
     private static final String PARAMETER_REPLACEMENT = PARAMETER_PREFIX + "$1";
