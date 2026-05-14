@@ -156,11 +156,12 @@ public abstract class TypeConstraint implements Constraint {
      * <p>This method avoids allocation when {@code toAdd} is empty.
      *
      * @param inputs the input set
-     * @param toAdd the set to add
+     * @param toAdd the collection to add
      * @return {@code inputs} itself when {@code toAdd} is empty; otherwise a new mutable set
      *     containing all variables from {@code inputs} and {@code toAdd}
      */
-    protected static Set<Variable> addAllLazily(Set<Variable> inputs, Set<Variable> toAdd) {
+    protected static Set<Variable> addAllLazily(
+            Set<Variable> inputs, Collection<Variable> toAdd) {
         if (toAdd.isEmpty()) {
             return inputs;
         }
