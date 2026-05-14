@@ -116,6 +116,9 @@ public class CheckedExceptionConstraint extends TypeConstraint {
      *
      * <p>If {@code inputs} is empty, this method avoids allocation until a non-empty set needs to
      * be added.
+     *
+     * @return {@code inputs} if {@code toAdd} is empty, otherwise a mutable set containing the
+     *     union
      */
     private static Set<Variable> addAllLazily(Set<Variable> inputs, Set<Variable> toAdd) {
         if (toAdd.isEmpty()) {
@@ -123,6 +126,10 @@ public class CheckedExceptionConstraint extends TypeConstraint {
         }
         if (inputs.isEmpty()) {
             return new LinkedHashSet<>(toAdd);
+        }
+        if (inputs instanceof LinkedHashSet) {
+            inputs.addAll(toAdd);
+            return inputs;
         }
         Set<Variable> result = new LinkedHashSet<>(inputs);
         result.addAll(toAdd);
