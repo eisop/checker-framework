@@ -389,10 +389,13 @@ public abstract class AbstractType {
      */
     public AbstractType replaceTypeArgs(List<AbstractType> args) {
         DeclaredType declaredType = (DeclaredType) getJavaType();
-        TypeMirror[] newArgs = new TypeMirror[args.size()];
+        int n = args.size();
+        TypeMirror[] newArgs = new TypeMirror[n];
+        List<AnnotatedTypeMirror> argTypes = new ArrayList<>(n);
         int i = 0;
         for (AbstractType t : args) {
             newArgs[i++] = t.getJavaType();
+            argTypes.add(t.getAnnotatedType());
         }
         TypeMirror newTypeJava =
                 context.env
@@ -403,10 +406,6 @@ public abstract class AbstractType {
                 (AnnotatedDeclaredType)
                         AnnotatedTypeMirror.createType(
                                 newTypeJava, typeFactory, getAnnotatedType().isDeclaration());
-        List<AnnotatedTypeMirror> argTypes = new ArrayList<>();
-        for (AbstractType arg : args) {
-            argTypes.add(arg.getAnnotatedType());
-        }
         newType.setTypeArguments(argTypes);
         newType.replaceAnnotations(getAnnotatedType().getAnnotations());
         return create(newType, newTypeJava, ignoreAnnotations);
