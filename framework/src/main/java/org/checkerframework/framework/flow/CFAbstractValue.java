@@ -834,8 +834,14 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
                 throw new NullPointerException("combineSets: bTypeMirror==null");
             }
 
-            AnnotatedTypeVariable aAtv = getEffectiveTypeVar(aTypeMirror);
-            AnnotatedTypeVariable bAtv = getEffectiveTypeVar(bTypeMirror);
+            // aAtv and bAtv are only consulted on hierarchies where one or both sets are
+            // missing an annotation. Defer computation to the branches that actually need each
+            // value.
+            AnnotatedTypeVariable aAtv = null;
+            boolean aAtvComputed = false;
+            AnnotatedTypeVariable bAtv = null;
+            boolean bAtvComputed = false;
+
             QualifierHierarchy qualHierarchy = analysis.getTypeFactory().getQualifierHierarchy();
             AnnotationMirrorSet tops = qualHierarchy.getTopAnnotations();
             AnnotationMirrorSet combinedSets = new AnnotationMirrorSet();
@@ -846,14 +852,30 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
                 if (a != null && b != null) {
                     result = combineTwoAnnotations(a, aTypeMirror, b, bTypeMirror, top);
                 } else if (a != null) {
+                    if (!bAtvComputed) {
+                        bAtv = getEffectiveTypeVar(bTypeMirror);
+                        bAtvComputed = true;
+                    }
                     result =
                             combineAnnotationWithTypeVar(
                                     a, bAtv, top, canCombinedSetBeMissingAnnos);
                 } else if (b != null) {
+                    if (!aAtvComputed) {
+                        aAtv = getEffectiveTypeVar(aTypeMirror);
+                        aAtvComputed = true;
+                    }
                     result =
                             combineAnnotationWithTypeVar(
                                     b, aAtv, top, canCombinedSetBeMissingAnnos);
                 } else {
+                    if (!aAtvComputed) {
+                        aAtv = getEffectiveTypeVar(aTypeMirror);
+                        aAtvComputed = true;
+                    }
+                    if (!bAtvComputed) {
+                        bAtv = getEffectiveTypeVar(bTypeMirror);
+                        bAtvComputed = true;
+                    }
                     result = combineTwoTypeVars(aAtv, bAtv, top, canCombinedSetBeMissingAnnos);
                 }
                 if (result != null) {
