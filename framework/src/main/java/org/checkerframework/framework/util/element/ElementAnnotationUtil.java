@@ -30,7 +30,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -452,7 +451,6 @@ public class ElementAnnotationUtil {
      *     of some array type
      * @return the type specified by location
      */
-    @SuppressWarnings("JdkObsolete") // error is issued on every operation, must suppress here
     private static AnnotatedTypeMirror getLocationTypeADT(
             AnnotatedDeclaredType type,
             List<TypeAnnotationPosition.TypePathEntry> location,
@@ -484,13 +482,15 @@ public class ElementAnnotationUtil {
             }
         }
 
-        // Create a linked list of the location, so removing the first element is easier.
-        // Also, the tail() operation wouldn't work with a Deque.
-        @SuppressWarnings("JdkObsolete")
-        LinkedList<TypePathEntry> tailOfLocations = new LinkedList<>(location);
+        // Copy the location so removing the first element is local to this method. ArrayList is
+        // used in preference to LinkedList: both support the operations needed here
+        // (List.remove(0) and subList for tail()), and ArrayList avoids LinkedList's per-element
+        // node allocation. The list is typically very short, so the O(n) shift on remove(0) is
+        // negligible.
+        List<TypePathEntry> tailOfLocations = new ArrayList<>(location);
         boolean error = false;
         while (!tailOfLocations.isEmpty()) {
-            TypePathEntry currentLocation = tailOfLocations.removeFirst();
+            TypePathEntry currentLocation = tailOfLocations.remove(0);
             switch (currentLocation.tag) {
                 case INNER_TYPE:
                     outerToInner.removeFirst();
