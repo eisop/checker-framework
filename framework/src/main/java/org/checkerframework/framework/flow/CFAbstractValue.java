@@ -253,28 +253,37 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
             V v = (V) this;
             return v;
         }
-        Types types = analysis.getTypes();
+        TypeMirror thisType = this.getUnderlyingType();
+        TypeMirror otherType = other.getUnderlyingType();
         TypeMirror mostSpecifTypeMirror;
-        if (types.isAssignable(this.getUnderlyingType(), other.getUnderlyingType())) {
-            mostSpecifTypeMirror = this.getUnderlyingType();
-        } else if (types.isAssignable(other.getUnderlyingType(), this.getUnderlyingType())) {
-            mostSpecifTypeMirror = other.getUnderlyingType();
-        } else if (TypesUtils.isErasedSubtype(
-                this.getUnderlyingType(), other.getUnderlyingType(), types)) {
-            mostSpecifTypeMirror = this.getUnderlyingType();
-        } else if (TypesUtils.isErasedSubtype(
-                other.getUnderlyingType(), this.getUnderlyingType(), types)) {
-            mostSpecifTypeMirror = other.getUnderlyingType();
+        // Reference-identity fast path: if both values share the same TypeMirror reference
+        // (the common case for assignments, refinement of a single variable, etc.), we can
+        // skip up to four javac calls into Types.isAssignable / TypesUtils.isErasedSubtype.
+        @SuppressWarnings("interning:not.interned") // identity fast path
+        boolean sameTM = (thisType == otherType);
+        if (sameTM) {
+            mostSpecifTypeMirror = thisType;
         } else {
-            mostSpecifTypeMirror = this.getUnderlyingType();
+            Types types = analysis.getTypes();
+            if (types.isAssignable(thisType, otherType)) {
+                mostSpecifTypeMirror = thisType;
+            } else if (types.isAssignable(otherType, thisType)) {
+                mostSpecifTypeMirror = otherType;
+            } else if (TypesUtils.isErasedSubtype(thisType, otherType, types)) {
+                mostSpecifTypeMirror = thisType;
+            } else if (TypesUtils.isErasedSubtype(otherType, thisType, types)) {
+                mostSpecifTypeMirror = otherType;
+            } else {
+                mostSpecifTypeMirror = thisType;
+            }
         }
 
         MostSpecificVisitor ms = new MostSpecificVisitor(backup);
         AnnotationMirrorSet mostSpecific =
                 ms.combineSets(
-                        this.getUnderlyingType(),
+                        thisType,
                         this.getAnnotations(),
-                        other.getUnderlyingType(),
+                        otherType,
                         other.getAnnotations(),
                         canBeMissingAnnotations(mostSpecifTypeMirror));
         if (ms.error) {
@@ -507,10 +516,21 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
             V v = (V) this;
             return v;
         }
-        ProcessingEnvironment processingEnv = analysis.getTypeFactory().getProcessingEnv();
-        TypeMirror lubTypeMirror =
-                TypesUtils.leastUpperBound(
-                        this.getUnderlyingType(), other.getUnderlyingType(), processingEnv);
+        TypeMirror thisType = this.getUnderlyingType();
+        TypeMirror otherType = other.getUnderlyingType();
+        TypeMirror lubTypeMirror;
+        // Reference-identity fast path: the LUB of a type with itself is itself.  This avoids
+        // TypesUtils.leastUpperBound, which dispatches into javac.  In dataflow merge, both
+        // operands frequently share the same underlying TypeMirror (e.g. when joining stores
+        // at a control-flow merge for a single variable).
+        @SuppressWarnings("interning:not.interned") // identity fast path
+        boolean sameTM = (thisType == otherType);
+        if (sameTM) {
+            lubTypeMirror = thisType;
+        } else {
+            ProcessingEnvironment processingEnv = analysis.getTypeFactory().getProcessingEnv();
+            lubTypeMirror = TypesUtils.leastUpperBound(thisType, otherType, processingEnv);
+        }
         return upperBound(other, lubTypeMirror, shouldWiden);
     }
 
@@ -659,17 +679,27 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
             V v = (V) this;
             return v;
         }
-        ProcessingEnvironment processingEnv = analysis.getTypeFactory().getProcessingEnv();
-        TypeMirror glbTypeMirror =
-                TypesUtils.greatestLowerBound(
-                        this.getUnderlyingType(), other.getUnderlyingType(), processingEnv);
+        TypeMirror thisType = this.getUnderlyingType();
+        TypeMirror otherType = other.getUnderlyingType();
+        TypeMirror glbTypeMirror;
+        // Reference-identity fast path: the GLB of a type with itself is itself.  This avoids
+        // TypesUtils.greatestLowerBound, which dispatches into javac.  Common at refinement
+        // sites where the same expression is intersected with a more specific qualifier.
+        @SuppressWarnings("interning:not.interned") // identity fast path
+        boolean sameTM = (thisType == otherType);
+        if (sameTM) {
+            glbTypeMirror = thisType;
+        } else {
+            ProcessingEnvironment processingEnv = analysis.getTypeFactory().getProcessingEnv();
+            glbTypeMirror = TypesUtils.greatestLowerBound(thisType, otherType, processingEnv);
+        }
 
         ValueGlb valueGlb = new ValueGlb();
         AnnotationMirrorSet glb =
                 valueGlb.combineSets(
-                        this.getUnderlyingType(),
+                        thisType,
                         this.getAnnotations(),
-                        other.getUnderlyingType(),
+                        otherType,
                         other.getAnnotations(),
                         canBeMissingAnnotations(glbTypeMirror));
         return analysis.createAbstractValue(glb, glbTypeMirror);
