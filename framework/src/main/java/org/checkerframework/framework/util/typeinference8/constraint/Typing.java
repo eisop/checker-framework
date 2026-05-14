@@ -13,7 +13,6 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -126,9 +125,9 @@ public class Typing extends TypeConstraint {
 
     @Override
     public Set<Variable> getInferenceVariables() {
-        Set<Variable> vars = new HashSet<>();
-        vars.addAll(T.getInferenceVariables());
-        vars.addAll(S.getInferenceVariables());
+        Set<Variable> vars = Collections.emptySet();
+        vars = addAllLazily(vars, T.getInferenceVariables());
+        vars = addAllLazily(vars, S.getInferenceVariables());
         return vars;
     }
 
