@@ -187,7 +187,7 @@ public class Resolution {
 
         if (boundSet.containsCapture(as)) {
             BoundSet resolvedBounds = resolveWithoutCapture(as, boundSet);
-            boundSet.getInstantiatedVariables().forEach(as::remove);
+            as.removeAll(boundSet.getInstantiatedVariables());
             // Then resolve the capture variables
             return resolveWithCapture(as, resolvedBounds, context);
         } else {
