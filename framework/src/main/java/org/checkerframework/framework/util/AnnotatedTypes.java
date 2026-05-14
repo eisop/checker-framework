@@ -1741,8 +1741,7 @@ public class AnnotatedTypes {
             if (returnType.hasAnnotationInHierarchy(cta)) {
                 continue;
             }
-            if (atypeFactory.isSupportedQualifier(cta)
-                    && !returnType.hasAnnotationInHierarchy(cta)) {
+            if (atypeFactory.isSupportedQualifier(cta)) {
                 for (AnnotationMirror fromDecl : decret) {
                     if (atypeFactory.isSupportedQualifier(fromDecl)
                             && AnnotationUtils.areSame(
