@@ -156,7 +156,7 @@ public abstract class AbstractType {
     /**
      * Return a set of all inference variables referenced by this type.
      *
-     * @return a fresh, mutable set of all inference variables referenced by this type
+     * @return a set of all inference variables referenced by this type
      */
     public abstract Set<Variable> getInferenceVariables();
 

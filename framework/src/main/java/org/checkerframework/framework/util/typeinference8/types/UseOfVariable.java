@@ -10,7 +10,6 @@ import org.checkerframework.javacutil.AnnotationMirrorMap;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 
 import java.util.Collections;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -118,7 +117,7 @@ public class UseOfVariable extends AbstractType {
 
     @Override
     public Set<Variable> getInferenceVariables() {
-        return new LinkedHashSet<>(Collections.singleton(variable));
+        return Collections.singleton(variable);
     }
 
     @Override

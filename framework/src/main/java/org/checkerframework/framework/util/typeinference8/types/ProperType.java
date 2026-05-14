@@ -14,7 +14,6 @@ import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.Collections;
-import java.util.LinkedHashSet;
 import java.util.Set;
 
 import javax.lang.model.type.TypeKind;
@@ -310,7 +309,7 @@ public class ProperType extends AbstractType {
 
     @Override
     public Set<Variable> getInferenceVariables() {
-        return new LinkedHashSet<>();
+        return Collections.emptySet();
     }
 
     @Override

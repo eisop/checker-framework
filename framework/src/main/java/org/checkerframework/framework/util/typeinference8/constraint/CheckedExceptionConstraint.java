@@ -114,7 +114,7 @@ public class CheckedExceptionConstraint extends TypeConstraint {
     @Override
     public Set<Variable> getOutputVariables() {
         Set<Variable> input = getInputVariables();
-        Set<Variable> output = getT().getInferenceVariables();
+        Set<Variable> output = new LinkedHashSet<>(getT().getInferenceVariables());
         output.removeAll(input);
         return output;
     }
