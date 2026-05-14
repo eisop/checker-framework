@@ -67,7 +67,7 @@ public class CheckedExceptionConstraint extends TypeConstraint {
                 return Collections.singleton(((UseOfVariable) T).getVariable());
             } else {
                 LambdaExpressionTree lambdaTree = (LambdaExpressionTree) expression;
-                Set<Variable> inputs = new LinkedHashSet<>();
+                Set<Variable> inputs = Collections.emptySet();
                 if (TreeUtils.isImplicitlyTypedLambda(lambdaTree)) {
                     List<AbstractType> params = this.T.getFunctionTypeParameterTypes();
                     if (params == null) {
@@ -75,14 +75,14 @@ public class CheckedExceptionConstraint extends TypeConstraint {
                         return Collections.emptySet();
                     }
                     for (AbstractType param : params) {
-                        inputs.addAll(param.getInferenceVariables());
+                        inputs = addAllLazily(inputs, param.getInferenceVariables());
                     }
                 }
                 AbstractType R = this.T.getFunctionTypeReturnType();
                 if (R == null || R.getTypeKind() == TypeKind.NONE) {
                     return inputs;
                 }
-                inputs.addAll(R.getInferenceVariables());
+                inputs = addAllLazily(inputs, R.getInferenceVariables());
                 return inputs;
             }
         } else if (getKind() == Kind.METHOD_REF_EXCEPTION) {
@@ -96,19 +96,36 @@ public class CheckedExceptionConstraint extends TypeConstraint {
                     // T is not a function type.
                     return Collections.emptySet();
                 }
-                Set<Variable> inputs = new LinkedHashSet<>();
+                Set<Variable> inputs = Collections.emptySet();
                 for (AbstractType param : params) {
-                    inputs.addAll(param.getInferenceVariables());
+                    inputs = addAllLazily(inputs, param.getInferenceVariables());
                 }
                 AbstractType R = this.T.getFunctionTypeReturnType();
                 if (R == null || R.getTypeKind() == TypeKind.NONE) {
                     return inputs;
                 }
-                inputs.addAll(R.getInferenceVariables());
+                inputs = addAllLazily(inputs, R.getInferenceVariables());
                 return inputs;
             }
         }
         return getInputVariablesForExpression(expression, getT());
+    }
+
+    /**
+     * Lazily adds all variables in {@code toAdd} to {@code inputs}.
+     *
+     * <p>If {@code inputs} is empty, this method avoids allocation until a non-empty set needs to
+     * be added.
+     */
+    private static Set<Variable> addAllLazily(Set<Variable> inputs, Set<Variable> toAdd) {
+        if (toAdd.isEmpty()) {
+            return inputs;
+        }
+        if (inputs.isEmpty()) {
+            return new LinkedHashSet<>(toAdd);
+        }
+        inputs.addAll(toAdd);
+        return inputs;
     }
 
     @Override
