@@ -112,12 +112,11 @@ public class CheckedExceptionConstraint extends TypeConstraint {
     }
 
     /**
-     * Lazily adds all variables in {@code toAdd} to {@code inputs}.
+     * Returns the union of {@code inputs} and {@code toAdd} without modifying {@code inputs}.
      *
-     * <p>If {@code inputs} is empty, this method avoids allocation until a non-empty set needs to
-     * be added.
+     * <p>This method avoids allocation when {@code toAdd} is empty.
      *
-     * @return {@code inputs} unchanged if {@code toAdd} is empty; otherwise a mutable set
+     * @return {@code inputs} itself when {@code toAdd} is empty; otherwise a new mutable set
      *     containing all variables from {@code inputs} and {@code toAdd}
      */
     private static Set<Variable> addAllLazily(Set<Variable> inputs, Set<Variable> toAdd) {
