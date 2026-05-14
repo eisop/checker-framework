@@ -15,7 +15,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Queue;
@@ -56,7 +55,7 @@ public class Resolution {
             Collection<Variable> as, BoundSet boundSet, Java8InferenceContext context) {
 
         // Remove any variables that already have instantiations
-        List<Variable> resolvedVars = boundSet.getInstantiatedVariables();
+        Set<Variable> resolvedVars = boundSet.getInstantiatedVariables();
         as.removeAll(resolvedVars);
         if (as.isEmpty()) {
             return boundSet;
@@ -133,7 +132,7 @@ public class Resolution {
      * @return the bounds set with the resolved bounds
      */
     private BoundSet resolve(BoundSet boundSet, Queue<Variable> unresolvedVars) {
-        Set<Variable> resolvedSet = new HashSet<>(boundSet.getInstantiatedVariables());
+        Set<Variable> resolvedSet = boundSet.getInstantiatedVariables();
 
         while (!unresolvedVars.isEmpty()) {
             assert !boundSet.containsFalse();
@@ -144,7 +143,7 @@ public class Resolution {
             // Resolve the smallest unresolved dependency set.
             boundSet = resolveSmallestSet(smallestDependencySet, boundSet);
 
-            resolvedSet = new HashSet<>(boundSet.getInstantiatedVariables());
+            resolvedSet = boundSet.getInstantiatedVariables();
             unresolvedVars.removeAll(resolvedSet);
         }
         return boundSet;
@@ -163,7 +162,6 @@ public class Resolution {
         Set<Variable> smallestDependencySet = null;
         // This loop is looking for the smallest set of dependencies that have not been resolved.
         for (Variable alpha : unresolvedVars) {
-            // TODO: should this copy before pruning?
             Set<Variable> alphasDependencySet = dependencies.get(alpha);
             alphasDependencySet.removeAll(resolvedSet);
 

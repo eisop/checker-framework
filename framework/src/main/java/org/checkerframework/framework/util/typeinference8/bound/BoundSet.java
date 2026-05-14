@@ -215,18 +215,18 @@ public class BoundSet implements ReductionResult {
     }
 
     /**
-     * Returns a list of all variables in this bound set that are instantiated.
+     * /** Returns a fresh, mutable set of all variables in this bound set that are instantiated.
      *
-     * @return a list of all variables in this bound set that are instantiated
+     * @return a fresh, mutable set of all variables in this bound set that are instantiated
      */
-    public List<Variable> getInstantiatedVariables() {
-        List<Variable> list = new ArrayList<>();
+    public Set<Variable> getInstantiatedVariables() {
+        Set<Variable> set = new LinkedHashSet<>();
         for (Variable var : variables) {
             if (var.getBounds().hasInstantiation()) {
-                list.add(var);
+                set.add(var);
             }
         }
-        return list;
+        return set;
     }
 
     /**
@@ -276,8 +276,7 @@ public class BoundSet implements ReductionResult {
         Set<Variable> allVariables = new LinkedHashSet<>(variables);
         allVariables.addAll(additionalVars);
         for (Variable alpha : allVariables) {
-            LinkedHashSet<Variable> alphaDependencies =
-                    new LinkedHashSet<>(alpha.getBounds().getVariablesMentionedInBounds());
+            Set<Variable> alphaDependencies = alpha.getBounds().getVariablesMentionedInBounds();
 
             if (alpha.isCaptureVariable()) {
                 // If alpha appears on the left-hand side of another bound of the form
@@ -324,7 +323,7 @@ public class BoundSet implements ReductionResult {
         int count = 0;
         do {
             count++;
-            List<Variable> instantiations = getInstantiatedVariables();
+            Set<Variable> instantiations = getInstantiatedVariables();
             boolean boundsChangeInst = false;
             if (!instantiations.isEmpty()) {
                 for (Variable var : variables) {

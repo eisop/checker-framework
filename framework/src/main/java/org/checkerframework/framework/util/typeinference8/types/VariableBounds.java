@@ -11,7 +11,6 @@ import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.IPair;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.LinkedHashSet;
@@ -504,8 +503,8 @@ public class VariableBounds {
      *
      * @return all variables mentioned in a bound against this variable
      */
-    public Collection<? extends Variable> getVariablesMentionedInBounds() {
-        List<Variable> mentioned = new ArrayList<>();
+    public Set<Variable> getVariablesMentionedInBounds() {
+        Set<Variable> mentioned = new LinkedHashSet<>();
         for (Set<AbstractType> boundList : bounds.values()) {
             for (AbstractType bound : boundList) {
                 mentioned.addAll(bound.getInferenceVariables());
