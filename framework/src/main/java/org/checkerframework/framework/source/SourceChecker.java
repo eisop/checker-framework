@@ -1865,10 +1865,16 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return the most specific SuppressWarnings string for the warning/error being printed
      */
     protected String suppressWarningsString(String messageKey) {
-        Collection<String> prefixes = this.getSuppressWarningsPrefixes();
-        prefixes.remove(SUPPRESS_ALL_PREFIX);
         if (showSuppressWarningsStrings) {
-            List<String> list = new ArrayList<>(prefixes);
+            Collection<String> prefixes = this.getSuppressWarningsPrefixes();
+            // Build the list, excluding SUPPRESS_ALL_PREFIX (it is re-added at the end if
+            // useAllcheckersPrefix).
+            List<String> list = new ArrayList<>(prefixes.size());
+            for (String p : prefixes) {
+                if (!p.equals(SUPPRESS_ALL_PREFIX)) {
+                    list.add(p);
+                }
+            }
             // Make sure "allcheckers" is at the end of the list.
             if (useAllcheckersPrefix) {
                 list.add(SUPPRESS_ALL_PREFIX);
@@ -3118,14 +3124,18 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      */
     protected String getWarningMessagePrefix() {
         Collection<String> prefixes = this.getSuppressWarningsPrefixes();
-        prefixes.remove(SUPPRESS_ALL_PREFIX);
         String defaultPrefix = getDefaultSuppressWarningsPrefix();
         if (prefixes.contains(defaultPrefix)) {
             return defaultPrefix;
-        } else {
-            String firstKey = prefixes.iterator().next();
-            return firstKey;
         }
+        for (String prefix : prefixes) {
+            if (!prefix.equals(SUPPRESS_ALL_PREFIX)) {
+                return prefix;
+            }
+        }
+        // The set contained only SUPPRESS_ALL_PREFIX, in violation of the documented contract.
+        throw new BugInCF(
+                "getSuppressWarningsPrefixes() returned a set with no non-SUPPRESS_ALL entry");
     }
 
     // ///////////////////////////////////////////////////////////////////////////
