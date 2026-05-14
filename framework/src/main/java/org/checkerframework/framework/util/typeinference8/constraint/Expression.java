@@ -25,8 +25,10 @@ import org.checkerframework.javacutil.TreeUtils.MemberReferenceKind;
 import org.plumelib.util.IPair;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import javax.lang.model.type.TypeKind;
 
@@ -76,7 +78,8 @@ public class Expression extends TypeConstraint {
 
     @Override
     public List<Variable> getOutputVariables() {
-        List<Variable> input = getInputVariables();
+        // Use a Set for O(1) membership checks during removeAll.
+        Set<Variable> input = new HashSet<>(getInputVariables());
         List<Variable> output = new ArrayList<>(getT().getInferenceVariables());
         output.removeAll(input);
         return output;

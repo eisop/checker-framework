@@ -12,7 +12,6 @@ import org.checkerframework.framework.util.typeinference8.util.Java8InferenceCon
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TypesUtils;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -126,11 +125,11 @@ public class Typing extends TypeConstraint {
     }
 
     @Override
-    public List<Variable> getInferenceVariables() {
+    public Set<Variable> getInferenceVariables() {
         Set<Variable> vars = new HashSet<>();
         vars.addAll(T.getInferenceVariables());
         vars.addAll(S.getInferenceVariables());
-        return new ArrayList<>(vars);
+        return vars;
     }
 
     @Override
