@@ -88,13 +88,24 @@ public class SubtypeVisitHistory {
         }
     }
 
-    /** Remove {@code type1} and {@code type2}. */
+    /**
+     * Remove {@code type1} and {@code type2}.
+     *
+     * @param type1 the first type
+     * @param type2 the second type
+     * @param currentTop the top qualifier of the current hierarchy
+     */
     public void remove(
             AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, AnnotationMirror currentTop) {
         removeKey(IPair.of(type1, type2), currentTop);
     }
 
-    /** Like {@link #remove}, but accepts a pre-built key. See {@link #putKey}. */
+    /**
+     * Like {@link #remove}, but accepts a pre-built key. See {@link #putKey}.
+     *
+     * @param key the pair of types
+     * @param currentTop the top qualifier of the current hierarchy
+     */
     void removeKey(
             IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> key, AnnotationMirror currentTop) {
         AnnotationMirrorSet hit = visited.get(key);
@@ -110,6 +121,9 @@ public class SubtypeVisitHistory {
      * Returns true if type1 and type2 (or an equivalent pair) have been passed to the put method
      * previously.
      *
+     * @param type1 the first type
+     * @param type2 the second type
+     * @param currentTop the top qualifier of the current hierarchy
      * @return true if an equivalent pair has already been added to the history
      */
     public boolean contains(
@@ -117,7 +131,13 @@ public class SubtypeVisitHistory {
         return containsKey(IPair.of(type1, type2), currentTop);
     }
 
-    /** Like {@link #contains}, but accepts a pre-built key. See {@link #putKey}. */
+    /**
+     * Like {@link #contains}, but accepts a pre-built key. See {@link #putKey}.
+     *
+     * @param key the pair of types
+     * @param currentTop the top qualifier of the current hierarchy
+     * @return true if an equivalent pair has already been added to the history
+     */
     boolean containsKey(
             IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> key, AnnotationMirror currentTop) {
         AnnotationMirrorSet hit = visited.get(key);
