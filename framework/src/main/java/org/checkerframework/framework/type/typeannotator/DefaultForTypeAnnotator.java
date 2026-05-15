@@ -207,12 +207,12 @@ public class DefaultForTypeAnnotator extends TypeAnnotator {
      * @return this
      */
     public DefaultForTypeAnnotator addStandardDefaults() {
-        if (!types.containsKey(Void.class.getCanonicalName())) {
+        AnnotationMirrorSet annos = types.get(Void.class.getCanonicalName());
+        if (annos == null) {
             for (AnnotationMirror bottom : qualHierarchy.getBottomAnnotations()) {
                 addTypes(Void.class, bottom);
             }
         } else {
-            AnnotationMirrorSet annos = types.get(Void.class.getCanonicalName());
             for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
                 if (qualHierarchy.findAnnotationInHierarchy(annos, top) == null) {
                     addTypes(Void.class, qualHierarchy.getBottomAnnotation(top));

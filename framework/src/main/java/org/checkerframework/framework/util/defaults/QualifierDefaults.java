@@ -645,8 +645,9 @@ public class QualifierDefaults {
                     "Call of QualifierDefaults.isElementAnnotatedForThisChecker with null");
         }
 
-        if (elementAnnotatedFors.containsKey(elt)) {
-            return elementAnnotatedFors.get(elt);
+        Boolean cached = elementAnnotatedFors.get(elt);
+        if (cached != null) {
+            return cached;
         }
 
         AnnotationMirror annotatedFor = atypeFactory.getDeclAnnotation(elt, AnnotatedFor.class);
@@ -689,8 +690,9 @@ public class QualifierDefaults {
             return DefaultSet.EMPTY;
         }
 
-        if (elementDefaults.containsKey(elt)) {
-            return elementDefaults.get(elt);
+        DefaultSet cached = elementDefaults.get(elt);
+        if (cached != null) {
+            return cached;
         }
 
         DefaultSet qualifiers = defaultsAtDirect(elt);
