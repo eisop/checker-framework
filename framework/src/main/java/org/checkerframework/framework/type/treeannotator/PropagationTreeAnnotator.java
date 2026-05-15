@@ -137,9 +137,12 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
                 useAssignmentContext = false;
                 AnnotatedExecutableType m;
                 try {
-                    if (atypeFactory.shouldCache
-                            && methodInvocationToType.containsKey(methodInvocationTree)) {
-                        m = methodInvocationToType.get(methodInvocationTree);
+                    AnnotatedExecutableType cached =
+                            atypeFactory.shouldCache
+                                    ? methodInvocationToType.get(methodInvocationTree)
+                                    : null;
+                    if (cached != null) {
+                        m = cached;
                     } else {
                         m = atypeFactory.methodFromUse(methodInvocationTree).executableType;
                         if (atypeFactory.shouldCache) {

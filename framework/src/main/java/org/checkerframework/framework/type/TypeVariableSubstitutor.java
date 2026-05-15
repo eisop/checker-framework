@@ -165,8 +165,8 @@ public class TypeVariableSubstitutor {
                 return super.visitTypeVariable(original, originalToCopy);
             } else {
                 Element typeVarElem = original.getUnderlyingType().asElement();
-                if (elementToArgMap.containsKey(typeVarElem)) {
-                    AnnotatedTypeMirror argument = elementToArgMap.get(typeVarElem);
+                AnnotatedTypeMirror argument = elementToArgMap.get(typeVarElem);
+                if (argument != null) {
                     if (copyArgument) {
                         return substituteTypeVariable(argument, original);
                     } else {
