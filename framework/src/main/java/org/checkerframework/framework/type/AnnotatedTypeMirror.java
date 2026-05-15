@@ -304,23 +304,18 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         if (primaryAnnotations.isEmpty()) {
             return null;
         }
-        AnnotationMirror canonical = annotation;
-        if (!atypeFactory.isSupportedQualifier(canonical)) {
+        AnnotationMirror canonical;
+        if (atypeFactory.isSupportedQualifier(annotation)) {
+            canonical = annotation;
+        } else {
             canonical = atypeFactory.canonicalAnnotation(annotation);
-            if (canonical == null) {
+            if (canonical == null || !atypeFactory.isSupportedQualifier(canonical)) {
                 // This can happen if annotation is unrelated to this AnnotatedTypeMirror.
                 return null;
             }
         }
-        if (atypeFactory.isSupportedQualifier(canonical)) {
-            QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
-            AnnotationMirror anno =
-                    qualHierarchy.findAnnotationInSameHierarchy(primaryAnnotations, canonical);
-            if (anno != null) {
-                return anno;
-            }
-        }
-        return null;
+        QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
+        return qualHierarchy.findAnnotationInSameHierarchy(primaryAnnotations, canonical);
     }
 
     /**
@@ -335,20 +330,17 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      */
     public @Nullable AnnotationMirror getEffectiveAnnotationInHierarchy(
             AnnotationMirror annotation) {
-        AnnotationMirror canonical = annotation;
-        if (!atypeFactory.isSupportedQualifier(canonical)) {
+        AnnotationMirror canonical;
+        if (atypeFactory.isSupportedQualifier(annotation)) {
+            canonical = annotation;
+        } else {
             canonical = atypeFactory.canonicalAnnotation(annotation);
-        }
-        if (atypeFactory.isSupportedQualifier(canonical)) {
-            QualifierHierarchy qualHierarchy = this.atypeFactory.getQualifierHierarchy();
-            AnnotationMirror anno =
-                    qualHierarchy.findAnnotationInSameHierarchy(
-                            getEffectiveAnnotations(), canonical);
-            if (anno != null) {
-                return anno;
+            if (canonical == null || !atypeFactory.isSupportedQualifier(canonical)) {
+                return null;
             }
         }
-        return null;
+        QualifierHierarchy qualHierarchy = this.atypeFactory.getQualifierHierarchy();
+        return qualHierarchy.findAnnotationInSameHierarchy(getEffectiveAnnotations(), canonical);
     }
 
     /**
