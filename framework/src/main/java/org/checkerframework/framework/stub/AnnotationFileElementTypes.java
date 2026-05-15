@@ -509,45 +509,42 @@ public class AnnotationFileElementTypes {
         AnnotationMirrorSet stored = annotationFileAnnos.declAnnos.get(eltName);
         if (stored != null) {
             return stored;
-        } else {
-            // Handle annotations on record declarations.
-            boolean canTransferAnnotationsToSameName;
-            Element enclosingType; // Do nothing unless this element is a record.
-            switch (elt.getKind()) {
-                case METHOD:
-                    // Annotations transfer to zero-arg accessor methods of same name:
-                    canTransferAnnotationsToSameName =
-                            ((ExecutableElement) elt).getParameters().isEmpty();
-                    enclosingType = elt.getEnclosingElement();
-                    break;
-                case FIELD:
-                    // Annotations transfer to fields of same name:
-                    canTransferAnnotationsToSameName = true;
-                    enclosingType = elt.getEnclosingElement();
-                    break;
-                case PARAMETER:
-                    // Annotations transfer to compact canonical constructor parameter of same name:
-                    canTransferAnnotationsToSameName =
-                            ElementUtils.isCompactCanonicalRecordConstructor(
-                                            elt.getEnclosingElement())
-                                    && elt.getEnclosingElement().getKind()
-                                            == ElementKind.CONSTRUCTOR;
-                    enclosingType = elt.getEnclosingElement().getEnclosingElement();
-                    break;
-                default:
-                    canTransferAnnotationsToSameName = false;
-                    enclosingType = null;
-                    break;
-            }
+        }
+        // Handle annotations on record declarations.
+        boolean canTransferAnnotationsToSameName;
+        Element enclosingType; // Do nothing unless this element is a record.
+        switch (elt.getKind()) {
+            case METHOD:
+                // Annotations transfer to zero-arg accessor methods of same name:
+                canTransferAnnotationsToSameName =
+                        ((ExecutableElement) elt).getParameters().isEmpty();
+                enclosingType = elt.getEnclosingElement();
+                break;
+            case FIELD:
+                // Annotations transfer to fields of same name:
+                canTransferAnnotationsToSameName = true;
+                enclosingType = elt.getEnclosingElement();
+                break;
+            case PARAMETER:
+                // Annotations transfer to compact canonical constructor parameter of same name:
+                canTransferAnnotationsToSameName =
+                        ElementUtils.isCompactCanonicalRecordConstructor(elt.getEnclosingElement())
+                                && elt.getEnclosingElement().getKind() == ElementKind.CONSTRUCTOR;
+                enclosingType = elt.getEnclosingElement().getEnclosingElement();
+                break;
+            default:
+                canTransferAnnotationsToSameName = false;
+                enclosingType = null;
+                break;
+        }
 
-            if (canTransferAnnotationsToSameName && ElementUtils.isRecordElement(enclosingType)) {
-                AnnotationFileParser.RecordStub recordStub =
-                        annotationFileAnnos.records.get(enclosingType.getSimpleName().toString());
-                if (recordStub != null
-                        && recordStub.componentsByName.containsKey(
-                                elt.getSimpleName().toString())) {
-                    RecordComponentStub recordComponentStub =
-                            recordStub.componentsByName.get(elt.getSimpleName().toString());
+        if (canTransferAnnotationsToSameName && ElementUtils.isRecordElement(enclosingType)) {
+            AnnotationFileParser.RecordStub recordStub =
+                    annotationFileAnnos.records.get(ElementUtils.getQualifiedName(enclosingType));
+            if (recordStub != null) {
+                RecordComponentStub recordComponentStub =
+                        recordStub.componentsByName.get(elt.getSimpleName().toString());
+                if (recordComponentStub != null) {
                     return recordComponentStub.getAnnotationsForTarget(elt.getKind());
                 }
             }
