@@ -1937,22 +1937,23 @@ public class AnnotationFileParser {
             AnnotatedTypeVariable paramType = (AnnotatedTypeVariable) typeArguments.get(i);
 
             // Handle type bounds
-            if (param.getTypeBound() == null || param.getTypeBound().isEmpty()) {
+            NodeList<ClassOrInterfaceType> typeBound = param.getTypeBound();
+            if (typeBound == null || typeBound.isEmpty()) {
                 // No type bound, so annotations are both lower and upper bounds.
                 annotate(paramType, param.getAnnotations(), param);
-            } else if (param.getTypeBound() != null && !param.getTypeBound().isEmpty()) {
+            } else {
                 annotate(paramType.getLowerBound(), param.getAnnotations(), param);
-                if (param.getTypeBound().size() == 1) {
+                if (typeBound.size() == 1) {
                     // The additional declAnnos (third argument) is always null in this call to
                     // `annotate`, but the type bound (second argument) might have annotations.
-                    annotate(paramType.getUpperBound(), param.getTypeBound().get(0), null, param);
+                    annotate(paramType.getUpperBound(), typeBound.get(0), null, param);
                 } else {
-                    // param.getTypeBound().size() > 1
+                    // typeBound.size() > 1
                     ArrayList<ClassOrInterfaceType> typeBoundsWithAnotations =
-                            new ArrayList<>(param.getTypeBound().size());
-                    for (ClassOrInterfaceType typeBound : param.getTypeBound()) {
-                        if (!typeBound.getAnnotations().isEmpty()) {
-                            typeBoundsWithAnotations.add(typeBound);
+                            new ArrayList<>(typeBound.size());
+                    for (ClassOrInterfaceType tb : typeBound) {
+                        if (!tb.getAnnotations().isEmpty()) {
+                            typeBoundsWithAnotations.add(tb);
                         }
                     }
                     int numBounds = typeBoundsWithAnotations.size();
@@ -1978,7 +1979,7 @@ public class AnnotationFileParser {
                         //         typeParameters,
                         //         i,
                         //         param,
-                        //         param.getTypeBound(),
+                        //         typeBound,
                         //         decl.toString().replace(LINE_SEPARATOR, " "),
                         //         elt.toString().replace(LINE_SEPARATOR, " "),
                         //         elt.getClass());
@@ -1990,8 +1991,8 @@ public class AnnotationFileParser {
                                         + param);
                     }
                 }
-                if (param.getTypeBound().size() == 1
-                        && param.getTypeBound().get(0).getAnnotations().isEmpty()
+                if (typeBound.size() == 1
+                        && typeBound.get(0).getAnnotations().isEmpty()
                         && TypesUtils.isObject(paramType.getUpperBound().getUnderlyingType())) {
                     // If there is an explicit "T extends Object" type parameter bound,
                     // treat it like an explicit use of "Object" in code.
