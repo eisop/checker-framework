@@ -310,7 +310,7 @@ public class AnnotationFileParser {
         public final Map<ExecutableElement, List<IPair<TypeMirror, AnnotatedTypeMirror>>>
                 fakeOverrides = new HashMap<>(4);
 
-        /** Maps fully qualified record name to information in the stub file. */
+        /** Maps fully-qualified record name to information in the stub file. */
         public final Map<String, RecordStub> records = new HashMap<>();
     }
 
@@ -1378,11 +1378,12 @@ public class AnnotationFileParser {
                 // If this is the (user-written) canonical constructor, record that the component
                 // annotations should not be automatically transferred:
                 String qualRecordName = ElementUtils.getQualifiedName(elt.getEnclosingElement());
-                if (annotationFileAnnos.records.containsKey(qualRecordName)) {
+                RecordStub recordStub = annotationFileAnnos.records.get(qualRecordName);
+                if (recordStub != null) {
                     List<? extends VariableElement> parameters = elt.getParameters();
                     ArrayList<AnnotatedTypeMirror> annotatedParameters =
                             new ArrayList<>(parameters.size());
-                    for (int i = 0; i < parameters.size(); i++) {
+                    for (int i = 0, n = parameters.size(); i < n; ++i) {
                         VariableElement parameter = parameters.get(i);
                         AnnotatedTypeMirror atm =
                                 AnnotatedTypeMirror.createType(
@@ -1390,9 +1391,7 @@ public class AnnotationFileParser {
                         annotate(atm, decl.getParameter(i).getAnnotations(), decl.getParameter(i));
                         annotatedParameters.add(atm);
                     }
-                    annotationFileAnnos.records.get(qualRecordName)
-                                    .componentsInCanonicalConstructor =
-                            annotatedParameters;
+                    recordStub.componentsInCanonicalConstructor = annotatedParameters;
                 }
             }
             annotate(methodType.getReturnType(), decl.getAnnotations(), decl);
@@ -1469,7 +1468,7 @@ public class AnnotationFileParser {
         List<? extends VariableElement> paramElts = elt.getParameters();
         List<? extends AnnotatedTypeMirror> paramTypes = methodType.getParameterTypes();
 
-        for (int i = 0; i < methodType.getParameterTypes().size(); ++i) {
+        for (int i = 0, n = paramTypes.size(); i < n; ++i) {
             VariableElement paramElt = paramElts.get(i);
             AnnotatedTypeMirror paramType = paramTypes.get(i);
             Parameter param = params.get(i);
@@ -1648,7 +1647,7 @@ public class AnnotationFileParser {
                                         adeclTypeArgs.size()));
                         break;
                     }
-                    for (int i = 0; i < declTypeArgs.size(); ++i) {
+                    for (int i = 0, n = declTypeArgs.size(); i < n; ++i) {
                         annotate(adeclTypeArgs.get(i), declTypeArgs.get(i), null, astNode);
                     }
                 }
@@ -1933,27 +1932,28 @@ public class AnnotationFileParser {
             warn(decl, msg);
             return;
         }
-        for (int i = 0; i < typeParameters.size(); ++i) {
+        for (int i = 0, n = typeParameters.size(); i < n; ++i) {
             TypeParameter param = typeParameters.get(i);
             AnnotatedTypeVariable paramType = (AnnotatedTypeVariable) typeArguments.get(i);
 
             // Handle type bounds
-            if (param.getTypeBound() == null || param.getTypeBound().isEmpty()) {
+            NodeList<ClassOrInterfaceType> typeBound = param.getTypeBound();
+            if (typeBound == null || typeBound.isEmpty()) {
                 // No type bound, so annotations are both lower and upper bounds.
                 annotate(paramType, param.getAnnotations(), param);
-            } else if (param.getTypeBound() != null && !param.getTypeBound().isEmpty()) {
+            } else {
                 annotate(paramType.getLowerBound(), param.getAnnotations(), param);
-                if (param.getTypeBound().size() == 1) {
+                if (typeBound.size() == 1) {
                     // The additional declAnnos (third argument) is always null in this call to
                     // `annotate`, but the type bound (second argument) might have annotations.
-                    annotate(paramType.getUpperBound(), param.getTypeBound().get(0), null, param);
+                    annotate(paramType.getUpperBound(), typeBound.get(0), null, param);
                 } else {
-                    // param.getTypeBound().size() > 1
+                    // typeBound.size() > 1
                     ArrayList<ClassOrInterfaceType> typeBoundsWithAnotations =
-                            new ArrayList<>(param.getTypeBound().size());
-                    for (ClassOrInterfaceType typeBound : param.getTypeBound()) {
-                        if (!typeBound.getAnnotations().isEmpty()) {
-                            typeBoundsWithAnotations.add(typeBound);
+                            new ArrayList<>(typeBound.size());
+                    for (ClassOrInterfaceType tb : typeBound) {
+                        if (!tb.getAnnotations().isEmpty()) {
+                            typeBoundsWithAnotations.add(tb);
                         }
                     }
                     int numBounds = typeBoundsWithAnotations.size();
@@ -1979,7 +1979,7 @@ public class AnnotationFileParser {
                         //         typeParameters,
                         //         i,
                         //         param,
-                        //         param.getTypeBound(),
+                        //         typeBound,
                         //         decl.toString().replace(LINE_SEPARATOR, " "),
                         //         elt.toString().replace(LINE_SEPARATOR, " "),
                         //         elt.getClass());
@@ -1991,8 +1991,8 @@ public class AnnotationFileParser {
                                         + param);
                     }
                 }
-                if (param.getTypeBound().size() == 1
-                        && param.getTypeBound().get(0).getAnnotations().isEmpty()
+                if (typeBound.size() == 1
+                        && typeBound.get(0).getAnnotations().isEmpty()
                         && TypesUtils.isObject(paramType.getUpperBound().getUnderlyingType())) {
                     // If there is an explicit "T extends Object" type parameter bound,
                     // treat it like an explicit use of "Object" in code.
@@ -2199,7 +2199,7 @@ public class AnnotationFileParser {
         if (javacParams.size() != javaParserParams.size()) {
             return false;
         }
-        for (int i = 0; i < javacParams.size(); i++) {
+        for (int i = 0, n = javacParams.size(); i < n; ++i) {
             TypeMirror javacType = javacParams.get(i).asType();
             Parameter javaParserParam = javaParserParams.get(i);
             Type javaParserType = javaParserParam.getType();
@@ -2787,8 +2787,9 @@ public class AnnotationFileParser {
             ClassExpr classExpr = (ClassExpr) expr;
             @SuppressWarnings("signature") // Type.toString(): @FullyQualifiedName
             @FullyQualifiedName String className = classExpr.getType().toString();
-            if (importedTypes.containsKey(className)) {
-                return importedTypes.get(className).asType();
+            TypeElement importedType = importedTypes.get(className);
+            if (importedType != null) {
+                return importedType.asType();
             }
             TypeElement typeElement = findTypeOfName(className);
             if (typeElement == null) {
@@ -2921,7 +2922,7 @@ public class AnnotationFileParser {
             List<Expression> arrayExpressions = ((ArrayInitializerExpr) expr).getValues();
             Object[] values = new Object[arrayExpressions.size()];
 
-            for (int i = 0; i < arrayExpressions.size(); ++i) {
+            for (int i = 0, n = arrayExpressions.size(); i < n; ++i) {
                 Expression eltExpr = arrayExpressions.get(i);
                 values[i] = getValueOfExpressionInAnnotation(name, eltExpr, valueKind);
             }
@@ -3058,7 +3059,7 @@ public class AnnotationFileParser {
                 if (importDelimited[importDelimited.length - 1].equals(
                         faexpr.getScope().toString())) {
                     StringBuilder fullAnnotation = new StringBuilder();
-                    for (int i = 0; i < importDelimited.length - 1; i++) {
+                    for (int i = 0, n = importDelimited.length - 1; i < n; ++i) {
                         fullAnnotation.append(importDelimited[i]);
                         fullAnnotation.append('.');
                     }
@@ -3148,8 +3149,8 @@ public class AnnotationFileParser {
         if (key == null) {
             throw new BugInCF("AnnotationFileParser: key is null");
         }
-        if (m.containsKey(key)) {
-            AnnotatedTypeMirror existingType = m.get(key);
+        AnnotatedTypeMirror existingType = m.get(key);
+        if (existingType != null) {
             // If the newType is from a JDK stub file, then keep the existing type.  This
             // way user-supplied stub files override JDK stub files.
             // This works because the JDK is always parsed last, on demand, after all other stub
