@@ -1084,12 +1084,13 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             // is converted to a use, then both type variables are uses and should be the same
             // object.
             // The code below does this.
-            Map<TypeVariable, AnnotatedTypeMirror> mapping = new HashMap<>(typeArgs.size());
-            for (AnnotatedTypeMirror typeArg : result.getTypeArguments()) {
+            List<AnnotatedTypeMirror> resultTypeArgs = result.getTypeArguments();
+            Map<TypeVariable, AnnotatedTypeMirror> mapping = new HashMap<>(resultTypeArgs.size());
+            for (AnnotatedTypeMirror typeArg : resultTypeArgs) {
                 AnnotatedTypeVariable typeVar = (AnnotatedTypeVariable) typeArg;
                 mapping.put(typeVar.getUnderlyingType(), typeVar);
             }
-            for (AnnotatedTypeMirror typeArg : result.getTypeArguments()) {
+            for (AnnotatedTypeMirror typeArg : resultTypeArgs) {
                 AnnotatedTypeVariable typeVar = (AnnotatedTypeVariable) typeArg;
                 AnnotatedTypeMirror upperBound =
                         atypeFactory
@@ -1147,7 +1148,8 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             }
 
             DeclaredType t = getUnderlyingType();
-            typeArgs = new ArrayList<>(t.getTypeArguments().size());
+            List<? extends TypeMirror> javaTypeArgs = t.getTypeArguments();
+            typeArgs = new ArrayList<>(javaTypeArgs.size());
             // TODO: make typeArgs immutable. Optimize for empty set.
             if (isUnderlyingTypeRaw()) {
                 TypeElement typeElement = (TypeElement) atypeFactory.types.asElement(t);
@@ -1173,24 +1175,32 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                                     typeParameterToWildcard, wildcardType.getExtendsBound()));
                 }
             } else if (isDeclaration()) {
-                for (TypeMirror javaTypeArg : t.getTypeArguments()) {
+                for (TypeMirror javaTypeArg : javaTypeArgs) {
                     AnnotatedTypeVariable tv =
                             (AnnotatedTypeVariable)
                                     AnnotatedTypeMirror.createType(javaTypeArg, atypeFactory, true);
                     typeArgs.add(tv);
                 }
             } else {
-                for (TypeMirror javaTypeArg : t.getTypeArguments()) {
+                // Lazily resolve typeParameters; only needed if a wildcard type argument is
+                // encountered. Avoids unnecessary asElement/getTypeParameters calls for the common
+                // case of non-wildcard type arguments.
+                List<? extends TypeParameterElement> typeParameters = null;
+                int i = 0;
+                for (TypeMirror javaTypeArg : javaTypeArgs) {
                     AnnotatedTypeMirror typeArg =
                             AnnotatedTypeMirror.createType(javaTypeArg, atypeFactory, false);
                     if (typeArg.getKind() == TypeKind.WILDCARD) {
+                        if (typeParameters == null) {
+                            typeParameters =
+                                    ((TypeElement) atypeFactory.types.asElement(t))
+                                            .getTypeParameters();
+                        }
                         AnnotatedWildcardType wildcardType = (AnnotatedWildcardType) typeArg;
-                        wildcardType.setTypeVariable(
-                                ((TypeElement) atypeFactory.types.asElement(t))
-                                        .getTypeParameters()
-                                        .get(typeArgs.size()));
+                        wildcardType.setTypeVariable(typeParameters.get(i));
                     }
                     typeArgs.add(typeArg);
+                    ++i;
                 }
             }
             return typeArgs;
