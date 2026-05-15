@@ -636,17 +636,14 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
         // JLS 11: 4.10.2. Subtyping among Class and Interface Types
         // 4th paragraph, bullet 2
         try {
-            if (isContainedMany(
-                    subtypeAsSuper.getTypeArguments(), supertypeTypeArgs, covariantArgIndexes)) {
+            if (isContainedMany(subtypeTypeArgs, supertypeTypeArgs, covariantArgIndexes)) {
                 return true;
             }
         } catch (Exception e) {
             // Some types need to be captured first, so ignore crashes.
             for (int i = 0; i < supertypeTypeArgs.size(); i++) {
                 areEqualVisitHistory.remove(
-                        subtypeAsSuper.getTypeArguments().get(i),
-                        supertypeTypeArgs.get(i),
-                        currentTop);
+                        subtypeTypeArgs.get(i), supertypeTypeArgs.get(i), currentTop);
             }
         }
         // 5th paragraph:
@@ -687,10 +684,13 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
             List<? extends AnnotatedTypeMirror> subtypeTypeArgs,
             List<? extends AnnotatedTypeMirror> supertypeTypeArgs,
             List<Integer> covariantArgIndexes) {
+        boolean anyCovariant = !covariantArgIndexes.isEmpty();
         for (int i = 0; i < supertypeTypeArgs.size(); i++) {
             AnnotatedTypeMirror superTypeArg = supertypeTypeArgs.get(i);
             AnnotatedTypeMirror subTypeArg = subtypeTypeArgs.get(i);
-            boolean covariant = covariantArgIndexes.contains(i);
+            // Avoid per-iteration autoboxing of i when no type argument is covariant, which is the
+            // overwhelmingly common case.
+            boolean covariant = anyCovariant && covariantArgIndexes.contains(i);
             if (!isContainedBy(subTypeArg, superTypeArg, covariant)) {
                 return false;
             }
