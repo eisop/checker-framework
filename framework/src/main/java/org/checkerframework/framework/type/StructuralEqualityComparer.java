@@ -231,7 +231,7 @@ public class StructuralEqualityComparer extends AbstractAtmComboVisitor<Boolean,
         List<AnnotatedTypeMirror> capturedType1Args = capturedType1.getTypeArguments();
         List<AnnotatedTypeMirror> capturedType2Args = capturedType2.getTypeArguments();
         boolean result = true;
-        for (int i = 0; i < type1.getTypeArguments().size(); i++) {
+        for (int i = 0, n = type1Args.size(); i < n; ++i) {
             AnnotatedTypeMirror type1Arg = type1Args.get(i);
             AnnotatedTypeMirror type2Arg = type2Args.get(i);
             Boolean pastResultTA = visitHistory.get(type1Arg, type2Arg, currentTop);
