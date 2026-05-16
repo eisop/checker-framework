@@ -26,7 +26,6 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
 import java.util.Set;
 import java.util.StringJoiner;
 
@@ -285,10 +284,14 @@ public class TestUtilities {
             return false;
         }
 
-        try (@SuppressWarnings("JdkObsolete")
-                Scanner in = new Scanner(file, StandardCharsets.UTF_8.name())) {
-            while (in.hasNext()) {
-                String nextLine = in.nextLine();
+        try (BufferedReader br = Files.newBufferedReader(file.toPath(), StandardCharsets.UTF_8)) {
+            String nextLine;
+            while ((nextLine = br.readLine()) != null) {
+                // Fast path: every skip marker contains "skip-test". Avoid running ~14
+                // String#contains calls on every line of every test file.
+                if (!nextLine.contains("skip-test")) {
+                    continue;
+                }
                 if (nextLine.contains("@skip-test")
                         || (!IS_AT_LEAST_9_JVM && nextLine.contains("@below-java9-jdk-skip-test"))
                         || (!IS_AT_LEAST_10_JVM && nextLine.contains("@below-java10-jdk-skip-test"))
