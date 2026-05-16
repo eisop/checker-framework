@@ -790,6 +790,12 @@ public class QualifierDefaults {
             return false;
         }
 
+        // Fast path: every branch below that can return true requires at least one of these flags
+        // to be set. When both are false, this method is provably a constant `false`.
+        if (!useConservativeDefaultsBytecode && !useConservativeDefaultsSource) {
+            return false;
+        }
+
         if (uncheckedCodeDefaults.isEmpty()) {
             return false;
         }
