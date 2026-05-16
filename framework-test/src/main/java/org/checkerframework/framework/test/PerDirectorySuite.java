@@ -125,10 +125,10 @@ public class PerDirectorySuite extends RootedSuite {
             default:
                 throw new RuntimeException(
                         requiredFormsMessage
-                                + "%n"
+                                + System.lineSeparator()
                                 + "testClass="
                                 + testClass.getName()
-                                + "%n"
+                                + System.lineSeparator()
                                 + "parameterMethods="
                                 + method);
         }

@@ -547,7 +547,7 @@ public class TestConfigurationBuilder {
 
         throw new BugInCF(
                 "Attempted to build invalid test configuration:%n" + "Errors:%n%s%n%s%n",
-                String.join("%n", errors), this);
+                String.join(System.lineSeparator(), errors), this);
     }
 
     /**
