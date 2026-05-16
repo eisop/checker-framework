@@ -159,8 +159,7 @@ public class PerDirectorySuite extends RootedSuite {
 
         @Override
         public Object createTest() throws Exception {
-            Object[] arguments = Collections.singleton(javaFiles).toArray();
-            return getTestClass().getOnlyConstructor().newInstance(arguments);
+            return getTestClass().getOnlyConstructor().newInstance(new Object[] {javaFiles});
         }
 
         String testCaseName() {
