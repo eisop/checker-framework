@@ -5,6 +5,7 @@ import org.checkerframework.framework.test.diagnostics.TestDiagnosticUtils;
 import org.plumelib.util.StringsPlume;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -150,9 +151,12 @@ public class TypecheckResult {
         Set<TestDiagnostic> actualDiagnostics =
                 TestDiagnosticUtils.fromJavaxToolsDiagnosticList(result.getDiagnostics());
 
-        Set<TestDiagnostic> unexpectedDiagnostics = new LinkedHashSet<>();
-        unexpectedDiagnostics.addAll(actualDiagnostics);
-        unexpectedDiagnostics.removeAll(expectedDiagnostics);
+        // Wrap expectedDiagnostics in a HashSet so the two removeAll calls below get O(1)
+        // membership tests.
+        Set<TestDiagnostic> expectedSet = new HashSet<>(expectedDiagnostics);
+
+        Set<TestDiagnostic> unexpectedDiagnostics = new LinkedHashSet<>(actualDiagnostics);
+        unexpectedDiagnostics.removeAll(expectedSet);
 
         List<TestDiagnostic> missingDiagnostics = new ArrayList<>(expectedDiagnostics);
         missingDiagnostics.removeAll(actualDiagnostics);
