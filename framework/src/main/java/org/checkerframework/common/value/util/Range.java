@@ -1189,8 +1189,15 @@ public class Range {
      */
     public Range refineNotEqualTo(Range right) {
         if (right.isConstant()) {
+            // If this range is the same constant, the != branch is unreachable.
+            // Handling this case up front also avoids overflow in the trimming
+            // branches below when the shared constant is Long.MIN_VALUE
+            // (this.to - 1 would wrap to Long.MAX_VALUE) or Long.MAX_VALUE
+            // (this.from + 1 would wrap to Long.MIN_VALUE).
+            if (this.isConstant() && this.from == right.from) {
+                return NOTHING;
+            }
             if (this.to == right.to) {
-                // If this range is also the same constant, the refined range is empty.
                 return createOrNothing(this.from, this.to - 1);
             } else if (this.from == right.from) {
                 return createOrNothing(this.from + 1, this.to);
