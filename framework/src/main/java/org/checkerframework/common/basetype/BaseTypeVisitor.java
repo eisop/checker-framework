@@ -308,6 +308,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     protected final Map<@CanonicalName String, List<TypeUseLocation>> qualAllowedLocations;
 
     /**
+     * True iff no supported qualifier is meta-annotated with {@link
+     * org.checkerframework.framework.qual.TargetLocations}. When true, target-location validation
+     * has nothing to do for any annotation and can be skipped entirely. Set in the constructor
+     * after {@link #createQualAllowedLocations()} is called.
+     */
+    protected final boolean noQualHasTargetLocations;
+
+    /**
      * The number of seconds that typechecking must take for a single tree, to issue a "slow
      * typechecking" warning; default 45.
      */
@@ -361,6 +369,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         warnRedundantAnnotations = checker.hasOption("warnRedundantAnnotations");
         ignoreTargetLocations = checker.hasOption("ignoreTargetLocations");
         qualAllowedLocations = createQualAllowedLocations();
+        boolean anyHas = false;
+        for (List<TypeUseLocation> locs : qualAllowedLocations.values()) {
+            if (locs != null) {
+                anyHas = true;
+                break;
+            }
+        }
+        noQualHasTargetLocations = !anyHas;
         checkEnclosingExpr = checker.hasOption("checkEnclosingExpr");
 
         boolean ajavaChecksOptions = checker.hasOption("ajavaChecks");
@@ -1822,7 +1838,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param type the type of the tree
      */
     protected void validateVariablesTargetLocation(Tree tree, AnnotatedTypeMirror type) {
-        if (ignoreTargetLocations) {
+        if (ignoreTargetLocations || noQualHasTargetLocations) {
             return;
         }
         Element element = TreeUtils.elementFromTree(tree);
@@ -1897,7 +1913,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     protected void validateTargetLocation(
             Tree tree, AnnotatedTypeMirror type, TypeUseLocation required) {
-        if (ignoreTargetLocations) {
+        if (ignoreTargetLocations || noQualHasTargetLocations) {
             return;
         }
         for (AnnotationMirror am : type.getAnnotations()) {
