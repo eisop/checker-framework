@@ -28,7 +28,7 @@ import org.plumelib.util.StringsPlume;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -143,7 +143,8 @@ public class ElementAnnotationUtil {
             Collection<TypeCompound> annos,
             List<TypeCompound> unmatched,
             TargetType... targetTypes) {
-        Map<TargetType, List<TypeCompound>> targetTypeToAnnos = new HashMap<>();
+        // EnumMap: TargetType is an enum, so lookup is an array index, not a hash.
+        Map<TargetType, List<TypeCompound>> targetTypeToAnnos = new EnumMap<>(TargetType.class);
         for (TargetType targetType : targetTypes) {
             targetTypeToAnnos.put(targetType, new ArrayList<>());
         }
@@ -483,15 +484,13 @@ public class ElementAnnotationUtil {
             }
         }
 
-        // Copy the location so removing the first element is local to this method. ArrayList is
-        // used in preference to LinkedList: both support the operations needed here
-        // (List.remove(0) and subList for tail()), and ArrayList avoids LinkedList's per-element
-        // node allocation. The list is typically very short, so the O(n) shift on remove(0) is
-        // negligible.
-        List<TypePathEntry> tailOfLocations = new ArrayList<>(location);
+        // Walk `location` with an index instead of copying it into an ArrayList and repeatedly
+        // calling remove(0).
         boolean error = false;
-        while (!tailOfLocations.isEmpty()) {
-            TypePathEntry currentLocation = tailOfLocations.remove(0);
+        int idx = 0;
+        int locSize = location.size();
+        while (idx < locSize) {
+            TypePathEntry currentLocation = location.get(idx++);
             switch (currentLocation.tag) {
                 case INNER_TYPE:
                     outerToInner.removeFirst();
@@ -501,7 +500,7 @@ public class ElementAnnotationUtil {
                     if (currentLocation.arg < innerType.getTypeArguments().size()) {
                         AnnotatedTypeMirror typeArg =
                                 innerType.getTypeArguments().get(currentLocation.arg);
-                        return getTypeAtLocation(typeArg, tailOfLocations);
+                        return getTypeAtLocation(typeArg, location.subList(idx, locSize));
                     } else {
                         error = true;
                         break;
