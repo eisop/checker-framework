@@ -8,7 +8,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
 import javax.lang.model.type.TypeKind;
 
@@ -257,7 +256,11 @@ public class Range {
 
     @Override
     public int hashCode() {
-        return Objects.hash(from, to);
+        // Hand-rolled to avoid the per-call boxing of two longs and the Object[] varargs
+        // allocation that Objects.hash(from, to) incurs. Range.hashCode is hot: Range objects
+        // are used as keys/values in many AnnotationMirror-related hash collections during
+        // type checking.
+        return Long.hashCode(from) * 31 + Long.hashCode(to);
     }
 
     /**
