@@ -749,12 +749,9 @@ public class QualifierDefaults {
         AnnotationMirror dqAnno = atypeFactory.getDeclAnnotation(elt, DefaultQualifier.class);
 
         if (dqAnno != null) {
-            Set<Default> p = fromDefaultQualifier(dqAnno);
-
-            if (p != null) {
-                qualifiers = new DefaultSet();
-                qualifiers.addAll(p);
-            }
+            // fromDefaultQualifier allocates a fresh DefaultSet (or returns null), so take
+            // ownership directly rather than allocating a second DefaultSet and copying.
+            qualifiers = fromDefaultQualifier(dqAnno);
         }
 
         // Handle DefaultQualifier.List
