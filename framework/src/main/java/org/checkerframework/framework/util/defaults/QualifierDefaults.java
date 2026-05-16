@@ -700,10 +700,16 @@ public class QualifierDefaults {
         if (elt.getKind() == ElementKind.PACKAGE) {
             Element parent = ElementUtils.parentPackage((PackageElement) elt, elements);
             DefaultSet origParentDefaults = defaultsAt(parent);
-            parentDefaults = new DefaultSet();
-            for (Default d : origParentDefaults) {
-                if (d.applyToSubpackages) {
-                    parentDefaults.add(d);
+            if (origParentDefaults.isEmpty()) {
+                // Nothing to filter; reuse the empty set rather than allocating one to copy
+                // zero elements into. Common case: no @DefaultQualifier anywhere in the chain.
+                parentDefaults = origParentDefaults;
+            } else {
+                parentDefaults = new DefaultSet();
+                for (Default d : origParentDefaults) {
+                    if (d.applyToSubpackages) {
+                        parentDefaults.add(d);
+                    }
                 }
             }
         } else {
