@@ -753,6 +753,7 @@ public class RangeTest {
                 expected, r.refineNotEqualTo(Range.create(Long.MAX_VALUE, Long.MAX_VALUE)));
     }
 
+    /** Test long factory. */
     @Test
     public void testFactoryLongLong() {
         Assert.assertEquals((long) 1, Range.create(1, 2).from);
