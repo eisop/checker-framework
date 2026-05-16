@@ -170,10 +170,14 @@ public class TestDiagnosticUtils {
                 message = warningMatcher.group("message").trim();
                 // The warningPattern may not define a "linenogroup" group (e.g.
                 // DIAGNOSTIC_WARNING_IN_JAVA_PATTERN), so guard the lookup.
-                if (lineNumber == null
-                        && warningMatcher.pattern().pattern().contains("(?<linenogroup>")
-                        && warningMatcher.group("linenogroup") != null) {
-                    lineNo = Long.parseLong(warningMatcher.group("lineno"));
+                if (lineNumber == null) {
+                    try {
+                        if (warningMatcher.group("linenogroup") != null) {
+                            lineNo = Long.parseLong(warningMatcher.group("lineno"));
+                        }
+                    } catch (IllegalArgumentException e) {
+                        // warningPattern does not define a "linenogroup" group.
+                    }
                 }
             } else if (diagnosticString.startsWith("warning:")) {
                 kind = DiagnosticKind.Warning;

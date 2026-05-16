@@ -151,7 +151,7 @@ public class TypecheckResult {
         Set<TestDiagnostic> actualDiagnostics =
                 TestDiagnosticUtils.fromJavaxToolsDiagnosticList(result.getDiagnostics());
 
-        // Wrap expectedDiagnostics in a HashSet so the two removeAll calls below get O(1)
+        // Wrap expectedDiagnostics in a HashSet so the removeAll call below gets O(1)
         // membership tests.
         Set<TestDiagnostic> expectedSet = new HashSet<>(expectedDiagnostics);
 
