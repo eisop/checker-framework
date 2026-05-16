@@ -36,6 +36,7 @@ runs:
           shfmt
           texlive-font-utils
           texlive-fonts-recommended
+          texlive-base
           texlive-latex-base
           texlive-latex-extra
           texlive-latex-recommended
