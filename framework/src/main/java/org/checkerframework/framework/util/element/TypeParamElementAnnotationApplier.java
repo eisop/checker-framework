@@ -203,6 +203,8 @@ abstract class TypeParamElementAnnotationApplier extends IndexedElementAnnotatio
      * Apply the component annotation.
      *
      * @param anno the compound type
+     * @throws UnexpectedAnnotationLocationException when an unexpected annotation location is
+     *     encountered
      */
     private void applyComponentAnnotation(TypeCompound anno)
             throws UnexpectedAnnotationLocationException {
