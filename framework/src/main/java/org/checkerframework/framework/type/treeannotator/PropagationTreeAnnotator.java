@@ -371,6 +371,12 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
         return null;
     }
 
+    /**
+     * Determine whether the given type has a primary annotation in all hierarchies.
+     *
+     * @param type the type to test
+     * @return whether the given type has a primary annotation in all hierarchies
+     */
     private boolean hasPrimaryAnnotationInAllHierarchies(AnnotatedTypeMirror type) {
         for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
             if (type.getEffectiveAnnotationInHierarchy(top) == null) {
