@@ -5252,6 +5252,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             Element field,
             @Nullable AnnotatedTypeMirror receiverType,
             @FindDistinct ExpressionTree accessTree) {
+        // @Unused is conditioned on the type qualifier of the receiver, so a static field (which
+        // has no receiver) cannot trigger an access violation.
+        if (receiverType == null) {
+            return;
+        }
         AnnotationMirror unused = atypeFactory.getDeclAnnotation(field, Unused.class);
         if (unused == null) {
             return;
