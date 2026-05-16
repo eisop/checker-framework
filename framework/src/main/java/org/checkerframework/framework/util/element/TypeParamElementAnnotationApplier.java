@@ -199,6 +199,11 @@ abstract class TypeParamElementAnnotationApplier extends IndexedElementAnnotatio
         }
     }
 
+    /**
+     * Apply the component annotation.
+     *
+     * @param anno the compound type
+     */
     private void applyComponentAnnotation(TypeCompound anno)
             throws UnexpectedAnnotationLocationException {
         AnnotatedTypeMirror upperBoundType = typeParam.getUpperBound();
