@@ -4,10 +4,7 @@ import org.checkerframework.checker.interning.qual.InternedDistinct;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.math.BigInteger;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
 
 import javax.lang.model.type.TypeKind;
 
@@ -594,22 +591,27 @@ public class Range {
 
         // These bounds are adequate:  Integer.MAX_VALUE^2 is still a bit less than Long.MAX_VALUE.
         if (this.isWithinInteger() && right.isWithinInteger()) {
-            List<Long> possibleValues =
-                    Arrays.asList(
-                            from * right.from, from * right.to, to * right.from, to * right.to);
-            return create(possibleValues);
+            // Compute min/max over the four corner products directly, avoiding the
+            // Long boxing and Arrays.asList/iterator allocations of the previous version.
+            long ff = from * right.from;
+            long ft = from * right.to;
+            long tf = to * right.from;
+            long tt = to * right.to;
+            long resultFrom = Math.min(Math.min(ff, ft), Math.min(tf, tt));
+            long resultTo = Math.max(Math.max(ff, ft), Math.max(tf, tt));
+            return create(resultFrom, resultTo);
         } else {
             BigInteger bigLeftFrom = BigInteger.valueOf(from);
             BigInteger bigRightFrom = BigInteger.valueOf(right.from);
             BigInteger bigRightTo = BigInteger.valueOf(right.to);
             BigInteger bigLeftTo = BigInteger.valueOf(to);
-            List<BigInteger> bigPossibleValues =
-                    Arrays.asList(
-                            bigLeftFrom.multiply(bigRightFrom),
-                            bigLeftFrom.multiply(bigRightTo),
-                            bigLeftTo.multiply(bigRightFrom),
-                            bigLeftTo.multiply(bigRightTo));
-            return create(Collections.min(bigPossibleValues), Collections.max(bigPossibleValues));
+            BigInteger ff = bigLeftFrom.multiply(bigRightFrom);
+            BigInteger ft = bigLeftFrom.multiply(bigRightTo);
+            BigInteger tf = bigLeftTo.multiply(bigRightFrom);
+            BigInteger tt = bigLeftTo.multiply(bigRightTo);
+            BigInteger resultFrom = ff.min(ft).min(tf.min(tt));
+            BigInteger resultTo = ff.max(ft).max(tf.max(tt));
+            return create(resultFrom, resultTo);
         }
     }
 
