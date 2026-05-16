@@ -1190,9 +1190,10 @@ public class Range {
     public Range refineNotEqualTo(Range right) {
         if (right.isConstant()) {
             if (this.to == right.to) {
-                return create(this.from, this.to - 1);
+                // If this range is also the same constant, the refined range is empty.
+                return createOrNothing(this.from, this.to - 1);
             } else if (this.from == right.from) {
-                return create(this.from + 1, this.to);
+                return createOrNothing(this.from + 1, this.to);
             }
         }
         return this;
