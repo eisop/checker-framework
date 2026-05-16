@@ -3225,12 +3225,17 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * If the given Java basetype is not relevant, report an "anno.on.irrelevant" if it is
      * annotated. This method does not necessarily issue an error, but it might.
      *
-     * @param errorLocation where to repor the error
+     * @param errorLocation where to report the error
      * @param type the Java basetype
      * @param annos the annotation on the type
      */
     private void maybeReportAnnoOnIrrelevant(
             Tree errorLocation, TypeMirror type, List<? extends AnnotationTree> annos) {
+        // Most trees carry no explicit annotations; skip before allocating the supportedAnnoTrees
+        // result list.
+        if (annos == null || annos.isEmpty()) {
+            return;
+        }
         List<AnnotationTree> supportedAnnoTrees = supportedAnnoTrees(annos);
         if (!supportedAnnoTrees.isEmpty() && !atypeFactory.isRelevant(type)) {
             String extraInfo = atypeFactory.irrelevantExtraMessage();
