@@ -168,8 +168,12 @@ public class TestDiagnosticUtils {
                 kind = DiagnosticKind.Warning;
                 isFixable = false;
                 message = warningMatcher.group("message").trim();
-                if (lineNumber == null && diagnosticMatcher.group("linenogroup") != null) {
-                    lineNo = Long.parseLong(diagnosticMatcher.group("lineno"));
+                // The warningPattern may not define a "linenogroup" group (e.g.
+                // DIAGNOSTIC_WARNING_IN_JAVA_PATTERN), so guard the lookup.
+                if (lineNumber == null
+                        && warningMatcher.pattern().pattern().contains("(?<linenogroup>")
+                        && warningMatcher.group("linenogroup") != null) {
+                    lineNo = Long.parseLong(warningMatcher.group("lineno"));
                 }
             } else if (diagnosticString.startsWith("warning:")) {
                 kind = DiagnosticKind.Warning;
