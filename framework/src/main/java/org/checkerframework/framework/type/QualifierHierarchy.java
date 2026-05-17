@@ -1,7 +1,6 @@
 package org.checkerframework.framework.type;
 
 import org.checkerframework.checker.mustcall.qual.MustCallUnknown;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
@@ -783,16 +782,15 @@ public abstract class QualifierHierarchy {
             Map<T, AnnotationMirrorSet> map, T key, AnnotationMirror qualifier) {
         // https://github.com/typetools/checker-framework/issues/2000
         @SuppressWarnings("nullness:argument.type.incompatible")
-        boolean mapContainsKey = map.containsKey(key);
-        if (mapContainsKey) {
-            @SuppressWarnings("nullness:assignment.type.incompatible") // key is a key for map.
-            @NonNull AnnotationMirrorSet prevs = map.get(key);
+        AnnotationMirrorSet prevs = map.get(key);
+        if (prevs != null) {
             AnnotationMirror old = findAnnotationInSameHierarchy(prevs, qualifier);
             if (old != null) {
                 return false;
             }
+            // prevs is the value already stored at key, so mutating it in place is enough; no
+            // need to re-put.
             prevs.add(qualifier);
-            map.put(key, prevs);
         } else {
             AnnotationMirrorSet set = new AnnotationMirrorSet();
             set.add(qualifier);

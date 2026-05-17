@@ -28,13 +28,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.StringJoiner;
-import java.util.TreeSet;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
@@ -263,18 +260,9 @@ public class AnnotationUtils {
             return areSame(c1.iterator().next(), c2.iterator().next());
         }
 
-        // while loop depends on NavigableSet implementation.
-        AnnotationMirrorSet s1 = new AnnotationMirrorSet();
-        AnnotationMirrorSet s2 = new AnnotationMirrorSet();
-        s1.addAll(c1);
-        s2.addAll(c2);
-        Iterator<AnnotationMirror> iter1 = s1.iterator();
-        Iterator<AnnotationMirror> iter2 = s2.iterator();
-
-        while (iter1.hasNext()) {
-            AnnotationMirror anno1 = iter1.next();
-            AnnotationMirror anno2 = iter2.next();
-            if (!areSame(anno1, anno2)) {
+        // For each annotation in c1, look for a matching annotation in c2 by `areSame`.
+        for (AnnotationMirror a : c1) {
+            if (!containsSame(c2, a)) {
                 return false;
             }
         }
@@ -413,6 +401,13 @@ public class AnnotationUtils {
     }
 
     /**
+     * Comparator used by {@link #compareAnnotationMirrors} to sort an annotation type's element
+     * methods by simple signature, hoisted to a static constant so the lambda is allocated once.
+     */
+    private static final Comparator<ExecutableElement> SIMPLE_SIGNATURE_COMPARATOR =
+            Comparator.comparing(ElementUtils::getSimpleSignature);
+
+    /**
      * Provide an ordering for {@link AnnotationMirror}s. AnnotationMirrors are first compared by
      * their fully-qualified names, then by their element values in order of the name of the
      * element.
@@ -430,10 +425,12 @@ public class AnnotationUtils {
         // The annotations have the same name, but possibly different values, so compare values.
         Map<? extends ExecutableElement, ? extends AnnotationValue> vals1 = a1.getElementValues();
         Map<? extends ExecutableElement, ? extends AnnotationValue> vals2 = a2.getElementValues();
-        Set<ExecutableElement> sortedElements =
-                new TreeSet<>(Comparator.comparing(ElementUtils::getSimpleSignature));
-        sortedElements.addAll(
-                ElementFilter.methodsIn(a1.getAnnotationType().asElement().getEnclosedElements()));
+        // Sort method elements once into an ArrayList.
+        List<ExecutableElement> sortedElements =
+                new ArrayList<>(
+                        ElementFilter.methodsIn(
+                                a1.getAnnotationType().asElement().getEnclosedElements()));
+        sortedElements.sort(SIMPLE_SIGNATURE_COMPARATOR);
 
         // getDefaultValue() returns null if the method is not an annotation interface element.
         for (ExecutableElement meth : sortedElements) {
@@ -1272,6 +1269,27 @@ public class AnnotationUtils {
         if (vals1.isEmpty() && vals2.isEmpty()) {
             return true; // no-element annotations: nothing to compare
         }
+        // Fast path: when both annotations have an explicit value for the same set of methods,
+        // we don't need to enumerate all annotation methods (and pay an
+        // ElementFilter.methodsIn list allocation) just to handle defaults.
+        if (vals1.size() == vals2.size() && vals1.keySet().equals(vals2.keySet())) {
+            for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> e :
+                    vals1.entrySet()) {
+                AnnotationValue aval1 = e.getValue();
+                // From the earlier check we know e.getKey() is a key in vals2.
+                @SuppressWarnings("nullness")
+                @NonNull AnnotationValue aval2 = vals2.get(e.getKey());
+                @SuppressWarnings("interning:not.interned") // optimization via equality test
+                boolean identical = aval1 == aval2;
+                if (identical) {
+                    continue;
+                }
+                if (!sameAnnotationValue(aval1, aval2)) {
+                    return false;
+                }
+            }
+            return true;
+        }
         for (ExecutableElement meth :
                 ElementFilter.methodsIn(
                         am1.getAnnotationType().asElement().getEnclosedElements())) {
@@ -1616,7 +1634,7 @@ public class AnnotationUtils {
                             sb.append(", ");
                         }
                         notfirst = true;
-                        sb.append(arg.getKey().getSimpleName() + "=");
+                        sb.append(arg.getKey().getSimpleName()).append("=");
                         formatAnnotationMirrorArg(arg.getValue(), sb);
                     }
                 }
@@ -1638,9 +1656,8 @@ public class AnnotationUtils {
         Map<ExecutableElement, AnnotationValue> nonDefaults = new ArrayMap<>(0);
         elementValues.forEach(
                 (element, value) -> {
-                    if (element.getDefaultValue() == null
-                            || !Objects.equals(
-                                    value.getValue(), element.getDefaultValue().getValue())) {
+                    AnnotationValue dflt = element.getDefaultValue();
+                    if (dflt == null || !Objects.equals(value.getValue(), dflt.getValue())) {
                         nonDefaults.put(element, value);
                     }
                 });
@@ -1656,7 +1673,7 @@ public class AnnotationUtils {
      */
     private static void formatAnnotationMirrorArg(AnnotationValue av, StringBuilder sb) {
         Object val = av.getValue();
-        if (List.class.isAssignableFrom(val.getClass())) {
+        if (val instanceof List) {
             @SuppressWarnings("unchecked")
             List<AnnotationValue> vallist = (List<AnnotationValue>) val;
             if (vallist.size() == 1) {
@@ -1673,9 +1690,11 @@ public class AnnotationUtils {
                 }
                 sb.append('}');
             }
-        } else if (VariableElement.class.isAssignableFrom(val.getClass())) {
+        } else if (val instanceof VariableElement) {
             VariableElement ve = (VariableElement) val;
-            sb.append(ve.getEnclosingElement().getSimpleName() + "." + ve.getSimpleName());
+            sb.append(ve.getEnclosingElement().getSimpleName())
+                    .append('.')
+                    .append(ve.getSimpleName());
         } else {
             sb.append(av.toString());
         }

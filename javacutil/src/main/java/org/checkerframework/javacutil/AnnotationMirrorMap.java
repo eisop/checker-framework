@@ -103,11 +103,10 @@ public class AnnotationMirrorMap<V> implements Map<@KeyFor("this") AnnotationMir
     @SuppressWarnings("keyfor:contracts.conditional.postcondition") // delegation
     @Override
     public boolean containsKey(Object key) {
-        if (key instanceof AnnotationMirror) {
-            return AnnotationUtils.containsSame(shadowMap.keySet(), (AnnotationMirror) key);
-        } else {
-            return false;
-        }
+        // shadowMap is a TreeMap whose comparator (AnnotationUtils::compareAnnotationMirrors)
+        // is consistent with AnnotationUtils.areSame, so containsKey/get/remove on shadowMap
+        // already do an O(log n) "areSame" lookup and we do not need a linear scan.
+        return key instanceof AnnotationMirror && shadowMap.containsKey(key);
     }
 
     @Override
@@ -119,11 +118,7 @@ public class AnnotationMirrorMap<V> implements Map<@KeyFor("this") AnnotationMir
     @Pure
     public @Nullable V get(Object key) {
         if (key instanceof AnnotationMirror) {
-            AnnotationMirror keyAnno =
-                    AnnotationUtils.getSame(shadowMap.keySet(), (AnnotationMirror) key);
-            if (keyAnno != null) {
-                return shadowMap.get(keyAnno);
-            }
+            return shadowMap.get(key);
         }
         return null;
     }
@@ -135,8 +130,11 @@ public class AnnotationMirrorMap<V> implements Map<@KeyFor("this") AnnotationMir
     }) // delegation
     @Override
     public @Nullable V put(AnnotationMirror key, V value) {
-        V pre = get(key);
-        remove(key);
+        // remove+put rather than a single TreeMap.put so that the stored key reference
+        // matches the most recent caller-supplied key (TreeMap.put preserves the original
+        // key on update). Both operations are O(log n).
+        V pre = shadowMap.remove(key);
+        keySetCache = null;
         shadowMap.put(key, value);
         return pre;
     }
@@ -144,11 +142,11 @@ public class AnnotationMirrorMap<V> implements Map<@KeyFor("this") AnnotationMir
     @Override
     public @Nullable V remove(Object key) {
         if (key instanceof AnnotationMirror) {
-            AnnotationMirror keyAnno =
-                    AnnotationUtils.getSame(shadowMap.keySet(), (AnnotationMirror) key);
-            if (keyAnno != null) {
-                return shadowMap.remove(keyAnno);
+            V pre = shadowMap.remove(key);
+            if (pre != null) {
+                keySetCache = null;
             }
+            return pre;
         }
         return null;
     }
@@ -162,12 +160,27 @@ public class AnnotationMirrorMap<V> implements Map<@KeyFor("this") AnnotationMir
 
     @Override
     public void clear() {
+        keySetCache = null;
         shadowMap.clear();
     }
 
+    /**
+     * Cached snapshot returned by {@link #keySet()}; invalidated on every mutation.
+     *
+     * <p>{@code Map.keySet} is contractually a live view, but because {@code AnnotationMirrorSet}
+     * is a separate class rather than a view over the backing map's keys, we approximate with a
+     * cached snapshot rebuilt only when the map mutates.
+     */
+    private @Nullable Set<@KeyFor("this") AnnotationMirror> keySetCache;
+
     @Override
-    public AnnotationMirrorSet keySet() {
-        return new AnnotationMirrorSet(shadowMap.keySet());
+    public Set<@KeyFor("this") AnnotationMirror> keySet() {
+        Set<@KeyFor("this") AnnotationMirror> r = keySetCache;
+        if (r == null) {
+            r = new AnnotationMirrorSet(shadowMap.keySet());
+            keySetCache = Collections.unmodifiableSet(r);
+        }
+        return r;
     }
 
     @Override
