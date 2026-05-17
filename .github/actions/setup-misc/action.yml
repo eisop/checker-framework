@@ -53,6 +53,9 @@ runs:
           texlive-latex-base \
           texlive-latex-extra \
           texlive-latex-recommended
+        # apt-get (run as sudo) creates root-owned lock and partial/ in the
+        # cache dir.  Fix ownership so actions/cache can archive the directory.
+        sudo chown -R "$USER" ~/.cache/apt-archives
 
     - name: Restore pip download cache
       uses: actions/cache@v4
