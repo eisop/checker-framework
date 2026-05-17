@@ -1,53 +1,42 @@
 name: 'Set up misc test dependencies'
 description: >-
-  Installs the apt and pip dependencies required by the `misc` test script,
-  with caching of both apt packages and the pip download cache so subsequent
-  runs avoid re-downloading and re-unpacking the (large) texlive packages.
+  Installs the apt and pip dependencies required by the `misc` test script.
 
 runs:
   using: composite
   steps:
-    - name: Cache and install apt packages
-      uses: awalsh128/cache-apt-pkgs-action@v1
-      with:
-        # Bump `version` to invalidate the cache after meaningful changes.
-        version: 1
-        packages: >-
-          asciidoctor
-          autoconf
-          devscripts
-          dia
-          hevea
-          latexmk
-          libasound2-dev
-          libcups2-dev
-          libfontconfig1-dev
-          librsvg2-bin
-          libx11-dev
-          libxext-dev
-          libxrandr-dev
-          libxrender-dev
-          libxt-dev
-          libxtst-dev
-          pdf2svg
-          python3-pip
-          rsync
-          shellcheck
-          shfmt
-          texlive-font-utils
-          texlive-fonts-recommended
-          texlive-base
-          texlive-latex-base
-          texlive-latex-extra
+    - name: Install apt packages
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --fix-missing \
+          asciidoctor \
+          autoconf \
+          devscripts \
+          dia \
+          hevea \
+          latexmk \
+          libasound2-dev \
+          libcups2-dev \
+          libfontconfig1-dev \
+          librsvg2-bin \
+          libx11-dev \
+          libxext-dev \
+          libxrandr-dev \
+          libxrender-dev \
+          libxt-dev \
+          libxtst-dev \
+          pdf2svg \
+          python3-pip \
+          rsync \
+          shellcheck \
+          shfmt \
+          texlive-font-utils \
+          texlive-fonts-recommended \
+          texlive-base \
+          texlive-latex-base \
+          texlive-latex-extra \
           texlive-latex-recommended
-
-    - name: Cache pip download cache
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-misc-v1
-        restore-keys: |
-          ${{ runner.os }}-pip-misc-
 
     - name: Install Python tools
       shell: bash
