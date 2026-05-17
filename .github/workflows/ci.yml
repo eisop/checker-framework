@@ -210,6 +210,12 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6.1.0
+        with:
+          # Allow Gradle home cache writes on PR builds for non-primary JDKs.
+          # Master only runs misc on JDK 21, so JDK 25/26/27 have no warm
+          # Gradle build cache from master; allowing writes means the first PR
+          # run saves task outputs and subsequent runs are much faster.
+          cache-read-only: false
 
       - name: Set up misc test dependencies
         if: ${{ matrix.script == 'misc' }}
