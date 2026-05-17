@@ -161,6 +161,15 @@ jobs:
           - {script: 'misc',            java: {version: '8'}}
           - {script: 'misc',            java: {version: '11'}}
           - {script: 'misc',            java: {version: '17'}}
+          # misc checks code quality (style, javadoc, formatting), not JDK compatibility.
+          # Running it only on the primary JDK (in `remainder`) is sufficient.
+          # On JDK 25/26/27 the ci-lint-diff error-diagnostic path runs
+          # `cat more /tmp/*`, which hangs on CLR debug FIFOs present in /tmp on
+          # GitHub Actions Ubuntu runners, causing a ~82-minute block until the
+          # 90-minute job timeout kills the job.
+          - {script: 'misc',            java: {version: '25'}}
+          - {script: 'misc',            java: {version: '26'}}
+          - {script: 'misc',            java: {version: '27'}}
           # At least one plume-lib project no longer works on Java 8.
           - {script: 'plume-lib',       java: {version: '8'}}
           - {script: 'plume-lib',       java: {version: '11'}}
@@ -212,9 +221,9 @@ jobs:
         uses: gradle/actions/setup-gradle@v6.1.0
         with:
           # Allow Gradle home cache writes on PR builds for non-primary JDKs.
-          # Master only runs misc on JDK 21, so JDK 25/26/27 have no warm
-          # Gradle build cache from master; allowing writes means the first PR
-          # run saves task outputs and subsequent runs are much faster.
+          # Master builds populate the cache for JDK 21; allowing PR builds to
+          # write means the first PR run with a new JDK version saves task outputs
+          # and subsequent runs are much faster.
           cache-read-only: false
 
       - name: Set up misc test dependencies
