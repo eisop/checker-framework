@@ -89,8 +89,13 @@ jobs:
     steps:
       # `misc` runs `ci-diff` which needs full history; everything else is shallow.
       - uses: actions/checkout@v6
+        if: ${{ matrix.script == 'misc' }}
         with:
-          fetch-depth: ${{ matrix.script == 'misc' && '0' || '1' }}
+          fetch-depth: 0
+      - uses: actions/checkout@v6
+        if: ${{ matrix.script != 'misc' }}
+        with:
+          fetch-depth: 1
 
       - name: Set up JDK ${{ matrix.java_version }}
         uses: actions/setup-java@v5
