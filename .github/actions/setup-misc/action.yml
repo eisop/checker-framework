@@ -1,15 +1,31 @@
 name: 'Set up misc test dependencies'
 description: >-
-  Installs the apt and pip dependencies required by the `misc` test script.
+  Installs the apt and pip dependencies required by the `misc` test script,
+  caching downloaded apt packages and pip downloads so subsequent runs avoid
+  re-downloading the large texlive packages.
 
 runs:
   using: composite
   steps:
+    # Cache the downloaded .deb files so they don't need to be re-downloaded.
+    # apt-get install is always run so dpkg post-install scripts execute
+    # (required by texlive to build pdflatex.fmt via fmtutil-sys).
+    - name: Restore apt download cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/apt-archives
+        # Invalidate the cache when this file changes (package list updated).
+        key: apt-misc-v1-${{ runner.os }}-${{ hashFiles('.github/actions/setup-misc/action.yml') }}
+        restore-keys: |
+          apt-misc-v1-${{ runner.os }}-
+
     - name: Install apt packages
       shell: bash
       run: |
+        mkdir -p ~/.cache/apt-archives/partial
         sudo apt-get update
         sudo apt-get install -y --fix-missing \
+          -o Dir::Cache::Archives="$HOME/.cache/apt-archives" \
           asciidoctor \
           autoconf \
           devscripts \
@@ -37,6 +53,14 @@ runs:
           texlive-latex-base \
           texlive-latex-extra \
           texlive-latex-recommended
+
+    - name: Restore pip download cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: pip-misc-v1-${{ runner.os }}
+        restore-keys: |
+          pip-misc-v1-${{ runner.os }}-
 
     - name: Install Python tools
       shell: bash
