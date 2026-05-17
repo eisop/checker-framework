@@ -724,7 +724,7 @@ public class QualifierDefaults {
             qualifiers.addAll(parentDefaults);
         }
 
-        if (qualifiers != null && !qualifiers.isEmpty()) {
+        if (!qualifiers.isEmpty()) {
             elementDefaults.put(elt, qualifiers);
             return qualifiers;
         } else {
