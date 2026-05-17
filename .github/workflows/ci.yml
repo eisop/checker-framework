@@ -27,22 +27,25 @@ env:
 jobs:
   # Basic sanity tests on the primary JDK.
   sanity:
-    name: ${{ matrix.script }} on JDK ${{ env.PRIMARY_JDK }}
+    name: ${{ matrix.script }} on JDK ${{ matrix.java_version }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         script: ['cftests-junit', 'cftests-nonjunit']
+        # env.PRIMARY_JDK is not available in strategy.matrix or in
+        # jobs.<id>.name / jobs.<id>.env, so the primary JDK is repeated here.
+        java_version: [21]
     env:
-      JAVA_VERSION: ${{ env.PRIMARY_JDK }}
+      JAVA_VERSION: ${{ matrix.java_version }}
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up JDK ${{ env.PRIMARY_JDK }}
+      - name: Set up JDK ${{ matrix.java_version }}
         uses: actions/setup-java@v5
         with:
-          java-version: ${{ env.PRIMARY_JDK }}
+          java-version: ${{ matrix.java_version }}
           distribution: 'zulu'
           # Caching handled by gradle/actions/setup-gradle below.
 
@@ -67,7 +70,7 @@ jobs:
 
   # Remaining tests on the primary JDK. Runs in parallel with `sanity` for throughput.
   remainder:
-    name: ${{ matrix.script }} on JDK ${{ env.PRIMARY_JDK }}
+    name: ${{ matrix.script }} on JDK ${{ matrix.java_version }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     strategy:
@@ -84,8 +87,10 @@ jobs:
           - 'jspecify-conformance'
           - 'jspecify-reference-checker'
           - 'misc'
+        # Keep in sync with env.PRIMARY_JDK.
+        java_version: [21]
     env:
-      JAVA_VERSION: ${{ env.PRIMARY_JDK }}
+      JAVA_VERSION: ${{ matrix.java_version }}
     steps:
       # `misc` runs `ci-diff` which needs full history; everything else is shallow.
       - uses: actions/checkout@v6
@@ -97,10 +102,10 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Set up JDK ${{ env.PRIMARY_JDK }}
+      - name: Set up JDK ${{ matrix.java_version }}
         uses: actions/setup-java@v5
         with:
-          java-version: ${{ env.PRIMARY_JDK }}
+          java-version: ${{ matrix.java_version }}
           distribution: 'zulu'
 
       - name: Setup Gradle
@@ -244,7 +249,7 @@ jobs:
 
   # Sanity tests on Windows and macOS.
   otheros:
-    name: ${{ matrix.script }} on JDK ${{ env.PRIMARY_JDK }} on ${{ matrix.os }}
+    name: ${{ matrix.script }} on JDK ${{ matrix.java_version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     needs: sanity
@@ -253,15 +258,16 @@ jobs:
       matrix:
         os: ['windows-latest', 'macos-latest']
         script: ['cftests-junit']
+        java_version: [21]
     env:
-      JAVA_VERSION: ${{ env.PRIMARY_JDK }}
+      JAVA_VERSION: ${{ matrix.java_version }}
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up JDK ${{ env.PRIMARY_JDK }}
+      - name: Set up JDK ${{ matrix.java_version }}
         uses: actions/setup-java@v5
         with:
-          java-version: ${{ env.PRIMARY_JDK }}
+          java-version: ${{ matrix.java_version }}
           distribution: 'zulu'
 
       - name: Setup Gradle
