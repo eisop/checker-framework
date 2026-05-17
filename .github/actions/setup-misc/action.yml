@@ -1,0 +1,70 @@
+name: 'Set up misc test dependencies'
+description: >-
+  Installs the apt and pip dependencies required by the `misc` test script,
+  caching downloaded apt packages and pip downloads so subsequent runs avoid
+  re-downloading the large texlive packages.
+
+runs:
+  using: composite
+  steps:
+    - name: Restore apt download cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/apt-archives
+        # Cache invalidates when this file (the package list) changes.
+        key: apt-misc-v1-${{ runner.os }}-${{ hashFiles('.github/actions/setup-misc/action.yml') }}
+        restore-keys: |
+          apt-misc-v1-${{ runner.os }}-
+
+    - name: Install apt packages
+      shell: bash
+      run: |
+        # apt needs both the cache dir and its `partial/` subdir to exist.
+        mkdir -p ~/.cache/apt-archives/partial
+        sudo apt-get update
+        sudo apt-get install -y --fix-missing \
+          -o Dir::Cache::Archives="$HOME/.cache/apt-archives" \
+          asciidoctor \
+          autoconf \
+          devscripts \
+          dia \
+          hevea \
+          latexmk \
+          libasound2-dev \
+          libcups2-dev \
+          libfontconfig1-dev \
+          librsvg2-bin \
+          libx11-dev \
+          libxext-dev \
+          libxrandr-dev \
+          libxrender-dev \
+          libxt-dev \
+          libxtst-dev \
+          pdf2svg \
+          python3-pip \
+          rsync \
+          shellcheck \
+          shfmt \
+          texlive-base \
+          texlive-font-utils \
+          texlive-fonts-recommended \
+          texlive-latex-base \
+          texlive-latex-extra \
+          texlive-latex-recommended
+        # `sudo apt-get` creates root-owned lock and partial/ files in the
+        # cache dir, which would block actions/cache from saving it.
+        sudo chown -R "$USER" ~/.cache/apt-archives
+
+    - name: Restore pip download cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: pip-misc-v1-${{ runner.os }}
+        restore-keys: |
+          pip-misc-v1-${{ runner.os }}-
+
+    - name: Install Python tools
+      shell: bash
+      # PEP 668: Ubuntu 24.04's system Python is externally-managed.
+      # `--break-system-packages` is the documented escape hatch for CI.
+      run: pip install --break-system-packages black flake8 html5validator
