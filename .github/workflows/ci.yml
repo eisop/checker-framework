@@ -49,6 +49,11 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6.1.0
+        with:
+          # Allow cache writes on PR runs so subsequent reruns on the same PR
+          # restore the previous run's Gradle home instead of rebuilding from
+          # scratch.
+          cache-read-only: false
 
       - name: Setup Bazel
         if: ${{ matrix.script == 'cftests-nonjunit' }}
@@ -61,13 +66,10 @@ jobs:
       - name: Run test script checker/bin-devel/test-${{ matrix.script }}
         run: ./checker/bin-devel/test-${{ matrix.script }}.sh
 
-  # Remaining tests on the primary JDK. Runs in parallel with `sanity`.
+  # Remaining tests on the primary JDK. Runs in parallel with `sanity` for throughput.
   remainder:
     name: ${{ matrix.script }} on JDK ${{ matrix.java_version }}
     runs-on: ubuntu-24.04
-    # Don't depend on sanity jobs, to have more parallelism.
-    # TODO: cancel these jobs if sanity fails.
-    # needs: sanity
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -105,6 +107,8 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6.1.0
+        with:
+          cache-read-only: false
 
       - name: Set up misc test dependencies
         if: ${{ matrix.script == 'misc' }}
@@ -116,7 +120,6 @@ jobs:
   otherjdks:
     name: ${{ matrix.script }} on JDK ${{ matrix.java.version }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
     needs: [sanity, remainder]
     env:
       JAVA_VERSION: ${{ matrix.java.version }}
@@ -173,10 +176,16 @@ jobs:
           - {script: 'daikon-part2', java: {version: '17', experimental: false}}
     continue-on-error: ${{ matrix.java.experimental }}
     steps:
-      - name: Check out sources
+      - name: Check out sources (full history for misc)
         uses: actions/checkout@v6
+        if: ${{ matrix.script == 'misc' }}
         with:
-          fetch-depth: ${{ matrix.script == 'misc' && 0 || 1 }}
+          fetch-depth: 0
+      - name: Check out sources (shallow)
+        uses: actions/checkout@v6
+        if: ${{ matrix.script != 'misc' }}
+        with:
+          fetch-depth: 1
 
       - name: Set up JDK ${{ env.PRIMARY_JDK }} for Gradle to run on
         uses: actions/setup-java@v5
@@ -210,6 +219,8 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6.1.0
+        with:
+          cache-read-only: false
 
       - name: Set up misc test dependencies
         if: ${{ matrix.script == 'misc' }}
@@ -258,6 +269,8 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6.1.0
+        with:
+          cache-read-only: false
 
       - name: Install coreutils on macOS
         if: ${{ matrix.os == 'macos-latest' }}
@@ -270,4 +283,3 @@ jobs:
       - name: Run test script checker/bin-devel/test-${{ matrix.script }}
         shell: bash
         run: ./checker/bin-devel/test-${{ matrix.script }}.sh
-
