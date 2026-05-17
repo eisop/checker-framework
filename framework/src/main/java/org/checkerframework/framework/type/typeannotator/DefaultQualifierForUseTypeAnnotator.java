@@ -6,6 +6,7 @@ import org.checkerframework.framework.qual.NoDefaultQualifierForUse;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
+import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
@@ -77,29 +78,29 @@ public class DefaultQualifierForUseTypeAnnotator extends TypeAnnotator {
      * @return the set of qualifiers that should be applied to unannotated uses of {@code element}
      */
     protected AnnotationMirrorSet getDefaultAnnosForUses(Element element) {
-        if (atypeFactory.shouldCache && elementToDefaults.containsKey(element)) {
-            return elementToDefaults.get(element);
+        if (atypeFactory.shouldCache) {
+            AnnotationMirrorSet cached = elementToDefaults.get(element);
+            if (cached != null) {
+                return cached;
+            }
         }
         AnnotationMirrorSet explictAnnos = getExplicitAnnos(element);
         AnnotationMirrorSet defaultAnnos = getDefaultQualifierForUses(element);
         AnnotationMirrorSet noDefaultAnnos = getHierarchiesNoDefault(element);
         AnnotationMirrorSet annosToApply = new AnnotationMirrorSet();
 
-        for (AnnotationMirror top : atypeFactory.getQualifierHierarchy().getTopAnnotations()) {
+        QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
+        for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
             if (AnnotationUtils.containsSame(noDefaultAnnos, top)) {
                 continue;
             }
             AnnotationMirror defaultAnno =
-                    atypeFactory
-                            .getQualifierHierarchy()
-                            .findAnnotationInHierarchy(defaultAnnos, top);
+                    qualHierarchy.findAnnotationInHierarchy(defaultAnnos, top);
             if (defaultAnno != null) {
                 annosToApply.add(defaultAnno);
             } else {
                 AnnotationMirror explict =
-                        atypeFactory
-                                .getQualifierHierarchy()
-                                .findAnnotationInHierarchy(explictAnnos, top);
+                        qualHierarchy.findAnnotationInHierarchy(explictAnnos, top);
                 if (explict != null) {
                     annosToApply.add(explict);
                 }
