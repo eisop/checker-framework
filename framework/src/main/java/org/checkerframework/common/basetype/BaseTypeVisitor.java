@@ -308,6 +308,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     protected final Map<@CanonicalName String, List<TypeUseLocation>> qualAllowedLocations;
 
     /**
+     * True iff no supported qualifier is meta-annotated with {@link
+     * org.checkerframework.framework.qual.TargetLocations}. When true, target-location validation
+     * has nothing to do for any annotation and can be skipped entirely. Set in the constructor
+     * after {@link #createQualAllowedLocations()} is called.
+     */
+    protected final boolean noQualHasTargetLocations;
+
+    /**
      * The number of seconds that typechecking must take for a single tree, to issue a "slow
      * typechecking" warning; default 45.
      */
@@ -361,6 +369,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         warnRedundantAnnotations = checker.hasOption("warnRedundantAnnotations");
         ignoreTargetLocations = checker.hasOption("ignoreTargetLocations");
         qualAllowedLocations = createQualAllowedLocations();
+        boolean anyHas = false;
+        for (List<TypeUseLocation> locs : qualAllowedLocations.values()) {
+            if (locs != null) {
+                anyHas = true;
+                break;
+            }
+        }
+        noQualHasTargetLocations = !anyHas;
         checkEnclosingExpr = checker.hasOption("checkEnclosingExpr");
 
         boolean ajavaChecksOptions = checker.hasOption("ajavaChecks");
@@ -432,13 +448,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
         try {
             return (Factory) new BaseAnnotatedTypeFactory(checker);
-        } catch (Throwable t) {
+        } catch (Exception e) {
             throw new BugInCF(
                     "Unexpected "
-                            + t.getClass().getSimpleName()
+                            + e.getClass().getSimpleName()
                             + " when invoking BaseAnnotatedTypeFactory for checker "
                             + checker.getClass().getSimpleName(),
-                    t);
+                    e);
         }
     }
 
@@ -677,7 +693,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param startMillis the time when type-checking of {@code tree} began
      */
     private final void checkSlowTypechecking(
-            Tree tree, @FindDistinct Tree startSlowTypeCheckingTree, Long startMillis) {
+            Tree tree, @FindDistinct Tree startSlowTypeCheckingTree, long startMillis) {
         if (startSlowTypeCheckingTree == slowTypecheckingTree) {
             long timeMillis = System.currentTimeMillis() - startMillis;
             if (timeMillis > slowTypecheckingSeconds * 1000) {
@@ -1822,7 +1838,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param type the type of the tree
      */
     protected void validateVariablesTargetLocation(Tree tree, AnnotatedTypeMirror type) {
-        if (ignoreTargetLocations) {
+        if (ignoreTargetLocations || noQualHasTargetLocations) {
             return;
         }
         Element element = TreeUtils.elementFromTree(tree);
@@ -1897,7 +1913,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     protected void validateTargetLocation(
             Tree tree, AnnotatedTypeMirror type, TypeUseLocation required) {
-        if (ignoreTargetLocations) {
+        if (ignoreTargetLocations || noQualHasTargetLocations) {
             return;
         }
         for (AnnotationMirror am : type.getAnnotations()) {
@@ -3209,12 +3225,17 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * If the given Java basetype is not relevant, report an "anno.on.irrelevant" if it is
      * annotated. This method does not necessarily issue an error, but it might.
      *
-     * @param errorLocation where to repor the error
+     * @param errorLocation where to report the error
      * @param type the Java basetype
      * @param annos the annotation on the type
      */
     private void maybeReportAnnoOnIrrelevant(
             Tree errorLocation, TypeMirror type, List<? extends AnnotationTree> annos) {
+        // Most trees carry no explicit annotations; skip before allocating the supportedAnnoTrees
+        // result list.
+        if (annos == null || annos.isEmpty()) {
+            return;
+        }
         List<AnnotationTree> supportedAnnoTrees = supportedAnnoTrees(annos);
         if (!supportedAnnoTrees.isEmpty() && !atypeFactory.isRelevant(type)) {
             String extraInfo = atypeFactory.irrelevantExtraMessage();
@@ -5252,6 +5273,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             Element field,
             @Nullable AnnotatedTypeMirror receiverType,
             @FindDistinct ExpressionTree accessTree) {
+        // @Unused is conditioned on the type qualifier of the receiver, so a static field (which
+        // has no receiver) cannot trigger an access violation.
+        if (receiverType == null) {
+            return;
+        }
         AnnotationMirror unused = atypeFactory.getDeclAnnotation(field, Unused.class);
         if (unused == null) {
             return;

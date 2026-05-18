@@ -700,10 +700,16 @@ public class QualifierDefaults {
         if (elt.getKind() == ElementKind.PACKAGE) {
             Element parent = ElementUtils.parentPackage((PackageElement) elt, elements);
             DefaultSet origParentDefaults = defaultsAt(parent);
-            parentDefaults = new DefaultSet();
-            for (Default d : origParentDefaults) {
-                if (d.applyToSubpackages) {
-                    parentDefaults.add(d);
+            if (origParentDefaults.isEmpty()) {
+                // Nothing to filter; reuse the empty set rather than allocating one to copy
+                // zero elements into. Common case: no @DefaultQualifier anywhere in the chain.
+                parentDefaults = origParentDefaults;
+            } else {
+                parentDefaults = new DefaultSet();
+                for (Default d : origParentDefaults) {
+                    if (d.applyToSubpackages) {
+                        parentDefaults.add(d);
+                    }
                 }
             }
         } else {
@@ -718,20 +724,16 @@ public class QualifierDefaults {
             qualifiers.addAll(parentDefaults);
         }
 
-        /* TODO: it would seem more efficient to also cache null/empty as the result.
-         * However, doing so causes KeyFor tests to fail.
-               if (qualifiers == null) {
-                   qualifiers = DefaultSet.EMPTY;
-               }
-
-               elementDefaults.put(elt, qualifiers);
-               return qualifiers;
-        */
-        if (qualifiers != null && !qualifiers.isEmpty()) {
+        if (!qualifiers.isEmpty()) {
             elementDefaults.put(elt, qualifiers);
             return qualifiers;
         } else {
-            return DefaultSet.EMPTY;
+            // Cache a per-element fresh empty DefaultSet (not the shared DefaultSet.EMPTY) so
+            // subsequent calls for this element short-circuit on the cache lookup instead of
+            // re-walking the entire enclosing-element chain.
+            DefaultSet emptyForElt = new DefaultSet();
+            elementDefaults.put(elt, emptyForElt);
+            return emptyForElt;
         }
     }
 
@@ -749,12 +751,9 @@ public class QualifierDefaults {
         AnnotationMirror dqAnno = atypeFactory.getDeclAnnotation(elt, DefaultQualifier.class);
 
         if (dqAnno != null) {
-            Set<Default> p = fromDefaultQualifier(dqAnno);
-
-            if (p != null) {
-                qualifiers = new DefaultSet();
-                qualifiers.addAll(p);
-            }
+            // fromDefaultQualifier allocates a fresh DefaultSet (or returns null), so take
+            // ownership directly rather than allocating a second DefaultSet and copying.
+            qualifiers = fromDefaultQualifier(dqAnno);
         }
 
         // Handle DefaultQualifier.List
@@ -787,6 +786,12 @@ public class QualifierDefaults {
      */
     public boolean applyConservativeDefaults(Element annotationScope) {
         if (annotationScope == null) {
+            return false;
+        }
+
+        // Fast path: every branch below that can return true requires at least one of these flags
+        // to be set. When both are false, this method is provably a constant `false`.
+        if (!useConservativeDefaultsBytecode && !useConservativeDefaultsSource) {
             return false;
         }
 
