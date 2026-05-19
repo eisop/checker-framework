@@ -1987,6 +1987,11 @@ It will not be used automatically; a user must pass the
 While creating a stub file, you may find the debugging options described in
 Section~\ref{stub-troubleshooting} useful.
 
+\item
+  If you want to use an external annotated JDK .jar file, you can specify it when you run the checker:
+  \begin{Verbatim}
+    javac -J-Dchecker.annotated.jdk.jar=/path/to/annotated-jdk.jar -processor <YourChecker>  ...
+  \end{Verbatim}
 \end{itemize}
 
 
