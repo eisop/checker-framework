@@ -135,6 +135,7 @@ public class CheckerMain {
      * Construct all the relevant file locations and Java version given the path to this jar and a
      * set of directories in which to search for jars.
      */
+    @SuppressWarnings("this-escape")
     public CheckerMain(File checkerJar, List<String> args) {
 
         this.checkerJar = checkerJar;
@@ -589,14 +590,17 @@ public class CheckerMain {
             String errorMessage = null;
 
             try {
-                @SuppressWarnings("builder:required.method.not.called") // called when needed
+                @SuppressWarnings({
+                    "builder:required.method.not.called", // called when needed
+                    "JdkObsolete"
+                })
                 PrintWriter writer =
                         (outputFilename.equals("-")
                                 ? new PrintWriter(
                                         new BufferedWriter(
                                                 new OutputStreamWriter(
                                                         System.out, StandardCharsets.UTF_8)))
-                                : new PrintWriter(outputFilename, "UTF-8"));
+                                : new PrintWriter(outputFilename, StandardCharsets.UTF_8.name()));
                 for (int i = 0; i < args.size(); i++) {
                     String arg = args.get(i);
 
@@ -743,6 +747,7 @@ public class CheckerMain {
         }
 
         try {
+            @SuppressWarnings("JdkObsolete")
             String fileName =
                     URLDecoder.decode(
                             uri.substring("jar:file:".length(), idx),

@@ -79,6 +79,7 @@ public class I18nFormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory 
     protected final I18nFormatterTreeUtil treeUtil = new I18nFormatterTreeUtil(checker);
 
     /** Create a new I18nFormatterAnnotatedTypeFactory. */
+    @SuppressWarnings("this-escape")
     public I18nFormatterAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
 
@@ -177,7 +178,7 @@ public class I18nFormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory 
     }
 
     private class I18nFormatterTreeAnnotator extends TreeAnnotator {
-        public I18nFormatterTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        I18nFormatterTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
 
@@ -225,7 +226,7 @@ public class I18nFormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory 
         public I18nFormatterQualifierHierarchy() {
             super(
                     I18nFormatterAnnotatedTypeFactory.this.getSupportedTypeQualifiers(),
-                    elements,
+                    I18nFormatterAnnotatedTypeFactory.this.elements,
                     I18nFormatterAnnotatedTypeFactory.this);
             this.I18NFORMAT_KIND = this.getQualifierKind(I18NFORMAT_NAME);
             this.I18NFORMATFOR_KIND = this.getQualifierKind(I18NFORMATFOR_NAME);

@@ -7,6 +7,7 @@ import com.sun.source.tree.AnnotatedTypeTree;
 import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.ArrayTypeTree;
 import com.sun.source.tree.AssignmentTree;
+import com.sun.source.tree.BlockTree;
 import com.sun.source.tree.CatchTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
@@ -31,7 +32,6 @@ import com.sun.source.tree.ParameterizedTypeTree;
 import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.ThrowTree;
 import com.sun.source.tree.Tree;
-import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.UnaryTree;
@@ -308,7 +308,27 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     protected final Map<@CanonicalName String, List<TypeUseLocation>> qualAllowedLocations;
 
     /**
-     * Constructor for creating a BaseTypeVisitor.
+     * True iff no supported qualifier is meta-annotated with {@link
+     * org.checkerframework.framework.qual.TargetLocations}. When true, target-location validation
+     * has nothing to do for any annotation and can be skipped entirely. Set in the constructor
+     * after {@link #createQualAllowedLocations()} is called.
+     */
+    protected final boolean noQualHasTargetLocations;
+
+    /**
+     * The number of seconds that typechecking must take for a single tree, to issue a "slow
+     * typechecking" warning; default 45.
+     */
+    protected final long slowTypecheckingSeconds;
+
+    /**
+     * The tree of the most recent "slow typechecking" warning. This is used to avoid warning about
+     * both a subtree and a supertree.
+     */
+    protected @Nullable Tree slowTypecheckingTree = null;
+
+    /**
+     * Create a new BaseTypeChecker.
      *
      * @param checker the type-checker associated with this visitor (for callbacks to {@link
      *     TypeHierarchy#isSubtype})
@@ -323,6 +343,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param checker the type-checker associated with this visitor
      * @param typeFactory the type factory, or null. If null, this calls {@link #createTypeFactory}.
      */
+    @SuppressWarnings("this-escape")
     protected BaseTypeVisitor(BaseTypeChecker checker, @Nullable Factory typeFactory) {
         super(checker);
 
@@ -348,9 +369,26 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         warnRedundantAnnotations = checker.hasOption("warnRedundantAnnotations");
         ignoreTargetLocations = checker.hasOption("ignoreTargetLocations");
         qualAllowedLocations = createQualAllowedLocations();
-
+        boolean anyHas = false;
+        for (List<TypeUseLocation> locs : qualAllowedLocations.values()) {
+            if (locs != null) {
+                anyHas = true;
+                break;
+            }
+        }
+        noQualHasTargetLocations = !anyHas;
         checkEnclosingExpr = checker.hasOption("checkEnclosingExpr");
-        ajavaChecks = checker.hasOption("ajavaChecks");
+
+        boolean ajavaChecksOptions = checker.hasOption("ajavaChecks");
+        if (ajavaChecksOptions) {
+            // TODO: Make annotation insertion work for Java 21.
+            String release = SystemUtil.getReleaseValue(env);
+            release = release != null ? release : String.valueOf(SystemUtil.jreVersion);
+            ajavaChecks = Integer.valueOf(release) < 21;
+        } else {
+            ajavaChecks = false;
+        }
+
         assumeSideEffectFree =
                 checker.hasOption("assumeSideEffectFree") || checker.hasOption("assumePure");
         assumeDeterministic =
@@ -360,6 +398,16 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         lintCastRedundantEnabled = checker.getLintOption("cast:redundant", false);
         lintCastUnsafeEnabled = checker.getLintOption("cast:unsafe", true);
         lintInstanceofUnsafeEnabled = checker.getLintOption("instanceof:unsafe", true);
+
+        // This construct is because `slowTypecheckingSeconds` is a final variable.
+        long slowTypecheckingSecondsOption;
+        try {
+            slowTypecheckingSecondsOption =
+                    Integer.parseInt(checker.getOption("slowTypecheckingSeconds", "45"));
+        } catch (NumberFormatException e) {
+            slowTypecheckingSecondsOption = 45;
+        }
+        slowTypecheckingSeconds = slowTypecheckingSecondsOption;
     }
 
     /** An array containing just {@code BaseTypeChecker.class}. */
@@ -400,13 +448,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
         try {
             return (Factory) new BaseAnnotatedTypeFactory(checker);
-        } catch (Throwable t) {
+        } catch (Exception e) {
             throw new BugInCF(
                     "Unexpected "
-                            + t.getClass().getSimpleName()
+                            + e.getClass().getSimpleName()
                             + " when invoking BaseAnnotatedTypeFactory for checker "
                             + checker.getClass().getSimpleName(),
-                    t);
+                    e);
         }
     }
 
@@ -435,6 +483,23 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         testAnnotationInsertion();
     }
 
+    /**
+     * The {@code Tree.Kind.SWITCH_EXPRESSION} constant if it exists at runtime (JDK 14+), otherwise
+     * {@code null}.
+     */
+    private static final Tree.@Nullable Kind SWITCH_EXPRESSION_KIND;
+
+    static {
+        Tree.Kind k;
+        try {
+            k = Tree.Kind.valueOf("SWITCH_EXPRESSION");
+        } catch (IllegalArgumentException e) {
+            // Running on a JDK that does not have switch expressions.
+            k = null;
+        }
+        SWITCH_EXPRESSION_KIND = k;
+    }
+
     @Override
     public Void scan(@Nullable Tree tree, Void p) {
         if (tree == null) {
@@ -443,8 +508,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         if (getCurrentPath() != null) {
             this.atypeFactory.setVisitorTreePath(new TreePath(getCurrentPath(), tree));
         }
-        // TODO: use JCP to add version-specific behavior
-        if (SystemUtil.jreVersion >= 14 && tree.getKind().name().equals("SWITCH_EXPRESSION")) {
+        if (SWITCH_EXPRESSION_KIND != null && tree.getKind() == SWITCH_EXPRESSION_KIND) {
             visitSwitchExpression17(tree);
             return null;
         }
@@ -461,11 +525,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * <p>Subclasses may override this method to disable the test if even the option is provided.
      */
     protected void testJointJavacJavaParserVisitor() {
-        if (root == null
-                || !ajavaChecks
-                // TODO: Make annotation insertion work for Java 21.
-                || root.getSourceFile().toUri().toString().contains("java21")
-                || root.getSourceFile().toUri().toString().contains("java22")) {
+        if (root == null || !ajavaChecks) {
             return;
         }
 
@@ -484,11 +544,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             expectedTreesVisitor.visitCompilationUnit(root, null);
             for (Tree expected : expectedTreesVisitor.getTrees()) {
                 if (!treePairs.containsKey(expected)) {
+                    @SuppressWarnings("removal") // TODO: encapsulate methods
+                    long startpos = positions.getStartPosition(root, expected);
                     throw new BugInCF(
                             "Javac tree not matched to JavaParser node: %s [%s @ %d], in file: %s",
                             expected,
                             expected.getClass(),
-                            positions.getStartPosition(root, expected),
+                            startpos,
                             root.getSourceFile().getName());
                 }
             }
@@ -511,11 +573,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * <p>Subclasses may override this method to disable the test even if the option is provided.
      */
     protected void testAnnotationInsertion() {
-        if (root == null
-                || !ajavaChecks
-                // TODO: Make annotation insertion work for Java 21.
-                || root.getSourceFile().toUri().toString().contains("java21")
-                || root.getSourceFile().toUri().toString().contains("java22")) {
+        if (root == null || !ajavaChecks) {
             return;
         }
 
@@ -585,37 +643,75 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Type-check classTree and skips classes specified by the skipDef option. Subclasses should
-     * override {@link #processClassTree(ClassTree)} instead of this method.
+     * Type-check tree and skips classes specified by the skipDef option. Subclasses should override
+     * {@link #processClassTree(ClassTree)} instead of this method.
      *
-     * @param classTree class to check
+     * @param tree class to check
      * @param p null
      * @return null
      */
     @Override
-    public final Void visitClass(ClassTree classTree, Void p) {
-        if (checker.shouldSkipDefs(classTree) || checker.shouldSkipFiles(classTree)) {
-            // Not "return super.visitClass(classTree, p);" because that would recursively call
+    public final Void visitClass(ClassTree tree, Void p) {
+        if (checker.shouldSkipDefs(tree) || checker.shouldSkipFiles(tree)) {
+            // Not "return super.visitClass(tree, p);" because that would recursively call
             // visitors on subtrees; we want to skip the class entirely.
             return null;
         }
-        atypeFactory.preProcessClassTree(classTree);
+
+        // boilerplate
+        long startMillis = System.currentTimeMillis();
+        Tree startSlowTypeCheckingTree = slowTypecheckingTree;
+
+        atypeFactory.preProcessClassTree(tree);
 
         TreePath preTreePath = atypeFactory.getVisitorTreePath();
         MethodTree preMT = methodTree;
 
         // Don't use atypeFactory.getPath, because that depends on the visitor path.
-        atypeFactory.setVisitorTreePath(TreePath.getPath(root, classTree));
+        atypeFactory.setVisitorTreePath(TreePath.getPath(root, tree));
         methodTree = null;
 
         try {
-            processClassTree(classTree);
-            atypeFactory.postProcessClassTree(classTree);
+            processClassTree(tree);
+            atypeFactory.postProcessClassTree(tree);
         } finally {
             atypeFactory.setVisitorTreePath(preTreePath);
             methodTree = preMT;
         }
+
+        checkSlowTypechecking(tree, startSlowTypeCheckingTree, startMillis);
+
         return null;
+    }
+
+    /**
+     * Issue a warning if type-checking took too long.
+     *
+     * @param tree the tree being type-checked
+     * @param startSlowTypeCheckingTree the value of {@link #slowTypecheckingTree}, when
+     *     type-checking of {@code tree} began
+     * @param startMillis the time when type-checking of {@code tree} began
+     */
+    private final void checkSlowTypechecking(
+            Tree tree, @FindDistinct Tree startSlowTypeCheckingTree, long startMillis) {
+        if (startSlowTypeCheckingTree == slowTypecheckingTree) {
+            long timeMillis = System.currentTimeMillis() - startMillis;
+            if (timeMillis > slowTypecheckingSeconds * 1000) {
+                // No warning for extremely long source code.
+                // Use end-position - start-position as a cheap proxy for tree size, instead
+                // of materializing tree.toString().
+                @SuppressWarnings("removal") // TODO: encapsulate methods
+                long startPos = positions.getStartPosition(root, tree);
+                @SuppressWarnings("removal") // TODO: encapsulate methods
+                long endPos = positions.getEndPosition(root, tree);
+                if (startPos != javax.tools.Diagnostic.NOPOS
+                        && endPos != javax.tools.Diagnostic.NOPOS
+                        && (endPos - startPos) < 200000) {
+                    checker.reportWarning(tree, "slow.typechecking", timeMillis / 1000);
+                }
+                slowTypecheckingTree = tree;
+            }
+        }
     }
 
     /**
@@ -776,7 +872,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         for (Tree mem : classTree.getMembers()) {
-            if (mem.getKind() == Tree.Kind.VARIABLE) {
+            if (mem instanceof VariableTree) {
                 AnnotatedTypeMirror fieldType = atypeFactory.getAnnotatedType(mem);
                 List<DiagMessage> hasInvalidPoly;
                 if (ElementUtils.isStatic(TreeUtils.elementFromDeclaration((VariableTree) mem))) {
@@ -1066,6 +1162,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param tree the method to type-check
      */
     public void processMethodTree(String className, MethodTree tree) {
+        // boilerplate
+        long startMillis = System.currentTimeMillis();
+        Tree startSlowTypeCheckingTree = slowTypecheckingTree;
+
         // We copy the result from getAnnotatedType to ensure that circular types (e.g. K extends
         // Comparable<K>) are represented by circular AnnotatedTypeMirrors, which avoids problems
         // with later checks.
@@ -1166,6 +1266,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         } finally {
             methodTree = preMT;
         }
+
+        checkSlowTypechecking(tree, startSlowTypeCheckingTree, startMillis);
     }
 
     /* NO-AFU
@@ -1195,7 +1297,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return;
         }
 
-        if (!suggestPureMethods && !PurityUtils.hasPurityAnnotation(atypeFactory, tree)) {
+        boolean hasPurityAnno = PurityUtils.hasPurityAnnotation(atypeFactory, tree);
+        if (!suggestPureMethods && !hasPurityAnno) {
             // There is nothing to check.
             return;
         }
@@ -1204,11 +1307,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             checker.reportWarning(tree, "purity.effectively.pure", tree.getName());
         }
 
-        // `body` is lazily assigned.
-        TreePath body = null;
-        boolean bodyAssigned = false;
-
-        if (suggestPureMethods || PurityUtils.hasPurityAnnotation(atypeFactory, tree)) {
+        if (suggestPureMethods || hasPurityAnno) {
             // check "no" purity
             EnumSet<Pure.Kind> kinds = PurityUtils.getPurityKinds(atypeFactory, tree);
             // @Deterministic makes no sense for a void method or constructor
@@ -1221,8 +1320,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 }
             }
 
-            body = atypeFactory.getPath(tree.getBody());
-            bodyAssigned = true;
+            TreePath body = atypeFactory.getPath(tree.getBody());
             PurityResult r;
             if (body == null) {
                 r = new PurityResult();
@@ -1281,15 +1379,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 }
             }
         }
-
-        // There will be code here that *may* use `body` (and may set `body` before using it).
-        // The below is just a placeholder so `bodyAssigned` is not a dead variable.
-        // ...
-        if (!bodyAssigned) {
-            body = atypeFactory.getPath(tree.getBody());
-            bodyAssigned = true;
-        }
-        // ...
     }
 
     /**
@@ -1407,7 +1496,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         @SuppressWarnings("compilermessages")
         @CompilerMessageKey String msgKey = msgKeyPrefix + reason;
         if (reason.equals("call")) {
-            if (r.first.getKind() == Tree.Kind.METHOD_INVOCATION) {
+            if (r.first instanceof MethodInvocationTree) {
                 MethodInvocationTree mitree = (MethodInvocationTree) r.first;
                 checker.reportError(r.first, msgKey, mitree.getMethodSelect());
             } else {
@@ -1493,23 +1582,26 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 }
             }
 
-            if (formalParamNames != null && formalParamNames.contains(expressionString)) {
-                String locationOfExpression =
-                        contract.kind.errorKey
-                                + " "
-                                + contract.contractAnnotation
-                                        .getAnnotationType()
-                                        .asElement()
-                                        .getSimpleName()
-                                + " on the declaration";
-                checker.reportWarning(
-                        methodTree,
-                        "expression.parameter.name.shadows.field",
-                        locationOfExpression,
-                        methodTree.getName().toString(),
-                        expressionString,
-                        expressionString,
-                        formalParamNames.indexOf(expressionString) + 1);
+            if (formalParamNames != null) {
+                int paramIdx = formalParamNames.indexOf(expressionString);
+                if (paramIdx >= 0) {
+                    String locationOfExpression =
+                            contract.kind.errorKey
+                                    + " "
+                                    + contract.contractAnnotation
+                                            .getAnnotationType()
+                                            .asElement()
+                                            .getSimpleName()
+                                    + " on the declaration";
+                    checker.reportWarning(
+                            methodTree,
+                            "expression.parameter.name.shadows.field",
+                            locationOfExpression,
+                            methodTree.getName().toString(),
+                            expressionString,
+                            expressionString,
+                            paramIdx + 1);
+                }
             }
 
             checkParametersAreEffectivelyFinal(methodTree, exprJe);
@@ -1699,7 +1791,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     protected void checkExplicitAnnotationsOnIntersectionBounds(
             AnnotatedIntersectionType intersection, List<? extends Tree> boundTrees) {
         for (Tree boundTree : boundTrees) {
-            if (boundTree.getKind() != Tree.Kind.ANNOTATED_TYPE) {
+            if (!(boundTree instanceof AnnotatedTypeTree)) {
                 continue;
             }
             List<? extends AnnotationMirror> explictAnnos =
@@ -1727,6 +1819,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     @Override
     public Void visitVariable(VariableTree tree, Void p) {
+        // boilerplate
+        long startMillis = System.currentTimeMillis();
+        Tree startSlowTypeCheckingTree = slowTypecheckingTree;
+
         warnAboutTypeAnnotationsTooEarly(tree, tree.getModifiers());
 
         // VariableTree#getType returns null for binding variables from a DeconstructionPatternTree.
@@ -1757,7 +1853,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
         validateVariablesTargetLocation(tree, variableType);
         warnRedundantAnnotations(tree, variableType);
-        return super.visitVariable(tree, p);
+        Void result = super.visitVariable(tree, p);
+
+        checkSlowTypechecking(tree, startSlowTypeCheckingTree, startMillis);
+
+        return result;
     }
 
     /**
@@ -1770,7 +1870,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param type the type of the tree
      */
     protected void validateVariablesTargetLocation(Tree tree, AnnotatedTypeMirror type) {
-        if (ignoreTargetLocations) {
+        if (ignoreTargetLocations || noQualHasTargetLocations) {
             return;
         }
         Element element = TreeUtils.elementFromTree(tree);
@@ -1845,7 +1945,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     protected void validateTargetLocation(
             Tree tree, AnnotatedTypeMirror type, TypeUseLocation required) {
-        if (ignoreTargetLocations) {
+        if (ignoreTargetLocations || noQualHasTargetLocations) {
             return;
         }
         for (AnnotationMirror am : type.getAnnotations()) {
@@ -1933,7 +2033,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         // This simple code completely igonores enum constants and try-with-resources declarations.
         // It could be made to catch some user errors in those locations, but it doesn't seem worth
         // the effort to do so.
-        if (tree.getKind() == Tree.Kind.VARIABLE) {
+        if (tree instanceof VariableTree) {
             ElementKind varKind = TreeUtils.elementFromDeclaration((VariableTree) tree).getKind();
             switch (varKind) {
                 case ENUM_CONSTANT:
@@ -2061,6 +2161,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     @Override
     public Void visitEnhancedForLoop(EnhancedForLoopTree tree, Void p) {
+        // boilerplate
+        long startMillis = System.currentTimeMillis();
+        Tree startSlowTypeCheckingTree = slowTypecheckingTree;
+
         AnnotatedTypeMirror var = atypeFactory.getAnnotatedTypeLhs(tree.getVariable());
         AnnotatedTypeMirror iteratedType =
                 atypeFactory.getIterableElementType(tree.getExpression());
@@ -2069,7 +2173,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             commonAssignmentCheck(
                     var, iteratedType, tree.getExpression(), "enhancedfor.type.incompatible");
         }
-        return super.visitEnhancedForLoop(tree, p);
+        Void result = super.visitEnhancedForLoop(tree, p);
+
+        checkSlowTypechecking(tree, startSlowTypeCheckingTree, startMillis);
+
+        return result;
     }
 
     /**
@@ -2085,6 +2193,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     @Override
     public Void visitMethodInvocation(MethodInvocationTree tree, Void p) {
+        // boilerplate
+        long startMillis = System.currentTimeMillis();
+        Tree startSlowTypeCheckingTree = slowTypecheckingTree;
 
         // Skip calls to the Enum constructor (they're generated by javac and
         // hard to check), also see CFGBuilder.visitMethodInvocation.
@@ -2097,12 +2208,25 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
         ParameterizedExecutableType preInference =
                 atypeFactory.methodFromUseWithoutTypeArgInference(tree);
-        if (!preInference.executableType.getElement().getTypeParameters().isEmpty()
-                && preInference.typeArgs.isEmpty()) {
+        boolean hasTypeParams =
+                !preInference.executableType.getElement().getTypeParameters().isEmpty();
+        if (hasTypeParams && preInference.typeArgs.isEmpty()) {
             if (!checkTypeArgumentInference(tree, preInference.executableType)) {
                 return null;
             }
         }
+        // Only re-run methodFromUse with inference enabled if the method actually has type
+        // parameters and type arguments were not already supplied.  Otherwise the preInference
+        // result already contains everything methodFromUse(tree, true) would compute, so reuse
+        // it instead of redoing receiver computation, capture conversion, and substitution.
+        // TODO: it would be nicer to avoid calling methodFromUse if there are no type arguments to
+        // infer.
+        // However, currently vararg expansion is tied to type argument inference. Separate the two
+        // concepts cleanly.
+        //        ParameterizedExecutableType mType =
+        //                (hasTypeParams && preInference.typeArgs.isEmpty())
+        //                        ? atypeFactory.methodFromUse(tree)
+        //                        : preInference;
         ParameterizedExecutableType mType = atypeFactory.methodFromUse(tree);
         AnnotatedExecutableType invokedMethod = mType.executableType;
         List<AnnotatedTypeMirror> typeargs = mType.typeArgs;
@@ -2148,6 +2272,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         // Do not call super, as that would observe the arguments without
         // a set assignment context.
         scan(tree.getMethodSelect(), p);
+
+        checkSlowTypechecking(tree, startSlowTypeCheckingTree, startMillis);
+
         return null; // super.visitMethodInvocation(tree, p);
     }
 
@@ -2251,6 +2378,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     protected void checkVarargs(AnnotatedExecutableType invokedMethod, Tree tree) {
         if (!TreeUtils.isVarargsCall(tree)) {
             // If not a varargs invocation, type checking is already done in checkArguments.
+            return;
+        }
+        if (tree instanceof MethodInvocationTree
+                && TreeUtils.isSignaturePolymorphic((MethodInvocationTree) tree)) {
+            // Signature polymorphic methods are type-checked at runtime.
             return;
         }
 
@@ -2487,7 +2619,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         AnnotatedExecutableType functionType = atypeFactory.getFunctionTypeFromTree(tree);
 
-        if (tree.getBody().getKind() != Tree.Kind.BLOCK) {
+        if (!(tree.getBody() instanceof BlockTree)) {
             // Check return type for single statement returns here.
             AnnotatedTypeMirror ret = functionType.getReturnType();
             if (ret.getKind() != TypeKind.VOID) {
@@ -2535,10 +2667,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return super.visitReturn(tree, p);
         }
 
+        // boilerplate
+        long startMillis = System.currentTimeMillis();
+        Tree startSlowTypeCheckingTree = slowTypecheckingTree;
+
         Tree enclosing = TreePathUtil.enclosingOfKind(getCurrentPath(), methodAndLambdaExpression);
 
         AnnotatedTypeMirror declaredReturnType = null;
-        if (enclosing.getKind() == Tree.Kind.METHOD) {
+        if (enclosing instanceof MethodTree) {
             MethodTree enclosingMethod = (MethodTree) enclosing;
             boolean valid = validateTypeOf(enclosingMethod);
             if (valid) {
@@ -2554,7 +2690,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             commonAssignmentCheck(
                     declaredReturnType, tree.getExpression(), "return.type.incompatible");
         }
-        return super.visitReturn(tree, p);
+        Void result = super.visitReturn(tree, p);
+
+        checkSlowTypechecking(tree, startSlowTypeCheckingTree, startMillis);
+
+        return result;
     }
 
     /**
@@ -2600,7 +2740,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 visitAnnotation((AnnotationTree) at.getExpression(), p);
                 continue;
             }
-            if (at.getExpression().getKind() == Tree.Kind.NEW_ARRAY) {
+            if (at.getExpression() instanceof NewArrayTree) {
                 NewArrayTree nat = (NewArrayTree) at.getExpression();
                 boolean isAnno = false;
                 for (ExpressionTree init : nat.getInitializers()) {
@@ -2667,6 +2807,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param switchExpressionTree a {@code SwitchExpressionTree}
      */
     public void visitSwitchExpression17(Tree switchExpressionTree) {
+        // boilerplate
+        long startMillis = System.currentTimeMillis();
+        Tree startSlowTypeCheckingTree = slowTypecheckingTree;
+
         boolean valid = validateTypeOf(switchExpressionTree);
         if (valid) {
             AnnotatedTypeMirror switchType = atypeFactory.getAnnotatedType(switchExpressionTree);
@@ -2684,6 +2828,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             scanner.scanSwitchExpression(switchExpressionTree, null);
         }
         super.scan(switchExpressionTree, null);
+
+        checkSlowTypechecking(switchExpressionTree, startSlowTypeCheckingTree, startMillis);
     }
 
     // **********************************************************************
@@ -2953,7 +3099,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     .checkTypeForErrorExpressions(type, tree.getType());
         }
 
-        if (tree.getType().getKind() == Tree.Kind.INTERSECTION_TYPE) {
+        if (tree.getType() instanceof IntersectionTypeTree) {
             AnnotatedIntersectionType intersection = (AnnotatedIntersectionType) type;
             checkExplicitAnnotationsOnIntersectionBounds(
                     intersection, ((IntersectionTypeTree) tree.getType()).getBounds());
@@ -2987,7 +3133,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         } else {
             Tree refTypeTree = tree.getType();
             validateTypeOf(refTypeTree);
-            if (refTypeTree.getKind() == Tree.Kind.ANNOTATED_TYPE) {
+            if (refTypeTree instanceof AnnotatedTypeTree) {
                 AnnotatedTypeMirror refType = atypeFactory.getAnnotatedType(refTypeTree);
                 AnnotatedTypeMirror expType = atypeFactory.getAnnotatedType(tree.getExpression());
                 if (typeHierarchy.isSubtype(refType, expType)
@@ -3017,8 +3163,16 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     @Override
     public Void visitThrow(ThrowTree tree, Void p) {
+        // boilerplate
+        long startMillis = System.currentTimeMillis();
+        Tree startSlowTypeCheckingTree = slowTypecheckingTree;
+
         checkThrownExpression(tree);
-        return super.visitThrow(tree, p);
+        Void result = super.visitThrow(tree, p);
+
+        checkSlowTypechecking(tree, startSlowTypeCheckingTree, startMillis);
+
+        return result;
     }
 
     /**
@@ -3103,12 +3257,17 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * If the given Java basetype is not relevant, report an "anno.on.irrelevant" if it is
      * annotated. This method does not necessarily issue an error, but it might.
      *
-     * @param errorLocation where to repor the error
+     * @param errorLocation where to report the error
      * @param type the Java basetype
      * @param annos the annotation on the type
      */
     private void maybeReportAnnoOnIrrelevant(
             Tree errorLocation, TypeMirror type, List<? extends AnnotationTree> annos) {
+        // Most trees carry no explicit annotations; skip before allocating the supportedAnnoTrees
+        // result list.
+        if (annos == null || annos.isEmpty()) {
+            return;
+        }
         List<AnnotationTree> supportedAnnoTrees = supportedAnnoTrees(annos);
         if (!supportedAnnoTrees.isEmpty() && !atypeFactory.isRelevant(type)) {
             String extraInfo = atypeFactory.irrelevantExtraMessage();
@@ -3168,6 +3327,22 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     getExceptionParameterLowerBoundAnnotations();
         }
         return getExceptionParameterLowerBoundAnnotationsCache;
+    }
+
+    /** Cache to avoid calling {@link #getThrowUpperBoundAnnotations} more than once. */
+    private @MonotonicNonNull AnnotationMirrorSet getThrowUpperBoundAnnotationsCache;
+
+    /**
+     * Returns a set of AnnotationMirrors that is an upper bound for thrown expressions. The same as
+     * {@link #getThrowUpperBoundAnnotations}, but uses a cache.
+     *
+     * @return a set of AnnotationMirrors that is an upper bound for thrown expressions
+     */
+    private AnnotationMirrorSet getThrowUpperBoundAnnotationsCached() {
+        if (getThrowUpperBoundAnnotationsCache == null) {
+            getThrowUpperBoundAnnotationsCache = getThrowUpperBoundAnnotations();
+        }
+        return getThrowUpperBoundAnnotationsCache;
     }
 
     /**
@@ -3244,7 +3419,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     protected void checkThrownExpression(ThrowTree tree) {
         AnnotatedTypeMirror throwType = atypeFactory.getAnnotatedType(tree.getExpression());
         TypeMirror throwTM = throwType.getUnderlyingType();
-        Set<? extends AnnotationMirror> required = getThrowUpperBoundAnnotations();
+        Set<? extends AnnotationMirror> required = getThrowUpperBoundAnnotationsCached();
         switch (throwType.getKind()) {
             case NULL:
             case DECLARED:
@@ -3311,7 +3486,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             ExpressionTree valueExpTree,
             @CompilerMessageKey String errorKey,
             Object... extraArgs) {
-        if (valueExpTree.getKind() == Kind.CONDITIONAL_EXPRESSION) {
+        if (valueExpTree instanceof ConditionalExpressionTree) {
             ConditionalExpressionTree condExprTree = (ConditionalExpressionTree) valueExpTree;
             boolean trueResult =
                     commonAssignmentCheck(
@@ -3378,8 +3553,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
             return true;
         }
-        if (valueExpTree.getKind() == Tree.Kind.MEMBER_REFERENCE
-                || valueExpTree.getKind() == Tree.Kind.LAMBDA_EXPRESSION) {
+        if (valueExpTree instanceof MemberReferenceTree
+                || valueExpTree instanceof LambdaExpressionTree) {
             // Member references and lambda expressions are type checked separately
             // and do not need to be checked again as arguments.
             if (showchecks) {
@@ -3598,6 +3773,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     private String fileAndLineNumber(Tree tree) {
         StringBuilder result = new StringBuilder();
         result.append(Paths.get(root.getSourceFile().getName()).getFileName().toString());
+        @SuppressWarnings("removal")
         long valuePos = positions.getStartPosition(root, tree);
         LineMap lineMap = root.getLineMap();
         if (valuePos != -1 && lineMap != null) {
@@ -3891,7 +4067,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     protected void checkMethodInvocability(
             AnnotatedExecutableType method, MethodInvocationTree tree) {
-        if (method.getReceiverType() == null) {
+        AnnotatedTypeMirror methodReceiver = method.getReceiverType();
+        if (methodReceiver == null) {
             // Static methods don't have a receiver to check.
             return;
         }
@@ -3904,7 +4081,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return;
         }
 
-        AnnotatedTypeMirror erasedMethodReceiver = method.getReceiverType().getErased();
+        AnnotatedTypeMirror erasedMethodReceiver = methodReceiver.getErased();
         AnnotatedTypeMirror erasedTreeReceiver = erasedMethodReceiver.shallowCopy(false);
         AnnotatedTypeMirror treeReceiver = atypeFactory.getReceiverType(tree);
 
@@ -3913,13 +4090,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         if (!skipReceiverSubtypeCheck(tree, erasedMethodReceiver, treeReceiver)) {
             // The diagnostic can be a bit misleading because the check is of the receiver but
             // `tree` is the entire method invocation (where the receiver might be implicit).
-            commonAssignmentCheckStartDiagnostic(erasedMethodReceiver, erasedTreeReceiver, tree);
+            commonAssignmentCheckStartDiagnostic(methodReceiver, erasedTreeReceiver, tree);
             boolean success = typeHierarchy.isSubtype(erasedTreeReceiver, erasedMethodReceiver);
             commonAssignmentCheckEndDiagnostic(
-                    success, null, erasedMethodReceiver, erasedTreeReceiver, tree);
+                    success, null, methodReceiver, erasedTreeReceiver, tree);
             if (!success) {
                 // Don't report the erased types because they show up with '</*RAW*/>' as type args.
-                reportMethodInvocabilityError(tree, treeReceiver, method.getReceiverType());
+                reportMethodInvocabilityError(tree, treeReceiver, methodReceiver);
             }
         }
     }
@@ -3964,15 +4141,15 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         if (explicitAnnos.isEmpty()) {
             return;
         }
+        AnnotatedTypeMirror constructorReturn = constructor.getReturnType();
         for (AnnotationMirror explicit : explicitAnnos) {
             // The return type of the constructor (resultAnnos) must be comparable to the
             // annotations on the constructor invocation (explicitAnnos).
             boolean resultIsSubtypeOfExplicit =
-                    typeHierarchy.isSubtypeShallowEffective(constructor.getReturnType(), explicit);
-            if (!(typeHierarchy.isSubtypeShallowEffective(explicit, constructor.getReturnType())
+                    typeHierarchy.isSubtypeShallowEffective(constructorReturn, explicit);
+            if (!(typeHierarchy.isSubtypeShallowEffective(explicit, constructorReturn)
                     || resultIsSubtypeOfExplicit)) {
-                AnnotationMirror resultAnno =
-                        constructor.getReturnType().getAnnotationInHierarchy(explicit);
+                AnnotationMirror resultAnno = constructorReturn.getAnnotationInHierarchy(explicit);
                 checker.reportError(
                         newClassTree,
                         "constructor.invocation.invalid",
@@ -3981,8 +4158,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         resultAnno);
                 return;
             } else if (!resultIsSubtypeOfExplicit) {
-                AnnotationMirror resultAnno =
-                        constructor.getReturnType().getAnnotationInHierarchy(explicit);
+                AnnotationMirror resultAnno = constructorReturn.getAnnotationInHierarchy(explicit);
                 // Issue a warning if the annotations on the constructor invocation is a subtype of
                 // the constructor result type. This is equivalent to down-casting.
                 checker.reportWarning(
@@ -4409,7 +4585,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             this.overriddenType = overriddenType;
             this.overriddenReturnType = overriddenReturnType;
 
-            this.isMethodReference = overriderTree.getKind() == Tree.Kind.MEMBER_REFERENCE;
+            this.isMethodReference = overriderTree instanceof MemberReferenceTree;
         }
 
         /**
@@ -4429,14 +4605,18 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             } else {
                 result &= checkReceiverOverride();
             }
-            checkPreAndPostConditions();
-            checkPurity();
+            result &= checkPreAndPostConditions();
+            result &= checkPurity();
 
             return result;
         }
 
-        /** Check that an override respects purity. */
-        private void checkPurity() {
+        /**
+         * Check that an override respects purity.
+         *
+         * @return true if the override is allowed by purity rules
+         */
+        private boolean checkPurity() {
             String msgKey =
                     isMethodReference ? "purity.invalid.methodref" : "purity.invalid.overriding";
 
@@ -4455,24 +4635,29 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         overridden,
                         subPurity,
                         superPurity);
+                return false;
             }
+            return true;
         }
 
         /**
          * Checks that overrides obey behavioral subtyping, that is, postconditions must be at least
          * as strong as the postcondition on the superclass, and preconditions must be at most as
          * strong as the condition on the superclass.
+         *
+         * @return true if the override satisfies the contract subsetting rules
          */
-        private void checkPreAndPostConditions() {
+        private boolean checkPreAndPostConditions() {
             String msgKey = isMethodReference ? "methodref" : "override";
             if (isMethodReference) {
                 // TODO: Support postconditions and method references.
                 // The parse context always expects instance methods, but method references can be
                 // static.
-                return;
+                return true;
             }
 
             ContractsFromMethod contractsUtils = atypeFactory.getContractsFromMethod();
+            boolean result = true;
 
             // Check preconditions
             Set<Precondition> superPre = contractsUtils.getPreconditions(overridden.getElement());
@@ -4483,7 +4668,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     parseAndLocalizeContracts(subPre, overrider);
             @SuppressWarnings("compilermessages")
             @CompilerMessageKey String premsg = "contracts.precondition." + msgKey + ".invalid";
-            checkContractsSubset(overriderType, overriddenType, subPre2, superPre2, premsg);
+            result &=
+                    checkContractsSubset(overriderType, overriddenType, subPre2, superPre2, premsg);
 
             // Check postconditions
             Set<Postcondition> superPost =
@@ -4495,7 +4681,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     parseAndLocalizeContracts(subPost, overrider);
             @SuppressWarnings("compilermessages")
             @CompilerMessageKey String postmsg = "contracts.postcondition." + msgKey + ".invalid";
-            checkContractsSubset(overriderType, overriddenType, superPost2, subPost2, postmsg);
+            result &=
+                    checkContractsSubset(
+                            overriderType, overriddenType, superPost2, subPost2, postmsg);
 
             // Check conditional postconditions
             Set<ConditionalPostcondition> superCPost =
@@ -4511,8 +4699,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     parseAndLocalizeContracts(subCPostTrue, overrider);
             @SuppressWarnings("compilermessages")
             @CompilerMessageKey String posttruemsg = "contracts.conditional.postcondition.true." + msgKey + ".invalid";
-            checkContractsSubset(
-                    overriderType, overriddenType, superCPostTrue2, subCPostTrue2, posttruemsg);
+            result &=
+                    checkContractsSubset(
+                            overriderType,
+                            overriddenType,
+                            superCPostTrue2,
+                            subCPostTrue2,
+                            posttruemsg);
 
             // consider only 'false' postconditions
             Set<Postcondition> superCPostFalse = filterConditionalPostconditions(superCPost, false);
@@ -4524,8 +4717,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             @SuppressWarnings("compilermessages")
             @CompilerMessageKey String postfalsemsg =
                     "contracts.conditional.postcondition.false." + msgKey + ".invalid";
-            checkContractsSubset(
-                    overriderType, overriddenType, superCPostFalse2, subCPostFalse2, postfalsemsg);
+            result &=
+                    checkContractsSubset(
+                            overriderType,
+                            overriddenType,
+                            superCPostFalse2,
+                            subCPostFalse2,
+                            postfalsemsg);
+            return result;
         }
 
         /**
@@ -4884,15 +5083,17 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param overriderType the subtype
      * @param overriddenType the supertype
      * @param mustSubset annotations that should be weaker
-     * @param set anontations that should be stronger
+     * @param set annotations that should be stronger
      * @param messageKey message key for error messages
+     * @return whether the contracts are subsets
      */
-    private void checkContractsSubset(
+    private boolean checkContractsSubset(
             AnnotatedTypeMirror overriderType,
             AnnotatedDeclaredType overriddenType,
             Set<IPair<JavaExpression, AnnotationMirror>> mustSubset,
             Set<IPair<JavaExpression, AnnotationMirror>> set,
             @CompilerMessageKey String messageKey) {
+        boolean result = true;
         for (IPair<JavaExpression, AnnotationMirror> weak : mustSubset) {
             JavaExpression jexpr = weak.first;
             boolean found = false;
@@ -4911,6 +5112,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
 
             if (!found) {
+                result = false;
 
                 String overriddenTypeString =
                         overriddenType.getUnderlyingType().asElement().toString();
@@ -4956,6 +5158,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         overriderAnno);
             }
         }
+        return result;
     }
 
     /**
@@ -5026,9 +5229,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     protected @Nullable MemberSelectTree enclosingMemberSelect() {
         TreePath path = this.getCurrentPath();
-        assert path.getLeaf().getKind() == Tree.Kind.IDENTIFIER
+        assert path.getLeaf() instanceof IdentifierTree
                 : "expected identifier, found: " + path.getLeaf();
-        if (path.getParentPath().getLeaf().getKind() == Tree.Kind.MEMBER_SELECT) {
+        if (path.getParentPath().getLeaf() instanceof MemberSelectTree) {
             return (MemberSelectTree) path.getParentPath().getLeaf();
         } else {
             return null;
@@ -5102,6 +5305,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             Element field,
             @Nullable AnnotatedTypeMirror receiverType,
             @FindDistinct ExpressionTree accessTree) {
+        // @Unused is conditioned on the type qualifier of the receiver, so a static field (which
+        // has no receiver) cannot trigger an access violation.
+        if (receiverType == null) {
+            return;
+        }
         AnnotationMirror unused = atypeFactory.getDeclAnnotation(field, Unused.class);
         if (unused == null) {
             return;
@@ -5122,7 +5330,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         Tree tree = this.enclosingStatement(accessTree);
 
         if (tree != null
-                && tree.getKind() == Tree.Kind.ASSIGNMENT
+                && tree instanceof AssignmentTree
                 && ((AssignmentTree) tree).getVariable() == accessTree
                 && ((AssignmentTree) tree).getExpression().getKind() == Tree.Kind.NULL_LITERAL) {
             // Assigning unused to null is OK.

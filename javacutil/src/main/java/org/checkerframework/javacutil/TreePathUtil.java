@@ -1,11 +1,16 @@
 package org.checkerframework.javacutil;
 
+import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.BlockTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompoundAssignmentTree;
 import com.sun.source.tree.ConditionalExpressionTree;
+import com.sun.source.tree.ExpressionStatementTree;
+import com.sun.source.tree.LambdaExpressionTree;
+import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewClassTree;
+import com.sun.source.tree.ParenthesizedTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.VariableTree;
@@ -48,7 +53,12 @@ public final class TreePathUtil {
      * @return the path to the enclosing tree of the given type, {@code null} otherwise
      */
     public static @Nullable TreePath pathTillOfKind(TreePath path, Tree.Kind kind) {
-        return pathTillOfKind(path, EnumSet.of(kind));
+        for (TreePath p = path; p != null; p = p.getParentPath()) {
+            if (p.getLeaf().getKind() == kind) {
+                return p;
+            }
+        }
+        return null;
     }
 
     /**
@@ -102,7 +112,8 @@ public final class TreePathUtil {
      * @return the enclosing tree of the given type as given by the path, {@code null} otherwise
      */
     public static @Nullable Tree enclosingOfKind(TreePath path, Tree.Kind kind) {
-        return enclosingOfKind(path, EnumSet.of(kind));
+        TreePath p = pathTillOfKind(path, kind);
+        return (p == null) ? null : p.getLeaf();
     }
 
     /**
@@ -192,6 +203,10 @@ public final class TreePathUtil {
         return (MethodTree) enclosingOfKind(path, Tree.Kind.METHOD);
     }
 
+    /** The set of Tree.Kinds for METHOD and LAMBDA_EXPRESSION. */
+    private static final Set<Tree.Kind> METHOD_OR_LAMBDA_KINDS =
+            EnumSet.of(Tree.Kind.METHOD, Tree.Kind.LAMBDA_EXPRESSION);
+
     /**
      * Gets the enclosing method or lambda expression of the tree node defined by the given {@link
      * TreePath}. It returns a {@link Tree}, from which an {@code
@@ -203,7 +218,7 @@ public final class TreePathUtil {
      *     exist
      */
     public static @Nullable Tree enclosingMethodOrLambda(TreePath path) {
-        return enclosingOfKind(path, EnumSet.of(Tree.Kind.METHOD, Tree.Kind.LAMBDA_EXPRESSION));
+        return enclosingOfKind(path, METHOD_OR_LAMBDA_KINDS);
     }
 
     /**
@@ -220,7 +235,7 @@ public final class TreePathUtil {
             path = parentPath;
             parentPath = parentPath.getParentPath();
         }
-        if (path.getLeaf().getKind() == Tree.Kind.BLOCK) {
+        if (path.getLeaf() instanceof BlockTree) {
             return (BlockTree) path.getLeaf();
         }
         return null;
@@ -238,7 +253,7 @@ public final class TreePathUtil {
         TreePath parentPath = path.getParentPath();
         Tree enclosing = parentPath.getLeaf();
         Tree enclosingChild = path.getLeaf();
-        while (enclosing.getKind() == Tree.Kind.PARENTHESIZED) {
+        while (enclosing instanceof ParenthesizedTree) {
             parentPath = parentPath.getParentPath();
             enclosingChild = enclosing;
             enclosing = parentPath.getLeaf();
@@ -261,8 +276,8 @@ public final class TreePathUtil {
         // the context.  If a method or constructor invocation is the expression in a type cast,
         // then the invocation has no context.
         boolean isLambdaOrMethodRef =
-                treePath.getLeaf().getKind() == Kind.LAMBDA_EXPRESSION
-                        || treePath.getLeaf().getKind() == Kind.MEMBER_REFERENCE;
+                treePath.getLeaf() instanceof LambdaExpressionTree
+                        || treePath.getLeaf() instanceof MemberReferenceTree;
         return getContextForPolyExpression(treePath, isLambdaOrMethodRef);
     }
 
@@ -412,11 +427,11 @@ public final class TreePathUtil {
      */
     public static boolean isTopLevelAssignmentInInitializerBlock(TreePath path) {
         TreePath origPath = path;
-        if (path.getLeaf().getKind() != Tree.Kind.ASSIGNMENT) {
+        if (!(path.getLeaf() instanceof AssignmentTree)) {
             return false;
         }
         path = path.getParentPath();
-        if (path.getLeaf().getKind() != Tree.Kind.EXPRESSION_STATEMENT) {
+        if (!(path.getLeaf() instanceof ExpressionStatementTree)) {
             return false;
         }
         Tree prevLeaf = path.getLeaf();
@@ -428,7 +443,7 @@ public final class TreePathUtil {
                 case CLASS:
                 case ENUM:
                 case PARAMETERIZED_TYPE:
-                    return prevLeaf.getKind() == Tree.Kind.BLOCK;
+                    return prevLeaf instanceof BlockTree;
 
                 case COMPILATION_UNIT:
                     throw new BugInCF("found COMPILATION_UNIT in " + toString(origPath));
