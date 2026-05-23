@@ -97,6 +97,9 @@ public class ArrayAccess extends JavaExpression {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof ArrayAccess)) {
             return false;
         }
@@ -104,9 +107,15 @@ public class ArrayAccess extends JavaExpression {
         return array.equals(other.array) && index.equals(other.index);
     }
 
+    /** Cache the hashCode. Recomputed if zero. */
+    private int hashCodeCache = 0;
+
     @Override
     public int hashCode() {
-        return Objects.hash(array, index);
+        if (hashCodeCache == 0) {
+            hashCodeCache = Objects.hash(array, index);
+        }
+        return hashCodeCache;
     }
 
     @Override

@@ -51,6 +51,7 @@ import org.checkerframework.framework.flow.CFCFGBuilder;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFTransfer;
 import org.checkerframework.framework.flow.CFValue;
+import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.DefaultFor;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.DefaultQualifierInHierarchy;
@@ -137,7 +138,14 @@ import javax.lang.model.util.Types;
  * DependentTypesHelper}, etc. Those features, and {@link #addComputedTypeAnnotations} (other than
  * the part related to flow-sensitivity), could and should be in the superclass {@link
  * AnnotatedTypeFactory}; it is not clear why they are defined in this class.
+ *
+ * @param <Value> the value type
+ * @param <Store> the store type
+ * @param <TransferFunction> the transfer function type
+ * @param <FlowAnalysis> the flow analysis type
  */
+@AnnotatedFor("nullness")
+@SuppressWarnings("nullness") // TODO: fix all remaining errors
 public abstract class GenericAnnotatedTypeFactory<
                 Value extends CFAbstractValue<Value>,
                 Store extends CFAbstractStore<Value, Store>,
@@ -339,6 +347,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * @param checker the checker to which this type factory belongs
      * @param useFlow whether flow analysis should be performed
      */
+    @SuppressWarnings("this-escape")
     protected GenericAnnotatedTypeFactory(BaseTypeChecker checker, boolean useFlow) {
         super(checker);
 
@@ -1162,7 +1171,7 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     public @Nullable Store getRegularExitStore(Tree tree) {
         if (regularExitStores == null) {
-            if (tree.getKind() == Tree.Kind.METHOD) {
+            if (tree instanceof MethodTree) {
                 if (((MethodTree) tree).getBody() == null) {
                     // No body: the method is abstract or in an interface
                     return null;
@@ -1564,8 +1573,8 @@ public abstract class GenericAnnotatedTypeFactory<
     /** Sorts a list of trees with the variables first. */
     private final Comparator<Tree> sortVariablesFirst =
             (t1, t2) -> {
-                boolean variable1 = t1.getKind() == Tree.Kind.VARIABLE;
-                boolean variable2 = t2.getKind() == Tree.Kind.VARIABLE;
+                boolean variable1 = t1 instanceof VariableTree;
+                boolean variable2 = t2 instanceof VariableTree;
                 if (variable1 && !variable2) {
                     return -1;
                 } else if (!variable1 && variable2) {
@@ -1852,8 +1861,7 @@ public abstract class GenericAnnotatedTypeFactory<
                 Element elt = TreeUtils.elementFromTree(lhsTree);
                 if (elt != null) {
                     Tree decl = declarationFromElement(elt);
-                    if (decl != null
-                            && decl.getKind() == Tree.Kind.VARIABLE
+                    if (decl instanceof VariableTree
                             && TreeUtils.isVariableTreeDeclaredUsingVar((VariableTree) decl)) {
                         // If this identifier accesses a variable that was declared using `var`,
                         // re-enable caching to avoid re-computing the initializer expression type.
@@ -1998,7 +2006,7 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     public AnnotatedTypeMirror getDefaultAnnotations(Tree tree, AnnotatedTypeMirror type) {
         AnnotatedTypeMirror copy = type.deepCopy();
-        copy.removeAnnotations(type.getAnnotations());
+        copy.removeAnnotations(type.getAnnotationsField());
         addComputedTypeAnnotationsWithoutFlow(tree, copy);
         return copy;
     }
@@ -2066,46 +2074,63 @@ public abstract class GenericAnnotatedTypeFactory<
                                 0, thisClass.length() - "AnnotatedTypeFactory".length());
             }
             treeString = TreeUtils.toStringTruncated(tree, 60);
+            log(
+                    "%s GATF.addComputedTypeAnnotations#1(%s, %s, %s)%n",
+                    thisClass, treeString, type, this.useFlow);
         }
-        log(
-                "%s GATF.addComputedTypeAnnotations#1(%s, %s, %s)%n",
-                thisClass, treeString, type, this.useFlow);
-        if (!TreeUtils.isExpressionTree(tree)) {
+        boolean isExpressionTree = TreeUtils.isExpressionTree(tree);
+        if (!isExpressionTree) {
             // Don't apply defaults to expressions. Their types may be computed from subexpressions
             // in treeAnnotator.
             addAnnotationsFromDefaultForType(TreeUtils.elementFromTree(tree), type);
-            log("%s GATF.addComputedTypeAnnotations#2(%s, %s)%n", thisClass, treeString, type);
+            if (debug) {
+                log("%s GATF.addComputedTypeAnnotations#2(%s, %s)%n", thisClass, treeString, type);
+            }
         }
         applyQualifierParameterDefaults(tree, type);
-        log("%s GATF.addComputedTypeAnnotations#3(%s, %s)%n", thisClass, treeString, type);
+        if (debug) {
+            log("%s GATF.addComputedTypeAnnotations#3(%s, %s)%n", thisClass, treeString, type);
+        }
         treeAnnotator.visit(tree, type);
-        log(
-                "%s GATF.addComputedTypeAnnotations#4(%s, %s)%n  treeAnnotator=%s%n",
-                thisClass, treeString, type, treeAnnotator);
-        if (TreeUtils.isExpressionTree(tree)) {
+        if (debug) {
+            log(
+                    "%s GATF.addComputedTypeAnnotations#4(%s, %s)%n  treeAnnotator=%s%n",
+                    thisClass, treeString, type, treeAnnotator);
+        }
+        if (isExpressionTree) {
             // If a tree annotator did not add a type, add the DefaultForUse default.
             addAnnotationsFromDefaultForType(TreeUtils.elementFromTree(tree), type);
-            log("%s GATF.addComputedTypeAnnotations#5(%s, %s)%n", thisClass, treeString, type);
+            if (debug) {
+                log("%s GATF.addComputedTypeAnnotations#5(%s, %s)%n", thisClass, treeString, type);
+            }
         }
         typeAnnotator.visit(type, null);
-        log(
-                "%s GATF.addComputedTypeAnnotations#6(%s, %s)%n  typeAnnotator=%s%n",
-                thisClass, treeString, type, typeAnnotator);
+        if (debug) {
+            log(
+                    "%s GATF.addComputedTypeAnnotations#6(%s, %s)%n  typeAnnotator=%s%n",
+                    thisClass, treeString, type, typeAnnotator);
+        }
         defaults.annotate(tree, type);
-        log("%s GATF.addComputedTypeAnnotations#7(%s, %s)%n", thisClass, treeString, type);
+        if (debug) {
+            log("%s GATF.addComputedTypeAnnotations#7(%s, %s)%n", thisClass, treeString, type);
+        }
 
         if (this.useFlow) {
             Value inferred = getInferredValueFor(tree);
             if (inferred != null) {
                 applyInferredAnnotations(type, inferred);
-                log(
-                        "%s GATF.addComputedTypeAnnotations#8(%s, %s), inferred=%s%n",
-                        thisClass, treeString, type, inferred);
+                if (debug) {
+                    log(
+                            "%s GATF.addComputedTypeAnnotations#8(%s, %s), inferred=%s%n",
+                            thisClass, treeString, type, inferred);
+                }
             }
         }
-        log(
-                "%s GATF.addComputedTypeAnnotations#9(%s, %s, %s) done%n",
-                thisClass, treeString, type, this.useFlow);
+        if (debug) {
+            log(
+                    "%s GATF.addComputedTypeAnnotations#9(%s, %s, %s) done%n",
+                    thisClass, treeString, type, this.useFlow);
+        }
     }
 
     /**
@@ -2266,7 +2291,7 @@ public abstract class GenericAnnotatedTypeFactory<
         }
 
         Tree declTree = declarationFromElement(elt);
-        if (declTree == null || declTree.getKind() != Tree.Kind.VARIABLE) {
+        if (!(declTree instanceof VariableTree)) {
             return;
         }
 
@@ -2277,10 +2302,11 @@ public abstract class GenericAnnotatedTypeFactory<
 
         VariableElement variableElt = (VariableElement) elt;
         variablesUnderInitialization.add(variableElt);
-        AnnotatedTypeMirror initializerType;
-        if (shouldCache && initializerCache.containsKey(initializer)) {
+        AnnotatedTypeMirror initializerType = null;
+        if (shouldCache) {
             initializerType = initializerCache.get(initializer);
-        } else {
+        }
+        if (initializerType == null) {
             // When this method is called by getAnnotatedTypeLhs, flow is turned off.
             // Turn it back on so the type of the initializer is the refined type.
             boolean oldUseFlow = useFlow;
@@ -2293,7 +2319,7 @@ public abstract class GenericAnnotatedTypeFactory<
         }
 
         AnnotationMirrorSet qualParamTypes = new AnnotationMirrorSet();
-        for (AnnotationMirror initializerAnnotation : initializerType.getAnnotations()) {
+        for (AnnotationMirror initializerAnnotation : initializerType.getAnnotationsField()) {
             if (hasQualifierParameterInHierarchy(
                     type, qualHierarchy.getTopAnnotation(initializerAnnotation))) {
                 qualParamTypes.add(initializerAnnotation);
@@ -2406,7 +2432,7 @@ public abstract class GenericAnnotatedTypeFactory<
             @Nullable T getTypeFactoryOfSubcheckerOrNull(
                     Class<? extends SourceChecker> subCheckerClass) {
         SourceChecker subSourceChecker = checker.getSubchecker(subCheckerClass);
-        if (subSourceChecker == null || !(subSourceChecker instanceof BaseTypeChecker)) {
+        if (!(subSourceChecker instanceof BaseTypeChecker)) {
             return null;
         }
 
@@ -3042,7 +3068,7 @@ public abstract class GenericAnnotatedTypeFactory<
       }
 
       List<AnnotationMirror> result = new ArrayList<>();
-      for (AnnotationMirror inferredAm : inferredType.getAnnotations()) {
+      for (AnnotationMirror inferredAm : inferredType.getAnnotationsField()) {
         AnnotationMirror declaredAm = declaredType.getAnnotationInHierarchy(inferredAm);
         if (declaredAm == null || AnnotationUtils.areSame(inferredAm, declaredAm)) {
           continue;
@@ -3054,7 +3080,7 @@ public abstract class GenericAnnotatedTypeFactory<
         }
 
         List<AnnotationMirror> result = new ArrayList<>();
-        for (AnnotationMirror inferredAm : inferredType.getAnnotations()) {
+        for (AnnotationMirror inferredAm : inferredType.getAnnotationsField()) {
             AnnotationMirror declaredAm = declaredType.getAnnotationInHierarchy(inferredAm);
             if (declaredAm == null || AnnotationUtils.areSame(inferredAm, declaredAm)) {
                 continue;

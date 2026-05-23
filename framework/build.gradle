@@ -55,8 +55,8 @@ dependencies {
     api project(':javacutil')
     api project(':dataflow')
     // At the moement, there are no differences between eisop and typetools stubparsers.
-    api 'org.checkerframework:stubparser:3.26.4'
-    stubifierImplementation 'org.checkerframework:stubparser:3.26.4'
+    api 'org.checkerframework:stubparser:3.27.1'
+    stubifierImplementation 'org.checkerframework:stubparser:3.27.1'
     implementation sourceSets.stubifier.output
 
     /* NO-AFU
@@ -76,7 +76,7 @@ dependencies {
     implementation "org.plumelib:plume-util:${versions.plumeUtil}"
     implementation "org.plumelib:reflection-util:${versions.reflectionUtil}"
     // Add this dependency if needed to debug classpath issues.
-    // implementation 'io.github.classgraph:classgraph:4.8.179'
+    // implementation 'io.github.classgraph:classgraph:4.8.180'
 
     testImplementation "junit:junit:${versions.junit}"
     testImplementation project(':framework-test')

@@ -42,6 +42,7 @@ including people who wish to edit its source code or make pull requests.
       <li><a href="#github-configuration">GitHub configuration</a></li>
       <li><a href="#ci">Continuous Integration</a>
         <ul>
+          <li><a href="#ci-github-actions">GitHub Actions</a></li>
           <li><a href="#ci-azure-pipelines">Azure Pipelines</a>
             <ul>
               <li><a href="#ci-increasing-quota">Increasing quota</a></li>
@@ -410,10 +411,35 @@ branches after they are merged</a>.
 <h2 id="ci">Continuous Integration</h2>
 
 <p>
-The Checker Framework has continuous integration jobs that run in Azure
+The Checker Framework has continuous integration jobs that run in GitHub Actions, Azure
 Pipelines, CircleCI, and/or Travis CI on each push to GitHub.
-We recommend Azure Pipelines.
+We recommend GitHub Actions.
 </p>
+
+<h3 id="ci-github-actions">GitHub Actions</h3>
+<p>
+  To enable GitHub Actions for your fork:
+</p>
+<ul>
+  <li>Navigate to your fork on GitHub</li>
+  <li>Click the "Actions" tab</li>
+  <li>A dialog should appear about workflows not being enabled by default on your fork</li>
+  <li>Click "I understand my workflows, go ahead and enable them"</li>
+</ul>
+
+<p>
+  To view job results:
+</p>
+<ul>
+  <li>Click the "Actions" tab</li>
+  <li>View the status of your workflows and click on a run to see more details</li>
+</ul>
+
+<p>
+  For details on what jobs are run and the commands executed, see
+  <a href="https://github.com/eisop/checker-framework/blob/master/.github/workflows/ci.yml"><code>.github/workflows/ci.yml</code></a>.
+</p>
+
 
 <h3 id="ci-azure-pipelines">Azure Pipelines</h3>
 

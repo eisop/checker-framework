@@ -39,6 +39,23 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
     }
 
     /**
+     * Returns the cached path for the given tree, without scanning. Performs a single map lookup.
+     *
+     * <p>Returns null in two distinct cases that this method does not distinguish: (a) {@code
+     * target} is not cached at all, or (b) {@code target} was previously searched for via {@link
+     * #getPath} and not found in the compilation unit (in which case {@link #getPath} cached {@code
+     * null} to avoid re-scanning). Callers that need to distinguish these cases must follow up with
+     * {@link #isCached}.
+     *
+     * @param target the tree to look up
+     * @return the cached path for {@code target}, or null if {@code target} is not cached or is
+     *     cached as not-in-unit
+     */
+    public @Nullable TreePath getCachedPath(@FindDistinct Tree target) {
+        return foundPaths.get(target);
+    }
+
+    /**
      * Adds the given key and value to the cache.
      *
      * @param target the tree to add
@@ -60,8 +77,13 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
         // This method uses try/catch and the private {@code Result} exception for control flow to
         // stop the superclass from scanning other subtrees when target is found.
 
+        TreePath cached = foundPaths.get(target);
+        if (cached != null) {
+            return cached;
+        }
         if (foundPaths.containsKey(target)) {
-            return foundPaths.get(target);
+            // target was previously searched for and not found in the compilation unit.
+            return null;
         }
 
         TreePath path = new TreePath(root);
