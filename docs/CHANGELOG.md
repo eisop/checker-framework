@@ -3,9 +3,10 @@ Version 3.49.5-eisop2 (May ?, 2026)
 
 **User-visible changes:**
 
-The Checker Framework issues `annotation.on.supertype` error if there is an annotation written on
-the super type in the class declaration. Checker supports annotation on the super type can override
-`BaseTypeVisitor#checkExtendsOrImplements(Tree, AnnotationMirrorSet, TypeMirror, Boolean)` to disable the check.
+The Checker Framework now issues an `annotation.on.supertype` error when a type qualifier
+supported by the active checker is written on a supertype in an `extends` or `implements`
+clause. A checker that wants to allow annotations on supertypes can override
+`BaseTypeVisitor#checkAnnotationOnSupertype(Tree)` to do nothing.
 
 **Implementation details:**
 
