@@ -995,7 +995,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             boolean isExtends,
             boolean checkSuperAnno) {
         // Check if super type has annotation
-        if (checkSuperAnno && boundClause.getKind() == Tree.Kind.ANNOTATED_TYPE) {
+        if (checkSuperAnno && boundClause instanceof AnnotatedTypeTree) {
             List<? extends AnnotationTree> annoTrees =
                     ((AnnotatedTypeTree) boundClause).getAnnotations();
             for (AnnotationTree annoTree : annoTrees) {
