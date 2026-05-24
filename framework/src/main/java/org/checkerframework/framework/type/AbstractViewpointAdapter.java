@@ -324,6 +324,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             // Construct result type
             AnnotatedTypeMirror result = AnnotatedTypeCopierWithReplacement.replace(adt, mappings);
             result.replaceAnnotation(resultAnnotation);
+
             if (shouldStoreType) {
                 visitedTypes.remove(declared);
             }
