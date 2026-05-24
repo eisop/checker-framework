@@ -282,9 +282,9 @@ clean {
 }
 
 clean.doLast {
-    while (layout.buildDirectory.asFile.get().exists()) {
+    while (layout.buildDirectory.get().asFile.exists()) {
         sleep(10000)                // wait 10 seconds
-        layout.buildDirectory.deleteDir()
+        layout.buildDirectory.get().asFile.deleteDir()
     }
 }
 
