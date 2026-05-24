@@ -4,6 +4,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
 
 import java.util.List;
 
+import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 
@@ -71,4 +72,14 @@ public interface ViewpointAdapter {
     void viewpointAdaptTypeParameterBounds(
             AnnotatedTypeMirror receiverType,
             List<AnnotatedTypeParameterBounds> typeParameterBounds);
+
+    /**
+     * Viewpoint adapts a type using a receiver annotation.
+     *
+     * @param receiverAnnotation receiver annotation used for viewpoint adaptation
+     * @param declaredType type to adapt
+     * @return viewpoint-adapted type
+     */
+    AnnotatedTypeMirror viewpointAdaptType(
+            AnnotationMirror receiverAnnotation, AnnotatedTypeMirror declaredType);
 }

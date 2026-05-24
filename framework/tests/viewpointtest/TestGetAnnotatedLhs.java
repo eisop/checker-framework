@@ -11,7 +11,7 @@ import viewpointtest.quals.Top;
     }
 
     // This method could be called by both @A and @B instances.
-    void recieverDependentMethod(@ReceiverDependentQual TestGetAnnotatedLhs this) {}
+    void receiverDependentMethod(@ReceiverDependentQual TestGetAnnotatedLhs this) {}
 
     // This method could only be called by @A instances.
     void aMethod(@A TestGetAnnotatedLhs this) {}
@@ -22,8 +22,8 @@ import viewpointtest.quals.Top;
     void topWithRefinement() {
         TestGetAnnotatedLhs a = new @A TestGetAnnotatedLhs();
         TestGetAnnotatedLhs b = new @B TestGetAnnotatedLhs();
-        a.recieverDependentMethod();
-        b.recieverDependentMethod();
+        a.receiverDependentMethod();
+        b.receiverDependentMethod();
         a.aMethod();
         // :: error: (method.invocation.invalid)
         a.bMethod();

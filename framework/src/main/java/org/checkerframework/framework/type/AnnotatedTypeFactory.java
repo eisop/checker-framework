@@ -1588,7 +1588,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     /**
      * Returns the set of qualifiers that are the upper bounds for a use of the type. If there is a
-     * viewpoint adapter, the adapted type declaration bounds based on the usetype are returned.
+     * viewpoint adapter, the adapted type declaration bounds based on the use type are returned.
      *
      * @param type the type whose upper bounds to obtain
      * @param useType the actual type use
@@ -1599,10 +1599,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (viewpointAdapter != null) {
             AnnotationMirrorSet result = new AnnotationMirrorSet();
             for (AnnotationMirror anno : getTypeDeclarationBounds(type)) {
-                result.addAll(
-                        ((AbstractViewpointAdapter) viewpointAdapter)
-                                .combineAnnotationWithType(anno, useType)
-                                .getAnnotations());
+                AnnotatedTypeMirror adaptedType =
+                        viewpointAdapter.viewpointAdaptType(anno, useType);
+                AnnotationMirror adaptedAnno =
+                        qualHierarchy.findAnnotationInSameHierarchy(
+                                adaptedType.getAnnotations(), anno);
+                result.add(adaptedAnno != null ? adaptedAnno : anno);
             }
             return result;
         }
