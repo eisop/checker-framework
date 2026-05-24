@@ -384,7 +384,7 @@ task jtregJdk11Tests(type: Exec, group: 'Verification') {
     dependsOn('compileTestJava')
     dependsOn('shadowJar')
 
-    String jtregOutput = "${buildDir}/jtregJdk11"
+    String jtregOutput = layout.buildDirectory.dir('jtregJdk11').get().asFile
     String name = 'all'
 
     executable "${jtregHome}/bin/jtreg"

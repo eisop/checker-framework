@@ -19,7 +19,7 @@ sourceSets {
             // Stub files, message.properties, etc.
             srcDirs += [
                 'src/main/java',
-                "${buildDir}/generated/resources"
+                layout.buildDirectory.dir('generated/resources')
             ]
 
             // NO-AFU
