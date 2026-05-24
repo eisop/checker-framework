@@ -12,8 +12,7 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.plumelib.util.IPair;
 
-import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
@@ -49,8 +48,9 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
     /** The annotated type factory. */
     protected final AnnotatedTypeFactory atypeFactory;
 
-    /** The set of types that have been visited. */
-    private final Set<AnnotatedTypeMirror> visitedTypes = new HashSet<>();
+    /** The set of recursive types that are currently being adapted. */
+    private final Set<AnnotatedTypeMirror> visitedTypes =
+            Collections.newSetFromMap(new IdentityHashMap<>());
 
     /**
      * Construct an abstract viewpoint adapter with the given type factory.
@@ -295,14 +295,15 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             }
             return declared;
         } else if (declared.getKind() == TypeKind.DECLARED) {
-            AnnotatedDeclaredType adt = (AnnotatedDeclaredType) declared.shallowCopy();
-            boolean shouldStoreType = !adt.getTypeArguments().isEmpty();
+            AnnotatedDeclaredType declaredType = (AnnotatedDeclaredType) declared;
+            boolean shouldStoreType = !declaredType.getTypeArguments().isEmpty();
             if (shouldStoreType && visitedTypes.contains(declared)) {
                 return declared;
             }
             if (shouldStoreType) {
                 visitedTypes.add(declared);
             }
+            AnnotatedDeclaredType adt = (AnnotatedDeclaredType) declared.shallowCopy();
             // Mapping between declared type argument to combined type argument
             IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> mappings =
                     new IdentityHashMap<>();
@@ -320,7 +321,9 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             // Construct result type
             AnnotatedTypeMirror result = AnnotatedTypeCopierWithReplacement.replace(adt, mappings);
             result.replaceAnnotation(resultAnnotation);
-            visitedTypes.remove(declared);
+            if (shouldStoreType) {
+                visitedTypes.remove(declared);
+            }
             return result;
         } else if (declared.getKind() == TypeKind.ARRAY) {
             AnnotatedArrayType aat = (AnnotatedArrayType) declared.shallowCopy();
@@ -339,8 +342,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             aat.setComponentType(combinedCompoType);
             return aat;
         } else if (declared.getKind() == TypeKind.WILDCARD) {
-            AnnotatedWildcardType awt = (AnnotatedWildcardType) declared.shallowCopy();
-
+            AnnotatedWildcardType awt = (AnnotatedWildcardType) declared;
             IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> mappings =
                     new IdentityHashMap<>();
 
@@ -364,8 +366,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
                 mappings.put(zuper, combinedZuper);
             }
 
-            AnnotatedTypeMirror result = AnnotatedTypeCopierWithReplacement.replace(awt, mappings);
-            return result;
+            return AnnotatedTypeCopierWithReplacement.replace(awt, mappings);
         } else if (declared.getKind() == TypeKind.NULL) {
             AnnotatedNullType ant = (AnnotatedNullType) declared.shallowCopy(true);
             AnnotationMirror resultAnnotation =
@@ -405,10 +406,14 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
      * @return rhs' copy with its type parameter substituted
      */
     private AnnotatedTypeMirror substituteTVars(AnnotatedTypeMirror lhs, AnnotatedTypeMirror rhs) {
-        if (visitedTypes.contains(rhs)) {
+        AnnotatedTypeMirror originalRhs = rhs;
+        boolean shouldStoreType = isRecursiveSubstitutionCandidate(rhs);
+        if (shouldStoreType && visitedTypes.contains(rhs)) {
             return rhs;
         }
-        visitedTypes.add(rhs);
+        if (shouldStoreType) {
+            visitedTypes.add(rhs);
+        }
         if (rhs.getKind() == TypeKind.TYPEVAR) {
             AnnotatedTypeVariable atv = (AnnotatedTypeVariable) rhs.shallowCopy();
 
@@ -425,11 +430,11 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
                 mappings.put(formalTypeParameter, actualTypeArgument);
                 // The following code does the wrong thing!
             }
-            // We must use AnnotatedTypeReplacer to replace the formal type parameters with actual
-            // type arguments, but not replace with its main qualifier
+            // We must use AnnotatedTypeReplacer to replace the formal type parameters with
+            // actual type arguments, but not replace with its main qualifier
             rhs = AnnotatedTypeCopierWithReplacement.replace(adt, mappings);
         } else if (rhs.getKind() == TypeKind.WILDCARD) {
-            AnnotatedWildcardType awt = (AnnotatedWildcardType) rhs.shallowCopy();
+            AnnotatedWildcardType awt = (AnnotatedWildcardType) rhs;
             IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> mappings =
                     new IdentityHashMap<>();
 
@@ -467,8 +472,22 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
                             + " of kind: "
                             + rhs.getKind());
         }
-        visitedTypes.remove(rhs);
+        if (shouldStoreType) {
+            visitedTypes.remove(originalRhs);
+        }
         return rhs;
+    }
+
+    /**
+     * Returns whether {@code type} can re-appear while substituting type variables.
+     *
+     * @param type the type to test
+     * @return true if {@code type} should be recorded in {@link #visitedTypes}
+     */
+    private boolean isRecursiveSubstitutionCandidate(AnnotatedTypeMirror type) {
+        return type.getKind() == TypeKind.TYPEVAR
+                || (type.getKind() == TypeKind.DECLARED
+                        && !((AnnotatedDeclaredType) type).getTypeArguments().isEmpty());
     }
 
     /**
