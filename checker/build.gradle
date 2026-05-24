@@ -467,7 +467,7 @@ task ainferTestCheckerGenerateStubs(type: Test) {
     dependsOn(compileTestJava)
     doFirst {
         delete('tests/ainfer-testchecker/annotated')
-        delete("${layout.buildDirectory.get().asFile}/ainfer-testchecker/")
+        delete(layout.buildDirectory.dir('ainfer-testchecker').get().asFile)
     }
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerStubsGenerationTest.class'
@@ -526,7 +526,7 @@ task ainferTestCheckerGenerateAjava(type: Test) {
     dependsOn(compileTestJava)
     doFirst {
         delete('tests/ainfer-testchecker/annotated')
-        delete("${layout.buildDirectory.get().asFile}/ainfer-testchecker/")
+        delete(layout.buildDirectory.dir('ainfer-testchecker').get().asFile)
     }
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerAjavaGenerationTest.class'
@@ -707,7 +707,7 @@ task ainferIndexGenerateAjava(type: Test) {
     dependsOn(compileTestJava)
     doFirst {
         delete('tests/ainfer-index/annotated')
-        delete("${layout.buildDirectory.get().asFile}/ainfer-index/")
+        delete(layout.buildDirectory.dir('ainfer-index').get().asFile)
     }
     outputs.upToDateWhen { false }
     include '**/AinferIndexAjavaGenerationTest.class'
@@ -753,7 +753,7 @@ task ainferNullnessGenerateAjava(type: Test) {
     dependsOn(compileTestJava)
     doFirst {
         delete('tests/ainfer-nullness/annotated')
-        delete("${layout.buildDirectory.get().asFile}/ainfer-nullness/")
+        delete(layout.buildDirectory.dir('ainfer-nullness').get().asFile)
     }
     outputs.upToDateWhen { false }
     include '**/AinferNullnessAjavaGenerationTest.class'
@@ -799,7 +799,7 @@ task ainferResourceLeakGenerateAjava(type: Test) {
     dependsOn(compileTestJava)
     doFirst {
         delete('tests/ainfer-resourceleak/annotated')
-        delete("${layout.buildDirectory.get().asFile}/ainfer-resourceleak/")
+        delete(layout.buildDirectory.dir('ainfer-resourceleak').get().asFile)
     }
     outputs.upToDateWhen { false }
     include '**/AinferResourceLeakAjavaGenerationTest.class'
