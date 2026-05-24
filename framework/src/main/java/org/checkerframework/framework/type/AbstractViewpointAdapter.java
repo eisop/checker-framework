@@ -4,6 +4,7 @@ import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedIntersectionType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedNullType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiveType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
@@ -15,6 +16,7 @@ import org.plumelib.util.IPair;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.function.Function;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -365,21 +367,9 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             ant.replaceAnnotation(resultAnnotation);
             return ant;
         } else if (declared.getKind() == TypeKind.INTERSECTION) {
-            AnnotatedTypeMirror.AnnotatedIntersectionType declaredIntersection =
-                    (AnnotatedTypeMirror.AnnotatedIntersectionType) declared;
-            AnnotatedTypeMirror.AnnotatedIntersectionType intersection =
-                    declaredIntersection.shallowCopy(/* copyAnnotations= */ false);
-            List<AnnotatedTypeMirror> listBounds = declaredIntersection.getBounds();
-            List<AnnotatedTypeMirror> listBoundsCopy = new ArrayList<>(listBounds.size());
-            for (AnnotatedTypeMirror bound : listBounds) {
-                AnnotatedTypeMirror combinedBound =
-                        combineAnnotationWithType(receiverAnnotation, bound);
-                listBoundsCopy.add(combinedBound);
-            }
-            intersection.setBounds(listBoundsCopy);
-            intersection.clearAnnotations();
-            intersection.copyIntersectionBoundAnnotations();
-            return intersection;
+            return adaptIntersectionBounds(
+                    (AnnotatedIntersectionType) declared,
+                    bound -> combineAnnotationWithType(receiverAnnotation, bound));
         } else {
             throw new BugInCF(
                     "ViewpointAdapter::combineAnnotationWithType: Unknown decl: "
@@ -465,20 +455,9 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         } else if (rhs.getKind().isPrimitive() || rhs.getKind() == TypeKind.NULL) {
             // nothing to do for primitive types and the null type
         } else if (rhs.getKind() == TypeKind.INTERSECTION) {
-            AnnotatedTypeMirror.AnnotatedIntersectionType rhsIntersection =
-                    (AnnotatedTypeMirror.AnnotatedIntersectionType) rhs;
-            AnnotatedTypeMirror.AnnotatedIntersectionType intersection =
-                    rhsIntersection.shallowCopy(/* copyAnnotations= */ false);
-            List<AnnotatedTypeMirror> listBounds = rhsIntersection.getBounds();
-            List<AnnotatedTypeMirror> listBoundsCopy = new ArrayList<>(listBounds.size());
-            for (AnnotatedTypeMirror bound : listBounds) {
-                AnnotatedTypeMirror substBound = substituteTVars(lhs, bound);
-                listBoundsCopy.add(substBound);
-            }
-            intersection.setBounds(listBoundsCopy);
-            intersection.clearAnnotations();
-            intersection.copyIntersectionBoundAnnotations();
-            rhs = intersection;
+            rhs =
+                    adaptIntersectionBounds(
+                            (AnnotatedIntersectionType) rhs, bound -> substituteTVars(lhs, bound));
         } else {
             throw new BugInCF(
                     "ViewpointAdapter::substituteTVars: Cannot handle rhs: "
@@ -488,6 +467,30 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         }
 
         return rhs;
+    }
+
+    /**
+     * Returns a copy of {@code source} whose bounds have been adapted by {@code adaptBound}.
+     *
+     * @param source intersection type whose bounds are adapted
+     * @param adaptBound function that adapts one bound
+     * @return a copy of {@code source} with adapted bounds
+     */
+    private AnnotatedIntersectionType adaptIntersectionBounds(
+            AnnotatedIntersectionType source,
+            Function<AnnotatedTypeMirror, AnnotatedTypeMirror> adaptBound) {
+        AnnotatedIntersectionType intersection = source.shallowCopy(/* copyAnnotations= */ false);
+        List<AnnotatedTypeMirror> bounds = source.getBounds();
+        List<AnnotatedTypeMirror> adaptedBounds = new ArrayList<>(bounds.size());
+        for (AnnotatedTypeMirror bound : bounds) {
+            adaptedBounds.add(adaptBound.apply(bound));
+        }
+        intersection.setBounds(adaptedBounds);
+        // setBounds replaces the shared bounds from shallowCopy, so recompute primary annotations
+        // from the adapted bounds.
+        intersection.clearAnnotations();
+        intersection.copyIntersectionBoundAnnotations();
+        return intersection;
     }
 
     /**

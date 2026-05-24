@@ -9,25 +9,65 @@ public class IntersectionTypes {
 
     interface Bar {}
 
-    class Baz implements Foo, Bar {}
+    interface Accessor {
+        @ReceiverDependentQual Object get();
+
+        void set(@ReceiverDependentQual Object o);
+    }
+
+    class Baz implements Foo, Bar, Accessor {
+        @Override
+        public @ReceiverDependentQual Object get() {
+            return null;
+        }
+
+        @Override
+        public void set(@ReceiverDependentQual Object o) {}
+    }
 
     <T extends Foo & Bar> void call(T p) {}
 
-    void foo() {
+    // TODO: Re-enable after deciding the expected behavior for mixed explicit annotations on
+    // intersection bounds. See https://github.com/eisop/checker-framework/issues/1735.
+    // <T extends @A Foo & @B Bar> void callAnnotatedBounds(T p) {}
+
+    <T extends Foo & Accessor> void callAccessor(T p) {}
+
+    void foo(@A Object aObj, @B Object bObj) {
         // :: warning: (cast.unsafe.constructor.invocation)
         Baz baz = new @A Baz();
         call(baz);
+        // callAnnotatedBounds(baz);
+        callAccessor(baz);
+
+        @A Object adapted = baz.get();
+        // :: error: (assignment.type.incompatible)
+        @B Object notAdaptedToB = baz.get();
+
+        baz.set(aObj);
+        // :: error: (argument.type.incompatible)
+        baz.set(bObj);
     }
 
-    interface B<X> {}
+    void intersectionCasts(Object obj) {
+        Foo fooAndBar = (Foo & Bar) obj;
+        Accessor fooAndAccessor = (Foo & Accessor) obj;
+    }
 
-    interface C<X> {}
+    void annotatedIntersectionCast(@B Object obj) {
+        // :: warning: (cast.unsafe)
+        Accessor fooAndAccessor = (@A Foo & Accessor) obj;
+    }
 
-    abstract class D<X extends B<X> & C<X>> {}
+    interface BType<X> {}
 
-    class BC implements B<BC>, C<BC> {}
+    interface CType<X> {}
+
+    abstract class D<X extends BType<X> & CType<X>> {}
+
+    class BC implements BType<BC>, CType<BC> {}
 
     class E extends D<BC> {}
 
-    <T extends B<T> & C<T>> void callBC(T p) {}
+    <T extends BType<T> & CType<T>> void callBC(T p) {}
 }
