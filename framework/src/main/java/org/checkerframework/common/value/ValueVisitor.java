@@ -21,7 +21,6 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
-import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
@@ -90,7 +89,7 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
 
         if (valueType.getKind() == TypeKind.CHAR
                 && valueType.hasAnnotation(getTypeFactory().UNKNOWNVAL)) {
-            valueType.addAnnotation(
+            valueType.replaceAnnotation(
                     getTypeFactory().createIntRangeAnnotation(Range.CHAR_EVERYTHING));
         }
 
@@ -351,15 +350,11 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
                 && exprTypeKind != null
                 && TypeKindUtils.isIntegral(castTypeKind)
                 && TypeKindUtils.isIntegral(exprTypeKind)) {
-            AnnotationMirrorSet castAnnos = castType.getAnnotations();
-            AnnotationMirrorSet exprAnnos = exprType.getAnnotations();
-            if (castAnnos.equals(exprAnnos)) {
+            AnnotationMirror castAnno = castType.getAnnotationInHierarchy(atypeFactory.UNKNOWNVAL);
+            AnnotationMirror exprAnno = exprType.getAnnotationInHierarchy(atypeFactory.UNKNOWNVAL);
+            if (AnnotationUtils.areSame(castAnno, exprAnno)) {
                 return true;
             }
-            assert castAnnos.size() == 1;
-            assert exprAnnos.size() == 1;
-            AnnotationMirror castAnno = castAnnos.first();
-            AnnotationMirror exprAnno = exprAnnos.first();
             boolean castAnnoIsIntVal = atypeFactory.areSameByClass(castAnno, IntVal.class);
             boolean exprAnnoIsIntVal = atypeFactory.areSameByClass(exprAnno, IntVal.class);
             if (castAnnoIsIntVal && exprAnnoIsIntVal) {

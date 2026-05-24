@@ -105,13 +105,22 @@ public class UnaryOperation extends JavaExpression {
         return operand.containsModifiableAliasOf(store, other);
     }
 
+    /** Cache the hashCode. Recomputed if zero. */
+    private int hashCodeCache = 0;
+
     @Override
     public int hashCode() {
-        return Objects.hash(operationKind, operand);
+        if (hashCodeCache == 0) {
+            hashCodeCache = Objects.hash(operationKind, operand);
+        }
+        return hashCodeCache;
     }
 
     @Override
     public boolean equals(@Nullable Object other) {
+        if (this == other) {
+            return true;
+        }
         if (!(other instanceof UnaryOperation)) {
             return false;
         }

@@ -11,7 +11,7 @@ import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.IPair;
 
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -387,7 +387,7 @@ public class VariableBounds {
                 context.inferenceTypeFactory.getParameterizedSupers(s, t);
 
         if (pair == null) {
-            return new ArrayList<>();
+            return Collections.emptyList();
         }
 
         List<AbstractType> ss = pair.first.getTypeArguments();
@@ -475,6 +475,20 @@ public class VariableBounds {
     public boolean applyInstantiationsToBounds() {
         boolean changed = false;
         for (Set<AbstractType> boundList : bounds.values()) {
+            // Fast path: if every bound's applyInstantiations returns the same instance, no
+            // rebuild is needed.  This is the common case at fixpoint convergence.
+            boolean listChanged = false;
+            for (AbstractType bound : boundList) {
+                if (bound.applyInstantiations() != bound) {
+                    listChanged = true;
+                    break;
+                }
+            }
+            if (!listChanged) {
+                continue;
+            }
+
+            // Slow path: at least one bound changed instance; rebuild this bound list.
             LinkedHashSet<AbstractType> newBounds = new LinkedHashSet<>(boundList.size());
             for (AbstractType bound : boundList) {
                 AbstractType newBound = bound.applyInstantiations();
@@ -503,8 +517,8 @@ public class VariableBounds {
      *
      * @return all variables mentioned in a bound against this variable
      */
-    public Collection<? extends Variable> getVariablesMentionedInBounds() {
-        List<Variable> mentioned = new ArrayList<>();
+    public Set<Variable> getVariablesMentionedInBounds() {
+        Set<Variable> mentioned = new LinkedHashSet<>();
         for (Set<AbstractType> boundList : bounds.values()) {
             for (AbstractType bound : boundList) {
                 mentioned.addAll(bound.getInferenceVariables());
@@ -647,6 +661,15 @@ public class VariableBounds {
      * @return constraints generated when incorporating a capture bound
      */
     public ConstraintSet getWildcardConstraints(AbstractType Ai, AbstractType Bi) {
+        // EQUAL-bound check first: if any EQUAL bound is proper or an inference type,
+        // the bound is false and we return null without doing any work.
+        for (AbstractType bound : bounds.get(VariableBounds.BoundKind.EQUAL)) {
+            if (bound.isProper() || bound.isInferenceType()) {
+                // var = R implies the bound false
+                return null;
+            }
+        }
+
         ConstraintSet constraintSet = new ConstraintSet();
         String source = "Constraint from wildcard bound.";
 
@@ -661,13 +684,6 @@ public class VariableBounds {
         for (AbstractType bound : bounds.get(VariableBounds.BoundKind.LOWER)) {
             if (bound.isProper() || bound.isInferenceType()) {
                 lowerBoundsNonVar.add(bound);
-            }
-        }
-
-        for (AbstractType bound : bounds.get(VariableBounds.BoundKind.EQUAL)) {
-            if (bound.isProper() || bound.isInferenceType()) {
-                // var = R implies the bound false
-                return null;
             }
         }
 
