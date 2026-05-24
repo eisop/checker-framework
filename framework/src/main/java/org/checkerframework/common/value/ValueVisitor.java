@@ -21,7 +21,6 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
-import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
@@ -90,7 +89,7 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
 
         if (valueType.getKind() == TypeKind.CHAR
                 && valueType.hasAnnotation(getTypeFactory().UNKNOWNVAL)) {
-            valueType.addAnnotation(
+            valueType.replaceAnnotation(
                     getTypeFactory().createIntRangeAnnotation(Range.CHAR_EVERYTHING));
         }
 
@@ -338,9 +337,9 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
     }
 
     // At this point, types are like: (@IntVal(-1) byte, @IntVal(255) int) and knowledge of
-    // signedness is gone.  So, use castType's underlying type to infer correctness of the cast.
-    // This method returns true for (@IntVal(-1), @IntVal(255)) if the underlying type is `byte`,
-    // but not for any other underlying type.
+    // signedness is gone.  So, use castType's underlying type to infer correctness of the
+    // cast.  This method returns true for (@IntVal(-1), @IntVal(255)) if the underlying type
+    // is `byte`, but not for any other underlying type.
     @Override
     protected boolean isTypeCastSafe(AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
         TypeKind castTypeKind =
@@ -351,15 +350,11 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
                 && exprTypeKind != null
                 && TypeKindUtils.isIntegral(castTypeKind)
                 && TypeKindUtils.isIntegral(exprTypeKind)) {
-            AnnotationMirrorSet castAnnos = castType.getAnnotations();
-            AnnotationMirrorSet exprAnnos = exprType.getAnnotations();
-            if (castAnnos.equals(exprAnnos)) {
+            AnnotationMirror castAnno = castType.getAnnotationInHierarchy(atypeFactory.UNKNOWNVAL);
+            AnnotationMirror exprAnno = exprType.getAnnotationInHierarchy(atypeFactory.UNKNOWNVAL);
+            if (AnnotationUtils.areSame(castAnno, exprAnno)) {
                 return true;
             }
-            assert castAnnos.size() == 1;
-            assert exprAnnos.size() == 1;
-            AnnotationMirror castAnno = castAnnos.first();
-            AnnotationMirror exprAnno = exprAnnos.first();
             boolean castAnnoIsIntVal = atypeFactory.areSameByClass(castAnno, IntVal.class);
             boolean exprAnnoIsIntVal = atypeFactory.areSameByClass(exprAnno, IntVal.class);
             if (castAnnoIsIntVal && exprAnnoIsIntVal) {
@@ -499,8 +494,8 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
     }
 
     @Override
-    public Void visitMethod(MethodTree tree, Void p) {
-        super.visitMethod(tree, p);
+    public void processMethodTree(String className, MethodTree tree) {
+        super.processMethodTree(className, tree);
 
         ExecutableElement method = TreeUtils.elementFromDeclaration(tree);
         if (atypeFactory.getDeclAnnotation(method, StaticallyExecutable.class) != null) {
@@ -550,6 +545,5 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
                 }
             }
         }
-        return null;
     }
 }

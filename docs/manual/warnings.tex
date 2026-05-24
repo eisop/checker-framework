@@ -51,6 +51,8 @@ You can suppress warnings throughout the codebase by using the following mechani
 \item
   the \code{-AskipDefs} and \code{-AonlyDefs} command-line options (Section~\ref{askipdefs}),
 \item
+  the \code{-AskipFiles} and \code{-AonlyFiles} command-line options (Section~\ref{askipfiles}),
+\item
   the \code{-AuseConservativeDefaultsForUncheckedCode=source} command-line
   option (Section~\ref{compiling-libraries}),
 \item
@@ -566,15 +568,18 @@ smaller scope, rather than using the \<-AsuppressWarnings> command-line option.
 You can suppress all errors and warnings at all \emph{uses} of a given
 class, or suppress all errors and warnings \emph{except} those at uses of a given
 class.  (The class itself is still type-checked, unless you also use
-the \code{-AskipDefs} or \code{-AonlyDefs} command-line option, see~\ref{askipdefs}).
+the \code{-AskipDefs}, \code{-AonlyDefs}, \code{-AskipFiles}, or \code{-AonlyFiles}
+command-line option, see~\ref{askipdefs}).
 You can also use these options to affect entire packages or directories/folders.
 
 Set the \code{-AskipUses} command-line option to a
-regular expression that matches fully-qualified class names (not file names) for which warnings and errors
+regular expression that matches fully-qualified class names (not file names) for which errors and warnings
 should be suppressed.
 Or, set the \code{-AonlyUses} command-line option to a
-regular expression that matches fully-qualified class names (not file names) for which warnings and errors
+regular expression that matches fully-qualified class names (not file names) for which errors and warnings
 should be emitted; warnings about uses of all other classes will be suppressed.
+The regular expressions are unanchored, unless you anchor them yourself
+with ``\codesize\verb|^|'' and/or ``\codesize\verb|$|''.
 
 For example, suppose that you use
 ``{\codesize\verb|-AskipUses=^java\.|}'' on the command line
@@ -620,13 +625,17 @@ see~\ref{askipuses}.)
 You can also use these options to affect entire packages or directories/folders.
 
 Set the \code{-AskipDefs} command-line option to a
-regular expression that matches fully-qualified class names (not file names) in whose definition warnings and errors
+regular expression that matches fully-qualified class names (not file names) in whose definition errors and warnings
 should be suppressed.
 Or, set the \code{-AonlyDefs} command-line option to a
 regular expression that matches fully-qualified class names (not file names) whose
 definitions should be type-checked.
 (This is somewhat similar to NullAway's
 \<-XepOpt:NullAway:AnnotatedPackages> command-line argument.)
+(For file names, use \code{-AskipFiles} and \code{-AonlyFiles} instead; see
+Section~\ref{askipfiles}.)
+The regular expressions are unanchored, unless you anchor them yourself
+with ``\codesize\verb|^|'' and/or ``\codesize\verb|$|''.
 
 For example, if you use
 ``{\codesize\verb|-AskipDefs=^mypackage\.|}'' on the command line
@@ -654,6 +663,45 @@ most important parts, you can incrementally check more classes until you
 are type-checking the whole thing.
 
 
+\sectionAndLabel{\code{-AskipFiles} and \code{-AonlyFiles} command-line options}{askipfiles}
+
+You can suppress all errors and warnings originating from classes that are
+located in a given file or directory/folder, or all those that are \emph{not} in a
+given file or directory/folder.
+
+Set the \code{-AskipFiles} command-line option to a
+regular expression that matches the path to files or directories/folders containing
+classes for which errors and warnings should be suppressed.
+Similarly, \code{-AonlyFiles} suppresses warnings everywhere
+\emph{except} in the given files.
+The regular expressions are unanchored, unless you anchor them yourself
+with ``\codesize\verb|^|'' and/or ``\codesize\verb|$|''.
+
+For example, if you use
+``{\codesize\verb|-AskipFiles=/build/generated/|}'' on the command line
+when invoking
+\code{javac}, then the definitions of classes located in any
+\codesize\verb|/build/generated| directory will not be checked.
+
+If you supply both \code{-AskipFiles} and \code{-AonlyFiles}, then
+\code{-AskipFiles} takes precedence.
+
+A common scenario for using this argument is when you want to exclude certain
+directories/folders (such as those containing generated or legacy code) from
+type-checking.
+Another scenario is when a file contains multiple top-level classes, only
+one of which has a name that corresponds to the file name.
+
+\sectionAndLabel{\code{-AonlyAnnotatedFor} command-line option}{aonlyannotatedfor}
+
+You can suppress all errors and warnings for code outside of a corresponding \code{@AnnotatedFor} by applying this command-line option.
+Note that the \code{@AnnotatedFor} annotation must include the checker's name to enable warnings from that checker.
+For example, use \code{@AnnotatedFor("nullness")} for the Nullness Checker.
+This flag only suppresses warnings, compared to \code{-AuseConservativeDefaultsForUncheckedCode=source},
+which also applies conservative defaults for code outside the scope of an \code{@AnnotatedFor} annotation.
+\href{https://github.com/uber/NullAway}{NullAway} has a similar flag: \code{-XepOpt:NullAway:OnlyNullMarked=true}
+configures NullAway to only issue errors for code inside the scope of \code{@NullMarked} annotations.
+
 \sectionAndLabel{\code{-Alint} command-line option\label{lint-options}}{alint}
 
 The \code{-Alint} option enables or disables optional checks, analogously to
@@ -672,12 +720,11 @@ options (and possibly more, see the checker's documentation):
 
 \item
   \code{cast:unsafe} (default: on) warn about unsafe casts that are not
-  checked at run time, as in \code{((@NonNull String) myref)}.  Such casts
-  are generally not necessary because of type refinement
-  (Section~\ref{type-refinement}).
+  checked at run time, as in \code{((@NonNull String) myref)}.
+  Such casts are unsafe as the type qualifiers are ignored at run time.
 
 \item
-  \code{cast:redundant} (default: on) warn about redundant
+  \code{cast:redundant} (default: off) warn about redundant
   casts that are guaranteed to succeed at run time,
   as in \code{((@NonNull String) "m")}.  Such casts are not necessary,
   because the target expression of the cast already has the given type
@@ -685,6 +732,14 @@ options (and possibly more, see the checker's documentation):
 
 \item
   \code{cast} Enable or disable all cast-related warnings.
+
+\item
+  \code{instanceof:unsafe} (default: on) warn about unsafe instanceof tests
+  that are not checked at run time, as in \code{o instanceof @Untainted String}.
+  Such instanceof tests are unsafe as the type qualifiers are ignored at run time.
+
+\item
+  \code{instanceof} Enable or disable instanceof-related warnings.
 
 \item
 \begin{sloppypar}
