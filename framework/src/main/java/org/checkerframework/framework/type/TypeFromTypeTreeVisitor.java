@@ -200,8 +200,9 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
     @Override
     public AnnotatedTypeVariable visitTypeParameter(
             TypeParameterTree tree, @FindDistinct AnnotatedTypeFactory f) {
-        if (visitedTypeParameter.containsKey(tree)) {
-            return visitedTypeParameter.get(tree);
+        AnnotatedTypeVariable cached = visitedTypeParameter.get(tree);
+        if (cached != null) {
+            return cached;
         }
 
         AnnotatedTypeVariable result = (AnnotatedTypeVariable) f.type(tree);
@@ -271,9 +272,10 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
         Element elt = tpe.getGenericElement();
         if (elt instanceof TypeElement) {
             TypeElement typeElt = (TypeElement) elt;
-            int idx = typeElt.getTypeParameters().indexOf(tpe);
+            List<? extends TypeParameterElement> typeParameters = typeElt.getTypeParameters();
+            int idx = typeParameters.indexOf(tpe);
             if (idx == -1) {
-                idx = findIndex(typeElt.getTypeParameters(), tpe);
+                idx = findIndex(typeParameters, tpe);
             }
             ClassTree cls = (ClassTree) f.declarationFromElement(typeElt);
             if (cls == null || cls.getTypeParameters().isEmpty()) {
@@ -289,9 +291,10 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
             return visitTypeParameter(cls.getTypeParameters().get(idx), f).asUse();
         } else if (elt instanceof ExecutableElement) {
             ExecutableElement exElt = (ExecutableElement) elt;
-            int idx = exElt.getTypeParameters().indexOf(tpe);
+            List<? extends TypeParameterElement> typeParameters = exElt.getTypeParameters();
+            int idx = typeParameters.indexOf(tpe);
             if (idx == -1) {
-                idx = findIndex(exElt.getTypeParameters(), tpe);
+                idx = findIndex(typeParameters, tpe);
             }
             MethodTree meth = (MethodTree) f.declarationFromElement(exElt);
             if (meth == null) {

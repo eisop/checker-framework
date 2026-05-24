@@ -28,13 +28,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.StringJoiner;
-import java.util.TreeSet;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
@@ -68,42 +65,21 @@ public class AnnotationUtils {
      * Returns the fully-qualified name of an annotation as a String.
      *
      * <p>This method is efficient for {@code AnnotationBuilder.CheckerFrameworkAnnotationMirror},
-     * for which it looks up the name. This method may be inefficient for other subclasses of {@code
-     * AnnotationMirror}, because it may compute a new string.
+     * for which it looks up the name. For other subclasses of {@code AnnotationMirror}, the result
+     * is cached.
      *
      * @param annotation the annotation whose name to return
      * @return the fully-qualified name of an annotation as a String
      */
-    public static final @CanonicalName String annotationName(AnnotationMirror annotation) {
-        if (annotation instanceof AnnotationBuilder.CheckerFrameworkAnnotationMirror) {
-            return ((AnnotationBuilder.CheckerFrameworkAnnotationMirror) annotation).annotationName;
-        }
-        DeclaredType annoType = annotation.getAnnotationType();
-        TypeElement elm = (TypeElement) annoType.asElement();
-        @SuppressWarnings("signature:assignment.type.incompatible") // JDK needs annotations
-        @CanonicalName String name = elm.getQualifiedName().toString();
-        return name;
-    }
-
-    /**
-     * Returns the fully-qualified name of an annotation as a String.
-     *
-     * <p>This is more efficient than calling {@link #annotationName} and {@link
-     * java.lang.String#intern}.
-     *
-     * @param annotation the annotation whose name to return
-     * @return the fully-qualified name of an annotation as a String
-     */
-    public static final @CanonicalName @Interned String annotationNameInterned(
+    public static final @CanonicalName @Interned String annotationName(
             AnnotationMirror annotation) {
         if (annotation instanceof AnnotationBuilder.CheckerFrameworkAnnotationMirror) {
             return ((AnnotationBuilder.CheckerFrameworkAnnotationMirror) annotation).annotationName;
         }
         DeclaredType annoType = annotation.getAnnotationType();
         TypeElement elm = (TypeElement) annoType.asElement();
-        @SuppressWarnings("signature:assignment") // JDK needs annotations
-        @CanonicalName String name = elm.getQualifiedName().toString();
-        return name.intern();
+        @CanonicalName @Interned String name = ElementUtils.getQualifiedName(elm);
+        return name;
     }
 
     /**
@@ -116,6 +92,23 @@ public class AnnotationUtils {
         DeclaredType annoType = annotation.getAnnotationType();
         TypeElement elm = (TypeElement) annoType.asElement();
         return ElementUtils.getBinaryName(elm);
+    }
+
+    /**
+     * Returns the fully-qualified name of an annotation as a javac {@link Name}.
+     *
+     * <p>Unlike {@link #annotationName}, this method never calls {@link Name#toString()} and
+     * therefore never allocates a String. It is used internally where only identity comparison or
+     * hashing is needed, not a String value.
+     *
+     * <p>{@link Name} objects produced by the same {@link javax.lang.model.util.Elements} instance
+     * (i.e., within one javac invocation) are guaranteed to be comparable by identity ({@code ==}).
+     *
+     * @param annotation the annotation whose name to return
+     * @return the fully-qualified name as a {@link Name}
+     */
+    public static Name annotationNameAsName(AnnotationMirror annotation) {
+        return ((TypeElement) annotation.getAnnotationType().asElement()).getQualifiedName();
     }
 
     /**
@@ -148,32 +141,18 @@ public class AnnotationUtils {
      *
      * @param a1 the first AnnotationMirror to compare
      * @param a2 the second AnnotationMirror to compare
-     * @return true iff a1 and a2 have the same annotation name
+     * @return a negative integer, zero, or a positive integer if the name of a1 is less than, equal
+     *     to, or greater than the name of a2
      * @see #areSame(AnnotationMirror, AnnotationMirror)
+     * @see #areSameByName(AnnotationMirror, AnnotationMirror)
      */
-    @EqualsMethod
+    @CompareToMethod
     public static int compareByName(AnnotationMirror a1, AnnotationMirror a2) {
-        if (a1 == a2) {
+        if (areSameByName(a1, a2)) {
             return 0;
+        } else {
+            return annotationName(a1).compareTo(annotationName(a2));
         }
-        if (a1 == null || a2 == null) {
-            throw new BugInCF("Unexpected null argument:  compareByName(%s, %s)", a1, a2);
-        }
-
-        // This is largely duplicated code.  The point of this block is that
-        // the `if (name1 == name2)` test is very fast.
-        if (a1 instanceof CheckerFrameworkAnnotationMirror
-                && a2 instanceof CheckerFrameworkAnnotationMirror) {
-            @Interned @CanonicalName String name1 = ((CheckerFrameworkAnnotationMirror) a1).annotationName;
-            @Interned @CanonicalName String name2 = ((CheckerFrameworkAnnotationMirror) a2).annotationName;
-            if (name1 == name2) {
-                return 0;
-            } else {
-                return name1.compareTo(name2);
-            }
-        }
-
-        return annotationName(a1).compareTo(annotationName(a2));
     }
 
     /**
@@ -183,7 +162,13 @@ public class AnnotationUtils {
      * @return the hash code
      */
     public static int hashCode(AnnotationMirror a) {
-        int h = annotationName(a).hashCode();
+        // Use annotationNameAsName to avoid toString(): Name.hashCode() is computed over the
+        // backing byte array by javac, with no String allocation.
+        // For CFAM the field is a String and String.hashCode() is cached, so both paths are fast.
+        int h =
+                (a instanceof CheckerFrameworkAnnotationMirror)
+                        ? ((CheckerFrameworkAnnotationMirror) a).annotationName.hashCode()
+                        : annotationNameAsName(a).hashCode();
         Map<? extends ExecutableElement, ? extends AnnotationValue> vals = a.getElementValues();
         for (AnnotationValue av : vals.values()) {
             // Ignore ordering of annotation values.
@@ -200,10 +185,31 @@ public class AnnotationUtils {
      * @param a2 the second AnnotationMirror to compare
      * @return true iff a1 and a2 have the same annotation name
      * @see #areSame(AnnotationMirror, AnnotationMirror)
+     * @see #compareByName(AnnotationMirror, AnnotationMirror)
      */
     @EqualsMethod
     public static boolean areSameByName(AnnotationMirror a1, AnnotationMirror a2) {
-        return compareByName(a1, a2) == 0;
+        // Conceptually, this is like `compareByName(a1, a2) == 0`, but this implementation avoids
+        // String allocations.
+        if (a1 == a2) {
+            return true;
+        }
+        if (a1 == null || a2 == null) {
+            throw new BugInCF("Unexpected null argument:  areSameByName(%s, %s)", a1, a2);
+        }
+
+        // Fast path for CF-produced mirrors: the name is already an interned String.
+        if (a1 instanceof CheckerFrameworkAnnotationMirror
+                && a2 instanceof CheckerFrameworkAnnotationMirror) {
+            @Interned @CanonicalName String name1 = ((CheckerFrameworkAnnotationMirror) a1).annotationName;
+            @Interned @CanonicalName String name2 = ((CheckerFrameworkAnnotationMirror) a2).annotationName;
+            return name1 == name2;
+        }
+        // At least one is not a CheckerFrameworkAnnotationMirror.
+        Name n1 = annotationNameAsName(a1);
+        Name n2 = annotationNameAsName(a2);
+        // Names are interned for a run. Do not use n1.contentEquals(n2).
+        return n1 == n2;
     }
 
     /**
@@ -254,18 +260,9 @@ public class AnnotationUtils {
             return areSame(c1.iterator().next(), c2.iterator().next());
         }
 
-        // while loop depends on NavigableSet implementation.
-        AnnotationMirrorSet s1 = new AnnotationMirrorSet();
-        AnnotationMirrorSet s2 = new AnnotationMirrorSet();
-        s1.addAll(c1);
-        s2.addAll(c2);
-        Iterator<AnnotationMirror> iter1 = s1.iterator();
-        Iterator<AnnotationMirror> iter2 = s2.iterator();
-
-        while (iter1.hasNext()) {
-            AnnotationMirror anno1 = iter1.next();
-            AnnotationMirror anno2 = iter2.next();
-            if (!areSame(anno1, anno2)) {
+        // For each annotation in c1, look for a matching annotation in c2 by `areSame`.
+        for (AnnotationMirror a : c1) {
+            if (!containsSame(c2, a)) {
                 return false;
             }
         }
@@ -404,6 +401,13 @@ public class AnnotationUtils {
     }
 
     /**
+     * Comparator used by {@link #compareAnnotationMirrors} to sort an annotation type's element
+     * methods by simple signature, hoisted to a static constant so the lambda is allocated once.
+     */
+    private static final Comparator<ExecutableElement> SIMPLE_SIGNATURE_COMPARATOR =
+            Comparator.comparing(ElementUtils::getSimpleSignature);
+
+    /**
      * Provide an ordering for {@link AnnotationMirror}s. AnnotationMirrors are first compared by
      * their fully-qualified names, then by their element values in order of the name of the
      * element.
@@ -421,10 +425,12 @@ public class AnnotationUtils {
         // The annotations have the same name, but possibly different values, so compare values.
         Map<? extends ExecutableElement, ? extends AnnotationValue> vals1 = a1.getElementValues();
         Map<? extends ExecutableElement, ? extends AnnotationValue> vals2 = a2.getElementValues();
-        Set<ExecutableElement> sortedElements =
-                new TreeSet<>(Comparator.comparing(ElementUtils::getSimpleSignature));
-        sortedElements.addAll(
-                ElementFilter.methodsIn(a1.getAnnotationType().asElement().getEnclosedElements()));
+        // Sort method elements once into an ArrayList.
+        List<ExecutableElement> sortedElements =
+                new ArrayList<>(
+                        ElementFilter.methodsIn(
+                                a1.getAnnotationType().asElement().getEnclosedElements()));
+        sortedElements.sort(SIMPLE_SIGNATURE_COMPARATOR);
 
         // getDefaultValue() returns null if the method is not an annotation interface element.
         for (ExecutableElement meth : sortedElements) {
@@ -1258,9 +1264,32 @@ public class AnnotationUtils {
         if (am1 == am2) {
             return true;
         }
-
         Map<? extends ExecutableElement, ? extends AnnotationValue> vals1 = am1.getElementValues();
         Map<? extends ExecutableElement, ? extends AnnotationValue> vals2 = am2.getElementValues();
+        if (vals1.isEmpty() && vals2.isEmpty()) {
+            return true; // no-element annotations: nothing to compare
+        }
+        // Fast path: when both annotations have an explicit value for the same set of methods,
+        // we don't need to enumerate all annotation methods (and pay an
+        // ElementFilter.methodsIn list allocation) just to handle defaults.
+        if (vals1.size() == vals2.size() && vals1.keySet().equals(vals2.keySet())) {
+            for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> e :
+                    vals1.entrySet()) {
+                AnnotationValue aval1 = e.getValue();
+                // From the earlier check we know e.getKey() is a key in vals2.
+                @SuppressWarnings("nullness")
+                @NonNull AnnotationValue aval2 = vals2.get(e.getKey());
+                @SuppressWarnings("interning:not.interned") // optimization via equality test
+                boolean identical = aval1 == aval2;
+                if (identical) {
+                    continue;
+                }
+                if (!sameAnnotationValue(aval1, aval2)) {
+                    return false;
+                }
+            }
+            return true;
+        }
         for (ExecutableElement meth :
                 ElementFilter.methodsIn(
                         am1.getAnnotationType().asElement().getEnclosedElements())) {
@@ -1605,7 +1634,7 @@ public class AnnotationUtils {
                             sb.append(", ");
                         }
                         notfirst = true;
-                        sb.append(arg.getKey().getSimpleName() + "=");
+                        sb.append(arg.getKey().getSimpleName()).append("=");
                         formatAnnotationMirrorArg(arg.getValue(), sb);
                     }
                 }
@@ -1627,9 +1656,8 @@ public class AnnotationUtils {
         Map<ExecutableElement, AnnotationValue> nonDefaults = new ArrayMap<>(0);
         elementValues.forEach(
                 (element, value) -> {
-                    if (element.getDefaultValue() == null
-                            || !Objects.equals(
-                                    value.getValue(), element.getDefaultValue().getValue())) {
+                    AnnotationValue dflt = element.getDefaultValue();
+                    if (dflt == null || !Objects.equals(value.getValue(), dflt.getValue())) {
                         nonDefaults.put(element, value);
                     }
                 });
@@ -1645,7 +1673,7 @@ public class AnnotationUtils {
      */
     private static void formatAnnotationMirrorArg(AnnotationValue av, StringBuilder sb) {
         Object val = av.getValue();
-        if (List.class.isAssignableFrom(val.getClass())) {
+        if (val instanceof List) {
             @SuppressWarnings("unchecked")
             List<AnnotationValue> vallist = (List<AnnotationValue>) val;
             if (vallist.size() == 1) {
@@ -1662,9 +1690,11 @@ public class AnnotationUtils {
                 }
                 sb.append('}');
             }
-        } else if (VariableElement.class.isAssignableFrom(val.getClass())) {
+        } else if (val instanceof VariableElement) {
             VariableElement ve = (VariableElement) val;
-            sb.append(ve.getEnclosingElement().getSimpleName() + "." + ve.getSimpleName());
+            sb.append(ve.getEnclosingElement().getSimpleName())
+                    .append('.')
+                    .append(ve.getSimpleName());
         } else {
             sb.append(av.toString());
         }

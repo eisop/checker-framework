@@ -28,9 +28,8 @@ import org.plumelib.util.StringsPlume;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.IdentityHashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -144,7 +143,8 @@ public class ElementAnnotationUtil {
             Collection<TypeCompound> annos,
             List<TypeCompound> unmatched,
             TargetType... targetTypes) {
-        Map<TargetType, List<TypeCompound>> targetTypeToAnnos = new HashMap<>();
+        // EnumMap: TargetType is an enum, so lookup is an array index, not a hash.
+        Map<TargetType, List<TypeCompound>> targetTypeToAnnos = new EnumMap<>(TargetType.class);
         for (TargetType targetType : targetTypes) {
             targetTypeToAnnos.put(targetType, new ArrayList<>());
         }
@@ -451,8 +451,8 @@ public class ElementAnnotationUtil {
      * @param isComponentTypeOfArray indicates whether the type under analysis is a component type
      *     of some array type
      * @return the type specified by location
+     * @throws UnexpectedAnnotationLocationException if an unexpected location is found
      */
-    @SuppressWarnings("JdkObsolete") // error is issued on every operation, must suppress here
     private static AnnotatedTypeMirror getLocationTypeADT(
             AnnotatedDeclaredType type,
             List<TypeAnnotationPosition.TypePathEntry> location,
@@ -484,13 +484,13 @@ public class ElementAnnotationUtil {
             }
         }
 
-        // Create a linked list of the location, so removing the first element is easier.
-        // Also, the tail() operation wouldn't work with a Deque.
-        @SuppressWarnings("JdkObsolete")
-        LinkedList<TypePathEntry> tailOfLocations = new LinkedList<>(location);
+        // Walk `location` with an index instead of copying it into an ArrayList and repeatedly
+        // calling remove(0).
         boolean error = false;
-        while (!tailOfLocations.isEmpty()) {
-            TypePathEntry currentLocation = tailOfLocations.removeFirst();
+        int idx = 0;
+        int locSize = location.size();
+        while (idx < locSize) {
+            TypePathEntry currentLocation = location.get(idx++);
             switch (currentLocation.tag) {
                 case INNER_TYPE:
                     outerToInner.removeFirst();
@@ -500,7 +500,7 @@ public class ElementAnnotationUtil {
                     if (currentLocation.arg < innerType.getTypeArguments().size()) {
                         AnnotatedTypeMirror typeArg =
                                 innerType.getTypeArguments().get(currentLocation.arg);
-                        return getTypeAtLocation(typeArg, tailOfLocations);
+                        return getTypeAtLocation(typeArg, location.subList(idx, locSize));
                     } else {
                         error = true;
                         break;
