@@ -29,5 +29,5 @@ public class IntersectionTypes {
 
     class E extends D<BC> {}
 
-    <T extends B<T> & C<T>> void call(T p) {}
+    <T extends B<T> & C<T>> void callBC(T p) {}
 }

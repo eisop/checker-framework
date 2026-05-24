@@ -12,6 +12,7 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.plumelib.util.IPair;
 
+import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
 
@@ -364,17 +365,20 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             ant.replaceAnnotation(resultAnnotation);
             return ant;
         } else if (declared.getKind() == TypeKind.INTERSECTION) {
+            AnnotatedTypeMirror.AnnotatedIntersectionType declaredIntersection =
+                    (AnnotatedTypeMirror.AnnotatedIntersectionType) declared;
             AnnotatedTypeMirror.AnnotatedIntersectionType intersection =
-                    (AnnotatedTypeMirror.AnnotatedIntersectionType) declared.shallowCopy(true);
-            List<AnnotatedTypeMirror> listBounds = intersection.getBounds();
-            List<AnnotatedTypeMirror> listBoundsCopy = new ArrayList<>(listBounds);
-            for (int i = 0; i < listBoundsCopy.size(); i++) {
-                AnnotatedTypeMirror bound = listBoundsCopy.get(i);
+                    declaredIntersection.shallowCopy(/* copyAnnotations= */ false);
+            List<AnnotatedTypeMirror> listBounds = declaredIntersection.getBounds();
+            List<AnnotatedTypeMirror> listBoundsCopy = new ArrayList<>(listBounds.size());
+            for (AnnotatedTypeMirror bound : listBounds) {
                 AnnotatedTypeMirror combinedBound =
                         combineAnnotationWithType(receiverAnnotation, bound);
-                listBoundsCopy.set(i, combinedBound);
+                listBoundsCopy.add(combinedBound);
             }
             intersection.setBounds(listBoundsCopy);
+            intersection.clearAnnotations();
+            intersection.copyIntersectionBoundAnnotations();
             return intersection;
         } else {
             throw new BugInCF(
@@ -461,16 +465,19 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         } else if (rhs.getKind().isPrimitive() || rhs.getKind() == TypeKind.NULL) {
             // nothing to do for primitive types and the null type
         } else if (rhs.getKind() == TypeKind.INTERSECTION) {
+            AnnotatedTypeMirror.AnnotatedIntersectionType rhsIntersection =
+                    (AnnotatedTypeMirror.AnnotatedIntersectionType) rhs;
             AnnotatedTypeMirror.AnnotatedIntersectionType intersection =
-                    (AnnotatedTypeMirror.AnnotatedIntersectionType) rhs.shallowCopy(true);
-            List<AnnotatedTypeMirror> listBounds = intersection.getBounds();
-            List<AnnotatedTypeMirror> listBoundsCopy = new ArrayList<>(listBounds);
-            for (int i = 0; i < listBoundsCopy.size(); i++) {
-                AnnotatedTypeMirror bound = listBoundsCopy.get(i);
+                    rhsIntersection.shallowCopy(/* copyAnnotations= */ false);
+            List<AnnotatedTypeMirror> listBounds = rhsIntersection.getBounds();
+            List<AnnotatedTypeMirror> listBoundsCopy = new ArrayList<>(listBounds.size());
+            for (AnnotatedTypeMirror bound : listBounds) {
                 AnnotatedTypeMirror substBound = substituteTVars(lhs, bound);
-                listBoundsCopy.set(i, substBound);
+                listBoundsCopy.add(substBound);
             }
             intersection.setBounds(listBoundsCopy);
+            intersection.clearAnnotations();
+            intersection.copyIntersectionBoundAnnotations();
             rhs = intersection;
         } else {
             throw new BugInCF(
