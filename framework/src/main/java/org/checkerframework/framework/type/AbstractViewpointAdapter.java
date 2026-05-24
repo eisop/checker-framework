@@ -347,7 +347,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
 
             return aat;
         } else if (declared.getKind() == TypeKind.WILDCARD) {
-            AnnotatedWildcardType awt = (AnnotatedWildcardType) declared;
+            AnnotatedWildcardType awt = (AnnotatedWildcardType) declared.shallowCopy();
             IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> mappings =
                     new IdentityHashMap<>();
 
@@ -440,7 +440,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             // type arguments, but not replace with its main qualifier
             rhs = AnnotatedTypeCopierWithReplacement.replace(adt, mappings);
         } else if (rhs.getKind() == TypeKind.WILDCARD) {
-            AnnotatedWildcardType awt = (AnnotatedWildcardType) rhs;
+            AnnotatedWildcardType awt = (AnnotatedWildcardType) rhs.shallowCopy();
             IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> mappings =
                     new IdentityHashMap<>();
 
