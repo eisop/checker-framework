@@ -88,13 +88,22 @@ public class ArrayCreation extends JavaExpression {
         return true;
     }
 
+    /** Cache the hashCode. Recomputed if zero. */
+    private int hashCodeCache = 0;
+
     @Override
     public int hashCode() {
-        return Objects.hash(dimensions, initializers, getType().toString());
+        if (hashCodeCache == 0) {
+            hashCodeCache = Objects.hash(dimensions, initializers, getType().toString());
+        }
+        return hashCodeCache;
     }
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof ArrayCreation)) {
             return false;
         }

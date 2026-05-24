@@ -42,20 +42,14 @@ public class Default implements Comparable<Default> {
     @Override
     public int compareTo(Default other) {
         int locationOrder = location.compareTo(other.location);
-        if (locationOrder == 0) {
-            int annoOrder = AnnotationUtils.compareAnnotationMirrors(anno, other.anno);
-            if (annoOrder == 0) {
-                if (applyToSubpackages == other.applyToSubpackages) {
-                    return 0;
-                } else {
-                    return applyToSubpackages ? 1 : -1;
-                }
-            } else {
-                return annoOrder;
-            }
-        } else {
+        if (locationOrder != 0) {
             return locationOrder;
         }
+        int annoOrder = AnnotationUtils.compareAnnotationMirrors(anno, other.anno);
+        if (annoOrder != 0) {
+            return annoOrder;
+        }
+        return Boolean.compare(applyToSubpackages, other.applyToSubpackages);
     }
 
     @Override
@@ -73,7 +67,12 @@ public class Default implements Comparable<Default> {
 
     @Override
     public int hashCode() {
-        return Objects.hash(anno, location, applyToSubpackages);
+        // equals() delegates to compareTo(), which uses AnnotationUtils.compareAnnotationMirrors
+        // for the AnnotationMirror field. Object.hashCode() on an AnnotationMirror is not
+        // guaranteed to be consistent with compareAnnotationMirrors (the same annotation can be
+        // represented by different implementing classes with different hashCode()s), so hash via
+        // AnnotationUtils.hashCode, which is documented to be consistent with areSame.
+        return Objects.hash(AnnotationUtils.hashCode(anno), location, applyToSubpackages);
     }
 
     @Override
