@@ -485,9 +485,9 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         for (AnnotatedTypeMirror bound : bounds) {
             adaptedBounds.add(adaptBound.apply(bound));
         }
+        // First replace the bounds copied by shallowCopy with the adapted bounds. Then clear the
+        // shallow copy's stale primary annotations and recompute them from the adapted bounds.
         intersection.setBounds(adaptedBounds);
-        // setBounds replaces the shared bounds from shallowCopy, so recompute primary annotations
-        // from the adapted bounds.
         intersection.clearAnnotations();
         intersection.copyIntersectionBoundAnnotations();
         return intersection;
