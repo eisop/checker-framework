@@ -167,7 +167,7 @@ public class BackwardAnalysisImpl<
                     SpecialBlock sb = (SpecialBlock) b;
                     SpecialBlockType sType = sb.getSpecialType();
                     if (sType == SpecialBlockType.ENTRY) {
-                        // storage the store at entry
+                        // Record the store at entry.
                         storeAtEntry = outStores.get(sb);
                     } else {
                         assert sType == SpecialBlockType.EXIT
@@ -213,8 +213,8 @@ public class BackwardAnalysisImpl<
         if (worklist.depthFirstOrder.get(regularExitBlock) == null
                 && worklist.depthFirstOrder.get(exceptionExitBlock) == null) {
             throw new BugInCF(
-                    "regularExitBlock and exceptionExitBlock should never both be null at the same"
-                            + " time.");
+                    "regularExitBlock and exceptionExitBlock are both unreachable in the CFG;"
+                            + " at least one must be reachable to start a backward analysis.");
         }
         UnderlyingAST underlyingAST = cfg.getUnderlyingAST();
         List<ReturnNode> returnNodes = cfg.getReturnNodes();
@@ -358,8 +358,19 @@ public class BackwardAnalysisImpl<
             assert currentInput != null : "@AssumeAssertion(nullness): invariant";
             return currentInput.getRegularStore();
         }
+        setNodeValues(nodeValues);
         isRunning = true;
         try {
+            // Prepare cache (after the isRunning check to avoid creating empty cache entries when
+            // the analysis is already running)
+            IdentityHashMap<Node, TransferResult<V, S>> cache;
+            if (analysisCaches != null) {
+                cache =
+                        analysisCaches.computeIfAbsent(
+                                blockTransferInput, __ -> new IdentityHashMap<>());
+            } else {
+                cache = null;
+            }
             switch (block.getType()) {
                 case REGULAR_BLOCK:
                     {
@@ -375,10 +386,18 @@ public class BackwardAnalysisImpl<
                             if (n == node && preOrPost == Analysis.BeforeOrAfter.AFTER) {
                                 return store.getRegularStore();
                             }
-                            // Copy the store to avoid changing other blocks' transfer inputs in
-                            // {@link #inputs}
-                            TransferResult<V, S> transferResult =
-                                    callTransferFunction(n, store.copy());
+                            TransferResult<V, S> transferResult;
+                            TransferResult<V, S> cached = cache != null ? cache.get(n) : null;
+                            if (cached != null) {
+                                transferResult = cached;
+                            } else {
+                                // Copy the store to avoid changing other blocks' transfer
+                                // inputs in {@link #inputs}.
+                                transferResult = callTransferFunction(n, store.copy());
+                                if (cache != null) {
+                                    cache.put(n, transferResult);
+                                }
+                            }
                             if (n == node) {
                                 return transferResult.getRegularStore();
                             }
@@ -400,11 +419,19 @@ public class BackwardAnalysisImpl<
                             return blockTransferInput.getRegularStore();
                         }
                         setCurrentNode(node);
-                        // Copy the store to avoid changing other blocks' transfer inputs in {@link
-                        // #inputs}
-                        TransferResult<V, S> transferResult =
-                                callTransferFunction(node, blockTransferInput.copy());
-                        // Merge transfer result with the exception store of this exceptional block
+                        TransferResult<V, S> transferResult;
+                        TransferResult<V, S> cached = cache != null ? cache.get(node) : null;
+                        if (cached != null) {
+                            transferResult = cached;
+                        } else {
+                            // Copy the store to avoid changing other blocks' transfer inputs
+                            // in {@link #inputs}.
+                            transferResult = callTransferFunction(node, blockTransferInput.copy());
+                            if (cache != null) {
+                                cache.put(node, transferResult);
+                            }
+                        }
+                        // Merge transfer result with the exception store of this exceptional block.
                         S exceptionStore = exceptionStores.get(eb);
                         return exceptionStore == null
                                 ? transferResult.getRegularStore()

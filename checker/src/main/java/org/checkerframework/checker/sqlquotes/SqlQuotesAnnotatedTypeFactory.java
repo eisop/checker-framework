@@ -46,6 +46,7 @@ public class SqlQuotesAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      *
      * @param checker the SQL tainting checker
      */
+    @SuppressWarnings("this-escape")
     public SqlQuotesAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         this.SQL_EVEN_QUOTES = AnnotationBuilder.fromClass(getElementUtils(), SqlEvenQuotes.class);
@@ -81,7 +82,7 @@ public class SqlQuotesAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          *
          * @param atypeFactory the type factory
          */
-        public SqlQuotesPropagationTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        SqlQuotesPropagationTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
 
@@ -117,7 +118,7 @@ public class SqlQuotesAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          *
          * @param atypeFactory the annotated type factory
          */
-        public SqlQuotesTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        SqlQuotesTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
 

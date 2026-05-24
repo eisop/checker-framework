@@ -83,6 +83,7 @@ public class LiteralTreeAnnotator extends TreeAnnotator {
      *
      * @param atypeFactory the type factory to make an annotator for
      */
+    @SuppressWarnings("this-escape")
     public LiteralTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
         super(atypeFactory);
         this.treeKinds = new EnumMap<>(Tree.Kind.class);
@@ -238,20 +239,20 @@ public class LiteralTreeAnnotator extends TreeAnnotator {
 
         // If this tree's class or any of its interfaces are in treeClasses, annotate the type, and
         // if it was an interface add a mapping for it to treeClasses.
-        if (treeKinds.containsKey(tree.getKind())) {
-            AnnotationMirrorSet fnd = treeKinds.get(tree.getKind());
-            type.addMissingAnnotations(fnd);
+        AnnotationMirrorSet fromKind = treeKinds.get(tree.getKind());
+        if (fromKind != null) {
+            type.addMissingAnnotations(fromKind);
         } else if (!treeClasses.isEmpty()) {
             Class<? extends Tree> t = tree.getClass();
-            if (treeClasses.containsKey(t)) {
-                AnnotationMirrorSet fnd = treeClasses.get(t);
-                type.addMissingAnnotations(fnd);
+            AnnotationMirrorSet fromClass = treeClasses.get(t);
+            if (fromClass != null) {
+                type.addMissingAnnotations(fromClass);
             }
             for (Class<?> c : t.getInterfaces()) {
-                if (treeClasses.containsKey(c)) {
-                    AnnotationMirrorSet fnd = treeClasses.get(c);
-                    type.addMissingAnnotations(fnd);
-                    treeClasses.put(t, treeClasses.get(c));
+                AnnotationMirrorSet fromIface = treeClasses.get(c);
+                if (fromIface != null) {
+                    type.addMissingAnnotations(fromIface);
+                    treeClasses.put(t, fromIface);
                 }
             }
         }

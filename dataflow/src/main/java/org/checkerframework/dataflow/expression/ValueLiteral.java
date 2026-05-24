@@ -141,6 +141,9 @@ public class ValueLiteral extends JavaExpression {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof ValueLiteral)) {
             return false;
         }
@@ -163,9 +166,15 @@ public class ValueLiteral extends JavaExpression {
         return value == null ? "null" : value.toString();
     }
 
+    /** Cache the hashCode. Recomputed if zero. */
+    private int hashCodeCache = 0;
+
     @Override
     public int hashCode() {
-        return Objects.hash(value, type.toString());
+        if (hashCodeCache == 0) {
+            hashCodeCache = Objects.hash(value, type.toString());
+        }
+        return hashCodeCache;
     }
 
     @Override

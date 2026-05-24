@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -131,6 +132,7 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
      *
      * @param qualifierClasses all the classes of qualifiers supported by this hierarchy
      */
+    @SuppressWarnings("this-escape")
     public DefaultQualifierKindHierarchy(Collection<Class<? extends Annotation>> qualifierClasses) {
         this(qualifierClasses, null, null);
     }
@@ -147,6 +149,7 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
      * @param qualifierClasses all the classes of qualifiers supported by this hierarchy
      * @param bottom the bottom qualifier of this hierarchy
      */
+    @SuppressWarnings("this-escape")
     public DefaultQualifierKindHierarchy(
             Collection<Class<? extends Annotation>> qualifierClasses,
             Class<? extends Annotation> bottom) {
@@ -162,6 +165,7 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
      * @param voidParam void parameter to differentiate from {@link
      *     #DefaultQualifierKindHierarchy(Collection, Class)}
      */
+    @SuppressWarnings("this-escape")
     private DefaultQualifierKindHierarchy(
             Collection<Class<? extends Annotation>> qualifierClasses,
             @Nullable Class<? extends Annotation> bottom,
@@ -245,15 +249,15 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
     protected Map<@Interned @CanonicalName String, DefaultQualifierKind> createQualifierKinds(
             @UnderInitialization DefaultQualifierKindHierarchy this,
             Collection<Class<? extends Annotation>> qualifierClasses) {
-        TreeMap<@Interned @CanonicalName String, DefaultQualifierKind> nameToQualifierKind =
-                new TreeMap<>();
+        // Use a LinkedHashMap instead of a TreeMap for O(1) access.
+        LinkedHashMap<@Interned @CanonicalName String, DefaultQualifierKind> nameToQualifierKind =
+                new LinkedHashMap<>();
         for (Class<? extends Annotation> clazz : qualifierClasses) {
             @SuppressWarnings("interning") // uniqueness is tested immediately below
             @Interned DefaultQualifierKind qualifierKind = new DefaultQualifierKind(clazz);
-            if (nameToQualifierKind.containsKey(qualifierKind.getName())) {
+            if (nameToQualifierKind.putIfAbsent(qualifierKind.getName(), qualifierKind) != null) {
                 throw new TypeSystemError("Duplicate QualifierKind " + qualifierKind.getName());
             }
-            nameToQualifierKind.put(qualifierKind.getName(), qualifierKind);
         }
         return Collections.unmodifiableMap(nameToQualifierKind);
     }
@@ -399,8 +403,9 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
             }
             qualifierKind.poly = qualifierKind;
             String topName = QualifierKindHierarchy.annotationClassName(polyMetaAnno.value());
-            if (nameToQualifierKind.containsKey(topName)) {
-                qualifierKind.top = nameToQualifierKind.get(topName);
+            DefaultQualifierKind topKind = nameToQualifierKind.get(topName);
+            if (topKind != null) {
+                qualifierKind.top = topKind;
             } else if (topName.equals(Annotation.class.getCanonicalName())) {
                 // Annotation.class is the default value of PolymorphicQualifier. If it is used,
                 // then there must be exactly one top.
@@ -466,7 +471,7 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
                 }
                 if (qualifierKind.bottom == null) {
                     qualifierKind.bottom = bot;
-                } else if (qualifierKind.top != bot) {
+                } else if (qualifierKind.bottom != bot) {
                     throw new TypeSystemError(
                             "Multiple bottoms found for qualifier %s. Bottoms: %s and %s.",
                             qualifierKind, bot, qualifierKind.bottom);

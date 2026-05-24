@@ -74,9 +74,9 @@ arguments that replace \code{T} in \code{MyList<T>} must be subtypes of
 Conceptually, each generic type parameter has two bounds --- a lower bound
 and an upper bound --- and at instantiation, the type argument must be
 within the bounds.  Java only allows you to specify the upper bound; the
-lower bound is implicitly the bottom type \<void>.  The Checker Framework
-gives you more power:  you can specify both an upper and lower bound for
-type parameters.
+lower bound is implicitly the bottom type \<NullType>
+(the null type is a special \href{https://docs.oracle.com/javase/specs/jls/se24/html/jls-4.html#jls-4.1}{unnamed type}).
+The Checker Framework gives you more power:  you can specify both an upper and lower bound for type parameters.
 Write the upper bound on the \<extends> clause, and
 write the lower bound on the type variable.
 
@@ -307,13 +307,13 @@ before the \<?>.  For example:
 For an unbounded wildcard (\code{<?>}, with neither
 bound specified), the annotation in front of a wildcard applies
 to both bounds.  The following three declarations are equivalent (except
-that you cannot write the bottom type \<void>; note that
+that you cannot write the bottom type \<NullType>; note that
 \sunjavadoc{java.base/java/lang/Void.html}{Void} does not denote the bottom type):
 
 \begin{Verbatim}
   List<@NonNull ?> lnn;
   List<@NonNull ? extends @NonNull Object> lnn;
-  List<@NonNull ? super @NonNull void> lnn;
+  List<@NonNull ? super @NonNull NullType> lnn;
 \end{Verbatim}
 
 \noindent
