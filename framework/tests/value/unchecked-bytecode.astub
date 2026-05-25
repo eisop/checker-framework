@@ -1,9 +1,9 @@
+package java.lang;
+
 import org.checkerframework.common.value.qual.ArrayLen;
 import org.checkerframework.common.value.qual.ArrayLenRange;
 import org.checkerframework.common.value.qual.StringVal;
 import org.checkerframework.common.value.qual.UnknownVal;
-
-package java.lang;
 
 class Math {
     static int min(@UnknownVal int a, @UnknownVal int b);
@@ -46,7 +46,7 @@ class String {
 
     String substring(@UnknownVal int beginIndex, @UnknownVal int endIndex);
 
-    String @ArrayLenRange(from = 1) [] split(@UnknownVal String regex);
+    String @ArrayLenRange(from = 0) [] split(@UnknownVal String regex);
 
     boolean startsWith(@UnknownVal String prefix);
 
@@ -92,7 +92,7 @@ package java.lang;
 import org.checkerframework.common.value.qual.UnknownVal;
 
 class ClassLoader {
-    Class<?> loadClass(@UnknownVal String name);
+    Class<?> loadClass(@UnknownVal String name) throws ClassNotFoundException;
 }
 
 class Class<T> {
@@ -193,7 +193,7 @@ package java.lang.invoke;
 import org.checkerframework.common.value.qual.UnknownVal;
 
 class MethodHandle {
-    Object invoke(@UnknownVal Object... args);
+    Object invoke(@UnknownVal Object... args) throws Throwable;
 }
 
 package java.util.stream;
