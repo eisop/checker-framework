@@ -6,6 +6,7 @@ public class StringSplit {
     void needsALR1(String @ArrayLenRange(from = 1) [] arg) {}
 
     void g(String compiler) {
+        // :: error: (argument.type.incompatible)
         needsALR1(compiler.trim().split(" +"));
     }
 
