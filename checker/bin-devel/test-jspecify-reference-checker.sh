@@ -21,4 +21,4 @@ rm -r ../jdk
 # instead clone the jspecify/jdk.
 "$SCRIPT_DIR/.git-scripts/git-clone-related" jspecify jdk
 
-JSPECIFY_CONFORMANCE_TEST_MODE=details ./gradlew build conformanceTests demoTest --console=plain --include-build "$CHECKERFRAMEWORK"
+JSPECIFY_CONFORMANCE_TEST_MODE=details ./gradlew build conformanceTests demoTest --console=plain --include-build "$CHECKERFRAMEWORK" --no-configuration-cache

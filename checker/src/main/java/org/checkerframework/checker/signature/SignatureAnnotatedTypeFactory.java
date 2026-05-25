@@ -208,7 +208,7 @@ public class SignatureAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     private class SignatureTreeAnnotator extends TreeAnnotator {
 
-        public SignatureTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        SignatureTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
 

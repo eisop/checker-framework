@@ -8,6 +8,7 @@
  */
 
 import org.checkerframework.common.value.qual.ArrayLen;
+
 import java.util.Collection;
 
 public class ToArrayHeuristic {
@@ -15,7 +16,7 @@ public class ToArrayHeuristic {
     private final String[] EMPTY_STRING_ARRAY_BRACES = {};
     private final String[] NON_EMPTY_STRING_ARRAY = new String[1];
     String @ArrayLen(0) [] EMPTY_STRING_ARRAY_TRUSTED = {};
-    String [] EMPTY_STRING_ARRAY_MISSING_MODIFIERS = {};
+    String[] EMPTY_STRING_ARRAY_MISSING_MODIFIERS = {};
 
     String[] literalZero(Collection<String> c) {
         return c.toArray(new String[0]);
@@ -54,6 +55,6 @@ public class ToArrayHeuristic {
     }
 
     String[] receiverSizeWithParens(Collection<String> c) {
-	return (c).toArray(new String[((c)).size()]);
+        return (c).toArray(new String[((c)).size()]);
     }
 }

@@ -93,7 +93,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.StringJoiner;
-import java.util.stream.Collectors;
+import java.util.regex.Pattern;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.SourceVersion;
@@ -106,7 +106,6 @@ import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
@@ -147,14 +146,19 @@ public final class TreeUtils {
     private static final long Flags_RECORD = 2305843009213693952L;
 
     /** Tree kinds that represent a binary comparison. */
-    private static final Set<Tree.Kind> BINARY_COMPARISON_TREE_KINDS =
-            EnumSet.of(
-                    Tree.Kind.EQUAL_TO,
-                    Tree.Kind.NOT_EQUAL_TO,
-                    Tree.Kind.LESS_THAN,
-                    Tree.Kind.GREATER_THAN,
-                    Tree.Kind.LESS_THAN_EQUAL,
-                    Tree.Kind.GREATER_THAN_EQUAL);
+    private static final Set<Tree.Kind> BINARY_COMPARISON_TREE_KINDS;
+
+    static {
+        Set<Tree.Kind> bctk =
+                EnumSet.of(
+                        Tree.Kind.EQUAL_TO,
+                        Tree.Kind.NOT_EQUAL_TO,
+                        Tree.Kind.LESS_THAN,
+                        Tree.Kind.GREATER_THAN,
+                        Tree.Kind.LESS_THAN_EQUAL,
+                        Tree.Kind.GREATER_THAN_EQUAL);
+        BINARY_COMPARISON_TREE_KINDS = Collections.unmodifiableSet(bctk);
+    }
 
     static {
         try {
@@ -264,7 +268,7 @@ public final class TreeUtils {
      * @param tree an expression tree
      * @return the outermost non-parenthesized tree enclosed by the given tree
      */
-    @SuppressWarnings("interning:return.type.incompatible") // pol ymorphism implementation
+    @SuppressWarnings("interning:return.type.incompatible") // polymorphism implementation
     public static @PolyInterned ExpressionTree withoutParens(@PolyInterned ExpressionTree tree) {
         ExpressionTree t = tree;
         while (t instanceof ParenthesizedTree) {
@@ -367,10 +371,14 @@ public final class TreeUtils {
      * @return the list of fields that are declared within the given class declaration
      */
     public static List<VariableTree> fieldsFromClassTree(ClassTree tree) {
-        return tree.getMembers().stream()
-                .filter(t -> t instanceof VariableTree)
-                .map(t -> (VariableTree) t)
-                .collect(Collectors.toList());
+        List<? extends Tree> members = tree.getMembers();
+        List<VariableTree> result = new ArrayList<>(members.size());
+        for (Tree t : members) {
+            if (t instanceof VariableTree) {
+                result.add((VariableTree) t);
+            }
+        }
+        return result;
     }
 
     /**
@@ -1117,20 +1125,22 @@ public final class TreeUtils {
     private static final Set<Tree.Kind> classTreeKinds;
 
     static {
-        classTreeKinds = EnumSet.noneOf(Tree.Kind.class);
+        Set<Tree.Kind> ctk = EnumSet.noneOf(Tree.Kind.class);
         for (Tree.Kind kind : Tree.Kind.values()) {
             if (kind.asInterface() == ClassTree.class) {
-                classTreeKinds.add(kind);
+                ctk.add(kind);
             }
         }
+        classTreeKinds = Collections.unmodifiableSet(ctk);
     }
 
     /** Kinds that represent a class or method tree. */
     private static final Set<Tree.Kind> classAndMethodTreeKinds;
 
     static {
-        classAndMethodTreeKinds = EnumSet.copyOf(classTreeKinds());
-        classAndMethodTreeKinds.add(Tree.Kind.METHOD);
+        Set<Tree.Kind> camtk = EnumSet.copyOf(classTreeKinds());
+        camtk.add(Tree.Kind.METHOD);
+        classAndMethodTreeKinds = Collections.unmodifiableSet(camtk);
     }
 
     /**
@@ -1168,10 +1178,11 @@ public final class TreeUtils {
     private static final Set<Tree.Kind> declarationTreeKinds;
 
     static {
-        declarationTreeKinds = EnumSet.noneOf(Tree.Kind.class);
-        declarationTreeKinds.addAll(classTreeKinds);
-        declarationTreeKinds.add(Tree.Kind.METHOD);
-        declarationTreeKinds.add(Tree.Kind.VARIABLE);
+        Set<Tree.Kind> dtk = EnumSet.noneOf(Tree.Kind.class);
+        dtk.addAll(classTreeKinds);
+        dtk.add(Tree.Kind.METHOD);
+        dtk.add(Tree.Kind.VARIABLE);
+        declarationTreeKinds = Collections.unmodifiableSet(dtk);
     }
 
     /**
@@ -1194,16 +1205,21 @@ public final class TreeUtils {
     }
 
     /** The kinds that represent types. */
-    private static final Set<Tree.Kind> typeTreeKinds =
-            EnumSet.of(
-                    Tree.Kind.PRIMITIVE_TYPE,
-                    Tree.Kind.PARAMETERIZED_TYPE,
-                    Tree.Kind.TYPE_PARAMETER,
-                    Tree.Kind.ARRAY_TYPE,
-                    Tree.Kind.UNBOUNDED_WILDCARD,
-                    Tree.Kind.EXTENDS_WILDCARD,
-                    Tree.Kind.SUPER_WILDCARD,
-                    Tree.Kind.ANNOTATED_TYPE);
+    private static final Set<Tree.Kind> typeTreeKinds;
+
+    static {
+        Set<Tree.Kind> ttk =
+                EnumSet.of(
+                        Tree.Kind.PRIMITIVE_TYPE,
+                        Tree.Kind.PARAMETERIZED_TYPE,
+                        Tree.Kind.TYPE_PARAMETER,
+                        Tree.Kind.ARRAY_TYPE,
+                        Tree.Kind.UNBOUNDED_WILDCARD,
+                        Tree.Kind.EXTENDS_WILDCARD,
+                        Tree.Kind.SUPER_WILDCARD,
+                        Tree.Kind.ANNOTATED_TYPE);
+        typeTreeKinds = Collections.unmodifiableSet(ttk);
+    }
 
     /**
      * Return the set of kinds that represent types.
@@ -1408,6 +1424,9 @@ public final class TreeUtils {
             ProcessingEnvironment env,
             String... paramTypes) {
         TypeElement typeElt = env.getElementUtils().getTypeElement(typeName);
+        if (typeElt == null) {
+            throw new UserError("Configuration problem! Could not load type: " + typeName);
+        }
         for (ExecutableElement exec : ElementFilter.methodsIn(typeElt.getEnclosedElements())) {
             if (exec.getSimpleName().contentEquals(methodName)
                     && exec.getParameters().size() == paramTypes.length) {
@@ -1713,8 +1732,8 @@ public final class TreeUtils {
         assert ex != null : "@AssumeAssertion(nullness): tree kind";
         Name name = ElementUtils.getQualifiedClassName(ex);
         assert name != null : "@AssumeAssertion(nullness): assumption";
-        boolean correctClass = "java.lang.Enum".contentEquals(name);
-        boolean correctMethod = "<init>".contentEquals(ex.getSimpleName());
+        boolean correctClass = name.contentEquals("java.lang.Enum");
+        boolean correctMethod = ex.getSimpleName().contentEquals("<init>");
         return correctClass && correctMethod;
     }
 
@@ -2132,6 +2151,9 @@ public final class TreeUtils {
         return false;
     }
 
+    /** Pattern matching one or more whitespace characters; used by {@link #toStringOneLine}. */
+    private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
+
     /**
      * Return toString(), but without line separators.
      *
@@ -2139,7 +2161,7 @@ public final class TreeUtils {
      * @return a one-line string representation of the tree
      */
     public static String toStringOneLine(Tree tree) {
-        return tree.toString().trim().replaceAll("\\s+", " ");
+        return WHITESPACE_PATTERN.matcher(tree.toString().trim()).replaceAll(" ");
     }
 
     /**
@@ -2702,23 +2724,20 @@ public final class TreeUtils {
             return true;
         }
 
-        // For some calls the varargsElement element disappears when it should not. This seems to
-        // only be a problem with MethodHandle#invoke and only with no arguments.  See
-        // framework/tests/all-systems/Issue6078.java.
-        // So also check for a mismatch between parameter and argument size.
-        // Such a mismatch occurs for every enum constructor: no args, two params (String name, int
-        // ordinal).
+        return isSignaturePolymorphic(invok);
+    }
 
-        List<? extends VariableElement> parameters = elementFromUse(invok).getParameters();
-        int numParameters = parameters.size();
-        if (numParameters != invok.getArguments().size()) {
-            if (numParameters > 0
-                    && parameters.get(numParameters - 1).asType() instanceof ArrayType) {
-                return true;
-            }
-        }
-
-        return false;
+    /**
+     * Returns true if the given method invocation targets a signature polymorphic method. See <a
+     * href="https://docs.oracle.com/javase/specs/jls/se11/html/jls-15.html#jls-15.12.3">JLS chapter
+     * 15</a>.
+     *
+     * @param invok the method invocation
+     * @return true if the given method invocation targets a signature polymorphic method
+     */
+    public static boolean isSignaturePolymorphic(final MethodInvocationTree invok) {
+        final MethodSymbol symbol = (MethodSymbol) elementFromUse(invok);
+        return (symbol.flags() & Flags.SIGNATURE_POLYMORPHIC) != 0;
     }
 
     /**
