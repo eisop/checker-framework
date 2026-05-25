@@ -1,0 +1,235 @@
+import org.checkerframework.common.value.qual.ArrayLen;
+import org.checkerframework.common.value.qual.ArrayLenRange;
+import org.checkerframework.common.value.qual.StringVal;
+import org.checkerframework.common.value.qual.UnknownVal;
+
+package java.lang;
+
+class Math {
+    static int min(@UnknownVal int a, @UnknownVal int b);
+
+    static long min(@UnknownVal long a, @UnknownVal long b);
+
+    static float min(@UnknownVal float a, @UnknownVal float b);
+
+    static double min(@UnknownVal double a, @UnknownVal double b);
+
+    static int max(@UnknownVal int a, @UnknownVal int b);
+
+    static long max(@UnknownVal long a, @UnknownVal long b);
+
+    static float max(@UnknownVal float a, @UnknownVal float b);
+
+    static double max(@UnknownVal double a, @UnknownVal double b);
+}
+
+class String {
+    static String format(@UnknownVal String format, @UnknownVal Object... args);
+
+    String(@UnknownVal byte[] bytes);
+
+    String(@UnknownVal char[] value);
+
+    String(@UnknownVal char[] value, @UnknownVal int offset, @UnknownVal int count);
+
+    boolean equalsIgnoreCase(@UnknownVal String anotherString);
+
+    int indexOf(@UnknownVal int ch);
+
+    int indexOf(@UnknownVal int ch, @UnknownVal int fromIndex);
+
+    int indexOf(@UnknownVal String str, @UnknownVal int fromIndex);
+
+    String replace(@UnknownVal char oldChar, @UnknownVal char newChar);
+
+    String substring(@UnknownVal int beginIndex);
+
+    String substring(@UnknownVal int beginIndex, @UnknownVal int endIndex);
+
+    String @ArrayLenRange(from = 1) [] split(@UnknownVal String regex);
+
+    boolean startsWith(@UnknownVal String prefix);
+
+    boolean endsWith(@UnknownVal String suffix);
+
+    static @StringVal({"true", "false"}) String valueOf(@UnknownVal boolean b);
+
+    static @ArrayLen(1) String valueOf(@UnknownVal char c);
+
+    static @ArrayLenRange(from = 1, to = 11) String valueOf(@UnknownVal int i);
+
+    static @ArrayLenRange(from = 1, to = 20) String valueOf(@UnknownVal long l);
+}
+
+class StringBuilder {
+    StringBuilder append(@UnknownVal char c);
+
+    StringBuilder append(@UnknownVal String str);
+}
+
+package java.io;
+
+import org.checkerframework.common.value.qual.UnknownVal;
+
+class PrintStream {
+    void print(@UnknownVal String s);
+
+    void print(@UnknownVal char c);
+
+    void println(@UnknownVal Object x);
+
+    void println(@UnknownVal String x);
+
+    void println(@UnknownVal int x);
+}
+
+class IOException {
+    IOException(@UnknownVal String message);
+}
+
+package java.lang;
+
+import org.checkerframework.common.value.qual.UnknownVal;
+
+class ClassLoader {
+    Class<?> loadClass(@UnknownVal String name);
+}
+
+class Class<T> {
+    <U> Class<? extends U> asSubclass(@UnknownVal Class<U> clazz);
+}
+
+class Object {
+    boolean equals(@UnknownVal Object obj);
+}
+
+class IllegalArgumentException {
+    IllegalArgumentException(@UnknownVal String s);
+}
+
+class UnsupportedOperationException {
+    UnsupportedOperationException(@UnknownVal String message);
+}
+
+class RuntimeException {
+    RuntimeException(@UnknownVal String message, @UnknownVal Throwable cause);
+}
+
+class AssertionError {
+    AssertionError(@UnknownVal Object detailMessage);
+}
+
+class Error {
+    Error(@UnknownVal String message);
+}
+
+package org.checkerframework.framework.testchecker.lib;
+
+import org.checkerframework.common.value.qual.StaticallyExecutable;
+import org.checkerframework.common.value.qual.UnknownVal;
+
+class VarargsMethods {
+    @StaticallyExecutable
+    static int test0(@UnknownVal Object... objects);
+
+    @StaticallyExecutable
+    static int test1(@UnknownVal String s, @UnknownVal Object... objects);
+
+    @StaticallyExecutable
+    static int test2(@UnknownVal String s, @UnknownVal String s2, @UnknownVal Object... objects);
+}
+
+package java.util;
+
+import org.checkerframework.common.value.qual.UnknownVal;
+
+class Arrays {
+    static <T> List<T> asList(@UnknownVal T... a);
+}
+
+class ArrayList<E> {
+    ArrayList(@UnknownVal Collection<? extends E> c);
+}
+
+class Collections {
+    static <T extends Object & Comparable<? super T>> T min(@UnknownVal Collection<? extends T> coll);
+
+    static <T> T min(
+            @UnknownVal Collection<? extends T> coll, @UnknownVal Comparator<? super T> comp);
+
+    static <T> Collection<T> checkedCollection(
+            @UnknownVal Collection<T> c, @UnknownVal Class<T> type);
+
+    static <T extends Comparable<? super T>> void sort(@UnknownVal List<T> list);
+}
+
+class HashSet<E> {
+    HashSet(@UnknownVal Collection<? extends E> c);
+
+    boolean contains(@UnknownVal Object o);
+}
+
+interface Set<E> {
+    boolean retainAll(@UnknownVal Collection<?> c);
+}
+
+package java.nio.file;
+
+import org.checkerframework.common.value.qual.UnknownVal;
+
+class Paths {
+    static Path get(@UnknownVal String first, @UnknownVal String... more);
+}
+
+class Files {
+    static java.io.BufferedWriter newBufferedWriter(
+            @UnknownVal Path path, @UnknownVal java.nio.charset.Charset cs, @UnknownVal OpenOption... options);
+
+    static boolean isRegularFile(@UnknownVal Path path, @UnknownVal LinkOption... options);
+}
+
+package java.lang.invoke;
+
+import org.checkerframework.common.value.qual.UnknownVal;
+
+class MethodHandle {
+    Object invoke(@UnknownVal Object... args);
+}
+
+package java.util.stream;
+
+import org.checkerframework.common.value.qual.UnknownVal;
+
+interface Stream<T> {
+    static <T> Stream<T> of(@UnknownVal T... values);
+
+    <R, A> R collect(@UnknownVal Collector<? super T, A, R> collector);
+
+    Stream<T> skip(@UnknownVal long n);
+
+    Stream<T> sorted(@UnknownVal java.util.Comparator<? super T> comparator);
+
+    java.util.Optional<T> max(@UnknownVal java.util.Comparator<? super T> comparator);
+}
+
+interface IntStream {
+    static IntStream range(@UnknownVal int startInclusive, @UnknownVal int endExclusive);
+}
+
+class Collectors {
+    static Collector<CharSequence, ?, String> joining(@UnknownVal CharSequence delimiter);
+
+    static <T, K, U> Collector<T, ?, java.util.Map<K, U>> toMap(
+            @UnknownVal java.util.function.Function<? super T, ? extends K> keyMapper,
+            @UnknownVal java.util.function.Function<? super T, ? extends U> valueMapper);
+
+    static <T, K, U, M extends java.util.Map<K, U>> Collector<T, ?, M> toMap(
+            @UnknownVal java.util.function.Function<? super T, ? extends K> keyMapper,
+            @UnknownVal java.util.function.Function<? super T, ? extends U> valueMapper,
+            @UnknownVal java.util.function.BinaryOperator<U> mergeFunction,
+            @UnknownVal java.util.function.Supplier<M> mapSupplier);
+
+    static <T, A, R, RR> Collector<T, A, RR> collectingAndThen(
+            @UnknownVal Collector<T, A, R> downstream,
+            @UnknownVal java.util.function.Function<R, RR> finisher);
+}
