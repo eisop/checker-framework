@@ -120,16 +120,17 @@ public class QualifierUpperBounds {
             qname = null;
         }
 
-        if (qname != null && types.containsKey(qname)) {
+        if (qname != null) {
             AnnotationMirrorSet fnd = types.get(qname);
-            addMissingAnnotations(bounds, fnd);
+            if (fnd != null) {
+                addMissingAnnotations(bounds, fnd);
+            }
         }
 
         // If the type's kind is in the appropriate map, annotate the type.
-
-        if (typeKinds.containsKey(type.getKind())) {
-            AnnotationMirrorSet fnd = typeKinds.get(type.getKind());
-            addMissingAnnotations(bounds, fnd);
+        AnnotationMirrorSet fndKind = typeKinds.get(type.getKind());
+        if (fndKind != null) {
+            addMissingAnnotations(bounds, fndKind);
         }
 
         addMissingAnnotations(bounds, atypeFactory.getDefaultTypeDeclarationBounds());
@@ -158,8 +159,7 @@ public class QualifierUpperBounds {
     private void addMissingAnnotations(
             AnnotationMirrorSet annos, Set<? extends AnnotationMirror> missing) {
         for (AnnotationMirror miss : missing) {
-            if (atypeFactory.getQualifierHierarchy().findAnnotationInSameHierarchy(annos, miss)
-                    == null) {
+            if (qualHierarchy.findAnnotationInSameHierarchy(annos, miss) == null) {
                 annos.add(miss);
             }
         }

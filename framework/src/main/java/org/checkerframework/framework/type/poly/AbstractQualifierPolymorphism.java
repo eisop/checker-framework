@@ -606,7 +606,7 @@ public abstract class AbstractQualifierPolymorphism implements QualifierPolymorp
         }
 
         /** Resets the state. */
-        public void reset() {
+        void reset() {
             this.visitedTypes.clear();
             this.visited.clear();
         }

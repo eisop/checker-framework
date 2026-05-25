@@ -55,7 +55,7 @@ public class SimpleOptionMap {
 
         if (toAppend.startsWith(File.pathSeparator)) {
             if (path == null || path.isEmpty()) {
-                path = toAppend.substring(1, toAppend.length());
+                path = toAppend.substring(1);
             } else {
                 path += toAppend;
             }

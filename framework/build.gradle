@@ -55,8 +55,8 @@ dependencies {
     api project(':javacutil')
     api project(':dataflow')
     // At the moement, there are no differences between eisop and typetools stubparsers.
-    api 'org.checkerframework:stubparser:3.26.4'
-    stubifierImplementation 'org.checkerframework:stubparser:3.26.4'
+    api 'org.checkerframework:stubparser:3.27.1'
+    stubifierImplementation 'org.checkerframework:stubparser:3.27.1'
     implementation sourceSets.stubifier.output
 
     /* NO-AFU

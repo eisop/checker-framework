@@ -3,6 +3,7 @@ package org.checkerframework.framework.util.element;
 import com.sun.tools.javac.code.Attribute.TypeCompound;
 import com.sun.tools.javac.code.TargetType;
 
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedIntersectionType;
@@ -11,9 +12,8 @@ import org.checkerframework.framework.util.element.ElementAnnotationUtil.Unexpec
 import org.checkerframework.javacutil.BugInCF;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -70,13 +70,24 @@ abstract class TypeParamElementAnnotationApplier extends IndexedElementAnnotatio
     }
 
     /**
+     * Cached {lower-bound, upper-bound} target pair. Lazily initialized in {@link
+     * #annotatedTargets()}; populated at most once per applier instance.
+     */
+    private TargetType @MonotonicNonNull [] cachedAnnotatedTargets;
+
+    /**
      * Returns the lower bound and upper bound targets.
      *
      * @return the lower bound and upper bound targets
      */
     @Override
     protected TargetType[] annotatedTargets() {
-        return new TargetType[] {lowerBoundTarget(), upperBoundTarget()};
+        TargetType[] result = cachedAnnotatedTargets;
+        if (result == null) {
+            result = new TargetType[] {lowerBoundTarget(), upperBoundTarget()};
+            cachedAnnotatedTargets = result;
+        }
+        return result;
     }
 
     /**
@@ -146,7 +157,7 @@ abstract class TypeParamElementAnnotationApplier extends IndexedElementAnnotatio
                 for (TypeCompound anno : upperBounds) {
                     int boundIndex = anno.position.bound_index + boundIndexOffset;
 
-                    if (boundIndex < 0 || boundIndex > bounds.size()) {
+                    if (boundIndex < 0 || boundIndex >= bounds.size()) {
                         throw new BugInCF(
                                 "Invalid bound index on element annotation ( "
                                         + anno
@@ -188,20 +199,19 @@ abstract class TypeParamElementAnnotationApplier extends IndexedElementAnnotatio
         }
     }
 
-    private void addAnnotationToMap(
-            AnnotatedTypeMirror type,
-            TypeCompound anno,
-            Map<AnnotatedTypeMirror, List<TypeCompound>> typeToAnnos) {
-        List<TypeCompound> annoList = typeToAnnos.computeIfAbsent(type, __ -> new ArrayList<>());
-        annoList.add(anno);
-    }
-
+    /**
+     * Apply the component annotation.
+     *
+     * @param anno the compound type
+     * @throws UnexpectedAnnotationLocationException when an unexpected annotation location is
+     *     encountered
+     */
     private void applyComponentAnnotation(TypeCompound anno)
             throws UnexpectedAnnotationLocationException {
         AnnotatedTypeMirror upperBoundType = typeParam.getUpperBound();
 
-        Map<AnnotatedTypeMirror, List<TypeCompound>> typeToAnnotations = new HashMap<>();
-
+        // Determine the target type, then dispatch on it.
+        AnnotatedTypeMirror targetType;
         if (anno.position.type == upperBoundTarget()) {
             if (upperBoundType.getKind() == TypeKind.INTERSECTION) {
                 List<AnnotatedTypeMirror> bounds =
@@ -210,7 +220,7 @@ abstract class TypeParamElementAnnotationApplier extends IndexedElementAnnotatio
                         anno.position.bound_index
                                 + ElementAnnotationUtil.getBoundIndexOffset(bounds);
 
-                if (boundIndex < 0 || boundIndex > bounds.size()) {
+                if (boundIndex < 0 || boundIndex >= bounds.size()) {
                     throw new BugInCF(
                             "Invalid bound index on element annotation ( "
                                     + anno
@@ -221,18 +231,15 @@ abstract class TypeParamElementAnnotationApplier extends IndexedElementAnnotatio
                                     + typeParam.getUpperBound()
                                     + " )");
                 }
-                addAnnotationToMap(bounds.get(boundIndex), anno, typeToAnnotations);
+                targetType = bounds.get(boundIndex);
             } else {
-                addAnnotationToMap(upperBoundType, anno, typeToAnnotations);
+                targetType = upperBoundType;
             }
         } else {
-            addAnnotationToMap(typeParam.getLowerBound(), anno, typeToAnnotations);
+            targetType = typeParam.getLowerBound();
         }
 
-        for (Map.Entry<AnnotatedTypeMirror, List<TypeCompound>> typeToAnno :
-                typeToAnnotations.entrySet()) {
-            ElementAnnotationUtil.annotateViaTypeAnnoPosition(
-                    typeToAnno.getKey(), typeToAnno.getValue());
-        }
+        ElementAnnotationUtil.annotateViaTypeAnnoPosition(
+                targetType, Collections.singletonList(anno));
     }
 }

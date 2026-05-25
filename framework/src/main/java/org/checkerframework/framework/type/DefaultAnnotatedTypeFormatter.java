@@ -215,7 +215,7 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
             } else {
                 sb.append(
                         annoFormatter.formatAnnotationString(
-                                field.getAnnotations(), currentPrintInvisibleSetting));
+                                field.getAnnotationsField(), currentPrintInvisibleSetting));
                 sb.append("NullType");
             }
         }
@@ -252,7 +252,7 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
             }
             sb.append(
                     annoFormatter.formatAnnotationString(
-                            type.getAnnotations(), currentPrintInvisibleSetting));
+                            type.getAnnotationsField(), currentPrintInvisibleSetting));
             sb.append(smpl);
 
             boolean oldPrintingRaw = currentlyPrintingRaw;
@@ -386,11 +386,11 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
             AnnotatedTypeMirror component;
             while (true) {
                 component = array.componentType;
-                if (!array.getAnnotations().isEmpty()) {
+                if (!array.getAnnotationsField().isEmpty()) {
                     sb.append(' ');
                     sb.append(
                             annoFormatter.formatAnnotationString(
-                                    array.getAnnotations(), currentPrintInvisibleSetting));
+                                    array.getAnnotationsField(), currentPrintInvisibleSetting));
                 }
                 sb.append("[]");
                 if (!(component instanceof AnnotatedArrayType)) {
@@ -469,7 +469,7 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
         @Override
         public String visitNull(AnnotatedNullType type, Set<AnnotatedTypeMirror> visiting) {
             return annoFormatter.formatAnnotationString(
-                            type.getAnnotations(), currentPrintInvisibleSetting)
+                            type.getAnnotationsField(), currentPrintInvisibleSetting)
                     + "NullType";
         }
 
@@ -512,7 +512,7 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
         @SideEffectFree
         protected String formatFlatType(AnnotatedTypeMirror flatType) {
             return annoFormatter.formatAnnotationString(
-                            flatType.getAnnotations(), currentPrintInvisibleSetting)
+                            flatType.getAnnotationsField(), currentPrintInvisibleSetting)
                     + TypeAnnotationUtils.unannotatedType((Type) flatType.getUnderlyingType());
         }
     }

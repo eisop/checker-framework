@@ -49,6 +49,7 @@ import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
+import org.plumelib.util.CollectionsPlume;
 
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
@@ -56,6 +57,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
@@ -112,6 +114,17 @@ public abstract class InitializationParentAnnotatedTypeFactory
     /** The value of the assumeInitialized option. */
     protected final boolean assumeInitialized;
 
+    /** Cached @UnderInitialization annotation for Object.class. */
+    protected final AnnotationMirror underInitializationObjectAnnotation;
+
+    /**
+     * Cache for @UnderInitialization annotations. This always caches UnderInitialization
+     * annotations regardless of the {@code shouldCache} value.
+     */
+    @SuppressWarnings("this-escape")
+    private final Map<TypeMirror, AnnotationMirror> underInitializationAnnotationCache =
+            CollectionsPlume.createLruCache(getCacheSize());
+
     /**
      * Create a new InitializationParentAnnotatedTypeFactory.
      *
@@ -119,6 +132,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
      *
      * @param checker the checker to which the new type factory belongs
      */
+    @SuppressWarnings("this-escape")
     public InitializationParentAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker, true);
 
@@ -131,6 +145,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
 
         objectTypeMirror =
                 processingEnv.getElementUtils().getTypeElement("java.lang.Object").asType();
+        underInitializationObjectAnnotation = createUnderInitializationAnnotation(objectTypeMirror);
         unusedWhenElement = TreeUtils.getMethod(Unused.class, "when", 0, processingEnv);
         underInitializationValueElement =
                 TreeUtils.getMethod(UnderInitialization.class, "value", 0, processingEnv);
@@ -146,6 +161,15 @@ public abstract class InitializationParentAnnotatedTypeFactory
         super.postAsMemberOf(type, owner, element);
 
         if (element.getKind().isField()) {
+            // Cheap gates: skip expensive getDeclAnnotations / getAnnotatedType in the
+            // common case where the receiver is fully initialized (or the field is a
+            // primitive). computeFieldAccessInitializationType would no-op anyway.
+            if (TypesUtils.isPrimitive(type.getUnderlyingType())) {
+                return;
+            }
+            if (!isUnknownInitialization(owner) && !isUnderInitialization(owner)) {
+                return;
+            }
             Collection<? extends AnnotationMirror> declaredFieldAnnotations =
                     getDeclAnnotations(element);
             AnnotatedTypeMirror fieldAnnotations = getAnnotatedType(element);
@@ -185,11 +209,11 @@ public abstract class InitializationParentAnnotatedTypeFactory
         if (isUnknownInitialization(receiverType) || isUnderInitialization(receiverType)) {
             if (AnnotationUtils.containsSame(declaredFieldAnnotations, NOT_ONLY_INITIALIZED)) {
                 // A field declared @NotOnlyInitialized with an uninitialized receiver has
-                // @UnknownInitialization
+                // @UnknownInitialization.
                 type.replaceAnnotation(UNKNOWN_INITIALIZATION);
             } else {
-                // A field declared @NotOnlyInitialized with an initialized receiver is
-                // @Initialized
+                // A field declared not-@NotOnlyInitialized with an uninitialized receiver is
+                // @Initialized.
                 type.replaceAnnotation(INITIALIZED);
             }
         }
@@ -231,9 +255,15 @@ public abstract class InitializationParentAnnotatedTypeFactory
      */
     public AnnotationMirror createUnderInitializationAnnotation(TypeMirror typeFrame) {
         assert typeFrame != null;
+        AnnotationMirror cachedAnnotation = underInitializationAnnotationCache.get(typeFrame);
+        if (cachedAnnotation != null) {
+            return cachedAnnotation;
+        }
         AnnotationBuilder builder = new AnnotationBuilder(processingEnv, UnderInitialization.class);
         builder.setValue("value", typeFrame);
-        return builder.build();
+        AnnotationMirror annotation = builder.build();
+        underInitializationAnnotationCache.put(typeFrame, annotation);
+        return annotation;
     }
 
     @Override
@@ -281,14 +311,15 @@ public abstract class InitializationParentAnnotatedTypeFactory
         }
         ClassTree enclosingClass = TreePathUtil.enclosingClass(path);
         if (enclosingClass != null) {
-            List<? extends Tree> classMembers = enclosingClass.getMembers();
             TreePath searchPath = path;
             while (searchPath.getParentPath() != null
                     && searchPath.getParentPath().getLeaf() != enclosingClass) {
                 searchPath = searchPath.getParentPath();
-                if (classMembers.contains(searchPath.getLeaf())) {
-                    return searchPath;
-                }
+            }
+            if (searchPath != path
+                    && searchPath.getParentPath() != null
+                    && searchPath.getParentPath().getLeaf() == enclosingClass) {
+                return searchPath;
             }
         }
         return null;
@@ -355,8 +386,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
         if (superClass != null) {
             annotation = createUnderInitializationAnnotation(superClass);
         } else {
-            // Use Object as a valid super-class.
-            annotation = createUnderInitializationAnnotation(Object.class);
+            annotation = underInitializationObjectAnnotation;
         }
         return annotation;
     }
@@ -390,19 +420,6 @@ public abstract class InitializationParentAnnotatedTypeFactory
         }
 
         return false;
-    }
-
-    /**
-     * Creates a {@link UnderInitialization} annotation with the given type frame.
-     *
-     * @param typeFrame the type down to which some value has been initialized
-     * @return an {@link UnderInitialization} annotation with the given argument
-     */
-    public AnnotationMirror createUnderInitializationAnnotation(Class<?> typeFrame) {
-        assert typeFrame != null;
-        AnnotationBuilder builder = new AnnotationBuilder(processingEnv, UnderInitialization.class);
-        builder.setValue("value", typeFrame);
-        return builder.build();
     }
 
     /**
@@ -646,9 +663,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
      * @return the annotation's argument
      */
     public TypeMirror getTypeFrameFromAnnotation(AnnotationMirror annotation) {
-        if (AnnotationUtils.areSameByName(
-                annotation,
-                "org.checkerframework.checker.initialization.qual.UnderInitialization")) {
+        if (AnnotationUtils.areSameByName(annotation, UNDER_INITALIZATION)) {
             return AnnotationUtils.getElementValue(
                     annotation,
                     underInitializationValueElement,
@@ -769,7 +784,10 @@ public abstract class InitializationParentAnnotatedTypeFactory
                 shouldCache = false;
                 AnnotatedTypeMirror t = getAnnotatedType(a);
                 shouldCache = oldShouldCache;
-                allInitialized &= (isInitialized(t) || isFbcBottom(t));
+                if (!(isInitialized(t) || isFbcBottom(t))) {
+                    allInitialized = false;
+                    break;
+                }
             }
             if (!allInitialized) {
                 p.replaceAnnotation(createUnderInitializationAnnotation(type));
@@ -837,7 +855,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
         protected InitializationQualifierHierarchy() {
             super(
                     InitializationParentAnnotatedTypeFactory.this.getSupportedTypeQualifiers(),
-                    elements,
+                    InitializationParentAnnotatedTypeFactory.this.elements,
                     InitializationParentAnnotatedTypeFactory.this);
             UNKNOWN_INIT = getQualifierKind(UNKNOWN_INITIALIZATION);
             UNDER_INIT = getQualifierKind(UNDER_INITALIZATION);
