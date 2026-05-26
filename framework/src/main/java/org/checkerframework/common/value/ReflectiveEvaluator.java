@@ -176,11 +176,11 @@ public class ReflectiveEvaluator {
         }
         Object[] newArgs = new Object[numberOfParameters];
         Object[] varArgsArray;
-        int numOfVarArgs = arguments.length - numberOfParameters + 1;
-        if (numOfVarArgs > 0) {
+        int numOfVarargs = arguments.length - numberOfParameters + 1;
+        if (numOfVarargs > 0) {
             System.arraycopy(arguments, 0, newArgs, 0, numberOfParameters - 1);
-            varArgsArray = new Object[numOfVarArgs];
-            System.arraycopy(arguments, numberOfParameters - 1, varArgsArray, 0, numOfVarArgs);
+            varArgsArray = new Object[numOfVarargs];
+            System.arraycopy(arguments, numberOfParameters - 1, varArgsArray, 0, numOfVarargs);
         } else {
             System.arraycopy(arguments, 0, newArgs, 0, numberOfParameters - 1);
             varArgsArray = emptyObjectArray;
@@ -265,36 +265,28 @@ public class ReflectiveEvaluator {
      * @return all combinations of the elements of the given lists
      */
     private List<Object[]> cartesianProduct(List<List<?>> allArgValues, int whichArg) {
+        // Recurse once, then iterate to produce all combinations.
         List<?> argValues = allArgValues.get(whichArg);
-        List<Object[]> tuples = new ArrayList<>(argValues.size());
-
+        if (whichArg == 0) {
+            int width = allArgValues.size();
+            List<Object[]> tuples = new ArrayList<>(argValues.size());
+            for (Object value : argValues) {
+                Object[] tuple = new Object[width];
+                tuple[0] = value;
+                tuples.add(tuple);
+            }
+            return tuples;
+        }
+        List<Object[]> base = cartesianProduct(allArgValues, whichArg - 1);
+        List<Object[]> tuples = new ArrayList<>(base.size() * argValues.size());
         for (Object value : argValues) {
-            if (whichArg == 0) {
-                Object[] objects = new Object[allArgValues.size()];
-                objects[0] = value;
-                tuples.add(objects);
-            } else {
-                List<Object[]> lastTuples = cartesianProduct(allArgValues, whichArg - 1);
-                List<Object[]> copies = copy(lastTuples);
-                for (Object[] copy : copies) {
-                    copy[whichArg] = value;
-                }
-                tuples.addAll(copies);
+            for (Object[] baseTuple : base) {
+                Object[] copy = Arrays.copyOf(baseTuple, baseTuple.length);
+                copy[whichArg] = value;
+                tuples.add(copy);
             }
         }
         return tuples;
-    }
-
-    /**
-     * Returns a depth-2 copy of the given list. In the returned value, the list and the arrays in
-     * it are new, but the elements of the arrays are shared with the argument.
-     *
-     * @param lastTuples a list of arrays
-     * @return a depth-2 copy of the given list
-     */
-    private List<Object[]> copy(List<Object[]> lastTuples) {
-        return CollectionsPlume.mapList(
-                (Object[] list) -> Arrays.copyOf(list, list.length), lastTuples);
     }
 
     /**

@@ -4,12 +4,14 @@ import org.checkerframework.checker.interning.qual.EqualsMethod;
 import org.checkerframework.framework.type.visitor.EquivalentAtmComboScanner;
 import org.checkerframework.javacutil.AnnotationUtils;
 
+import javax.lang.model.type.TypeMirror;
+
 /**
  * Compares two annotated type mirrors for structural equality using only the primary annotations
  * and underlying types of the two input types and their component types. Note, this leaves out
  * other fields specific to some AnnotatedTypeMirrors (like directSupertypes, isUnderlyingTypeRaw,
- * isUninferredTypeArgument etc...). Ideally, both EqualityAtmComparer and HashcodeAtmVisitor would
- * visit relevant fields.
+ * isTypeArgOfRawType etc...). Ideally, both EqualityAtmComparer and HashcodeAtmVisitor would visit
+ * relevant fields.
  *
  * <p>This class is used by AnnotatedTypeMirror#equals
  *
@@ -28,7 +30,7 @@ public class EqualityAtmComparer extends EquivalentAtmComboScanner<Boolean, Void
      * @return true if {@code type1} and {@code type2} have equivalent sets of annotations
      */
     protected boolean arePrimaryAnnosEqual(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
-        return AnnotationUtils.areSame(type1.getAnnotations(), type2.getAnnotations());
+        return AnnotationUtils.areSame(type1.getAnnotationsField(), type2.getAnnotationsField());
     }
 
     /**
@@ -43,13 +45,14 @@ public class EqualityAtmComparer extends EquivalentAtmComboScanner<Boolean, Void
         if (type1 == type2) {
             return true;
         }
-
         if (type1 == null || type2 == null) {
             return false;
         }
 
+        TypeMirror ut1 = type1.underlyingType;
+        TypeMirror ut2 = type2.underlyingType;
         @SuppressWarnings("TypeEquals") // TODO
-        boolean sameUnderlyingType = type1.getUnderlyingType().equals(type2.getUnderlyingType());
+        boolean sameUnderlyingType = (ut1 == ut2) || ut1.equals(ut2);
         return sameUnderlyingType && arePrimaryAnnosEqual(type1, type2);
     }
 

@@ -21,10 +21,11 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
-import java.util.Map;
 import java.util.Objects;
 import java.util.PriorityQueue;
 import java.util.Set;
@@ -38,7 +39,7 @@ import javax.lang.model.type.TypeMirror;
  *
  * @param <V> the abstract value type to be tracked by the analysis
  * @param <S> the store type used in the analysis
- * @param <T> the transfer function type that is used to approximated runtime behavior
+ * @param <T> the transfer function type that is used to approximate run-time behavior
  */
 public abstract class AbstractAnalysis<
                 V extends AbstractValue<V>, S extends Store<S>, T extends TransferFunction<V, S>>
@@ -59,8 +60,8 @@ public abstract class AbstractAnalysis<
     protected @MonotonicNonNull ControlFlowGraph cfg;
 
     /**
-     * The transfer inputs of every basic block (assumed to be 'no information' if not present,
-     * inputs before blocks in forward analysis, after blocks in backward analysis).
+     * The transfer inputs of every basic block; assumed to be 'no information' if not present. The
+     * inputs are before blocks in forward analysis, and are after blocks in backward analysis.
      */
     protected final IdentityHashMap<Block, TransferInput<V, S>> inputs = new IdentityHashMap<>();
 
@@ -69,6 +70,9 @@ public abstract class AbstractAnalysis<
 
     /** Abstract values of nodes. */
     protected final IdentityHashMap<Node, V> nodeValues = new IdentityHashMap<>();
+
+    /** The last argument to {@link #setNodeValues}, or null if none yet (or invalidated). */
+    private @Nullable IdentityHashMap<Node, V> syncedFrom;
 
     /** Map from (effectively final) local variable elements to their abstract value. */
     protected final HashMap<VariableElement, V> finalLocalValues = new HashMap<>();
@@ -164,6 +168,9 @@ public abstract class AbstractAnalysis<
         return this.direction;
     }
 
+    /** A cache for {@link #getResult()}. */
+    private @Nullable AnalysisResult<V, S> getResultCache;
+
     @Override
     @SuppressWarnings("nullness:contracts.precondition.override.invalid") // implementation field
     @RequiresNonNull("cfg")
@@ -173,12 +180,16 @@ public abstract class AbstractAnalysis<
                     "AbstractAnalysis::getResult() shouldn't be called when the analysis is"
                             + " running.");
         }
-        return new AnalysisResult<>(
-                nodeValues,
-                inputs,
-                cfg.getTreeLookup(),
-                cfg.getPostfixNodeLookup(),
-                finalLocalValues);
+        if (getResultCache == null) {
+            getResultCache =
+                    new AnalysisResult<>(
+                            nodeValues,
+                            inputs,
+                            cfg.getTreeLookup(),
+                            cfg.getPostfixNodeLookup(),
+                            finalLocalValues);
+        }
+        return getResultCache;
     }
 
     @Override
@@ -195,14 +206,27 @@ public abstract class AbstractAnalysis<
                     || (currentTree != null && currentTree == n.getTree())) {
                 return null;
             }
-            // check that 'n' is a subnode of 'currentNode'. Check immediate operands
-            // first for efficiency.
+            // Check that 'n' is a subnode of 'currentNode'. Check immediate operands
+            // first for efficiency, then walk transitive operands with early exit
+            // (vs. materializing the whole subtree as Node#getTransitiveOperands does).
             assert !n.isLValue() : "Did not expect an lvalue, but got " + n;
-            if (!currentNode.getOperands().contains(n)
-                    && !currentNode.getTransitiveOperands().contains(n)) {
-                return null;
+            Collection<Node> immediate = currentNode.getOperands();
+            if (!immediate.contains(n)) {
+                java.util.ArrayDeque<Node> queue = new java.util.ArrayDeque<>(immediate);
+                boolean found = false;
+                while (!queue.isEmpty()) {
+                    Collection<Node> ops = queue.removeFirst().getOperands();
+                    if (ops.contains(n)) {
+                        found = true;
+                        break;
+                    }
+                    queue.addAll(ops);
+                }
+                if (!found) {
+                    return null;
+                }
             }
-            // fall through when the current node is not 'n', and 'n' is not a subnode.
+            // Fall through when 'n' is a (transitive) subnode of currentNode.
         }
         return nodeValues.get(n);
     }
@@ -221,10 +245,21 @@ public abstract class AbstractAnalysis<
      *
      * @param in the current node values
      */
+    @SuppressWarnings("interning:not.interned") // see comment about if-check below
     /*package-private*/ void setNodeValues(IdentityHashMap<Node, V> in) {
         assert !isRunning;
+        // `nodeValues == in`: required for correctness - some paths flow getNodeValues() back
+        // through here, and clear() on the aliased map would empty `in` too.
+        // `syncedFrom == in`: an optimization. After a sync, `nodeValues` mirrors `in`, and the
+        // only paths that mutate `nodeValues` between calls here go through initFields, which
+        // resets syncedFrom. Saves ~10% of total CPU on traces dominated by post-analysis spot
+        // queries (every getAnnotationFromTree query during type-checking lands here).
+        if (nodeValues == in || syncedFrom == in) {
+            return;
+        }
         nodeValues.clear();
         nodeValues.putAll(in);
+        syncedFrom = in;
     }
 
     @Override
@@ -232,11 +267,8 @@ public abstract class AbstractAnalysis<
     @RequiresNonNull("cfg")
     public @Nullable S getRegularExitStore() {
         SpecialBlock regularExitBlock = cfg.getRegularExitBlock();
-        if (inputs.containsKey(regularExitBlock)) {
-            return inputs.get(regularExitBlock).getRegularStore();
-        } else {
-            return null;
-        }
+        TransferInput<V, S> input = inputs.get(regularExitBlock);
+        return input == null ? null : input.getRegularStore();
     }
 
     @Override
@@ -244,12 +276,8 @@ public abstract class AbstractAnalysis<
     @RequiresNonNull("cfg")
     public @Nullable S getExceptionalExitStore() {
         SpecialBlock exceptionalExitBlock = cfg.getExceptionalExitBlock();
-        if (inputs.containsKey(exceptionalExitBlock)) {
-            S exceptionalExitStore = inputs.get(exceptionalExitBlock).getRegularStore();
-            return exceptionalExitStore;
-        } else {
-            return null;
-        }
+        TransferInput<V, S> input = inputs.get(exceptionalExitBlock);
+        return input == null ? null : input.getRegularStore();
     }
 
     /**
@@ -312,12 +340,38 @@ public abstract class AbstractAnalysis<
      *
      * @param t the given tree
      * @return the contained method tree of the given tree
+     * @deprecated use {@link #getEnclosingMethod}
      */
+    @Deprecated // 2024-05-01
     public @Nullable MethodTree getContainingMethod(Tree t) {
+        return getEnclosingMethod(t);
+    }
+
+    /**
+     * Get the {@link MethodTree} of the current CFG if the argument {@link Tree} maps to a {@link
+     * Node} in the CFG or {@code null} otherwise.
+     *
+     * @param t the given tree
+     * @return the contained method tree of the given tree
+     */
+    public @Nullable MethodTree getEnclosingMethod(Tree t) {
         if (cfg == null) {
             return null;
         }
-        return cfg.getContainingMethod(t);
+        return cfg.getEnclosingMethod(t);
+    }
+
+    /**
+     * Get the {@link ClassTree} of the current CFG if the argument {@link Tree} maps to a {@link
+     * Node} in the CFG or {@code null} otherwise.
+     *
+     * @param t the given tree
+     * @return the contained class tree of the given tree
+     * @deprecated use {@link #getEnclosingClass}
+     */
+    @Deprecated // 2024-05-01
+    public @Nullable ClassTree getContainingClass(Tree t) {
+        return getEnclosingClass(t);
     }
 
     /**
@@ -327,11 +381,11 @@ public abstract class AbstractAnalysis<
      * @param t the given tree
      * @return the contained class tree of the given tree
      */
-    public @Nullable ClassTree getContainingClass(Tree t) {
+    public @Nullable ClassTree getEnclosingClass(Tree t) {
         if (cfg == null) {
             return null;
         }
-        return cfg.getContainingClass(t);
+        return cfg.getEnclosingClass(t);
     }
 
     /**
@@ -353,8 +407,13 @@ public abstract class AbstractAnalysis<
         }
         transferInput.node = node;
         setCurrentNode(node);
-        TransferResult<V, S> transferResult = node.accept(transferFunction, transferInput);
-        setCurrentNode(null);
+        TransferResult<V, S> transferResult;
+        try {
+            transferResult = node.accept(transferFunction, transferInput);
+        } finally {
+            // Preserve invariant `!isRunning => currentNode == null` even on exception.
+            setCurrentNode(null);
+        }
         if (node instanceof AssignmentNode) {
             // store the flow-refined value effectively for final local variables
             AssignmentNode assignment = (AssignmentNode) node;
@@ -407,13 +466,15 @@ public abstract class AbstractAnalysis<
     protected void initFields(ControlFlowGraph cfg) {
         inputs.clear();
         nodeValues.clear();
+        syncedFrom = null;
         finalLocalValues.clear();
         this.cfg = cfg;
+        getResultCache = null;
     }
 
     /**
-     * Updates the value of node {@code node} to the value of the {@code transferResult}. Returns
-     * true if the node's value changed, or a store was updated.
+     * Updates the value of node {@code node} in {@link #nodeValues} to the value of the {@code
+     * transferResult}. Returns true if the node's value changed, or a store was updated.
      *
      * @param node the node to update
      * @param transferResult the transfer result being updated
@@ -431,26 +492,13 @@ public abstract class AbstractAnalysis<
     }
 
     /**
-     * Read the store for a particular basic block from a map of stores (or {@code null} if none
-     * exists yet).
-     *
-     * @param stores a map of stores
-     * @param b the target block
-     * @param <S> method return type should be a subtype of {@link Store}
-     * @return the store for the target block
-     */
-    protected static <S> @Nullable S readFromStore(Map<Block, S> stores, Block b) {
-        return stores.get(b);
-    }
-
-    /**
      * Add a basic block to {@link #worklist}. If {@code b} is already present, the method does
      * nothing.
      *
      * @param b the block to add to {@link #worklist}
      */
     protected void addToWorklist(Block b) {
-        // TODO: use a more efficient way to check if b is already present
+        // Worklist.contains is O(1) via worklist.queueSet.
         if (!worklist.contains(b)) {
             worklist.add(b);
         }
@@ -469,11 +517,17 @@ public abstract class AbstractAnalysis<
          * Comparators to allow priority queue to order blocks by their depth-first order, using by
          * forward analysis.
          */
-        public class ForwardDFOComparator implements Comparator<Block> {
-            @SuppressWarnings("nullness:unboxing.of.nullable")
+        public class ForwardDfoComparator implements Comparator<Block> {
+            /** Creates a new ForwardDfoComparator. */
+            public ForwardDfoComparator() {}
+
             @Override
             public int compare(Block b1, Block b2) {
-                return depthFirstOrder.get(b1) - depthFirstOrder.get(b2);
+                Integer o1 = depthFirstOrder.get(b1);
+                Integer o2 = depthFirstOrder.get(b2);
+                assert o1 != null && o2 != null
+                        : "@AssumeAssertion(nullness): blocks have been processed";
+                return Integer.compare(o1, o2);
             }
         }
 
@@ -481,16 +535,25 @@ public abstract class AbstractAnalysis<
          * Comparators to allow priority queue to order blocks by their depth-first order, using by
          * backward analysis.
          */
-        public class BackwardDFOComparator implements Comparator<Block> {
-            @SuppressWarnings("nullness:unboxing.of.nullable")
+        public class BackwardDfoComparator implements Comparator<Block> {
+            /** Creates a new BackwardDfoComparator. */
+            public BackwardDfoComparator() {}
+
             @Override
             public int compare(Block b1, Block b2) {
-                return depthFirstOrder.get(b2) - depthFirstOrder.get(b1);
+                Integer o1 = depthFirstOrder.get(b1);
+                Integer o2 = depthFirstOrder.get(b2);
+                assert o1 != null && o2 != null
+                        : "@AssumeAssertion(nullness): blocks have been processed";
+                return Integer.compare(o2, o1);
             }
         }
 
         /** The backing priority queue. */
         protected final PriorityQueue<Block> queue;
+
+        /** Contains the same elements as {@link #queue}, for faster lookup. */
+        protected final Set<Block> queueSet;
 
         /**
          * Create a Worklist.
@@ -499,16 +562,21 @@ public abstract class AbstractAnalysis<
          */
         public Worklist(Direction direction) {
             if (direction == Direction.FORWARD) {
-                queue = new PriorityQueue<>(new ForwardDFOComparator());
+                queue = new PriorityQueue<>(new ForwardDfoComparator());
+                queueSet = Collections.newSetFromMap(new IdentityHashMap<>());
             } else if (direction == Direction.BACKWARD) {
-                queue = new PriorityQueue<>(new BackwardDFOComparator());
+                queue = new PriorityQueue<>(new BackwardDfoComparator());
+                queueSet = Collections.newSetFromMap(new IdentityHashMap<>());
             } else {
-                throw new BugInCF("Unexpected Direction meet: " + direction.name());
+                throw new BugInCF("Unexpected Direction: " + direction.name());
             }
         }
 
         /**
-         * Process the control flow graph, add the blocks to {@link #depthFirstOrder}.
+         * Process the control flow graph.
+         *
+         * <p>This implementation sets the depth-first order for each block, by adding the blocks to
+         * {@link #depthFirstOrder}.
          *
          * @param cfg the control flow graph to process
          */
@@ -520,6 +588,7 @@ public abstract class AbstractAnalysis<
             }
 
             queue.clear();
+            queueSet.clear();
         }
 
         /**
@@ -532,6 +601,7 @@ public abstract class AbstractAnalysis<
         @EnsuresNonNullIf(result = false, expression = "poll()")
         @SuppressWarnings("nullness:contracts.conditional.postcondition.not.satisfied") // forwarded
         public boolean isEmpty() {
+            assert queue.isEmpty() == queueSet.isEmpty();
             return queue.isEmpty();
         }
 
@@ -542,7 +612,7 @@ public abstract class AbstractAnalysis<
          * @return true if {@link #queue} contains the given block
          */
         public boolean contains(Block block) {
-            return queue.contains(block);
+            return queueSet.contains(block);
         }
 
         /**
@@ -553,6 +623,7 @@ public abstract class AbstractAnalysis<
          */
         public void add(Block block) {
             queue.add(block);
+            queueSet.add(block);
         }
 
         /**
@@ -563,7 +634,11 @@ public abstract class AbstractAnalysis<
          */
         @Pure
         public @Nullable Block poll() {
-            return queue.poll();
+            Block result = queue.poll();
+            if (result != null) {
+                queueSet.remove(result);
+            }
+            return result;
         }
 
         @Override

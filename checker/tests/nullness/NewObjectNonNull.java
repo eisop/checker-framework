@@ -7,7 +7,14 @@ public class NewObjectNonNull {
         A() {}
     }
 
+    @DefaultQualifier(Nullable.class)
+    class B {
+        // No explicit constructor.
+        // B() {}
+    }
+
     void m() {
         new A().toString();
+        new B().toString();
     }
 }

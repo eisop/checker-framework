@@ -10,6 +10,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiv
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
+import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeVisitor;
 import org.plumelib.util.CollectionsPlume;
 
@@ -92,7 +93,8 @@ public class AnnotatedTypeCopier
 
     @Override
     public AnnotatedTypeMirror visit(AnnotatedTypeMirror type) {
-        return type.accept(this, new IdentityHashMap<>());
+        return type.accept(
+                this, new IdentityHashMap<>(AnnotatedTypeScanner.VISITED_NODES_EXPECTED_MAX_SIZE));
     }
 
     @Override
@@ -106,8 +108,9 @@ public class AnnotatedTypeCopier
     public AnnotatedTypeMirror visitDeclared(
             AnnotatedDeclaredType original,
             IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy) {
-        if (originalToCopy.containsKey(original)) {
-            return originalToCopy.get(original);
+        AnnotatedTypeMirror existing = originalToCopy.get(original);
+        if (existing != null) {
+            return existing;
         }
 
         AnnotatedDeclaredType copy = makeOrReturnCopy(original, originalToCopy);
@@ -136,8 +139,9 @@ public class AnnotatedTypeCopier
     public AnnotatedTypeMirror visitIntersection(
             AnnotatedIntersectionType original,
             IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy) {
-        if (originalToCopy.containsKey(original)) {
-            return originalToCopy.get(original);
+        AnnotatedTypeMirror existing = originalToCopy.get(original);
+        if (existing != null) {
+            return existing;
         }
 
         AnnotatedIntersectionType copy = makeOrReturnCopy(original, originalToCopy);
@@ -157,8 +161,9 @@ public class AnnotatedTypeCopier
     public AnnotatedTypeMirror visitUnion(
             AnnotatedUnionType original,
             IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy) {
-        if (originalToCopy.containsKey(original)) {
-            return originalToCopy.get(original);
+        AnnotatedTypeMirror existing = originalToCopy.get(original);
+        if (existing != null) {
+            return existing;
         }
 
         AnnotatedUnionType copy = makeOrReturnCopy(original, originalToCopy);
@@ -179,8 +184,9 @@ public class AnnotatedTypeCopier
     public AnnotatedTypeMirror visitExecutable(
             AnnotatedExecutableType original,
             IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy) {
-        if (originalToCopy.containsKey(original)) {
-            return originalToCopy.get(original);
+        AnnotatedTypeMirror existing = originalToCopy.get(original);
+        if (existing != null) {
+            return existing;
         }
 
         AnnotatedExecutableType copy = makeOrReturnCopy(original, originalToCopy);
@@ -250,8 +256,9 @@ public class AnnotatedTypeCopier
     public AnnotatedTypeMirror visitArray(
             AnnotatedArrayType original,
             IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy) {
-        if (originalToCopy.containsKey(original)) {
-            return originalToCopy.get(original);
+        AnnotatedTypeMirror existing = originalToCopy.get(original);
+        if (existing != null) {
+            return existing;
         }
 
         AnnotatedArrayType copy = makeOrReturnCopy(original, originalToCopy);
@@ -265,8 +272,9 @@ public class AnnotatedTypeCopier
     public AnnotatedTypeMirror visitTypeVariable(
             AnnotatedTypeVariable original,
             IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy) {
-        if (originalToCopy.containsKey(original)) {
-            return originalToCopy.get(original);
+        AnnotatedTypeMirror existing = originalToCopy.get(original);
+        if (existing != null) {
+            return existing;
         }
 
         AnnotatedTypeVariable copy = makeOrReturnCopy(original, originalToCopy);
@@ -307,14 +315,15 @@ public class AnnotatedTypeCopier
     public AnnotatedTypeMirror visitWildcard(
             AnnotatedWildcardType original,
             IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy) {
-        if (originalToCopy.containsKey(original)) {
-            return originalToCopy.get(original);
+        AnnotatedTypeMirror existing = originalToCopy.get(original);
+        if (existing != null) {
+            return existing;
         }
 
         AnnotatedWildcardType copy = makeOrReturnCopy(original, originalToCopy);
 
-        if (original.isUninferredTypeArgument()) {
-            copy.setUninferredTypeArgument();
+        if (original.isTypeArgOfRawType()) {
+            copy.setTypeArgOfRawType();
         }
 
         if (original.getExtendsBoundField() != null) {
@@ -349,8 +358,9 @@ public class AnnotatedTypeCopier
     @SuppressWarnings("unchecked")
     protected <T extends AnnotatedTypeMirror> T makeOrReturnCopy(
             T original, IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy) {
-        if (originalToCopy.containsKey(original)) {
-            return (T) originalToCopy.get(original);
+        T existing = (T) originalToCopy.get(original);
+        if (existing != null) {
+            return existing;
         }
 
         T copy = makeCopy(original);
@@ -368,7 +378,6 @@ public class AnnotatedTypeCopier
      */
     @SuppressWarnings("unchecked")
     protected <T extends AnnotatedTypeMirror> T makeCopy(T original) {
-
         T copy =
                 (T)
                         AnnotatedTypeMirror.createType(
