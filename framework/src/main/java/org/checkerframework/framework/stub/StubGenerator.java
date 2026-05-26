@@ -84,7 +84,7 @@ public class StubGenerator {
         }
 
         String pkg = ElementUtils.getQualifiedName(ElementUtils.enclosingPackage(elt));
-        if (!"".equals(pkg)) {
+        if (!pkg.isEmpty()) {
             currentPackage = pkg;
             currentIndention = "    ";
             indent();
@@ -95,7 +95,7 @@ public class StubGenerator {
 
     /** Generate the stub file for all the classes within the provided package. */
     public void stubFromPackage(PackageElement packageElement) {
-        currentPackage = packageElement.getQualifiedName().toString();
+        currentPackage = ElementUtils.getQualifiedName(packageElement);
 
         indent();
         out.print("package ");
@@ -417,11 +417,11 @@ public class StubGenerator {
 
         while (tokenizer.hasMoreTokens()) {
             String token = tokenizer.nextToken();
-            if (token.length() == 1 || token.lastIndexOf('.') == -1) {
+            int index = token.length() == 1 ? -1 : token.lastIndexOf('.');
+            if (index == -1) {
                 sb.append(token);
             } else {
-                int index = token.lastIndexOf('.');
-                sb.append(token.substring(index + 1));
+                sb.append(token, index + 1, token.length());
             }
         }
         return sb.toString();

@@ -329,7 +329,7 @@ public class RegexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          *
          * @param atypeFactory the type factory
          */
-        public RegexPropagationTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        RegexPropagationTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
 
@@ -343,7 +343,7 @@ public class RegexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     private class RegexTreeAnnotator extends TreeAnnotator {
 
-        public RegexTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        RegexTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
 

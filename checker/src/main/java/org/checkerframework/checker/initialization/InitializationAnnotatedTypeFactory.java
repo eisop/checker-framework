@@ -143,19 +143,24 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
                             ((InitializationChecker) checker).getTargetCheckerClass());
             InitializationStore initStore = getStoreBefore(tree);
             CFAbstractStore<?, ?> targetStore = targetFactory.getStoreBefore(tree);
-            if (initStore != null
-                    && targetStore != null
-                    && getUninitializedFields(
-                                    initStore, targetStore, path, false, Collections.emptyList())
-                            .isEmpty()) {
-                if (classType.isFinal()) {
-                    annotation = INITIALIZED;
-                } else {
-                    annotation = createUnderInitializationAnnotation(classType);
-                }
-            } else if (initStore != null
-                    && getUninitializedFields(initStore, path, false, Collections.emptyList())
-                            .isEmpty()) {
+            boolean allInitialized;
+            if (initStore == null) {
+                allInitialized = false;
+            } else if (targetStore != null) {
+                allInitialized =
+                        getUninitializedFields(
+                                        initStore,
+                                        targetStore,
+                                        path,
+                                        false,
+                                        Collections.emptyList())
+                                .isEmpty();
+            } else {
+                allInitialized =
+                        getUninitializedFields(initStore, path, false, Collections.emptyList())
+                                .isEmpty();
+            }
+            if (allInitialized) {
                 if (classType.isFinal()) {
                     annotation = INITIALIZED;
                 } else {
@@ -219,22 +224,23 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
 
         // Remove primitives
         if (!((InitializationChecker) checker).checkPrimitives()) {
-            uninitializedFields.removeIf(var -> getAnnotatedType(var).getKind().isPrimitive());
+            uninitializedFields.removeIf(
+                    var -> TreeUtils.elementFromDeclaration(var).asType().getKind().isPrimitive());
         }
 
         // Filter out fields which are initialized according to subchecker
         uninitializedFields.removeIf(
                 var -> {
                     ClassTree enclosingClass = TreePathUtil.enclosingClass(getPath(var));
+                    VariableElement varElement = TreeUtils.elementFromDeclaration(var);
                     Node receiver;
-                    if (ElementUtils.isStatic(TreeUtils.elementFromDeclaration(var))) {
+                    if (ElementUtils.isStatic(varElement)) {
                         receiver = new ClassNameNode(enclosingClass);
                     } else {
                         receiver =
                                 new ImplicitThisNode(
                                         TreeUtils.elementFromDeclaration(enclosingClass).asType());
                     }
-                    VariableElement varElement = TreeUtils.elementFromDeclaration(var);
                     FieldAccessNode fa = new FieldAccessNode(var, varElement, receiver);
                     CFAbstractValue<?> value = targetStore.getValue(fa);
                     return isInitialized(factory, value, varElement);
