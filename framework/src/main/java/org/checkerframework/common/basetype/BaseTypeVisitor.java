@@ -3485,7 +3485,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         varType.getKind(),
                         varType.toString());
             }
-            return false;
+            return true;
         }
 
         return commonAssignmentCheck(varType, valueExpTree, errorKey, extraArgs);
