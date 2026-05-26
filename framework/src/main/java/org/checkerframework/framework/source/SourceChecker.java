@@ -836,8 +836,20 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * Returns a list containing this checker name and all checkers it is a part of (that is,
      * checkers that called it).
      *
+     * <p>This list determines which {@code @AnnotatedFor} annotations are recognized as covering
+     * this checker.
+     *
+     * <p>Note: {@link #getUpstreamCheckerNames()} and {@link #getSuppressWarningsPrefixes()} are a
+     * related pair and should be kept in sync. If you override this method to add an additional
+     * checker name (for example, the name of an abstract parent class that this checker extends),
+     * you should also override {@link #getSuppressWarningsPrefixes()} to add the corresponding
+     * {@code @SuppressWarnings} prefix for that checker. Otherwise, code marked
+     * {@code @AnnotatedFor} for the parent will be checked, but {@code @SuppressWarnings} written
+     * with the parent's prefix will not be honored (or vice versa).
+     *
      * @return a list containing this checker name and all checkers it is a part of (that is,
      *     checkers that called it)
+     * @see #getSuppressWarningsPrefixes()
      */
     public List<@FullyQualifiedName String> getUpstreamCheckerNames() {
         if (upstreamCheckerNames == null) {
@@ -3062,7 +3074,15 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * <p>The collection must not be empty and must not contain only {@link #SUPPRESS_ALL_PREFIX}.
      *
+     * <p>Note: {@link #getSuppressWarningsPrefixes()} and {@link #getUpstreamCheckerNames()} are a
+     * related pair and should be kept in sync. If you override this method to add an additional
+     * prefix (for example, the prefix of an abstract parent class that this checker extends), you
+     * should also override {@link #getUpstreamCheckerNames()} to add the corresponding checker
+     * name. Otherwise, {@code @SuppressWarnings} written with the parent's prefix will be honored,
+     * but code marked {@code @AnnotatedFor} for the parent will not be checked (or vice versa).
+     *
      * @return non-empty modifiable set of lower-case prefixes for SuppressWarnings strings
+     * @see #getUpstreamCheckerNames()
      */
     public NavigableSet<String> getSuppressWarningsPrefixes() {
         return getStandardSuppressWarningsPrefixes();
