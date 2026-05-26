@@ -2,9 +2,11 @@ package org.checkerframework.javacutil;
 
 import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.common.returnsreceiver.qual.This;
 import org.checkerframework.dataflow.qual.Pure;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Set;
@@ -29,8 +31,12 @@ import javax.lang.model.element.AnnotationMirror;
 public class AnnotationMirrorMap<V> implements Map<@KeyFor("this") AnnotationMirror, V> {
 
     /** The actual map to which all work is delegated. */
-    private final NavigableMap<@KeyFor("this") AnnotationMirror, V> shadowMap =
+    // Not final because makeUnmodifiable() can reassign it.
+    private NavigableMap<@KeyFor("this") AnnotationMirror, V> shadowMap =
             new TreeMap<>(AnnotationUtils::compareAnnotationMirrors);
+
+    /** The canonical unmodifiable empty set. */
+    private static AnnotationMirrorMap<?> emptyMap = unmodifiableSet(Collections.emptyMap());
 
     /** Default constructor. */
     public AnnotationMirrorMap() {}
@@ -40,10 +46,48 @@ public class AnnotationMirrorMap<V> implements Map<@KeyFor("this") AnnotationMir
      *
      * @param copy a map whose contents should be copied to the newly created map
      */
-    @SuppressWarnings("nullness:method.invocation") // initialization in constructor
+    @SuppressWarnings({
+        "this-escape",
+        "nullness:method.invocation"
+    }) // initialization in constructor
     public AnnotationMirrorMap(Map<AnnotationMirror, ? extends V> copy) {
         this();
         this.putAll(copy);
+    }
+
+    /**
+     * Returns an unmodifiable AnnotationMirrorSet with the given elements.
+     *
+     * @param annos the annotation mirrors that will constitute the new unmodifable set
+     * @return an unmodifiable AnnotationMirrorSet with the given elements
+     * @param <V> the type of the values in the map
+     */
+    public static <V> AnnotationMirrorMap<V> unmodifiableSet(
+            Map<AnnotationMirror, ? extends V> annos) {
+        AnnotationMirrorMap<V> result = new AnnotationMirrorMap<>(annos);
+        result.makeUnmodifiable();
+        return result;
+    }
+
+    /**
+     * Returns an empty set.
+     *
+     * @return an empty set
+     * @param <V> the type of the values in the map
+     */
+    @SuppressWarnings("unchecked")
+    public static <V> AnnotationMirrorMap<V> emptyMap() {
+        return (AnnotationMirrorMap<V>) emptyMap;
+    }
+
+    /**
+     * Make this set unmodifiable.
+     *
+     * @return this set
+     */
+    public @This AnnotationMirrorMap<V> makeUnmodifiable() {
+        shadowMap = Collections.unmodifiableNavigableMap(shadowMap);
+        return this;
     }
 
     @Override
@@ -59,11 +103,10 @@ public class AnnotationMirrorMap<V> implements Map<@KeyFor("this") AnnotationMir
     @SuppressWarnings("keyfor:contracts.conditional.postcondition") // delegation
     @Override
     public boolean containsKey(Object key) {
-        if (key instanceof AnnotationMirror) {
-            return AnnotationUtils.containsSame(shadowMap.keySet(), (AnnotationMirror) key);
-        } else {
-            return false;
-        }
+        // shadowMap is a TreeMap whose comparator (AnnotationUtils::compareAnnotationMirrors)
+        // is consistent with AnnotationUtils.areSame, so containsKey/get/remove on shadowMap
+        // already do an O(log n) "areSame" lookup and we do not need a linear scan.
+        return key instanceof AnnotationMirror && shadowMap.containsKey(key);
     }
 
     @Override
@@ -75,11 +118,7 @@ public class AnnotationMirrorMap<V> implements Map<@KeyFor("this") AnnotationMir
     @Pure
     public @Nullable V get(Object key) {
         if (key instanceof AnnotationMirror) {
-            AnnotationMirror keyAnno =
-                    AnnotationUtils.getSame(shadowMap.keySet(), (AnnotationMirror) key);
-            if (keyAnno != null) {
-                return shadowMap.get(keyAnno);
-            }
+            return shadowMap.get(key);
         }
         return null;
     }
@@ -91,8 +130,11 @@ public class AnnotationMirrorMap<V> implements Map<@KeyFor("this") AnnotationMir
     }) // delegation
     @Override
     public @Nullable V put(AnnotationMirror key, V value) {
-        V pre = get(key);
-        remove(key);
+        // remove+put rather than a single TreeMap.put so that the stored key reference
+        // matches the most recent caller-supplied key (TreeMap.put preserves the original
+        // key on update). Both operations are O(log n).
+        V pre = shadowMap.remove(key);
+        keySetCache = null;
         shadowMap.put(key, value);
         return pre;
     }
@@ -100,11 +142,11 @@ public class AnnotationMirrorMap<V> implements Map<@KeyFor("this") AnnotationMir
     @Override
     public @Nullable V remove(Object key) {
         if (key instanceof AnnotationMirror) {
-            AnnotationMirror keyAnno =
-                    AnnotationUtils.getSame(shadowMap.keySet(), (AnnotationMirror) key);
-            if (keyAnno != null) {
-                return shadowMap.remove(keyAnno);
+            V pre = shadowMap.remove(key);
+            if (pre != null) {
+                keySetCache = null;
             }
+            return pre;
         }
         return null;
     }
@@ -118,12 +160,27 @@ public class AnnotationMirrorMap<V> implements Map<@KeyFor("this") AnnotationMir
 
     @Override
     public void clear() {
+        keySetCache = null;
         shadowMap.clear();
     }
 
+    /**
+     * Cached snapshot returned by {@link #keySet()}; invalidated on every mutation.
+     *
+     * <p>{@code Map.keySet} is contractually a live view, but because {@code AnnotationMirrorSet}
+     * is a separate class rather than a view over the backing map's keys, we approximate with a
+     * cached snapshot rebuilt only when the map mutates.
+     */
+    private @Nullable Set<@KeyFor("this") AnnotationMirror> keySetCache;
+
     @Override
-    public AnnotationMirrorSet keySet() {
-        return new AnnotationMirrorSet(shadowMap.keySet());
+    public Set<@KeyFor("this") AnnotationMirror> keySet() {
+        Set<@KeyFor("this") AnnotationMirror> r = keySetCache;
+        if (r == null) {
+            r = new AnnotationMirrorSet(shadowMap.keySet());
+            keySetCache = Collections.unmodifiableSet(r);
+        }
+        return r;
     }
 
     @Override

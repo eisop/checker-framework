@@ -41,6 +41,13 @@ enum AtmKind {
     }
 
     /**
+     * Cached values from {@link #values()}, used to avoid the array-clone cost that {@code
+     * values()} would otherwise incur on every call to {@link #valueOf(AnnotatedTypeMirror)}. Do
+     * not mutate.
+     */
+    private static final AtmKind[] VALUES = values();
+
+    /**
      * Returns the AtmKind corresponding to the class of atm.
      *
      * @return the AtmKind corresponding to the class of atm
@@ -48,7 +55,7 @@ enum AtmKind {
     public static AtmKind valueOf(AnnotatedTypeMirror atm) {
         Class<?> argClass = atm.getClass();
 
-        for (AtmKind atmKind : AtmKind.values()) {
+        for (AtmKind atmKind : VALUES) {
             Class<?> kindClass = atmKind.atmClass;
             if (argClass == kindClass) {
                 return atmKind;
@@ -79,7 +86,7 @@ enum AtmKind {
  *
  * @see AtmCombo#accept
  */
-@SuppressWarnings("EnumOrdinal") // Use enum ordinals as array indices.
+@SuppressWarnings("EnumOrdinal") // Uses arrays instead of maps for access
 public enum AtmCombo {
     ARRAY_ARRAY(AtmKind.ARRAY, AtmKind.ARRAY),
     ARRAY_DECLARED(AtmKind.ARRAY, AtmKind.DECLARED),

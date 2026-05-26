@@ -1,9 +1,10 @@
-bazel_dep(name = "rules_jvm_external", version = "6.2")
+bazel_dep(name = "rules_java", version = "8.6.1")
+bazel_dep(name = "rules_jvm_external", version = "6.6")
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
     artifacts = [
-        "io.github.eisop:checker-qual:3.42.0-eisop4",
-	"io.github.eisop:checker:3.42.0-eisop4",
+        "io.github.eisop:checker-qual:3.49.1-eisop1",
+        "io.github.eisop:checker:3.49.1-eisop1",
     ],
     lock_file = "//:maven_install.json",
 )

@@ -494,56 +494,57 @@ public class AnnotationFileElementTypes {
     public @Nullable AnnotationMirrorSet getDeclAnnotations(Element elt) {
         if (stubDebug) {
             if (isParsing()) {
-                System.out.printf("AFET.getDeclAnnotations(%s [%s])%n", elt, elt.getClass());
+                System.out.printf(
+                        "AFET.getDeclAnnotations(%s [%s]): isParsing() => true, returning emptySet.%n",
+                        elt, elt.getClass());
             } else {
                 System.out.printf(
-                        "AFET.getDeclAnnotations(%s [%s]) IS NOT PARSING%n", elt, elt.getClass());
+                        "AFET.getDeclAnnotations(%s [%s]): isParsing() => false, proceeding.%n",
+                        elt, elt.getClass());
             }
         }
 
         maybeParseEnclosingJdkClass(elt);
         String eltName = ElementUtils.getQualifiedName(elt);
-        if (annotationFileAnnos.declAnnos.containsKey(eltName)) {
-            return annotationFileAnnos.declAnnos.get(eltName);
-        } else {
-            // Handle annotations on record declarations.
-            boolean canTransferAnnotationsToSameName;
-            Element enclosingType; // Do nothing unless this element is a record.
-            switch (elt.getKind()) {
-                case METHOD:
-                    // Annotations transfer to zero-arg accessor methods of same name:
-                    canTransferAnnotationsToSameName =
-                            ((ExecutableElement) elt).getParameters().isEmpty();
-                    enclosingType = elt.getEnclosingElement();
-                    break;
-                case FIELD:
-                    // Annotations transfer to fields of same name:
-                    canTransferAnnotationsToSameName = true;
-                    enclosingType = elt.getEnclosingElement();
-                    break;
-                case PARAMETER:
-                    // Annotations transfer to compact canonical constructor parameter of same name:
-                    canTransferAnnotationsToSameName =
-                            ElementUtils.isCompactCanonicalRecordConstructor(
-                                            elt.getEnclosingElement())
-                                    && elt.getEnclosingElement().getKind()
-                                            == ElementKind.CONSTRUCTOR;
-                    enclosingType = elt.getEnclosingElement().getEnclosingElement();
-                    break;
-                default:
-                    canTransferAnnotationsToSameName = false;
-                    enclosingType = null;
-                    break;
-            }
+        AnnotationMirrorSet stored = annotationFileAnnos.declAnnos.get(eltName);
+        if (stored != null) {
+            return stored;
+        }
+        // Handle annotations on record declarations.
+        boolean canTransferAnnotationsToSameName;
+        Element enclosingType; // Do nothing unless this element is a record.
+        switch (elt.getKind()) {
+            case METHOD:
+                // Annotations transfer to zero-arg accessor methods of same name:
+                canTransferAnnotationsToSameName =
+                        ((ExecutableElement) elt).getParameters().isEmpty();
+                enclosingType = elt.getEnclosingElement();
+                break;
+            case FIELD:
+                // Annotations transfer to fields of same name:
+                canTransferAnnotationsToSameName = true;
+                enclosingType = elt.getEnclosingElement();
+                break;
+            case PARAMETER:
+                // Annotations transfer to compact canonical constructor parameter of same name:
+                canTransferAnnotationsToSameName =
+                        ElementUtils.isCompactCanonicalRecordConstructor(elt.getEnclosingElement())
+                                && elt.getEnclosingElement().getKind() == ElementKind.CONSTRUCTOR;
+                enclosingType = elt.getEnclosingElement().getEnclosingElement();
+                break;
+            default:
+                canTransferAnnotationsToSameName = false;
+                enclosingType = null;
+                break;
+        }
 
-            if (canTransferAnnotationsToSameName && ElementUtils.isRecordElement(enclosingType)) {
-                AnnotationFileParser.RecordStub recordStub =
-                        annotationFileAnnos.records.get(enclosingType.getSimpleName().toString());
-                if (recordStub != null
-                        && recordStub.componentsByName.containsKey(
-                                elt.getSimpleName().toString())) {
-                    RecordComponentStub recordComponentStub =
-                            recordStub.componentsByName.get(elt.getSimpleName().toString());
+        if (canTransferAnnotationsToSameName && ElementUtils.isRecordElement(enclosingType)) {
+            AnnotationFileParser.RecordStub recordStub =
+                    annotationFileAnnos.records.get(ElementUtils.getQualifiedName(enclosingType));
+            if (recordStub != null) {
+                RecordComponentStub recordComponentStub =
+                        recordStub.componentsByName.get(elt.getSimpleName().toString());
+                if (recordComponentStub != null) {
                     return recordComponentStub.getAnnotationsForTarget(elt.getKind());
                 }
             }
@@ -593,7 +594,7 @@ public class AnnotationFileElementTypes {
             if (AnnotationFileUtil.isCanonicalConstructor((ExecutableElement) elt, types)) {
                 TypeElement enclosing = (TypeElement) elt.getEnclosingElement();
                 AnnotationFileParser.RecordStub recordComponentType =
-                        annotationFileAnnos.records.get(enclosing.getQualifiedName().toString());
+                        annotationFileAnnos.records.get(ElementUtils.getQualifiedName(enclosing));
                 if (recordComponentType != null) {
                     List<AnnotatedTypeMirror> componentsInCanonicalConstructor =
                             recordComponentType.getComponentsInCanonicalConstructor();
@@ -707,9 +708,9 @@ public class AnnotationFileElementTypes {
                 fakeReceiverType, candidates, applicableClasses, applicableInterfaces);
     }
 
-    ///
-    /// End of public methods, private helper methods follow
-    ///
+    //
+    // End of public methods, private helper methods follow
+    //
 
     /**
      * Parses the outermost enclosing class of {@code e} if it is in the annotated JDK and it has
@@ -751,13 +752,17 @@ public class AnnotationFileElementTypes {
             return;
         }
 
-        if (remainingJdkStubFiles.containsKey(className)) {
-            parseJdkStubFile(remainingJdkStubFiles.remove(className));
-        } else if (remainingJdkStubFilesJar.containsKey(className)) {
-            parseJdkJarEntry(remainingJdkStubFilesJar.remove(className));
+        Path stubPath = remainingJdkStubFiles.remove(className);
+        if (stubPath != null) {
+            parseJdkStubFile(stubPath);
         } else {
-            if (stubDebug) {
-                System.out.printf("  not in remaining JDK stub files: %s%n", className);
+            String jarEntry = remainingJdkStubFilesJar.remove(className);
+            if (jarEntry != null) {
+                parseJdkJarEntry(jarEntry);
+            } else {
+                if (stubDebug) {
+                    System.out.printf("  not in remaining JDK stub files: %s%n", className);
+                }
             }
         }
     }
@@ -787,11 +792,7 @@ public class AnnotationFileElementTypes {
             }
             enclosingClass = t;
         }
-        @SuppressWarnings(
-                "signature:assignment.type.incompatible" // https://tinyurl.com/cfissue/658:
-        // Name.toString should be @PolySignature
-        )
-        @CanonicalNameOrEmpty String result = enclosingClass.getQualifiedName().toString();
+        @CanonicalNameOrEmpty String result = ElementUtils.getQualifiedName(enclosingClass);
         return result;
     }
 
@@ -1022,6 +1023,12 @@ public class AnnotationFileElementTypes {
                                 "jar tf '" + jarFileURL.substring(5) + "' | LC_ALL=C sort");
                 pb.redirectOutput(Redirect.INHERIT);
                 pb.redirectError(Redirect.INHERIT);
+                // Process implements AutoCloseable in JDK 26, but we compile against older JDKs
+                // where close() is not available.
+                @SuppressWarnings({
+                    "resourceleak:required.method.not.called",
+                    "resourceleak:unneeded.suppression"
+                })
                 Process p = pb.start();
                 try {
                     p.waitFor();

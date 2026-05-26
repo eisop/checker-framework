@@ -18,6 +18,9 @@ import javax.lang.model.type.TypeVariable;
 /** TypeVariableSubstitutor replaces type variables from a declaration with arguments to its use. */
 public class TypeVariableSubstitutor {
 
+    /** Create a TypeVariableSubstitutor. */
+    public TypeVariableSubstitutor() {}
+
     /**
      * Given a mapping from type variable to its type argument, replace each instance of a type
      * variable with a copy of type argument.
@@ -67,7 +70,7 @@ public class TypeVariableSubstitutor {
             AnnotatedTypeMirror argument, AnnotatedTypeVariable use) {
         AnnotatedTypeMirror substitute = argument.deepCopy(true);
         if (!use.getAnnotationsField().isEmpty()) {
-            substitute.replaceAnnotations(use.getAnnotations());
+            substitute.replaceAnnotations(use.getAnnotationsField());
         }
         return substitute;
     }
@@ -150,7 +153,6 @@ public class TypeVariableSubstitutor {
         public AnnotatedTypeMirror visitTypeVariable(
                 AnnotatedTypeVariable original,
                 IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy) {
-
             if (visitingExecutableTypeParam) {
                 // AnnotatedExecutableType differs from AnnotatedDeclaredType in that its list of
                 // type parameters cannot be adapted in place since the
@@ -161,11 +163,10 @@ public class TypeVariableSubstitutor {
                 // AnnotatedTypeVariable's will remain
                 visitingExecutableTypeParam = false;
                 return super.visitTypeVariable(original, originalToCopy);
-
             } else {
                 Element typeVarElem = original.getUnderlyingType().asElement();
-                if (elementToArgMap.containsKey(typeVarElem)) {
-                    AnnotatedTypeMirror argument = elementToArgMap.get(typeVarElem);
+                AnnotatedTypeMirror argument = elementToArgMap.get(typeVarElem);
+                if (argument != null) {
                     if (copyArgument) {
                         return substituteTypeVariable(argument, original);
                     } else {

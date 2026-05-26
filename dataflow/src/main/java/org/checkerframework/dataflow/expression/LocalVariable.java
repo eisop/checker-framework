@@ -44,6 +44,9 @@ public class LocalVariable extends JavaExpression {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof LocalVariable)) {
             return false;
         }
@@ -79,10 +82,16 @@ public class LocalVariable extends JavaExpression {
         return element;
     }
 
+    /** Cache the hashCode. Recomputed if zero. */
+    private int hashCodeCache = 0;
+
     @Override
     public int hashCode() {
-        VarSymbol vs = (VarSymbol) element;
-        return Objects.hash(vs.pos, vs.name, vs.owner);
+        if (hashCodeCache == 0) {
+            VarSymbol vs = (VarSymbol) element;
+            hashCodeCache = Objects.hash(vs.pos, vs.name, vs.owner);
+        }
+        return hashCodeCache;
     }
 
     @Override
@@ -95,9 +104,10 @@ public class LocalVariable extends JavaExpression {
         return super.toStringDebug() + " [owner=" + ((VarSymbol) element).owner + "]";
     }
 
+    @SuppressWarnings("unchecked") // generic cast
     @Override
-    public boolean containsOfClass(Class<? extends JavaExpression> clazz) {
-        return getClass() == clazz;
+    public <T extends JavaExpression> @Nullable T containedOfClass(Class<T> clazz) {
+        return getClass() == clazz ? (T) this : null;
     }
 
     @Override
@@ -120,13 +130,13 @@ public class LocalVariable extends JavaExpression {
     }
 
     @Override
-    public boolean isUnassignableByOtherCode() {
-        return true;
+    public boolean isAssignableByOtherCode() {
+        return false;
     }
 
     @Override
-    public boolean isUnmodifiableByOtherCode() {
-        return TypesUtils.isImmutableTypeInJdk(((VarSymbol) element).type);
+    public boolean isModifiableByOtherCode() {
+        return !TypesUtils.isImmutableTypeInJdk(((VarSymbol) element).type);
     }
 
     @Override
