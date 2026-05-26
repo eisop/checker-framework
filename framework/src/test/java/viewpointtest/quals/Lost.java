@@ -12,7 +12,8 @@ import java.lang.annotation.Target;
  * The Lost qualifier indicates that a relationship cannot be expressed. It is the result of
  * viewpoint adaptation that combines {@link Top} and {@link ReceiverDependentQual}.
  *
- * <p>It is valid as a viewpoint-adaptation result but not as the left-hand side of an assignment.
+ * <p>It is valid as a viewpoint-adaptation result but not as an assignment target, including
+ * compound assignments and increments/decrements.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)

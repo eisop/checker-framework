@@ -9,6 +9,7 @@ import com.sun.source.tree.UnaryTree;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
+import org.checkerframework.framework.util.AnnotatedTypes;
 
 /** The visitor for the Viewpoint Test Checker. */
 public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotatedTypeFactory> {
@@ -63,7 +64,7 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
      */
     private void checkLostLhs(Tree variableTree, Tree errorTree) {
         AnnotatedTypeMirror variableType = atypeFactory.getAnnotatedTypeLhs(variableTree);
-        if (variableType.hasAnnotation(atypeFactory.LOST)) {
+        if (AnnotatedTypes.containsModifier(variableType, atypeFactory.LOST)) {
             checker.reportError(errorTree, "viewpointtest.lost.lhs");
         }
     }

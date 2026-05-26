@@ -1,9 +1,12 @@
+import java.util.List;
+
 import viewpointtest.quals.*;
 
 public class LostNonReflexive {
     @ReceiverDependentQual Object f;
     @ReceiverDependentQual LostNonReflexive f2;
     @ReceiverDependentQual int i;
+    @A List<@ReceiverDependentQual Object> nested;
 
     @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
     @ReceiverDependentQual LostNonReflexive(@ReceiverDependentQual Object args) {}
@@ -45,5 +48,8 @@ public class LostNonReflexive {
         obj.i += 1;
         // :: error: (unary.increment.type.incompatible) :: error: (viewpointtest.lost.lhs)
         obj.i++;
+
+        // :: error: (viewpointtest.lost.lhs)
+        obj.nested = null;
     }
 }
