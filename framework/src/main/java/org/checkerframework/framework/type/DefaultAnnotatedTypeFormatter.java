@@ -191,7 +191,7 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
 
         /**
          * Print, to sb, {@code keyWord} followed by {@code field}. NULL types are substituted with
-         * their annotations followed by " Void"
+         * their annotations followed by "NullType".
          */
         @SideEffectFree
         protected void printBound(
@@ -215,8 +215,8 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
             } else {
                 sb.append(
                         annoFormatter.formatAnnotationString(
-                                field.getAnnotations(), currentPrintInvisibleSetting));
-                sb.append("Void");
+                                field.getAnnotationsField(), currentPrintInvisibleSetting));
+                sb.append("NullType");
             }
         }
 
@@ -239,8 +239,8 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
                 sb.append("/*DECL*/ ");
             }
 
-            if (type.getEnclosingType() != null) {
-                sb.append(this.visit(type.getEnclosingType(), visiting));
+            if (type.enclosingType != null) {
+                sb.append(this.visit(type.enclosingType, visiting));
                 sb.append('.');
             }
             Element typeElt = type.getUnderlyingType().asElement();
@@ -252,7 +252,7 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
             }
             sb.append(
                     annoFormatter.formatAnnotationString(
-                            type.getAnnotations(), currentPrintInvisibleSetting));
+                            type.getAnnotationsField(), currentPrintInvisibleSetting));
             sb.append(smpl);
 
             boolean oldPrintingRaw = currentlyPrintingRaw;
@@ -273,6 +273,8 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
                     }
                     sb.append(sj);
                 }
+            } else {
+                sb.append("<" + "/*Type args not initialized*/" + ">");
             }
             currentlyPrintingRaw = oldPrintingRaw;
             return sb.toString();
@@ -281,6 +283,10 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
         @Override
         public String visitIntersection(
                 AnnotatedIntersectionType type, Set<AnnotatedTypeMirror> visiting) {
+            if (type.bounds == null) {
+                return "/*Intersection not initialized*/";
+            }
+
             StringBuilder sb = new StringBuilder();
 
             boolean isFirst = true;
@@ -296,6 +302,10 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
 
         @Override
         public String visitUnion(AnnotatedUnionType type, Set<AnnotatedTypeMirror> visiting) {
+            if (type.alternatives == null) {
+                return "/*Union not initialized*/";
+            }
+
             StringBuilder sb = new StringBuilder();
 
             boolean isFirst = true;
@@ -313,17 +323,21 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
         public String visitExecutable(
                 AnnotatedExecutableType type, Set<AnnotatedTypeMirror> visiting) {
             StringBuilder sb = new StringBuilder();
-            if (!type.getTypeVariables().isEmpty()) {
+            if (type.typeVarTypes == null || !type.typeVarTypes.isEmpty()) {
                 StringJoiner sj = new StringJoiner(", ", "<", "> ");
-                for (AnnotatedTypeVariable atv : type.getTypeVariables()) {
-                    sj.add(visit(atv, visiting));
+                if (type.typeVarTypes == null) {
+                    sj.add("/*Type var not initialized*/");
+                } else {
+                    for (AnnotatedTypeVariable atv : type.getTypeVariables()) {
+                        sj.add(visit(atv, visiting));
+                    }
                 }
-                sb.append(sj.toString());
+                sb.append(sj);
             }
-            if (type.getReturnType() != null) {
+            if (type.returnType != null) {
                 sb.append(visit(type.getReturnType(), visiting));
             } else {
-                sb.append("<UNKNOWNRETURN>");
+                sb.append("/*Return type not initialized*/");
             }
             sb.append(' ');
             if (type.getElement() != null) {
@@ -332,20 +346,16 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
                 sb.append("METHOD");
             }
             sb.append('(');
-            AnnotatedDeclaredType rcv;
-            try {
-                rcv = type.getReceiverType();
-            } catch (NullPointerException e) {
-                sb.append("[[NPE in getReceiverType()]], ");
-                rcv = null;
-            }
+            AnnotatedDeclaredType rcv = type.receiverType;
             if (rcv != null) {
                 sb.append(visit(rcv, visiting));
                 sb.append(" this");
             }
-            if (!type.getParameterTypes().isEmpty()) {
+            if (type.paramTypes == null) {
+                sb.append("/*Parameters not initialized*/");
+            } else if (!type.paramTypes.isEmpty()) {
                 int p = 0;
-                for (AnnotatedTypeMirror atm : type.getParameterTypes()) {
+                for (AnnotatedTypeMirror atm : type.paramTypes) {
                     if (rcv != null || p > 0) {
                         sb.append(", ");
                     }
@@ -357,7 +367,9 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
                 }
             }
             sb.append(')');
-            if (!type.getThrownTypes().isEmpty()) {
+            if (type.thrownTypes == null) {
+                sb.append("/*Throws not initialized*/");
+            } else if (!type.thrownTypes.isEmpty()) {
                 sb.append(" throws ");
                 for (AnnotatedTypeMirror atm : type.getThrownTypes()) {
                     sb.append(visit(atm, visiting));
@@ -373,16 +385,20 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
             AnnotatedArrayType array = type;
             AnnotatedTypeMirror component;
             while (true) {
-                component = array.getComponentType();
-                if (!array.getAnnotations().isEmpty()) {
+                component = array.componentType;
+                if (!array.getAnnotationsField().isEmpty()) {
                     sb.append(' ');
                     sb.append(
                             annoFormatter.formatAnnotationString(
-                                    array.getAnnotations(), currentPrintInvisibleSetting));
+                                    array.getAnnotationsField(), currentPrintInvisibleSetting));
                 }
                 sb.append("[]");
                 if (!(component instanceof AnnotatedArrayType)) {
-                    sb.insert(0, visit(component, visiting));
+                    if (component == null) {
+                        sb.insert(0, "/*Not Initialized*/");
+                    } else {
+                        sb.insert(0, visit(component, visiting));
+                    }
                     break;
                 }
                 array = (AnnotatedArrayType) component;
@@ -421,12 +437,12 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
                 try {
                     visiting.add(type);
                     if (currentPrintVerboseGenerics) {
-                        sb.append("[");
+                        sb.append(" [");
                     }
                     printBound("extends", type.getUpperBoundField(), visiting, sb);
                     printBound("super", type.getLowerBoundField(), visiting, sb);
                     if (currentPrintVerboseGenerics) {
-                        sb.append("]");
+                        sb.append(" ]");
                     }
 
                 } finally {
@@ -453,14 +469,14 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
         @Override
         public String visitNull(AnnotatedNullType type, Set<AnnotatedTypeMirror> visiting) {
             return annoFormatter.formatAnnotationString(
-                            type.getAnnotations(), currentPrintInvisibleSetting)
+                            type.getAnnotationsField(), currentPrintInvisibleSetting)
                     + "NullType";
         }
 
         @Override
         public String visitWildcard(AnnotatedWildcardType type, Set<AnnotatedTypeMirror> visiting) {
             StringBuilder sb = new StringBuilder();
-            if (type.isUninferredTypeArgument()) {
+            if (type.isTypeArgOfRawType()) {
                 if (currentlyPrintingRaw) {
                     sb.append("/*RAW TYPE ARGUMENT:*/ ");
                 } else {
@@ -478,12 +494,12 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
                     visiting.add(type);
 
                     if (currentPrintVerboseGenerics) {
-                        sb.append("[");
+                        sb.append(" [");
                     }
                     printBound("extends", type.getExtendsBoundField(), visiting, sb);
                     printBound("super", type.getSuperBoundField(), visiting, sb);
                     if (currentPrintVerboseGenerics) {
-                        sb.append("]");
+                        sb.append(" ]");
                     }
 
                 } finally {
@@ -496,7 +512,7 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
         @SideEffectFree
         protected String formatFlatType(AnnotatedTypeMirror flatType) {
             return annoFormatter.formatAnnotationString(
-                            flatType.getAnnotations(), currentPrintInvisibleSetting)
+                            flatType.getAnnotationsField(), currentPrintInvisibleSetting)
                     + TypeAnnotationUtils.unannotatedType((Type) flatType.getUnderlyingType());
         }
     }

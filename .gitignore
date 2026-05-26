@@ -13,6 +13,7 @@ tags
 *.swp
 *.orig
 .DS_Store
+dot_files
 
 # Eclipse files
 .metadata
@@ -20,7 +21,7 @@ tags
 .project
 .externalToolBuilders
 .settings
-dot_files
+**/*.factorypath
 
 # Intellij files
 .idea
@@ -43,7 +44,7 @@ checker/bin/.scc/
 checker/bin-devel/.git-scripts
 checker/bin-devel/.html-tools
 checker/bin-devel/.plume-scripts
-checker/bin-devel/dockerdir
+checker/bin-devel/dockerdir*
 checker/src/main/resources/git.properties
 # These tests are generated from those in checker/tests/calledmethods-lombok during the build.
 # They must be in the tests/ directory rather than the build/ directory so that
@@ -90,10 +91,19 @@ docs/tutorial/src/personalblog-demo/bin/net/eyde/personalblog/service/PersonalBl
 docs/tutorial/src/personalblog-demo/bin/net/eyde/personalblog/struts/action/ReadAction.class
 docs/tutorial/sourcefiles.zip
 docs/examples/**/*.class
+docs/examples/BazelExample/bazel-BazelExample
+docs/examples/BazelExample/bazel-bin
+docs/examples/BazelExample/bazel-out
+docs/examples/BazelExample/bazel-testlogs
+docs/examples/BazelExample/Out.txt
 docs/examples/MavenExample/Out.txt
 docs/examples/MavenExample-framework-all/Out.txt
 docs/examples/errorprone/.gradle/
 docs/examples/errorprone/Out.txt
+docs/examples/nullaway/.gradle/
+docs/examples/nullaway/Out.txt
+docs/examples/jspecify/.gradle/
+docs/examples/jspecify/Out.txt
 docs/examples/lombok/.gradle/
 docs/examples/lombok/Out.txt
 docs/examples/lombok/lombok.config
@@ -115,6 +125,8 @@ target/
 *.iws
 *.iml
 /.gradle/
+# TODO: why this second gradle directory?
+/buildSrc/.gradle/
 
 ## Tests
 
@@ -124,6 +136,7 @@ checker/tests/nullness-extra/*.class
 checker/tests/nullness-extra/compat/Out.txt
 checker/tests/nullness-extra/compat/javax/annotation/Nullable.class
 checker/tests/nullness-extra/compat/lib/Lib.class
+checker/tests/nullness-extra/issue265/bin/
 checker/tests/nullness-extra/issue3597/testpkg/Issue3597A.class
 checker/tests/nullness-extra/issue3597/testpkg/Issue3597B.class
 checker/tests/nullness-extra/issue502/Issue502.class
@@ -166,6 +179,8 @@ dataflow/tests/live-variable/Out.txt
 dataflow/tests/live-variable/*.class
 dataflow/tests/reachingdef/Out.txt
 dataflow/tests/reachingdef/*.class
+dataflow/tests/java22/unnamed-pattern/Out.txt
+dataflow/tests/java22/unnamed-pattern/*.class
 
 checker/jtreg/multipleexecutions/Main.class
 

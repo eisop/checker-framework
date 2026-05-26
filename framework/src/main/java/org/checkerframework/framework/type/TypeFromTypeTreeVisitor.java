@@ -52,7 +52,15 @@ import javax.lang.model.type.TypeVariable;
  */
 class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
 
-    private final Map<Tree, AnnotatedTypeMirror> visitedBounds = new HashMap<>();
+    /** Creates a TypeFromTypeTreeVisitor. */
+    public TypeFromTypeTreeVisitor() {}
+
+    /**
+     * A mapping from TypeParameterTree to its type. This is used to correctly initialize recursive
+     * type variables.
+     */
+    private final Map<TypeParameterTree, AnnotatedTypeVariable> visitedTypeParameter =
+            new HashMap<>();
 
     @Override
     public AnnotatedTypeMirror visitAnnotatedType(AnnotatedTypeTree tree, AnnotatedTypeFactory f) {
@@ -123,7 +131,7 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
 
         AnnotatedTypeMirror result = f.type(tree); // use creator?
         AnnotatedTypeMirror atype = visit(tree.getType(), f);
-        result.addAnnotations(atype.getAnnotations());
+        result.addAnnotations(atype.getAnnotationsField());
         // new ArrayList<>() type is AnnotatedExecutableType for some reason
 
         // Don't initialize the type arguments if they are empty. The type arguments might be a
@@ -192,20 +200,22 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
     @Override
     public AnnotatedTypeVariable visitTypeParameter(
             TypeParameterTree tree, @FindDistinct AnnotatedTypeFactory f) {
-        List<AnnotatedTypeMirror> bounds = new ArrayList<>(tree.getBounds().size());
-        for (Tree t : tree.getBounds()) {
-            AnnotatedTypeMirror bound;
-            if (visitedBounds.containsKey(t) && f == visitedBounds.get(t).atypeFactory) {
-                bound = visitedBounds.get(t);
-            } else {
-                visitedBounds.put(t, f.type(t));
-                bound = visit(t, f);
-                visitedBounds.remove(t);
-            }
-            bounds.add(bound);
+        AnnotatedTypeVariable cached = visitedTypeParameter.get(tree);
+        if (cached != null) {
+            return cached;
         }
 
         AnnotatedTypeVariable result = (AnnotatedTypeVariable) f.type(tree);
+        // If this type parameter is recursive and it is found again while visiting the bounds, then
+        // use the same AnnotateTypeVariable object.
+        visitedTypeParameter.put(tree, result);
+
+        List<AnnotatedTypeMirror> bounds = new ArrayList<>(tree.getBounds().size());
+        for (Tree t : tree.getBounds()) {
+            bounds.add(visit(t, f));
+        }
+        visitedTypeParameter.remove(tree);
+
         List<? extends AnnotationMirror> annotations = TreeUtils.annotationsFromTree(tree);
         result.getLowerBound().addAnnotations(annotations);
 
@@ -230,6 +240,7 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
         AnnotatedTypeMirror bound = visit(tree.getBound(), f);
         AnnotatedTypeMirror result = f.type(tree);
         assert result instanceof AnnotatedWildcardType;
+        f.initializeAtm(result);
 
         // for wildcards unlike type variables there are bounds that differ in type from
         // result.  These occur for RAW types.  In this case, use the newly created bound
@@ -261,9 +272,10 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
         Element elt = tpe.getGenericElement();
         if (elt instanceof TypeElement) {
             TypeElement typeElt = (TypeElement) elt;
-            int idx = typeElt.getTypeParameters().indexOf(tpe);
+            List<? extends TypeParameterElement> typeParameters = typeElt.getTypeParameters();
+            int idx = typeParameters.indexOf(tpe);
             if (idx == -1) {
-                idx = findIndex(typeElt.getTypeParameters(), tpe);
+                idx = findIndex(typeParameters, tpe);
             }
             ClassTree cls = (ClassTree) f.declarationFromElement(typeElt);
             if (cls == null || cls.getTypeParameters().isEmpty()) {
@@ -279,9 +291,10 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
             return visitTypeParameter(cls.getTypeParameters().get(idx), f).asUse();
         } else if (elt instanceof ExecutableElement) {
             ExecutableElement exElt = (ExecutableElement) elt;
-            int idx = exElt.getTypeParameters().indexOf(tpe);
+            List<? extends TypeParameterElement> typeParameters = exElt.getTypeParameters();
+            int idx = typeParameters.indexOf(tpe);
             if (idx == -1) {
-                idx = findIndex(exElt.getTypeParameters(), tpe);
+                idx = findIndex(typeParameters, tpe);
             }
             MethodTree meth = (MethodTree) f.declarationFromElement(exElt);
             if (meth == null) {

@@ -1,4 +1,6 @@
-JAVA_VER := $(shell java -version 2>&1 | head -1 | cut -d'"' -f2 | sed '/^1\./s///' | cut -d'.' -f1 | sed 's/-ea//')
+JAVA_VER := $(shell java -version 2>&1 | head -1 | cut -d'"' -f2 | sed '/^1\./s///' | cut -d'.' -f1 | sed 's/-ea//' | sed 's/-beta//')
+CHECKERFRAMEWORK ?= $(abspath ../../..)
+export CHECKERFRAMEWORK
 
 .PHONY: all clean
 
@@ -10,7 +12,8 @@ all:
 	@echo "Skipping test because lombok does not work under Java ${JAVA_VER}"
 else
 all:
-	- ../../../gradlew build > Out.txt 2>&1
+	@echo "CF: ${CHECKERFRAMEWORK}"
+	- ../../../gradlew -PcfVersion=local build > Out.txt 2>&1
 	(grep -qF "User.java:9: error: [argument.type.incompatible] incompatible argument for parameter y of FooBuilder.y." Out.txt \
 	  && grep -qF "Foo.java:12: error: [assignment.type.incompatible] incompatible types in assignment." Out.txt \
 	  && grep -qF "y = null; // error" Out.txt) \

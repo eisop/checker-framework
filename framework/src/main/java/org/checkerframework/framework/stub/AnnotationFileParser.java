@@ -96,6 +96,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -299,7 +300,7 @@ public class AnnotationFileParser {
          * files than in the real files. So, map keys are the verbose element name, as returned by
          * ElementUtils.getQualifiedName.
          */
-        public final Map<String, AnnotationMirrorSet> declAnnos = new HashMap<>(1);
+        public final Map<String, AnnotationMirrorSet> declAnnos = new HashMap<>(4);
 
         /**
          * Map from a method element to all the fake overrides of it. Given a key {@code ee}, the
@@ -307,9 +308,9 @@ public class AnnotationFileParser {
          * same as {@code ee.getReceiverType()}.
          */
         public final Map<ExecutableElement, List<IPair<TypeMirror, AnnotatedTypeMirror>>>
-                fakeOverrides = new HashMap<>(1);
+                fakeOverrides = new HashMap<>(4);
 
-        /** Maps fully qualified record name to information in the stub file. */
+        /** Maps fully-qualified record name to information in the stub file. */
         public final Map<String, RecordStub> records = new HashMap<>();
     }
 
@@ -511,7 +512,7 @@ public class AnnotationFileParser {
         for (TypeElement typeElm : typeElements) {
             if (typeElm.getKind() == ElementKind.ANNOTATION_TYPE) {
                 putIfAbsent(result, typeElm.getSimpleName().toString(), typeElm);
-                putIfAbsent(result, typeElm.getQualifiedName().toString(), typeElm);
+                putIfAbsent(result, ElementUtils.getQualifiedName(typeElm), typeElm);
             }
         }
         return result;
@@ -533,7 +534,7 @@ public class AnnotationFileParser {
                     || varElement.getKind() == ElementKind.ENUM_CONSTANT) {
                 @SuppressWarnings("signature") // string concatenation
                 @FullyQualifiedName String fqName =
-                        typeElement.getQualifiedName().toString()
+                        ElementUtils.getQualifiedName(typeElement)
                                 + "."
                                 + varElement.getSimpleName().toString();
                 result.add(fqName);
@@ -583,15 +584,14 @@ public class AnnotationFileParser {
                             // Find compile time constant fields, or values of an enum
                             putAllNew(result, annosInType(element));
                             importedConstants.addAll(getImportableMembers(element));
-                            addEnclosingTypesToImportedTypes(element);
+                            addEnclosedTypesToImportedTypes(element);
                         }
-
                     } else {
                         // Wildcard import of members of a package
                         PackageElement element = findPackage(imported, importDecl);
                         if (element != null) {
                             putAllNew(result, annosInPackage(element));
-                            addEnclosingTypesToImportedTypes(element);
+                            addEnclosedTypesToImportedTypes(element);
                         }
                     }
                 } else {
@@ -603,12 +603,10 @@ public class AnnotationFileParser {
 
                     TypeElement importType = elements.getTypeElement(imported);
                     if (importType == null && !importDecl.isStatic()) {
-                        // Class or nested class (according to JSL), but we can't resolve
-
+                        // Class or nested class (according to JLS), but we can't resolve
                         stubWarnNotFound(importDecl, "imported type not found: " + imported);
                     } else if (importType == null) {
-                        // static import of field or method.
-
+                        // Static import of field or method.
                         IPair<@FullyQualifiedName String, String> typeParts =
                                 AnnotationFileUtil.partitionQualifiedName(imported);
                         String type = typeParts.first;
@@ -632,9 +630,8 @@ public class AnnotationFileParser {
                                 }
                             }
                         }
-
                     } else if (importType.getKind() == ElementKind.ANNOTATION_TYPE) {
-                        // Single annotation or nested annotation
+                        // Single annotation or nested annotation.
                         TypeElement annoElt = elements.getTypeElement(imported);
                         if (annoElt != null) {
                             putIfAbsent(result, annoElt.getSimpleName().toString(), annoElt);
@@ -643,7 +640,7 @@ public class AnnotationFileParser {
                             stubWarnNotFound(importDecl, "could not load import: " + imported);
                         }
                     } else {
-                        // Class or nested class
+                        // Class or nested class.
                         // TODO: Is this needed?
                         importedConstants.add(imported);
                         TypeElement element =
@@ -658,10 +655,14 @@ public class AnnotationFileParser {
         return result;
     }
 
-    // If a member is imported, then consider every containing class to also be imported.
-    private void addEnclosingTypesToImportedTypes(Element element) {
+    /**
+     * Handle wildcard imports by adding, to {@link #importedTypes}, every enclosed type.
+     *
+     * @param element an element for a type or package
+     */
+    private void addEnclosedTypesToImportedTypes(Element element) {
         for (Element enclosedEle : element.getEnclosedElements()) {
-            if (enclosedEle.getKind().isClass()) {
+            if (enclosedEle.getKind().isClass() || enclosedEle.getKind().isInterface()) {
                 importedTypes.put(
                         enclosedEle.getSimpleName().toString(), (TypeElement) enclosedEle);
             }
@@ -823,7 +824,8 @@ public class AnnotationFileParser {
 
     /**
      * Process {@link #stubUnit}, which is the AST produced by {@link #parseStubUnit}. Processing
-     * means copying annotations from Stub Parser data structures to {@code #annotationFileAnnos}.
+     * means copying annotations from Stub Parser data structures to argument {@code
+     * annotationFileAnnos}.
      *
      * @param annotationFileAnnos annotations from the file; side-effected by this method
      */
@@ -834,7 +836,7 @@ public class AnnotationFileParser {
     }
 
     /**
-     * Process the given StubUnit: copy its annotations to {@code #annotationFileAnnos}.
+     * Process the given StubUnit: copy its annotations to {@code this.annotationFileAnnos}.
      *
      * @param su the StubUnit to process
      */
@@ -972,7 +974,7 @@ public class AnnotationFileParser {
      * be removed after processing the type's members. Otherwise, this method removes them.
      *
      * @param typeDecl the type declaration to process
-     * @param outerTypeName the name of the containing class, when processing a nested class;
+     * @param outerTypeName the name of the enclosing class, when processing a nested class;
      *     otherwise null
      * @param classTree the tree corresponding to typeDecl if processing an ajava file, null
      *     otherwise
@@ -993,7 +995,7 @@ public class AnnotationFileParser {
         TypeElement typeElt;
         if (classTree != null) {
             typeElt = TreeUtils.elementFromDeclaration(classTree);
-            innerName = typeElt.getQualifiedName().toString();
+            innerName = ElementUtils.getQualifiedName(typeElt);
             typeBeingParsed = new FqName(typeBeingParsed.packageName, innerName);
             fqTypeName = typeBeingParsed.toString();
         } else {
@@ -1178,7 +1180,6 @@ public class AnnotationFileParser {
      * @return the type's type parameter declarations
      */
     private List<AnnotatedTypeVariable> processType(TypeDeclaration<?> decl, TypeElement elt) {
-
         recordDeclAnnotation(elt, decl.getAnnotations(), decl);
         AnnotatedDeclaredType type = atypeFactory.fromElement(elt);
         annotate(type, decl.getAnnotations(), decl);
@@ -1249,7 +1250,6 @@ public class AnnotationFileParser {
      * @return the enum's type parameter declarations
      */
     private List<AnnotatedTypeVariable> processEnum(EnumDeclaration decl, TypeElement elt) {
-
         recordDeclAnnotation(elt, decl.getAnnotations(), decl);
         AnnotatedDeclaredType type = atypeFactory.fromElement(elt);
         annotate(type, decl.getAnnotations(), decl);
@@ -1378,11 +1378,12 @@ public class AnnotationFileParser {
                 // If this is the (user-written) canonical constructor, record that the component
                 // annotations should not be automatically transferred:
                 String qualRecordName = ElementUtils.getQualifiedName(elt.getEnclosingElement());
-                if (annotationFileAnnos.records.containsKey(qualRecordName)) {
+                RecordStub recordStub = annotationFileAnnos.records.get(qualRecordName);
+                if (recordStub != null) {
                     List<? extends VariableElement> parameters = elt.getParameters();
                     ArrayList<AnnotatedTypeMirror> annotatedParameters =
                             new ArrayList<>(parameters.size());
-                    for (int i = 0; i < parameters.size(); i++) {
+                    for (int i = 0, n = parameters.size(); i < n; ++i) {
                         VariableElement parameter = parameters.get(i);
                         AnnotatedTypeMirror atm =
                                 AnnotatedTypeMirror.createType(
@@ -1390,9 +1391,7 @@ public class AnnotationFileParser {
                         annotate(atm, decl.getParameter(i).getAnnotations(), decl.getParameter(i));
                         annotatedParameters.add(atm);
                     }
-                    annotationFileAnnos.records.get(qualRecordName)
-                                    .componentsInCanonicalConstructor =
-                            annotatedParameters;
+                    recordStub.componentsInCanonicalConstructor = annotatedParameters;
                 }
             }
             annotate(methodType.getReturnType(), decl.getAnnotations(), decl);
@@ -1469,7 +1468,7 @@ public class AnnotationFileParser {
         List<? extends VariableElement> paramElts = elt.getParameters();
         List<? extends AnnotatedTypeMirror> paramTypes = methodType.getParameterTypes();
 
-        for (int i = 0; i < methodType.getParameterTypes().size(); ++i) {
+        for (int i = 0, n = paramTypes.size(); i < n; ++i) {
             VariableElement paramElt = paramElts.get(i);
             AnnotatedTypeMirror paramType = paramTypes.get(i);
             Parameter param = params.get(i);
@@ -1486,7 +1485,7 @@ public class AnnotationFileParser {
                         param.getType(),
                         param.getAnnotations(),
                         param);
-                // The "VarArgsAnnotations" are those just before "...".
+                // The "VarargsAnnotations" are those just before "...".
                 annotate(paramType, param.getVarArgsAnnotations(), param);
             } else {
                 annotate(paramType, param.getType(), param.getAnnotations(), param);
@@ -1648,7 +1647,7 @@ public class AnnotationFileParser {
                                         adeclTypeArgs.size()));
                         break;
                     }
-                    for (int i = 0; i < declTypeArgs.size(); ++i) {
+                    for (int i = 0, n = declTypeArgs.size(); i < n; ++i) {
                         annotate(adeclTypeArgs.get(i), declTypeArgs.get(i), null, astNode);
                     }
                 }
@@ -1720,6 +1719,8 @@ public class AnnotationFileParser {
                                 typePar.getLowerBound(), typeVarUse.getLowerBound());
                     }
                 }
+                // Add back the primary annotations.
+                annotate(atype, primaryAnnotations, astNode);
                 break;
             default:
                 // No additional annotations to add.
@@ -1857,7 +1858,7 @@ public class AnnotationFileParser {
      * {@code elt} is a field declaration, the type annotation will be ignored.
      *
      * @param elt the element to be annotated
-     * @param annotations set of annotations that may be applicable to elt
+     * @param annotations the set of annotations that may be applicable to elt
      * @param astNode where to report errors
      */
     private void recordDeclAnnotation(
@@ -1931,27 +1932,28 @@ public class AnnotationFileParser {
             warn(decl, msg);
             return;
         }
-        for (int i = 0; i < typeParameters.size(); ++i) {
+        for (int i = 0, n = typeParameters.size(); i < n; ++i) {
             TypeParameter param = typeParameters.get(i);
             AnnotatedTypeVariable paramType = (AnnotatedTypeVariable) typeArguments.get(i);
 
             // Handle type bounds
-            if (param.getTypeBound() == null || param.getTypeBound().isEmpty()) {
+            NodeList<ClassOrInterfaceType> typeBound = param.getTypeBound();
+            if (typeBound == null || typeBound.isEmpty()) {
                 // No type bound, so annotations are both lower and upper bounds.
                 annotate(paramType, param.getAnnotations(), param);
-            } else if (param.getTypeBound() != null && !param.getTypeBound().isEmpty()) {
+            } else {
                 annotate(paramType.getLowerBound(), param.getAnnotations(), param);
-                if (param.getTypeBound().size() == 1) {
+                if (typeBound.size() == 1) {
                     // The additional declAnnos (third argument) is always null in this call to
                     // `annotate`, but the type bound (second argument) might have annotations.
-                    annotate(paramType.getUpperBound(), param.getTypeBound().get(0), null, param);
+                    annotate(paramType.getUpperBound(), typeBound.get(0), null, param);
                 } else {
-                    // param.getTypeBound().size() > 1
+                    // typeBound.size() > 1
                     ArrayList<ClassOrInterfaceType> typeBoundsWithAnotations =
-                            new ArrayList<>(param.getTypeBound().size());
-                    for (ClassOrInterfaceType typeBound : param.getTypeBound()) {
-                        if (!typeBound.getAnnotations().isEmpty()) {
-                            typeBoundsWithAnotations.add(typeBound);
+                            new ArrayList<>(typeBound.size());
+                    for (ClassOrInterfaceType tb : typeBound) {
+                        if (!tb.getAnnotations().isEmpty()) {
+                            typeBoundsWithAnotations.add(tb);
                         }
                     }
                     int numBounds = typeBoundsWithAnotations.size();
@@ -1977,7 +1979,7 @@ public class AnnotationFileParser {
                         //         typeParameters,
                         //         i,
                         //         param,
-                        //         param.getTypeBound(),
+                        //         typeBound,
                         //         decl.toString().replace(LINE_SEPARATOR, " "),
                         //         elt.toString().replace(LINE_SEPARATOR, " "),
                         //         elt.getClass());
@@ -1989,8 +1991,8 @@ public class AnnotationFileParser {
                                         + param);
                     }
                 }
-                if (param.getTypeBound().size() == 1
-                        && param.getTypeBound().get(0).getAnnotations().isEmpty()
+                if (typeBound.size() == 1
+                        && typeBound.get(0).getAnnotations().isEmpty()
                         && TypesUtils.isObject(paramType.getUpperBound().getUnderlyingType())) {
                     // If there is an explicit "T extends Object" type parameter bound,
                     // treat it like an explicit use of "Object" in code.
@@ -2070,7 +2072,7 @@ public class AnnotationFileParser {
      * zero or more mappings. Each mapping is from an element that {@code member} would override to
      * {@code member}.
      *
-     * <p>This method does not read or write field {@link annotationFileAnnos}.
+     * <p>This method does not read or write field {@link #annotationFileAnnos}.
      *
      * @param elementsToDecl the mapping that is side-effected by this method
      * @param fakeOverrideDecls fake overrides, also side-effected by this method
@@ -2197,7 +2199,7 @@ public class AnnotationFileParser {
         if (javacParams.size() != javaParserParams.size()) {
             return false;
         }
-        for (int i = 0; i < javacParams.size(); i++) {
+        for (int i = 0, n = javacParams.size(); i < n; ++i) {
             TypeMirror javacType = javacParams.get(i).asType();
             Parameter javaParserParam = javaParserParams.get(i);
             Type javaParserType = javaParserParam.getType();
@@ -2220,7 +2222,6 @@ public class AnnotationFileParser {
      * @return true if the two types are the same
      */
     private boolean sameType(TypeMirror javacType, Type javaParserType) {
-
         switch (javacType.getKind()) {
             case BOOLEAN:
                 return javaParserType.equals(PrimitiveType.booleanType());
@@ -2407,6 +2408,25 @@ public class AnnotationFileParser {
         return findFieldElement(typeElt, enumConstName, astNode);
     }
 
+    /** Cache all the methods that are in a TypeElement. */
+    private final IdentityHashMap<TypeElement, List<ExecutableElement>> methodsInTypeElementCache =
+            new IdentityHashMap<>();
+
+    /**
+     * Determine all the methods that are in a TypeElement, caching the result.
+     *
+     * @param typeElt the type element
+     * @return the methods in that type element
+     */
+    private List<ExecutableElement> methodsInTypeElement(TypeElement typeElt) {
+        List<ExecutableElement> res = methodsInTypeElementCache.get(typeElt);
+        if (res == null) {
+            res = ElementFilter.methodsIn(typeElt.getEnclosedElements());
+            methodsInTypeElementCache.put(typeElt, res);
+        }
+        return res;
+    }
+
     /**
      * Looks for a method element in {@code typeElt} that has the same name and formal parameter
      * types as {@code methodDecl}. Returns null, and possibly issues a warning, if no such method
@@ -2428,7 +2448,7 @@ public class AnnotationFileParser {
         int wantedMethodParams =
                 (methodDecl.getParameters() == null) ? 0 : methodDecl.getParameters().size();
         String wantedMethodString = AnnotationFileUtil.toString(methodDecl);
-        for (ExecutableElement method : ElementFilter.methodsIn(typeElt.getEnclosedElements())) {
+        for (ExecutableElement method : methodsInTypeElement(typeElt)) {
             if (wantedMethodParams == method.getParameters().size()
                     && wantedMethodName.contentEquals(method.getSimpleName().toString())
                     && ElementUtils.getSimpleSignature(method).equals(wantedMethodString)) {
@@ -2455,8 +2475,7 @@ public class AnnotationFileParser {
                         "method " + wantedMethodString + " not found in type " + typeElt);
                 if (debugAnnotationFileParser) {
                     stubDebug("  methods of %s:", typeElt);
-                    for (ExecutableElement method :
-                            ElementFilter.methodsIn(typeElt.getEnclosedElements())) {
+                    for (ExecutableElement method : methodsInTypeElement(typeElt)) {
                         stubDebug("    %s", method);
                     }
                 }
@@ -2633,7 +2652,6 @@ public class AnnotationFileParser {
      */
     private @Nullable AnnotationMirror getAnnotation(
             AnnotationExpr annotation, Map<String, TypeElement> allAnnotations) {
-
         @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
         @FullyQualifiedName String annoNameFq = annotation.getNameAsString();
         TypeElement annoTypeElt = allAnnotations.get(annoNameFq);
@@ -2653,7 +2671,7 @@ public class AnnotationFileParser {
                     createNameToAnnotationMap(Collections.singletonList(annoTypeElt)));
         }
         @SuppressWarnings("signature") // not anonymous, so name is not empty
-        @CanonicalName String annoName = annoTypeElt.getQualifiedName().toString();
+        @CanonicalName String annoName = ElementUtils.getQualifiedName(annoTypeElt);
 
         if (annotation instanceof MarkerAnnotationExpr) {
             return AnnotationBuilder.fromName(elements, annoName);
@@ -2745,9 +2763,9 @@ public class AnnotationFileParser {
             return convert(((LongLiteralExpr) expr).asNumber(), valueKind);
         } else if (expr instanceof UnaryExpr) {
             switch (expr.toString()) {
-                    // Special-case the minimum values.  Separately parsing a "-" and a value
-                    // doesn't correctly handle the minimum values, because the absolute value of
-                    // the smallest member of an integral type is larger than the largest value.
+                // Special-case the minimum values.  Separately parsing a "-" and a value
+                // doesn't correctly handle the minimum values, because the absolute value of
+                // the smallest member of an integral type is larger than the largest value.
                 case "-9223372036854775808L":
                 case "-9223372036854775808l":
                     return convert(Long.MIN_VALUE, valueKind, false);
@@ -2769,8 +2787,9 @@ public class AnnotationFileParser {
             ClassExpr classExpr = (ClassExpr) expr;
             @SuppressWarnings("signature") // Type.toString(): @FullyQualifiedName
             @FullyQualifiedName String className = classExpr.getType().toString();
-            if (importedTypes.containsKey(className)) {
-                return importedTypes.get(className).asType();
+            TypeElement importedType = importedTypes.get(className);
+            if (importedType != null) {
+                return importedType.asType();
             }
             TypeElement typeElement = findTypeOfName(className);
             if (typeElement == null) {
@@ -2903,7 +2922,7 @@ public class AnnotationFileParser {
             List<Expression> arrayExpressions = ((ArrayInitializerExpr) expr).getValues();
             Object[] values = new Object[arrayExpressions.size()];
 
-            for (int i = 0; i < arrayExpressions.size(); ++i) {
+            for (int i = 0, n = arrayExpressions.size(); i < n; ++i) {
                 Expression eltExpr = arrayExpressions.get(i);
                 values[i] = getValueOfExpressionInAnnotation(name, eltExpr, valueKind);
             }
@@ -3040,7 +3059,7 @@ public class AnnotationFileParser {
                 if (importDelimited[importDelimited.length - 1].equals(
                         faexpr.getScope().toString())) {
                     StringBuilder fullAnnotation = new StringBuilder();
-                    for (int i = 0; i < importDelimited.length - 1; i++) {
+                    for (int i = 0, n = importDelimited.length - 1; i < n; ++i) {
                         fullAnnotation.append(importDelimited[i]);
                         fullAnnotation.append('.');
                     }
@@ -3061,9 +3080,9 @@ public class AnnotationFileParser {
         return res;
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    /// Map utilities
-    ///
+    // ///////////////////////////////////////////////////////////////////////////
+    // Map utilities
+    //
 
     /**
      * Just like Map.put, but does not override any existing value in the map.
@@ -3130,8 +3149,8 @@ public class AnnotationFileParser {
         if (key == null) {
             throw new BugInCF("AnnotationFileParser: key is null");
         }
-        if (m.containsKey(key)) {
-            AnnotatedTypeMirror existingType = m.get(key);
+        AnnotatedTypeMirror existingType = m.get(key);
+        if (existingType != null) {
             // If the newType is from a JDK stub file, then keep the existing type.  This
             // way user-supplied stub files override JDK stub files.
             // This works because the JDK is always parsed last, on demand, after all other stub
@@ -3160,9 +3179,9 @@ public class AnnotationFileParser {
         }
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    /// Issue warnings
-    ///
+    // ///////////////////////////////////////////////////////////////////////////
+    // Issue warnings
+    //
 
     /** The warnings that have been issued so far. */
     private static final Set<String> warnings = new HashSet<>();
@@ -3419,20 +3438,20 @@ public class AnnotationFileParser {
         }
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    /// Parse state
-    ///
+    // ///////////////////////////////////////////////////////////////////////////
+    // Parse state
+    //
 
     /** Represents a class: its package name and name (including outer class names if any). */
     private static class FqName {
         /** Name of the package being parsed, or null. */
-        public final @Nullable String packageName;
+        final @Nullable String packageName;
 
         /**
          * Name of the type being parsed. Includes outer class names if any. Null if the parser has
          * parsed a package declaration but has not yet gotten to a type declaration.
          */
-        public final @Nullable String className;
+        final @Nullable String className;
 
         /**
          * Create a new FqName, which represents a class.
@@ -3441,7 +3460,7 @@ public class AnnotationFileParser {
          * @param className unqualified name of the type, including outer class names if any. May be
          *     null.
          */
-        public FqName(@Nullable String packageName, @Nullable String className) {
+        FqName(@Nullable String packageName, @Nullable String className) {
             this.packageName = packageName;
             this.className = className;
         }

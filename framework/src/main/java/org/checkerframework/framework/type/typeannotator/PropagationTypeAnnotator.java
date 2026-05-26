@@ -94,8 +94,7 @@ public class PropagationTypeAnnotator extends TypeAnnotator {
                             atypeFactory.fromElement(declaredType.getUnderlyingType().asElement());
             List<AnnotatedTypeMirror> typeArgs = declaredType.getTypeArguments();
             for (int i = 0; i < typeArgs.size(); i++) {
-                if (typeArgs.get(i).getKind() != TypeKind.WILDCARD
-                        || !((AnnotatedWildcardType) typeArgs.get(i)).isUninferredTypeArgument()) {
+                if (!AnnotatedTypes.isTypeArgOfRawType(typeArgs.get(i))) {
                     // Sometimes the framework infers a more precise type argument, so just use it.
                     continue;
                 }
@@ -217,8 +216,9 @@ public class PropagationTypeAnnotator extends TypeAnnotator {
      */
     private Element getTypeParameterElement(
             @FindDistinct AnnotatedTypeMirror typeArg, AnnotatedDeclaredType declaredType) {
-        for (int i = 0; i < declaredType.getTypeArguments().size(); i++) {
-            if (declaredType.getTypeArguments().get(i) == typeArg) {
+        List<AnnotatedTypeMirror> typeArgs = declaredType.getTypeArguments();
+        for (int i = 0; i < typeArgs.size(); i++) {
+            if (typeArgs.get(i) == typeArg) {
                 TypeElement typeElement =
                         TypesUtils.getTypeElement(declaredType.getUnderlyingType());
                 return typeElement.getTypeParameters().get(i);

@@ -12,7 +12,6 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.plumelib.util.IPair;
 
-import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
 
@@ -67,7 +66,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
 
         AnnotatedTypeMirror decltype = atypeFactory.getAnnotatedType(memberElement);
         AnnotatedTypeMirror combinedType = combineTypeWithType(receiverType, decltype);
-        memberType.replaceAnnotations(combinedType.getAnnotations());
+        memberType.replaceAnnotations(combinedType.getAnnotationsField());
         if (memberType.getKind() == TypeKind.DECLARED
                 && combinedType.getKind() == TypeKind.DECLARED) {
             AnnotatedDeclaredType adtType = (AnnotatedDeclaredType) memberType;
@@ -203,19 +202,16 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
     public void viewpointAdaptTypeParameterBounds(
             AnnotatedTypeMirror receiverType,
             List<AnnotatedTypeParameterBounds> typeParameterBounds) {
-        List<AnnotatedTypeParameterBounds> adaptedTypeParameterBounds =
-                new ArrayList<>(typeParameterBounds.size());
-        for (AnnotatedTypeParameterBounds typeParameterBound : typeParameterBounds) {
+        // Update in place: callers below assume the list is the same mutable list they passed in.
+        for (int i = 0, n = typeParameterBounds.size(); i < n; ++i) {
+            AnnotatedTypeParameterBounds typeParameterBound = typeParameterBounds.get(i);
             AnnotatedTypeMirror adaptedUpper =
                     combineTypeWithType(receiverType, typeParameterBound.getUpperBound());
             AnnotatedTypeMirror adaptedLower =
                     combineTypeWithType(receiverType, typeParameterBound.getLowerBound());
-            adaptedTypeParameterBounds.add(
-                    new AnnotatedTypeParameterBounds(adaptedUpper, adaptedLower));
+            typeParameterBounds.set(
+                    i, new AnnotatedTypeParameterBounds(adaptedUpper, adaptedLower));
         }
-
-        typeParameterBounds.clear();
-        typeParameterBounds.addAll(adaptedTypeParameterBounds);
     }
 
     /**

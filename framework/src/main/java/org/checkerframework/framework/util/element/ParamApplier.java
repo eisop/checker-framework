@@ -216,25 +216,27 @@ public class ParamApplier extends IndexedElementAnnotationApplier {
         List<Attribute.TypeCompound> targeted = targetClassToAnnos.get(TargetClass.TARGETED);
         List<Attribute.TypeCompound> valid = targetClassToAnnos.get(TargetClass.VALID);
 
-        // if this is a lambdaParam, filter out from targeted those annos that apply to method
-        // formal parameters if this is a method formal param, filter out from targeted those annos
-        // that apply to lambdas
-        int i = 0;
-        while (i < targeted.size()) {
-            Tree onLambda = targeted.get(i).position.onLambda;
+        // If this is a lambdaParam, filter out from targeted those annos that apply to method
+        // formal parameters; if this is a method formal param, filter out from targeted those
+        // annos that apply to lambdas. Single-pass compaction avoids O(n^2) ArrayList.remove(i).
+        int writeIdx = 0;
+        for (int i = 0, n = targeted.size(); i < n; ++i) {
+            Attribute.TypeCompound tc = targeted.get(i);
+            Tree onLambda = tc.position.onLambda;
+            boolean keep;
             if (onLambda == null) {
-                if (!isLambdaParam) {
-                    ++i;
-                } else {
-                    valid.add(targeted.remove(i));
-                }
+                keep = !isLambdaParam;
             } else {
-                if (onLambda.equals(this.lambdaTree)) {
-                    ++i;
-                } else {
-                    valid.add(targeted.remove(i));
-                }
+                keep = onLambda.equals(this.lambdaTree);
             }
+            if (keep) {
+                targeted.set(writeIdx++, tc);
+            } else {
+                valid.add(tc);
+            }
+        }
+        if (writeIdx < targeted.size()) {
+            targeted.subList(writeIdx, targeted.size()).clear();
         }
 
         return targetClassToAnnos;
@@ -282,7 +284,7 @@ public class ParamApplier extends IndexedElementAnnotationApplier {
      *
      * @param methodChildElem some element that is a child of a method typeDeclaration (e.g. a
      *     parameter or return type)
-     * @return the MethodSymbol of the method containing methodChildElem
+     * @return the MethodSymbol of the method enclosing methodChildElem
      */
     public static Symbol.MethodSymbol getParentMethod(Element methodChildElem) {
         if (!(methodChildElem.getEnclosingElement() instanceof Symbol.MethodSymbol)) {
