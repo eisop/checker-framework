@@ -3,6 +3,7 @@ import viewpointtest.quals.*;
 public class LostNonReflexive {
     @ReceiverDependentQual Object f;
     @ReceiverDependentQual LostNonReflexive f2;
+    @ReceiverDependentQual int i;
 
     @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
     @ReceiverDependentQual LostNonReflexive(@ReceiverDependentQual Object args) {}
@@ -39,5 +40,10 @@ public class LostNonReflexive {
         this.set(bottomObj);
 
         obj.f2.identity();
+
+        // :: error: (compound.assignment.type.incompatible) :: error: (viewpointtest.lost.lhs)
+        obj.i += 1;
+        // :: error: (unary.increment.type.incompatible) :: error: (viewpointtest.lost.lhs)
+        obj.i++;
     }
 }

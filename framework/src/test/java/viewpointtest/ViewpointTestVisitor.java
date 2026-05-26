@@ -1,12 +1,14 @@
 package viewpointtest;
 
 import com.sun.source.tree.AssignmentTree;
+import com.sun.source.tree.CompoundAssignmentTree;
 import com.sun.source.tree.NewClassTree;
+import com.sun.source.tree.Tree;
+import com.sun.source.tree.UnaryTree;
 
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
-import org.checkerframework.framework.util.AnnotatedTypes;
 
 /** The visitor for the Viewpoint Test Checker. */
 public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotatedTypeFactory> {
@@ -30,10 +32,32 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
 
     @Override
     public Void visitAssignment(AssignmentTree tree, Void p) {
-        AnnotatedTypeMirror variableType = atypeFactory.getAnnotatedType(tree.getVariable());
-        if (AnnotatedTypes.containsModifier(variableType, atypeFactory.LOST)) {
-            checker.reportError(tree, "viewpointtest.lost.lhs");
-        }
+        checkLostLhs(tree.getVariable(), tree);
         return super.visitAssignment(tree, p);
+    }
+
+    @Override
+    public Void visitCompoundAssignment(CompoundAssignmentTree tree, Void p) {
+        checkLostLhs(tree.getVariable(), tree);
+        return super.visitCompoundAssignment(tree, p);
+    }
+
+    @Override
+    public Void visitUnary(UnaryTree tree, Void p) {
+        Tree.Kind treeKind = tree.getKind();
+        if (treeKind == Tree.Kind.PREFIX_DECREMENT
+                || treeKind == Tree.Kind.PREFIX_INCREMENT
+                || treeKind == Tree.Kind.POSTFIX_DECREMENT
+                || treeKind == Tree.Kind.POSTFIX_INCREMENT) {
+            checkLostLhs(tree.getExpression(), tree);
+        }
+        return super.visitUnary(tree, p);
+    }
+
+    private void checkLostLhs(Tree variableTree, Tree errorTree) {
+        AnnotatedTypeMirror variableType = atypeFactory.getAnnotatedTypeLhs(variableTree);
+        if (variableType.hasAnnotation(atypeFactory.LOST)) {
+            checker.reportError(errorTree, "viewpointtest.lost.lhs");
+        }
     }
 }
