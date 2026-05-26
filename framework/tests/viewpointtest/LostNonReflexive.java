@@ -18,8 +18,9 @@ public class LostNonReflexive {
     void set(@ReceiverDependentQual Object o) {}
 
     void test(@Top LostNonReflexive obj, @Bottom Object bottomObj) {
-        // :: error: (assignment.type.incompatible)
+        // :: error: (viewpointtest.lost.lhs)
         this.f = obj.f;
+        // :: error: (viewpointtest.lost.lhs)
         this.f = bottomObj;
 
         // :: error: (assignment.type.incompatible)
@@ -29,12 +30,11 @@ public class LostNonReflexive {
         // :: error: (assignment.type.incompatible)
         @Bottom Object botObj = obj.get();
 
-        // :: error: (argument.type.incompatible) :: error: (new.class.type.invalid)
+        // :: error: (new.class.type.invalid)
         new LostNonReflexive(obj.f);
         // :: error: (new.class.type.invalid)
         new LostNonReflexive(bottomObj);
 
-        // :: error: (argument.type.incompatible)
         this.set(obj.f);
         this.set(bottomObj);
 
