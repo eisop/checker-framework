@@ -54,6 +54,13 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
         return super.visitUnary(tree, p);
     }
 
+    /**
+     * Report an error if {@code variableTree}, interpreted as an assignment left-hand side,
+     * contains {@code @Lost}.
+     *
+     * @param variableTree the assignment target to check
+     * @param errorTree the tree on which to report the error
+     */
     private void checkLostLhs(Tree variableTree, Tree errorTree) {
         AnnotatedTypeMirror variableType = atypeFactory.getAnnotatedTypeLhs(variableTree);
         if (variableType.hasAnnotation(atypeFactory.LOST)) {
