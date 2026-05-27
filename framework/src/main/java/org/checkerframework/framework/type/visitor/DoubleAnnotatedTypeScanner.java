@@ -107,7 +107,7 @@ public abstract class DoubleAnnotatedTypeScanner<R>
 
     @Override
     protected R scan(AnnotatedTypeMirror type, AnnotatedTypeMirror p) {
-        return reduce(super.scan(type, p), defaultAction(type, p));
+        return reduce(defaultAction(type, p), super.scan(type, p));
     }
 
     @Override

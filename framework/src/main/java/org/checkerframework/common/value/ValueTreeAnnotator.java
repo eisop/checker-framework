@@ -29,17 +29,15 @@ import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 
@@ -49,32 +47,6 @@ class ValueTreeAnnotator extends TreeAnnotator {
     /** The type factory to use. Shadows the field from the superclass with a more specific type. */
     @SuppressWarnings("HidingField")
     protected final ValueAnnotatedTypeFactory atypeFactory;
-
-    /**
-     * The domain of the Constant Value Checker: the types for which it estimates possible values.
-     */
-    protected static final Set<String> COVERED_CLASS_STRINGS =
-            Collections.unmodifiableSet(
-                    new HashSet<>(
-                            Arrays.asList(
-                                    "int",
-                                    "java.lang.Integer",
-                                    "double",
-                                    "java.lang.Double",
-                                    "byte",
-                                    "java.lang.Byte",
-                                    "java.lang.String",
-                                    "char",
-                                    "java.lang.Character",
-                                    "float",
-                                    "java.lang.Float",
-                                    "boolean",
-                                    "java.lang.Boolean",
-                                    "long",
-                                    "java.lang.Long",
-                                    "short",
-                                    "java.lang.Short",
-                                    "char[]")));
 
     /**
      * Create a ValueTreeAnnotator.
@@ -88,7 +60,6 @@ class ValueTreeAnnotator extends TreeAnnotator {
 
     @Override
     public Void visitNewArray(NewArrayTree tree, AnnotatedTypeMirror type) {
-
         List<? extends ExpressionTree> dimensions = tree.getDimensions();
         List<? extends ExpressionTree> initializers = tree.getInitializers();
 
@@ -175,7 +146,6 @@ class ValueTreeAnnotator extends TreeAnnotator {
     private void handleInitializers(
             List<? extends ExpressionTree> initializers,
             AnnotatedTypeMirror.AnnotatedArrayType type) {
-
         type.replaceAnnotation(
                 atypeFactory.createArrayLenAnnotation(
                         Collections.singletonList(initializers.size())));
@@ -275,7 +245,8 @@ class ValueTreeAnnotator extends TreeAnnotator {
                 return null;
             }
 
-            // I would like to call ((AnnotatedTypeTree) castTree).hasAnnotation(Unsigned.class),
+            // I would like to call
+            //   ((AnnotatedTypeTree) castTree).hasAnnotation(Unsigned.class),
             // but `Unsigned` is in the checker package and this code is in the common package.
             List<? extends AnnotationTree> annoTrees =
                     TreeUtils.getExplicitAnnotationTrees(null, tree.getType());
@@ -286,13 +257,13 @@ class ValueTreeAnnotator extends TreeAnnotator {
 
             TypeMirror newType = atm.getUnderlyingType();
             AnnotationMirror newAnno;
-            Range range;
 
             if (TypesUtils.isString(newType) || newType.getKind() == TypeKind.ARRAY) {
                 // Strings and arrays do not allow conversions
                 newAnno = oldAnno;
             } else if (atypeFactory.isIntRange(oldAnno)
-                    && (range = atypeFactory.getRange(oldAnno))
+                    && atypeFactory
+                            .getRange(oldAnno)
                             .isWiderThan(ValueAnnotatedTypeFactory.MAX_VALUES)) {
                 Class<?> newClass = TypesUtils.getClassFromType(newType);
                 if (newClass == String.class) {
@@ -301,9 +272,11 @@ class ValueTreeAnnotator extends TreeAnnotator {
                     throw new UnsupportedOperationException(
                             "ValueAnnotatedTypeFactory: can't convert int to boolean");
                 } else {
+                    // This re-computes a value from the condition above, but the code is easier to
+                    // read like this.
                     newAnno =
                             atypeFactory.createIntRangeAnnotation(
-                                    NumberUtils.castRange(newType, range));
+                                    NumberUtils.castRange(newType, atypeFactory.getRange(oldAnno)));
                 }
             } else {
                 List<?> values =
@@ -638,16 +611,20 @@ class ValueTreeAnnotator extends TreeAnnotator {
         }
     }
 
-    /** Returns true iff the given type is in the domain of the Constant Value Checker. */
+    /**
+     * Returns true iff the given type is in the domain of the Constant Value Checker, that is,
+     * whether it estimates possible values for the type.
+     *
+     * @param type the type to test
+     * @return whether the type is handled by the Constant Value Checker
+     */
     private boolean handledByValueChecker(AnnotatedTypeMirror type) {
         TypeMirror tm = type.getUnderlyingType();
-        /* TODO: compare performance to the more readable.
         return TypesUtils.isPrimitive(tm)
                 || TypesUtils.isBoxedPrimitive(tm)
                 || TypesUtils.isString(tm)
-                || tm.toString().equals("char[]"); // Why?
-        */
-        return COVERED_CLASS_STRINGS.contains(tm.toString());
+                || (tm.getKind() == TypeKind.ARRAY
+                        && ((ArrayType) tm).getComponentType().getKind() == TypeKind.CHAR);
     }
 
     @Override

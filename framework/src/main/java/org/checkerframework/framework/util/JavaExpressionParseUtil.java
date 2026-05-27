@@ -48,6 +48,7 @@ import org.checkerframework.dataflow.expression.FormalParameter;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.expression.LocalVariable;
 import org.checkerframework.dataflow.expression.MethodCall;
+import org.checkerframework.dataflow.expression.SuperReference;
 import org.checkerframework.dataflow.expression.ThisReference;
 import org.checkerframework.dataflow.expression.UnaryOperation;
 import org.checkerframework.dataflow.expression.ValueLiteral;
@@ -63,7 +64,9 @@ import org.plumelib.util.StringsPlume;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -114,11 +117,24 @@ public class JavaExpressionParseUtil {
     /** The length of {@link #PARAMETER_PREFIX}. */
     private static final int PARAMETER_PREFIX_LENGTH = PARAMETER_PREFIX.length();
 
-    /** A pattern that matches the start of a formal parameter in "#2" syntax. */
-    private static final Pattern FORMAL_PARAMETER = Pattern.compile("#(\\d)");
+    /**
+     * A pattern that matches the start of a formal parameter in "#2" syntax. The capture group
+     * matches the full integer (one or more digits).
+     */
+    private static final Pattern FORMAL_PARAMETER = Pattern.compile("#(\\d+)");
 
     /** The replacement for a formal parameter in "#2" syntax. */
     private static final String PARAMETER_REPLACEMENT = PARAMETER_PREFIX + "$1";
+
+    /** Binary operations that return {@code boolean}. */
+    private static final Set<BinaryExpr.Operator> COMPARISON_OPERATORS =
+            EnumSet.of(
+                    BinaryExpr.Operator.EQUALS,
+                    BinaryExpr.Operator.NOT_EQUALS,
+                    BinaryExpr.Operator.GREATER,
+                    BinaryExpr.Operator.GREATER_EQUALS,
+                    BinaryExpr.Operator.LESS,
+                    BinaryExpr.Operator.LESS_EQUALS);
 
     /**
      * Parses a string to a {@link JavaExpression}.
@@ -223,6 +239,9 @@ public class JavaExpressionParseUtil {
         /** The java.lang.String type. */
         private final TypeMirror stringTypeMirror;
 
+        /** The primitive boolean type. */
+        private final TypeMirror booleanTypeMirror;
+
         /** The enclosing type. Used to look up unqualified method, field, and class names. */
         private final TypeMirror enclosingType;
 
@@ -263,8 +282,8 @@ public class JavaExpressionParseUtil {
             this.localVarPath = localVarPath;
             this.env = env;
             this.types = env.getTypeUtils();
-            this.stringTypeMirror =
-                    env.getElementUtils().getTypeElement("java.lang.String").asType();
+            this.stringTypeMirror = ElementUtils.getTypeElement(env, String.class).asType();
+            this.booleanTypeMirror = types.getPrimitiveType(TypeKind.BOOLEAN);
             this.enclosingType = enclosingType;
             this.thisReference = thisReference;
             this.parameters = parameters;
@@ -287,7 +306,7 @@ public class JavaExpressionParseUtil {
          * @throws JavaExpressionParseException if {@code expr} cannot be converted to a {@code
          *     JavaExpression}
          */
-        public static JavaExpression convert(
+        static JavaExpression convert(
                 Expression expr,
                 TypeMirror enclosingType,
                 @Nullable ThisReference thisReference,
@@ -379,6 +398,10 @@ public class JavaExpressionParseUtil {
 
         @Override
         public JavaExpression visit(SuperExpr n, Void aVoid) {
+            if (thisReference == null) {
+                throw new ParseRuntimeException(
+                        constructJavaExpressionParseError("super", "\"super\" isn't allowed here"));
+            }
             // super literal
             TypeMirror superclass = TypesUtils.getSuperclass(enclosingType, types);
             if (superclass == null) {
@@ -386,7 +409,7 @@ public class JavaExpressionParseUtil {
                         constructJavaExpressionParseError(
                                 "super", enclosingType + " has no superclass"));
             }
-            return new ThisReference(superclass);
+            return new SuperReference(superclass);
         }
 
         // expr is an expression in parentheses.
@@ -450,6 +473,7 @@ public class JavaExpressionParseUtil {
                 return fieldAccess;
             }
 
+            // Class name
             if (localVarPath != null) {
                 Element classElem = resolver.findClass(s, localVarPath);
                 TypeMirror classType = ElementUtils.getType(classElem);
@@ -457,7 +481,6 @@ public class JavaExpressionParseUtil {
                     return new ClassName(classType);
                 }
             }
-
             ClassName classType = getIdentifierAsUnqualifiedClassName(s);
             if (classType != null) {
                 return classType;
@@ -526,8 +549,7 @@ public class JavaExpressionParseUtil {
          * @return the {@code ClassName} for {@code identifier}, or null if it is not a simple class
          *     name
          */
-        protected @Nullable ClassName getIdentifierAsInnerClassName(
-                TypeMirror type, String identifier) {
+        @Nullable ClassName getIdentifierAsInnerClassName(TypeMirror type, String identifier) {
             if (type.getKind() != TypeKind.DECLARED) {
                 return null;
             }
@@ -562,7 +584,7 @@ public class JavaExpressionParseUtil {
          * @param identifier possible class name
          * @return the {@code ClassName} for {@code identifier}, or null if it is not a class name
          */
-        protected @Nullable ClassName getIdentifierAsUnqualifiedClassName(String identifier) {
+        @Nullable ClassName getIdentifierAsUnqualifiedClassName(String identifier) {
             // Is identifier an inner class of enclosingType or of any enclosing class of
             // enclosingType?
             TypeMirror searchType = enclosingType;
@@ -631,7 +653,7 @@ public class JavaExpressionParseUtil {
          * @return a field access, or null if {@code identifier} is not a field that can be accessed
          *     via {@code receiverExpr}
          */
-        protected @Nullable FieldAccess getIdentifierAsFieldAccess(
+        @Nullable FieldAccess getIdentifierAsFieldAccess(
                 JavaExpression receiverExpr, String identifier) {
             setResolverField();
             // Find the field element.
@@ -659,6 +681,15 @@ public class JavaExpressionParseUtil {
                 if (fieldElem == null) {
                     // field not found.
                     return null;
+                }
+                if (receiverExpr instanceof SuperReference
+                        && thisReference.getType().getKind() == TypeKind.DECLARED) {
+                    Element thisFieldElem =
+                            resolver.findField(
+                                    identifier, thisReference.getType(), pathToCompilationUnit);
+                    if (thisFieldElem == null) {
+                        receiverExpr = thisReference;
+                    }
                 }
             }
 
@@ -841,10 +872,10 @@ public class JavaExpressionParseUtil {
         }
 
         // `expr` should be a field access, a fully qualified class name, or a class name qualified
-        // with another class name (e.g. {@code OuterClass.InnerClass}).
-        // If the expression refers to a class that is not available to the resolver (the class
-        // wasn't passed to javac on the command line), then the argument can be
-        // "outerpackage.innerpackage", which will lead to a confusing error message.
+        // with another class name (e.g. {@code OuterClass.InnerClass}).  If the expression refers
+        // to a class that is not available to the resolver (the class wasn't passed to javac on
+        // the command line), then the argument can be "outerpackage.innerpackage", which will lead
+        // to a confusing error message.
         @Override
         public JavaExpression visit(FieldAccessExpr expr, Void aVoid) {
             setResolverField();
@@ -913,15 +944,17 @@ public class JavaExpressionParseUtil {
                                             .orElse(null),
                             expr.getLevels());
 
-            List<JavaExpression> initializers;
-            if (expr.getInitializer().isPresent()) {
-                initializers =
-                        CollectionsPlume.mapList(
-                                (Expression initializer) -> initializer.accept(this, null),
-                                expr.getInitializer().get().getValues());
-            } else {
-                initializers = Collections.emptyList();
-            }
+            List<JavaExpression> initializers =
+                    expr.getInitializer()
+                            .map(
+                                    arrayInitializerExpr -> {
+                                        return CollectionsPlume.mapList(
+                                                (Expression initializer) ->
+                                                        initializer.accept(this, null),
+                                                arrayInitializerExpr.getValues());
+                                    })
+                            .orElse(Collections.emptyList());
+
             TypeMirror arrayType = convertTypeToTypeMirror(expr.getElementType());
             if (arrayType == null) {
                 throw new ParseRuntimeException(
@@ -986,19 +1019,34 @@ public class JavaExpressionParseUtil {
 
         @Override
         public JavaExpression visit(BinaryExpr expr, Void aVoid) {
+            BinaryExpr.Operator op = expr.getOperator();
             JavaExpression leftJe = expr.getLeft().accept(this, null);
             JavaExpression rightJe = expr.getRight().accept(this, null);
             TypeMirror leftType = leftJe.getType();
             TypeMirror rightType = rightJe.getType();
             TypeMirror type;
             // isSubtype() first does the cheaper test isSameType(), so no need to do it here.
-            if (types.isSubtype(leftType, rightType)) {
+            if (op == BinaryExpr.Operator.PLUS
+                    && (TypesUtils.isString(leftType) || TypesUtils.isString(rightType))) {
+                // JLS 15.18.1 says, "If only one operand expression is of type String, then string
+                // conversion is performed on the other operand to produce a string at run time."
+                type = stringTypeMirror;
+            } else if (COMPARISON_OPERATORS.contains(op)) {
+                if (types.isSubtype(leftType, rightType) || types.isSubtype(rightType, leftType)) {
+                    type = booleanTypeMirror;
+                } else {
+                    // Don't fall through, issue an error immediately instead.
+                    throw new ParseRuntimeException(
+                            constructJavaExpressionParseError(
+                                    expr.toString(),
+                                    String.format(
+                                            "inconsistent types %s %s for %s",
+                                            leftType, rightType, expr)));
+                }
+            } else if (types.isSubtype(leftType, rightType)) {
                 type = rightType;
             } else if (types.isSubtype(rightType, leftType)) {
                 type = leftType;
-            } else if (expr.getOperator() == BinaryExpr.Operator.PLUS
-                    && (TypesUtils.isString(leftType) || TypesUtils.isString(rightType))) {
-                type = stringTypeMirror;
             } else {
                 throw new ParseRuntimeException(
                         constructJavaExpressionParseError(
@@ -1129,9 +1177,9 @@ public class JavaExpressionParseUtil {
         return -1;
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    /// Contexts
-    ///
+    // ///////////////////////////////////////////////////////////////////////////
+    // Contexts
+    //
 
     /**
      * Returns the type of the innermost enclosing class. Returns Type.noType if the type is a
@@ -1163,9 +1211,9 @@ public class JavaExpressionParseUtil {
         }
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    /// Exceptions
-    ///
+    // ///////////////////////////////////////////////////////////////////////////
+    // Exceptions
+    //
 
     /**
      * An exception that indicates a parse error. Call {@link #getDiagMessage} to obtain a {@link
@@ -1224,6 +1272,19 @@ public class JavaExpressionParseUtil {
         public boolean isFlowParseError() {
             return errorKey.endsWith("flowexpr.parse.error");
         }
+
+        @Override
+        public String toString() {
+            Throwable cause = getCause();
+            if (cause == null) {
+                return String.format(
+                        "JavaExpressionParseException([null cause]: %s)", getMessage());
+            } else {
+                return String.format(
+                        "JavaExpressionParseException(%s [%s]: %s)",
+                        cause.toString(), cause.getClass(), getMessage());
+            }
+        }
     }
 
     /**
@@ -1235,7 +1296,7 @@ public class JavaExpressionParseUtil {
      * @return a {@link JavaExpressionParseException} for the expression {@code expr} with
      *     explanation {@code explanation}.
      */
-    private static JavaExpressionParseException constructJavaExpressionParseError(
+    public static JavaExpressionParseException constructJavaExpressionParseError(
             String expr, String explanation) {
         if (expr == null) {
             throw new BugInCF("Must have an expression.");
@@ -1262,6 +1323,11 @@ public class JavaExpressionParseUtil {
 
         private JavaExpressionParseException getCheckedException() {
             return exception;
+        }
+
+        @Override
+        public String getMessage() {
+            return "JavaExpressionParseException(" + exception + ")";
         }
     }
 }

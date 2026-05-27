@@ -18,6 +18,7 @@ import viewpointtest.quals.Top;
     @SuppressWarnings({"cast.unsafe.constructor.invocation"})
     void topWithRefinement() {
         TestGetAnnotatedLhs a = new @A TestGetAnnotatedLhs();
+        // :: error: (new.class.type.invalid)
         TestGetAnnotatedLhs top = new @Top TestGetAnnotatedLhs();
         top = a;
         // When checking the below assignment, GenericAnnotatedTypeFactory#getAnnotatedTypeLhs()
@@ -33,10 +34,11 @@ import viewpointtest.quals.Top;
 
     @SuppressWarnings({"cast.unsafe.constructor.invocation"})
     void topWithoutRefinement() {
+        // :: error: (new.class.type.invalid)
         TestGetAnnotatedLhs top = new @Top TestGetAnnotatedLhs();
-        // See #576.
-        // :TODO: error: (assignment.type.incompatible)
+        // :: error: (assignment.type.incompatible)
         top.f = new @B Object();
+        // :: error: (assignment.type.incompatible)
         top.f = new @A Object();
     }
 }

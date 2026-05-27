@@ -30,7 +30,6 @@ import javax.lang.model.util.Elements;
 /** Annotated type factory for the Aliasing Checker. */
 public class AliasingAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
-    /** Aliasing annotations. */
     /** The @{@link MaybeAliased} annotation. */
     protected final AnnotationMirror MAYBE_ALIASED =
             AnnotationBuilder.fromClass(elements, MaybeAliased.class);
@@ -47,6 +46,7 @@ public class AliasingAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             AnnotationBuilder.fromClass(elements, MaybeLeaked.class);
 
     /** Create the type factory. */
+    @SuppressWarnings("this-escape")
     public AliasingAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         if (this.getClass() == AliasingAnnotatedTypeFactory.class) {
