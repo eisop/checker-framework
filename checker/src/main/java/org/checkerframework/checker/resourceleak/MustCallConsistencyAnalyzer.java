@@ -1540,7 +1540,7 @@ public class MustCallConsistencyAnalyzer {
                         formatMissingMustCallMethods(mcValues),
                         "field " + lhsElement.getSimpleName().toString(),
                         lhsElement.asType().toString(),
-                        "Field assignment outside method or declaration might overwrite field's"
+                        "field assignment outside method or declaration might overwrite field's"
                                 + " current value");
                 return;
             }
@@ -1667,7 +1667,7 @@ public class MustCallConsistencyAnalyzer {
                         formatMissingMustCallMethods(mcValues),
                         "field " + lhsElement.getSimpleName().toString(),
                         lhsElement.asType().toString(),
-                        " Non-final owning field might be overwritten");
+                        "non-final owning field might be overwritten");
             }
         }
     }
@@ -2045,9 +2045,9 @@ public class MustCallConsistencyAnalyzer {
                         // exit, but that doesn't seem to provide additional helpful
                         // information.
                         "regular method exit"
-                        : "possible exceptional exit due to "
+                        : "possible exceptional exit before required method call, triggered by "
                                 + ((ExceptionBlock) currentBlock).getNode().getTree()
-                                + " with exception type "
+                                + " throwing exception type "
                                 + exceptionType;
         // Computed outside the Obligation loop for efficiency.
         AccumulationStore regularStoreOfSuccessor = cmAtf.getInput(successor).getRegularStore();
