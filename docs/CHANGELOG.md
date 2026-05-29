@@ -3,6 +3,8 @@ Version 3.49.5-eisop2 (May ?, 2026)
 
 **User-visible changes:**
 
+Support the JSpecify `@NullMarked` annotation as an alias to `@AnnotatedFor("nullness")`.
+
 **Implementation details:**
 
 Fixed a bug that caused an IndexOutOfBoundsException for lambdas in varargs,

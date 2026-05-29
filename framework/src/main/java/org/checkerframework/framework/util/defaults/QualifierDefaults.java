@@ -14,7 +14,6 @@ import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.interning.qual.FindDistinct;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
@@ -115,9 +114,6 @@ public class QualifierDefaults {
      * defaults for certain Elements.
      */
     private final IdentityHashMap<Element, DefaultSet> elementDefaults = new IdentityHashMap<>();
-
-    /** A mapping of Element &rarr; Whether or not that element is AnnotatedFor this type system. */
-    private final IdentityHashMap<Element, Boolean> elementAnnotatedFors = new IdentityHashMap<>();
 
     /** CLIMB locations whose standard default is top for a given type system. */
     public static final List<TypeUseLocation> STANDARD_CLIMB_DEFAULTS_TOP =
@@ -812,7 +808,8 @@ public class QualifierDefaults {
                         && !isFromStubFile;
         if (isBytecode) {
             return useConservativeDefaultsBytecode
-                    && !isElementAnnotatedForThisChecker(annotationScope);
+                    && !atypeFactory.isElementAnnotatedForThisCheckerOrUpstreamChecker(
+                            annotationScope);
         } else if (isFromStubFile) {
             // TODO: Types in stub files not annotated for a particular checker should be
             // treated as unchecked bytecode.  For now, all types in stub files are treated as
@@ -821,7 +818,7 @@ public class QualifierDefaults {
             // be treated like unchecked code except for methods in the scope of an @AnnotatedFor.
             return false;
         } else if (useConservativeDefaultsSource) {
-            return !isElementAnnotatedForThisChecker(annotationScope);
+            return !atypeFactory.isElementAnnotatedForThisCheckerOrUpstreamChecker(annotationScope);
         }
         return false;
     }

@@ -19,6 +19,7 @@ import com.sun.source.util.TreePath;
 import com.sun.tools.javac.tree.JCTree.JCAnnotation;
 import com.sun.tools.javac.util.Log;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.source.SourceVisitor;
 import org.checkerframework.framework.source.SupportedOptions;
@@ -31,6 +32,7 @@ import java.util.TreeSet;
 
 import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.Name;
 import javax.tools.Diagnostic;
 
@@ -325,5 +327,10 @@ public class AnnotationStatistics extends SourceChecker {
     public AnnotationProvider getAnnotationProvider() {
         throw new UnsupportedOperationException(
                 "getAnnotationProvider is not implemented for this class.");
+    }
+
+    @Override
+    protected boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
+        return false;
     }
 }
