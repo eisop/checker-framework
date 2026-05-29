@@ -209,7 +209,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     @Pure
     @Override
     public final int hashCode() {
-        return HASHCODE_VISITOR.visit(this);
+        return HASHCODE_VISITOR.compute(this);
     }
 
     /**
@@ -304,23 +304,18 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         if (primaryAnnotations.isEmpty()) {
             return null;
         }
-        AnnotationMirror canonical = annotation;
-        if (!atypeFactory.isSupportedQualifier(canonical)) {
+        AnnotationMirror canonical;
+        if (atypeFactory.isSupportedQualifier(annotation)) {
+            canonical = annotation;
+        } else {
             canonical = atypeFactory.canonicalAnnotation(annotation);
-            if (canonical == null) {
+            if (canonical == null || !atypeFactory.isSupportedQualifier(canonical)) {
                 // This can happen if annotation is unrelated to this AnnotatedTypeMirror.
                 return null;
             }
         }
-        if (atypeFactory.isSupportedQualifier(canonical)) {
-            QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
-            AnnotationMirror anno =
-                    qualHierarchy.findAnnotationInSameHierarchy(primaryAnnotations, canonical);
-            if (anno != null) {
-                return anno;
-            }
-        }
-        return null;
+        QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
+        return qualHierarchy.findAnnotationInSameHierarchy(primaryAnnotations, canonical);
     }
 
     /**
@@ -335,20 +330,17 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      */
     public @Nullable AnnotationMirror getEffectiveAnnotationInHierarchy(
             AnnotationMirror annotation) {
-        AnnotationMirror canonical = annotation;
-        if (!atypeFactory.isSupportedQualifier(canonical)) {
+        AnnotationMirror canonical;
+        if (atypeFactory.isSupportedQualifier(annotation)) {
+            canonical = annotation;
+        } else {
             canonical = atypeFactory.canonicalAnnotation(annotation);
-        }
-        if (atypeFactory.isSupportedQualifier(canonical)) {
-            QualifierHierarchy qualHierarchy = this.atypeFactory.getQualifierHierarchy();
-            AnnotationMirror anno =
-                    qualHierarchy.findAnnotationInSameHierarchy(
-                            getEffectiveAnnotations(), canonical);
-            if (anno != null) {
-                return anno;
+            if (canonical == null || !atypeFactory.isSupportedQualifier(canonical)) {
+                return null;
             }
         }
-        return null;
+        QualifierHierarchy qualHierarchy = this.atypeFactory.getQualifierHierarchy();
+        return qualHierarchy.findAnnotationInSameHierarchy(getEffectiveAnnotations(), canonical);
     }
 
     /**
@@ -947,16 +939,53 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     }
 
     /**
-     * Returns the result of calling {@code underlyingType.toString().hashcode()}. This method saves
-     * the result in a field so that it isn't recomputed each time.
+     * Returns a hash for the {@code underlyingType}. This method saves the result in a field so
+     * that it is not recomputed each time.
      *
-     * @return the result of calling {@code underlyingType.toString().hashcode()}
+     * <p>For {@link TypeKind}s whose {@link TypeMirror#equals} contract is effectively identity
+     * (primitives, void, none, null, package), this method avoids the toString-based hash entirely
+     * and uses the kind's ordinal. This is safe because types of those kinds are canonicalized by
+     * javac and cannot be structurally equal without being reference-equal.
+     *
+     * @return a hash for the underlying type that is consistent with {@link TypeMirror#equals}
      */
-    public int getUnderlyingTypeHashCode() {
+    protected int getUnderlyingTypeHashCode() {
         if (underlyingTypeHashCode == -1) {
-            underlyingTypeHashCode = underlyingType.toString().hashCode();
+            underlyingTypeHashCode = computeUnderlyingTypeHashCode();
         }
         return underlyingTypeHashCode;
+    }
+
+    /**
+     * Computes the underlying-type hash. See {@link #getUnderlyingTypeHashCode}.
+     *
+     * @return the underlying-type hash
+     */
+    private int computeUnderlyingTypeHashCode() {
+        switch (underlyingType.getKind()) {
+            case BOOLEAN:
+            case BYTE:
+            case SHORT:
+            case INT:
+            case LONG:
+            case CHAR:
+            case FLOAT:
+            case DOUBLE:
+            case VOID:
+            case NONE:
+            case NULL:
+            case PACKAGE:
+                // Ordinal is in the range [0, 20], shift it out of the -1 collision zone.
+                @SuppressWarnings("EnumOrdinal")
+                int ord = underlyingType.getKind().ordinal() + 1;
+                return ord;
+            default:
+                int h = underlyingType.hashCode();
+                // Guard against the theoretical case where underlyingType.hashCode() returns -1,
+                // which would collide with the uninitialized sentinel and force recomputation
+                // on every call.
+                return h == -1 ? 0 : h;
+        }
     }
 
     /** Represents a declared type (whether class or interface). */
@@ -1047,12 +1076,13 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             // is converted to a use, then both type variables are uses and should be the same
             // object.
             // The code below does this.
-            Map<TypeVariable, AnnotatedTypeMirror> mapping = new HashMap<>(typeArgs.size());
-            for (AnnotatedTypeMirror typeArg : result.getTypeArguments()) {
+            List<AnnotatedTypeMirror> resultTypeArgs = result.getTypeArguments();
+            Map<TypeVariable, AnnotatedTypeMirror> mapping = new HashMap<>(resultTypeArgs.size());
+            for (AnnotatedTypeMirror typeArg : resultTypeArgs) {
                 AnnotatedTypeVariable typeVar = (AnnotatedTypeVariable) typeArg;
                 mapping.put(typeVar.getUnderlyingType(), typeVar);
             }
-            for (AnnotatedTypeMirror typeArg : result.getTypeArguments()) {
+            for (AnnotatedTypeMirror typeArg : resultTypeArgs) {
                 AnnotatedTypeVariable typeVar = (AnnotatedTypeVariable) typeArg;
                 AnnotatedTypeMirror upperBound =
                         atypeFactory
@@ -1110,7 +1140,8 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             }
 
             DeclaredType t = getUnderlyingType();
-            typeArgs = new ArrayList<>(t.getTypeArguments().size());
+            List<? extends TypeMirror> javaTypeArgs = t.getTypeArguments();
+            typeArgs = new ArrayList<>(javaTypeArgs.size());
             // TODO: make typeArgs immutable. Optimize for empty set.
             if (isUnderlyingTypeRaw()) {
                 TypeElement typeElement = (TypeElement) atypeFactory.types.asElement(t);
@@ -1136,24 +1167,32 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                                     typeParameterToWildcard, wildcardType.getExtendsBound()));
                 }
             } else if (isDeclaration()) {
-                for (TypeMirror javaTypeArg : t.getTypeArguments()) {
+                for (TypeMirror javaTypeArg : javaTypeArgs) {
                     AnnotatedTypeVariable tv =
                             (AnnotatedTypeVariable)
                                     AnnotatedTypeMirror.createType(javaTypeArg, atypeFactory, true);
                     typeArgs.add(tv);
                 }
             } else {
-                for (TypeMirror javaTypeArg : t.getTypeArguments()) {
+                // Lazily resolve typeParameters; only needed if a wildcard type argument is
+                // encountered. Avoids unnecessary asElement/getTypeParameters calls for the common
+                // case of non-wildcard type arguments.
+                List<? extends TypeParameterElement> typeParameters = null;
+                int i = 0;
+                for (TypeMirror javaTypeArg : javaTypeArgs) {
                     AnnotatedTypeMirror typeArg =
                             AnnotatedTypeMirror.createType(javaTypeArg, atypeFactory, false);
                     if (typeArg.getKind() == TypeKind.WILDCARD) {
+                        if (typeParameters == null) {
+                            typeParameters =
+                                    ((TypeElement) atypeFactory.types.asElement(t))
+                                            .getTypeParameters();
+                        }
                         AnnotatedWildcardType wildcardType = (AnnotatedWildcardType) typeArg;
-                        wildcardType.setTypeVariable(
-                                ((TypeElement) atypeFactory.types.asElement(t))
-                                        .getTypeParameters()
-                                        .get(typeArgs.size()));
+                        wildcardType.setTypeVariable(typeParameters.get(i));
                     }
                     typeArgs.add(typeArg);
+                    ++i;
                 }
             }
             return typeArgs;

@@ -139,9 +139,7 @@ public class InitializationFieldAccessTreeAnnotator extends TreeAnnotator {
                 fieldDeclarationTree != null
                         && store != null
                         && TreeUtils.isSelfAccess(tree)
-                        && initFactory
-                                .getInitializedFields(store, initFactory.getPath(tree))
-                                .contains(fieldDeclarationTree);
+                        && store.isFieldInitialized(element);
         if (!isReceiverInitToOwner
                 && !isFieldInitialized
                 && !factory.isComputingAnnotatedTypeMirrorOfLhs()) {

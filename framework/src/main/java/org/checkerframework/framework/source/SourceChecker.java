@@ -692,6 +692,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /** True if the -AwarnUnneededSuppressions command-line argument was passed. */
     private boolean warnUnneededSuppressions;
 
+    /** True if the -AdumpOnErrors command-line argument was passed. */
+    private boolean dumpOnErrors;
+
     /** True if the -AonlyAnnotatedFor command-line argument was passed. */
     private boolean onlyAnnotatedFor;
 
@@ -1190,6 +1193,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         requirePrefixInWarningSuppressions = hasOption("requirePrefixInWarningSuppressions");
         showPrefixInWarningMessages = hasOption("showPrefixInWarningMessages");
         warnUnneededSuppressions = hasOption("warnUnneededSuppressions");
+        dumpOnErrors = hasOption("dumpOnErrors");
         useConservativeDefaultsSource = useConservativeDefault("source");
         onlyAnnotatedFor = hasOption("onlyAnnotatedFor");
     }
@@ -1697,7 +1701,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             Tree source,
             CompilationUnitTree root) {
         assert this.currentRoot == root;
-        StackTraceElement[] trace = Thread.currentThread().getStackTrace();
+        // Thread.currentThread().getStackTrace() walks the entire JVM stack and allocates a
+        // StackTraceElement[] on every reported diagnostic.  The trace is only consulted by
+        // printStackTrace() when -AdumpOnErrors is set, so skip the capture in the common case.
+        StackTraceElement[] trace =
+                dumpOnErrors ? Thread.currentThread().getStackTrace() : EMPTY_STACK_TRACE;
         if (messageStore == null) {
             printOrStoreMessage(kind, message, source, root, trace);
         } else {
@@ -1705,6 +1713,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             messageStore.add(checkerMessage);
         }
     }
+
+    /** Sentinel for "no stack trace was captured" -- shared across all checkers. */
+    private static final StackTraceElement[] EMPTY_STACK_TRACE = new StackTraceElement[0];
 
     /**
      * Do not call this method. Call {@link #reportError} or {@link #reportWarning} instead.
@@ -1735,7 +1746,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @param trace stack trace when the checker encountered a warning/error
      */
     private void printStackTrace(StackTraceElement[] trace) {
-        if (hasOption("dumpOnErrors")) {
+        if (dumpOnErrors) {
             StringJoiner msg = new StringJoiner(System.lineSeparator());
             for (StackTraceElement elem : trace) {
                 msg.add("\tat " + elem);
@@ -1854,10 +1865,16 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return the most specific SuppressWarnings string for the warning/error being printed
      */
     protected String suppressWarningsString(String messageKey) {
-        Collection<String> prefixes = this.getSuppressWarningsPrefixes();
-        prefixes.remove(SUPPRESS_ALL_PREFIX);
         if (showSuppressWarningsStrings) {
-            List<String> list = new ArrayList<>(prefixes);
+            Collection<String> prefixes = this.getSuppressWarningsPrefixes();
+            // Build the list, excluding SUPPRESS_ALL_PREFIX (it is re-added at the end if
+            // useAllcheckersPrefix).
+            List<String> list = new ArrayList<>(prefixes.size());
+            for (String p : prefixes) {
+                if (!p.equals(SUPPRESS_ALL_PREFIX)) {
+                    list.add(p);
+                }
+            }
             // Make sure "allcheckers" is at the end of the list.
             if (useAllcheckersPrefix) {
                 list.add(SUPPRESS_ALL_PREFIX);
@@ -2013,7 +2030,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         while (tofind != null) {
             if (activeLints.contains(tofind)) {
                 return true;
-            } else if (activeLints.contains(String.format("-%s", tofind))) {
+            } else if (activeLints.contains("-" + tofind)) {
                 return false;
             }
 
@@ -2068,7 +2085,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         if (val) {
             newlints.add(name);
         } else {
-            newlints.add(String.format("-%s", name));
+            newlints.add("-" + name);
         }
         activeLints = Collections.unmodifiableSet(newlints);
     }
@@ -3107,14 +3124,18 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      */
     protected String getWarningMessagePrefix() {
         Collection<String> prefixes = this.getSuppressWarningsPrefixes();
-        prefixes.remove(SUPPRESS_ALL_PREFIX);
         String defaultPrefix = getDefaultSuppressWarningsPrefix();
         if (prefixes.contains(defaultPrefix)) {
             return defaultPrefix;
-        } else {
-            String firstKey = prefixes.iterator().next();
-            return firstKey;
         }
+        for (String prefix : prefixes) {
+            if (!prefix.equals(SUPPRESS_ALL_PREFIX)) {
+                return prefix;
+            }
+        }
+        // The set contained only SUPPRESS_ALL_PREFIX, in violation of the documented contract.
+        throw new BugInCF(
+                "getSuppressWarningsPrefixes() returned a set with no non-SUPPRESS_ALL entry");
     }
 
     // ///////////////////////////////////////////////////////////////////////////

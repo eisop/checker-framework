@@ -16,6 +16,7 @@ import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import javax.lang.model.element.AnnotationMirror;
@@ -276,16 +277,17 @@ public class AsSuperVisitor extends AbstractAtmComboVisitor<AnnotatedTypeMirror,
     }
 
     /** The fully-qualified names of java.lang.Cloneable and java.io.Serializable. */
-    private static List<String> cloneableOrSerializable =
-            Arrays.asList("java.lang.Cloneable", "java.io.Serializable");
+    private static final List<String> cloneableOrSerializable =
+            Collections.unmodifiableList(
+                    Arrays.asList("java.lang.Cloneable", "java.io.Serializable"));
 
     @Override
     public AnnotatedTypeMirror visitArray_Intersection(
             AnnotatedArrayType type, AnnotatedIntersectionType superType, Void p) {
         for (AnnotatedTypeMirror bounds : superType.getBounds()) {
-            if (!(TypesUtils.isObject(bounds.getUnderlyingType())
-                    || TypesUtils.isDeclaredOfName(
-                            bounds.getUnderlyingType(), cloneableOrSerializable))) {
+            TypeMirror boundsTM = bounds.getUnderlyingType();
+            if (!(TypesUtils.isObject(boundsTM)
+                    || TypesUtils.isDeclaredOfName(boundsTM, cloneableOrSerializable))) {
                 return errorTypeNotErasedSubtypeOfSuperType(type, superType, p);
             }
             copyPrimaryAnnos(type, bounds);

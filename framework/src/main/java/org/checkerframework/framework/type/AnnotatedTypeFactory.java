@@ -501,7 +501,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     public boolean shouldCache;
 
     /** Size of LRU cache if one isn't specified using the atfCacheSize option. */
-    private static final int DEFAULT_CACHE_SIZE = 300;
+    private static final int DEFAULT_CACHE_SIZE = 2000;
 
     /** Mapping from a Tree to its annotated type; defaults have been applied. */
     private final Map<Tree, AnnotatedTypeMirror> classAndMethodTreeCache;
@@ -542,11 +542,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /** The Object.getClass method. */
     protected final ExecutableElement objectGetClass;
 
-    /** Size of the annotationClassNames cache. */
-    private static final int ANNOTATION_CACHE_SIZE = 500;
-
     /** Maps classes representing AnnotationMirrors to their canonical names. */
-    private final Map<Class<? extends Annotation>, @CanonicalName String> annotationClassNames;
+    private final IdentityHashMap<Class<? extends Annotation>, @CanonicalName String>
+            annotationClassNames;
 
     /** An annotated type of the declaration of {@link Iterable} without any annotations. */
     private AnnotatedDeclaredType iterableDeclType;
@@ -599,7 +597,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             this.fromTypeTreeCache = CollectionsPlume.createLruCache(cacheSize);
             this.elementCache = CollectionsPlume.createLruCache(cacheSize);
             this.elementToTreeCache = CollectionsPlume.createLruCache(cacheSize);
-            this.annotationClassNames = CollectionsPlume.createLruCache(ANNOTATION_CACHE_SIZE);
+            this.annotationClassNames = new IdentityHashMap<>();
         } else {
             this.classAndMethodTreeCache = null;
             this.fromExpressionTreeCache = null;
@@ -1089,7 +1087,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 String ajavaPath = candidateAjavaFiles.toArray(new String[0])[0];
                 try {
                     currentFileAjavaTypes.parseAjavaFileWithTree(ajavaPath, root);
-                } catch (Throwable e) {
+                } catch (Exception e) {
                     throw new Error(
                             "Problem while parsing "
                                     + ajavaPath
@@ -1481,12 +1479,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (tree == null) {
             throw new BugInCF("AnnotatedTypeFactory.getAnnotatedType: null tree");
         }
-        if (shouldCache && classAndMethodTreeCache.containsKey(tree)) {
-            return classAndMethodTreeCache.get(tree).deepCopy();
+        if (shouldCache) {
+            AnnotatedTypeMirror cached = classAndMethodTreeCache.get(tree);
+            if (cached != null) {
+                return cached.deepCopy();
+            }
         }
 
         AnnotatedTypeMirror type;
-        if (TreeUtils.isClassTree(tree)) {
+        boolean isClassTree = TreeUtils.isClassTree(tree);
+        if (isClassTree) {
             type = fromClass((ClassTree) tree);
         } else if (tree instanceof MethodTree || tree instanceof VariableTree) {
             type = fromMember(tree);
@@ -1504,7 +1506,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             type = applyCaptureConversion(type);
         }
 
-        if (shouldCache && (TreeUtils.isClassTree(tree) || tree instanceof MethodTree)) {
+        if (shouldCache && (isClassTree || tree instanceof MethodTree)) {
             // Don't cache VARIABLE
             classAndMethodTreeCache.put(tree, type.deepCopy());
         } else {
@@ -1662,8 +1664,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return AnnotatedTypeMirror of the element with explicitly-written and stub file annotations
      */
     public AnnotatedTypeMirror fromElement(Element elt) {
-        if (shouldCache && elementCache.containsKey(elt)) {
-            return elementCache.get(elt).deepCopy();
+        if (shouldCache) {
+            AnnotatedTypeMirror cached = elementCache.get(elt);
+            if (cached != null) {
+                return cached.deepCopy();
+            }
         }
         if (elt.getKind() == ElementKind.PACKAGE) {
             return toAnnotatedType(elt.asType(), false);
@@ -1755,8 +1760,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     "AnnotatedTypeFactory.fromMember: not a method or variable declaration: "
                             + tree);
         }
-        if (shouldCache && fromMemberTreeCache.containsKey(tree)) {
-            return fromMemberTreeCache.get(tree).deepCopy();
+        if (shouldCache) {
+            AnnotatedTypeMirror cached = fromMemberTreeCache.get(tree);
+            if (cached != null) {
+                return cached.deepCopy();
+            }
         }
         AnnotatedTypeMirror result = TypeFromTree.fromMember(this, tree);
 
@@ -1848,8 +1856,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @see TypeFromExpressionVisitor
      */
     private AnnotatedTypeMirror fromExpression(ExpressionTree tree) {
-        if (shouldCache && fromExpressionTreeCache.containsKey(tree)) {
-            return fromExpressionTreeCache.get(tree).deepCopy();
+        if (shouldCache) {
+            AnnotatedTypeMirror cached = fromExpressionTreeCache.get(tree);
+            if (cached != null) {
+                return cached.deepCopy();
+            }
         }
 
         AnnotatedTypeMirror result = TypeFromTree.fromExpression(this, tree);
@@ -1878,8 +1889,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return the (partially) annotated type of the type in the AST
      */
     /*package-private*/ final AnnotatedTypeMirror fromTypeTree(Tree tree) {
-        if (shouldCache && fromTypeTreeCache.containsKey(tree)) {
-            return fromTypeTreeCache.get(tree).deepCopy();
+        if (shouldCache) {
+            AnnotatedTypeMirror cached = fromTypeTreeCache.get(tree);
+            if (cached != null) {
+                return cached.deepCopy();
+            }
         }
 
         AnnotatedTypeMirror result = TypeFromTree.fromTypeTree(this, tree);
@@ -2568,6 +2582,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (inferTypeArgs) {
             // Adapt parameters, which makes parameters and arguments be the same size for later
             // checking.
+            // TODO: this should not depend on whether type arguments need to be inferred!
             List<AnnotatedTypeMirror> parameters =
                     AnnotatedTypes.adaptParameters(this, method, tree.getArguments(), tree);
             method.setParameterTypes(parameters);
@@ -3091,11 +3106,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // checking.
             // The vararg type of con has been already computed and stored when calling
             // typeVarSubstitutor.substitute.
+            // TODO: this should not depend on whether type arguments need to be inferred!
             List<AnnotatedTypeMirror> parameters =
                     AnnotatedTypes.adaptParameters(this, con, tree.getArguments(), tree);
             con.setParameterTypes(parameters);
         }
-
         return new ParameterizedExecutableType(con, typeargs);
     }
 
@@ -3744,7 +3759,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     public @Nullable AnnotationMirror canonicalAnnotation(AnnotationMirror a) {
         TypeElement elem = (TypeElement) a.getAnnotationType().asElement();
-        String qualName = elem.getQualifiedName().toString();
+        String qualName = ElementUtils.getQualifiedName(elem);
         Alias alias = aliases.get(qualName);
         if (alias == null) {
             return null;
@@ -3976,8 +3991,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             return null;
         }
 
+        TreePath cached = treePathCache.getCachedPath(tree);
+        if (cached != null) {
+            return cached;
+        }
         if (treePathCache.isCached(tree)) {
-            return treePathCache.getPath(root, tree);
+            // tree was previously searched for and not found in the compilation unit.
+            return null;
         }
 
         TreePath currentPath = visitorTreePath;
