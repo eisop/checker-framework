@@ -992,13 +992,16 @@ subprojects {
         minimize()
     }
 
-    // Shadow 9.x adds a "shadowRuntimeElements" variant to the java component, which can cause
-    // variant ambiguity when inter-project runtimeClasspath dependencies are resolved: Gradle may
-    // select the shadow JAR path of a dependency project that hasn't been built yet, triggering
-    // "neither file nor directory" in UnusedTracker.  Disable this variant publication to restore
-    // Shadow 8.x behavior where only the regular runtimeElements variant is published.
-    shadow {
-        addShadowVariantIntoJavaComponent = false
+    // Shadow 9.x registers a "shadowRuntimeElements" consumable variant for each project.
+    // When checker:runtimeClasspath resolves project dependencies (e.g. framework), Gradle may
+    // select shadowRuntimeElements, which points to the shadow JAR (framework-X-all.jar).
+    // That file does not exist unless framework:shadowJar has run, causing UnusedTracker to
+    // throw "neither file nor directory".  Mark it non-consumable so Gradle always uses the
+    // standard runtimeElements variant (framework.jar) for inter-project resolution.
+    configurations.configureEach { Configuration c ->
+        if (c.name == 'shadowRuntimeElements') {
+            c.canBeConsumed = false
+        }
     }
 
     if (!project.name.startsWith('checker-qual-android')) {
