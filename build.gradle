@@ -992,6 +992,15 @@ subprojects {
         minimize()
     }
 
+    // Shadow 9.x adds a "shadowRuntimeElements" variant to the java component, which can cause
+    // variant ambiguity when inter-project runtimeClasspath dependencies are resolved: Gradle may
+    // select the shadow JAR path of a dependency project that hasn't been built yet, triggering
+    // "neither file nor directory" in UnusedTracker.  Disable this variant publication to restore
+    // Shadow 8.x behavior where only the regular runtimeElements variant is published.
+    shadow {
+        addShadowVariantIntoJavaComponent = false
+    }
+
     if (!project.name.startsWith('checker-qual-android')) {
         task tags(type: Exec) {
             description = 'Create Emacs TAGS table'
