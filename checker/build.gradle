@@ -133,44 +133,50 @@ jar {
 // This task differs from the `assemble` task in that it does not build Javadoc.
 // It is useful for those who only want to run `javac`.
 // checker.jar is copied to checker/dist/ when it is built by the shadowJar task.
-task assembleForJavac(dependsOn: shadowJar, group: 'Build') {
+task assembleForJavac(group: 'Build') {
     description = 'Builds or downloads jars required by CheckerMain and puts them in checker/dist/.'
-    dependsOn project(':checker-qual').tasks.jar
-    def checkerQualJarFile = file(project(':checker-qual').tasks.getByName('jar').archiveFile)
-    def checkerUtilJarFile = file(project(':checker-util').tasks.getByName('jar').archiveFile)
+    dependsOn 'shadowJar'
+    dependsOn ':checker-qual:jar'
+    dependsOn ':checker-util:jar'
+
+    def checkerQualJar = project(':checker-qual').tasks.named('jar', Jar).flatMap { it.archiveFile }
+    def checkerUtilJar = project(':checker-util').tasks.named('jar', Jar).flatMap { it.archiveFile }
+    def javacJarConf = configurations.javacJar
+    def distDir = layout.projectDirectory.dir('dist')
+
+    inputs.files(checkerQualJar, checkerUtilJar, javacJarConf).withPropertyName('sourceJars')
+    outputs.file(distDir.file('checker-qual.jar'))
+    outputs.file(distDir.file('checker-util.jar'))
+    outputs.file(distDir.file('javac.jar'))
 
     doLast {
+        def checkerQualJarFile = checkerQualJar.get().asFile
         if (!checkerQualJarFile.exists()) {
             throw new GradleException('File not found: ' + checkerQualJarFile)
         }
         copy {
             from checkerQualJarFile
-            into "${projectDir}/dist"
-            rename { String fileName ->
-                // remove version number on checker-qual.jar
-                fileName.replace(fileName, 'checker-qual.jar')
-            }
+            into distDir
+            // remove version number
+            rename { 'checker-qual.jar' }
         }
 
+        def checkerUtilJarFile = checkerUtilJar.get().asFile
         if (!checkerUtilJarFile.exists()) {
             throw new GradleException('File not found: ' + checkerUtilJarFile)
         }
         copy {
             from checkerUtilJarFile
-            into "${projectDir}/dist"
-            rename { String fileName ->
-                // remove version number on checker-util.jar
-                fileName.replace(fileName, 'checker-util.jar')
-            }
+            into distDir
+            // remove version number
+            rename { 'checker-util.jar' }
         }
 
         copy {
             // This is required to *run* the Checker Framework on JDK 8.
-            from configurations.javacJar
-            into "${projectDir}/dist"
-            rename { String fileName ->
-                fileName.replace(fileName, 'javac.jar')
-            }
+            from javacJarConf
+            into distDir
+            rename { 'javac.jar' }
         }
     }
 }
