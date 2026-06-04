@@ -282,9 +282,18 @@ clean {
 }
 
 clean.doLast {
-    while (buildDir.exists()) {
+    def buildDirFile = layout.buildDirectory.get().asFile
+    int maxAttempts = 6
+    int attempt = 0
+    while (buildDirFile.exists() && attempt < maxAttempts) {
+        attempt++
         sleep(10000)                // wait 10 seconds
-        buildDir.deleteDir()
+        buildDirFile.deleteDir()
+    }
+    if (buildDirFile.exists()) {
+        logger.error("Could not delete ${buildDirFile} after ${maxAttempts} attempt(s). Remaining contents:")
+        buildDirFile.listFiles()?.each { logger.error("  ${it}") }
+        throw new GradleException("Failed to delete build directory: ${buildDirFile}")
     }
 }
 
