@@ -19,7 +19,7 @@ source "$SCRIPT_DIR"/clone-related.sh
 # This duplicates logic from jspecify-conformance/.github/workflows/workflow.yml
 
 trap 'rm -f /tmp/publish-helper.gradle' EXIT
-cat > /tmp/publish-helper.gradle <<'INIT'
+cat > /tmp/publish-helper.gradle << 'INIT'
 allprojects {
   pluginManager.apply('maven-publish')
   tasks.withType(Sign).configureEach { enabled = false }
@@ -30,7 +30,7 @@ cd ../jspecify
 ./gradlew --console=plain --warning-mode=all --init-script /tmp/publish-helper.gradle :conformance-tests:publishToMavenLocal
 
 cd ../jspecify-reference-checker
-cat > conformance-test-framework/settings.gradle <<'SETTINGS'
+cat > conformance-test-framework/settings.gradle << 'SETTINGS'
 rootProject.name = 'conformance-test-framework'
 dependencyResolutionManagement {
   versionCatalogs {
@@ -44,7 +44,7 @@ dependencyResolutionManagement {
 }
 SETTINGS
 ./gradlew --project-dir conformance-test-framework \
-   --console=plain --warning-mode=all --init-script /tmp/publish-helper.gradle publishToMavenLocal
+  --console=plain --warning-mode=all --init-script /tmp/publish-helper.gradle publishToMavenLocal
 
 cd ../jspecify-conformance
 # This does not use "-PcfVersion=local", because that project does not
