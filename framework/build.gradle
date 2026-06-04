@@ -19,7 +19,7 @@ sourceSets {
             // Stub files, message.properties, etc.
             srcDirs += [
                 'src/main/java',
-                "${buildDir}/generated/resources"
+                layout.buildDirectory.dir('generated/resources')
             ]
 
             // NO-AFU
@@ -104,7 +104,7 @@ task copyAndMinimizeAnnotatedJdkFiles(type: JavaExec, dependsOn: cloneAnnotatedJ
     dependsOn ':javacutil:jar'
     dependsOn ':dataflow:jar'
     def inputDir = "${annotatedJdkHome}/src"
-    def outputDir = "${buildDir}/generated/resources/annotated-jdk/"
+    def outputDir = layout.buildDirectory.dir('generated/resources/annotated-jdk').get().asFile
 
     description = "Copy annotated JDK files to ${outputDir}. Removes private and package-private methods, method bodies, comments, etc. from the annotated JDK"
 
