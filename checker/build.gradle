@@ -144,7 +144,7 @@ task assembleForJavac(group: 'Build') {
     def checkerUtilJar = project(':checker-util').tasks.named('jar', Jar).flatMap { it.archiveFile }
     def shadowJarArchive =
             tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar)
-                    .flatMap { it.archiveFile }
+            .flatMap { it.archiveFile }
     def javacJarConf = configurations.javacJar
     def distDir = layout.projectDirectory.dir('dist')
 
