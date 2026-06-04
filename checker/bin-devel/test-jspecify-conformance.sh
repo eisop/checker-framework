@@ -18,6 +18,7 @@ source "$SCRIPT_DIR"/clone-related.sh
 # Build conformance test artifacts locally.
 # This duplicates logic from jspecify-conformance/.github/workflows/workflow.yml
 
+trap 'rm -f /tmp/publish-helper.gradle' EXIT
 cat > /tmp/publish-helper.gradle <<'INIT'
 allprojects {
   pluginManager.apply('maven-publish')
@@ -26,7 +27,7 @@ allprojects {
 INIT
 
 cd ../jspecify
-./gradlew --init-script /tmp/publish-helper.gradle :conformance-tests:publishToMavenLocal
+./gradlew --console=plain --warning-mode=all --init-script /tmp/publish-helper.gradle :conformance-tests:publishToMavenLocal
 
 cd ../jspecify-reference-checker
 cat > conformance-test-framework/settings.gradle <<'SETTINGS'
@@ -43,9 +44,9 @@ dependencyResolutionManagement {
 }
 SETTINGS
 ./gradlew --project-dir conformance-test-framework \
-   --init-script /tmp/publish-helper.gradle publishToMavenLocal
+   --console=plain --warning-mode=all --init-script /tmp/publish-helper.gradle publishToMavenLocal
 
 cd ../jspecify-conformance
 # This does not use "-PcfVersion=local", because that project does not
 # use the CF gradle plugin.
-./gradlew test --console=plain -PcfLocal
+./gradlew test --console=plain --warning-mode=all -PcfLocal
