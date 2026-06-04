@@ -3,7 +3,7 @@ plugins {
     id 'base'
     // https://github.com/n0mer/gradle-git-properties
     // Generates file build/resources/main/git.properties when the `classes` task runs.
-    id 'com.gorylenko.gradle-git-properties' version '3.0.3'
+    id 'com.gorylenko.gradle-git-properties' version '4.0.1'
 }
 
 sourceSets {
@@ -28,6 +28,8 @@ sourceSets {
 }
 
 sourcesJar {
+    dependsOn(generateGitProperties)
+
     // The resources duplicate content from the src directory.
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
