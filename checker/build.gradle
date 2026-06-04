@@ -287,7 +287,9 @@ clean.doLast {
     int attempt = 0
     while (buildDirFile.exists() && attempt < maxAttempts) {
         attempt++
-        sleep(10000)                // wait 10 seconds
+        if (attempt > 1) {
+            sleep(10000)                // wait 10 seconds
+        }
         buildDirFile.deleteDir()
     }
     if (buildDirFile.exists()) {
