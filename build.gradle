@@ -132,7 +132,11 @@ task installGitHooks(type: Copy, dependsOn: 'setLocalRepo') {
     description = 'Copies git hooks to .git directory'
     from files('checker/bin-devel/git.post-merge', 'checker/bin-devel/git.pre-commit')
     rename('git\\.(.*)', '$1')
-    into localRepo + '/hooks'
+    // 'localRepo' is rewritten by setLocalRepo.doLast (e.g. to a worktree's
+    // gitdir), so the destination must be resolved lazily.  Without the
+    // closure, 'into' is evaluated at configuration time and always sees
+    // the default '.git', breaking the worktree case.
+    into { localRepo + '/hooks' }
 }
 
 apply plugin: 'com.diffplug.spotless'
