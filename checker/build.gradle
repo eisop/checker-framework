@@ -141,12 +141,16 @@ task assembleForJavac(group: 'Build') {
 
     def checkerQualJar = project(':checker-qual').tasks.named('jar', Jar).flatMap { it.archiveFile }
     def checkerUtilJar = project(':checker-util').tasks.named('jar', Jar).flatMap { it.archiveFile }
+    def shadowJarArchive =
+            tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar)
+                    .flatMap { it.archiveFile }
     def javacJarConf = configurations.javacJar
     def distDir = layout.projectDirectory.dir('dist')
 
-    inputs.files(checkerQualJar, checkerUtilJar, javacJarConf).withPropertyName('sourceJars')
+    inputs.files(checkerQualJar, checkerUtilJar, shadowJarArchive, javacJarConf).withPropertyName('sourceJars')
     outputs.file(distDir.file('checker-qual.jar'))
     outputs.file(distDir.file('checker-util.jar'))
+    outputs.file(distDir.file('checker.jar'))
     outputs.file(distDir.file('javac.jar'))
 
     doLast {
