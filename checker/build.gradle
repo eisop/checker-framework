@@ -28,6 +28,8 @@ sourceSets {
 }
 
 sourcesJar {
+    dependsOn(generateGitProperties)
+
     // The resources duplicate content from the src directory.
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
