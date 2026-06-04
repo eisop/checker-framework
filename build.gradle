@@ -58,7 +58,10 @@ ext {
     // On a Java 9+ JVM, use the host javac, default source/target, and required module flags.
     isJava8 = (useJdkVersionInt == 8)
 
-    // As of 2025-04-28 (Lombok 1.18.38), delombok supports JDK 24-ea but not JDK 24 proper; see https://projectlombok.org/changelog .
+    // delombok lags behind JDK GA releases; skip delombok-dependent tests when running on
+    // a JDK newer than what the pinned Lombok version supports.  See
+    // https://projectlombok.org/changelog and bump this threshold (or remove it) when the
+    // current 'versions.lombok' below catches up to the JDK in use.
     skipDelombok = (useJdkVersionInt >= 24)
 
     // NO-AFU - keep these variables live so tasks in checker/build.gradle configure without issue.
@@ -145,7 +148,7 @@ spotless {
     //  > Could not create task ':checker-qual:spotlessJavaCheck'.
     //     > Could not create task ':checker-qual:spotlessJava'.
     //        > File signature can only be created for existing regular files, given:
-    //          .../checker-framework/checker-qual/build/libs/checker-qual-3.25.1-SNAPSHOT.jar
+    //          .../checker-framework/checker-qual/build/libs/checker-qual-VERSION-SNAPSHOT.jar
     predeclareDepsFromBuildscript()
 }
 
@@ -1177,7 +1180,7 @@ subprojects {
             if (!System.getenv('TF_BUILD')?.equals('True')) {
                 // Not running under Azure Pipelines CI.
 
-                maxParallelForks = Runtime.runtime.availableProcessors() ?: 1
+                maxParallelForks = Runtime.runtime.availableProcessors()
             } else {
                 // Running under Azure Pipelines CI.
 
