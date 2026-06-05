@@ -322,7 +322,16 @@ public abstract class ElementQualifierHierarchy extends QualifierHierarchy {
     @Override
     public @Nullable AnnotationMirror findAnnotationInSameHierarchy(
             Collection<? extends AnnotationMirror> annos, AnnotationMirror annotationMirror) {
+        if (annos.isEmpty()) {
+            return null;
+        }
         QualifierKind kind = getQualifierKind(annotationMirror);
+        // Fast path: when there is a single qualifier hierarchy, every supported qualifier
+        // belongs to that hierarchy, so the first element of annos is the answer.  See
+        // NoElementQualifierHierarchy#findAnnotationInSameHierarchy.
+        if (tops.size() == 1) {
+            return annos.iterator().next();
+        }
         for (AnnotationMirror candidate : annos) {
             QualifierKind candidateKind = getQualifierKind(candidate);
             if (candidateKind.isInSameHierarchyAs(kind)) {
