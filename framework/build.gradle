@@ -215,7 +215,7 @@ shadowJar {
 
 createCheckTypeTask(project.name, 'CompilerMessages',
         'org.checkerframework.checker.compilermsgs.CompilerMessagesChecker')
-checkCompilerMessages {
+tasks.named('checkCompilerMessages') {
     options.compilerArgs += [
         '-Apropfiles=' + sourceSets.main.resources.filter { file -> file.name.equals('messages.properties') }.asPath
     ]
@@ -275,5 +275,5 @@ if (skipDelombok) {
             }
         }
     }
-    tasks.test.dependsOn('delombok')
+    tasks.named('test').configure { dependsOn 'delombok' }
 }
