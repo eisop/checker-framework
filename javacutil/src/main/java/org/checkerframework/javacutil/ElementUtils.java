@@ -955,7 +955,16 @@ public class ElementUtils {
             return false;
         }
         for (int i = 0, n = params.size(); i < n; ++i) {
-            if (!params.get(i).asType().toString().equals(parameters[i].getName())) {
+            // Class.getName() returns the JVM binary form ("[Ljava.lang.String;" for arrays,
+            // "java.util.Map$Entry" for nested classes), which does not match the source-form
+            // string produced by TypeMirror.toString().  getCanonicalName() uses the source form.
+            String goalName = parameters[i].getCanonicalName();
+            if (goalName == null) {
+                // Local/anonymous classes have no canonical name; TypeMirror.toString() uses the
+                // simple name.
+                goalName = parameters[i].getSimpleName();
+            }
+            if (!params.get(i).asType().toString().equals(goalName)) {
                 return false;
             }
         }
