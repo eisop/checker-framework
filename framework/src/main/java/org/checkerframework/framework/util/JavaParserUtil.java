@@ -139,8 +139,10 @@ public class JavaParserUtil {
         // JavaParser has to be created each time.
         ParserConfiguration configuration = new ParserConfiguration();
         configuration.setLanguageLevel(DEFAULT_LANGUAGE_LEVEL);
-        // Store the tokens so that errors have line and column numbers.
-        // configuration.setStoreTokens(false);
+        // Disable JavaToken retention.  AST nodes carry their own Range (line/column) which is
+        // independent of token storage, so ParseProblem reports continue to include source
+        // positions.
+        configuration.setStoreTokens(false);
         configuration.setLexicalPreservationEnabled(false);
         configuration.setAttributeComments(false);
         configuration.setDetectOriginalLineSeparator(false);
