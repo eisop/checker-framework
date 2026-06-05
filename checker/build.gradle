@@ -468,7 +468,7 @@ if (!skipDelombok) {
         outputs.dir file(srcDelomboked)
 
         // Because there are Checker Framework annotations in the test source.
-        dependsOn project(':checker-qual').tasks.jar
+        dependsOn ':checker-qual:jar'
 
         doLast {
             def collection = files(configurations.testCompileClasspath)
@@ -672,12 +672,13 @@ task ainferTestCheckerGenerateJaifs(type: Test) {
 }
 
 tasks.register('ainferTestCheckerGenerateJaifsInsertAnnotations', InsertAnnotationsToSource) {
-    dependsOn ainferTestCheckerGenerateJaifs
+    dependsOn 'ainferTestCheckerGenerateJaifs'
+    dependsOn ':checker-qual:jar'
 
     afuDir = afu
     testDir = 'tests/ainfer-testchecker'
-    def checkerQualJarFile = file(project(':checker-qual').tasks.getByName('jar').archiveFile)
-    classpath = "${sourceSets.test.output.asPath}:${checkerQualJarFile}:"
+    def checkerQualJar = project(':checker-qual').tasks.named('jar', Jar).flatMap { it.archiveFile }
+    classpath = "${sourceSets.test.output.asPath}:${checkerQualJar.get().asFile}:"
 }
 
 task ainferTestCheckerValidateJaifs(type: Test) {
@@ -814,12 +815,13 @@ task ainferNullnessGenerateJaifs(type: Test) {
     finalizedBy 'ainferNullnessGenerateJaifsInsertAnnotations'
 }
 tasks.register('ainferNullnessGenerateJaifsInsertAnnotations', InsertAnnotationsToSource) {
-    dependsOn ainferNullnessGenerateJaifs
+    dependsOn 'ainferNullnessGenerateJaifs'
+    dependsOn ':checker-qual:jar'
 
     afuDir = afu
     testDir = 'tests/ainfer-nullness/'
-    def checkerQualJarFile = file(project(':checker-qual').tasks.getByName('jar').archiveFile)
-    classpath = "${sourceSets.test.output.asPath}:${checkerQualJarFile}:"
+    def checkerQualJar = project(':checker-qual').tasks.named('jar', Jar).flatMap { it.archiveFile }
+    classpath = "${sourceSets.test.output.asPath}:${checkerQualJar.get().asFile}:"
 }
 
 task ainferNullnessValidateJaifs(type: Test) {

@@ -179,16 +179,23 @@ task allSourcesJar(type: Jar, group: 'Build') {
 
 task allJavadocJar(type: Jar, group: 'Build') {
     description = 'Creates javadoc jar include Javadoc for all of the framework'
-    dependsOn (project(':framework').tasks.javadoc,
-            project(':dataflow').tasks.javadoc,
-            project(':javacutil').tasks.javadoc)
+    def javadocs = [
+        ':framework',
+        ':dataflow',
+        ':javacutil'
+    ].collect {
+        project(it).tasks.named('javadoc', Javadoc)
+    }
+    dependsOn javadocs
 
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     destinationDirectory = file("${projectDir}/dist")
     archiveFileName = 'framework-javadoc.jar'
-    from (project(':framework').tasks.javadoc.destinationDir,
-            project(':dataflow').tasks.javadoc.destinationDir,
-            project(':javacutil').tasks.javadoc.destinationDir)
+    from javadocs.collect {
+        it.map { jd ->
+            jd.destinationDir
+        }
+    }
 }
 
 shadowJar {
@@ -215,8 +222,8 @@ task loaderTests(type: Exec, dependsOn: 'shadowJar', group: 'Verification') {
     dependsOn(compileTestJava)
 
     // TODO: this dependency on checker is a bit ugly.
-    dependsOn project(':checker-qual').tasks.jar
-    dependsOn project(':checker').tasks.assemble
+    dependsOn ':checker-qual:jar'
+    dependsOn ':checker:assemble'
     commandLine 'make', '-C', 'tests/annotationclassloader/', 'all'
 }
 
@@ -251,7 +258,7 @@ if (skipDelombok) {
         // This dependency is required to ensure the checker-qual jar exists,
         // to prevent lombok from emitting "cannot find symbol" errors for @This
         // annotations in the test input code.
-        dependsOn project(':checker-qual').tasks.jar
+        dependsOn ':checker-qual:jar'
 
         doLast {
             if (!skipDelombok) {

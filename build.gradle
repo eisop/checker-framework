@@ -658,16 +658,18 @@ tasks.register('version') {
  * @param args list of arguments to pass to the checker
  */
 def createCheckTypeTask(projectName, taskName, checker, args = []) {
-    project("${projectName}").tasks.create(name: "check${taskName}", type: JavaCompile, dependsOn: ':checker:shadowJar') {
+    def proj = project("${projectName}")
+    proj.tasks.register("check${taskName}", JavaCompile) {
+        dependsOn ':checker:shadowJar'
         description = "Run the ${taskName} Checker on the main sources."
         group = 'Verification'
         // Always run the task.
         outputs.upToDateWhen { false }
-        source = project("${projectName}").sourceSets.main.java
-        classpath = files(project("${projectName}").compileJava.classpath,project(':checker-qual').sourceSets.main.output)
+        source = proj.sourceSets.main.java
+        classpath = files(proj.compileJava.classpath, project(':checker-qual').sourceSets.main.output)
         destinationDirectory = layout.buildDirectory
 
-        options.annotationProcessorPath = files(project(':checker').tasks.shadowJar.archiveFile)
+        options.annotationProcessorPath = files(project(':checker').tasks.named('shadowJar').flatMap { it.archiveFile })
         options.compilerArgs += [
             '-processor',
             "${checker}",

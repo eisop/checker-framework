@@ -240,7 +240,7 @@ publishing {
 
         dataflowShaded(MavenPublication) {
             dataflowShadedPom(it, 'shaded')
-            artifact project.tasks.getByName('dataflowshadedJar').archiveFile
+            artifact tasks.named('dataflowshadedJar', Jar)
             artifact sourcesJar
             artifact javadocJar
         }
@@ -248,7 +248,7 @@ publishing {
         dataflowShadednullaway(MavenPublication) {
             dataflowShadedPom(it, 'nullaway')
 
-            artifact project.tasks.getByName('dataflownullawayJar').archiveFile
+            artifact tasks.named('dataflownullawayJar', Jar)
             artifact sourcesJar
             artifact javadocJar
         }
@@ -256,7 +256,7 @@ publishing {
         dataflowShadederrorprone(MavenPublication) {
             dataflowShadedPom(it, 'errorprone')
 
-            artifact project.tasks.getByName('dataflowerrorproneJar').archiveFile
+            artifact tasks.named('dataflowerrorproneJar', Jar)
             artifact sourcesJar
             artifact javadocJar
         }
