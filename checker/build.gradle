@@ -474,9 +474,6 @@ task ainferTestCheckerGenerateStubs(type: Test) {
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerStubsGenerationTest.class'
     testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
         // Show the found unexpected diagnostics and the expected diagnostics not found.
         exceptionFormat = 'full'
         events 'passed', 'skipped', 'failed'
@@ -513,9 +510,6 @@ task ainferTestCheckerValidateStubs(type: Test) {
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerStubsValidationTest.class'
     testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
         // Show the found unexpected diagnostics and the expected diagnostics not found.
         exceptionFormat = 'full'
         events 'passed', 'skipped', 'failed'
@@ -533,9 +527,6 @@ task ainferTestCheckerGenerateAjava(type: Test) {
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerAjavaGenerationTest.class'
     testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
         // Show the found unexpected diagnostics and the expected diagnostics not found.
         exceptionFormat = 'full'
         events 'passed', 'skipped', 'failed'
@@ -572,9 +563,6 @@ task ainferTestCheckerValidateAjava(type: Test) {
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerAjavaValidationTest.class'
     testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
         // Show the found unexpected diagnostics and the expected diagnostics not found.
         exceptionFormat = 'full'
         events 'passed', 'skipped', 'failed'
@@ -638,9 +626,6 @@ task ainferTestCheckerGenerateJaifs(type: Test) {
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerJaifsGenerationTest.class'
     testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
         // Show the found unexpected diagnostics and expected diagnostics not found.
         exceptionFormat = 'full'
         events 'passed', 'skipped', 'failed'
@@ -688,9 +673,6 @@ task ainferTestCheckerValidateJaifs(type: Test) {
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerJaifsValidationTest.class'
     testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
         // Show the found unexpected diagnostics and expected diagnostics not found.
         exceptionFormat = 'full'
         events 'passed', 'skipped', 'failed'
@@ -714,9 +696,6 @@ task ainferIndexGenerateAjava(type: Test) {
     outputs.upToDateWhen { false }
     include '**/AinferIndexAjavaGenerationTest.class'
     testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
         // Show the found unexpected diagnostics and the expected diagnostics not found.
         exceptionFormat = 'full'
         events 'passed', 'skipped', 'failed'
@@ -734,9 +713,6 @@ task ainferIndexValidateAjava(type: Test) {
     outputs.upToDateWhen { false }
     include '**/AinferIndexAjavaValidationTest.class'
     testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
         // Show the found unexpected diagnostics and the expected diagnostics not found.
         exceptionFormat = 'full'
         events 'passed', 'skipped', 'failed'
@@ -760,9 +736,6 @@ task ainferNullnessGenerateAjava(type: Test) {
     outputs.upToDateWhen { false }
     include '**/AinferNullnessAjavaGenerationTest.class'
     testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
         // Show the found unexpected diagnostics and the expected diagnostics not found.
         exceptionFormat = 'full'
         events 'passed', 'skipped', 'failed'
@@ -780,9 +753,6 @@ task ainferNullnessValidateAjava(type: Test) {
     outputs.upToDateWhen { false }
     include '**/AinferNullnessAjavaValidationTest.class'
     testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
         // Show the found unexpected diagnostics and the expected diagnostics not found.
         exceptionFormat = 'full'
         events 'passed', 'skipped', 'failed'
@@ -806,9 +776,6 @@ task ainferResourceLeakGenerateAjava(type: Test) {
     outputs.upToDateWhen { false }
     include '**/AinferResourceLeakAjavaGenerationTest.class'
     testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
         // Show the found unexpected diagnostics and the expected diagnostics not found.
         exceptionFormat = 'full'
         events 'passed', 'skipped', 'failed'
@@ -826,9 +793,6 @@ task ainferResourceLeakValidateAjava(type: Test) {
     outputs.upToDateWhen { false }
     include '**/AinferResourceLeakAjavaValidationTest.class'
     testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
         // Show the found unexpected diagnostics and the expected diagnostics not found.
         exceptionFormat = 'full'
         events 'passed', 'skipped', 'failed'
@@ -851,9 +815,6 @@ task ainferNullnessGenerateJaifs(type: Test) {
     outputs.upToDateWhen { false }
     include '**/AinferNullnessJaifsGenerationTest.class'
     testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
         // Show the found unexpected diagnostics and expected diagnostics not found.
         exceptionFormat = 'full'
         events 'passed', 'skipped', 'failed'
@@ -886,9 +847,6 @@ task ainferNullnessValidateJaifs(type: Test) {
     outputs.upToDateWhen { false }
     include '**/AinferNullnessJaifsValidationTest.class'
     testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
         // Show the found unexpected diagnostics and expected diagnostics not found.
         exceptionFormat = 'full'
         events 'passed', 'skipped', 'failed'

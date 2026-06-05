@@ -1211,10 +1211,11 @@ subprojects {
                 systemProperties += ['emit.test.debug': 'true']
             }
 
+            // Always re-run tests.  This must live at the test task level.
+            outputs.upToDateWhen { false }
+
             testLogging {
                 showStandardStreams = true
-                // Always run the tests
-                outputs.upToDateWhen { false }
 
                 // Show the found unexpected diagnostics and expected diagnostics not found.
                 exceptionFormat = 'full'
