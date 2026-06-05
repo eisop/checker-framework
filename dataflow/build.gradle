@@ -31,7 +31,9 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
  * @return
  */
 def createDataflowShaded(shadedPkgName) {
-    tasks.create(name: "dataflow${shadedPkgName}Jar", type: ShadowJar, dependsOn: compileJava, group: 'Build') {
+    tasks.register("dataflow${shadedPkgName}Jar", ShadowJar) {
+        dependsOn 'compileJava'
+        group = 'Build'
         description = "Builds dataflow-${shadedPkgName}.jar."
         includeEmptyDirs = false
         base {
@@ -66,7 +68,8 @@ createDataflowShaded('shaded')
 createDataflowShaded('nullaway')
 createDataflowShaded('errorprone')
 
-task manual(type: Exec, group: 'Documentation') {
+tasks.register('manual', Exec) {
+    group = 'Documentation'
     description = 'Build the manual'
     commandLine 'make', '-C', 'manual'
 }
@@ -78,7 +81,8 @@ tasks.withType(Test) {
     dependsOn('allDataflowTests')
 }
 
-tasks.create(name: 'allDataflowTests', group: 'Verification') {
+tasks.register('allDataflowTests') {
+    group = 'Verification'
     description = 'Run all dataflow analysis tests'
     // 'allDataflowTests' is automatically populated by testDataflowAnalysis().
 }
@@ -99,7 +103,7 @@ tasks.create(name: 'allDataflowTests', group: 'Verification') {
  */
 def testDataflowAnalysis(taskName, dirName, className, diff) {
     if (diff) {
-        tasks.create(name: "${taskName}Diff", type: Exec) {
+        tasks.register("${taskName}Diff", Exec) {
             dependsOn taskName
             workingDir = "tests/${dirName}"
             executable 'diff'
@@ -110,7 +114,9 @@ def testDataflowAnalysis(taskName, dirName, className, diff) {
             ]
         }
     }
-    tasks.create(name: taskName, type: JavaExec, dependsOn: [assemble, compileTestJava], group: 'Verification') {
+    tasks.register(taskName, JavaExec) {
+        dependsOn('assemble', 'compileTestJava')
+        group = 'Verification'
         description = "Run the ${dirName} dataflow framework test."
         if (diff) {
             inputs.file("tests/${dirName}/Expected.txt")
@@ -156,7 +162,7 @@ def testDataflowAnalysis(taskName, dirName, className, diff) {
             finalizedBy "${taskName}Diff"
         }
     }
-    allDataflowTests.dependsOn << taskName
+    tasks.named('allDataflowTests').configure { dependsOn taskName }
 }
 
 // When adding a new test case, don't forget to add the temporary files to `../.gitignore`.
@@ -240,7 +246,7 @@ publishing {
 
         dataflowShaded(MavenPublication) {
             dataflowShadedPom(it, 'shaded')
-            artifact project.tasks.getByName('dataflowshadedJar').archiveFile
+            artifact tasks.named('dataflowshadedJar', Jar)
             artifact sourcesJar
             artifact javadocJar
         }
@@ -248,7 +254,7 @@ publishing {
         dataflowShadednullaway(MavenPublication) {
             dataflowShadedPom(it, 'nullaway')
 
-            artifact project.tasks.getByName('dataflownullawayJar').archiveFile
+            artifact tasks.named('dataflownullawayJar', Jar)
             artifact sourcesJar
             artifact javadocJar
         }
@@ -256,7 +262,7 @@ publishing {
         dataflowShadederrorprone(MavenPublication) {
             dataflowShadedPom(it, 'errorprone')
 
-            artifact project.tasks.getByName('dataflowerrorproneJar').archiveFile
+            artifact tasks.named('dataflowerrorproneJar', Jar)
             artifact sourcesJar
             artifact javadocJar
         }
