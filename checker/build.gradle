@@ -126,6 +126,19 @@ jar {
     }
 }
 
+/**
+ * Apply the testLogging configuration shared by every Ainfer JUnit task in this
+ * file.  Pass the task as 'delegate' from inside a 'task X(type: Test) { ... }'
+ * closure, e.g. 'configureAinferTestLogging(delegate)'.
+ */
+void configureAinferTestLogging(Test t) {
+    t.testLogging {
+        // Show the found unexpected diagnostics and expected diagnostics not found.
+        exceptionFormat = 'full'
+        events 'passed', 'skipped', 'failed'
+    }
+}
+
 // This task differs from the `assemble` task in that it does not build Javadoc.
 // It is useful for those who only want to run `javac`.
 task assembleForJavac(group: 'Build') {
@@ -493,14 +506,7 @@ task ainferTestCheckerGenerateStubs(type: Test) {
     }
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerStubsGenerationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and the expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 
     doLast {
         copyNonannotatedToAnnotatedDirectory('ainfer-testchecker')
@@ -532,14 +538,7 @@ task ainferTestCheckerValidateStubs(type: Test) {
     dependsOn(ainferTestCheckerGenerateStubs)
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerStubsValidationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and the expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 }
 
 task ainferTestCheckerGenerateAjava(type: Test) {
@@ -552,14 +551,7 @@ task ainferTestCheckerGenerateAjava(type: Test) {
     }
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerAjavaGenerationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and the expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 
     doLast {
         copyNonannotatedToAnnotatedDirectory('ainfer-testchecker')
@@ -591,14 +583,7 @@ task ainferTestCheckerValidateAjava(type: Test) {
     dependsOn(ainferTestCheckerGenerateAjava)
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerAjavaValidationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and the expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 }
 
 // Copies directories as needed by WPI tests.
@@ -657,14 +642,7 @@ task ainferTestCheckerGenerateJaifs(type: Test) {
     }
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerJaifsGenerationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 
     def injected = project.objects.newInstance(InjectedExecOps)
 
@@ -707,14 +685,7 @@ task ainferTestCheckerValidateJaifs(type: Test) {
     dependsOn(ainferTestCheckerGenerateJaifs)
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerJaifsValidationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 }
 
 task ainferTestCheckerJaifTest(dependsOn: 'shadowJar', group: 'Verification') {
@@ -733,14 +704,7 @@ task ainferIndexGenerateAjava(type: Test) {
     }
     outputs.upToDateWhen { false }
     include '**/AinferIndexAjavaGenerationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and the expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 
     doLast {
         copyNonannotatedToAnnotatedDirectory('ainfer-index')
@@ -753,14 +717,7 @@ task ainferIndexValidateAjava(type: Test) {
     dependsOn(ainferIndexGenerateAjava)
     outputs.upToDateWhen { false }
     include '**/AinferIndexAjavaValidationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and the expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 }
 
 task ainferIndexAjavaTest(dependsOn: 'shadowJar', group: 'Verification') {
@@ -779,14 +736,7 @@ task ainferNullnessGenerateAjava(type: Test) {
     }
     outputs.upToDateWhen { false }
     include '**/AinferNullnessAjavaGenerationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and the expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 
     doLast {
         copyNonannotatedToAnnotatedDirectory('ainfer-nullness')
@@ -799,14 +749,7 @@ task ainferNullnessValidateAjava(type: Test) {
     dependsOn(ainferNullnessGenerateAjava)
     outputs.upToDateWhen { false }
     include '**/AinferNullnessAjavaValidationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and the expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 }
 
 task ainferNullnessAjavaTest(dependsOn: 'shadowJar', group: 'Verification') {
@@ -825,14 +768,7 @@ task ainferResourceLeakGenerateAjava(type: Test) {
     }
     outputs.upToDateWhen { false }
     include '**/AinferResourceLeakAjavaGenerationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and the expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 
     doLast {
         copyNonannotatedToAnnotatedDirectory('ainfer-resourceleak')
@@ -845,14 +781,7 @@ task ainferResourceLeakValidateAjava(type: Test) {
     dependsOn(ainferResourceLeakGenerateAjava)
     outputs.upToDateWhen { false }
     include '**/AinferResourceLeakAjavaValidationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and the expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 }
 
 task ainferResourceLeakAjavaTest(dependsOn: 'shadowJar', group: 'Verification') {
@@ -870,14 +799,7 @@ task ainferNullnessGenerateJaifs(type: Test) {
     }
     outputs.upToDateWhen { false }
     include '**/AinferNullnessJaifsGenerationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 
     def injected = project.objects.newInstance(InjectedExecOps)
 
@@ -905,14 +827,7 @@ task ainferNullnessValidateJaifs(type: Test) {
     dependsOn(ainferNullnessGenerateJaifs)
     outputs.upToDateWhen { false }
     include '**/AinferNullnessJaifsValidationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 }
 
 task ainferNullnessJaifTest(dependsOn: 'shadowJar', group: 'Verification') {
