@@ -194,9 +194,20 @@ public class ElementUtils {
      * @return the parent package element or {@code null}
      */
     public static @Nullable PackageElement parentPackage(PackageElement elem, Elements elements) {
-        // The following might do the same thing:
-        //   ((Symbol) elt).owner;
-        // TODO: verify and see whether the change is worth it.
+        // Fast path: javac's PackageSymbol exposes its enclosing package directly via 'owner',
+        // avoiding the Elements#getPackageElement(String) call below.
+        //
+        // For a top-level package, owner is the enclosing ModuleSymbol (or unnamed-module
+        // marker), which is not a PackageSymbol; return null in that case to preserve the
+        // existing contract that the parent of a top-level package is null.
+        if (elem instanceof Symbol.PackageSymbol) {
+            Symbol owner = ((Symbol.PackageSymbol) elem).owner;
+            if (owner instanceof Symbol.PackageSymbol) {
+                return (PackageElement) owner;
+            }
+            return null;
+        }
+        // Fallback for non-javac PackageElement implementations.
         String fqnstart = getQualifiedName(elem);
         String fqn = fqnstart;
         if (fqn != null && !fqn.isEmpty()) {

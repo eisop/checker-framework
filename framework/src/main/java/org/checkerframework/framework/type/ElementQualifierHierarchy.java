@@ -322,6 +322,9 @@ public abstract class ElementQualifierHierarchy extends QualifierHierarchy {
     @Override
     public @Nullable AnnotationMirror findAnnotationInSameHierarchy(
             Collection<? extends AnnotationMirror> annos, AnnotationMirror annotationMirror) {
+        if (annos.isEmpty()) {
+            return null;
+        }
         QualifierKind kind = getQualifierKind(annotationMirror);
         for (AnnotationMirror candidate : annos) {
             QualifierKind candidateKind = getQualifierKind(candidate);

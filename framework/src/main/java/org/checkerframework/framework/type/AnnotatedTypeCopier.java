@@ -12,7 +12,6 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionTyp
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeVisitor;
-import org.plumelib.util.CollectionsPlume;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -125,10 +124,11 @@ public class AnnotatedTypeCopier
         }
 
         if (original.typeArgs != null) {
-            List<AnnotatedTypeMirror> copyTypeArgs =
-                    CollectionsPlume.mapList(
-                            (AnnotatedTypeMirror typeArg) -> visit(typeArg, originalToCopy),
-                            original.getTypeArguments());
+            List<? extends AnnotatedTypeMirror> origTypeArgs = original.getTypeArguments();
+            List<AnnotatedTypeMirror> copyTypeArgs = new ArrayList<>(origTypeArgs.size());
+            for (AnnotatedTypeMirror typeArg : origTypeArgs) {
+                copyTypeArgs.add(visit(typeArg, originalToCopy));
+            }
             copy.setTypeArguments(copyTypeArgs);
         }
 
@@ -147,10 +147,11 @@ public class AnnotatedTypeCopier
         AnnotatedIntersectionType copy = makeOrReturnCopy(original, originalToCopy);
 
         if (original.bounds != null) {
-            List<AnnotatedTypeMirror> copySupertypes =
-                    CollectionsPlume.mapList(
-                            (AnnotatedTypeMirror bound) -> visit(bound, originalToCopy),
-                            original.bounds);
+            List<AnnotatedTypeMirror> origBounds = original.bounds;
+            List<AnnotatedTypeMirror> copySupertypes = new ArrayList<>(origBounds.size());
+            for (AnnotatedTypeMirror bound : origBounds) {
+                copySupertypes.add(visit(bound, originalToCopy));
+            }
             copy.bounds = Collections.unmodifiableList(copySupertypes);
         }
 
@@ -169,11 +170,11 @@ public class AnnotatedTypeCopier
         AnnotatedUnionType copy = makeOrReturnCopy(original, originalToCopy);
 
         if (original.alternatives != null) {
-            List<AnnotatedDeclaredType> copyAlternatives =
-                    CollectionsPlume.mapList(
-                            (AnnotatedDeclaredType supertype) ->
-                                    (AnnotatedDeclaredType) visit(supertype, originalToCopy),
-                            original.alternatives);
+            List<AnnotatedDeclaredType> origAlternatives = original.alternatives;
+            List<AnnotatedDeclaredType> copyAlternatives = new ArrayList<>(origAlternatives.size());
+            for (AnnotatedDeclaredType supertype : origAlternatives) {
+                copyAlternatives.add((AnnotatedDeclaredType) visit(supertype, originalToCopy));
+            }
             copy.alternatives = Collections.unmodifiableList(copyAlternatives);
         }
 
