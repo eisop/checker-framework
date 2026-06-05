@@ -21,12 +21,6 @@ dependencies {
     // ../build.gradle in the createDataflowShaded task).
 }
 
-// Enable exec/javaexec
-interface InjectedExecOps {
-    @Inject
-    ExecOperations getExecOps()
-}
-
 // Shadowing Test Sources and Dependencies
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
@@ -52,7 +46,7 @@ def createDataflowShaded(shadedPkgName) {
         from shadowJar.source
         configurations = shadowJar.configurations
 
-        destinationDirectory = file("${buildDir}/shadow/dataflow${shadedPkgName}")
+        destinationDirectory = layout.buildDirectory.dir("shadow/dataflow${shadedPkgName}")
 
 
         relocate('org.checkerframework', "org.checkerframework.${shadedPkgName}") {
@@ -126,8 +120,12 @@ def testDataflowAnalysis(taskName, dirName, className, diff) {
         outputs.file("tests/${dirName}/Out.txt")
         outputs.file("tests/${dirName}/Test.class")
 
-        delete("tests/${dirName}/Out.txt")
-        delete("tests/${dirName}/Test.class")
+        doFirst {
+            // These deletions must run only when this task executes, not at
+            // configuration time.
+            delete("tests/${dirName}/Out.txt")
+            delete("tests/${dirName}/Test.class")
+        }
 
         workingDir = "tests/${dirName}"
         if (isJava8) {
