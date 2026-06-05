@@ -76,10 +76,11 @@ jfr summary cf.jfr
 Drill into a specific method via JSON:
 
 ```
-jfr print --json --events jdk.ExecutionSample cf.jfr | jq -c \
-  '.recording.events[] | select(.values.sampledThread.javaName=="main")
-   | .values.stackTrace.frames[].method
-   | .type.name + "." + .name' | sort | uniq -c | sort -rn | head -50
+jfr print --json --events jdk.ExecutionSample cf.jfr
+    | jq -c '.recording.events[] | select(.values.sampledThread.javaName=="main")
+        | .values.stackTrace.frames[].method
+        | .type.name + "." + .name'
+    | sort | uniq -c | sort -rn | head -50
 ```
 
 If `jfr print` crashes on certain method names (it sometimes does on
@@ -104,7 +105,7 @@ In order of historical hit rate on this codebase:
 5. **Cold paths in hot wrappers** — a defensive copy or stream allocation
    inside a per-tree visitor.
 
-## What to do *not* propose without strong evidence
+## What to *not* propose without strong evidence
 
 - Changes to public `checker-qual` API.
 - Changes to `AnnotatedTypeMirror` equality/hash contract semantics —

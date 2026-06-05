@@ -79,9 +79,6 @@ opened.
 - **Default values in public classes** without a release note.
 - **`AnnotatedTypeMirror` equality/hash contract.** Cache it, don't
   redefine it.
-- **`AnnotationMirrorSet`'s non-standard `addAll` semantics.** The fast
-  path returns `true` if *any* element was new; collapsing to standard
-  semantics breaks `indextest`.
 - **`@Pure`/`@Deterministic`/`@SideEffectFree` annotations on methods**
   unless you understand the dataflow consequences.
 
@@ -110,6 +107,8 @@ git checkout - && git branch -D verify
 - `./gradlew alltests` — strongly preferred for any framework or
   javacutil change. Subtle visitor and dataflow semantics often fail
   only in obscure checkers.
+- Run `./gradlew spotlessApply` before committing to ensure all formatting is
+  correct.
 
 If `alltests` is impractical (e.g., no local JDK matrix), say so
 explicitly in the PR description rather than implying it passed.
