@@ -733,12 +733,22 @@ def javadocDirs = [
 
 def requireJavadocDirs = javadocDirs
 
+// The wrapping '[ ]' is required.  'requireJavadocDirs += someSourceDirectorySet'
+// would resolve Groovy's plus(List, Iterable) overload (SourceDirectorySet is
+// Iterable<File> but not a Collection) and flatten the set into individual File
+// elements.  The 'it.srcDirs' access where requireJavadocDirs is consumed expects
+// each element to be a SourceDirectorySet, as the entries of javadocDirs are, so we
+// must append the SourceDirectorySet as a single element via plus(List, Collection).
 project(':checker').afterEvaluate {
-    requireJavadocDirs += project(':checker').sourceSets.testannotations.allJava
+    requireJavadocDirs += [
+        project(':checker').sourceSets.testannotations.allJava
+    ]
 }
 
 project(':framework').afterEvaluate {
-    requireJavadocDirs += project(':framework').sourceSets.testannotations.allJava
+    requireJavadocDirs += [
+        project(':framework').sourceSets.testannotations.allJava
+    ]
 }
 
 tasks.register('addFavicon', Exec) {
