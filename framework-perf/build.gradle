@@ -51,7 +51,7 @@ jmh {
 tasks.named('jmh').configure {
     if (JavaVersion.current() >= JavaVersion.VERSION_1_9) {
         // Reuse the repo-wide javac internals access flags so this stays in sync with other CF runs.
-        jvmArgs += compilerArgsForRunningCF
+        jvmArgsAppend.addAll(compilerArgsForRunningCF)
     }
 }
 
