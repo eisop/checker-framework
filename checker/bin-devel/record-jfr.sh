@@ -31,11 +31,11 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 JFC_FILE="$SCRIPT_DIR/profile-cf.jfc"
 
 usage() {
-    cat >&2 <<'EOF'
+  cat >&2 << 'EOF'
 Usage: record-jfr.sh -o OUT.jfr [--javac] [--duration N] -- <command> [args...]
 
 Options:
@@ -55,7 +55,7 @@ Examples:
   record-jfr.sh -o /tmp/cf.jfr --javac -- \
       ./checker/bin/javac -processor nullness MyFile.java
 EOF
-    exit 2
+  exit 2
 }
 
 OUT=""
@@ -63,59 +63,75 @@ DURATION=600
 JAVAC_MODE=0
 
 while [[ $# -gt 0 ]]; do
-    case "$1" in
-        -o)              OUT="$2"; shift 2 ;;
-        --javac)         JAVAC_MODE=1; shift ;;
-        --duration)      DURATION="$2"; shift 2 ;;
-        -h|--help)       usage ;;
-        --)              shift; break ;;
-        *)               echo "Unknown option: $1" >&2; usage ;;
-    esac
+  case "$1" in
+    -o)
+      OUT="$2"
+      shift 2
+      ;;
+    --javac)
+      JAVAC_MODE=1
+      shift
+      ;;
+    --duration)
+      DURATION="$2"
+      shift 2
+      ;;
+    -h | --help) usage ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      usage
+      ;;
+  esac
 done
 
 if [[ -z "$OUT" ]]; then
-    echo "error: -o OUT.jfr is required" >&2
-    usage
+  echo "error: -o OUT.jfr is required" >&2
+  usage
 fi
 
 if [[ $# -eq 0 ]]; then
-    echo "error: no command after --" >&2
-    usage
+  echo "error: no command after --" >&2
+  usage
 fi
 
 if [[ ! -f "$JFC_FILE" ]]; then
-    echo "error: settings file not found: $JFC_FILE" >&2
-    exit 1
+  echo "error: settings file not found: $JFC_FILE" >&2
+  exit 1
 fi
 
 # Absolute path: multi-module builds run javac in each module's working
 # directory, so a relative filename produces N traces in N places.
 case "$OUT" in
-    /*) ;;
-    *) OUT="$(pwd)/$OUT" ;;
+  /*) ;;
+  *) OUT="$(pwd)/$OUT" ;;
 esac
 
 DUR_CLAUSE=""
 if [[ "$DURATION" != "0" ]]; then
-    DUR_CLAUSE="duration=${DURATION}s,"
+  DUR_CLAUSE="duration=${DURATION}s,"
 fi
 
 JFR_FLAG="-XX:StartFlightRecording=${DUR_CLAUSE}settings=${JFC_FILE},filename=${OUT},dumponexit=true,stackdepth=256"
 
 if [[ $JAVAC_MODE -eq 1 ]]; then
-    # Prepend -J-prefixed flags to the next command.
-    CMD=("$1"); shift
-    exec "${CMD[@]}" "-J${JFR_FLAG}" "$@"
+  # Prepend -J-prefixed flags to the next command.
+  CMD=("$1")
+  shift
+  exec "${CMD[@]}" "-J${JFR_FLAG}" "$@"
 else
-    # Gradle / generic-JVM mode: append to GRADLE_OPTS / JAVA_TOOL_OPTIONS.
-    export GRADLE_OPTS="${GRADLE_OPTS:-} ${JFR_FLAG}"
-    # Also set JAVA_TOOL_OPTIONS so Gradle test JVMs inherit it. Warning:
-    # this makes *every* spawned JVM record, including helpers — and unless
-    # you've set -PmaxParallelForks=1 the parallel test workers will trash
-    # the trace.
-    export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} ${JFR_FLAG}"
-    echo "JFR flags will be applied via GRADLE_OPTS and JAVA_TOOL_OPTIONS:" >&2
-    echo "  $JFR_FLAG" >&2
-    echo "Reminder: Gradle test runs need -PmaxParallelForks=1 to avoid trace corruption." >&2
-    exec "$@"
+  # Gradle / generic-JVM mode: append to GRADLE_OPTS / JAVA_TOOL_OPTIONS.
+  export GRADLE_OPTS="${GRADLE_OPTS:-} ${JFR_FLAG}"
+  # Also set JAVA_TOOL_OPTIONS so Gradle test JVMs inherit it. Warning:
+  # this makes *every* spawned JVM record, including helpers — and unless
+  # you've set -PmaxParallelForks=1 the parallel test workers will trash
+  # the trace.
+  export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} ${JFR_FLAG}"
+  echo "JFR flags will be applied via GRADLE_OPTS and JAVA_TOOL_OPTIONS:" >&2
+  echo "  $JFR_FLAG" >&2
+  echo "Reminder: Gradle test runs need -PmaxParallelForks=1 to avoid trace corruption." >&2
+  exec "$@"
 fi
