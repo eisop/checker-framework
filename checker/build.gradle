@@ -213,15 +213,16 @@ task allSourcesJar(type: Jar, group: 'Build') {
 
 task allJavadocJar(type: Jar, group: 'Build') {
     description = 'Creates javadoc jar including Javadoc for all of the Checker Framework'
-    dependsOn rootProject.tasks.allJavadoc
+    def allJavadoc = rootProject.tasks.named('allJavadoc', Javadoc)
+    dependsOn allJavadoc
     // TODO: This should not be required, but without it the addFavicon task is sometimes not run
     // before this one.
-    dependsOn rootProject.tasks.addFavicon
+    dependsOn rootProject.tasks.named('addFavicon')
 
     destinationDirectory = file("${projectDir}/dist")
     archiveFileName = 'checker-javadoc.jar'
     archiveClassifier = 'javadoc'
-    from rootProject.tasks.allJavadoc.destinationDir
+    from allJavadoc.map { it.destinationDir }
 }
 
 // Shadowing Test Sources and Dependencies

@@ -115,7 +115,7 @@ switch (JavaVersion.current()) {
         break;
 }
 
-task setLocalRepo(type:Exec) {
+tasks.register('setLocalRepo', Exec) {
     commandLine 'git', 'worktree', 'list'
     standardOutput = new ByteArrayOutputStream()
     doLast {
@@ -125,7 +125,8 @@ task setLocalRepo(type:Exec) {
 }
 
 // No group so it does not show up in the output of `gradlew tasks`
-task installGitHooks(type: Copy, dependsOn: 'setLocalRepo') {
+tasks.register('installGitHooks', Copy) {
+    dependsOn 'setLocalRepo'
     description = 'Copies git hooks to .git directory'
     from files('checker/bin-devel/git.post-merge', 'checker/bin-devel/git.pre-commit')
     rename('git\\.(.*)', '$1')
@@ -639,7 +640,8 @@ allprojects { currentProj ->
     } // end afterEvaluate
 } // end allProjects
 
-task version(group: 'Documentation') {
+tasks.register('version') {
+    group = 'Documentation'
     description = 'Print Checker Framework version'
     doLast {
         println version
@@ -697,7 +699,8 @@ def createCheckTypeTask(projectName, taskName, checker, args = []) {
     }
 }
 
-task htmlValidate(type: Exec, group: 'Format') {
+tasks.register('htmlValidate', Exec) {
+    group = 'Format'
     description = 'Validate that HTML files are well-formed'
     // This is the Nu Html Checker (v.Nu): https://github.com/validator/validator
     executable 'html5validator'
@@ -736,7 +739,7 @@ project(':framework').afterEvaluate {
     requireJavadocDirs += project(':framework').sourceSets.testannotations.allJava
 }
 
-task addFavicon(type: Exec) {
+tasks.register('addFavicon', Exec) {
     dependsOn 'getHtmlTools'
     dependsOn 'allJavadoc'
     workingDir "${rootDir}/docs/api"
@@ -760,7 +763,8 @@ task addFavicon(type: Exec) {
 //   It's needed to create the Javadoc jars that we release in Maven Central.
 // To make javadoc for only one subproject, run `./gradlew javadoc`
 //   in the subproject or `./gradlew :checker:javadoc` at the top level.
-task allJavadoc(type: Javadoc, group: 'Documentation') {
+tasks.register('allJavadoc', Javadoc) {
+    group = 'Documentation'
     description = 'Generates API documentation that includes all the modules.'
     dependsOn(':checker:shadowJar', 'getPlumeScripts')
     destinationDir = file("${rootDir}/docs/api")
@@ -785,13 +789,13 @@ task allJavadoc(type: Javadoc, group: 'Documentation') {
 }
 
 // See documentation for allJavadoc task.
-javadoc.dependsOn(allJavadoc)
+tasks.named('javadoc').configure { dependsOn 'allJavadoc' }
 
-task cleanManual(type: Exec) {
+tasks.register('cleanManual', Exec) {
     description = 'Clean the manual'
     commandLine 'make', '-C', 'docs/manual', 'clean'
 }
-clean.dependsOn(cleanManual)
+clean.dependsOn('cleanManual')
 clean {
     delete(file("${rootDir}/docs/api"))
 }
@@ -804,7 +808,8 @@ dependencies {
     requireJavadoc 'org.plumelib:require-javadoc:2.0.0'
 }
 
-task requireJavadoc(type: JavaExec, group: 'Documentation') {
+tasks.register('requireJavadoc', JavaExec) {
+    group = 'Documentation'
     description = 'Ensures that Javadoc documentation exists in source code.'
     mainClass = 'org.plumelib.javadoc.RequireJavadoc'
     classpath = configurations.requireJavadoc
@@ -861,13 +866,14 @@ def createJavadocTask(taskName, taskDescription, memberLevel) {
 
 createJavadocTask('javadocDoclintAll', 'Runs javadoc with -Xdoclint:all option.', JavadocMemberLevel.PRIVATE)
 
-task manual(type: Exec, group: 'Documentation') {
+tasks.register('manual', Exec) {
+    group = 'Documentation'
     description = 'Build the manual'
     commandLine 'make', '-C', 'docs/manual', 'all'
 }
 
 // No group so it does not show up in the output of `gradlew tasks`
-task downloadJtreg(type: Download) {
+tasks.register('downloadJtreg', Download) {
     description = 'Downloads and unpacks jtreg.'
     onlyIf { !(new File("${jtregHome}/lib/jtreg.jar").exists()) }
     // src 'https://ci.adoptopenjdk.net/view/Dependencies/job/jtreg/lastSuccessfulBuild/artifact/jtreg-4.2.0-tip.tar.gz'
@@ -931,18 +937,19 @@ tasks.register('getDemos', CloneTask) {
 }
 
 // No group so it does not show up in the output of `gradlew tasks`
-task pythonIsInstalled(type: Exec) {
+tasks.register('pythonIsInstalled', Exec) {
     description = 'Check that the python3 executable is installed.'
     executable = 'python3'
     args '--version'
 }
 
-task docTags(type: Exec, group: 'Emacs') {
+tasks.register('docTags', Exec) {
+    group = 'Emacs'
     commandLine 'make', '-C', 'docs/manual', 'tags'
 }
 
 task tags(type: Exec, group: 'Emacs') {
-    dependsOn docTags
+    dependsOn 'docTags'
     description = 'Create Emacs TAGS table'
     // running this task will also run the tags task in the subprojects, which is defined later in this file.
     commandLine 'etags', '-i', 'checker/TAGS', '-i', 'checker-qual/TAGS', '-i', 'checker-util/TAGS', '-i', 'dataflow/TAGS', '-i', 'framework/TAGS', '-i', 'framework-test/TAGS', '-i', 'javacutil/TAGS', '-i', 'docs/manual/TAGS'
@@ -1331,9 +1338,10 @@ assemble.dependsOn(':checker:assembleForJavac')
 
 assemble.mustRunAfter(clean)
 
-task buildAll(group: 'Build') {
+tasks.register('buildAll') {
+    group = 'Build'
     description = 'Build all jar files, including source and javadoc jars'
-    dependsOn(allJavadoc)
+    dependsOn('allJavadoc')
     subprojects { Project subproject ->
         dependsOn("${subproject.name}:assemble")
         dependsOn("${subproject.name}:javadocJar")
@@ -1343,16 +1351,17 @@ task buildAll(group: 'Build') {
     dependsOn('checker:assembleForJavac')
 }
 
-task releaseBuild(group: 'Build') {
+tasks.register('releaseBuild') {
+    group = 'Build'
     description = 'Cleans, then builds everything required for a release'
     dependsOn(clean)
-    dependsOn(buildAll)
+    dependsOn('buildAll')
 }
 
 // No group so it does not show up in the output of `gradlew tasks`
-task releaseAndTest {
+tasks.register('releaseAndTest') {
     description = 'Build everything required for a release and run allTests'
-    dependsOn(releaseBuild)
+    dependsOn('releaseBuild')
     subprojects { Project subproject ->
         dependsOn("${subproject.name}:allTests")
     }
