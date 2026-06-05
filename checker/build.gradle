@@ -700,7 +700,7 @@ tasks.register('ainferTestCheckerGenerateJaifsInsertAnnotations', InsertAnnotati
     afuDir = afu
     testDir = 'tests/ainfer-testchecker'
     def checkerQualJar = project(':checker-qual').tasks.named('jar', Jar).flatMap { it.archiveFile }
-    classpath = "${sourceSets.test.output.asPath}:${checkerQualJar.get().asFile}:"
+    classpath = checkerQualJar.map { "${sourceSets.test.output.asPath}:${it.asFile}:" }
 }
 
 tasks.register('ainferTestCheckerValidateJaifs', Test) {
