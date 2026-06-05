@@ -227,11 +227,18 @@ public class NoElementQualifierHierarchy extends QualifierHierarchy {
         }
         QualifierKind kind = getQualifierKind(annotationMirror);
         // Fast path: when there is a single qualifier hierarchy (the typical case for type
-        // systems like the Nullness Checker), every supported qualifier necessarily belongs
-        // to that hierarchy, so the first element of annos is the answer.  Avoids one
-        // identity-map lookup per candidate.
-        if (tops.size() == 1) {
-            return annos.iterator().next();
+        // systems like the Nullness Checker) and annos contains exactly one qualifier from this
+        // hierarchy, that qualifier is the answer. Avoids one identity-map lookup per
+        // candidate.
+        if (tops.size() == 1 && annos.size() == 1) {
+            AnnotationMirror onlyAnno = annos.iterator().next();
+            try {
+                if (getQualifierKind(onlyAnno).isInSameHierarchyAs(kind)) {
+                    return onlyAnno;
+                }
+            } catch (BugInCF ignored) {
+                // Fall through to the general-path scan below.
+            }
         }
         for (AnnotationMirror candidate : annos) {
             QualifierKind candidateKind = getQualifierKind(candidate);
