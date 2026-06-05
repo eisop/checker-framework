@@ -40,8 +40,10 @@ import javax.lang.model.element.AnnotationMirror;
  */
 public class PerfRegressionTest {
 
+    /** The processing environment to use. */
     private final ProcessingEnvironment env;
 
+    /** Default constructor. */
     public PerfRegressionTest() {
         Context context = new Context();
         Options options = Options.instance(context);
@@ -53,6 +55,12 @@ public class PerfRegressionTest {
         javac.enterDone();
     }
 
+    /**
+     * Build an AnnotationMirror for the given class.
+     *
+     * @param c the class of the annotation
+     * @return the AnnotationMirror corresponding to class c
+     */
     private AnnotationMirror anno(Class<? extends java.lang.annotation.Annotation> c) {
         return new AnnotationBuilder(env, c).build();
     }
