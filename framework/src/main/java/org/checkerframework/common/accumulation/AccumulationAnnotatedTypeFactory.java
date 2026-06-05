@@ -112,7 +112,7 @@ public abstract class AccumulationAnnotatedTypeFactory
         }
 
         Method accValue = accDeclaredMethods[0];
-        if (!accValue.getName().equals("value")) {
+        if (accValue.getName() != "value") { // assumed interned
             rejectMalformedAccumulator("name its element \"value\"");
         }
         if (!accValue.getReturnType().isInstance(new String[0])) {
@@ -131,7 +131,7 @@ public abstract class AccumulationAnnotatedTypeFactory
                 rejectMalformedPredicate("have exactly one element");
             }
             Method predValue = predDeclaredMethods[0];
-            if (!predValue.getName().equals("value")) {
+            if (predValue.getName() != "value") { // assumed interned
                 rejectMalformedPredicate("name its element \"value\"");
             }
             if (!predValue.getReturnType().isInstance("")) {
