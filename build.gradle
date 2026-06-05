@@ -1,4 +1,7 @@
 import de.undercouch.gradle.tasks.download.Download
+import org.gradle.api.tasks.testing.TestDescriptor
+import org.gradle.api.tasks.testing.TestListener
+import org.gradle.api.tasks.testing.TestResult
 
 plugins {
     // https://plugins.gradle.org/plugin/com.gradleup.shadow
@@ -1245,18 +1248,25 @@ subprojects {
             }
 
             // After each test, print a summary.
-            afterSuite { desc, result ->
-                if (desc.getClassName() != null) {
-                    long mils = result.getEndTime() - result.getStartTime()
-                    double seconds = mils / 1000.0
+            addTestListener(new TestListener() {
+                        @Override void beforeSuite(TestDescriptor suite) {}
+                        @Override void beforeTest(TestDescriptor test) {}
+                        @Override void afterTest(TestDescriptor test, TestResult result) {}
 
-                    println "Testsuite: ${desc.getClassName()}\n" +
-                            "Tests run: ${result.testCount}, " +
-                            "Failures: ${result.failedTestCount}, " +
-                            "Skipped: ${result.skippedTestCount}, " +
-                            "Time elapsed: ${seconds} sec\n"
-                }
-            }
+                        @Override
+                        void afterSuite(TestDescriptor desc, TestResult result) {
+                            if (desc.getClassName() != null) {
+                                long mils = result.getEndTime() - result.getStartTime()
+                                double seconds = mils / 1000.0
+
+                                println "Testsuite: ${desc.getClassName()}\n" +
+                                        "Tests run: ${result.testCount}, " +
+                                        "Failures: ${result.failedTestCount}, " +
+                                        "Skipped: ${result.skippedTestCount}, " +
+                                        "Time elapsed: ${seconds} sec\n"
+                            }
+                        }
+                    })
         }
 
         // Create a nonJunitTests task per project
