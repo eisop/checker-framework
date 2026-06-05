@@ -949,8 +949,8 @@ public class ElementUtils {
             // string produced by TypeMirror.toString().  getCanonicalName() uses the source form.
             String goalName = parameters[i].getCanonicalName();
             if (goalName == null) {
-                // Anonymous and local classes have no canonical name; fall back to the binary name.
-                goalName = parameters[i].getName();
+                // Local/anonymous classes have no canonical name; TypeMirror.toString() uses the simple name.
+                goalName = parameters[i].getSimpleName();
             }
             if (!params.get(i).asType().toString().equals(goalName)) {
                 return false;
