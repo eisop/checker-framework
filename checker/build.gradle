@@ -272,7 +272,12 @@ shadowJar {
         }
     }
 
-    minimize()
+    minimize {
+        // Keep all classes from checker-qual and checker-util rather than
+        // relying on the `api` re-export to protect them from minimize().
+        exclude(dependency('org.checkerframework:checker-qual:.*'))
+        exclude(dependency('org.checkerframework:checker-util:.*'))
+    }
 }
 
 artifacts {
