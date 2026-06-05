@@ -796,7 +796,13 @@ public class AnnotationFileParser {
         stubDebug(
                 "started parsing annotation file %s for %s",
                 filename, atypeFactory.getClass().getSimpleName());
-        stubUnit = JavaParserUtil.parseStubUnit(inputStream);
+        // Annotated-JDK stubs are maintained inside the Checker Framework: a parse error there
+        // is the CF team's problem, not an end user's, so skip JavaToken retention for the speed
+        // win.  User-supplied stubs go through the diagnostic-quality parser.
+        stubUnit =
+                fileType == AnnotationFileType.JDK_STUB
+                        ? JavaParserUtil.parseStubUnitForJdk(inputStream)
+                        : JavaParserUtil.parseStubUnit(inputStream);
 
         // getImportedAnnotations() also modifies importedConstants and importedTypes. This should
         // be refactored to be nicer.
