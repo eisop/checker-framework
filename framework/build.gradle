@@ -97,7 +97,9 @@ tasks.register('cloneAnnotatedJdk', CloneTask) {
     outputs.upToDateWhen { false }
 }
 
-task copyAndMinimizeAnnotatedJdkFiles(type: JavaExec, dependsOn: cloneAnnotatedJdk, group: 'Build') {
+tasks.register('copyAndMinimizeAnnotatedJdkFiles', JavaExec) {
+    dependsOn 'cloneAnnotatedJdk'
+    group = 'Build'
     dependsOn ':framework:compileStubifierJava'
     // we need the next two dependencies because we run JavaStubifier using this project's runtimeClasspath,
     // which refers to the jars for these other projects
@@ -165,10 +167,11 @@ task copyAndMinimizeAnnotatedJdkFiles(type: JavaExec, dependsOn: cloneAnnotatedJ
     }
 }
 
-sourcesJar.dependsOn(copyAndMinimizeAnnotatedJdkFiles)
-processResources.dependsOn(copyAndMinimizeAnnotatedJdkFiles)
+tasks.named('sourcesJar').configure { dependsOn 'copyAndMinimizeAnnotatedJdkFiles' }
+tasks.named('processResources').configure { dependsOn 'copyAndMinimizeAnnotatedJdkFiles' }
 
-task allSourcesJar(type: Jar, group: 'Build') {
+tasks.register('allSourcesJar', Jar) {
+    group = 'Build'
     description = 'Creates a sources jar that includes sources for all Checker Framework classes in framework.jar'
     destinationDirectory = file("${projectDir}/dist")
     archiveFileName = 'framework-source.jar'
@@ -177,7 +180,8 @@ task allSourcesJar(type: Jar, group: 'Build') {
             project(':javacutil').sourceSets.main.allJava)
 }
 
-task allJavadocJar(type: Jar, group: 'Build') {
+tasks.register('allJavadocJar', Jar) {
+    group = 'Build'
     description = 'Creates javadoc jar include Javadoc for all of the framework'
     def javadocs = [
         ':framework',
@@ -248,7 +252,7 @@ if (skipDelombok) {
         exclude '**/ReturnsReceiverLombokTest.java'
     }
 } else {
-    task delombok {
+    tasks.register('delombok') {
         description = 'Delomboks the source code tree in tests/returnsreceiverlombok'
 
         def srcDelomboked = 'tests/returnsreceiverdelomboked'

@@ -843,7 +843,7 @@ tasks.register('requireJavadoc', JavaExec) {
  * @return the new task
  */
 def createJavadocTask(taskName, taskDescription, memberLevel) {
-    tasks.create(name: taskName, type: Javadoc) {
+    tasks.register(taskName, Javadoc) {
         description = taskDescription
         destinationDir = file("${rootDir}/docs/tmpapi")
         destinationDir.mkdirs()
@@ -950,7 +950,8 @@ tasks.register('docTags', Exec) {
     commandLine 'make', '-C', 'docs/manual', 'tags'
 }
 
-task tags(type: Exec, group: 'Emacs') {
+tasks.register('tags', Exec) {
+    group = 'Emacs'
     dependsOn 'docTags'
     description = 'Create Emacs TAGS table'
     // running this task will also run the tags task in the subprojects, which is defined later in this file.
@@ -1003,7 +1004,7 @@ subprojects {
     }
 
     if (!project.name.startsWith('checker-qual-android')) {
-        task tags(type: Exec) {
+        tasks.register('tags', Exec) {
             description = 'Create Emacs TAGS table'
             // `ctags -e -f TAGS` used to work in place of `etags`, but apparently no longer.
             commandLine 'bash', '-c', "find . \\( -name build -o -name jtreg -o -name tests \\) -prune -o -name '*.java' -print | sort-directory-order | xargs etags"
@@ -1097,7 +1098,8 @@ subprojects {
         // Add jtregTests to framework and checker modules.
         // Jtreg only works on Java 11+.
         if (useJdkVersionInt >= 11 && (isFramework || isChecker)) {
-            tasks.create(name: 'jtregTests', type: Exec, group: 'Verification') {
+            tasks.register('jtregTests', Exec) {
+                group = 'Verification'
                 description = 'Run the jtreg tests. Requires jtreg to be installed.'
                 dependsOn(':downloadJtreg')
                 dependsOn('compileJava')
@@ -1163,7 +1165,7 @@ subprojects {
         // Regex [\\\\/] matches Unix and Windows directory separators.
         sourceSets.test.allJava.filter {it.path.matches('.*test[\\\\/]junit.*')}.forEach { file ->
             String junitClassName = file.name.replaceAll('.java', '')
-            tasks.create(name: "${junitClassName}", type: Test) {
+            tasks.register(junitClassName, Test) {
                 description = "Run ${junitClassName} tests."
                 include "**/${name}.class"
                 testClassesDirs = testing.suites.test.sources.output.classesDirs
@@ -1248,7 +1250,8 @@ subprojects {
         }
 
         // Create a nonJunitTests task per project
-        tasks.create(name: 'nonJunitTests', group: 'Verification') {
+        tasks.register('nonJunitTests') {
+            group = 'Verification'
             description = 'Run all Checker Framework tests except for the JUnit tests and inference tests.'
             if (useJdkVersionInt >= 11 && (isFramework || isChecker)) {
                 dependsOn('jtregTests')
@@ -1270,21 +1273,24 @@ subprojects {
         }
 
         // Create an inferenceTests task per project
-        tasks.create(name: 'inferenceTests', group: 'Verification') {
+        tasks.register('inferenceTests') {
+            group = 'Verification'
             description = 'Run inference tests.'
             if (isChecker) {
                 // NO-AFU: Needs to depend on future AFU version of CF
                 // dependsOn('inferenceTests-part1', 'inferenceTests-part1')
             }
         }
-        tasks.create(name: 'inferenceTests-part1', group: 'Verification') {
+        tasks.register('inferenceTests-part1') {
+            group = 'Verification'
             description = 'Run inference tests (part 1).'
             if (isChecker) {
                 // NO-AFU: Needs to depend on future AFU version of CF
                 // dependsOn('ainferTest', 'wpiManyTest')
             }
         }
-        tasks.create(name: 'inferenceTests-part2', group: 'Verification') {
+        tasks.register('inferenceTests-part2') {
+            group = 'Verification'
             description = 'Run inference tests (part 2).'
             if (isChecker) {
                 // NO-AFU: Needs to depend on future AFU version of CF
@@ -1295,15 +1301,18 @@ subprojects {
         // Create a typecheck task per project (dogfooding the Checker Framework on itself).
         // This isn't a test of the Checker Framework as the test and nonJunitTests tasks are.
         // Tasks such as 'checkInterning' are constructed by createCheckTypeTask.
-        tasks.create(name: 'typecheck', group: 'Verification') {
+        tasks.register('typecheck') {
+            group = 'Verification'
             description = 'Run the Checker Framework on itself'
             dependsOn('typecheck-part1', 'typecheck-part2')
         }
-        tasks.create(name: 'typecheck-part1', group: 'Verification') {
+        tasks.register('typecheck-part1') {
+            group = 'Verification'
             description = 'Run the Checker Framework on itself (part 1)'
             dependsOn('checkFormatter', 'checkInterning', 'checkOptional', 'checkPurity')
         }
-        tasks.create(name: 'typecheck-part2', group: 'Verification') {
+        tasks.register('typecheck-part2') {
+            group = 'Verification'
             description = 'Run the Checker Framework on itself (part 2)'
             dependsOn('checkResourceLeak', 'checkSignature')
             if (isFramework || isChecker) {
@@ -1314,13 +1323,15 @@ subprojects {
 
         // Create an allTests task per project.
         // allTests = test + nonJunitTests + inferenceTests + typecheck
-        tasks.create(name: 'allTests', group: 'Verification') {
+        tasks.register('allTests') {
+            group = 'Verification'
             description = 'Run all Checker Framework tests'
             // The 'test' target is just the JUnit tests.
             dependsOn('test', 'nonJunitTests', 'inferenceTests', 'typecheck')
         }
 
-        task javadocPrivate(dependsOn: javadoc) {
+        tasks.register('javadocPrivate') {
+            dependsOn 'javadoc'
             doFirst {
                 javadocMemberLevel = JavadocMemberLevel.PRIVATE
             }
