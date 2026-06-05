@@ -326,16 +326,6 @@ public abstract class ElementQualifierHierarchy extends QualifierHierarchy {
             return null;
         }
         QualifierKind kind = getQualifierKind(annotationMirror);
-        // Fast path: when there is a single qualifier hierarchy and annos contains exactly one
-        // qualifier from this hierarchy, that qualifier is the answer. See
-        // NoElementQualifierHierarchy#findAnnotationInSameHierarchy.
-        if (tops.size() == 1 && annos.size() == 1) {
-            AnnotationMirror onlyAnno = annos.iterator().next();
-            if (getQualifierKind(onlyAnno).isInSameHierarchyAs(kind)) {
-                return onlyAnno;
-            }
-            return null;
-        }
         for (AnnotationMirror candidate : annos) {
             QualifierKind candidateKind = getQualifierKind(candidate);
             if (candidateKind.isInSameHierarchyAs(kind)) {
