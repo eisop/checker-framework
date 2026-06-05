@@ -280,13 +280,18 @@ shadowJar {
     }
 }
 
-artifacts {
-    // Don't add this here or else the Javadoc and the sources jar is built during the assemble task.
-    // archives allJavadocJar
-    // archives allSourcesJar
-    archives tasks.named('shadowJar')
-    archives tasks.named('checkerJar')
+// Build the shadow jar and the checker jar as part of `assemble`, without routing
+// them through the legacy `archives` configuration (whose automatic wiring to
+// `assemble` is going away in Gradle 9+).  Nothing consumes the `archives`
+// configuration, so an explicit dependsOn is equivalent and more robust.
+// Don't add allJavadocJar/allSourcesJar here, or the Javadoc and sources jars
+// would be built during the assemble task.
+tasks.named('assemble') {
+    dependsOn('shadowJar')
+    dependsOn('checkerJar')
+}
 
+artifacts {
     fatJar(tasks.named('shadowJar'))
 }
 
