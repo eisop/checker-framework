@@ -217,7 +217,9 @@ checkCompilerMessages {
     ]
 }
 
-task loaderTests(type: Exec, dependsOn: 'shadowJar', group: 'Verification') {
+tasks.register('loaderTests', Exec) {
+    dependsOn 'shadowJar'
+    group = 'Verification'
     description = 'Run tests for the annotation class loader'
     dependsOn(compileTestJava)
 
@@ -227,13 +229,13 @@ task loaderTests(type: Exec, dependsOn: 'shadowJar', group: 'Verification') {
     commandLine 'make', '-C', 'tests/annotationclassloader/', 'all'
 }
 
-task cleanLoaderTests(type: Exec) {
+tasks.register('cleanLoaderTests', Exec) {
     description = 'Clean up after the annotation class loader tests'
     commandLine 'make', '-C', 'tests/annotationclassloader/', 'clean'
 }
 
 clean {
-    dependsOn(cleanLoaderTests)
+    dependsOn 'cleanLoaderTests'
 
     delete('tests/returnsreceiverdelomboked')
     delete('dist')
