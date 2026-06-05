@@ -21,7 +21,6 @@ import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
-import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedNoType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
@@ -969,14 +968,18 @@ public class QualifierDefaults {
          * @return true if this application should proceed
          */
         protected boolean shouldBeAnnotated(AnnotatedTypeMirror type) {
-            return type != null
-                    // TODO: executables themselves should not be annotated
-                    // For some reason h1h2checker-tests fails with this.
-                    // || type.getKind() == TypeKind.EXECUTABLE
-                    && type.getKind() != TypeKind.NONE
-                    && type.getKind() != TypeKind.WILDCARD
-                    && type.getKind() != TypeKind.TYPEVAR
-                    && !(type instanceof AnnotatedNoType);
+            if (type == null) {
+                return false;
+            }
+            // TODO: executables themselves should not be annotated
+            // For some reason h1h2checker-tests fails with this:
+            // || k == TypeKind.EXECUTABLE
+            TypeKind k = type.getKind();
+            return k != TypeKind.NONE
+                    && k != TypeKind.WILDCARD
+                    && k != TypeKind.TYPEVAR
+                    && k != TypeKind.VOID
+                    && k != TypeKind.PACKAGE;
         }
 
         /**

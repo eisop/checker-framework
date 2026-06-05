@@ -55,7 +55,13 @@ public class DefaultQualifierForUseTypeAnnotator extends TypeAnnotator {
     public Void visitDeclared(AnnotatedDeclaredType type, Void aVoid) {
         Element element = type.getUnderlyingType().asElement();
         AnnotationMirrorSet annosToApply = getDefaultAnnosForUses(element);
-        type.addMissingAnnotations(annosToApply);
+        // The empty case is overwhelmingly common: most type elements have no
+        // @DefaultQualifierForUse, and getDefaultAnnosForUses returns the shared empty set for
+        // them.  Skip the addMissingAnnotations call (and the iterator allocation it implies)
+        // in that case.
+        if (!annosToApply.isEmpty()) {
+            type.addMissingAnnotations(annosToApply);
+        }
         return super.visitDeclared(type, aVoid);
     }
 
@@ -105,6 +111,13 @@ public class DefaultQualifierForUseTypeAnnotator extends TypeAnnotator {
                     annosToApply.add(explict);
                 }
             }
+        }
+        // Canonicalize the empty result to a shared sentinel.  Most elements have no
+        // @DefaultQualifierForUse and produce an empty set; sharing the unmodifiable empty
+        // singleton avoids retaining a fresh AnnotationMirrorSet (and its backing ArrayList)
+        // per cached element.
+        if (annosToApply.isEmpty()) {
+            annosToApply = AnnotationMirrorSet.emptySet();
         }
         // If parsing stub files, then the annosToApply is incomplete, so don't cache them.
         if (atypeFactory.shouldCache
