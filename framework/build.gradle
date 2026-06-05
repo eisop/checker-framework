@@ -19,7 +19,7 @@ sourceSets {
             // Stub files, message.properties, etc.
             srcDirs += [
                 'src/main/java',
-                "${buildDir}/generated/resources"
+                layout.buildDirectory.dir('generated/resources')
             ]
 
             // NO-AFU
@@ -104,7 +104,7 @@ task copyAndMinimizeAnnotatedJdkFiles(type: JavaExec, dependsOn: cloneAnnotatedJ
     dependsOn ':javacutil:jar'
     dependsOn ':dataflow:jar'
     def inputDir = "${annotatedJdkHome}/src"
-    def outputDir = "${buildDir}/generated/resources/annotated-jdk/"
+    def outputDir = layout.buildDirectory.dir('generated/resources/annotated-jdk').get().asFile
 
     description = "Copy annotated JDK files to ${outputDir}. Removes private and package-private methods, method bodies, comments, etc. from the annotated JDK"
 
@@ -120,26 +120,46 @@ task copyAndMinimizeAnnotatedJdkFiles(type: JavaExec, dependsOn: cloneAnnotatedJ
 
     doFirst {
         FileTree tree = fileTree(dir: inputDir)
-        NavigableSet<String> annotatedForFiles = new TreeSet<>();
-        // Populate `annotatedForFiles`.
+        Set<String> annotatedForFiles = new HashSet<>()
+        // For each annotated file, also record every ancestor directory along the
+        // path back up to annotatedJdkHome.  The copy's include Spec (below) uses
+        // this to descend only into subtrees that actually contain an annotated
+        // file, and to avoid materialising empty intermediate directories in the
+        // destination.  (Copy defaults includeEmptyDirs=true, so a Spec that said
+        // "yes" to every directory would create every traversed directory in the
+        // output.)
+        Set<String> annotatedDirs = new HashSet<>()
+        String absolutejdkHome = file(annotatedJdkHome).absolutePath
         tree.visit { FileVisitDetails fvd ->
             if (!fvd.file.isDirectory() && fvd.file.name.matches('.*\\.java')
                     && !fvd.file.path.contains('org/checkerframework')) {
                 fvd.getFile().readLines().any { line ->
                     if (line.contains('@AnnotatedFor') || line.contains('org.checkerframework') || line.contains('org.jspecify')) {
                         annotatedForFiles.add(fvd.file.absolutePath)
-                        return true;
+                        File p = fvd.file.parentFile
+                        while (p != null
+                                && p.absolutePath.length() >= absolutejdkHome.length()
+                                && p.absolutePath.startsWith(absolutejdkHome)) {
+                            if (!annotatedDirs.add(p.absolutePath)) {
+                                // Already inserted -- so are all its parents up to root.
+                                break
+                            }
+                            p = p.parentFile
+                        }
+                        return true
                     }
                 }
             }
         }
-        String absolutejdkHome = file(annotatedJdkHome).absolutePath
-        int jdkDirStringSize = absolutejdkHome.size()
         copy {
             from(annotatedJdkHome)
             into(outputDir)
-            for (String filename : annotatedForFiles) {
-                include filename.substring(jdkDirStringSize)
+            // A single Spec consults the precomputed sets in O(1) per element
+            // and lets Gradle prune subtrees that contain no annotated files.
+            include { FileTreeElement fte ->
+                fte.directory
+                        ? annotatedDirs.contains(fte.file.absolutePath)
+                        : annotatedForFiles.contains(fte.file.absolutePath)
             }
         }
     }

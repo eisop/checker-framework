@@ -3,7 +3,7 @@ plugins {
     id 'base'
     // https://github.com/n0mer/gradle-git-properties
     // Generates file build/resources/main/git.properties when the `classes` task runs.
-    id 'com.gorylenko.gradle-git-properties' version '2.5.7'
+    id 'com.gorylenko.gradle-git-properties' version '4.0.1'
 }
 
 sourceSets {
@@ -28,6 +28,8 @@ sourceSets {
 }
 
 sourcesJar {
+    dependsOn(generateGitProperties)
+
     // The resources duplicate content from the src directory.
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
@@ -105,12 +107,6 @@ dependencies {
     testannotationsImplementation project(':checker-qual')
 }
 
-// Enable exec/javaexec
-interface InjectedExecOps {
-    @Inject
-    ExecOperations getExecOps()
-}
-
 // It's not clear why this dependencies exists, but Gradle issues the following warning:
 //   - Gradle detected a problem with the following location:
 //   '/Users/smillst/jsr308/checker-framework/.git'.
@@ -130,47 +126,75 @@ jar {
     }
 }
 
+/**
+ * Apply the testLogging configuration shared by every Ainfer JUnit task in this
+ * file.  Pass the task as 'delegate' from inside a 'task X(type: Test) { ... }'
+ * closure, e.g. 'configureAinferTestLogging(delegate)'.
+ */
+void configureAinferTestLogging(Test t) {
+    t.testLogging {
+        // Show the found unexpected diagnostics and expected diagnostics not found.
+        exceptionFormat = 'full'
+        events 'passed', 'skipped', 'failed'
+    }
+}
+
 // This task differs from the `assemble` task in that it does not build Javadoc.
 // It is useful for those who only want to run `javac`.
-// checker.jar is copied to checker/dist/ when it is built by the shadowJar task.
-task assembleForJavac(dependsOn: shadowJar, group: 'Build') {
+task assembleForJavac(group: 'Build') {
     description = 'Builds or downloads jars required by CheckerMain and puts them in checker/dist/.'
-    dependsOn project(':checker-qual').tasks.jar
-    def checkerQualJarFile = file(project(':checker-qual').tasks.getByName('jar').archiveFile)
-    def checkerUtilJarFile = file(project(':checker-util').tasks.getByName('jar').archiveFile)
+    dependsOn 'shadowJar'
+    dependsOn ':checker-qual:jar'
+    dependsOn ':checker-util:jar'
+
+    def checkerQualJar = project(':checker-qual').tasks.named('jar', Jar).flatMap { it.archiveFile }
+    def checkerUtilJar = project(':checker-util').tasks.named('jar', Jar).flatMap { it.archiveFile }
+    def shadowJarArchive =
+            tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar)
+            .flatMap { it.archiveFile }
+    def javacJarConf = configurations.javacJar
+    def distDir = layout.projectDirectory.dir('dist')
+
+    inputs.files(checkerQualJar, checkerUtilJar, shadowJarArchive, javacJarConf).withPropertyName('sourceJars')
+    outputs.file(distDir.file('checker-qual.jar'))
+    outputs.file(distDir.file('checker-util.jar'))
+    outputs.file(distDir.file('checker.jar'))
+    outputs.file(distDir.file('javac.jar'))
 
     doLast {
+        def checkerQualJarFile = checkerQualJar.get().asFile
         if (!checkerQualJarFile.exists()) {
             throw new GradleException('File not found: ' + checkerQualJarFile)
         }
         copy {
             from checkerQualJarFile
-            into "${projectDir}/dist"
-            rename { String fileName ->
-                // remove version number on checker-qual.jar
-                fileName.replace(fileName, 'checker-qual.jar')
-            }
+            into distDir
+            // remove version number
+            rename { 'checker-qual.jar' }
         }
 
+        def checkerUtilJarFile = checkerUtilJar.get().asFile
         if (!checkerUtilJarFile.exists()) {
             throw new GradleException('File not found: ' + checkerUtilJarFile)
         }
         copy {
             from checkerUtilJarFile
-            into "${projectDir}/dist"
-            rename { String fileName ->
-                // remove version number on checker-util.jar
-                fileName.replace(fileName, 'checker-util.jar')
-            }
+            into distDir
+            // remove version number
+            rename { 'checker-util.jar' }
         }
 
         copy {
             // This is required to *run* the Checker Framework on JDK 8.
-            from configurations.javacJar
-            into "${projectDir}/dist"
-            rename { String fileName ->
-                fileName.replace(fileName, 'javac.jar')
-            }
+            from javacJarConf
+            into distDir
+            rename { 'javac.jar' }
+        }
+
+        copy {
+            from shadowJarArchive.get()
+            into distDir
+            rename { 'checker.jar' }
         }
     }
 }
@@ -282,9 +306,20 @@ clean {
 }
 
 clean.doLast {
-    while (buildDir.exists()) {
-        sleep(10000)                // wait 10 seconds
-        buildDir.deleteDir()
+    def buildDirFile = layout.buildDirectory.get().asFile
+    int maxAttempts = 6
+    int attempt = 0
+    while (buildDirFile.exists() && attempt < maxAttempts) {
+        attempt++
+        if (attempt > 1) {
+            sleep(10000)                // wait 10 seconds
+        }
+        buildDirFile.deleteDir()
+    }
+    if (buildDirFile.exists()) {
+        logger.error("Could not delete ${buildDirFile} after ${maxAttempts} attempt(s). Remaining contents:")
+        buildDirFile.listFiles()?.each { logger.error("  ${it}") }
+        throw new GradleException("Failed to delete build directory: ${buildDirFile}")
     }
 }
 
@@ -384,7 +419,7 @@ task jtregJdk11Tests(type: Exec, group: 'Verification') {
     dependsOn('compileTestJava')
     dependsOn('shadowJar')
 
-    String jtregOutput = "${buildDir}/jtregJdk11"
+    String jtregOutput = layout.buildDirectory.dir('jtregJdk11').get().asFile.absolutePath
     String name = 'all'
 
     executable "${jtregHome}/bin/jtreg"
@@ -467,18 +502,11 @@ task ainferTestCheckerGenerateStubs(type: Test) {
     dependsOn(compileTestJava)
     doFirst {
         delete('tests/ainfer-testchecker/annotated')
-        delete("${buildDir}/ainfer-testchecker/")
+        delete(layout.buildDirectory.dir("ainfer-testchecker"))
     }
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerStubsGenerationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and the expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 
     doLast {
         copyNonannotatedToAnnotatedDirectory('ainfer-testchecker')
@@ -510,14 +538,7 @@ task ainferTestCheckerValidateStubs(type: Test) {
     dependsOn(ainferTestCheckerGenerateStubs)
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerStubsValidationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and the expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 }
 
 task ainferTestCheckerGenerateAjava(type: Test) {
@@ -526,18 +547,11 @@ task ainferTestCheckerGenerateAjava(type: Test) {
     dependsOn(compileTestJava)
     doFirst {
         delete('tests/ainfer-testchecker/annotated')
-        delete("${buildDir}/ainfer-testchecker/")
+        delete(layout.buildDirectory.dir("ainfer-testchecker"))
     }
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerAjavaGenerationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and the expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 
     doLast {
         copyNonannotatedToAnnotatedDirectory('ainfer-testchecker')
@@ -569,14 +583,7 @@ task ainferTestCheckerValidateAjava(type: Test) {
     dependsOn(ainferTestCheckerGenerateAjava)
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerAjavaValidationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and the expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 }
 
 // Copies directories as needed by WPI tests.
@@ -635,14 +642,7 @@ task ainferTestCheckerGenerateJaifs(type: Test) {
     }
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerJaifsGenerationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 
     def injected = project.objects.newInstance(InjectedExecOps)
 
@@ -685,14 +685,7 @@ task ainferTestCheckerValidateJaifs(type: Test) {
     dependsOn(ainferTestCheckerGenerateJaifs)
     outputs.upToDateWhen { false }
     include '**/AinferTestCheckerJaifsValidationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 }
 
 task ainferTestCheckerJaifTest(dependsOn: 'shadowJar', group: 'Verification') {
@@ -707,18 +700,11 @@ task ainferIndexGenerateAjava(type: Test) {
     dependsOn(compileTestJava)
     doFirst {
         delete('tests/ainfer-index/annotated')
-        delete("${buildDir}/ainfer-index/")
+        delete(layout.buildDirectory.dir("ainfer-index"))
     }
     outputs.upToDateWhen { false }
     include '**/AinferIndexAjavaGenerationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and the expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 
     doLast {
         copyNonannotatedToAnnotatedDirectory('ainfer-index')
@@ -731,14 +717,7 @@ task ainferIndexValidateAjava(type: Test) {
     dependsOn(ainferIndexGenerateAjava)
     outputs.upToDateWhen { false }
     include '**/AinferIndexAjavaValidationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and the expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 }
 
 task ainferIndexAjavaTest(dependsOn: 'shadowJar', group: 'Verification') {
@@ -753,18 +732,11 @@ task ainferNullnessGenerateAjava(type: Test) {
     dependsOn(compileTestJava)
     doFirst {
         delete('tests/ainfer-nullness/annotated')
-        delete("${buildDir}/ainfer-nullness/")
+        delete(layout.buildDirectory.dir("ainfer-nullness"))
     }
     outputs.upToDateWhen { false }
     include '**/AinferNullnessAjavaGenerationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and the expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 
     doLast {
         copyNonannotatedToAnnotatedDirectory('ainfer-nullness')
@@ -777,14 +749,7 @@ task ainferNullnessValidateAjava(type: Test) {
     dependsOn(ainferNullnessGenerateAjava)
     outputs.upToDateWhen { false }
     include '**/AinferNullnessAjavaValidationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and the expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 }
 
 task ainferNullnessAjavaTest(dependsOn: 'shadowJar', group: 'Verification') {
@@ -799,18 +764,11 @@ task ainferResourceLeakGenerateAjava(type: Test) {
     dependsOn(compileTestJava)
     doFirst {
         delete('tests/ainfer-resourceleak/annotated')
-        delete("${buildDir}/ainfer-resourceleak/")
+        delete(layout.buildDirectory.dir("ainfer-resourceleak"))
     }
     outputs.upToDateWhen { false }
     include '**/AinferResourceLeakAjavaGenerationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and the expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 
     doLast {
         copyNonannotatedToAnnotatedDirectory('ainfer-resourceleak')
@@ -823,14 +781,7 @@ task ainferResourceLeakValidateAjava(type: Test) {
     dependsOn(ainferResourceLeakGenerateAjava)
     outputs.upToDateWhen { false }
     include '**/AinferResourceLeakAjavaValidationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and the expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 }
 
 task ainferResourceLeakAjavaTest(dependsOn: 'shadowJar', group: 'Verification') {
@@ -848,14 +799,7 @@ task ainferNullnessGenerateJaifs(type: Test) {
     }
     outputs.upToDateWhen { false }
     include '**/AinferNullnessJaifsGenerationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 
     def injected = project.objects.newInstance(InjectedExecOps)
 
@@ -883,14 +827,7 @@ task ainferNullnessValidateJaifs(type: Test) {
     dependsOn(ainferNullnessGenerateJaifs)
     outputs.upToDateWhen { false }
     include '**/AinferNullnessJaifsValidationTest.class'
-    testLogging {
-        // Always run the tests
-        outputs.upToDateWhen { false }
-
-        // Show the found unexpected diagnostics and expected diagnostics not found.
-        exceptionFormat = 'full'
-        events 'passed', 'skipped', 'failed'
-    }
+    configureAinferTestLogging(delegate)
 }
 
 task ainferNullnessJaifTest(dependsOn: 'shadowJar', group: 'Verification') {

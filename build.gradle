@@ -2,7 +2,7 @@ import de.undercouch.gradle.tasks.download.Download
 
 plugins {
     // https://plugins.gradle.org/plugin/com.gradleup.shadow
-    id 'com.gradleup.shadow' version '8.3.10'
+    id 'com.gradleup.shadow' version '8.3.11'
     // https://plugins.gradle.org/plugin/de.undercouch.download
     id 'de.undercouch.download' version '5.7.0'
     id 'java'
@@ -17,7 +17,7 @@ plugins {
     // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
     // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
     // Only works on JDK 11+ (even including the plugin crashes Gradle on JDK 8).
-    id 'com.diffplug.spotless' version '8.5.1'
+    id 'com.diffplug.spotless' version '8.6.0'
 }
 
 // There is another `repositories { ... }` block below; if you change this one, change that one as well.
@@ -58,7 +58,10 @@ ext {
     // On a Java 9+ JVM, use the host javac, default source/target, and required module flags.
     isJava8 = (useJdkVersionInt == 8)
 
-    // As of 2025-04-28 (Lombok 1.18.38), delombok supports JDK 24-ea but not JDK 24 proper; see https://projectlombok.org/changelog .
+    // delombok lags behind JDK GA releases; skip delombok-dependent tests when running on
+    // a JDK newer than what the pinned Lombok version supports.  See
+    // https://projectlombok.org/changelog and bump this threshold (or remove it) when the
+    // current 'versions.lombok' below catches up to the JDK in use.
     skipDelombok = (useJdkVersionInt >= 24)
 
     // NO-AFU - keep these variables live so tasks in checker/build.gradle configure without issue.
@@ -98,12 +101,6 @@ ext {
     ]
 }
 
-// Enable exec/javaexec
-interface InjectedExecOps {
-    @Inject
-    ExecOperations getExecOps()
-}
-
 // Keep in sync with check in
 // framework/src/main/java/org/checkerframework/framework/source/SourceChecker.java .
 switch (JavaVersion.current()) {
@@ -132,7 +129,11 @@ task installGitHooks(type: Copy, dependsOn: 'setLocalRepo') {
     description = 'Copies git hooks to .git directory'
     from files('checker/bin-devel/git.post-merge', 'checker/bin-devel/git.pre-commit')
     rename('git\\.(.*)', '$1')
-    into localRepo + '/hooks'
+    // 'localRepo' is rewritten by setLocalRepo.doLast (e.g. to a worktree's
+    // gitdir), so the destination must be resolved lazily.  Without the
+    // closure, 'into' is evaluated at configuration time and always sees
+    // the default '.git', breaking the worktree case.
+    into { localRepo + '/hooks' }
 }
 
 apply plugin: 'com.diffplug.spotless'
@@ -145,7 +146,7 @@ spotless {
     //  > Could not create task ':checker-qual:spotlessJavaCheck'.
     //     > Could not create task ':checker-qual:spotlessJava'.
     //        > File signature can only be created for existing regular files, given:
-    //          .../checker-framework/checker-qual/build/libs/checker-qual-3.25.1-SNAPSHOT.jar
+    //          .../checker-framework/checker-qual/build/libs/checker-qual-VERSION-SNAPSHOT.jar
     predeclareDepsFromBuildscript()
 }
 
@@ -662,7 +663,7 @@ def createCheckTypeTask(projectName, taskName, checker, args = []) {
         outputs.upToDateWhen { false }
         source = project("${projectName}").sourceSets.main.java
         classpath = files(project("${projectName}").compileJava.classpath,project(':checker-qual').sourceSets.main.output)
-        destinationDirectory = file("${buildDir}")
+        destinationDirectory = layout.buildDirectory
 
         options.annotationProcessorPath = files(project(':checker').tasks.shadowJar.archiveFile)
         options.compilerArgs += [
@@ -1094,7 +1095,7 @@ subprojects {
                 dependsOn('compileTestJava')
                 dependsOn('shadowJar')
 
-                String jtregOutput = "${buildDir}/jtreg"
+                String jtregOutput = layout.buildDirectory.dir('jtreg').get().asFile.absolutePath
                 String name = 'all'
                 String tests = '.'
 
@@ -1177,7 +1178,7 @@ subprojects {
             if (!System.getenv('TF_BUILD')?.equals('True')) {
                 // Not running under Azure Pipelines CI.
 
-                maxParallelForks = Runtime.runtime.availableProcessors() ?: 1
+                maxParallelForks = Runtime.runtime.availableProcessors()
             } else {
                 // Running under Azure Pipelines CI.
 
@@ -1208,10 +1209,11 @@ subprojects {
                 systemProperties += ['emit.test.debug': 'true']
             }
 
+            // Always re-run tests.  This must live at the test task level.
+            outputs.upToDateWhen { false }
+
             testLogging {
                 showStandardStreams = true
-                // Always run the tests
-                outputs.upToDateWhen { false }
 
                 // Show the found unexpected diagnostics and expected diagnostics not found.
                 exceptionFormat = 'full'
