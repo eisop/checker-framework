@@ -226,6 +226,13 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     /**
      * Returns the {@code kind} of this type.
      *
+     * <p>Subclasses whose kind is constant (e.g. {@link AnnotatedDeclaredType}, {@link
+     * AnnotatedArrayType}) override this to return the constant directly; this is meaningful for
+     * performance because the underlying javac {@code Type#getKind()} on declared types runs {@code
+     * Symbol#apiComplete}. Only {@link AnnotatedPrimitiveType} and {@link AnnotatedNoType} fall
+     * through to this base implementation; for both, the underlying type's {@code getKind()} is
+     * cheap and does not force symbol completion.
+     *
      * @return the kind of this type
      */
     public TypeKind getKind() {
@@ -1043,6 +1050,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         @Override
+        public TypeKind getKind() {
+            return TypeKind.DECLARED;
+        }
+
+        @Override
         public boolean isDeclaration() {
             return declaration;
         }
@@ -1347,6 +1359,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          */
         private AnnotatedExecutableType(ExecutableType type, AnnotatedTypeFactory factory) {
             super(type, factory);
+        }
+
+        @Override
+        public TypeKind getKind() {
+            return TypeKind.EXECUTABLE;
         }
 
         /** The parameter types; an unmodifiable list. */
@@ -1828,6 +1845,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             super(type, factory);
         }
 
+        @Override
+        public TypeKind getKind() {
+            return TypeKind.ARRAY;
+        }
+
         /** The component type of this array type. */
         /*package-private*/ @MonotonicNonNull AnnotatedTypeMirror componentType;
 
@@ -1934,6 +1956,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 TypeVariable type, AnnotatedTypeFactory atypeFactory, boolean declaration) {
             super(type, atypeFactory);
             this.declaration = declaration;
+        }
+
+        @Override
+        public TypeKind getKind() {
+            return TypeKind.TYPEVAR;
         }
 
         /** The lower bound of the type variable. */
@@ -2236,6 +2263,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         @Override
+        public TypeKind getKind() {
+            return TypeKind.NULL;
+        }
+
+        @Override
         public <R, P> R accept(AnnotatedTypeVisitor<R, P> v, P p) {
             return v.visitNull(this, p);
         }
@@ -2347,6 +2379,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
 
         private AnnotatedWildcardType(WildcardType type, AnnotatedTypeFactory factory) {
             super(type, factory);
+        }
+
+        @Override
+        public TypeKind getKind() {
+            return TypeKind.WILDCARD;
         }
 
         @Override
@@ -2561,6 +2598,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             super(type, atypeFactory);
         }
 
+        @Override
+        public TypeKind getKind() {
+            return TypeKind.INTERSECTION;
+        }
+
         /**
          * {@inheritDoc}
          *
@@ -2713,6 +2755,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          */
         private AnnotatedUnionType(UnionType type, AnnotatedTypeFactory atypeFactory) {
             super(type, atypeFactory);
+        }
+
+        @Override
+        public TypeKind getKind() {
+            return TypeKind.UNION;
         }
 
         @Override
