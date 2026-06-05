@@ -107,12 +107,6 @@ dependencies {
     testannotationsImplementation project(':checker-qual')
 }
 
-// Enable exec/javaexec
-interface InjectedExecOps {
-    @Inject
-    ExecOperations getExecOps()
-}
-
 // It's not clear why this dependencies exists, but Gradle issues the following warning:
 //   - Gradle detected a problem with the following location:
 //   '/Users/smillst/jsr308/checker-framework/.git'.
