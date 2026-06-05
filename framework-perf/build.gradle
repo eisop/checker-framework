@@ -50,14 +50,8 @@ jmh {
 // the framework subproject does for its own test JVMs.
 tasks.named('jmh').configure {
     if (JavaVersion.current() >= JavaVersion.VERSION_1_9) {
-        jvmArgs = [
-            '--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
-            '--add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED',
-            '--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED',
-            '--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED',
-            '--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
-            '--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED',
-        ]
+        // Reuse the repo-wide javac internals access flags so this stays in sync with other CF runs.
+        jvmArgs += compilerArgsForRunningCF
     }
 }
 

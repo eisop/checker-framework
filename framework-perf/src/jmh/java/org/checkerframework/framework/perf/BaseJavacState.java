@@ -30,13 +30,13 @@ public class BaseJavacState {
     /** The javac processing environment used to construct {@link AnnotationMirror} instances. */
     public ProcessingEnvironment env;
 
-    /** Three distinct annotations, useful as test data for set/map operations. */
+    /** First of three distinct annotations, useful as test data for set/map operations. */
     public AnnotationMirror anno1;
 
-    /** Two distinct annotations, useful as test data for set/map operations. */
+    /** Second of three distinct annotations, useful as test data for set/map operations. */
     public AnnotationMirror anno2;
 
-    /** Three distinct annotations, useful as test data for set/map operations. */
+    /** Third of three distinct annotations, useful as test data for set/map operations. */
     public AnnotationMirror anno3;
 
     @Setup(Level.Trial)
