@@ -126,8 +126,12 @@ def testDataflowAnalysis(taskName, dirName, className, diff) {
         outputs.file("tests/${dirName}/Out.txt")
         outputs.file("tests/${dirName}/Test.class")
 
-        delete("tests/${dirName}/Out.txt")
-        delete("tests/${dirName}/Test.class")
+        doFirst {
+            // These deletions must run only when this task executes, not at
+            // configuration time.
+            delete("tests/${dirName}/Out.txt")
+            delete("tests/${dirName}/Test.class")
+        }
 
         workingDir = "tests/${dirName}"
         if (isJava8) {
