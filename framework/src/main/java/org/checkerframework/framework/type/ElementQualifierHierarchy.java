@@ -331,13 +331,10 @@ public abstract class ElementQualifierHierarchy extends QualifierHierarchy {
         // NoElementQualifierHierarchy#findAnnotationInSameHierarchy.
         if (tops.size() == 1 && annos.size() == 1) {
             AnnotationMirror onlyAnno = annos.iterator().next();
-            try {
-                if (getQualifierKind(onlyAnno).isInSameHierarchyAs(kind)) {
-                    return onlyAnno;
-                }
-            } catch (BugInCF ignored) {
-                // Fall through to the general-path scan below.
+            if (getQualifierKind(onlyAnno).isInSameHierarchyAs(kind)) {
+                return onlyAnno;
             }
+            return null;
         }
         for (AnnotationMirror candidate : annos) {
             QualifierKind candidateKind = getQualifierKind(candidate);
