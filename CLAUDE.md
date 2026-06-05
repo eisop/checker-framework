@@ -10,13 +10,12 @@ way.
 
 ## Project in one paragraph
 
-EISOP CF is a fork of the Checker Framework, a Java annotation processor
-that implements pluggable type systems on top of `javac`. The framework
-itself (in `framework/`) provides the visitor + dataflow + qualifier-
-hierarchy infrastructure; individual checkers (in `checker/`) define
-qualifier lattices and implement the type rules. Hot paths run inside
-forked `javac` invocations during `./gradlew alltests` and during user
-builds.
+The EISOP Checker Framework is a Java annotation processor that implements
+pluggable type systems on top of `javac`. The framework itself (in
+`framework/`) provides the visitor + dataflow + qualifier-hierarchy
+infrastructure; individual checkers (in `checker/`) define qualifier lattices
+and implement the type rules. Hot paths run inside forked `javac` invocations
+during `./gradlew alltests` and during user builds.
 
 ## Repository topology
 
@@ -50,6 +49,7 @@ The Gradle subprojects matter; in rough dependency order:
 
 ```
 ./gradlew assemble                       # build only
+./gradlew assembleForJavac               # build to use checker/bin/javac
 ./gradlew alltests                       # full test suite (long)
 ./gradlew test                           # framework + javacutil + dataflow JUnit
 ./gradlew :checker:test                  # all checker JUnit tests
@@ -108,9 +108,6 @@ Read that skill before proposing any perf change. The short version:
 - **`AnnotatedTypeMirror` invariants** — interning, structural equality,
   `hashCode`/`equals` contract — are subtle and rely on visitor reset
   behavior. Test thoroughly when modifying type-related caches.
-- **`AnnotationMirrorSet`** preserves a non-standard `addAll` semantics
-  (the original returns `true` if *any* element was new). Patches that
-  collapse it to standard collection semantics cause test failures.
 - **`final` fields that are visitor state** sometimes need to be
   reassignable (`AnnotatedTypeScanner.visitedNodes`). Audit subclass
   references before changing.
@@ -140,6 +137,11 @@ Read that skill before proposing any perf change. The short version:
 
 ## Pointers to deeper docs
 
+- [`docs/manual/`](docs/manual/) contains the user manual, including
+  descriptions for all type systems. In particular
+  [`docs/manual/creating-a-checker.tex`](docs/manual/creating-a-checker.tex)
+  contains information on how to create a new type system; it gives a
+  high-level overview of how the EISOP Checker Framework works.
 - [`docs/developer/developer-manual.html`](docs/developer/developer-manual.html)
   — long-form developer manual.
 - [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — release notes; the canonical
