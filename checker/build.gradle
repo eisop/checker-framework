@@ -264,10 +264,13 @@ shadowJar {
     // To see what files are incorporated into the shadow jar file:
     // doFirst { println sourceSets.main.runtimeClasspath.asPath }
     archiveClassifier = 'all'
-    doLast{
-        copy {
-            from archiveFile.get()
-            into file("${projectDir}/dist")
+    def injectedFiles = project.objects.newInstance(InjectedFileOps)
+    def shadowArchive = archiveFile
+    def distDir = file("${projectDir}/dist")
+    doLast {
+        injectedFiles.fs.copy {
+            from shadowArchive
+            into distDir
             rename 'checker.*', 'checker.jar'
         }
     }

@@ -120,8 +120,13 @@ tasks.register('copyAndMinimizeAnnotatedJdkFiles', JavaExec) {
     mainClass = 'org.checkerframework.framework.stubifier.JavaStubifier'
     args outputDir
 
+    def injectedFiles = project.objects.newInstance(InjectedFileOps)
+    def inputDirFile = file(inputDir)
+    def jdkHomeFile = file(annotatedJdkHome)
+    def absolutejdkHome = jdkHomeFile.absolutePath
+
     doFirst {
-        FileTree tree = fileTree(dir: inputDir)
+        FileTree tree = injectedFiles.objects.fileTree().setDir(inputDirFile)
         Set<String> annotatedForFiles = new HashSet<>()
         // For each annotated file, also record every ancestor directory along the
         // path back up to annotatedJdkHome.  The copy's include Spec (below) uses
@@ -131,7 +136,6 @@ tasks.register('copyAndMinimizeAnnotatedJdkFiles', JavaExec) {
         // "yes" to every directory would create every traversed directory in the
         // output.)
         Set<String> annotatedDirs = new HashSet<>()
-        String absolutejdkHome = file(annotatedJdkHome).absolutePath
         tree.visit { FileVisitDetails fvd ->
             if (!fvd.file.isDirectory() && fvd.file.name.matches('.*\\.java')
                     && !fvd.file.path.contains('org/checkerframework')) {
@@ -153,8 +157,8 @@ tasks.register('copyAndMinimizeAnnotatedJdkFiles', JavaExec) {
                 }
             }
         }
-        copy {
-            from(annotatedJdkHome)
+        injectedFiles.fs.copy {
+            from(jdkHomeFile)
             into(outputDir)
             // A single Spec consults the precomputed sets in O(1) per element
             // and lets Gradle prune subtrees that contain no annotated files.
