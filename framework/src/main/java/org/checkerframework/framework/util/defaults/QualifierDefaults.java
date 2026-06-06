@@ -979,7 +979,8 @@ public class QualifierDefaults {
                     && k != TypeKind.WILDCARD
                     && k != TypeKind.TYPEVAR
                     && k != TypeKind.VOID
-                    && k != TypeKind.PACKAGE;
+                    && k != TypeKind.PACKAGE
+                    && k != TypeKind.MODULE;
         }
 
         /**
