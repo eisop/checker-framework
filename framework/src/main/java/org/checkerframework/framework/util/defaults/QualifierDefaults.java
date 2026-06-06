@@ -962,7 +962,8 @@ public class QualifierDefaults {
 
         /**
          * Returns true if the given qualifier should be applied to the given type. Currently we do
-         * not apply defaults to void types, packages, wildcards, and type variables.
+         * not apply defaults to void types, none types, wildcards, type variables, packages, and
+         * modules.
          *
          * @param type type to which qual would be applied
          * @return true if this application should proceed
