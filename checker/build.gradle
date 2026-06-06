@@ -102,6 +102,9 @@ dependencies {
 
     testImplementation "junit:junit:${versions.junit}"
     testImplementation project(':framework-test')
+    // The testchecker support library (org.checkerframework.framework.testchecker.lib) used as
+    // bytecode-only input by the *-unchecked-defaults and fenum tests.
+    testImplementation testFixtures(project(':framework'))
     testImplementation sourceSets.testannotations.output
 
     testannotationsImplementation project(':checker-qual')

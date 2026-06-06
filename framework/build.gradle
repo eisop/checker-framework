@@ -1,5 +1,9 @@
 plugins {
     id 'java-library'
+    // Exposes src/testFixtures as a consumable feature so that the testchecker support library
+    // (org.checkerframework.framework.testchecker.lib) is available to this project's own tests
+    // and to :checker's tests via testFixtures(project(':framework')).
+    id 'java-test-fixtures'
 }
 
 ext {
