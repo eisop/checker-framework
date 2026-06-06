@@ -81,10 +81,6 @@ ext {
 
     javadocMemberLevel = JavadocMemberLevel.PROTECTED
 
-    // The local git repository, typically in the .git directory, but not for worktrees.
-    // This value is always overwritten, but Gradle needs the variable to be initialized.
-    localRepo = '.git'
-
     versions = [
         autoValue       : '1.11.1',
         // https://mvnrepository.com/artifact/com.google.errorprone/error_prone_core
@@ -118,26 +114,30 @@ switch (JavaVersion.current()) {
         break;
 }
 
-tasks.register('setLocalRepo', Exec) {
+// Git hooks are installed into the main worktree's .git directory.  'git worktree list' prints
+// the main worktree first, and the first whitespace-delimited token of its output is that
+// worktree's path (this resolves correctly whether the build runs in the main checkout or a
+// linked worktree).
+//
+// This is computed with providers.exec rather than an Exec task that captures its output into a
+// ByteArrayOutputStream: under the configuration cache an Exec task's standardOutput is part of
+// the serialized task state, and a ByteArrayOutputStream cannot be serialized (only
+// System.out/System.err are allowed).  providers.exec instead exposes the output as a
+// Provider<String> whose value becomes a configuration-cache input, and feeding the derived
+// Provider into 'into' lets the destination resolve lazily without mutating shared project state
+// at execution time.
+def gitHooksDir = providers.exec {
     commandLine 'git', 'worktree', 'list'
-    standardOutput = new ByteArrayOutputStream()
-    doLast {
-        String worktreeList = standardOutput.toString()
-        localRepo = worktreeList.substring(0, worktreeList.indexOf(' ')) + '/.git'
-    }
+}.standardOutput.asText.map { String worktreeList ->
+    worktreeList.substring(0, worktreeList.indexOf(' ')) + '/.git/hooks'
 }
 
 // No group so it does not show up in the output of `gradlew tasks`
 tasks.register('installGitHooks', Copy) {
-    dependsOn 'setLocalRepo'
     description = 'Copies git hooks to .git directory'
     from files('checker/bin-devel/git.post-merge', 'checker/bin-devel/git.pre-commit')
     rename('git\\.(.*)', '$1')
-    // 'localRepo' is rewritten by setLocalRepo.doLast (e.g. to a worktree's
-    // gitdir), so the destination must be resolved lazily.  Without the
-    // closure, 'into' is evaluated at configuration time and always sees
-    // the default '.git', breaking the worktree case.
-    into { localRepo + '/hooks' }
+    into gitHooksDir
 }
 
 apply plugin: 'com.diffplug.spotless'
