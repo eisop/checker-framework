@@ -182,8 +182,8 @@ public class ElementUtils {
 
     /**
      * Returns the "parent" package element for the given package element. For package "A.B" it
-     * gives "A". For package "A" it gives the default package. For the default package it returns
-     * null.
+     * gives "A". For package "A" it gives null, not the the default package. For the default
+     * package it returns null.
      *
      * <p>Note that packages are not enclosed within each other, we have to manually climb the
      * namespaces. Calling "enclosingPackage" on a package element returns the package element
@@ -197,13 +197,19 @@ public class ElementUtils {
         // Fast path: javac's PackageSymbol exposes its enclosing package directly via 'owner',
         // avoiding the Elements#getPackageElement(String) call below.
         //
-        // For a top-level package, owner is the enclosing ModuleSymbol (or unnamed-module
-        // marker), which is not a PackageSymbol; return null in that case to preserve the
-        // existing contract that the parent of a top-level package is null.
+        // The parent of a top-level package is null.  In javac, the owner of a top-level package
+        // is the root/unnamed package -- a RootPackageSymbol, which is itself a PackageSymbol but
+        // has an empty qualified name -- or, in module mode, the enclosing ModuleSymbol.  Neither
+        // is a real parent package, so return null in those cases to preserve the contract that
+        // the parent of a top-level package is null.  (Without the empty-name check, every
+        // top-level package would incorrectly report the unnamed package as its parent.)
         if (elem instanceof Symbol.PackageSymbol) {
             Symbol owner = ((Symbol.PackageSymbol) elem).owner;
             if (owner instanceof Symbol.PackageSymbol) {
-                return (PackageElement) owner;
+                PackageElement ownerPackage = (PackageElement) owner;
+                if (ownerPackage.getQualifiedName().length() != 0) {
+                    return ownerPackage;
+                }
             }
             return null;
         }
