@@ -297,6 +297,8 @@ artifacts {
 
 clean {
     def injected = project.objects.newInstance(InjectedExecOps)
+    def commandLineDir = file('tests/command-line')
+    def nullnessExtraDir = file('tests/nullness-extra')
 
     delete("${projectDir}/dist")
     delete('tests/calledmethods-delomboked')
@@ -311,18 +313,20 @@ clean {
     delete('tests/build')
     doLast {
         injected.execOps.exec {
-            workingDir = file('tests/command-line')
+            workingDir = commandLineDir
             commandLine 'make', 'clean'
         }
         injected.execOps.exec {
-            workingDir = file('tests/nullness-extra')
+            workingDir = nullnessExtraDir
             commandLine 'make', 'clean'
         }
     }
 }
 
+// Capture the build directory provider at configuration time.
+def cleanBuildDir = layout.buildDirectory
 clean.doLast {
-    def buildDirFile = layout.buildDirectory.get().asFile
+    def buildDirFile = cleanBuildDir.get().asFile
     int maxAttempts = 6
     int attempt = 0
     while (buildDirFile.exists() && attempt < maxAttempts) {
