@@ -86,6 +86,14 @@ so small per-call wins paid back substantially.
 - **PR #1671** — *Increase the `AnnotatedTypeScanner#visitedNodes`
   map size.* Pre-sizes the `IdentityHashMap` to 64 to eliminate the
   early-resize storms previously visible in allocation profiles.
+- **Re-measured June 2026** — `reset()` uses `new IdentityHashMap<>(VISITED_NODES_EXPECTED_MAX_SIZE)`
+  rather than `clear()`. Leaf-frame self-time on `allNullnessTests -PmaxParallelForks=1`:
+  `IdentityHashMap.clear` = 3.42% (668/19479 samples); `IdentityHashMap.init` net after
+  background subtraction ≈ 1.27% (456 total − 180 background = 276 samples, /20809).
+  `clear()` wins on object allocation (1.09% vs 1.48% of TLAB events) but loses on CPU:
+  `IdentityHashMap.clear()` walks all 128 table slots explicitly in Java; TLAB allocation
+  uses JVM bulk zeroing. The pre-sizing in PR #1671 is what makes `clear()` more expensive —
+  pre-sizing enlarged the array that must be explicitly zeroed.
 
 ### Element and name caching
 
@@ -265,11 +273,15 @@ the prior finding. A fresh hypothesis is not new evidence.
 - **`CFAbstractStore.copyMap` allocation avoidance.** `new HashMap<>(emptyMap)`
   and `new HashMap<>()` produce identical JIT output once the map is
   written to; the "savings" were illusory.
-- **Reallocating `AnnotatedTypeScanner.visitedNodes` on reset** (the
-  pre-PR-#1646 / pre-PR-#1671 direction). An older comment cited
-  measurements favoring reallocation; current G1/ZGC make `clear()`
-  cheaper, and pre-sizing eliminates the resize cost reallocation was
-  trying to avoid. See applied section.
+- **`clear()` on `AnnotatedTypeScanner.visitedNodes` in `reset()`.**
+  Tried as an alternative to reallocating. An earlier note (written without
+  fresh measurement data) claimed G1/ZGC makes `clear()` cheaper. Re-measured
+  June 2026 on `allNullnessTests -PmaxParallelForks=1`: `IdentityHashMap.clear`
+  consumed 3.42% of leaf-frame samples vs ≈1.27% net for reallocation. The
+  pre-sizing from PR #1671 is what makes `clear()` lose: it enlarged the
+  array to 128 slots that `clear()` must zero via an explicit Java loop,
+  while TLAB allocation for the same array uses JVM bulk zeroing. See the
+  applied section for the current measured numbers.
 - **Converting `visitedNodes` from `IdentityHashMap` to `HashMap`.**
   Identity is required for correctness — distinct ATM instances
   representing the same Java type must be visited separately to break
