@@ -469,10 +469,7 @@ allprojects { currentProj ->
             }
             options.taglets 'org.checkerframework.taglet.ManualTaglet'
 
-            doFirst {
-                // TODO: this should NOT be in a doFirst block.
-                options.tagletPath(project(':framework-test').sourceSets."${tagletVersion}".output.classesDirs.getFiles() as File[])
-            }
+            options.tagletPath(project(':framework-test').sourceSets."${tagletVersion}".output.classesDirs.getFiles() as File[])
 
             if (!isJava8) {
                 options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED', true)
