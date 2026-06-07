@@ -460,7 +460,8 @@ allprojects { currentProj ->
             dependsOn(":framework-test:${tagletVersion}Classes")
 
             options.encoding = 'UTF-8'
-            if (!name.equals('javadocDoclintAll')) {
+            // javadocDoclintAll and javadocPrivate set their own member level.
+            if (!name.equals('javadocDoclintAll') && !name.equals('javadocPrivate')) {
                 options.memberLevel = javadocMemberLevel
             }
             classpath += configurations.getByName('checkerFatJar').asFileTree
@@ -1357,14 +1358,20 @@ subprojects {
             dependsOn('test', 'nonJunitTests', 'inferenceTests', 'typecheck')
         }
 
-        tasks.register('javadocPrivate') {
-            dependsOn 'javadoc'
-            doFirst {
-                javadocMemberLevel = JavadocMemberLevel.PRIVATE
-            }
-            doLast {
-                javadocMemberLevel = JavadocMemberLevel.PROTECTED
-            }
+        // Generates Javadoc including private members. This is a dedicated Javadoc task with its
+        // own output directory, rather than a toggle of the shared 'javadoc' task.
+        tasks.register('javadocPrivate', Javadoc) {
+            description = 'Generates Javadoc API documentation, including private members.'
+            group = 'Documentation'
+            source = sourceSets.main.allJava
+            classpath += sourceSets.main.output + sourceSets.main.compileClasspath
+            // Match the build's other Javadoc tasks (checker-qual's regular 'javadoc' and the
+            // aggregate javadoc tasks): do not infer a module path. Otherwise checker-qual's
+            // module-info.class on the classpath makes Javadoc attempt module-path inference and
+            // fail.
+            modularity.inferModulePath = false
+            destinationDir = layout.buildDirectory.dir('docs/javadocPrivate').get().asFile
+            options.memberLevel = JavadocMemberLevel.PRIVATE
         }
     }
 }
