@@ -469,7 +469,7 @@ allprojects { currentProj ->
             }
             options.taglets 'org.checkerframework.taglet.ManualTaglet'
 
-            options.tagletPath(project(':framework-test').sourceSets."${tagletVersion}".output.classesDirs.getFiles() as File[])
+            options.tagletPath(project(':framework-test').layout.buildDirectory.dir("classes/java/${tagletVersion}").get().asFile)
 
             if (!isJava8) {
                 options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED', true)
