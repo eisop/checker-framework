@@ -260,7 +260,7 @@ if (skipDelombok) {
         exclude '**/ReturnsReceiverLombokTest.java'
     }
 } else {
-    tasks.register('delombok') {
+    tasks.register('delombok', JavaExec) {
         description = 'Delomboks the source code tree in tests/returnsreceiverlombok'
 
         def srcDelomboked = 'tests/returnsreceiverdelomboked'
@@ -274,13 +274,12 @@ if (skipDelombok) {
         // annotations in the test input code.
         dependsOn ':checker-qual:jar'
 
-        def collection = configurations.testCompileClasspath
-
-        doLast {
-            ant.taskdef(name: 'delombok', classname: 'lombok.delombok.ant.Tasks$Delombok',
-            classpath: collection.asPath)
-            ant.delombok(from: srcJava, to: srcDelomboked, classpath: collection.asPath)
-        }
+        // Run Lombok's delombok tool directly via its launcher instead of through Ant: AntBuilder
+        // is not supported with the configuration cache.
+        def delombokClasspath = configurations.testCompileClasspath
+        classpath = delombokClasspath
+        mainClass = 'lombok.launch.Main'
+        args 'delombok', srcJava, '-d', srcDelomboked, '-c', delombokClasspath.asPath
     }
     tasks.named('test').configure { dependsOn 'delombok' }
 }
