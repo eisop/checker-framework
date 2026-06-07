@@ -212,6 +212,8 @@ final dataflowPom(publication) {
 final dataflowShadedPom(MavenPublication publication, String shadedPkgName) {
     sharedPublicationConfiguration(publication)
 
+    def ver = version
+
     publication.artifactId = "dataflow-${shadedPkgName}"
     publication.pom {
         name = "Dataflow (${shadedPkgName})"
@@ -235,7 +237,7 @@ final dataflowShadedPom(MavenPublication publication, String shadedPkgName) {
             asNode().appendNode('dependencies').appendNode('dependency')
                     .appendNode('groupId', 'io.github.eisop').parent()
                     .appendNode('artifactId', 'checker-qual').parent()
-                    .appendNode('version', version).parent()
+                    .appendNode('version', ver).parent()
                     .appendNode('scope','runtime')
         }
     }
