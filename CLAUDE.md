@@ -65,6 +65,7 @@ script with the same `useJdkVersion`. CI workflow is
 
 ## Commit and PR conventions
 
+- **User review.** Always ask for a review *before* committing.
 - **One logical change per commit.** Patches that bundle perf + style +
   refactor get rejected.
 - **Subject line:** imperative mood, package/file scope first, then the
