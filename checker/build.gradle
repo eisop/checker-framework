@@ -386,9 +386,12 @@ tasks.register('tutorialTests') {
     dependsOn 'assembleForJavac'
     group = 'Verification'
     description = 'Test that the tutorial is working as expected.'
+    def injected = project.objects.newInstance(InjectedExecOps)
+    def tutorialTestsDir = new File(rootDir, "docs/tutorial/tests")
     doLast {
-        ant.ant(dir: "${rootDir}/docs/tutorial/tests", useNativeBasedir: 'true', inheritAll: 'false') {
-            target(name: 'check-tutorial')
+        injected.execOps.exec {
+            workingDir = tutorialTestsDir
+            commandLine 'ant', 'check-tutorial'
         }
     }
 }
