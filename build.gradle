@@ -452,45 +452,52 @@ allprojects { currentProj ->
         // Add the fat checker.jar to the classpath of every Javadoc task. This allows Javadoc in
         // any module to reference classes in any other module.
         // Also, build and use ManualTaglet as a taglet.
-        tasks.withType(Javadoc) {
-            // Similar test in framework-test/build.gradle
+        tasks.withType(Javadoc).configureEach {
+            // Similar test further below and in framework-test/build.gradle
             def tagletVersion = isJava8 ? 'tagletJdk8' : 'taglet'
 
             dependsOn(':checker:shadowJar')
             dependsOn(":framework-test:${tagletVersion}Classes")
 
+            options.encoding = 'UTF-8'
+            if (!name.equals('javadocDoclintAll')) {
+                options.memberLevel = javadocMemberLevel
+            }
+            classpath += configurations.getByName('checkerFatJar').asFileTree
+            if (isJava8) {
+                classpath += configurations.javacJar
+            }
+            options.taglets 'org.checkerframework.taglet.ManualTaglet'
+
             doFirst {
-                options.encoding = 'UTF-8'
-                if (!name.equals('javadocDoclintAll')) {
-                    options.memberLevel = javadocMemberLevel
-                }
-                classpath += configurations.getByName('checkerFatJar').asFileTree
-                if (isJava8) {
-                    classpath += configurations.javacJar
-                }
-                options.taglets 'org.checkerframework.taglet.ManualTaglet'
+                // TODO: this should NOT be in a doFirst block.
                 options.tagletPath(project(':framework-test').sourceSets."${tagletVersion}".output.classesDirs.getFiles() as File[])
+            }
 
-                // This file is looked for by Javadoc.
-                file("${destinationDir}/resources/fonts/").mkdirs()
-                ant.touch(file: "${destinationDir}/resources/fonts/dejavu.css")
+            if (!isJava8) {
+                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED', true)
+                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED', true)
+                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED', true)
+                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED', true)
+                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED', true)
+                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED', true)
+                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED', true)
+                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED', true)
+                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED', true)
+            }
 
-                if (!isJava8) {
-                    options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED', true)
-                    options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED', true)
-                    options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED', true)
-                    options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED', true)
-                    options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED', true)
-                    options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED', true)
-                    options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED', true)
-                    options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED', true)
-                    options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED', true)
-                }
+            // "-Xwerror" requires Javadoc everywhere.  Currently, CI jobs require Javadoc only
+            // on changed lines.  Enable -Xwerror in the future when all Javadoc exists.
+            // options.addBooleanOption('Xwerror', true)
+            options.addStringOption('Xmaxwarns', '99999')
 
-                // "-Xwerror" requires Javadoc everywhere.  Currently, CI jobs require Javadoc only
-                // on changed lines.  Enable -Xwerror in the future when all Javadoc exists.
-                // options.addBooleanOption('Xwerror', true)
-                options.addStringOption('Xmaxwarns', '99999')
+            // Javadoc looks for this CSS file; create it when the task runs (it must not be created
+            // at configuration time). Uses the task's own destinationDir and plain file I/O, so no
+            // Project script object (file/ant) is referenced from the task action.
+            doFirst {
+                def fontsDir = new File(destinationDir, 'resources/fonts')
+                fontsDir.mkdirs()
+                new File(fontsDir, 'dejavu.css').createNewFile()
             }
         }
 
@@ -785,9 +792,12 @@ tasks.register('allJavadoc', Javadoc) {
     destinationDir = file("${rootDir}/docs/api")
     source javadocDirs
 
+    // Similar test further up and in framework-test/build.gradle
+    def tagletVersion = isJava8 ? 'tagletJdk8' : 'taglet'
+
     doFirst {
         source(
-                project(':framework-test').sourceSets."${isJava8 ? 'tagletJdk8' : 'taglet'}".allJava
+                project(':framework-test').sourceSets."${tagletVersion}".allJava
                 )
     }
 
