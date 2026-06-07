@@ -296,6 +296,25 @@ the prior finding. A fresh hypothesis is not new evidence.
   threading audit confirmed AT factories are confined to the javac
   main thread. Plain `IdentityHashMap` shipped instead, matching every
   other LRU cache on the same object.
+- **`==` fast-path in `isSupportedQualifier` before the `Set` lookup.**
+  Raised on the short list (after PR #1673 interned annotation names)
+  on the theory that a reference-equality check would skip the hash
+  computation entirely. Investigation showed the premise is wrong twice
+  over. First, `String` caches its own hash code, so the hash is not
+  recomputed across the repeated interned-name lookups on this path.
+  Second, the backing set is *already* interned: it is built from
+  `Class.getCanonicalName()`, and for the packaged top-level annotation
+  types that qualifiers always are, the canonical name equals the binary
+  name returned by `Class.getName()`, which the JVM interns. So
+  `getSupportedTypeQualifierNames().contains(annotationName(a))` already
+  matches by reference inside `String.equals`'s identity short-circuit;
+  there is no slow `equals` to skip. An isolated JDK micro-benchmark
+  (HotSpot 21) confirmed the current `HashSet.contains` of an interned
+  key runs at ~2.7 ns/op, identical to an interned-set variant, while a
+  linear `==` scan only edges it out below ~5 qualifiers and loses past
+  that. The linear-scan variant also gives up the public `Set<String>`
+  return type of `getSupportedTypeQualifierNames` and adds a correctness
+  dependency on every caller passing an interned string. Not worth it.
 
 ---
 
@@ -304,18 +323,28 @@ the prior finding. A fresh hypothesis is not new evidence.
 Candidates raised in profiling sessions but not yet implemented. Capture
 format: hot method, hypothesis, blockers/open questions.
 
-- **`TypeKind` as a field on `AnnotatedTypeMirror`.** Most callers of
-  `getKind()` go through the underlying `TypeMirror`, which is itself
-  a heap hop. Caching the `TypeKind` as a field on the ATM saves the
-  indirection. Memory cost analyzed at roughly 8 MB at 10⁶ live ATMs,
-  which is acceptable but warrants an A/B benchmark before commit.
-- **Fast-path in `isSupportedQualifier` for interned strings.** After
-  PR #1673, annotation names are interned; an `==` short-circuit
-  before the `Set` lookup should be free at runtime and skip the hash
-  computation entirely.
-- **Pre-sizing `AnnotatedTypeCopier`'s per-visit map.** Same pattern
-  as `AnnotatedTypeScanner.visitedNodes` (PR #1671), unverified on a
-  fresh trace.
+A May 2026 review closed out every item previously on this list:
+
+- **`TypeKind` as a field on `AnnotatedTypeMirror`** — *superseded, do not
+  implement.* The goal (avoid the heap hop through `underlyingType.getKind()`)
+  is already met by a cheaper mechanism: every subclass whose kind is constant
+  (`AnnotatedDeclaredType`, `AnnotatedArrayType`, `AnnotatedExecutableType`,
+  `AnnotatedTypeVariable`, `AnnotatedNullType`, `AnnotatedWildcardType`,
+  `AnnotatedIntersectionType`, `AnnotatedUnionType`) overrides `getKind()` to
+  return the constant inline. That costs zero memory and zero indirection,
+  strictly better than the proposed ~8 MB field. Only `AnnotatedPrimitiveType`
+  and `AnnotatedNoType` fall through to the base method, and for them
+  `underlyingType.getKind()` is cheap and does not force symbol completion (see
+  the doc comment on the base `getKind()`).
+- **Pre-sizing `AnnotatedTypeCopier`'s per-visit map** — *already done.*
+  `AnnotatedTypeCopier.visit` constructs its `IdentityHashMap` with
+  `AnnotatedTypeScanner.VISITED_NODES_EXPECTED_MAX_SIZE` (64), the same
+  pre-sizing as `AnnotatedTypeScanner.visitedNodes`.
+- **`==` fast-path in `isSupportedQualifier`** — *rejected;* see the Tried and
+  rejected section for the measurement.
+
+No candidates are currently open. Add new ones below as profiling surfaces
+them, with the capture format above.
 
 ---
 
