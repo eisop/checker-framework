@@ -343,8 +343,26 @@ A May 2026 review closed out every item previously on this list:
 - **`==` fast-path in `isSupportedQualifier`** — *rejected;* see the Tried and
   rejected section for the measurement.
 
-No candidates are currently open. Add new ones below as profiling surfaces
-them, with the capture format above.
+The items above were each closed during the May 2026 review. One new candidate
+is currently open; add others below as profiling surfaces them, with the
+capture format above.
+
+- **`ElementUtils.qualifiedNameCache` backing map.** Hot method
+  (`getQualifiedName` underlies `annotationName`, `getBinaryName`, the `isX`
+  type predicates, etc.). Today it is a
+  `Collections.synchronizedMap(new WeakHashMap<>())`, and an inline TODO already
+  asks whether an `IdentityHashMap` would be better. Two separable costs on the
+  hot path: (1) the `synchronizedMap` lock on every `get`/`put`, and (2)
+  `WeakHashMap`'s reference-queue expunging plus a `WeakReference` allocation per
+  `put`. javac `Symbol`s use identity `equals`/`hashCode`, so the key semantics
+  would not change. Open questions, none answerable without measurement: the lock
+  cannot be dropped without auditing every reachable thread, and a static cache is
+  more exposed than the per-factory field the campaign already de-synchronized;
+  the language server and the Gradle daemon run analyses in long-lived JVMs, where
+  weak keys let old compilations' `Symbol`s be collected — a strong
+  `IdentityHashMap` would retain them. Needs a thread-reachability audit, a
+  memory analysis for the daemon/LSP case, and a JFR capture confirming the
+  lock/expunge cost is real before any change.
 
 ---
 
