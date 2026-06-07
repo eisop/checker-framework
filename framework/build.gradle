@@ -274,13 +274,12 @@ if (skipDelombok) {
         // annotations in the test input code.
         dependsOn ':checker-qual:jar'
 
+        def collection = configurations.testCompileClasspath
+
         doLast {
-            if (!skipDelombok) {
-                def collection = files(configurations.testCompileClasspath)
-                ant.taskdef(name: 'delombok', classname: 'lombok.delombok.ant.Tasks$Delombok',
-                classpath: collection.asPath)
-                ant.delombok(from: srcJava, to: srcDelomboked, classpath: collection.asPath)
-            }
+            ant.taskdef(name: 'delombok', classname: 'lombok.delombok.ant.Tasks$Delombok',
+            classpath: collection.asPath)
+            ant.delombok(from: srcJava, to: srcDelomboked, classpath: collection.asPath)
         }
     }
     tasks.named('test').configure { dependsOn 'delombok' }

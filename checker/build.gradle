@@ -355,10 +355,11 @@ clean.doLast {
 createCheckTypeTask(project.name, 'CompilerMessages',
         'org.checkerframework.checker.compilermsgs.CompilerMessagesChecker')
 tasks.named('checkCompilerMessages') {
+    def checkerMsgResources = sourceSets.main.resources.filter { f -> f.name == 'messages.properties' }
+    def frameworkMsgResources = project(':framework').sourceSets.main.resources.filter { f -> f.name == 'messages.properties' }
     doFirst {
         options.compilerArgs += [
-            '-Apropfiles=' + sourceSets.main.resources.filter { file -> file.name.equals('messages.properties') }.asPath + File.pathSeparator
-            + project(':framework').sourceSets.main.resources.filter { file -> file.name.equals('messages.properties') }.asPath
+            '-Apropfiles=' + checkerMsgResources.asPath + File.pathSeparator + frameworkMsgResources.asPath
         ]
     }
 }
@@ -385,9 +386,12 @@ tasks.register('tutorialTests') {
     dependsOn 'assembleForJavac'
     group = 'Verification'
     description = 'Test that the tutorial is working as expected.'
+    def injected = project.objects.newInstance(InjectedExecOps)
+    def tutorialTestsDir = new File(rootDir, "docs/tutorial/tests")
     doLast {
-        ant.ant(dir: "${rootDir}/docs/tutorial/tests", useNativeBasedir: 'true', inheritAll: 'false') {
-            target(name: 'check-tutorial')
+        injected.execOps.exec {
+            workingDir = tutorialTestsDir
+            commandLine 'ant', 'check-tutorial'
         }
     }
 }
@@ -406,9 +410,15 @@ tasks.register('demosTests') {
     group = 'Verification'
     description = 'Test that the demos are working as expected.'
 
+    def injected = project.objects.newInstance(InjectedExecOps)
+    def checkerLibPath = layout.projectDirectory.dir('dist').file('checker.jar').asFile.absolutePath
+    def demosDirFile = new File(demosDir.toString())
+
     doLast {
-        ant.properties.put('checker.lib', file("${projectDir}/dist/checker.jar").absolutePath)
-        ant.ant(dir: demosDir.toString())
+        injected.execOps.exec {
+            workingDir = demosDirFile
+            commandLine 'ant', "-Dchecker.lib=${checkerLibPath}"
+        }
     }
 }
 
@@ -417,10 +427,11 @@ tasks.register('templateforaCheckerTests') {
     group = 'Verification'
     description = 'Test that the templatefora-checker is working as expected.'
     def injected = project.objects.newInstance(InjectedExecOps)
+    def templateforaDir = file(templateforaCheckerDir)
 
     doLast {
         injected.execOps.exec {
-            workingDir = templateforaCheckerDir
+            workingDir = templateforaDir
             commandLine "./gradlew", "build"
         }
     }
@@ -517,11 +528,12 @@ if (!skipDelombok) {
         // Because there are Checker Framework annotations in the test source.
         dependsOn ':checker-qual:jar'
 
+        def classPath = configurations.testCompileClasspath
+
         doLast {
-            def collection = files(configurations.testCompileClasspath)
             ant.taskdef(name: 'delombok', classname: 'lombok.delombok.ant.Tasks$Delombok',
-            classpath: collection.asPath)
-            ant.delombok(from: srcJava, to: srcDelomboked, classpath: collection.asPath)
+            classpath: classPath.asPath)
+            ant.delombok(from: srcJava, to: srcDelomboked, classpath: classPath.asPath)
         }
     }
     tasks.named('test').configure { dependsOn 'delombok' }
