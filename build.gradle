@@ -767,11 +767,14 @@ tasks.register('addFavicon', Exec) {
         '.',
         'favicon-checkerframework.png'
     ]
+    def injectedFiles = project.objects.newInstance(InjectedFileOps)
+    def faviconSrc = layout.projectDirectory.file('docs/logo/Checkmark/CFCheckmark_favicon.png').asFile
+    def apiDir = layout.projectDirectory.dir('docs/api').asFile
     doFirst {
-        copy {
-            from 'docs/logo/Checkmark/CFCheckmark_favicon.png'
+        injectedFiles.fs.copy {
+            from faviconSrc
             rename('CFCheckmark_favicon.png', 'favicon-checkerframework.png')
-            into "${rootDir}/docs/api"
+            into apiDir
         }
     }
 }
@@ -791,12 +794,7 @@ tasks.register('allJavadoc', Javadoc) {
 
     // Similar test further up and in framework-test/build.gradle
     def tagletVersion = isJava8 ? 'tagletJdk8' : 'taglet'
-
-    doFirst {
-        source(
-                project(':framework-test').sourceSets."${tagletVersion}".allJava
-                )
-    }
+    source project(':framework-test').sourceSets."${tagletVersion}".allJava
 
     classpath = configurations.allProjects
 
@@ -897,7 +895,8 @@ tasks.register('manual', Exec) {
 // No group so it does not show up in the output of `gradlew tasks`
 tasks.register('downloadJtreg', Download) {
     description = 'Downloads and unpacks jtreg.'
-    onlyIf { !(new File("${jtregHome}/lib/jtreg.jar").exists()) }
+    def jtregHomeDir = jtregHome
+    onlyIf { !new File(jtregHomeDir + '/lib/jtreg.jar').exists() }
     // src 'https://ci.adoptopenjdk.net/view/Dependencies/job/jtreg/lastSuccessfulBuild/artifact/jtreg-4.2.0-tip.tar.gz'
     // If ci.adoptopenjdk.net is down, use this copy.
     // src 'https://checkerframework.org/jtreg-4.2.0-tip.tar.gz'
@@ -909,15 +908,16 @@ tasks.register('downloadJtreg', Download) {
     retries 3
 
     def injected = project.objects.newInstance(InjectedExecOps)
+    def injectedFiles = project.objects.newInstance(InjectedFileOps)
 
     doLast {
-        copy {
+        injectedFiles.fs.copy {
             // Use 'tarTree' when downloading a .tar.gz file
-            from zipTree(dest)
-            into "${jtregHome}/.."
+            from injectedFiles.archives.zipTree(dest)
+            into new File(jtregHomeDir).parentFile
         }
         injected.execOps.exec {
-            commandLine('chmod',  '+x', "${jtregHome}/bin/jtdiff", "${jtregHome}/bin/jtreg")
+            commandLine('chmod', '+x', jtregHomeDir + '/bin/jtdiff', jtregHomeDir + '/bin/jtreg')
         }
     }
 }
