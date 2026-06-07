@@ -60,6 +60,15 @@ so small per-call wins paid back substantially.
   `DefaultQualifierForUseTypeAnnotator`, `AnnotatedTypeScanner`,
   `QualifierDefaults`, `AnnotationUtils`, `ElementUtils`,
   `TypeKindUtils`, and two `typeinference8` files.
+- **PR #1763** — *Constant `getKind()` overrides in ATM subclasses.* Added
+  `@Override getKind()` returning the fixed `TypeKind` to every fixed-kind
+  subclass: `AnnotatedDeclaredType`, `AnnotatedArrayType`,
+  `AnnotatedExecutableType`, `AnnotatedTypeVariable`, `AnnotatedNullType`,
+  `AnnotatedWildcardType`, `AnnotatedIntersectionType`, `AnnotatedUnionType`.
+  Eliminates the heap hop through `underlyingType.getKind()`; on declared types
+  that call includes `Symbol#apiComplete`. Only `AnnotatedPrimitiveType` and
+  `AnnotatedNoType` fall through to the base, where the underlying `getKind()`
+  is cheap.
 
 ### `AnnotationMirrorSet` and annotation utilities
 
@@ -94,6 +103,10 @@ so small per-call wins paid back substantially.
   `IdentityHashMap.clear()` walks all 128 table slots explicitly in Java; TLAB allocation
   uses JVM bulk zeroing. The pre-sizing in PR #1671 is what makes `clear()` more expensive —
   pre-sizing enlarged the array that must be explicitly zeroed.
+- **PR #1763** — *Pre-sized `ArrayList` copies in `AnnotatedTypeCopier`.* Replaced
+  `CollectionsPlume.mapList` lambda calls with direct pre-sized `new ArrayList<>(size)` loops.
+  Removes lambda-dispatch overhead and allocates the destination list at the correct capacity
+  immediately, avoiding internal growth copies.
 
 ### Element and name caching
 
@@ -110,6 +123,10 @@ so small per-call wins paid back substantially.
   stub parser, etc.) through it. Also removes the now-redundant
   `AnnotationUtils#annotationNameInterned` — `annotationName` itself
   now returns an interned name. See CHANGELOG note.
+- **PR #1763** — *`ElementUtils.parentPackage` fast path.* When the `PackageElement` is a
+  javac `Symbol.PackageSymbol`, reads the enclosing package directly from the `owner` field
+  instead of calling `Elements#getPackageElement(String)`. Falls back to the original
+  string-based lookup for non-javac implementations.
 
 ### Cache sizes and synchronization
 
@@ -132,6 +149,9 @@ so small per-call wins paid back substantially.
   lookups in `findAnnotationInSameHierarchy` and adjacent hot paths.
   Made `elements` field protected so subclass hierarchies can extend
   the same caching pattern.
+- **PR #1763** — *Empty-collection early-out in `ElementQualifierHierarchy`.* Added an
+  `annos.isEmpty()` guard at the top of `findAnnotationInSameHierarchy` to return immediately
+  without entering the qualifier-kind lookup loop.
 
 ### Dataflow expressions
 
@@ -143,6 +163,12 @@ so small per-call wins paid back substantially.
   gap; `FieldAccess` and similar pay +8 bytes. Peak overhead measured
   at ~128 bytes for a large method, well worth the savings on store-
   comparison hot paths.
+- **PR #1765** — *`BinaryOperation.hashCode` symmetry fix.* For commutative operations,
+  `equals()` ignores operand order; the hash code must match. Replaced the
+  order-dependent `Objects.hash(kind, left, right)` with
+  `Objects.hash(kind, left.hashCode() + right.hashCode())` so that `a OP b`
+  and `b OP a` hash identically. This is a correctness fix for the `equals`/`hashCode`
+  contract that also improves cache hit rates for commutative expressions.
 
 ### Dataflow stores, analysis, and transfer
 
@@ -185,6 +211,15 @@ so small per-call wins paid back substantially.
   discarded. Wrapped in `if (debug)` guards where present.
 - **PR #1695** — *Optimize `TreePathCacher` usage.* Avoid recomputing
   `TreePath` when the cache already has the answer.
+- **PR #1763** — *`TreePathCacher` control-flow exception optimization.* The
+  `Result` exception used for non-local exit is constructed with
+  `super(null, null, false, false)` to suppress stack-trace generation; the
+  exception is caught two frames up and never logged or rethrown.
+- **PR #1765** — *`entrySet()` iteration over `keySet() + get()`.* Applied the
+  pattern across `UBQualifier`, `LockAnnotatedTypeFactory`, `MustCallInference`,
+  and `AnnotationConverter`: iterate `map.entrySet()` instead of `map.keySet()`
+  followed by `map.get(key)`, eliminating a redundant second hash lookup per
+  iteration.
 
 ### Value Checker
 
@@ -246,6 +281,13 @@ mix of perf, clarification, and small correctness fixes:
   `DefaultQualifierForUseTypeAnnotator`, `ListTypeAnnotator`).
 - **PR #1727** — framework/util/defaults (`Default`,
   `QualifierDefaults`).
+- **PR #1763** — *Mixed performance tweaks.* `AnnotationFileParser`: skips JavaToken
+  retention for JDK stubs via a new `parseStubUnitForJdk()` path (user stubs still use
+  the full diagnostic-quality parser). `DefaultQualifierForUseTypeAnnotator`: added an
+  empty-set early-out before `addMissingAnnotations` and canonicalized empty results to
+  the shared `AnnotationMirrorSet.emptySet()` sentinel, avoiding a retained backing
+  `ArrayList` per cached element. `QualifierDefaults.shouldBeAnnotated`: hoisted repeated
+  `getKind()` calls into a local.
 
 ### Correctness fixes adjacent to the perf work
 
@@ -258,6 +300,11 @@ auditing the same files.
 - **PR #1690** — *Change `catch Throwable` to `catch Exception`* in
   several framework call sites. `Throwable` accidentally suppressed
   things like `OutOfMemoryError` and `ThreadDeath`.
+- **PR #1765** — *`ElementUtils.hasParameters` name-form fix.* Replaced
+  `Class.getName()` (JVM binary form: `"java.util.Map$Entry"`) with
+  `getCanonicalName()` (source form: `"java.util.Map.Entry"`) when matching
+  against `TypeMirror.toString()`. Previously, nested classes and array types
+  could be silently mismatched. Surfaced during the performance review sweep.
 
 ---
 
