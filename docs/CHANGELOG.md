@@ -3,6 +3,10 @@ Version 3.49.5-eisop2 (May ?, 2026)
 
 **User-visible changes:**
 
+Further performance improvements. `allNullnessTests` down to below 2 minutes
+and `checkNullness` to below 3 minutes (last release: 2.5 and 4 minutes,
+respectively). Several optimizations also reduce GC pressure.
+
 **Implementation details:**
 
 `AnnotationMirrorSet` has a new `get(int)` method that returns the element at a
@@ -19,6 +23,10 @@ across compilations instead of being re-parsed for every compilation. This speed
 up multi-compilation JVMs such as the test suite, the Gradle daemon, and the
 language server (the JavaParser parse share of `allNullnessTests` roughly halved);
 a single compilation is unaffected.
+
+Performance: `QualifierDefaults` now reuses a single defaulting scanner instead of
+allocating one (and its `IdentityHashMap`) for every type it defaults, cutting a
+large allocation source in realistic compilations.
 
 Fixed a bug that caused an IndexOutOfBoundsException for lambdas in varargs,
 for type systems that had the Aliasing Checker as a subchecker, like the

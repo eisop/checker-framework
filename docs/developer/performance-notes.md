@@ -152,6 +152,32 @@ so small per-call wins paid back substantially.
   `CollectionsPlume.mapList` lambda calls with direct pre-sized `new ArrayList<>(size)` loops.
   Removes lambda-dispatch overhead and allocates the destination list at the correct capacity
   immediately, avoiding internal growth copies.
+- **(pending review)** — *Reuse the `QualifierDefaults` defaulting scanner instead of
+  constructing one per application.* `QualifierDefaults.applyDefaultsElement` created a fresh
+  `DefaultApplierElement`, whose constructor created a fresh `DefaultApplierElementImpl` — an
+  `AnnotatedTypeScanner` whose `visitedNodes` `IdentityHashMap` is pre-sized to 64 (a 256-slot
+  `Object[]`) — for *every* type defaulted. On a realistic single compilation
+  (`:checker:checkNullness`, isolated forked-javac worker, 3,337 samples) this was the largest
+  single allocation source after the copier: `Object[]` was 61% of all TLAB events, and 17% of
+  those `Object[]`s came from `AnnotatedTypeScanner.<init>`, of which 76% (3,360 events ≈ 8% of
+  *all* TLAB events) were `DefaultApplierElementImpl` construction. The
+  `AnnotatedTypeScanner` Javadoc explicitly says not to construct a scanner per use but to store
+  and reuse one. Fix: `DefaultApplierElementImpl.outer` became non-final, and a single scanner is
+  parked in a `QualifierDefaults.pooledApplierImpl` field and borrowed/returned around each
+  `applyDefault` (`borrowApplierImpl`/`returnApplierImpl`). `AnnotatedTypeScanner.visit` already
+  resets all scan state, so reuse is transparent. Safety: defaulting is not re-entrant into
+  `applyDefault` (the scan only reads caches — `elementToBoundType`, `getPath` — and adds
+  annotations; verified `getBoundType` and the per-location branches do not call back into
+  `getAnnotatedType`/defaulting), and the pool is a size-1 slot that is `null` exactly while
+  borrowed, so any *hypothetical* re-entrant borrow allocates a fresh scanner rather than
+  corrupting the parked one — correctness never depends on non-re-entrancy. Confined to the javac
+  main thread like the other caches. Re-measured on the same worker: `AnnotatedTypeScanner.<init>`
+  `Object[]` allocations dropped 4,415 → 1,090 (−75%); `DefaultApplierElementImpl` (both the object
+  and its map) left the allocation profile entirely; total TLAB events −5.7% (42,738 → 40,314) at
+  an unchanged sample count; `DefaultApplierElementImpl.scan` self-time unchanged (no CPU
+  regression). The 1,090 residual scanner constructions are now dominated (77%) by
+  `ElementAnnotationApplier$TypeVarAnnotator` — the same per-use-construction anti-pattern, a
+  natural follow-up (see Short list).
 
 ### Element and name caching
 
@@ -531,6 +557,77 @@ invariants, which is why the campaign left them:
   caching-disabled-during-parsing rule exists because partially-loaded stubs yield
   incomplete annotations; changing when defaults are computed for JDK supertypes is
   correctness-sensitive and needs its own design.
+
+### Realistic-workload venues (June 2026 `checkNullness` investigation)
+
+Context for future sessions: the leaf self-time profile is flat (no single CF leaf
+above ~3.6%), so the campaign's per-leaf wins are exhausted. The remaining cost is
+*architectural* — the per-node type-computation pipeline. Use inclusive-time and
+allocation analysis, not leaf self-time, to make progress.
+
+**Pick the right workload.** `allNullnessTests` is dominated by test-harness
+amplification — it runs hundreds of tiny per-directory compilations in one worker
+JVM, so JDK-stub work (parse + resolve) is ~28–32% inclusive there but only ~6% in a
+real single compilation. For *realistic* venues, profile a single forked-javac
+compile: `:checker:checkNullness` (then isolate the worker `cknull-<pid>.jfr` — the
+file whose stacks contain `GenericAnnotatedTypeFactory.performFlowAnalysis`; the
+launcher/daemon/shadowJar files are noise). In that worker: flow analysis ≈ 38%
+inclusive, `getAnnotatedType` ≈ 47%, and — crucially — `Object[]` is ~61% of all TLAB
+events, ~91% of which are `IdentityHashMap` backing arrays from `AnnotatedTypeScanner`
+(`reset` 52%, `<init>` 17%) and `AnnotatedTypeCopier.visit` (22%). Flow analysis's own
+self-time *is* the type pipeline (scanning, defaulting, copying, map lookups,
+`TreePath`, symbol completion), not dataflow logic — the dataflow framework itself
+(`CFStore`/`CFValue`) does not appear in self-time.
+
+Open venues, roughly by tractability:
+
+- **`ElementAnnotationApplier$TypeVarAnnotator` per-use construction.** After the
+  `QualifierDefaults` scanner-reuse fix above, this is the largest remaining
+  `AnnotatedTypeScanner.<init>` allocation (77% of the residual ~1,090 `Object[]`
+  events on the `checkNullness` worker). Same anti-pattern, likely the same
+  borrow/reuse remedy; needs an audit of `ElementAnnotationApplier`'s lifecycle and
+  re-entrancy. Lowest-risk next step.
+- **Reduce ATM deep copying (`AnnotatedTypeCopier.visit` = 22% of `Object[]`).**
+  Defensive deep copies exist only because ATMs are mutable (every `fromElement`
+  cache hit, many `getAnnotatedType` paths). `ATF.getElementAnnotations` (committed)
+  was a one-caller nibble. The real lever is **copy-on-write annotation sets or
+  immutable ATMs**; this also unblocks the `directSupertypes` cache above. Large,
+  architectural, high value.
+- **`IdentityHashMap` pre-sizing (52% of `Object[]`, from `reset()`).** Pre-sized to
+  64 → a 256-slot `Object[]` per scan, most visiting 1–3 nodes. *Settled* for
+  realloc-vs-`clear()` and pre-size-64 (see the applied "Re-measured June 2026"
+  note), but those measurements were CPU self-time on `allNullnessTests`. The
+  realistic worker shows `Object[]` at 61% of allocations, so the **GC** side of the
+  tradeoff is heavier than when last measured. Only revisit with *wall-clock + GC
+  pause* data on a realistic compile (e.g. an adaptive/smaller initial size, or
+  size-aware reset) — allocation-count alone will not overturn the prior CPU finding.
+- **Forced javac symbol completion (`Symbol.complete`/`apiComplete` ≈ 3.3% self).**
+  Driven during flow analysis by `getKind`/`createType`/`CFAbstractValue.canBeMissingAnnotations`/
+  `getErased`/`ElementUtils.isTypeElement`. PR #1763 started this with constant
+  `getKind()` overrides. Confirmed real (not the `assert`-guarded `validateSet` path:
+  `:checker:checkNullness`'s forked javac runs without `-ea`). Incremental; audit
+  remaining forcers that already have the needed info cheaply.
+- **Redundant type computation across the flow fixpoint (the 38%).** Flow analysis
+  recomputes node types across iterations; the self-time is the type pipeline.
+  Memoizing flow-insensitive node types within a run could help but is hard because
+  of flow-sensitivity. Architectural.
+
+Investigated and **rejected** this session:
+
+- **Changing `TreeUtils.annotationsFrom*` to return `AnnotationMirrorSet`** (so the
+  `addAnnotations` callers hit the index-based overload). Rejected: it is a public-API
+  return-type break on `TreeUtils` (used by downstream checkers) rippling through ~15
+  internal callers that declare the result as `List`, it shifts `List` (ordered,
+  duplicates) to `Set` (dedups by `areSame`) semantics, and only ~2 of ~18 callers
+  pass the result straight to `addAnnotations` — and both are cold per-tree
+  construction paths. Net: large break + semantic risk to remove two cold iterators.
+- **A new `AnnotationMirrorSet.singleton(anno)` factory** for the
+  `addMissingAnnotations(Collections.singleton(x))` sites. Rejected in favor of the
+  existing singular `addMissingAnnotation(x)` (committed): the singular method
+  allocates *nothing*, whereas an `AnnotationMirrorSet` singleton allocates an
+  `ArrayList`-backed set — heavier than the JDK's immutable singleton. Rule for future:
+  a single annotation → the singular `add/addMissing/replaceAnnotation` method, never a
+  one-element collection.
 
 ---
 
