@@ -1,4 +1,4 @@
-Version 3.49.5-eisop2 (May ?, 2026)
+Version 3.49.5-eisop2 (June ?, 2026)
 -----------------------------------
 
 **User-visible changes:**
@@ -8,6 +8,8 @@ and `checkNullness` to below 3 minutes (last release: 2.5 and 4 minutes,
 respectively). Several optimizations also reduce GC pressure.
 
 **Implementation details:**
+
+Enabled the Gradle configuration cache, speeding up build times.
 
 `AnnotationMirrorSet` has a new `get(int)` method that returns the element at a
 given index in iteration order, letting hot callers iterate by index without
