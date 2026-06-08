@@ -751,9 +751,10 @@ public class LockAnnotatedTypeFactory
         Map<? extends ExecutableElement, ? extends AnnotationValue> valmap =
                 anno.getElementValues();
         Object value = null;
-        for (ExecutableElement elem : valmap.keySet()) {
-            if (elem.getSimpleName().contentEquals("value")) {
-                value = valmap.get(elem).getValue();
+        for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
+                valmap.entrySet()) {
+            if (entry.getKey().getSimpleName().contentEquals("value")) {
+                value = entry.getValue().getValue();
                 break;
             }
         }
