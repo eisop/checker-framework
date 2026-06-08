@@ -87,6 +87,26 @@ so small per-call wins paid back substantially.
   it. `Name` instances from the same `Elements` are guaranteed
   comparable by `==` within one javac invocation.
 
+### `AnnotatedTypeScanner` iterator allocation
+
+- **PR #1775** — *`scan`/`scanAndReduce` List overloads and `AnnotatedTypeCopier`
+  index-based iteration.* Added `protected R scan(List<? extends ATM>, P)` and
+  `protected R scanAndReduce(List<? extends ATM>, P, R)` overloads to
+  `AnnotatedTypeScanner`. Java overload resolution prefers these over the
+  `Iterable` versions, so all existing call sites in `visitDeclared`,
+  `visitExecutable`, `visitIntersection`, and `visitUnion` automatically use
+  index-based `list.get(i)` instead of an enhanced-for loop. Also changed
+  `AnnotatedTypeCopier.visitDeclared` to iterate the raw `typeArgs` field
+  (package-private, same package) by index instead of calling
+  `getTypeArguments()` (which wraps in an unmodifiable list) and iterating
+  with for-each. Combined JFR impact on `allNullnessTests -PmaxParallelForks=1`:
+  `Collections$UnmodifiableCollection$1` TLAB events dropped from 3,113 (1.8%)
+  to zero; `ArrayList$Itr` TLAB events dropped from 11,471 (6.7%) to 5,332
+  (3.2%); total TLAB event count dropped 3.1% (171,829 → 166,464). Also added
+  an `isEmpty()` short-circuit to `AnnotatedTypeMirror.getAnnotations()` that
+  returns the shared `emptySet()` sentinel when `primaryAnnotations` is empty,
+  avoiding a fresh `AnnotationMirrorSet` allocation for unannotated types.
+
 ### `AnnotatedTypeScanner` and visitor state
 
 - **PR #1646** — *Only reset the visitedNodes if they are not empty.*
@@ -407,9 +427,13 @@ capture format above.
   more exposed than the per-factory field the campaign already de-synchronized;
   the language server and the Gradle daemon run analyses in long-lived JVMs, where
   weak keys let old compilations' `Symbol`s be collected — a strong
-  `IdentityHashMap` would retain them. Needs a thread-reachability audit, a
-  memory analysis for the daemon/LSP case, and a JFR capture confirming the
-  lock/expunge cost is real before any change.
+  `IdentityHashMap` would retain them. **JFR capture (June 2026,
+  `allNullnessTests -PmaxParallelForks=1`)** confirmed the lock/expunge cost:
+  `WeakHashMap.get` via `Collections$SynchronizedMap.get` appeared at 110/18,969
+  execution samples (0.58%), with callers split across `annotationName`,
+  `isSupportedQualifier`, `AnnotationFileElementTypes`, and
+  `normalizeAndCheck`. Still needs the thread-reachability audit and daemon/LSP
+  memory analysis before any change.
 
 ---
 
