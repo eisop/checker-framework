@@ -176,8 +176,36 @@ so small per-call wins paid back substantially.
   and its map) left the allocation profile entirely; total TLAB events −5.7% (42,738 → 40,314) at
   an unchanged sample count; `DefaultApplierElementImpl.scan` self-time unchanged (no CPU
   regression). The 1,090 residual scanner constructions are now dominated (77%) by
-  `ElementAnnotationApplier$TypeVarAnnotator` — the same per-use-construction anti-pattern, a
-  natural follow-up (see Short list).
+  `ElementAnnotationApplier$TypeVarAnnotator`, addressed next.
+- **(pending review)** — *Reuse two more per-use scanners: `TypeVarAnnotator` and the
+  `isValidStructurally` structural scanner.* Same anti-pattern as the `QualifierDefaults` entry
+  above, found by re-running the `:checker:checkNullness` allocation analysis after it.
+  (1) `ElementAnnotationApplier.apply` constructed `new TypeVarAnnotator()` (a stateless
+  `AnnotatedTypeScanner`) per call — 839 `Object[]` events, ~2% of TLAB, the largest remaining
+  scanner construction. Pooled in a `static AtomicReference<TypeVarAnnotator>`: `getAndSet(null)`
+  borrows, `set` returns. An `AtomicReference` (not a plain field, unlike the `QualifierDefaults`
+  case) because `apply` is `static` and shared across factories/threads in the Gradle daemon and
+  language server, and because `TypeVarAnnotator.visitTypeVariable` calls back into `applyInternal`
+  (possible re-entrancy); a concurrent or re-entrant borrow sees `null` and allocates its own, so
+  correctness never depends on single-threaded or non-re-entrant use.
+  (2) `BaseTypeValidator.isValidStructurally` built a `SimpleAnnotatedTypeScanner` per call (234
+  events). The validator is per-checker and main-thread-confined and the structural scan is not
+  re-entrant (it is called once per top-level type from `isValid`, and its action only reads
+  annotations), so the scanner is now a lazily-initialized field (lazy, not a field initializer, to
+  avoid `this` escaping during construction; the captured `isTopLevelValidType` still dispatches to
+  subclass overrides). Combined effect, measured across the four `checkNullness` worker traces:
+  total `AnnotatedTypeScanner.<init>` `Object[]` allocations 4,415 → 1,090 (#1) → 290 (TypeVar) →
+  48 (isValidStructurally), i.e. **−99% overall**. The 48 residuals are `TypesIntoElements$TCConvert`
+  (30, ~0.08% of TLAB) and `typeinference8 InvocationType` (18) — both negligible; per-use scanner
+  construction is no longer a meaningful allocation source. **Caveat (measured):** none of these
+  moved single-compile wall-clock — `checkNullness` is not GC-bound at `-Xmx512m`, so the with/without
+  delta was inside ±10% run-to-run noise (see the timing note). The value is GC/memory-pressure
+  reduction (tight heaps, concurrent collectors, long-lived daemon/LSP JVMs), not single-compile
+  latency. **General pattern** for any future scanner found constructed per use: a
+  main-thread-confined scanner can reuse a plain size-1 pool field (like `QualifierDefaults`); a
+  `static`/shared one needs an `AtomicReference.getAndSet` pool (like `TypeVarAnnotator`) to stay
+  correct under daemon/LSP concurrency and re-entrancy — the `null`-while-borrowed state doubles as
+  the re-entrancy guard.
 
 ### Element and name caching
 
@@ -581,12 +609,6 @@ self-time *is* the type pipeline (scanning, defaulting, copying, map lookups,
 
 Open venues, roughly by tractability:
 
-- **`ElementAnnotationApplier$TypeVarAnnotator` per-use construction.** After the
-  `QualifierDefaults` scanner-reuse fix above, this is the largest remaining
-  `AnnotatedTypeScanner.<init>` allocation (77% of the residual ~1,090 `Object[]`
-  events on the `checkNullness` worker). Same anti-pattern, likely the same
-  borrow/reuse remedy; needs an audit of `ElementAnnotationApplier`'s lifecycle and
-  re-entrancy. Lowest-risk next step.
 - **Reduce ATM deep copying (`AnnotatedTypeCopier.visit` = 22% of `Object[]`).**
   Defensive deep copies exist only because ATMs are mutable (every `fromElement`
   cache hit, many `getAnnotatedType` paths). `ATF.getElementAnnotations` (committed)

@@ -24,9 +24,11 @@ up multi-compilation JVMs such as the test suite, the Gradle daemon, and the
 language server (the JavaParser parse share of `allNullnessTests` roughly halved);
 a single compilation is unaffected.
 
-Performance: `QualifierDefaults` now reuses a single defaulting scanner instead of
-allocating one (and its `IdentityHashMap`) for every type it defaults, cutting a
-large allocation source in realistic compilations.
+Performance: several `AnnotatedTypeScanner`s that were constructed per use are now
+reused — the `QualifierDefaults` defaulting scanner, `ElementAnnotationApplier`'s
+`TypeVarAnnotator`, and `BaseTypeValidator`'s structural-validity scanner — instead of
+allocating a scanner (and its `IdentityHashMap`) for every type. This removes ~99% of
+per-use scanner-construction allocations in realistic compilations.
 
 Fixed a bug that caused an IndexOutOfBoundsException for lambdas in varargs,
 for type systems that had the Aliasing Checker as a subchecker, like the
