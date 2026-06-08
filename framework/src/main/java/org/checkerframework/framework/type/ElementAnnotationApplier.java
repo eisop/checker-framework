@@ -119,7 +119,12 @@ public final class ElementAnnotationApplier {
     private static final AtomicReference<TypeVarAnnotator> pooledTypeVarAnnotator =
             new AtomicReference<>();
 
-    /** Issues an "invalid.annotation.location.bytecode warning. */
+    /**
+     * Issues an "invalid.annotation.location.bytecode" warning.
+     *
+     * @param element the element
+     * @param typeFactory the type factory
+     */
     private static void reportInvalidLocation(Element element, AnnotatedTypeFactory typeFactory) {
         Element report = element;
         if (element.getEnclosingElement().getKind() == ElementKind.METHOD) {
