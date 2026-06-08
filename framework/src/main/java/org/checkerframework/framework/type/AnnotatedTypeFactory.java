@@ -4251,7 +4251,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             Element elt, @FullyQualifiedName String annoName, boolean checkAliases) {
         AnnotationMirrorSet declAnnos = getDeclAnnotations(elt);
 
-        for (AnnotationMirror am : declAnnos) {
+        // Iterate by index rather than via an Iterator: getDeclAnnotation is a hot path and was a
+        // notable AnnotationMirrorSet iterator-allocation site in JFR traces.
+        for (int i = 0, n = declAnnos.size(); i < n; ++i) {
+            AnnotationMirror am = declAnnos.get(i);
             if (AnnotationUtils.areSameByName(am, annoName)) {
                 return am;
             }
@@ -4264,7 +4267,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (aliases == null) {
             return null;
         }
-        for (AnnotationMirror am : declAnnos) {
+        for (int i = 0, n = declAnnos.size(); i < n; ++i) {
+            AnnotationMirror am = declAnnos.get(i);
             AnnotationMirror match = aliases.get(AnnotationUtils.annotationName(am));
             if (match != null) {
                 return match;
