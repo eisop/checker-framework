@@ -1123,12 +1123,15 @@ public class AnnotatedTypes {
             }
         }
 
-        parameters = new ArrayList<>(parameters.subList(0, parameters.size() - 1));
-        for (int i = args.size() - parameters.size(); i > 0; --i) {
-            parameters.add(varargs.getComponentType().deepCopy());
+        // Pre-size to the final element count (args.size()) to avoid ArrayList growth while
+        // appending the expanded varargs components.
+        List<AnnotatedTypeMirror> expanded = new ArrayList<>(args.size());
+        expanded.addAll(parameters.subList(0, parameters.size() - 1));
+        for (int i = args.size() - expanded.size(); i > 0; --i) {
+            expanded.add(varargs.getComponentType().deepCopy());
         }
 
-        return parameters;
+        return expanded;
     }
 
     /**
@@ -1161,12 +1164,15 @@ public class AnnotatedTypes {
             }
         }
 
-        parameters = new ArrayList<>(parameters.subList(0, parameters.size() - 1));
-        for (int i = args.size() - parameters.size(); i > 0; --i) {
-            parameters.add(varargs.getComponentType());
+        // Pre-size to the final element count (args.size()) to avoid ArrayList growth while
+        // appending the expanded varargs components.
+        List<AnnotatedTypeMirror> expanded = new ArrayList<>(args.size());
+        expanded.addAll(parameters.subList(0, parameters.size() - 1));
+        for (int i = args.size() - expanded.size(); i > 0; --i) {
+            expanded.add(varargs.getComponentType());
         }
 
-        return parameters;
+        return expanded;
     }
 
     /**

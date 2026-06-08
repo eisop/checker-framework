@@ -226,6 +226,13 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     /**
      * Returns the {@code kind} of this type.
      *
+     * <p>Subclasses whose kind is constant (e.g. {@link AnnotatedDeclaredType}, {@link
+     * AnnotatedArrayType}) override this to return the constant directly; this is meaningful for
+     * performance because the underlying javac {@code Type#getKind()} on declared types runs {@code
+     * Symbol#apiComplete}. Only {@link AnnotatedPrimitiveType} and {@link AnnotatedNoType} fall
+     * through to this base implementation; for both, the underlying type's {@code getKind()} is
+     * cheap and does not force symbol completion.
+     *
      * @return the kind of this type
      */
     public TypeKind getKind() {
@@ -358,6 +365,9 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     // typetools: getPrimaryAnnotations
     // typetools: removed method getPrimaryAnnotation
     public final AnnotationMirrorSet getAnnotations() {
+        if (primaryAnnotations.isEmpty()) {
+            return AnnotationMirrorSet.emptySet();
+        }
         return AnnotationMirrorSet.unmodifiableSet(primaryAnnotations);
     }
 
@@ -692,6 +702,22 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     }
 
     /**
+     * Adds multiple annotations to this type. An {@link AnnotationMirrorSet}-typed overload of
+     * {@link #addAnnotations(Iterable)}: overload resolution prefers it for the many callers that
+     * pass {@link #getAnnotationsField()} or {@link #getAnnotations()}, letting them iterate by
+     * index rather than allocating an {@code Iterator}. Iterating an {@code AnnotationMirrorSet}
+     * was the single largest source of {@code ArrayList$Itr} allocations in nullness-checking JFR
+     * traces, and this method was its largest caller.
+     *
+     * @param annotations the annotations to add
+     */
+    public void addAnnotations(AnnotationMirrorSet annotations) {
+        for (int i = 0, n = annotations.size(); i < n; ++i) {
+            this.addAnnotation(annotations.get(i));
+        }
+    }
+
+    /**
      * Adds only the annotations in {@code annotations} that the type does not already have a
      * primary annotation in the same hierarchy.
      *
@@ -706,6 +732,20 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     public void addMissingAnnotations(Iterable<? extends AnnotationMirror> annotations) {
         for (AnnotationMirror a : annotations) {
             addMissingAnnotation(a);
+        }
+    }
+
+    /**
+     * Adds only the annotations in {@code annotations} for which the type does not already have a
+     * primary annotation in the same hierarchy. An {@link AnnotationMirrorSet}-typed overload of
+     * {@link #addMissingAnnotations(Iterable)} that iterates by index instead of allocating an
+     * {@code Iterator}.
+     *
+     * @param annotations the annotations to add
+     */
+    public void addMissingAnnotations(AnnotationMirrorSet annotations) {
+        for (int i = 0, n = annotations.size(); i < n; ++i) {
+            addMissingAnnotation(annotations.get(i));
         }
     }
 
@@ -736,6 +776,20 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     public void replaceAnnotations(Iterable<? extends AnnotationMirror> replAnnos) {
         for (AnnotationMirror a : replAnnos) {
             this.replaceAnnotation(a);
+        }
+    }
+
+    /**
+     * Adds multiple annotations to this type, removing any existing primary annotations from the
+     * same qualifier hierarchy first. An {@link AnnotationMirrorSet}-typed overload of {@link
+     * #replaceAnnotations(Iterable)} that iterates by index instead of allocating an {@code
+     * Iterator}.
+     *
+     * @param replAnnos the annotations to replace
+     */
+    public void replaceAnnotations(AnnotationMirrorSet replAnnos) {
+        for (int i = 0, n = replAnnos.size(); i < n; ++i) {
+            this.replaceAnnotation(replAnnos.get(i));
         }
     }
 
@@ -1043,6 +1097,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         @Override
+        public TypeKind getKind() {
+            return TypeKind.DECLARED;
+        }
+
+        @Override
         public boolean isDeclaration() {
             return declaration;
         }
@@ -1347,6 +1406,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          */
         private AnnotatedExecutableType(ExecutableType type, AnnotatedTypeFactory factory) {
             super(type, factory);
+        }
+
+        @Override
+        public TypeKind getKind() {
+            return TypeKind.EXECUTABLE;
         }
 
         /** The parameter types; an unmodifiable list. */
@@ -1828,6 +1892,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             super(type, factory);
         }
 
+        @Override
+        public TypeKind getKind() {
+            return TypeKind.ARRAY;
+        }
+
         /** The component type of this array type. */
         /*package-private*/ @MonotonicNonNull AnnotatedTypeMirror componentType;
 
@@ -1934,6 +2003,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 TypeVariable type, AnnotatedTypeFactory atypeFactory, boolean declaration) {
             super(type, atypeFactory);
             this.declaration = declaration;
+        }
+
+        @Override
+        public TypeKind getKind() {
+            return TypeKind.TYPEVAR;
         }
 
         /** The lower bound of the type variable. */
@@ -2236,6 +2310,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         @Override
+        public TypeKind getKind() {
+            return TypeKind.NULL;
+        }
+
+        @Override
         public <R, P> R accept(AnnotatedTypeVisitor<R, P> v, P p) {
             return v.visitNull(this, p);
         }
@@ -2347,6 +2426,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
 
         private AnnotatedWildcardType(WildcardType type, AnnotatedTypeFactory factory) {
             super(type, factory);
+        }
+
+        @Override
+        public TypeKind getKind() {
+            return TypeKind.WILDCARD;
         }
 
         @Override
@@ -2561,6 +2645,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             super(type, atypeFactory);
         }
 
+        @Override
+        public TypeKind getKind() {
+            return TypeKind.INTERSECTION;
+        }
+
         /**
          * {@inheritDoc}
          *
@@ -2713,6 +2802,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          */
         private AnnotatedUnionType(UnionType type, AnnotatedTypeFactory atypeFactory) {
             super(type, atypeFactory);
+        }
+
+        @Override
+        public TypeKind getKind() {
+            return TypeKind.UNION;
         }
 
         @Override
