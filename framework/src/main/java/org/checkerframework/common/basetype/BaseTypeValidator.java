@@ -181,8 +181,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
             // per-call allocation source (its visitedNodes IdentityHashMap) in checkNullness traces
             // -- which is safe because this validator is confined to the javac main thread and
             // SimpleAnnotatedTypeScanner.visit resets its state on each call. isValidStructurally
-            // is
-            // not re-entrant: it is called once per top-level type and its scan only reads
+            // is not re-entrant: it is called once per top-level type and its scan only reads
             // annotations.
             structuralScanner =
                     new SimpleAnnotatedTypeScanner<>(

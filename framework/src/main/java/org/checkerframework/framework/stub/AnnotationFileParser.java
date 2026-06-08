@@ -820,15 +820,13 @@ public class AnnotationFileParser {
         if (fileType == AnnotationFileType.JDK_STUB) {
             // The annotated-JDK stub text is identical across every compilation in a JVM (it is
             // bundled in the checker on the classpath and does not depend on the javac context),
-            // and
-            // JDK-stub processing is read-only on the AST -- unlike ajava, it never calls
+            // and JDK-stub processing is read-only on the AST -- unlike ajava, it never calls
             // concatenateAddedStringLiterals or otherwise mutates nodes. So the JavaParser parse,
             // which the profiles show is a large share of stub-parsing cost, can be shared across
             // compilations: each compilation still re-runs process*() to resolve the cached AST
             // against its own javac model. The test harness, the Gradle daemon, and the language
             // server all run many compilations per JVM and benefit; a single compilation parses
-            // each
-            // JDK class once either way. See jdkStubUnitCache.
+            // each JDK class once either way. See jdkStubUnitCache.
             stubUnit =
                     jdkStubUnitCache.computeIfAbsent(
                             filename, k -> JavaParserUtil.parseStubUnitForJdk(inputStream));
