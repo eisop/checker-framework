@@ -124,10 +124,13 @@ public class AnnotatedTypeCopier
         }
 
         if (original.typeArgs != null) {
-            List<? extends AnnotatedTypeMirror> origTypeArgs = original.getTypeArguments();
-            List<AnnotatedTypeMirror> copyTypeArgs = new ArrayList<>(origTypeArgs.size());
-            for (AnnotatedTypeMirror typeArg : origTypeArgs) {
-                copyTypeArgs.add(visit(typeArg, originalToCopy));
+            // Use the raw field (same package) and index-based access to avoid allocating an
+            // iterator over the unmodifiable wrapper that getTypeArguments() returns.
+            List<AnnotatedTypeMirror> origTypeArgs = original.typeArgs;
+            int n = origTypeArgs.size();
+            List<AnnotatedTypeMirror> copyTypeArgs = new ArrayList<>(n);
+            for (int i = 0; i < n; i++) {
+                copyTypeArgs.add(visit(origTypeArgs.get(i), originalToCopy));
             }
             copy.setTypeArguments(copyTypeArgs);
         }

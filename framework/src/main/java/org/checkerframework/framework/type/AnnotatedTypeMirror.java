@@ -365,6 +365,9 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     // typetools: getPrimaryAnnotations
     // typetools: removed method getPrimaryAnnotation
     public final AnnotationMirrorSet getAnnotations() {
+        if (primaryAnnotations.isEmpty()) {
+            return AnnotationMirrorSet.emptySet();
+        }
         return AnnotationMirrorSet.unmodifiableSet(primaryAnnotations);
     }
 

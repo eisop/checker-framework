@@ -15,7 +15,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcard
 import org.checkerframework.framework.util.AtmCombo;
 
 import java.util.IdentityHashMap;
-import java.util.Iterator;
+import java.util.List;
 
 /**
  * EquivalentAtmComboScanner is an AtmComboVisitor that accepts combinations that are identical in
@@ -61,30 +61,45 @@ public abstract class EquivalentAtmComboScanner<RETURN_TYPE, PARAM>
         return AtmCombo.accept(type1, type2, param, this);
     }
 
+    /**
+     * Scans {@code types1} and {@code types2} in parallel with the given parameter and returns the
+     * reduced result. Uses index-based access to avoid allocating iterators over the (typically
+     * unmodifiable) lists.
+     *
+     * @param types1 types to scan
+     * @param types2 types to scan paired with {@code types1}
+     * @param param the visitor parameter
+     * @return the reduced result of scanning all paired types, or {@code null} if both lists are
+     *     empty
+     */
     protected RETURN_TYPE scan(
-            Iterable<? extends AnnotatedTypeMirror> types1,
-            Iterable<? extends AnnotatedTypeMirror> types2,
+            List<? extends AnnotatedTypeMirror> types1,
+            List<? extends AnnotatedTypeMirror> types2,
             PARAM param) {
-        RETURN_TYPE r = null;
-        boolean first = true;
-
-        Iterator<? extends AnnotatedTypeMirror> tIter1 = types1.iterator();
-        Iterator<? extends AnnotatedTypeMirror> tIter2 = types2.iterator();
-
-        while (tIter1.hasNext() && tIter2.hasNext()) {
-            AnnotatedTypeMirror type1 = tIter1.next();
-            AnnotatedTypeMirror type2 = tIter2.next();
-
-            r = (first ? scan(type1, type2, param) : scanAndReduce(type1, type2, param, r));
-            first = false;
+        int n = Math.min(types1.size(), types2.size());
+        if (n == 0) {
+            return null;
         }
-
+        RETURN_TYPE r = scan(types1.get(0), types2.get(0), param);
+        for (int i = 1; i < n; ++i) {
+            r = scanAndReduce(types1.get(i), types2.get(i), param, r);
+        }
         return r;
     }
 
+    /**
+     * Scans {@code types1} and {@code types2} in parallel with the given parameter and reduces the
+     * result with {@code r}.
+     *
+     * @param types1 types to scan
+     * @param types2 types to scan paired with {@code types1}
+     * @param param the visitor parameter
+     * @param r result to combine with the result of scanning the paired types
+     * @return the combination of {@code r} with the result of scanning all paired types
+     */
     protected RETURN_TYPE scanAndReduce(
-            Iterable<? extends AnnotatedTypeMirror> types1,
-            Iterable<? extends AnnotatedTypeMirror> types2,
+            List<? extends AnnotatedTypeMirror> types1,
+            List<? extends AnnotatedTypeMirror> types2,
             PARAM param,
             RETURN_TYPE r) {
         return reduce(scan(types1, types2, param), r);

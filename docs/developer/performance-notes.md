@@ -60,6 +60,15 @@ so small per-call wins paid back substantially.
   `DefaultQualifierForUseTypeAnnotator`, `AnnotatedTypeScanner`,
   `QualifierDefaults`, `AnnotationUtils`, `ElementUtils`,
   `TypeKindUtils`, and two `typeinference8` files.
+- **PR #1763** — *Constant `getKind()` overrides in ATM subclasses.* Added
+  `@Override getKind()` returning the fixed `TypeKind` to every fixed-kind
+  subclass: `AnnotatedDeclaredType`, `AnnotatedArrayType`,
+  `AnnotatedExecutableType`, `AnnotatedTypeVariable`, `AnnotatedNullType`,
+  `AnnotatedWildcardType`, `AnnotatedIntersectionType`, `AnnotatedUnionType`.
+  Eliminates the heap hop through `underlyingType.getKind()`; on declared types
+  that call includes `Symbol#apiComplete`. Only `AnnotatedPrimitiveType` and
+  `AnnotatedNoType` fall through to the base, where the underlying `getKind()`
+  is cheap.
 
 ### `AnnotationMirrorSet` and annotation utilities
 
@@ -78,6 +87,26 @@ so small per-call wins paid back substantially.
   it. `Name` instances from the same `Elements` are guaranteed
   comparable by `==` within one javac invocation.
 
+### `AnnotatedTypeScanner` iterator allocation
+
+- **PR #1775** — *`scan`/`scanAndReduce` List overloads and `AnnotatedTypeCopier`
+  index-based iteration.* Added `protected R scan(List<? extends ATM>, P)` and
+  `protected R scanAndReduce(List<? extends ATM>, P, R)` overloads to
+  `AnnotatedTypeScanner`. Java overload resolution prefers these over the
+  `Iterable` versions, so all existing call sites in `visitDeclared`,
+  `visitExecutable`, `visitIntersection`, and `visitUnion` automatically use
+  index-based `list.get(i)` instead of an enhanced-for loop. Also changed
+  `AnnotatedTypeCopier.visitDeclared` to iterate the raw `typeArgs` field
+  (package-private, same package) by index instead of calling
+  `getTypeArguments()` (which wraps in an unmodifiable list) and iterating
+  with for-each. Combined JFR impact on `allNullnessTests -PmaxParallelForks=1`:
+  `Collections$UnmodifiableCollection$1` TLAB events dropped from 3,113 (1.8%)
+  to zero; `ArrayList$Itr` TLAB events dropped from 11,471 (6.7%) to 5,332
+  (3.2%); total TLAB event count dropped 3.1% (171,829 → 166,464). Also added
+  an `isEmpty()` short-circuit to `AnnotatedTypeMirror.getAnnotations()` that
+  returns the shared `emptySet()` sentinel when `primaryAnnotations` is empty,
+  avoiding a fresh `AnnotationMirrorSet` allocation for unannotated types.
+
 ### `AnnotatedTypeScanner` and visitor state
 
 - **PR #1646** — *Only reset the visitedNodes if they are not empty.*
@@ -86,6 +115,18 @@ so small per-call wins paid back substantially.
 - **PR #1671** — *Increase the `AnnotatedTypeScanner#visitedNodes`
   map size.* Pre-sizes the `IdentityHashMap` to 64 to eliminate the
   early-resize storms previously visible in allocation profiles.
+- **Re-measured June 2026** — `reset()` uses `new IdentityHashMap<>(VISITED_NODES_EXPECTED_MAX_SIZE)`
+  rather than `clear()`. Leaf-frame self-time on `allNullnessTests -PmaxParallelForks=1`:
+  `IdentityHashMap.clear` = 3.42% (668/19479 samples); `IdentityHashMap.init` net after
+  background subtraction ≈ 1.27% (456 total − 180 background = 276 samples, /20809).
+  `clear()` wins on object allocation (1.09% vs 1.48% of TLAB events) but loses on CPU:
+  `IdentityHashMap.clear()` walks all 128 table slots explicitly in Java; TLAB allocation
+  uses JVM bulk zeroing. The pre-sizing in PR #1671 is what makes `clear()` more expensive —
+  pre-sizing enlarged the array that must be explicitly zeroed.
+- **PR #1763** — *Pre-sized `ArrayList` copies in `AnnotatedTypeCopier`.* Replaced
+  `CollectionsPlume.mapList` lambda calls with direct pre-sized `new ArrayList<>(size)` loops.
+  Removes lambda-dispatch overhead and allocates the destination list at the correct capacity
+  immediately, avoiding internal growth copies.
 
 ### Element and name caching
 
@@ -102,6 +143,10 @@ so small per-call wins paid back substantially.
   stub parser, etc.) through it. Also removes the now-redundant
   `AnnotationUtils#annotationNameInterned` — `annotationName` itself
   now returns an interned name. See CHANGELOG note.
+- **PR #1763** — *`ElementUtils.parentPackage` fast path.* When the `PackageElement` is a
+  javac `Symbol.PackageSymbol`, reads the enclosing package directly from the `owner` field
+  instead of calling `Elements#getPackageElement(String)`. Falls back to the original
+  string-based lookup for non-javac implementations.
 
 ### Cache sizes and synchronization
 
@@ -124,6 +169,9 @@ so small per-call wins paid back substantially.
   lookups in `findAnnotationInSameHierarchy` and adjacent hot paths.
   Made `elements` field protected so subclass hierarchies can extend
   the same caching pattern.
+- **PR #1763** — *Empty-collection early-out in `ElementQualifierHierarchy`.* Added an
+  `annos.isEmpty()` guard at the top of `findAnnotationInSameHierarchy` to return immediately
+  without entering the qualifier-kind lookup loop.
 
 ### Dataflow expressions
 
@@ -135,6 +183,12 @@ so small per-call wins paid back substantially.
   gap; `FieldAccess` and similar pay +8 bytes. Peak overhead measured
   at ~128 bytes for a large method, well worth the savings on store-
   comparison hot paths.
+- **PR #1765** — *`BinaryOperation.hashCode` symmetry fix.* For commutative operations,
+  `equals()` ignores operand order; the hash code must match. Replaced the
+  order-dependent `Objects.hash(kind, left, right)` with
+  `Objects.hash(kind, left.hashCode() + right.hashCode())` so that `a OP b`
+  and `b OP a` hash identically. This is a correctness fix for the `equals`/`hashCode`
+  contract that also improves cache hit rates for commutative expressions.
 
 ### Dataflow stores, analysis, and transfer
 
@@ -177,6 +231,15 @@ so small per-call wins paid back substantially.
   discarded. Wrapped in `if (debug)` guards where present.
 - **PR #1695** — *Optimize `TreePathCacher` usage.* Avoid recomputing
   `TreePath` when the cache already has the answer.
+- **PR #1763** — *`TreePathCacher` control-flow exception optimization.* The
+  `Result` exception used for non-local exit is constructed with
+  `super(null, null, false, false)` to suppress stack-trace generation; the
+  exception is caught two frames up and never logged or rethrown.
+- **PR #1765** — *`entrySet()` iteration over `keySet() + get()`.* Applied the
+  pattern across `UBQualifier`, `LockAnnotatedTypeFactory`, `MustCallInference`,
+  and `AnnotationConverter`: iterate `map.entrySet()` instead of `map.keySet()`
+  followed by `map.get(key)`, eliminating a redundant second hash lookup per
+  iteration.
 
 ### Value Checker
 
@@ -238,6 +301,13 @@ mix of perf, clarification, and small correctness fixes:
   `DefaultQualifierForUseTypeAnnotator`, `ListTypeAnnotator`).
 - **PR #1727** — framework/util/defaults (`Default`,
   `QualifierDefaults`).
+- **PR #1763** — *Mixed performance tweaks.* `AnnotationFileParser`: skips JavaToken
+  retention for JDK stubs via a new `parseStubUnitForJdk()` path (user stubs still use
+  the full diagnostic-quality parser). `DefaultQualifierForUseTypeAnnotator`: added an
+  empty-set early-out before `addMissingAnnotations` and canonicalized empty results to
+  the shared `AnnotationMirrorSet.emptySet()` sentinel, avoiding a retained backing
+  `ArrayList` per cached element. `QualifierDefaults.shouldBeAnnotated`: hoisted repeated
+  `getKind()` calls into a local.
 
 ### Correctness fixes adjacent to the perf work
 
@@ -250,6 +320,11 @@ auditing the same files.
 - **PR #1690** — *Change `catch Throwable` to `catch Exception`* in
   several framework call sites. `Throwable` accidentally suppressed
   things like `OutOfMemoryError` and `ThreadDeath`.
+- **PR #1765** — *`ElementUtils.hasParameters` name-form fix.* Replaced
+  `Class.getName()` (JVM binary form: `"java.util.Map$Entry"`) with
+  `getCanonicalName()` (source form: `"java.util.Map.Entry"`) when matching
+  against `TypeMirror.toString()`. Previously, nested classes and array types
+  could be silently mismatched. Surfaced during the performance review sweep.
 
 ---
 
@@ -265,11 +340,15 @@ the prior finding. A fresh hypothesis is not new evidence.
 - **`CFAbstractStore.copyMap` allocation avoidance.** `new HashMap<>(emptyMap)`
   and `new HashMap<>()` produce identical JIT output once the map is
   written to; the "savings" were illusory.
-- **Reallocating `AnnotatedTypeScanner.visitedNodes` on reset** (the
-  pre-PR-#1646 / pre-PR-#1671 direction). An older comment cited
-  measurements favoring reallocation; current G1/ZGC make `clear()`
-  cheaper, and pre-sizing eliminates the resize cost reallocation was
-  trying to avoid. See applied section.
+- **`clear()` on `AnnotatedTypeScanner.visitedNodes` in `reset()`.**
+  Tried as an alternative to reallocating. An earlier note (written without
+  fresh measurement data) claimed G1/ZGC makes `clear()` cheaper. Re-measured
+  June 2026 on `allNullnessTests -PmaxParallelForks=1`: `IdentityHashMap.clear`
+  consumed 3.42% of leaf-frame samples vs ≈1.27% net for reallocation. The
+  pre-sizing from PR #1671 is what makes `clear()` lose: it enlarged the
+  array to 128 slots that `clear()` must zero via an explicit Java loop,
+  while TLAB allocation for the same array uses JVM bulk zeroing. See the
+  applied section for the current measured numbers.
 - **Converting `visitedNodes` from `IdentityHashMap` to `HashMap`.**
   Identity is required for correctness — distinct ATM instances
   representing the same Java type must be visited separately to break
@@ -284,6 +363,25 @@ the prior finding. A fresh hypothesis is not new evidence.
   threading audit confirmed AT factories are confined to the javac
   main thread. Plain `IdentityHashMap` shipped instead, matching every
   other LRU cache on the same object.
+- **`==` fast-path in `isSupportedQualifier` before the `Set` lookup.**
+  Raised on the short list (after PR #1673 interned annotation names)
+  on the theory that a reference-equality check would skip the hash
+  computation entirely. Investigation showed the premise is wrong twice
+  over. First, `String` caches its own hash code, so the hash is not
+  recomputed across the repeated interned-name lookups on this path.
+  Second, the backing set is *already* interned: it is built from
+  `Class.getCanonicalName()`, and for the packaged top-level annotation
+  types that qualifiers always are, the canonical name equals the binary
+  name returned by `Class.getName()`, which the JVM interns. So
+  `getSupportedTypeQualifierNames().contains(annotationName(a))` already
+  matches by reference inside `String.equals`'s identity short-circuit;
+  there is no slow `equals` to skip. An isolated JDK micro-benchmark
+  (HotSpot 21) confirmed the current `HashSet.contains` of an interned
+  key runs at ~2.7 ns/op, identical to an interned-set variant, while a
+  linear `==` scan only edges it out below ~5 qualifiers and loses past
+  that. The linear-scan variant also gives up the public `Set<String>`
+  return type of `getSupportedTypeQualifierNames` and adds a correctness
+  dependency on every caller passing an interned string. Not worth it.
 
 ---
 
@@ -292,18 +390,50 @@ the prior finding. A fresh hypothesis is not new evidence.
 Candidates raised in profiling sessions but not yet implemented. Capture
 format: hot method, hypothesis, blockers/open questions.
 
-- **`TypeKind` as a field on `AnnotatedTypeMirror`.** Most callers of
-  `getKind()` go through the underlying `TypeMirror`, which is itself
-  a heap hop. Caching the `TypeKind` as a field on the ATM saves the
-  indirection. Memory cost analyzed at roughly 8 MB at 10⁶ live ATMs,
-  which is acceptable but warrants an A/B benchmark before commit.
-- **Fast-path in `isSupportedQualifier` for interned strings.** After
-  PR #1673, annotation names are interned; an `==` short-circuit
-  before the `Set` lookup should be free at runtime and skip the hash
-  computation entirely.
-- **Pre-sizing `AnnotatedTypeCopier`'s per-visit map.** Same pattern
-  as `AnnotatedTypeScanner.visitedNodes` (PR #1671), unverified on a
-  fresh trace.
+A May 2026 review closed out every item previously on this list:
+
+- **`TypeKind` as a field on `AnnotatedTypeMirror`** — *superseded, do not
+  implement.* The goal (avoid the heap hop through `underlyingType.getKind()`)
+  is already met by a cheaper mechanism: every subclass whose kind is constant
+  (`AnnotatedDeclaredType`, `AnnotatedArrayType`, `AnnotatedExecutableType`,
+  `AnnotatedTypeVariable`, `AnnotatedNullType`, `AnnotatedWildcardType`,
+  `AnnotatedIntersectionType`, `AnnotatedUnionType`) overrides `getKind()` to
+  return the constant inline. That costs zero memory and zero indirection,
+  strictly better than the proposed ~8 MB field. Only `AnnotatedPrimitiveType`
+  and `AnnotatedNoType` fall through to the base method, and for them
+  `underlyingType.getKind()` is cheap and does not force symbol completion (see
+  the doc comment on the base `getKind()`).
+- **Pre-sizing `AnnotatedTypeCopier`'s per-visit map** — *already done.*
+  `AnnotatedTypeCopier.visit` constructs its `IdentityHashMap` with
+  `AnnotatedTypeScanner.VISITED_NODES_EXPECTED_MAX_SIZE` (64), the same
+  pre-sizing as `AnnotatedTypeScanner.visitedNodes`.
+- **`==` fast-path in `isSupportedQualifier`** — *rejected;* see the Tried and
+  rejected section for the measurement.
+
+The items above were each closed during the May 2026 review. One new candidate
+is currently open; add others below as profiling surfaces them, with the
+capture format above.
+
+- **`ElementUtils.qualifiedNameCache` backing map.** Hot method
+  (`getQualifiedName` underlies `annotationName`, `getBinaryName`, the `isX`
+  type predicates, etc.). Today it is a
+  `Collections.synchronizedMap(new WeakHashMap<>())`, and an inline TODO already
+  asks whether an `IdentityHashMap` would be better. Two separable costs on the
+  hot path: (1) the `synchronizedMap` lock on every `get`/`put`, and (2)
+  `WeakHashMap`'s reference-queue expunging plus a `WeakReference` allocation per
+  `put`. javac `Symbol`s use identity `equals`/`hashCode`, so the key semantics
+  would not change. Open questions, none answerable without measurement: the lock
+  cannot be dropped without auditing every reachable thread, and a static cache is
+  more exposed than the per-factory field the campaign already de-synchronized;
+  the language server and the Gradle daemon run analyses in long-lived JVMs, where
+  weak keys let old compilations' `Symbol`s be collected — a strong
+  `IdentityHashMap` would retain them. **JFR capture (June 2026,
+  `allNullnessTests -PmaxParallelForks=1`)** confirmed the lock/expunge cost:
+  `WeakHashMap.get` via `Collections$SynchronizedMap.get` appeared at 110/18,969
+  execution samples (0.58%), with callers split across `annotationName`,
+  `isSupportedQualifier`, `AnnotationFileElementTypes`, and
+  `normalizeAndCheck`. Still needs the thread-reachability audit and daemon/LSP
+  memory analysis before any change.
 
 ---
 
